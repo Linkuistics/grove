@@ -86,10 +86,13 @@ integrate step and no backward edge.
 
 ## Carried forward from the draft's first slice
 
-- **The structure brief says four dependencies; the manifest declares five**, and
-  chapter 1 says five. `structure-brief-dependency-count-k132` corrects the
-  brief. A later stage that reconciles the page to the brief would introduce the
-  error rather than remove it.
+- **The dependency count is settled at five, in the brief and on the page.** The
+  structure brief said four where the manifest declares five;
+  `structure-brief-dependency-count-k132` corrected the brief, which now states
+  five in both places, names the four that carry a reason in situ, and says what
+  `jj-workspace` — the fifth, which carries none — is reached for. The two now
+  agree, so a later stage reconciling the page to the brief no longer risks
+  introducing the error.
 - **The book's row in `docs/ARCHITECTURE.md`'s *Documentation ownership* table
   is in**, in the wording the structure brief carries. Nothing else outside the
   book is owed, and no glossary promotion was owed: all twelve declared anchors

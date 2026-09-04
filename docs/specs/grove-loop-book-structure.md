@@ -255,13 +255,20 @@ in the reader's own terms, and which no other book reserves.
 
 **The rule: this is the one crate in the workspace that is allowed to mean
 something.** `Cargo.toml` and `lib.rs` are the crate's own statement of that,
-and the chapter reproduces both whole. The manifest's four dependencies each
-carry their reason in situ — `anyhow` internal only, so a consumer takes on no
-error library; `libc` for the `flock(2)` contention probe alone;
-`keyed-launch` reached by exactly one verb; `ordinal-fs-tree` with
-`default-features = false`, so the dependency set this crate *imposes* is exactly
-`libc` — and `tests/library_dependency.rs` holds that last claim against `cargo
-metadata` rather than leaving it as a comment.
+and the chapter reproduces both whole. The manifest's `[dependencies]` table
+declares **five**, and four of them carry their reason in situ — `anyhow`
+internal only, so a consumer takes on no error library; `libc` for the
+`flock(2)` contention probe alone; `keyed-launch` reached by exactly one verb;
+`ordinal-fs-tree` with `default-features = false`, so the dependency set this
+crate *imposes* is exactly `libc` — and `tests/library_dependency.rs` holds that
+last claim against `cargo metadata` rather than leaving it as a comment. The
+fifth is `jj-workspace`, and it has no clause of its own: the comment accounts
+for it only as one of *the three modules it composes*. That is a gap in the
+manifest's own account rather than an incidental omission, because
+`jj-workspace` is the crate's version-control seam — `tree_lifecycle.rs`,
+`driver_lease.rs`, `prompt.rs`, `session_config.rs` and `loop_driver.rs` all
+`use` it directly, and `lib.rs` re-exports `Commit` and `Workspace` — so the
+chapter says what it is reached for where the manifest does not.
 
 From `lib.rs`: the module list, `VERSION`, the *Opening mirrors the store's* and
 *Three shapes* theses, the one-error rule, and the `<worktree>/.grove` join that
@@ -692,7 +699,7 @@ not is not this book's.
 
 | Chapter | Anchor | Starts from | Observable end |
 |---:|---|---|---|
-| 1 | the crate's own map | `Cargo.toml` and `lib.rs` | the twelve verbs, four dependencies and one error, named |
+| 1 | the crate's own map | `Cargo.toml` and `lib.rs` | the twelve verbs, five dependencies and one error, named |
 | 2 | `01-requirements--plan-k1.md` | a directory listing | one of four verdicts, and a malformed name is not skipped |
 | 3 | `plan-k1` | the name, peeled | the handle carries slug and key; `01-` is not in it |
 | 4 | `01-requirements--plan-k1.md` | parsed | rendered back byte-identical, or refused as uncomputable |

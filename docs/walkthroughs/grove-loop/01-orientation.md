@@ -1,6 +1,6 @@
 # Orientation
 <!-- book-page id="orientation" slice="allowed-to-mean" order="1" -->
-[Contents](README.md)
+[Contents](README.md) | [Next: The tokens, and the four verdicts](02-the-tokens.md)
 
 <a id="allowed-to-mean"></a>
 ## What this crate is allowed to mean
@@ -1034,4 +1034,4 @@ passages and proved nowhere yet. Chapter 2 takes the first step, at the narrowes
 claim can be checked — a name on disk, and the four verdicts grove can reach
 about it.
 
-[Contents](README.md)
+[Contents](README.md) | [Next: The tokens, and the four verdicts](02-the-tokens.md)

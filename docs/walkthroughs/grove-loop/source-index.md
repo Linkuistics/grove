@@ -29,13 +29,13 @@
 <!-- insert «library-root» -->
 <!-- /source-root -->
 <!-- source-root «source-task-name» source="crates/grove-loop/src/task_name.rs" lines="1-1714" -->
-<!-- defer «tokens-and-verdicts» owner="four-verdicts" lines="1-220" -->
+<!-- insert «tokens-and-verdicts» -->
 <!-- defer «kind-slug-and-handle» owner="the-handle-not-the-position" lines="221-590" -->
 <!-- defer «the-task-name» owner="canonical-or-nothing" lines="591-1020" -->
 <!-- defer «name-test-support-and-kit» owner="canonical-or-nothing" lines="1021-1177" -->
-<!-- defer «classification-verdict-tests» owner="four-verdicts" lines="1178-1199" -->
+<!-- insert «classification-verdict-tests» -->
 <!-- defer «grammar-and-canonicity-tests» owner="canonical-or-nothing" lines="1200-1312" -->
-<!-- defer «shape-refusal-tests» owner="four-verdicts" lines="1313-1521" -->
+<!-- insert «shape-refusal-tests» -->
 <!-- defer «slug-rule-tests» owner="the-handle-not-the-position" lines="1522-1550" -->
 <!-- defer «handle-grammar-tests» owner="the-handle-not-the-position" lines="1551-1714" -->
 <!-- /source-root -->
@@ -95,13 +95,13 @@
 |---|---|---|---|---|---|
 | `manifest-domain-bound` | `source-crate-manifest` | `allowed-to-mean` | `1-59` | 59 | `resolved` |
 | `library-root` | `source-library-root` | `allowed-to-mean` | `1-377` | 377 | `resolved` |
-| `tokens-and-verdicts` | `source-task-name` | `four-verdicts` | `1-220` | 220 | `deferred` |
+| `tokens-and-verdicts` | `source-task-name` | `four-verdicts` | `1-220` | 220 | `resolved` |
 | `kind-slug-and-handle` | `source-task-name` | `the-handle-not-the-position` | `221-590` | 370 | `deferred` |
 | `the-task-name` | `source-task-name` | `canonical-or-nothing` | `591-1020` | 430 | `deferred` |
 | `name-test-support-and-kit` | `source-task-name` | `canonical-or-nothing` | `1021-1177` | 157 | `deferred` |
-| `classification-verdict-tests` | `source-task-name` | `four-verdicts` | `1178-1199` | 22 | `deferred` |
+| `classification-verdict-tests` | `source-task-name` | `four-verdicts` | `1178-1199` | 22 | `resolved` |
 | `grammar-and-canonicity-tests` | `source-task-name` | `canonical-or-nothing` | `1200-1312` | 113 | `deferred` |
-| `shape-refusal-tests` | `source-task-name` | `four-verdicts` | `1313-1521` | 209 | `deferred` |
+| `shape-refusal-tests` | `source-task-name` | `four-verdicts` | `1313-1521` | 209 | `resolved` |
 | `slug-rule-tests` | `source-task-name` | `the-handle-not-the-position` | `1522-1550` | 29 | `deferred` |
 | `handle-grammar-tests` | `source-task-name` | `the-handle-not-the-position` | `1551-1714` | 164 | `deferred` |
 | `tree-opening` | `source-task-tree` | `one-spelling-of-grove` | `1-290` | 290 | `deferred` |
@@ -168,6 +168,33 @@
 | `library-root-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `333-351` | `library-root` | `—` |
 | `library-root-error-traits` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `352-377` | `library-root` | `—` |
 | `source-task-name` | `source-index` | `source-task-name` | `root` | `—` | `1-1714` | `—` | `tokens-and-verdicts`, `kind-slug-and-handle`, `the-task-name`, `name-test-support-and-kit`, `classification-verdict-tests`, `grammar-and-canonicity-tests`, `shape-refusal-tests`, `slug-rule-tests`, `handle-grammar-tests` |
+| `name-the-only-grammar` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1-12` | `tokens-and-verdicts` | `—` |
+| `tokens-and-verdicts` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1-220` | `source-task-name` | `name-the-only-grammar`, `name-three-on-disk-shapes`, `name-canonicity-departure`, `name-no-caller-hands-a-path`, `name-classification-loses-data`, `name-both-words-one-rule`, `name-handle-is-this-grammar`, `name-handle-terminal-substring`, `name-imports`, `name-brief-and-key-mark`, `name-separator`, `name-outcome`, `name-outcome-infix-and-strip`, `name-token-error`, `name-token-error-traits`, `name-refuse-token` |
+| `name-three-on-disk-shapes` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `13-21` | `tokens-and-verdicts` | `—` |
+| `name-canonicity-departure` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `22-31` | `tokens-and-verdicts` | `—` |
+| `name-no-caller-hands-a-path` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `32-37` | `tokens-and-verdicts` | `—` |
+| `name-classification-loses-data` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `38-47` | `tokens-and-verdicts` | `—` |
+| `name-both-words-one-rule` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `48-56` | `tokens-and-verdicts` | `—` |
+| `name-handle-is-this-grammar` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `57-70` | `tokens-and-verdicts` | `—` |
+| `name-handle-terminal-substring` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `71-76` | `tokens-and-verdicts` | `—` |
+| `name-imports` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `77-82` | `tokens-and-verdicts` | `—` |
+| `name-brief-and-key-mark` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `83-91` | `tokens-and-verdicts` | `—` |
+| `name-separator` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `92-104` | `tokens-and-verdicts` | `—` |
+| `name-outcome` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `105-120` | `tokens-and-verdicts` | `—` |
+| `name-outcome-infix-and-strip` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `121-148` | `tokens-and-verdicts` | `—` |
+| `name-token-error` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `149-165` | `tokens-and-verdicts` | `—` |
+| `name-token-error-traits` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `166-173` | `tokens-and-verdicts` | `—` |
+| `name-refuse-token` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `174-220` | `tokens-and-verdicts` | `—` |
+| `name-tests-the-charter` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1178-1185` | `classification-verdict-tests` | `—` |
+| `classification-verdict-tests` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1178-1199` | `source-task-name` | `name-tests-the-charter`, `name-tests-foreign` |
+| `name-tests-foreign` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1186-1199` | `classification-verdict-tests` | `—` |
+| `name-tests-kind-not-a-token` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1313-1358` | `shape-refusal-tests` | `—` |
+| `shape-refusal-tests` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1313-1521` | `source-task-name` | `name-tests-kind-not-a-token`, `name-tests-missing-separator`, `name-tests-one-reading`, `name-tests-node-wearing-outcome`, `name-tests-bad-slug`, `name-tests-species-mismatch` |
+| `name-tests-missing-separator` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1359-1395` | `shape-refusal-tests` | `—` |
+| `name-tests-one-reading` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1396-1457` | `shape-refusal-tests` | `—` |
+| `name-tests-node-wearing-outcome` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1458-1481` | `shape-refusal-tests` | `—` |
+| `name-tests-bad-slug` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1482-1497` | `shape-refusal-tests` | `—` |
+| `name-tests-species-mismatch` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1498-1521` | `shape-refusal-tests` | `—` |
 | `source-task-tree` | `source-index` | `source-task-tree` | `root` | `—` | `1-2023` | `—` | `tree-opening`, `paths-and-addressing`, `walk-selection`, `kind-and-brief-chain`, `resolution`, `path-composition-tests`, `pick-tests`, `brief-chain-and-kind-tests`, `resolve-tests`, `pick-with-brief-chain-tests` |
 | `source-task-grow` | `source-index` | `source-task-grow` | `root` | `—` | `1-518` | `—` | `growing-the-tree` |
 | `source-tree-lifecycle` | `source-index` | `source-tree-lifecycle` | `root` | `—` | `1-2725` | `—` | `finish-transition`, `grove-beginning`, `decompose-production`, `outcomes-in-place`, `body-helpers`, `root-init-tests`, `finish-tests`, `decompose-tests`, `retire-and-prune-tests` |
@@ -184,7 +211,7 @@
 
 | Symbol family | First use | Owner | Minimum local statement | Status |
 |---|---|---|---|---|
-| `Outcome`, `TokenError` | `01-orientation.md#the-cast` | `four-verdicts` | The terminal marks a name can carry — `DONE` and `ABANDONED` — and the refusal a token that is not well-formed produces. | `pending` |
+| `Outcome`, `TokenError` | `01-orientation.md#the-cast` | `four-verdicts` | The terminal marks a name can carry — `DONE` and `ABANDONED` — and the refusal a token that is not well-formed produces. | `explained` |
 | `Handle`, `HandleError`, `Kind`, `Parts`, `Slug` | `01-orientation.md#the-cast` | `the-handle-not-the-position` | The named parts of a task name: a kind token, a slug, and the `<slug>-k<key>` handle that is the entry's identity. `Parts` is the set of them a positioned name decomposes into. | `pending` |
 | `TaskName` | `01-orientation.md#the-cast` | `canonical-or-nothing` | One parsed entry name, which renders back to the bytes it was parsed from or refuses to be computed at all. | `pending` |
 | `Tree`, `Vacancy`, `task_tree::Guard`, `task_tree::write` | `01-orientation.md#the-cast` | `one-spelling-of-grove` | The tree read under the store's shared lock; the lock over a root that holds no tree; the store guard one mutation consumes; and the reopening a `TreeWrite` performs when it no longer holds one. | `pending` |
@@ -197,7 +224,10 @@
 | `SessionConfig`, `TemplateSource` | `01-orientation.md#the-cast` | `whose-file-and-whether` | Whose configuration file a launch is expanded from, and whether a second one beside it is admissible. | `pending` |
 | `compose`, `Mandate` | `01-orientation.md#the-cast` | `too-late-to-say-later` | The prompt a session is launched with, composed from the parts a skill cannot supply because by the time it could speak the moment has passed. | `pending` |
 | `run`, `LoopOutcome` | `01-orientation.md#the-cast` | `four-things-a-runner-cannot-choose` | The loop itself, and how it ends: relaunched with fresh context, stopped resumably, or interrupted. | `pending` |
+| `TaskName::distinguished` | `02-the-tokens.md#the-four-verdicts` | `canonical-or-nothing` | The associated function by which the domain advertises the name of a node's distinguished child. The classification test asserts that what `parse` makes of `BRIEF.md` and what the domain advertises are the same variant. | `pending` |
 | `TaskName`, `TaskNameError`, `Verdict`, `verdict`, `entry`, `malformed` | `02-the-tokens.md#the-four-verdicts` | `canonical-or-nothing` | The parsed name, its refusal type, the classification a caller reads, and the three test helpers that reach a verdict: the only way to a verdict is through the `EntryName` implementation chapter 4 owns. | `pending` |
+| `Parts::leaf` | `02-the-tokens.md#refusals-inside-the-shape` | `the-handle-not-the-position` | The constructor for the leaf half of `Parts`, taking an outcome, a session kind and a slug — the named parts a positioned leaf name decomposes into. | `pending` |
+| `a_kind`, `slug` | `02-the-tokens.md#refusals-inside-the-shape` | `canonical-or-nothing` | Two test helpers defined beside the conformance kit: each takes a label, builds the token type it names, and panics if the label is not well-formed, so an invalid fixture is a test bug rather than a compile error. | `pending` |
 | `TaskName::compose`, `impl Display for TaskName` | `03-kind-slug-handle.md#the-handle-is-the-identity` | `canonical-or-nothing` | Composition builds a positioned name from a position, a kind, a slug and a key; `Display` renders one back. The handle's structural claim can only be asserted over a rendered whole name. | `pending` |
 | `entry_path` | `05-opening.md#one-spelling-of-the-root` | `paths-are-built-here` | The one place an entry's absolute path is built, because the store returns no paths. Chapter 5 reproduces the module header that says so; chapter 6 reads the function. | `pending` |
 

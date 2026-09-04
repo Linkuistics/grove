@@ -79,7 +79,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 ## Contents
 
 1. [Orientation](01-orientation.md)
-2. The tokens, and the four verdicts
+2. [The tokens, and the four verdicts](02-the-tokens.md)
 3. Kind, slug, handle
 4. The name, and canonicity
 5. Opening, contention and refusal

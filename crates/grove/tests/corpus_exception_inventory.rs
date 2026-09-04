@@ -127,11 +127,12 @@ fn book_roots() -> Vec<String> {
 
 #[test]
 fn every_books_corpus_exceptions_are_exactly_the_specifications_inventory() {
-    // Per book, and only for books that exist. The inventory deliberately
-    // carries rows for deliverables this campaign has not written yet — those
-    // are forward commitments, checked by the test below, and a row nobody can
-    // claim is not a disagreement. Once a book's directory exists, every row
-    // naming it binds in both directions.
+    // Per book, and only for books that exist. A row may be written before its
+    // book — that is how this campaign's deliverables were commissioned — and a
+    // row nobody can claim yet is not a disagreement. Once a book's directory
+    // exists, every row naming it binds in both directions. Every row names an
+    // existing book today, so the filter currently removes nothing and this
+    // comparison is total (`forward-commitment-tests-k131`).
     let books: BTreeSet<String> = book_roots().into_iter().collect();
     let inventory: BTreeSet<Entry> = inventory()
         .into_iter()
@@ -149,27 +150,6 @@ fn every_books_corpus_exceptions_are_exactly_the_specifications_inventory() {
     assert!(
         unclaimed.is_empty(),
         "these rows of {SPECIFICATION} are claimed by no book's manifest: {unclaimed:#?}"
-    );
-}
-
-/// The inventory names books that do not exist yet, and that is the point: it
-/// is the campaign's forward commitment, so a book landing later cannot quietly
-/// widen its own corpus.
-///
-/// Without this the test above would still pass for a table whose future rows
-/// had been silently deleted along with the book that was going to carry them.
-#[test]
-fn the_inventory_covers_books_that_have_not_been_written_yet() {
-    let books: BTreeSet<String> = book_roots().into_iter().collect();
-    let promised: BTreeSet<String> = inventory()
-        .into_iter()
-        .map(|(book, ..)| book)
-        .filter(|book| !books.contains(book))
-        .collect();
-
-    assert!(
-        !promised.is_empty(),
-        "every inventory row names an existing book, so the table records no forward commitment"
     );
 }
 
@@ -254,24 +234,6 @@ fn every_books_subject_is_exactly_the_specifications_inventory() {
     assert!(
         unclaimed.is_empty(),
         "these rows of {SPECIFICATION} are claimed by no book's manifest: {unclaimed:#?}"
-    );
-}
-
-/// The subject table carries the campaign's unwritten deliverables too, so a
-/// book landing later is authored against a subject a second party already
-/// fixed rather than choosing one and having the table follow it.
-#[test]
-fn the_subject_inventory_covers_books_that_have_not_been_written_yet() {
-    let books: BTreeSet<String> = book_roots().into_iter().collect();
-    let promised: BTreeSet<String> = subject_inventory()
-        .into_iter()
-        .map(|(book, _)| book)
-        .filter(|book| !books.contains(book))
-        .collect();
-
-    assert!(
-        !promised.is_empty(),
-        "every subject row names an existing book, so the table records no forward commitment"
     );
 }
 

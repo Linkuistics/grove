@@ -29,6 +29,19 @@ runs them in.
   reporting. That fixture passes alone in 38s. A test that can wedge without a
   child to wait on is the same family of problem and belongs in this leaf's
   reading.
+- **Reproduced at `forward-commitment-tests-k131`, and one hypothesis measured
+  out.** A `scripts/check.sh` run wedged for over an hour in that same fixture,
+  with the `loop_driver` binary at 0% CPU and no children. The obvious suspect
+  was `GROVE_SIGNAL_FILE`, which is set in every session's environment; it is
+  **not** implicated. Run alone with the variable pointed at a scratch path, all
+  11 `loop_driver` fixtures pass in 41.5s and nothing writes the file; run alone
+  with it unset they pass in 39s; run under full workspace parallelism with it
+  unset, `an_orphaned_epoch_guard_...` and
+  `a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver`
+  both fail in 104s. Load is the whole variable, as this leaf already says. A
+  later full `scripts/check.sh` on an idle machine passed `cargo test`
+  outright — so the wedge is intermittent under load, not a hard stop, and a
+  green run is not evidence the deadline is adequate.
 
 ## Done when
 

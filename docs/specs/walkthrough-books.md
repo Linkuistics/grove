@@ -370,14 +370,22 @@ and this specification.
 | `jj-workspace` | `crates/jj-workspace` |
 | `keyed-launch` | `crates/keyed-launch` |
 
-The rows for books that do not exist yet are commitments, not descriptions: each
-of the campaign's five remaining deliverables is authored against the subject
-this table already fixes, including the book directory name it will take, rather
-than declaring one the table then follows. A repository test requires the two
-sides to agree per book for every book that exists, requires the table to keep
-carrying rows for books that do not, and holds the narrowing attack above as a
-case: it rewrites each manifest's `subject` one directory down, with the base
-patterns moved to match, and requires the result to disagree with this table.
+A row is written before its book, not after it: each of the campaign's
+deliverables was authored against the subject this table already fixed,
+including the book directory name it would take, rather than declaring one the
+table then followed. That commitment was held while it ran by a repository test
+requiring the table to keep carrying rows for books that did not exist yet, so
+that a future row could not be dropped along with the book that was going to
+carry it. Every row now names a book that exists, and a row naming an existing
+book falls inside the per-book comparison below, which reports it as unclaimed
+rather than passing over it — so the commitment is discharged and its test was
+retired with the last of those rows, at `forward-commitment-tests-k131`.
+
+What stands is the comparison itself. A repository test requires the two sides
+to agree per book for every book that exists, and holds the narrowing attack
+above as a case: it rewrites each manifest's `subject` one directory down, with
+the base patterns moved to match, and requires the result to disagree with this
+table.
 
 This is the same shape of agreement as the exception inventory below and lives in
 the same document for that reason. It is deliberately not folded into
@@ -391,8 +399,8 @@ are neighbours, not one obligation: the row is the book's declaration to a
 reader, and the table above is its agreement with a validator.
 
 **The corpus exception inventory.** These are the complete `[[corpus.add]]` and
-`[[corpus.exclude]]` entries every book in this repository may carry. The
-five campaign deliverables that appear in no row declare none.
+`[[corpus.exclude]]` entries every book in this repository may carry. A book
+that appears in no row declares none.
 
 | Book | Kind | Path | Class |
 |---|---|---|---|
@@ -415,7 +423,7 @@ a `book-check` diagnostic on purpose: `book-check` runs against one book
 directory and would be reading the book's own account of itself again, whereas
 this comparison is with a document the book does not own.
 
-Six rows is not the six sets of per-book tables the compiled design would have
+Seven rows is not the six sets of per-book tables the compiled design would have
 needed. The obligation that scales with the corpus — every root, every block —
 stays derived and per-book; only the exceptions, which derivation provably
 cannot check, are restated here, and they are few because the rule is good.

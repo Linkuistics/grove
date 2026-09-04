@@ -1,0 +1,533 @@
+schema = 1
+
+[book]
+id      = "grove-loop"
+title   = "grove-loop"
+subject = "crates/grove-loop"
+
+# The bare rule, with one exception. Six roots carry a `#[cfg(test)] mod tests`,
+# and five of those modules are inline — `tree_lifecycle.rs`, `task_tree.rs`,
+# `task_name.rs`, `driver_lease.rs` and `loop_driver.rs`, 3,984 lines in all —
+# and none of the five is excluded: a root is `src/**/*.rs`, so those lines are owned, reconstructed
+# and explained like any other. The one exclusion is
+# `src/task_grow/tests.rs`, whose file name is `tests.rs` and whose class the
+# validator therefore checks rather than believes; it is the row
+# `docs/specs/walkthrough-books.md`'s corpus exception inventory carries for this
+# book, and declaring any other exclusion would disagree with that table.
+# The sixth is `task_grow.rs`, whose two-line declaration names the external file
+# excluded below. `crates/grove-loop/tests/` is 3,457 lines over six files and is
+# evidence rather than corpus.
+[corpus]
+include = [
+  "crates/grove-loop/Cargo.toml",
+  "crates/grove-loop/src/**/*.rs",
+]
+
+[[corpus.exclude]]
+path   = "crates/grove-loop/src/task_grow/tests.rs"
+class  = "inline-test-module"
+reason = "inline test module for task_grow: 1,680 lines of evidence, cited by name in chapter 10 and not reproduced"
+
+[[page]]
+file  = "README.md"
+id    = "contents"
+title = "grove-loop"
+role  = "contents"
+
+[[page]]
+file  = "01-orientation.md"
+id    = "orientation"
+title = "Orientation"
+role  = "chapter"
+slice = "allowed-to-mean"
+
+[[page]]
+file  = "02-the-tokens.md"
+id    = "the-tokens"
+title = "The tokens, and the four verdicts"
+role  = "chapter"
+slice = "four-verdicts"
+
+[[page]]
+file  = "03-kind-slug-handle.md"
+id    = "kind-slug-handle"
+title = "Kind, slug, handle"
+role  = "chapter"
+slice = "the-handle-not-the-position"
+
+[[page]]
+file  = "04-the-name.md"
+id    = "the-name"
+title = "The name, and canonicity"
+role  = "chapter"
+slice = "canonical-or-nothing"
+
+[[page]]
+file  = "05-opening.md"
+id    = "opening"
+title = "Opening, contention and refusal"
+role  = "chapter"
+slice = "one-spelling-of-grove"
+
+[[page]]
+file  = "06-paths.md"
+id    = "paths"
+title = "Paths, and addressing"
+role  = "chapter"
+slice = "paths-are-built-here"
+
+[[page]]
+file  = "07-the-walk.md"
+id    = "the-walk"
+title = "The walk: pick and select"
+role  = "chapter"
+slice = "first-live-leaf"
+
+[[page]]
+file  = "08-kind-and-briefs.md"
+id    = "kind-and-briefs"
+title = "Kind, and the brief chain"
+role  = "chapter"
+slice = "root-to-leaf"
+
+[[page]]
+file  = "09-resolve.md"
+id    = "resolve"
+title = "Resolve"
+role  = "chapter"
+slice = "wider-than-a-key"
+
+[[page]]
+file  = "10-growing.md"
+id    = "growing"
+title = "Growing: leaf-add and leaf-insert"
+role  = "chapter"
+slice = "what-the-library-cannot-see"
+
+[[page]]
+file  = "11-a-grove-begins.md"
+id    = "a-grove-begins"
+title = "A grove begins"
+role  = "chapter"
+slice = "never-mistaken-for-finished"
+
+[[page]]
+file  = "12-leaf-to-node.md"
+id    = "leaf-to-node"
+title = "A leaf becomes a node"
+role  = "chapter"
+slice = "the-key-survives"
+
+[[page]]
+file  = "13-outcomes.md"
+id    = "outcomes"
+title = "Outcomes are marked in place"
+role  = "chapter"
+slice = "marked-in-place"
+
+[[page]]
+file  = "14-finishing.md"
+id    = "finishing"
+title = "Finishing"
+role  = "chapter"
+slice = "the-tree-deletes-itself"
+
+[[page]]
+file  = "15-the-verbs.md"
+id    = "the-verbs"
+title = "The twelve verbs, and the two that are not"
+role  = "chapter"
+slice = "twelve-not-fourteen"
+
+[[page]]
+file  = "16-the-lease.md"
+id    = "the-lease"
+title = "One live driver per working tree"
+role  = "chapter"
+slice = "one-per-working-tree"
+
+[[page]]
+file  = "17-the-epoch.md"
+id    = "the-epoch"
+title = "Which calls the lease admits"
+role  = "chapter"
+slice = "which-calls-are-admitted"
+
+[[page]]
+file  = "18-which-files.md"
+id    = "which-files"
+title = "Which files take part"
+role  = "chapter"
+slice = "whose-file-and-whether"
+
+[[page]]
+file  = "19-the-core.md"
+id    = "the-core"
+title = "The guaranteed core"
+role  = "chapter"
+slice = "too-late-to-say-later"
+
+[[page]]
+file  = "20-the-loop.md"
+id    = "the-loop"
+title = "The loop"
+role  = "chapter"
+slice = "four-things-a-runner-cannot-choose"
+
+[[page]]
+file  = "21-what-could-not-move.md"
+id    = "what-could-not-move"
+title = "What could not move"
+role  = "chapter"
+slice = "assembly"
+
+[[page]]
+file  = "concept-index.md"
+id    = "concept-index"
+title = "Concept index"
+role  = "lookup"
+
+[[page]]
+file  = "source-index.md"
+id    = "source-index"
+title = "Source index"
+role  = "lookup"
+
+# The roots are declared in the book's conceptual order, which is the seam order
+# the spine names: grove's grammar, then grove's walk, then what the store has no
+# word for, then the surface, then what a runner cannot choose. Every derived
+# table — the source index, the ownership ledger, the fragment index — sorts by
+# manifest root order, so this is the order a reader meets them in.
+[[root]]
+id    = "source-crate-manifest"
+path  = "crates/grove-loop/Cargo.toml"
+lines = 59
+
+[[root]]
+id    = "source-library-root"
+path  = "crates/grove-loop/src/lib.rs"
+lines = 377
+
+[[root]]
+id    = "source-task-name"
+path  = "crates/grove-loop/src/task_name.rs"
+lines = 1714
+
+[[root]]
+id    = "source-task-tree"
+path  = "crates/grove-loop/src/task_tree.rs"
+lines = 2023
+
+[[root]]
+id    = "source-task-grow"
+path  = "crates/grove-loop/src/task_grow.rs"
+lines = 518
+
+[[root]]
+id    = "source-tree-lifecycle"
+path  = "crates/grove-loop/src/tree_lifecycle.rs"
+lines = 2725
+
+[[root]]
+id    = "source-verbs"
+path  = "crates/grove-loop/src/verbs.rs"
+lines = 363
+
+[[root]]
+id    = "source-driver"
+path  = "crates/grove-loop/src/driver.rs"
+lines = 57
+
+[[root]]
+id    = "source-complete"
+path  = "crates/grove-loop/src/complete.rs"
+lines = 96
+
+[[root]]
+id    = "source-driver-lease"
+path  = "crates/grove-loop/src/driver_lease.rs"
+lines = 1383
+
+[[root]]
+id    = "source-session-config"
+path  = "crates/grove-loop/src/session_config.rs"
+lines = 358
+
+[[root]]
+id    = "source-prompt"
+path  = "crates/grove-loop/src/prompt.rs"
+lines = 245
+
+[[root]]
+id    = "source-loop-driver"
+path  = "crates/grove-loop/src/loop_driver.rs"
+lines = 615
+
+[[block]]
+id    = "manifest-domain-bound"
+root  = "source-crate-manifest"
+owner = "allowed-to-mean"
+lines = "1-59"
+
+[[block]]
+id    = "library-root"
+root  = "source-library-root"
+owner = "allowed-to-mean"
+lines = "1-377"
+
+[[block]]
+id    = "tokens-and-verdicts"
+root  = "source-task-name"
+owner = "four-verdicts"
+lines = "1-220"
+
+[[block]]
+id    = "kind-slug-and-handle"
+root  = "source-task-name"
+owner = "the-handle-not-the-position"
+lines = "221-590"
+
+[[block]]
+id    = "the-task-name"
+root  = "source-task-name"
+owner = "canonical-or-nothing"
+lines = "591-1020"
+
+[[block]]
+id    = "name-test-support-and-kit"
+root  = "source-task-name"
+owner = "canonical-or-nothing"
+lines = "1021-1177"
+
+[[block]]
+id    = "classification-verdict-tests"
+root  = "source-task-name"
+owner = "four-verdicts"
+lines = "1178-1199"
+
+[[block]]
+id    = "grammar-and-canonicity-tests"
+root  = "source-task-name"
+owner = "canonical-or-nothing"
+lines = "1200-1312"
+
+[[block]]
+id    = "shape-refusal-tests"
+root  = "source-task-name"
+owner = "four-verdicts"
+lines = "1313-1521"
+
+[[block]]
+id    = "slug-rule-tests"
+root  = "source-task-name"
+owner = "the-handle-not-the-position"
+lines = "1522-1550"
+
+[[block]]
+id    = "handle-grammar-tests"
+root  = "source-task-name"
+owner = "the-handle-not-the-position"
+lines = "1551-1714"
+
+[[block]]
+id    = "tree-opening"
+root  = "source-task-tree"
+owner = "one-spelling-of-grove"
+lines = "1-290"
+
+[[block]]
+id    = "paths-and-addressing"
+root  = "source-task-tree"
+owner = "paths-are-built-here"
+lines = "291-570"
+
+[[block]]
+id    = "walk-selection"
+root  = "source-task-tree"
+owner = "first-live-leaf"
+lines = "571-637"
+
+[[block]]
+id    = "kind-and-brief-chain"
+root  = "source-task-tree"
+owner = "root-to-leaf"
+lines = "638-746"
+
+[[block]]
+id    = "resolution"
+root  = "source-task-tree"
+owner = "wider-than-a-key"
+lines = "747-1015"
+
+[[block]]
+id    = "path-composition-tests"
+root  = "source-task-tree"
+owner = "paths-are-built-here"
+lines = "1016-1105"
+
+[[block]]
+id    = "pick-tests"
+root  = "source-task-tree"
+owner = "first-live-leaf"
+lines = "1106-1360"
+
+[[block]]
+id    = "brief-chain-and-kind-tests"
+root  = "source-task-tree"
+owner = "root-to-leaf"
+lines = "1361-1652"
+
+[[block]]
+id    = "resolve-tests"
+root  = "source-task-tree"
+owner = "wider-than-a-key"
+lines = "1653-1996"
+
+[[block]]
+id    = "pick-with-brief-chain-tests"
+root  = "source-task-tree"
+owner = "root-to-leaf"
+lines = "1997-2023"
+
+[[block]]
+id    = "growing-the-tree"
+root  = "source-task-grow"
+owner = "what-the-library-cannot-see"
+lines = "1-518"
+
+[[block]]
+id    = "finish-transition"
+root  = "source-tree-lifecycle"
+owner = "the-tree-deletes-itself"
+lines = "1-331"
+
+[[block]]
+id    = "grove-beginning"
+root  = "source-tree-lifecycle"
+owner = "never-mistaken-for-finished"
+lines = "332-489"
+
+[[block]]
+id    = "decompose-production"
+root  = "source-tree-lifecycle"
+owner = "the-key-survives"
+lines = "490-695"
+
+[[block]]
+id    = "outcomes-in-place"
+root  = "source-tree-lifecycle"
+owner = "marked-in-place"
+lines = "696-1012"
+
+[[block]]
+id    = "body-helpers"
+root  = "source-tree-lifecycle"
+owner = "never-mistaken-for-finished"
+lines = "1013-1076"
+
+[[block]]
+id    = "root-init-tests"
+root  = "source-tree-lifecycle"
+owner = "never-mistaken-for-finished"
+lines = "1077-1466"
+
+[[block]]
+id    = "finish-tests"
+root  = "source-tree-lifecycle"
+owner = "the-tree-deletes-itself"
+lines = "1467-1665"
+
+[[block]]
+id    = "decompose-tests"
+root  = "source-tree-lifecycle"
+owner = "the-key-survives"
+lines = "1666-2234"
+
+[[block]]
+id    = "retire-and-prune-tests"
+root  = "source-tree-lifecycle"
+owner = "marked-in-place"
+lines = "2235-2725"
+
+[[block]]
+id    = "the-twelve-verbs"
+root  = "source-verbs"
+owner = "twelve-not-fourteen"
+lines = "1-363"
+
+[[block]]
+id    = "driver-operations"
+root  = "source-driver"
+owner = "twelve-not-fourteen"
+lines = "1-57"
+
+[[block]]
+id    = "complete-verb"
+root  = "source-complete"
+owner = "twelve-not-fourteen"
+lines = "1-96"
+
+[[block]]
+id    = "lease-and-epoch"
+root  = "source-driver-lease"
+owner = "one-per-working-tree"
+lines = "1-819"
+
+[[block]]
+id    = "lease-tests"
+root  = "source-driver-lease"
+owner = "which-calls-are-admitted"
+lines = "820-1383"
+
+[[block]]
+id    = "whose-file"
+root  = "source-session-config"
+owner = "whose-file-and-whether"
+lines = "1-358"
+
+[[block]]
+id    = "the-prompt-core"
+root  = "source-prompt"
+owner = "too-late-to-say-later"
+lines = "1-245"
+
+[[block]]
+id    = "loop-driver"
+root  = "source-loop-driver"
+owner = "four-things-a-runner-cannot-choose"
+lines = "1-615"
+
+[[early-use]]
+symbols   = "`TaskName`, `TaskNameError`, `Verdict`, `verdict`, `entry`, `malformed`"
+first-use = "02-the-tokens.md#the-four-verdicts"
+owner     = "canonical-or-nothing"
+statement = "The parsed name, its refusal type, the classification a caller reads, and the three test helpers that reach a verdict: the only way to a verdict is through the `EntryName` implementation chapter 4 owns."
+
+[[early-use]]
+symbols   = "`TaskName::compose`, `impl Display for TaskName`"
+first-use = "03-kind-slug-handle.md#the-handle-is-the-identity"
+owner     = "canonical-or-nothing"
+statement = "Composition builds a positioned name from a position, a kind, a slug and a key; `Display` renders one back. The handle's structural claim can only be asserted over a rendered whole name."
+
+[[early-use]]
+symbols   = "`entry_path`"
+first-use = "05-opening.md#one-spelling-of-the-root"
+owner     = "paths-are-built-here"
+statement = "The one place an entry's absolute path is built, because the store returns no paths. Chapter 5 reproduces the module header that says so; chapter 6 reads the function."
+
+[guide]
+path    = "docs/USAGE.md"
+anchors = ["usage-task-tree", "usage-tree-verbs", "usage-driver-lease", "usage-finish"]
+
+[[glossary]]
+path    = "CONTEXT.md"
+anchors = [
+  "task-tree-scheme",
+  "tree-access-lock",
+  "driver-lease",
+  "session-epoch",
+  "guaranteed-core",
+  "stated-vcs",
+  "loop-control-channel",
+  "task-commit-boundary",
+]

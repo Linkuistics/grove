@@ -1,0 +1,106 @@
+# grove-loop
+<!-- book-page id="contents" role="contents" -->
+
+This book explains the `grove-loop` crate to a reader who knows Rust and jj and
+has driven a grove. grove's own vocabulary is linked to the glossary rather than
+re-taught, and the entry point to the system is the
+[user guide's account of the task tree and its filename grammar](../../USAGE.md#usage-task-tree),
+which states this crate's subject in the terms an operator already uses: a
+directory of numbered files whose names carry a kind, a slug and a permanent key,
+and whose shape is the only state grove keeps. This reader has run a grove, has
+watched `pick` choose a leaf, and has seen a session's commit name a work item by
+its handle.
+
+`crates/grove-loop` is thirteen files and 10,533 lines, and it is the layer that
+stayed. Three domain-free crates sit underneath it — an ordered filesystem tree,
+a keyed launcher, a version-control workspace — and none of them has a word for a
+*kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*. **This is the
+one library crate in the workspace that is allowed to be domain-bound**, and each
+chapter opens on what this module kept when the domain-free crates took the rest,
+and on why that part could not move.
+
+**The intended outcome is the what-could-not-move test.** At the end you should
+be able to take any system that has extracted a domain-free library from
+underneath itself — a store, a runner, a version-control seam — and ask of the
+layer that stayed: *what did not go, and why could it not?* The answer comes in
+three parts, each with a cost the layer visibly pays.
+
+- **On the way in — the names.** Does the layer own a grammar the library beneath
+  it cannot check? A grammar you own must be canonical — `format(parse(f)) == f`
+  — or one entity occupies two files, sharing a key and a position. Canonicity
+  costs a conformance kit.
+- **On the way through — the preconditions.** Does the layer check what the
+  library cannot see, and against *which* snapshot? The check must run against
+  the same snapshot the operation then plans from, or it is a race with a name,
+  and a refused run must consume nothing.
+- **On the way out — the policy.** What does the layer choose that nothing
+  beneath it could have defaulted? A chosen value must be stated where a reader
+  can find it, and the layer must not restate what the layer above owns.
+
+All three are provable inside these 10,533 lines, and the closing chapter applies
+them to each of the twenty source-owning chapters in turn.
+
+**The book's boundary is this crate's side of every seam it sits on.** Where
+`grove-loop` calls `ordinal-fs-tree`, `keyed-launch` or `jj-workspace`, the book
+says what grove asked for and what came back, names the crate in prose, and stops;
+each of those crates has a book of its own. The methodology is outside it too:
+what a `requirements` session is for, when a leaf should decompose and which
+kinds involve a human are the plugin's and the guide's, and the crate knows only
+that a kind is a token and that two of them are reserved.
+
+The corpus is the crate's own manifest and every Rust file under `src/`.
+**Thirty-eight per cent of it — 3,984 lines — is inline `#[cfg(test)] mod tests`,
+and none of that is excluded**: those tests are owned, reconstructed and explained
+by the chapter whose concept each proves, because a test is where several of this
+crate's claims are actually held. One file is excluded, `src/task_grow/tests.rs`,
+and chapter 10 says what it costs that chapter to have its proof outside its own
+pages. The crate's `tests/` directory — six files and 3,457 lines,
+of which five are test files and one a fifteen-line support module — is evidence
+throughout and is never reproduced.
+
+The production source is authoritative. Literal fragments in the numbered pages
+are copied from it exactly, and the source index records how those fragments
+reconstruct each in-scope file. During authoring a scoped check proves the
+completed prefix and reports later-owned ranges as deferred; only the final check
+proves complete reconstruction of all thirteen files and 10,533 lines.
+
+<a id="reading-fragments"></a>
+## Reading fragments
+
+A declaration such as `«library-root»` names one globally unique fragment. A
+**literal fragment** carries exact source bytes inside a four-backtick fence;
+nothing in it is trimmed, reindented or normalised. A **composite fragment**
+contains only whole-line `insert` references and expands them in order. Each
+**source root** in the source index expands to one complete production file. A
+**`defer` line** reserves an exact source range for a later chapter: it is
+planned work, not an unresolved reference, and not reconstructed source.
+
+<a id="contents"></a>
+## Contents
+
+1. [Orientation](01-orientation.md)
+2. The tokens, and the four verdicts
+3. Kind, slug, handle
+4. The name, and canonicity
+5. Opening, contention and refusal
+6. Paths, and addressing
+7. The walk: pick and select
+8. Kind, and the brief chain
+9. Resolve
+10. Growing: leaf-add and leaf-insert
+11. A grove begins
+12. A leaf becomes a node
+13. Outcomes are marked in place
+14. Finishing
+15. The twelve verbs, and the two that are not
+16. One live driver per working tree
+17. Which calls the lease admits
+18. Which files take part
+19. The guaranteed core
+20. The loop
+21. What could not move
+
+Optional lookup:
+
+- [Concept index](concept-index.md)
+- [Source index](source-index.md)

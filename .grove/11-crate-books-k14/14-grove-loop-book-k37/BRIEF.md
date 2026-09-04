@@ -1,4 +1,4 @@
-# grove-loop-book-k37
+# grove-loop-book-k37 — brief
 
 ## Goal
 
@@ -9,7 +9,7 @@ human's structure brief settled, passing final validation.
 ## Context
 
 - Inputs: **the structure brief at
-  [`docs/specs/grove-loop-book-structure.md`](../../docs/specs/grove-loop-book-structure.md)**
+  [`docs/specs/grove-loop-book-structure.md`](../../../docs/specs/grove-loop-book-structure.md)**
   — `grove-draft` stops without a named artifact — the shared specification from
   `walkthrough-books-spec-k20`, and the pipeline `publishing-pipeline-k13`
   extracted. The brief settles the spine, twenty-one pages with exact block
@@ -66,6 +66,34 @@ human's structure brief settled, passing final validation.
   guide-link contract, and `every_repository_markdown_reference_resolves` is what
   proves it.
 - `bash scripts/check.sh` passes.
+
+## Decomposition
+
+The four editorial stages, cut lazily in pipeline order, each as the last act of
+the stage before it. Only the first exists today.
+
+1. `grove-loop-k123` — the **draft**, itself a node of seven children cut along
+   the structure brief's five parts, with chapter 1 and the assembly page
+   standing alone. Its brief carries the figures and the per-part obligations.
+2. `copy-edit`, then `art`, then `proof` — each cut by the stage before it under
+   `plugins/grove/skills/grove/references/editorial.md`, each carrying
+   `grove-loop` as its whole slug, and none skipped on a judgement that it would
+   find nothing.
+
+A defect an earlier stage owns becomes a contiguous run of re-run leaves from
+that stage through `proof`, in place of the ordinary last act; there is no
+integrate step and no backward edge.
+
+## Carried forward from the draft's first slice
+
+- **The structure brief says four dependencies; the manifest declares five**, and
+  chapter 1 says five. `structure-brief-dependency-count-k132` corrects the
+  brief. A later stage that reconciles the page to the brief would introduce the
+  error rather than remove it.
+- **The book's row in `docs/ARCHITECTURE.md`'s *Documentation ownership* table
+  is in**, in the wording the structure brief carries. Nothing else outside the
+  book is owed, and no glossary promotion was owed: all twelve declared anchors
+  already exist in explicit form.
 
 ## Notes
 

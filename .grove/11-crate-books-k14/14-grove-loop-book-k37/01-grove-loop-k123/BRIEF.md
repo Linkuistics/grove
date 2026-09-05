@@ -294,6 +294,50 @@ baseline: a workspace copy that is not a jj repository fails ten
 `crates/grove-loop/tests/prompt.rs` tests before any mutation, so every arm must
 be diffed against an unmutated control run of the same copy.
 
+**Promoted from `the-walk-k126`, whose subtree is now complete.** Chapters 5 to
+10 landed and the node's `Done when` holds: the slice is valid at 4,691 resolved
+lines, the eleven `task_tree.rs` and `task_grow.rs` ownership rows read
+`resolved`, and `scripts/check.sh` is red on `book-check` alone. Six of its
+findings are still live obligations for chapters 11 to 21.
+
+- **A count in a leaf body is not a count in the tree.** Leaf bodies are written
+  at decomposition time and the ledger moves under them. **Enumerate the ledger
+  for rows whose owner is your own slice** rather than trusting your body's
+  count; `owner_is_complete` turns a missed row red, but only after the page is
+  written.
+- **Enumerate both spellings when sweeping for early uses.** Two of chapter 6's
+  four extra rows were missed by the author's own sweep because the bytes name
+  `leaf-retire` and `leaf-decompose` in their **hyphenated verb spelling** rather
+  than as Rust paths, and a sweep for identifiers does not see them. The linked
+  rustdoc spelling (`` [`select`] ``) is a third form and was missed the same way.
+- **A corrected sentence is not a checked sentence.** `pick-test-count-k147`
+  corrected the structure brief's *fifteen tests* to nineteen and left the same
+  sentence's worked example — the `10` against `9` lexical pair — standing and
+  false; `structure-brief-lexical-pair-k150` had to correct it separately. Read
+  the whole sentence, not the clause you came for.
+- **A refusal a verb surfaces was usually not produced by that verb.** Chapter 7
+  first placed a species mismatch *in the walk rather than in the parser*;
+  `disagreement` runs inside `TaskName::parse` while the library classifies
+  entries, so the composition fails inside `read`. Chapters 11 to 14 all
+  reproduce tests asserting on refusal text, and the honest form is *this is
+  chapter 4's grammar observed through chapter N's verb*.
+- **Ask what a block's tests would pass under, and answer it by running the
+  alternative against every fixture.** Chapter 7's nineteen tests leave *return
+  the deepest live leaf, breaking ties by walk order* indistinguishable from
+  *the first live leaf in pre-order*, because all five trees holding both a node
+  and a live leaf put the node at ordinal 01. The answer is worth writing only
+  after the alternative implementation has been run against the whole block.
+- **Locating a test name is not enumerating a clause's observers, and the
+  mutation must be a panic.** `growing-k146` diagnosed chapter 9's attribution
+  defect by grepping the two test names the page's own arm 3 row carried; the row
+  was itself incomplete, and `chapter-nine-refusal-attribution-k153`'s re-run
+  attributes four tests to that arm, two of them in the excluded
+  `task_grow/tests.rs`. Names a page carries cannot produce a name it does not —
+  only the mutation enumerates. And a reworded `bail!` is not a mutation: three
+  of the four assert on the message substring, but
+  `insert_errors_when_target_missing` asserts a bare `is_err()` and stays green
+  under any message at all.
+
 ## Notes
 
 **This is the draft stage only.** Copy edit, art and proof are the later stages

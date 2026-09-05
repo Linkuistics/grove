@@ -1603,13 +1603,17 @@ impossible to say which of `parse_ref`'s three clauses it holds.
 proof that no test reaches it. The other six were replaced one at a time, in a
 copy of the workspace, with a panic carrying a sentinel, and the whole of
 `grove-loop` and `grove-llm` was run against each — 245 inline tests and thirty
-test targets. The result is the failure set attributable to each arm.
+test targets. The result is the failure set attributable to each arm. **Arms 3
+and 4 were measured a second time**, with `grove` added to the run and every
+failure set diffed against an unmutated control run of the same copy; their rows
+below are that second run's, and the paragraph after the table says why it was
+needed.
 
 | # | Line | The refusal | Tests that fail when it is replaced |
 |---:|---:|---|---|
 | 1 | 792 | `located`: *a resolved reference matched the root brief, which carries no identity* | **none** |
 | 2 | 867 | `slug_match_key`: `unreachable!("a slug match is positioned")` | **none** |
-| 3 | 942 | `reference`: *no entry matches … (tried as a path … and as a key/slug)* | `add_under_nonexistent_parent_errors`, `insert_requires_an_existing_target` |
+| 3 | 942 | `reference`: *no entry matches … (tried as a path … and as a key/slug)* | `add_refuses_a_parent_that_names_nothing_in_the_tree`, `insert_errors_when_target_missing`, `add_under_nonexistent_parent_errors`, `insert_requires_an_existing_target` |
 | 4 | 952 | `reference`: *is ambiguous; re-query by key: …* | `add_refuses_an_ambiguous_parent_slug_and_lists_the_keys` |
 | 5 | 990 | `parse_ref`: *unclosed `'['`* | `resolve_malformed_bracket_ref_errors` |
 | 6 | 993 | `parse_ref`: *`'[…]'` is not an integer key* | `resolve_malformed_bracket_ref_errors` |
@@ -1631,20 +1635,46 @@ Arm 7 is different: a bare all-digit reference that overflows `u32` —
 `99999999999` — reaches it, and nothing in the crate ever writes one. That is a
 genuine hole, and a small one.
 
-**The more interesting result is where the covered arms are covered from.**
-Three of the four are held by tests in *other* chapters' blocks: arms 3 and 4 are
-`reference`'s, and `reference` is the mutating verbs' door, so its two refusals
-are pinned by `task_grow`'s tests — chapter 10's block, and the excluded
-`task_grow/tests.rs` at that, which this book cites by name and never reproduces.
-Chapter 9 owns the code and chapter 10 owns the evidence. Arms 5 and 6 are held
-by one test between them, and it is chapter 9's own; but because that test reads
+**The more interesting result is where the covered arms are covered from**, and
+the two `reference` arms are not covered from the same place. Arm 4 is held by
+exactly one test, `add_refuses_an_ambiguous_parent_slug_and_lists_the_keys`, in
+`crates/grove-loop/src/task_grow/tests.rs` — chapter 10's block, and the book's
+one declared corpus exclusion at that, which this book cites by name and never
+reproduces. Arm 3 is held by four, and only two of them are in that file:
+`add_refuses_a_parent_that_names_nothing_in_the_tree` (line 413) and
+`insert_errors_when_target_missing` (line 1,159). The other two,
+`add_under_nonexistent_parent_errors` and `insert_requires_an_existing_target`,
+are in `crates/grove-llm/tests/leaf.rs` at lines 432 and 526 — an integration
+target of a **different crate**, outside this book's corpus altogether. So
+chapter 10 owns the whole of arm 4's evidence and half of arm 3's, and the rest
+of arm 3's is in a crate this book does not document. Arms 5 and 6 are held by
+one test between them, and it is chapter 9's own; but because that test reads
 no messages, an implementation that swapped the two clauses' wording would pass
 it unchanged.
 
+**This table's arm 3 row was wrong the first time, and the way it was wrong is
+worth more than the correction.** The row named only the two `grove-llm` tests,
+and the sentence that followed it placed *both* `reference` arms in `task_grow`'s
+tests on the strength of the arm 4 row beside it. The row was rebuilt by
+re-running the mutation rather than by re-reading the page — each arm replaced
+with a panicking sentinel, `grove-loop`, `grove-llm` and `grove` run against
+each, and every failure set diffed against an unmutated control run of the same
+copy — and that is what surfaced the two observers in the excluded file. What
+made the first reading look complete is that it started from the names the row
+already carried: locating those names says where *those* tests live and nothing
+about whether they are the whole set, and no amount of care about the two will
+produce the third. Only the mutation enumerates. Note also that the mutation has
+to be a **panic**, not a reworded `bail!`: three of arm 3's four observers assert
+on the substring *no entry matches* and a rewording would catch them, but
+`insert_errors_when_target_missing` asserts a bare `is_err()` and stays green
+under any message at all. **A list of the tests that hold a clause is a
+measurement, and it is worth exactly the re-run.**
+
 So the accurate sentence about this block is not *four of seven refusals are
 covered*. It is that **one test in this chapter holds two clauses without
-distinguishing them, two clauses are held from another chapter's block, and three
-are held by nothing** — and that the reason to know this is not to add tests to a
+distinguishing them, two clauses are held entirely from outside this chapter —
+one of them partly from outside the book's corpus as well — and three are held
+by nothing** — and that the reason to know this is not to add tests to a
 frozen corpus, but so that chapter 21 can answer *what did not go* with a measured
 answer rather than a plausible one.
 

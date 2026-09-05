@@ -270,21 +270,33 @@ ledger. Chapter 8 added the two its own bytes owed, `verbs::kind` and
 parent brief warned about. The row needs the earlier page to state the minimum
 locally, so it is chapter 7's prose to change and not a later leaf's to bolt on.
 
-**A page's placement of its evidence is a claim, and chapter 9's is wrong about
-one arm of two.** Found by `growing-k146`. `09-resolve.md`'s *What the refusals
-are worth, measured* says both of `reference`'s operator-facing refusals are
-*pinned by `task_grow`'s tests — chapter 10's block, and the excluded
-`task_grow/tests.rs` at that*. Only arm 4's
-`add_refuses_an_ambiguous_parent_slug_and_lists_the_keys` is there. Arm 3's two
-tests, `add_under_nonexistent_parent_errors` and
-`insert_requires_an_existing_target`, are in `crates/grove-llm/tests/leaf.rs` at
-lines 432 and 526 — a different crate, outside this book's corpus entirely. The
-page's *table* is right; the sentence after it is what places the tests, and it
-was written from the test names rather than from their location.
-`chapter-nine-refusal-attribution-k153` holds the correction and the re-derivation.
-Chapter 10 states the corrected division and shortens once k153 lands. **The
-lesson generalises to every remaining chapter that cites a test it does not
-reproduce: locate the test, do not recognise the name.**
+**A page's placement of its evidence is a claim, and the diagnosis of a wrong
+one can be wrong in turn.** Found by `growing-k146`, **re-derived and corrected
+by `chapter-nine-refusal-attribution-k153`**, which is where the finding's final
+form is. k146 read `09-resolve.md`'s *What the refusals are worth, measured* —
+which said both of `reference`'s operator-facing refusals are *pinned by
+`task_grow`'s tests* — and grepped the two test names the page's arm 3 row
+carried, finding them in `crates/grove-llm/tests/leaf.rs` at lines 432 and 526.
+That was true and it was not the whole set. k153 re-ran the mutation and
+attributes **four** tests to arm 3: those two, plus
+`add_refuses_a_parent_that_names_nothing_in_the_tree` (413) and
+`insert_errors_when_target_missing` (1,159), both in the excluded
+`task_grow/tests.rs`. Arm 4 is held by exactly one,
+`add_refuses_an_ambiguous_parent_slug_and_lists_the_keys` (268). So the page's
+*table* was incomplete as well as its prose, and chapter 10's clause — which
+said arm 3 is **not** pinned in the excluded file — was false rather than merely
+long; k153 corrected the row, rewrote chapter 9's paragraph, narrowed the
+concept-index entry and shortened chapter 10 to a cross-reference.
+
+**Three lessons for every remaining chapter, and the second is the one k146
+missed.** *Locate the test, do not recognise the name* — still true. But
+**locating the names a page already carries tells you where those tests live and
+nothing about whether they are the whole set**; only the mutation enumerates, so
+a citation-placement defect is re-derived by re-running, never by chasing the
+names in front of you. And **the mutation must be a panic, not a reworded
+`bail!`**: three of arm 3's four observers assert on the message substring and a
+rewording would catch them, but `insert_errors_when_target_missing` asserts a
+bare `is_err()` and stays green under any message at all.
 
 ## Notes
 

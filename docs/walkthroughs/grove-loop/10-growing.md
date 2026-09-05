@@ -1313,21 +1313,17 @@ limit, where the interpreter unwinds its own effects and *not one of the three
 survives*, and a run that cannot get three fresh keys, refused from the snapshot
 before any effect is built.
 
-**Two of chapter 9's refusals are settled here, and the settlement is narrower
-than that chapter predicted.** `reference` has two operator-facing `bail!`s —
-*no entry matches* and *is ambiguous; re-query by key* — and chapter 9, which
-owns the function, found both of them pinned from outside its own block. The
-ambiguity arm is pinned by the first row of the table above, in this chapter's
-excluded file, exactly as predicted. The *no entry matches* arm is not: the two
-tests that hold it, `add_under_nonexistent_parent_errors` and
-`insert_requires_an_existing_target`, are in `crates/grove-llm/tests/leaf.rs` —
-an integration target of the **other** crate, outside this book's corpus
-altogether. So the accurate division is that chapter 9 owns the code, this
-chapter owns the evidence for one of the two refusals, and the other's evidence
-is in a crate this book does not document. Chapter 9's page states it as *pinned
-by `task_grow`'s tests*, and that is true of one arm of two;
-`chapter-nine-refusal-attribution-k153` holds the correction and re-derives the
-attribution by mutation rather than editing it from here.
+**Two of chapter 9's refusals are settled from this file, and chapter 9 states
+the division.** `reference` has two operator-facing `bail!`s — *no entry
+matches* and *is ambiguous; re-query by key* — and both are pinned from outside
+the block that owns the function. The ambiguity arm is pinned by the first row
+of the table above; the *no entry matches* arm by two further tests in this same
+excluded file and two more in a different crate's integration target.
+[`09-resolve.md`'s *What the refusals are worth, measured*](09-resolve.md#what-the-refusals-are-worth)
+carries the measurement and the attribution, and this chapter does not
+re-adjudicate it. What belongs here is only the cost the exclusion imposes: for
+three of those five tests the reader cannot check the claim by reading down a
+page of this book.
 
 **The excluded file also carries the fourth of this crate's stale `llm_cli`
 references, and it is the one that is not stale.** Three comments in

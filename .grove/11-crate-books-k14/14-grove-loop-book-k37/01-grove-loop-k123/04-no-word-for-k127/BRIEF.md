@@ -96,6 +96,42 @@ a jj repository, so **eleven tests fail in the control before any mutation** —
 of `crates/grove-loop/tests/prompt.rs` — and a mutant is read as the `comm`
 difference against that control, never against zero. 558 tests run in all.
 
+**Three corrections to that harness, all found by `leaf-to-node-k156`, and each
+one changes what a reading means.**
+
+- **`cargo build -p grove --bins` before the control run.** Without it
+  `CARGO_BIN_EXE_grove` is unset — the `grove` binary belongs to a third package —
+  and six further `grove-llm` tests fail on a missing binary, making the control
+  seventeen rather than eleven. A control that is wrong in that direction **hides
+  observers**, because a test already red cannot go redder.
+- **A message-preserving `panic!` is not a mutation for an out-of-process
+  observer.** `bail!(…)` → `panic!(…)` keeps the format string, so a `grove-llm`
+  integration test that shells out and asserts on *stderr substrings* stays green:
+  the panic prints the same words the refusal did and the exit status is non-zero
+  either way. Replace the **whole macro call** with `panic!("MUTANT-<arm>")`
+  instead. Doing so found three observers the message-preserving pass had recorded
+  as absent — `decompose_rejects_a_brief` and `decompose_rejects_a_retired_leaf`
+  (`crates/grove-llm/tests/leaf_ops.rs`) and
+  `every_agent_side_mutation_refuses_the_driver_reserved_finish_kind`
+  (`crates/grove-llm/tests/session_kind_tree.rs`). This is the dual of *a reworded
+  `bail!` is not a mutation*, and it bites harder, because the whole `grove-llm`
+  suite is out of process.
+- **A flaky test reads as a newly attributed observer, and only a re-run separates
+  them.** The first reading of chapter 12's grove-root arm credited
+  `a_second_driver_refuses_before_tree_access_or_launch` and
+  `a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session`
+  (`crates/grove-loop/tests/driver_lease.rs`) to it. Both are 120-second
+  wedged-producer timeouts under machine load; the re-run attributed the arm to
+  one test. **Re-run any mutant whose newly-failing set names a `driver_lease.rs`
+  or `prompt.rs` test** before writing the attribution down.
+
+**And the whole workspace suite can wedge under load without failing.**
+`crates/grove/tests/loop_driver.rs` sat for thirty-one minutes at 0.2 seconds of
+CPU, blocked on a pipe read with three unreaped children, while an unrelated
+`cargo` build saturated the machine; run alone it passes eleven tests in forty
+seconds. A `scripts/check.sh` read through that is not a reading — kill it and
+re-run.
+
 **Two things that make a mutation reading a lie, and both were hit here.** A
 mutant that fails to compile prints no per-test lines at all, so it reads as *0
 newly failing* — exactly like a clean result; **check the mutant's test count

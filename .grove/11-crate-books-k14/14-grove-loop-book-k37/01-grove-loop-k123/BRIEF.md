@@ -294,6 +294,23 @@ baseline: a workspace copy that is not a jj repository fails ten
 `crates/grove-loop/tests/prompt.rs` tests before any mutation, so every arm must
 be diffed against an unmutated control run of the same copy.
 
+**The mutation must be a panic *that says nothing*, and the reason is the
+out-of-process half of the suite.** Promoted from `leaf-to-node-k156`, and it
+corrects the procedure stated above rather than adding to it. Turning `bail!(…)`
+into `panic!(…)` keeps the format string, so a `grove-llm` integration test that
+shells out and asserts on stderr substrings cannot tell the panic from the
+refusal: same words, same non-zero exit. Replace the **whole macro call** with
+`panic!("MUTANT")`. Over one 206-line block that turned three arms recorded as
+*held by nothing* into arms held by `grove-llm` tests. **Chapters 17 and 20 own
+inline test blocks outside `no-word-for-k127` and owe the same form**, as does any
+later re-run of an earlier chapter's arms — every reading taken with a
+message-preserving panic is a lower bound, not a measurement. Two lesser
+corrections ride with it and are in `no-word-for-k127`'s brief: the control needs
+`cargo build -p grove --bins` first or it reads seventeen failures rather than
+eleven, and a mutant whose newly-failing set names a `driver_lease.rs` or
+`prompt.rs` test must be re-run, because those wedge under machine load and a
+timeout reads exactly like an observer.
+
 **Promoted from `the-walk-k126`, whose subtree is now complete.** Chapters 5 to
 10 landed and the node's `Done when` holds: the slice is valid at 4,691 resolved
 lines, the eleven `task_tree.rs` and `task_grow.rs` ownership rows read

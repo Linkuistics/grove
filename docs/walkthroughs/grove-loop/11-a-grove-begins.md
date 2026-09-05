@@ -1,6 +1,6 @@
 # A grove begins
 <!-- book-page id="a-grove-begins" slice="never-mistaken-for-finished" order="11" -->
-[Previous: Growing: leaf-add and leaf-insert](10-growing.md) | [Contents](README.md)
+[Previous: Growing: leaf-add and leaf-insert](10-growing.md) | [Contents](README.md) | [Next: A leaf becomes a node](12-leaf-to-node.md)
 
 <a id="never-mistaken-for-finished"></a>
 ## The rule: a fresh grove starts with one live leaf
@@ -1498,4 +1498,4 @@ The grove now exists, and it holds one leaf that `pick` will answer. Chapter 12
 takes that leaf, finds it proved bigger than its brief assumed, and turns it into
 a node without letting its key change.
 
-[Previous: Growing: leaf-add and leaf-insert](10-growing.md) | [Contents](README.md)
+[Previous: Growing: leaf-add and leaf-insert](10-growing.md) | [Contents](README.md) | [Next: A leaf becomes a node](12-leaf-to-node.md)

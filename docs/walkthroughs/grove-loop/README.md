@@ -89,7 +89,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 9. [Resolve](09-resolve.md)
 10. [Growing: leaf-add and leaf-insert](10-growing.md)
 11. [A grove begins](11-a-grove-begins.md)
-12. A leaf becomes a node
+12. [A leaf becomes a node](12-leaf-to-node.md)
 13. Outcomes are marked in place
 14. Finishing
 15. The twelve verbs, and the two that are not

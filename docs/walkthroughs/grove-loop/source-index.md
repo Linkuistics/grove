@@ -52,7 +52,7 @@
 <!-- insert «pick-with-brief-chain-tests» -->
 <!-- /source-root -->
 <!-- source-root «source-task-grow» source="crates/grove-loop/src/task_grow.rs" lines="1-518" -->
-<!-- defer «growing-the-tree» owner="what-the-library-cannot-see" lines="1-518" -->
+<!-- insert «growing-the-tree» -->
 <!-- /source-root -->
 <!-- source-root «source-tree-lifecycle» source="crates/grove-loop/src/tree_lifecycle.rs" lines="1-2725" -->
 <!-- defer «finish-transition» owner="the-tree-deletes-itself" lines="1-331" -->
@@ -114,7 +114,7 @@
 | `brief-chain-and-kind-tests` | `source-task-tree` | `root-to-leaf` | `1361-1652` | 292 | `resolved` |
 | `resolve-tests` | `source-task-tree` | `wider-than-a-key` | `1653-1996` | 344 | `resolved` |
 | `pick-with-brief-chain-tests` | `source-task-tree` | `root-to-leaf` | `1997-2023` | 27 | `resolved` |
-| `growing-the-tree` | `source-task-grow` | `what-the-library-cannot-see` | `1-518` | 518 | `deferred` |
+| `growing-the-tree` | `source-task-grow` | `what-the-library-cannot-see` | `1-518` | 518 | `resolved` |
 | `finish-transition` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1-331` | 331 | `deferred` |
 | `grove-beginning` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `332-489` | 158 | `deferred` |
 | `decompose-production` | `source-tree-lifecycle` | `the-key-survives` | `490-695` | 206 | `deferred` |
@@ -360,6 +360,25 @@
 | `resolve-handle-tests-unmatched` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1989-1996` | `resolve-tests` | `—` |
 | `pick-with-brief-chain-tests` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1997-2023` | `source-task-tree` | `—` |
 | `source-task-grow` | `source-index` | `source-task-grow` | `root` | `—` | `1-518` | `—` | `growing-the-tree` |
+| `grow-header-the-four` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `1-24` | `growing-the-tree` | `—` |
+| `growing-the-tree` | `growing` | `source-task-grow` | `composite` | `what-the-library-cannot-see` | `1-518` | `source-task-grow` | `grow-header-the-four`, `grow-header-what-went`, `grow-imports`, `grow-leaf-add-doc`, `grow-leaf-add`, `grow-inserted-and-insert-doc`, `grow-leaf-insert`, `grow-renumber`, `grow-renumbered`, `grow-lint-doc`, `grow-lint`, `grow-parent-node`, `grow-containing-level`, `grow-new-leaf`, `grow-allocated`, `grow-refuse-finish-kind`, `grow-template-and-stem`, `grow-test-module` |
+| `grow-header-what-went` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `25-49` | `growing-the-tree` | `—` |
+| `grow-imports` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `50-58` | `growing-the-tree` | `—` |
+| `grow-leaf-add-doc` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `59-90` | `growing-the-tree` | `—` |
+| `grow-leaf-add` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `91-131` | `growing-the-tree` | `—` |
+| `grow-inserted-and-insert-doc` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `132-168` | `growing-the-tree` | `—` |
+| `grow-leaf-insert` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `169-202` | `growing-the-tree` | `—` |
+| `grow-renumber` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `203-242` | `growing-the-tree` | `—` |
+| `grow-renumbered` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `243-271` | `growing-the-tree` | `—` |
+| `grow-lint-doc` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `272-310` | `growing-the-tree` | `—` |
+| `grow-lint` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `311-355` | `growing-the-tree` | `—` |
+| `grow-parent-node` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `356-389` | `growing-the-tree` | `—` |
+| `grow-containing-level` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `390-410` | `growing-the-tree` | `—` |
+| `grow-new-leaf` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `411-433` | `growing-the-tree` | `—` |
+| `grow-allocated` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `434-481` | `growing-the-tree` | `—` |
+| `grow-refuse-finish-kind` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `482-496` | `growing-the-tree` | `—` |
+| `grow-template-and-stem` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `497-516` | `growing-the-tree` | `—` |
+| `grow-test-module` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `517-518` | `growing-the-tree` | `—` |
 | `source-tree-lifecycle` | `source-index` | `source-tree-lifecycle` | `root` | `—` | `1-2725` | `—` | `finish-transition`, `grove-beginning`, `decompose-production`, `outcomes-in-place`, `body-helpers`, `root-init-tests`, `finish-tests`, `decompose-tests`, `retire-and-prune-tests` |
 | `source-verbs` | `source-index` | `source-verbs` | `root` | `—` | `1-363` | `—` | `the-twelve-verbs` |
 | `source-driver` | `source-index` | `source-driver` | `root` | `—` | `1-57` | `—` | `driver-operations` |
@@ -410,11 +429,14 @@
 | `tree_lifecycle::leaf_prune` | `05-opening.md#the-four-openings` | `marked-in-place` | The bulk mark that carries the consequence of a mutation consuming its guard: it marks each entry under a guard of its own, so a run interrupted part way leaves some entries marked and some not. Chapter 13 reads it. | `pending` |
 | `tree_lifecycle::leaf_decompose` | `06-paths.md#which-entry-a-path-names` | `the-key-survives` | The verb that turns a live leaf file into a node directory, keeping the entry's key and moving its body in as the node's `BRIEF.md`. Chapter 6 needs only that it acts on a leaf and preserves the key — which is what makes an interrupted one two halves of one entity rather than two entities. Chapter 12 reads it. | `pending` |
 | `tree_lifecycle::leaf_retire` | `06-paths.md#which-entry-a-path-names` | `marked-in-place` | The verb that marks a live leaf `DONE` in place, keeping its position and its key. Chapter 6 needs only that it acts on one named leaf, because *aimed by path at one twin, it silently marks the other and reports success* is the failure `addressable_key` exists to prevent. Chapter 13 reads it. | `pending` |
-| `task_grow::allocated` | `06-paths.md#predicting-the-allocation` | `what-the-library-cannot-see` | The check every grow verb runs over `next_key`'s prediction: it compares the predicted key against the one the library reports and refuses to claim success on a disagreement, which is what keeps a leaf's embedded handle from contradicting its own filename. Chapter 10 reads it. | `pending` |
+| `task_grow::allocated` | `06-paths.md#predicting-the-allocation` | `what-the-library-cannot-see` | The check every grow verb runs over `next_key`'s prediction: it compares the predicted key against the one the library reports and refuses to claim success on a disagreement, which is what keeps a leaf's embedded handle from contradicting its own filename. Chapter 10 reads it. | `explained` |
 | `pick_in`, `select_in` | `06-paths.md#compositions-that-are-the-tests-alone` | `first-live-leaf` | The two walk operations the test module's compositions call after opening the tree: one answers the path of the first live leaf, the other every launch fact about it. Chapter 6 needs only that each takes an already-open tree; chapter 7 reads both. | `explained` |
 | `reset_read_count`, `read_count` | `07-the-walk.md#nineteen-tests` | `wider-than-a-key` | The counter's two accessors: one sets the thread-local read count to zero, the other returns it. Chapter 7's one-observation test resets before the call and asserts the count is `1`, so it needs only that the pair reads the `READ_COUNT` chapter 5 declared; chapter 9 owns the lines they sit on. | `explained` |
 | `verbs::kind` | `08-kind-and-briefs.md#two-questions-one-entry` | `twelve-not-fourteen` | The public verb `kind_in`'s doc comment links to: it opens the tree, calls `kind_in`, and renders the answer as a `Sought`. Chapter 8 needs only that the verb is the tree-opening half and `kind_in` the already-open half; chapter 15 reads it. | `pending` |
 | `verbs::brief_chain` | `08-kind-and-briefs.md#the-chain-the-library-already-had` | `twelve-not-fourteen` | The public verb the doc comment names in its hyphenated spelling, `brief-chain`, and whose documented contract — a level with no charter is skipped silently — the comment appeals to. Chapter 8 needs only that the contract belongs to the verb and the guide rather than to this function; chapter 15 reads it. | `pending` |
+| `verbs::leaf_add` | `10-growing.md#a-list-is-not-n-calls` | `twelve-not-fourteen` | The public verb this module-private function is the body of, named in the doc comment's own hyphenated spelling, `leaf-add`. Chapter 10 needs only that the verb is the tree-opening half and takes a validated slug, because the comment's *unreachable from the verb* is a claim about what reaches this function through it; chapter 15 reads it. | `pending` |
+| `verbs::leaf_insert` | `10-growing.md#an-entry-where-the-library-names-an-ordinal` | `twelve-not-fourteen` | The public verb behind `leaf-insert`, named in the doc comment's hyphenated spelling. Chapter 10 needs only that it is the tree-opening half, and that a second wrapper beside it performs the separate shared opening the lint requires; chapter 15 reads both. | `pending` |
+| `tree_lifecycle::initialize_grove` | `10-growing.md#the-prediction-held-to-account` | `never-mistaken-for-finished` | The function `root-init` runs, which creates a grove's root, its charter and its first live leaf as one store operation. Chapter 10 needs only that its report begins with a charter carrying no key, because that is why `allocated` takes a slice of created rows rather than a whole report; chapter 11 reads it. | `pending` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

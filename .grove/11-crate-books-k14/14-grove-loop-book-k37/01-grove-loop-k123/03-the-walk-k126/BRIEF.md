@@ -270,6 +270,22 @@ ledger. Chapter 8 added the two its own bytes owed, `verbs::kind` and
 parent brief warned about. The row needs the earlier page to state the minimum
 locally, so it is chapter 7's prose to change and not a later leaf's to bolt on.
 
+**A page's placement of its evidence is a claim, and chapter 9's is wrong about
+one arm of two.** Found by `growing-k146`. `09-resolve.md`'s *What the refusals
+are worth, measured* says both of `reference`'s operator-facing refusals are
+*pinned by `task_grow`'s tests — chapter 10's block, and the excluded
+`task_grow/tests.rs` at that*. Only arm 4's
+`add_refuses_an_ambiguous_parent_slug_and_lists_the_keys` is there. Arm 3's two
+tests, `add_under_nonexistent_parent_errors` and
+`insert_requires_an_existing_target`, are in `crates/grove-llm/tests/leaf.rs` at
+lines 432 and 526 — a different crate, outside this book's corpus entirely. The
+page's *table* is right; the sentence after it is what places the tests, and it
+was written from the test names rather than from their location.
+`chapter-nine-refusal-attribution-k153` holds the correction and the re-derivation.
+Chapter 10 states the corrected division and shortens once k153 lands. **The
+lesson generalises to every remaining chapter that cites a test it does not
+reproduce: locate the test, do not recognise the name.**
+
 ## Notes
 
 **The corpus is frozen.** A defect found while drafting becomes its own leaf and

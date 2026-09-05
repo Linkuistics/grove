@@ -242,6 +242,58 @@ the race both `pick_in`'s and `brief_chain_at`'s doc comments exist to warn
 against. Any later chapter reproducing a test that composes two verbs owes the
 same check.
 
+**A sixth instrument, and the blind spot the fifth has.** Promoted from
+`growing-k146`. `cargo doc --no-deps --document-private-items` sees a doc
+comment's attachment and its intra-doc links — and it sees **only `///` and
+`//!`**. `crates/grove-loop/src/task_grow.rs` lines 1 to 49 are plain `//`
+comments carrying `#` headings, and one of those headings has no body: *What
+went, and stayed gone* is immediately followed by *Three helpers here are
+`pub(crate)`*, so the two paragraphs belonging to the first render under the
+second. `cargo doc` reports **no warning at all** for that file, against thirty
+elsewhere in the crate, and the clean result is true and says nothing about the
+forty-nine lines above the first doc comment. **A module header written in `//`
+is checked by reading it, and by nothing else.** `grow-header-stale-helper-k154`
+holds the fix, deferred behind the book with `unresolved-doc-links-k151` and
+`unreachable-root-clause-k152`.
+
+**A comment's count can be right while one of its names is wrong, and the file is
+often its own refutation.** Same header, same leaf. It names `new_leaf`,
+`leaf_slug` and `refuse_finish_kind` as the three helpers `leaf_decompose`
+shares; **there is no `leaf_slug` in this workspace and there never was** — the
+commit that created the file wrote the comment with it. Three helpers *are*
+shared with `tree_lifecycle` and the third is `allocated`, and `leaf_decompose`
+reaches only two of them, checking its own promotion with `tree_lifecycle::promoted`
+instead. The page settles it in front of the reader because the chapter
+reproduces all seven of the file's `pub(crate)` functions. **The check that finds
+this class is enumerating the file's own items against the comment's list** —
+not grepping for the name, which finds one hit and looks like a rename.
+
+**A cited test can pin a narrower claim than its citation, and the helper is
+where that hides.** `docs/specs/grove-loop-book-structure.md` names
+`a_refused_run_does_not_consume_positions_or_keys` as the pin for *a refused run
+must consume nothing*. The test's helper validates the slug **before** it opens
+the tree — its own doc comment says that order is what the fixture asserts — so
+the run is refused at the CLI's boundary and `leaf_add` is never entered. What
+it pins is that grove's front door burns no ordinal and no key; the unwinding
+claim is held by five other tests in the same section. **Every later chapter
+citing a test it does not reproduce owes the same read of the test's fixture and
+its helpers**, not just of its name and its assertions.
+
+**Eleven refusal arms in `task_grow.rs`, four observed, and the seven that are
+not split cleanly by who could produce the condition.** `growing-k146` re-ran the
+mutation procedure over its own block. The four observed are exactly the
+preconditions an argument can reach — the reserved kind, the grove root, the
+charter brief, the not-a-node parent. Of the seven that are not, one is
+unreachable through the verb by the CLI's own arity, and five are of one class:
+*the library did something its contract forbids*, which no test over an honest
+library can construct. **That split does not hold in general** — `leaf_entry`'s
+five unobserved arms were ordinary operator-facing refusals — so it is a result
+about this block's shape (classify, then call) rather than a rule to carry
+forward. **What does carry forward is the procedure**, including the environmental
+baseline: a workspace copy that is not a jj repository fails ten
+`crates/grove-loop/tests/prompt.rs` tests before any mutation, so every arm must
+be diffed against an unmutated control run of the same copy.
+
 ## Notes
 
 **This is the draft stage only.** Copy edit, art and proof are the later stages

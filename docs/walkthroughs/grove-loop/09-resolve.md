@@ -1,6 +1,6 @@
 # Resolve
 <!-- book-page id="resolve" slice="wider-than-a-key" order="9" -->
-[Previous: Kind, and the brief chain](08-kind-and-briefs.md) | [Contents](README.md)
+[Previous: Kind, and the brief chain](08-kind-and-briefs.md) | [Contents](README.md) | [Next: Growing: leaf-add and leaf-insert](10-growing.md)
 
 <a id="wider-than-a-key"></a>
 ## The rule: the reference grammar is wider than a key
@@ -1715,4 +1715,4 @@ is the book's single declared corpus exclusion, 1,680 lines of evidence cited by
 name and never reproduced. Two of this chapter's own refusals are pinned there,
 which is a preview of the problem chapter 10 has to state rather than solve.
 
-[Previous: Kind, and the brief chain](08-kind-and-briefs.md) | [Contents](README.md)
+[Previous: Kind, and the brief chain](08-kind-and-briefs.md) | [Contents](README.md) | [Next: Growing: leaf-add and leaf-insert](10-growing.md)

@@ -127,6 +127,29 @@ the criterion and a worked example.
 by blocks later chapters own. Chapters 3 and 4 owe the same enumeration over
 their own blocks rather than treating the manifest's rows as the set.
 
+**Five stale enumerations in `task_name.rs`'s comments, and `stale-enumerations-k139`
+holds the fix.** Chapter 3 found four of them in its own blocks and adjudicates each
+on the page: `Kind::is_finish`'s *three places that ask* against seven calls in six
+functions; `Handle::parse`'s *only peel … outside `split_shape`* against three
+callers of `peel_key`; `UnknownKind` at line 1,536, a `TaskNameError` variant
+`open-kind-k20` deleted and nothing else in the repository mentions; and line
+1,691's *three references* against a loop of four. **The fifth is chapter 4's**:
+`peel_key`'s own doc at line 989 says *the two callers* where there are three, and
+line 980 names two of the three, while line 1,004 — twenty-five lines below it —
+states the relation correctly. `the-name-k136` owns adjudicating that one on
+`04-the-name.md`, in the same register chapter 3 used, and does not fix it inline.
+k139 runs after both pages exist, rewords all five inside their existing lines so
+no block's line count moves, and rewrites both pages' adjudicating paragraphs in
+the same commit.
+
+**The reserved-word clause of `refuse_token` changes the message and not the
+verdict.** `BRIEF`, `DONE` and `ABANDONED` are all uppercase, so the character-set
+clause would refuse them anyway; the reserved clause runs first and is why an
+operator reads *reserved* rather than *lowercase only*. Chapter 3's slug-rule test
+cannot see the difference and says so. This is not a defect and needs no leaf — it
+is a *what it would still pass under* observation chapter 4 may want when it reads
+the same guard from the parse side.
+
 ## Notes
 
 **The corpus is frozen.** A defect found while drafting becomes its own leaf and

@@ -1,6 +1,6 @@
 # The tokens, and the four verdicts
 <!-- book-page id="the-tokens" slice="four-verdicts" order="2" -->
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Kind, slug, handle](03-kind-slug-handle.md)
 
 <a id="four-verdicts"></a>
 ## The rule: a task-shaped name that is wrong is Malformed, never Foreign
@@ -1147,4 +1147,4 @@ the handle — that a positioned name's rendering ends in its own handle's
 rendering, so a filename and a handle saying different things is not a bug this
 module can have.
 
-[Previous: Orientation](01-orientation.md) | [Contents](README.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Kind, slug, handle](03-kind-slug-handle.md)

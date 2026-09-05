@@ -2,9 +2,10 @@
 
 ## Goal
 
-Correct the two Part II claims in `docs/specs/grove-loop-book-structure.md` that
-enumeration refutes: chapter 7's test count, from fifteen to nineteen, and
-chapter 5's *the whole reason `libc` is a dependency*.
+Correct the three Part II claims in `docs/specs/grove-loop-book-structure.md`
+that enumeration refutes: chapter 7's test count, from fifteen to nineteen;
+chapter 5's *the whole reason `libc` is a dependency*; and the prose obligation's
+listing of chapter 6 under *supply the claim*, whose block holds no test.
 
 ## Context
 
@@ -43,6 +44,29 @@ chapter 5's *the whole reason `libc` is a dependency*.
   of the three that is not frozen, so it is corrected here. Chapter 5 states the
   true relation on the page rather than waiting for this leaf; what k147 owes is
   agreement between the brief and the two pages.
+- **A third Part II defect, found by `paths-k142`: the prose obligation names
+  chapter 6 for an instruction chapter 6 cannot carry.** The brief's *What each
+  chapter's prose owes* lists obligation 1, *supply the claim — every inline test
+  block*, for "chapters 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 17, 20", and states
+  it **per block** so that a technical review can check it against the mapping.
+  Chapter 6's inline-test block is `path-composition-tests`
+  (`crates/grove-loop/src/task_tree.rs` 1,016–1,105) and it contains **zero**
+  `#[test]` functions: the file's sixty-three all sit in the four later blocks —
+  nineteen in `pick-tests`, twenty-two in `brief-chain-and-kind-tests`, twenty-one
+  in `resolve-tests` and one in `pick-with-brief-chain-tests`. The block is the
+  test module's opening: its section comment, four *open-then-call* compositions,
+  and five fixtures. The arithmetic is right — those ninety lines are part of the
+  3,984 — but *per reproduced test* has no instances there, and a reviewer
+  checking chapter 6 against the list cannot tell **vacuous** from **omitted**,
+  which is the exact property the per-block wording was chosen for. The page
+  states the vacancy explicitly rather than leaving it silent
+  (`06-paths.md#compositions-that-are-the-tests-alone`); what the brief owes is
+  the same exception in one clause, so the list stops predicting prose that
+  cannot exist. **Chapter 6 is Part II, so this is inside this leaf's scope**
+  even though the sentence sits in a section that spans the book; do not sweep
+  the other twelve chapters named there — verify only that no other Part II
+  chapter is in the same position (chapters 7, 8 and 9 each own a block with
+  tests in it, and chapters 5 and 10 are not on the list).
 - **The corpus is not touched.** `task_tree.rs` and `Cargo.toml` are frozen and
   the manifest's own clause is `manifest-dependency-clauses-k133`'s; the defects
   here are in the brief that describes them, exactly as
@@ -56,6 +80,9 @@ chapter 5's *the whole reason `libc` is a dependency*.
   this leaf's list.
 - The brief's chapter 5 section no longer calls `announce_contention` the whole
   reason for `libc`, and says what chapter 1 and chapter 5 both say instead.
+- The brief's obligation 1 names the `path-composition-tests` exception, and the
+  zero is verified by enumerating `#[test]` over 1,016–1,105 rather than trusting
+  this file.
 - No page is edited for the count: no chapter of Part II owning `pick-tests`
   exists yet. Chapter 5 exists and already states the `libc` relation correctly,
   so check it agrees with the corrected brief rather than rewriting it.

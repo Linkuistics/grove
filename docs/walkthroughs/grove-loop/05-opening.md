@@ -1,6 +1,6 @@
 # Opening, contention and refusal
 <!-- book-page id="opening" slice="one-spelling-of-grove" order="5" -->
-[Previous: The name, and canonicity](04-the-name.md) | [Contents](README.md)
+[Previous: The name, and canonicity](04-the-name.md) | [Contents](README.md) | [Next: Paths, and addressing](06-paths.md)
 
 <a id="one-spelling-of-grove"></a>
 ## The rule: a guard is proof the tree was there when it was opened
@@ -856,4 +856,4 @@ state is the reason those two questions are not the same.
 Nine of this file's ten ownership blocks remain, and chapters 6 through 9 resolve
 them.
 
-[Previous: The name, and canonicity](04-the-name.md) | [Contents](README.md)
+[Previous: The name, and canonicity](04-the-name.md) | [Contents](README.md) | [Next: Paths, and addressing](06-paths.md)

@@ -41,11 +41,11 @@
 <!-- /source-root -->
 <!-- source-root «source-task-tree» source="crates/grove-loop/src/task_tree.rs" lines="1-2023" -->
 <!-- insert «tree-opening» -->
-<!-- defer «paths-and-addressing» owner="paths-are-built-here" lines="291-570" -->
+<!-- insert «paths-and-addressing» -->
 <!-- defer «walk-selection» owner="first-live-leaf" lines="571-637" -->
 <!-- defer «kind-and-brief-chain» owner="root-to-leaf" lines="638-746" -->
 <!-- defer «resolution» owner="wider-than-a-key" lines="747-1015" -->
-<!-- defer «path-composition-tests» owner="paths-are-built-here" lines="1016-1105" -->
+<!-- insert «path-composition-tests» -->
 <!-- defer «pick-tests» owner="first-live-leaf" lines="1106-1360" -->
 <!-- defer «brief-chain-and-kind-tests» owner="root-to-leaf" lines="1361-1652" -->
 <!-- defer «resolve-tests» owner="wider-than-a-key" lines="1653-1996" -->
@@ -105,11 +105,11 @@
 | `slug-rule-tests` | `source-task-name` | `the-handle-not-the-position` | `1522-1550` | 29 | `resolved` |
 | `handle-grammar-tests` | `source-task-name` | `the-handle-not-the-position` | `1551-1714` | 164 | `resolved` |
 | `tree-opening` | `source-task-tree` | `one-spelling-of-grove` | `1-290` | 290 | `resolved` |
-| `paths-and-addressing` | `source-task-tree` | `paths-are-built-here` | `291-570` | 280 | `deferred` |
+| `paths-and-addressing` | `source-task-tree` | `paths-are-built-here` | `291-570` | 280 | `resolved` |
 | `walk-selection` | `source-task-tree` | `first-live-leaf` | `571-637` | 67 | `deferred` |
 | `kind-and-brief-chain` | `source-task-tree` | `root-to-leaf` | `638-746` | 109 | `deferred` |
 | `resolution` | `source-task-tree` | `wider-than-a-key` | `747-1015` | 269 | `deferred` |
-| `path-composition-tests` | `source-task-tree` | `paths-are-built-here` | `1016-1105` | 90 | `deferred` |
+| `path-composition-tests` | `source-task-tree` | `paths-are-built-here` | `1016-1105` | 90 | `resolved` |
 | `pick-tests` | `source-task-tree` | `first-live-leaf` | `1106-1360` | 255 | `deferred` |
 | `brief-chain-and-kind-tests` | `source-task-tree` | `root-to-leaf` | `1361-1652` | 292 | `deferred` |
 | `resolve-tests` | `source-task-tree` | `wider-than-a-key` | `1653-1996` | 344 | `deferred` |
@@ -268,6 +268,22 @@
 | `tree-raised` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `199-209` | `tree-opening` | `—` |
 | `tree-announce-contention` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `210-259` | `tree-opening` | `—` |
 | `tree-restate` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `260-290` | `tree-opening` | `—` |
+| `paths-entry-path` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `291-309` | `paths-and-addressing` | `—` |
+| `paths-and-addressing` | `paths` | `source-task-tree` | `composite` | `paths-are-built-here` | `291-570` | `source-task-tree` | `paths-entry-path`, `paths-target-enum`, `paths-target-fn`, `paths-unreachable-by-any-walk`, `paths-addressable-key`, `paths-interrupted-promotion`, `paths-next-key`, `paths-live-leaf`, `paths-entry-outcome` |
+| `paths-target-enum` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `310-322` | `paths-and-addressing` | `—` |
+| `paths-target-fn` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `323-375` | `paths-and-addressing` | `—` |
+| `paths-unreachable-by-any-walk` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `376-404` | `paths-and-addressing` | `—` |
+| `paths-addressable-key` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `405-472` | `paths-and-addressing` | `—` |
+| `paths-interrupted-promotion` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `473-509` | `paths-and-addressing` | `—` |
+| `paths-next-key` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `510-546` | `paths-and-addressing` | `—` |
+| `paths-live-leaf` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `547-559` | `paths-and-addressing` | `—` |
+| `paths-entry-outcome` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `560-570` | `paths-and-addressing` | `—` |
+| `paths-tests-module-open` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1016-1029` | `path-composition-tests` | `—` |
+| `path-composition-tests` | `paths` | `source-task-tree` | `composite` | `paths-are-built-here` | `1016-1105` | `source-task-tree` | `paths-tests-module-open`, `paths-tests-composed-verbs`, `paths-tests-a-kind-and-imports`, `paths-tests-brief-chain-at`, `paths-tests-fixtures` |
+| `paths-tests-composed-verbs` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1030-1057` | `path-composition-tests` | `—` |
+| `paths-tests-a-kind-and-imports` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1058-1068` | `path-composition-tests` | `—` |
+| `paths-tests-brief-chain-at` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1069-1078` | `path-composition-tests` | `—` |
+| `paths-tests-fixtures` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1079-1105` | `path-composition-tests` | `—` |
 | `source-task-grow` | `source-index` | `source-task-grow` | `root` | `—` | `1-518` | `—` | `growing-the-tree` |
 | `source-tree-lifecycle` | `source-index` | `source-tree-lifecycle` | `root` | `—` | `1-2725` | `—` | `finish-transition`, `grove-beginning`, `decompose-production`, `outcomes-in-place`, `body-helpers`, `root-init-tests`, `finish-tests`, `decompose-tests`, `retire-and-prune-tests` |
 | `source-verbs` | `source-index` | `source-verbs` | `root` | `—` | `1-363` | `—` | `the-twelve-verbs` |
@@ -313,10 +329,14 @@
 | `terminal_key` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `canonical-or-nothing` | The public function that answers *does this reference end in a key* and requires nothing of what precedes it, which is why `resolve`'s bare-slug fallback asks it rather than `Handle::parse`. It reaches the key through the same `peel_key`. | `explained` |
 | `parse_ref` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `wider-than-a-key` | The reference grammar's own front door, already lenient on a bare key — `007` is key 7 there — which is the precedent `Handle::parse`'s leniency on `a-k007` is argued from. | `pending` |
 | `TaskName::compose` | `03-kind-slug-handle.md#the-handle-is-the-identity` | `canonical-or-nothing` | Composition builds a positioned name from a position, a kind, a slug and a key, so the handle's structural claim can be asserted over names built rather than parsed. | `explained` |
-| `entry_path` | `05-opening.md#one-spelling-of-the-root` | `paths-are-built-here` | The one place an entry's absolute path is built, because the store returns no paths. Chapter 5 reproduces the module header that says so; chapter 6 reads the function. | `pending` |
+| `entry_path` | `05-opening.md#one-spelling-of-the-root` | `paths-are-built-here` | The one place an entry's absolute path is built, because the store returns no paths. Chapter 5 reproduces the module header that says so; chapter 6 reads the function. | `explained` |
 | `brief_chain`, `kind_in` | `05-opening.md#one-spelling-of-the-root` | `root-to-leaf` | Two of the five reading verbs the module header names in its first sentence: one answers a leaf's session kind, the other its ancestors' briefs root to leaf. Chapter 5 needs only the header's claim that all five read one snapshot taken under one lock; chapter 8 reads both functions. | `pending` |
-| `leaf_entry` | `05-opening.md#one-spelling-of-the-root` | `root-to-leaf` | The one place canonicalisation appears, and it appears only to *compare* a caller's spelling of a leaf against the tree's — never to produce a path grove hands back. Chapter 5 reproduces the module header that states the exception; chapter 8 reads the function. | `pending` |
+| `leaf_entry` | `05-opening.md#one-spelling-of-the-root` | `root-to-leaf` | A place canonicalisation appears, and it appears only to *compare* a caller's spelling of a leaf against the tree's — never to produce a path grove hands back. The module header chapter 5 reproduces says this is the only such place; chapter 6 reads `target`, which is a second, and adjudicates the claim. Chapter 8 reads this function. | `pending` |
 | `tree_lifecycle::leaf_prune` | `05-opening.md#the-four-openings` | `marked-in-place` | The bulk mark that carries the consequence of a mutation consuming its guard: it marks each entry under a guard of its own, so a run interrupted part way leaves some entries marked and some not. Chapter 13 reads it. | `pending` |
+| `tree_lifecycle::leaf_decompose` | `06-paths.md#which-entry-a-path-names` | `the-key-survives` | The verb that turns a live leaf file into a node directory, keeping the entry's key and moving its body in as the node's `BRIEF.md`. Chapter 6 needs only that it acts on a leaf and preserves the key — which is what makes an interrupted one two halves of one entity rather than two entities. Chapter 12 reads it. | `pending` |
+| `tree_lifecycle::leaf_retire` | `06-paths.md#which-entry-a-path-names` | `marked-in-place` | The verb that marks a live leaf `DONE` in place, keeping its position and its key. Chapter 6 needs only that it acts on one named leaf, because *aimed by path at one twin, it silently marks the other and reports success* is the failure `addressable_key` exists to prevent. Chapter 13 reads it. | `pending` |
+| `task_grow::allocated` | `06-paths.md#predicting-the-allocation` | `what-the-library-cannot-see` | The check every grow verb runs over `next_key`'s prediction: it compares the predicted key against the one the library reports and refuses to claim success on a disagreement, which is what keeps a leaf's embedded handle from contradicting its own filename. Chapter 10 reads it. | `pending` |
+| `pick_in`, `select_in` | `06-paths.md#compositions-that-are-the-tests-alone` | `first-live-leaf` | The two walk operations the test module's compositions call after opening the tree: one answers the path of the first live leaf, the other every launch fact about it. Chapter 6 needs only that each takes an already-open tree; chapter 7 reads both. | `pending` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

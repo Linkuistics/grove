@@ -181,6 +181,21 @@ item**: a missing blank line between two `///` runs, so rustdoc rendered
 `peel_key`'s paragraphs as `terminal_key`'s and left `peel_key`'s docblock empty.
 `kit-fixture-and-peel-doc-k140` fixed the last two.
 
+**A stale module name in four comments, and no leaf holds it.** Found by
+`paths-k142`: `crates/grove-loop/src/task_tree.rs` line 1,070 says *production
+never wants it: `llm_cli` holds one tree across `pick` and the ancestor walk*.
+There is no `llm_cli` in this workspace; the code is
+`crates/grove-llm/src/cli.rs`, whose `cmd_brief_chain` opens one tree and hands
+the same guard to `leaf_in` and `verbs::brief_chain`. **The behaviour the comment
+claims is correct and only the address is stale**, which is why chapter 6
+adjudicated it on the page rather than cutting a leaf for it. Three other
+comments spell it the same way and each belongs to a chapter still to be written:
+`tree_lifecycle.rs` line 42 (chapter 14's block) and line 1,147 (chapter 11's),
+and one in the excluded `task_grow/tests.rs` that chapter 10 may only cite. Each
+of those chapters owes the same one-clause adjudication; if a session decides the
+four are worth a source fix, `canonicalisation-sites-k149` is already touching
+`task_tree.rs`'s comments inside the frozen line counts and can carry them.
+
 **Three instruments, and none of them is reading the bytes.** A comment's *n
 places / the two callers / the only X* is checked by enumerating the calls. A
 comment claiming *disabling X leaves this green and that red* is checked by

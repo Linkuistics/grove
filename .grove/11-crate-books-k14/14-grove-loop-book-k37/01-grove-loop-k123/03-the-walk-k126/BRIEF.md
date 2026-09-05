@@ -109,11 +109,37 @@ page down to fifteen. This is the same shape as
 `structure-brief-dependency-count-k132`, and the same lesson the parent brief
 draws: **count before writing a count.**
 
+**The module header's *canonicalisation appears once* is false, and chapter 8
+must not repeat it.** Found by `paths-k142`, which owns the counterexample.
+`crates/grove-loop/src/task_tree.rs` lines 27 to 29 say *Canonicalisation appears
+once, in `leaf_entry`, and only to compare a caller's spelling of a leaf against
+the tree's.* Six production `canonicalize` calls sit in this file: 346, 349 and
+369 inside `target`, which chapter 6 owns, and 712, 715 and 734 inside
+`leaf_entry`, which chapter 8 owns. It is refuted from inside the corpus —
+`target`'s own doc comment says *exactly as `leaf_entry` does*. Chapter 6
+adjudicates it at `06-paths.md#canonicalise-to-compare`;
+`canonicalisation-sites-k149`, cut under `crate-books-k14` ahead of
+`architecture-residue-k75`, holds the source fix and the reconciliation of both
+pages. **`kind-and-briefs-k144` must not restate the claim** when it reads
+`leaf_entry`: the `leaf_entry` early-use row in the book's ledger was corrected in
+the same pass and now points at chapter 6's adjudication.
+
 **The `entry_path` early-use row is discharged by chapter 5 and closed by chapter
 6.** The manifest's fourth `[[early-use]]` row anchors on
 `05-opening.md#one-spelling-of-the-root`, so chapter 5 must carry an explicit
 `<a id="one-spelling-of-the-root"></a>` and state the minimum locally; the row
 moves to `explained` when chapter 6 reads the function.
+
+**Four early-use rows beyond the manifest's were added by chapter 6, and two of
+them were found by its reviewer rather than by its own sweep.**
+`task_grow::allocated` (owner `what-the-library-cannot-see`) and `pick_in`,
+`select_in` (owner `first-live-leaf`) came from the author's enumeration;
+`tree_lifecycle::leaf_decompose` and `tree_lifecycle::leaf_retire` did not,
+because the bytes name them in their **hyphenated verb spelling** — `leaf-retire`,
+`leaf-decompose` — rather than as Rust paths, and a sweep looking for identifiers
+does not see them. Chapter 5's `tree_lifecycle::leaf_prune` row is the precedent
+and was written from an underscore spelling, which is exactly why the hyphenated
+ones were missed. **Every remaining child should enumerate both spellings.**
 
 **Two of the brief's other Part II counts were enumerated and stand.** Chapter
 5's *four openings* is the 2×2 of {shared, exclusive} × {refusing, answering the

@@ -149,6 +149,45 @@ acquisition the two write-side entry points share; five `pub(crate)` functions
 hand back a guard and four of them are that square. Chapter 5's *three error
 paths* — `absent_tree`, `raised`, `restate` — are all three in the block.
 
+**A fourth Part II claim in the brief is refuted, and it is in the same sentence
+`pick-test-count-k147` corrected.** The chapter 7 section says
+`pick_orders_numerically_not_lexically` *passes under a lexical sort too until
+there are ten leaves, and it is `10` against `9` that makes it a test.* Under the
+canonical grammar a position is zero-padded to **at least two digits**, so 9
+renders `09` and 10 renders `10` and the two orderings agree on that pair; the
+block's fixture is `100` against `99`, and the test's own comment gives the
+reason. `structure-brief-lexical-pair-k150` holds the correction;
+`07-the-walk.md` already states the true pair, so no page is reconciled down to
+the brief. k147 read the sentence for its number and not for its example, which
+is the general lesson: **a corrected sentence is not a checked sentence.**
+
+**An early-use floor row is owed for a symbol whose *static* an earlier chapter
+already covered.** Chapter 7's test block calls `reset_read_count()` and
+`read_count()`, defined at `task_tree.rs` 1,006–1,014 inside chapter 9's block.
+Chapter 5 declared and explained `READ_COUNT` itself and even named this
+assertion, so a sweep asking *has this been covered?* answers yes while the two
+accessors have no row at all. **The unit of an early-use row is the symbol, not
+the concept**, and the enumeration must be over identifiers in the reproduced
+bytes rather than over topics the book has discussed. Chapter 9 moves the row to
+`explained`.
+
+**Chapter 7's nineteen tests leave one broken implementation passing all of
+them,** and the page states it: *return the deepest live leaf, breaking ties by
+walk order* is indistinguishable from *the first live leaf in pre-order* under
+every fixture in the block, because the five trees that hold both a node and a
+live leaf all put the node at ordinal 01. Later chapters owe the same move — the
+obligation is *what would this pass under*, and the answer is only worth writing
+after the alternative implementation has been run against every fixture in the
+block rather than against the one in front of you.
+
+**A refusal a verb surfaces was usually not produced by that verb.** Chapter 7
+first wrote that the species mismatch was *met in the walk rather than in the
+parser*; `disagreement` is called inside `TaskName::parse`, which the library runs
+while classifying entries, so the composition fails inside `read` and the walk is
+never reached. Every later chapter reproducing a test that asserts on refusal text
+owes the same check — chapters 8, 9 and 11 to 14 all have them — and the honest
+form is *this is chapter 4's grammar observed through chapter N's verb*.
+
 ## Notes
 
 **The corpus is frozen.** A defect found while drafting becomes its own leaf and

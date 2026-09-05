@@ -42,11 +42,11 @@
 <!-- source-root «source-task-tree» source="crates/grove-loop/src/task_tree.rs" lines="1-2023" -->
 <!-- insert «tree-opening» -->
 <!-- insert «paths-and-addressing» -->
-<!-- defer «walk-selection» owner="first-live-leaf" lines="571-637" -->
+<!-- insert «walk-selection» -->
 <!-- defer «kind-and-brief-chain» owner="root-to-leaf" lines="638-746" -->
 <!-- defer «resolution» owner="wider-than-a-key" lines="747-1015" -->
 <!-- insert «path-composition-tests» -->
-<!-- defer «pick-tests» owner="first-live-leaf" lines="1106-1360" -->
+<!-- insert «pick-tests» -->
 <!-- defer «brief-chain-and-kind-tests» owner="root-to-leaf" lines="1361-1652" -->
 <!-- defer «resolve-tests» owner="wider-than-a-key" lines="1653-1996" -->
 <!-- defer «pick-with-brief-chain-tests» owner="root-to-leaf" lines="1997-2023" -->
@@ -106,11 +106,11 @@
 | `handle-grammar-tests` | `source-task-name` | `the-handle-not-the-position` | `1551-1714` | 164 | `resolved` |
 | `tree-opening` | `source-task-tree` | `one-spelling-of-grove` | `1-290` | 290 | `resolved` |
 | `paths-and-addressing` | `source-task-tree` | `paths-are-built-here` | `291-570` | 280 | `resolved` |
-| `walk-selection` | `source-task-tree` | `first-live-leaf` | `571-637` | 67 | `deferred` |
+| `walk-selection` | `source-task-tree` | `first-live-leaf` | `571-637` | 67 | `resolved` |
 | `kind-and-brief-chain` | `source-task-tree` | `root-to-leaf` | `638-746` | 109 | `deferred` |
 | `resolution` | `source-task-tree` | `wider-than-a-key` | `747-1015` | 269 | `deferred` |
 | `path-composition-tests` | `source-task-tree` | `paths-are-built-here` | `1016-1105` | 90 | `resolved` |
-| `pick-tests` | `source-task-tree` | `first-live-leaf` | `1106-1360` | 255 | `deferred` |
+| `pick-tests` | `source-task-tree` | `first-live-leaf` | `1106-1360` | 255 | `resolved` |
 | `brief-chain-and-kind-tests` | `source-task-tree` | `root-to-leaf` | `1361-1652` | 292 | `deferred` |
 | `resolve-tests` | `source-task-tree` | `wider-than-a-key` | `1653-1996` | 344 | `deferred` |
 | `pick-with-brief-chain-tests` | `source-task-tree` | `root-to-leaf` | `1997-2023` | 27 | `deferred` |
@@ -278,12 +278,29 @@
 | `paths-next-key` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `510-546` | `paths-and-addressing` | `—` |
 | `paths-live-leaf` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `547-559` | `paths-and-addressing` | `—` |
 | `paths-entry-outcome` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `560-570` | `paths-and-addressing` | `—` |
+| `walk-selection-type` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `571-579` | `walk-selection` | `—` |
+| `walk-selection` | `the-walk` | `source-task-tree` | `composite` | `first-live-leaf` | `571-637` | `source-task-tree` | `walk-selection-type`, `walk-pick-in`, `walk-select-in`, `walk-select-in-write`, `walk-selected` |
+| `walk-pick-in` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `580-585` | `walk-selection` | `—` |
+| `walk-select-in` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `586-595` | `walk-selection` | `—` |
+| `walk-select-in-write` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `596-605` | `walk-selection` | `—` |
+| `walk-selected` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `606-637` | `walk-selection` | `—` |
 | `paths-tests-module-open` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1016-1029` | `path-composition-tests` | `—` |
 | `path-composition-tests` | `paths` | `source-task-tree` | `composite` | `paths-are-built-here` | `1016-1105` | `source-task-tree` | `paths-tests-module-open`, `paths-tests-composed-verbs`, `paths-tests-a-kind-and-imports`, `paths-tests-brief-chain-at`, `paths-tests-fixtures` |
 | `paths-tests-composed-verbs` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1030-1057` | `path-composition-tests` | `—` |
 | `paths-tests-a-kind-and-imports` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1058-1068` | `path-composition-tests` | `—` |
 | `paths-tests-brief-chain-at` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1069-1078` | `path-composition-tests` | `—` |
 | `paths-tests-fixtures` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1079-1105` | `path-composition-tests` | `—` |
+| `walk-tests-select-one-observation` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1106-1130` | `pick-tests` | `—` |
+| `pick-tests` | `the-walk` | `source-task-tree` | `composite` | `first-live-leaf` | `1106-1360` | `source-task-tree` | `walk-tests-select-one-observation`, `walk-tests-order`, `walk-tests-terminal-leaves`, `walk-tests-descent`, `walk-tests-fall-through`, `walk-tests-none`, `walk-tests-foreign`, `walk-tests-species-mismatch`, `walk-tests-symlink`, `walk-tests-legacy-and-absent-root` |
+| `walk-tests-order` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1131-1156` | `pick-tests` | `—` |
+| `walk-tests-terminal-leaves` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1157-1176` | `pick-tests` | `—` |
+| `walk-tests-descent` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1177-1200` | `pick-tests` | `—` |
+| `walk-tests-fall-through` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1201-1239` | `pick-tests` | `—` |
+| `walk-tests-none` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1240-1269` | `pick-tests` | `—` |
+| `walk-tests-foreign` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1270-1287` | `pick-tests` | `—` |
+| `walk-tests-species-mismatch` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1288-1319` | `pick-tests` | `—` |
+| `walk-tests-symlink` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1320-1337` | `pick-tests` | `—` |
+| `walk-tests-legacy-and-absent-root` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1338-1360` | `pick-tests` | `—` |
 | `source-task-grow` | `source-index` | `source-task-grow` | `root` | `—` | `1-518` | `—` | `growing-the-tree` |
 | `source-tree-lifecycle` | `source-index` | `source-tree-lifecycle` | `root` | `—` | `1-2725` | `—` | `finish-transition`, `grove-beginning`, `decompose-production`, `outcomes-in-place`, `body-helpers`, `root-init-tests`, `finish-tests`, `decompose-tests`, `retire-and-prune-tests` |
 | `source-verbs` | `source-index` | `source-verbs` | `root` | `—` | `1-363` | `—` | `the-twelve-verbs` |
@@ -303,7 +320,7 @@
 | `Handle`, `HandleError`, `Kind`, `Parts`, `Slug` | `01-orientation.md#the-cast` | `the-handle-not-the-position` | The named parts of a task name: a kind token, a slug, and the `<slug>-k<key>` handle that is the entry's identity. `Parts` is the set of them a positioned name decomposes into. | `explained` |
 | `TaskName` | `01-orientation.md#the-cast` | `canonical-or-nothing` | One parsed entry name, which renders back to the bytes it was parsed from or refuses to be computed at all. | `explained` |
 | `Tree`, `Vacancy`, `task_tree::Guard`, `task_tree::write` | `01-orientation.md#the-cast` | `one-spelling-of-grove` | The tree read under the store's shared lock; the lock over a root that holds no tree; the store guard one mutation consumes; and the reopening a `TreeWrite` performs when it no longer holds one. | `explained` |
-| `Selection` | `01-orientation.md#the-cast` | `first-live-leaf` | The leaf a session was launched to work: its path, its identity and its kind. | `pending` |
+| `Selection` | `01-orientation.md#the-cast` | `first-live-leaf` | The leaf a session was launched to work: its path, its identity and its kind. | `explained` |
 | `verbs::resolve`, `Resolution` | `01-orientation.md#the-cast` | `wider-than-a-key` | Resolution of one reference against the tree, whose `Ambiguous` case lists the keys of every entry a bare slug matched. | `pending` |
 | `verbs::root_init` | `01-orientation.md#the-cast` | `never-mistaken-for-finished` | The verb that consumes a `Vacancy` and creates the whole grove — charter and first live leaf — as one store operation. | `pending` |
 | `interpret`, `Disposition` | `01-orientation.md#the-cast` | `twelve-not-fourteen` | What the child side of the loop makes of a token written to the control channel: relaunch, or stop. | `pending` |
@@ -319,7 +336,7 @@
 | `peel_key` | `02-the-tokens.md#the-handle-in-this-grammar` | `canonical-or-nothing` | The private free function at lines 1,012 to 1,019, and the only place a terminal `-k<digits>` is taken apart: it returns what precedes the key and the digit run, leaving each caller to judge an over-wide key. Chapter 4 reads it. | `explained` |
 | `split_shape` | `02-the-tokens.md#the-handle-in-this-grammar` | `canonical-or-nothing` | The private free function at lines 967 to 975, which splits a task-shaped stem into position digits, an unexamined middle and key digits — reaching the key by calling `peel_key` rather than finding it itself, which is why the header can say there is one peel. Chapter 4 reads it. | `explained` |
 | `Parts::Node` | `02-the-tokens.md#the-outcome` | `the-handle-not-the-position` | The node arm of chapter 3's `Parts`, carrying a slug and nothing else. It has no outcome field at all rather than one constrained to a single value, so a node directory wearing an outcome is not a state the type can hold. | `explained` |
-| `pick` | `02-the-tokens.md#the-outcome` | `first-live-leaf` | The verb that answers *what next*: a depth-first pre-order walk returning the first leaf still live, skipping briefs and the `DONE` and `ABANDONED` leaves this block's `Outcome` marks. Chapter 7 reads the walk. | `pending` |
+| `pick` | `02-the-tokens.md#the-outcome` | `first-live-leaf` | The verb that answers *what next*: a depth-first pre-order walk returning the first leaf still live, skipping briefs and the `DONE` and `ABANDONED` leaves this block's `Outcome` marks. Chapter 7 reads the walk. | `explained` |
 | `Parts::leaf` | `02-the-tokens.md#refusals-inside-the-shape` | `the-handle-not-the-position` | The constructor for the leaf half of `Parts`, taking an outcome, a session kind and a slug — the named parts a positioned leaf name decomposes into. | `explained` |
 | `a_kind`, `slug` | `02-the-tokens.md#refusals-inside-the-shape` | `canonical-or-nothing` | Two test helpers defined beside the conformance kit: each takes a label, builds the token type it names, and panics if the label is not well-formed, so an invalid fixture is a test bug rather than a compile error. | `explained` |
 | `impl Display for TaskNameError` | `02-the-tokens.md#refusals-inside-the-shape` | `canonical-or-nothing` | The renderer chapter 4 reads at line 727, which writes each refusal's recovery advice and not merely its detection. Three of this section's six tests assert on that rendered text, so the advice is part of what they pin rather than commentary beside it. | `explained` |
@@ -336,7 +353,8 @@
 | `tree_lifecycle::leaf_decompose` | `06-paths.md#which-entry-a-path-names` | `the-key-survives` | The verb that turns a live leaf file into a node directory, keeping the entry's key and moving its body in as the node's `BRIEF.md`. Chapter 6 needs only that it acts on a leaf and preserves the key — which is what makes an interrupted one two halves of one entity rather than two entities. Chapter 12 reads it. | `pending` |
 | `tree_lifecycle::leaf_retire` | `06-paths.md#which-entry-a-path-names` | `marked-in-place` | The verb that marks a live leaf `DONE` in place, keeping its position and its key. Chapter 6 needs only that it acts on one named leaf, because *aimed by path at one twin, it silently marks the other and reports success* is the failure `addressable_key` exists to prevent. Chapter 13 reads it. | `pending` |
 | `task_grow::allocated` | `06-paths.md#predicting-the-allocation` | `what-the-library-cannot-see` | The check every grow verb runs over `next_key`'s prediction: it compares the predicted key against the one the library reports and refuses to claim success on a disagreement, which is what keeps a leaf's embedded handle from contradicting its own filename. Chapter 10 reads it. | `pending` |
-| `pick_in`, `select_in` | `06-paths.md#compositions-that-are-the-tests-alone` | `first-live-leaf` | The two walk operations the test module's compositions call after opening the tree: one answers the path of the first live leaf, the other every launch fact about it. Chapter 6 needs only that each takes an already-open tree; chapter 7 reads both. | `pending` |
+| `pick_in`, `select_in` | `06-paths.md#compositions-that-are-the-tests-alone` | `first-live-leaf` | The two walk operations the test module's compositions call after opening the tree: one answers the path of the first live leaf, the other every launch fact about it. Chapter 6 needs only that each takes an already-open tree; chapter 7 reads both. | `explained` |
+| `reset_read_count`, `read_count` | `07-the-walk.md#nineteen-tests` | `wider-than-a-key` | The counter's two accessors: one sets the thread-local read count to zero, the other returns it. Chapter 7's one-observation test resets before the call and asserts the count is `1`, so it needs only that the pair reads the `READ_COUNT` chapter 5 declared; chapter 9 owns the lines they sit on. | `pending` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

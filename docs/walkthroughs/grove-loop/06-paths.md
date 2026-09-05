@@ -1,6 +1,6 @@
 # Paths, and addressing
 <!-- book-page id="paths" slice="paths-are-built-here" order="6" -->
-[Previous: Opening, contention and refusal](05-opening.md) | [Contents](README.md)
+[Previous: Opening, contention and refusal](05-opening.md) | [Contents](README.md) | [Next: The walk: pick and select](07-the-walk.md)
 
 <a id="paths-are-built-here"></a>
 ## The rule: the library returns no paths, so grove builds them
@@ -1219,4 +1219,4 @@ snapshot in the library's order and stop at the first live leaf.
 Seven of this file's ten ownership blocks remain, and chapters 7 through 9
 resolve them.
 
-[Previous: Opening, contention and refusal](05-opening.md) | [Contents](README.md)
+[Previous: Opening, contention and refusal](05-opening.md) | [Contents](README.md) | [Next: The walk: pick and select](07-the-walk.md)

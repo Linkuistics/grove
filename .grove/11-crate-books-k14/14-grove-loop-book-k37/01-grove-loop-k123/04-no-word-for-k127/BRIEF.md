@@ -235,6 +235,57 @@ question that is actually load-bearing — *which helpers does this chapter's ow
 section call?* — is answerable by enumeration; *first caller* is a different question
 and was never the one being asked.
 
+**Enumerate call sites before calling an arm untested, because the mutation
+reports unreachable and unobserved identically.** Promoted from `outcomes-k157`.
+Two of chapter 13's six unheld arms are inside `plan_leaf`, which has exactly two
+call sites and **both guard it with a `Parts::Leaf` match on the same entry's
+triple** — so its missing-triple context and its node-as-leaf refusal cannot fire
+through any path in the workspace. A zero in the mutation table means *no test
+distinguishes this arm*; it does not distinguish *no test could*. The second of
+the two matters on its own account: its message is the block's only operator
+instruction, *pass the directory itself to prune its subtree*, written for a
+mistake `plan_prune`'s own dispatch makes impossible. **Chapters 14 and 17 and 20
+all own private helpers reached from more than one place**, and a coverage
+sentence about any of their arms owes the call-site enumeration as well as the
+mutation.
+
+**A missing test is worth more as an asymmetry than as an absence.** Same leaf.
+`leaf_retire`'s grove-root refusal is held by nothing while `leaf_prune`'s twin
+has two tests, one per spelling of the root — and the two verbs' argument surfaces
+are literally the same declaration under two names, both normalised through
+`grove-llm`'s `normalize_leaf_path`. The finding is not *this line is untested*,
+which is true of a lot of defensive code; it is *the identical argument on the
+identical shape of tree is covered twice for one verb and not once for its twin,
+and nothing explains the difference*. Adjudicate on the page rather than cutting a
+leaf: the missing test is `crates/grove-loop`'s and would have to land inside the
+frozen line counts.
+
+**A bare parenthesised word in a comment is an anchor citation, and it may carry
+less than the code leans on it for.** Same leaf. `(pruning)` appears five times in
+chapter 13's block; it resolves to `docs/ARCHITECTURE.md#pruning`, one of three
+`id`s on *Human authority and completion*, whose only statement about pruning is
+the authority boundary. The comments that cite it for the **arity asymmetry** are
+citing a record that does not argue it. `(task-kind-taxonomy)`,
+`(self-driving-loop)` and `(user-owned-worktrees)` are the same form and appear in
+chapters 11, 12 and 14's blocks; read the anchor's own section before writing that
+a comment's claim is recorded somewhere.
+
+**The structure brief's residue map is off by one on every line, and wrong about
+one chapter.** `structure-brief-chapter-attributions-k163` holds both and runs
+**before** `finishing-k158`, because the misassigned marker — the transition table
+— is chapter 14's. All thirty-one cited marker lines are one less than the marker
+they name, measured by enumerating both documents rather than sampling. Do not
+cite the brief's line numbers on a page; cite the marker's subject.
+
+**Chapter 1 has not written the 13/16 thesis contrast the brief says it has.**
+Same leaf. The brief's *stated outcome* says *the contrast between those two is
+stated once in chapter 1*; `01-orientation.md` carries the spine, the Part IV/V
+boundary and one forward pointer to chapter 13 alone. Chapter 13 states the
+contrast itself at `#marked-in-place`, citing `driver_lease.rs` line 25's own
+*untracked coordination directory*, so **chapter 16 inherits it as already said**
+and should not re-argue it — but should check the page rather than the brief
+before deciding that.
+
 ## Notes
 
 **The corpus is frozen.** A defect found while drafting becomes its own leaf and

@@ -1,6 +1,6 @@
 # A leaf becomes a node
 <!-- book-page id="leaf-to-node" slice="the-key-survives" order="12" -->
-[Previous: A grove begins](11-a-grove-begins.md) | [Contents](README.md)
+[Previous: A grove begins](11-a-grove-begins.md) | [Contents](README.md) | [Next: Outcomes are marked in place](13-outcomes.md)
 
 <a id="the-key-survives"></a>
 ## The rule: the key survives, because the entity does
@@ -1769,4 +1769,4 @@ The grove now has a node where it had a leaf, and the node has a live child that
 `pick` will answer. Chapter 13 takes a leaf that is *finished* rather than too
 big, and marks it — in the name, without rewriting a byte of the body.
 
-[Previous: A grove begins](11-a-grove-begins.md) | [Contents](README.md)
+[Previous: A grove begins](11-a-grove-begins.md) | [Contents](README.md) | [Next: Outcomes are marked in place](13-outcomes.md)

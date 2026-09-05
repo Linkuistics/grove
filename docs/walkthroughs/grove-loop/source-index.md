@@ -58,12 +58,12 @@
 <!-- defer «finish-transition» owner="the-tree-deletes-itself" lines="1-331" -->
 <!-- insert «grove-beginning» -->
 <!-- insert «decompose-production» -->
-<!-- defer «outcomes-in-place» owner="marked-in-place" lines="696-1012" -->
+<!-- insert «outcomes-in-place» -->
 <!-- insert «body-helpers» -->
 <!-- insert «root-init-tests» -->
 <!-- defer «finish-tests» owner="the-tree-deletes-itself" lines="1467-1665" -->
 <!-- insert «decompose-tests» -->
-<!-- defer «retire-and-prune-tests» owner="marked-in-place" lines="2235-2725" -->
+<!-- insert «retire-and-prune-tests» -->
 <!-- /source-root -->
 <!-- source-root «source-verbs» source="crates/grove-loop/src/verbs.rs" lines="1-363" -->
 <!-- defer «the-twelve-verbs» owner="twelve-not-fourteen" lines="1-363" -->
@@ -118,12 +118,12 @@
 | `finish-transition` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1-331` | 331 | `deferred` |
 | `grove-beginning` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `332-489` | 158 | `resolved` |
 | `decompose-production` | `source-tree-lifecycle` | `the-key-survives` | `490-695` | 206 | `resolved` |
-| `outcomes-in-place` | `source-tree-lifecycle` | `marked-in-place` | `696-1012` | 317 | `deferred` |
+| `outcomes-in-place` | `source-tree-lifecycle` | `marked-in-place` | `696-1012` | 317 | `resolved` |
 | `body-helpers` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1013-1076` | 64 | `resolved` |
 | `root-init-tests` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1077-1466` | 390 | `resolved` |
 | `finish-tests` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1467-1665` | 199 | `deferred` |
 | `decompose-tests` | `source-tree-lifecycle` | `the-key-survives` | `1666-2234` | 569 | `resolved` |
-| `retire-and-prune-tests` | `source-tree-lifecycle` | `marked-in-place` | `2235-2725` | 491 | `deferred` |
+| `retire-and-prune-tests` | `source-tree-lifecycle` | `marked-in-place` | `2235-2725` | 491 | `resolved` |
 | `the-twelve-verbs` | `source-verbs` | `twelve-not-fourteen` | `1-363` | 363 | `deferred` |
 | `driver-operations` | `source-driver` | `twelve-not-fourteen` | `1-57` | 57 | `deferred` |
 | `complete-verb` | `source-complete` | `twelve-not-fourteen` | `1-96` | 96 | `deferred` |
@@ -392,6 +392,20 @@
 | `decompose-decomposable` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `591-628` | `decompose-production` | `—` |
 | `decompose-promoted-claims` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `629-644` | `decompose-production` | `—` |
 | `decompose-promoted-body` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `645-695` | `decompose-production` | `—` |
+| `outcomes-retire-contract` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `696-706` | `outcomes-in-place` | `—` |
+| `outcomes-in-place` | `outcomes` | `source-tree-lifecycle` | `composite` | `marked-in-place` | `696-1012` | `source-tree-lifecycle` | `outcomes-retire-contract`, `outcomes-retire-body`, `outcomes-retire-parts`, `outcomes-prune-result`, `outcomes-prune-contract`, `outcomes-prune-body`, `outcomes-planned`, `outcomes-plan-prune`, `outcomes-plan-subtree`, `outcomes-plan-leaf`, `outcomes-apply-prune`, `outcomes-stopped-partway`, `outcomes-marked-path` |
+| `outcomes-retire-body` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `707-727` | `outcomes-in-place` | `—` |
+| `outcomes-retire-parts` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `728-764` | `outcomes-in-place` | `—` |
+| `outcomes-prune-result` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `765-775` | `outcomes-in-place` | `—` |
+| `outcomes-prune-contract` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `776-805` | `outcomes-in-place` | `—` |
+| `outcomes-prune-body` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `806-821` | `outcomes-in-place` | `—` |
+| `outcomes-planned` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `822-828` | `outcomes-in-place` | `—` |
+| `outcomes-plan-prune` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `829-851` | `outcomes-in-place` | `—` |
+| `outcomes-plan-subtree` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `852-888` | `outcomes-in-place` | `—` |
+| `outcomes-plan-leaf` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `889-929` | `outcomes-in-place` | `—` |
+| `outcomes-apply-prune` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `930-976` | `outcomes-in-place` | `—` |
+| `outcomes-stopped-partway` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `977-996` | `outcomes-in-place` | `—` |
+| `outcomes-marked-path` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `997-1012` | `outcomes-in-place` | `—` |
 | `body-helpers-grove-name` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1013-1037` | `body-helpers` | `—` |
 | `body-helpers` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `1013-1076` | `source-tree-lifecycle` | `body-helpers-grove-name`, `body-helpers-root-brief`, `body-helpers-retitle` |
 | `body-helpers-root-brief` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1038-1053` | `body-helpers` | `—` |
@@ -425,6 +439,27 @@
 | `decompose-tests-interrupted` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2109-2151` | `decompose-tests` | `—` |
 | `decompose-tests-last-key` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2152-2182` | `decompose-tests` | `—` |
 | `decompose-tests-sweep` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2183-2234` | `decompose-tests` | `—` |
+| `retire-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2235-2252` | `retire-and-prune-tests` | `—` |
+| `retire-and-prune-tests` | `outcomes` | `source-tree-lifecycle` | `composite` | `marked-in-place` | `2235-2725` | `source-tree-lifecycle` | `retire-tests-opening`, `retire-tests-body-untouched`, `retire-tests-nested`, `retire-tests-refusals`, `retire-tests-absolute`, `untracked-tests-opening`, `untracked-tests-decompose-and-prune`, `prune-leaf-tests-opening`, `prune-leaf-tests-body-and-nested`, `prune-leaf-tests-refusals`, `prune-leaf-tests-absolute`, `prune-node-tests-opening`, `prune-node-tests-done-untouched`, `prune-node-tests-grandchild`, `prune-node-tests-mixed-tracking`, `prune-node-tests-atomic`, `prune-node-tests-twin`, `prune-node-tests-guard-count`, `prune-node-tests-nothing-live`, `prune-node-tests-root-refusals` |
+| `retire-tests-body-untouched` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2253-2262` | `retire-and-prune-tests` | `—` |
+| `retire-tests-nested` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2263-2274` | `retire-and-prune-tests` | `—` |
+| `retire-tests-refusals` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2275-2331` | `retire-and-prune-tests` | `—` |
+| `retire-tests-absolute` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2332-2341` | `retire-and-prune-tests` | `—` |
+| `untracked-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2342-2367` | `retire-and-prune-tests` | `—` |
+| `untracked-tests-decompose-and-prune` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2368-2394` | `retire-and-prune-tests` | `—` |
+| `prune-leaf-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2395-2414` | `retire-and-prune-tests` | `—` |
+| `prune-leaf-tests-body-and-nested` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2415-2440` | `retire-and-prune-tests` | `—` |
+| `prune-leaf-tests-refusals` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2441-2485` | `retire-and-prune-tests` | `—` |
+| `prune-leaf-tests-absolute` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2486-2495` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2496-2514` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-done-untouched` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2515-2533` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-grandchild` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2534-2551` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-mixed-tracking` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2552-2581` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-atomic` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2582-2635` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-twin` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2636-2662` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-guard-count` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2663-2692` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-nothing-live` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2693-2704` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-root-refusals` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2705-2725` | `retire-and-prune-tests` | `—` |
 | `source-verbs` | `source-index` | `source-verbs` | `root` | `—` | `1-363` | `—` | `the-twelve-verbs` |
 | `source-driver` | `source-index` | `source-driver` | `root` | `—` | `1-57` | `—` | `driver-operations` |
 | `source-complete` | `source-index` | `source-complete` | `root` | `—` | `1-96` | `—` | `complete-verb` |
@@ -471,9 +506,9 @@
 | `entry_path` | `05-opening.md#one-spelling-of-the-root` | `paths-are-built-here` | The one place an entry's absolute path is built, because the store returns no paths. Chapter 5 reproduces the module header that says so; chapter 6 reads the function. | `explained` |
 | `brief_chain`, `kind_in` | `05-opening.md#one-spelling-of-the-root` | `root-to-leaf` | Two of the five reading verbs the module header names in its first sentence: one answers a leaf's session kind, the other its ancestors' briefs root to leaf. Chapter 5 needs only the header's claim that all five read one snapshot taken under one lock; chapter 8 reads both functions. | `explained` |
 | `leaf_entry` | `05-opening.md#one-spelling-of-the-root` | `root-to-leaf` | A place canonicalisation appears, and it appears only to *compare* a caller's spelling of a leaf against the tree's — never to produce a path grove hands back. The module header chapter 5 reproduces says this is the only such place; chapter 6 reads `target`, which is a second, and adjudicates the claim. Chapter 8 reads this function. | `explained` |
-| `tree_lifecycle::leaf_prune` | `05-opening.md#the-four-openings` | `marked-in-place` | The bulk mark that carries the consequence of a mutation consuming its guard: it marks each entry under a guard of its own, so a run interrupted part way leaves some entries marked and some not. Chapter 13 reads it. | `pending` |
+| `tree_lifecycle::leaf_prune` | `05-opening.md#the-four-openings` | `marked-in-place` | The bulk mark that carries the consequence of a mutation consuming its guard: it marks each entry under a guard of its own, so a run interrupted part way leaves some entries marked and some not. Chapter 13 reads it. | `explained` |
 | `tree_lifecycle::leaf_decompose` | `06-paths.md#which-entry-a-path-names` | `the-key-survives` | The verb that turns a live leaf file into a node directory, keeping the entry's key and moving its body in as the node's `BRIEF.md`. Chapter 6 needs only that it acts on a leaf and preserves the key — which is what makes an interrupted one two halves of one entity rather than two entities. Chapter 12 reads it. | `explained` |
-| `tree_lifecycle::leaf_retire` | `06-paths.md#which-entry-a-path-names` | `marked-in-place` | The verb that marks a live leaf `DONE` in place, keeping its position and its key. Chapter 6 needs only that it acts on one named leaf, because *aimed by path at one twin, it silently marks the other and reports success* is the failure `addressable_key` exists to prevent. Chapter 13 reads it. | `pending` |
+| `tree_lifecycle::leaf_retire` | `06-paths.md#which-entry-a-path-names` | `marked-in-place` | The verb that marks a live leaf `DONE` in place, keeping its position and its key. Chapter 6 needs only that it acts on one named leaf, because *aimed by path at one twin, it silently marks the other and reports success* is the failure `addressable_key` exists to prevent. Chapter 13 reads it. | `explained` |
 | `task_grow::allocated` | `06-paths.md#predicting-the-allocation` | `what-the-library-cannot-see` | The check every grow verb runs over `next_key`'s prediction: it compares the predicted key against the one the library reports and refuses to claim success on a disagreement, which is what keeps a leaf's embedded handle from contradicting its own filename. Chapter 10 reads it. | `explained` |
 | `pick_in`, `select_in` | `06-paths.md#compositions-that-are-the-tests-alone` | `first-live-leaf` | The two walk operations the test module's compositions call after opening the tree: one answers the path of the first live leaf, the other every launch fact about it. Chapter 6 needs only that each takes an already-open tree; chapter 7 reads both. | `explained` |
 | `reset_read_count`, `read_count` | `07-the-walk.md#nineteen-tests` | `wider-than-a-key` | The counter's two accessors: one sets the thread-local read count to zero, the other returns it. Chapter 7's one-observation test resets before the call and asserts the count is `1`, so it needs only that the pair reads the `READ_COUNT` chapter 5 declared; chapter 9 owns the lines they sit on. | `explained` |
@@ -486,6 +521,8 @@
 | `transition_to_current` | `11-a-grove-begins.md#the-value-nothing-holds` | `the-tree-deletes-itself` | The driver-facing operation that classifies an existing `.grove/` or scaffolds an absent one. Chapter 11 needs only that it is the sole caller of `default_root_slug` and `root_shape`; chapter 14 reads it. | `pending` |
 | `CurrentTransition` | `11-a-grove-begins.md#what-the-tests-establish` | `the-tree-deletes-itself` | What `transition_to_current` answers: the grove was already current, or it was initialized. Chapter 11 needs only the two variants its own tests assert on; chapter 14 owns the type. | `pending` |
 | `verbs::leaf_decompose` | `12-leaf-to-node.md#one-promote-that-had-to-be-one` | `twelve-not-fourteen` | The public verb behind `leaf-decompose`, named in this block's own doc comment in the hyphenated `leaf-decompose <leaf-path> <first-child-slug>` spelling. Chapter 12 needs only that it is the tree-opening half — it takes a `TreeWrite` and hands this function the guard — and that its `--kind` is documented as an override that excludes the driver-reserved `finish`; chapter 15 reads it. | `pending` |
+| `verbs::leaf_retire` | `13-outcomes.md#two-verbs-one-mark` | `twelve-not-fourteen` | The public verb behind `leaf-retire`, named in this block's own doc comment in the hyphenated `leaf-retire <leaf-path>` spelling. Chapter 13 needs only that it is the tree-opening half — it takes a `TreeWrite` and hands this function the guard — and that the path it accepts is absolute or relative to the grove root; chapter 15 reads it. | `pending` |
+| `verbs::leaf_prune` | `13-outcomes.md#one-guard-is-one-mark` | `twelve-not-fourteen` | The public verb behind `leaf-prune`, named in this block's doc comment in the hyphenated `leaf-prune <path>` spelling and again in the operator instruction `stopped_partway` renders. Chapter 13 needs only that it is the tree-opening half and that the command an operator reruns is spelled `grove-llm leaf-prune`; chapter 15 reads it. | `pending` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

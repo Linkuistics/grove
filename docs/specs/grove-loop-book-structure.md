@@ -353,8 +353,12 @@ only schedule there is.** `Selection`, `pick_in`, `select_in`, `select_in_write`
 `selected`. Nineteen tests — the block-opening
 `select_returns_path_handle_and_kind_from_one_guarded_observation` and eighteen
 named `pick_*` — and the chapter's prose owes the negative case for each:
-`pick_orders_numerically_not_lexically` passes under a lexical sort too
-until there are ten leaves, and it is `10` against `9` that makes it a test.
+`pick_orders_numerically_not_lexically` discriminates only where the digit
+count changes, so the pair that makes it a test is `100` against `99` —
+bytewise `"100" < "99"` while numerically 99 < 100. A position is zero-padded
+to at least two digits and carries no other leading zero, so 9 renders `09`
+and 10 renders `10`, and `"09" < "10"` lexically as well as numerically: any
+pair below the 99/100 boundary separates the two orderings not at all.
 `pick_returns_first_live_leaf_in_per_level_order`, `pick_skips_done_leaves`,
 `pick_skips_abandoned_leaves`, `pick_descends_a_node_in_preorder`,
 `pick_falls_through_an_all_done_node_to_a_later_live_leaf`,

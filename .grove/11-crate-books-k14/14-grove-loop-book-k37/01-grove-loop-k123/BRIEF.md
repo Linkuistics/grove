@@ -425,6 +425,55 @@ its findings are live obligations for chapters 15 to 21.
   before trusting a clean run.
 
 
+**Promoted from `the-surface-k128`.** Chapter 15 landed: the slice is valid at
+7,932 resolved lines with 2,601 deferred, the three `verbs.rs`, `driver.rs` and
+`complete.rs` ownership rows read `resolved`, the nine early-use rows owned by
+`twelve-not-fourteen` read `explained`, and `scripts/check.sh` is red on
+`book-check` alone. Four findings are live obligations for chapters 16 to 21.
+
+- **A fourth thing `cargo doc` reports, beside attachment and unresolved links:
+  *ambiguity*.** `verbs.rs` earns four of the crate's thirty warnings, all one
+  case — `` `complete` is both a function and a module `` at lines 8, 329, 333
+  and 343, because the file both imports the `complete` module and declares
+  `pub fn complete`. **These differ from `unresolved-doc-links-k151`'s five in
+  that they resolve**: the rendered `verbs/index.html` points every one at
+  `fn.complete.html`, which is what all four mean. Read the rendered target, not
+  the warning — a warning here is not evidence the prose is wrong, and a clean
+  run is not evidence a link went where the sentence needs it to.
+- **`.cargo/config.toml` makes every `GROVE_SIGNAL_FILE` arm unobservable in
+  process, and that is a *guard*, not a gap.** Cargo force-clears the variable to
+  the empty string for everything it runs, so a fallback reading it can only ever
+  yield `None` under the suite. Deleting `signal_channel`'s whole `or_else`
+  changed nothing: 558 tests, 547 passed, 11 failed, identical to the control.
+  **Chapters 16 and 17 own the same pattern** — `driver_lease.rs:731` reads that
+  variable through `signal_path_from` — so a coverage sentence about any of those
+  arms owes the same reading and the same distinction between *untested* and
+  *unreachable under the harness*.
+- **The control mutation is what makes a zero readable, and it is cheap.**
+  Deleting `signal_channel`'s `.filter(|value| !value.is_empty())` instead turns
+  exactly three tests red at the same 558-test total, which is what establishes
+  that the two zeros above are measurements rather than a harness that sees
+  nothing. The environmental baseline reproduced exactly: 11 failures, all
+  `crates/grove-loop/tests/prompt.rs`, in a copy that is not a jj repository.
+- **A comment can state a joint justification that covers one of its subjects.**
+  `driver.rs`'s header keeps the module public because its two operations are
+  *the only way to put a tree into the two states the verb suite has to test
+  against*. `tests/verbs.rs` calls `materialize_finish` (495, 516); it reaches
+  the other state through `verbs::root_init` over a `Vacancy`, and
+  `driver::transition_to_current` has exactly one call site in the workspace,
+  `loop_driver.rs:243`, which is production. Enumerate a joint claim's subjects
+  **separately** — the count was never wrong, only the distribution.
+
+**One measurement disagreement, recorded and not corrected.** Counting lines
+whose first non-space characters are `//` gives `verbs.rs` 202 of 363 (56%) and
+`driver.rs` 42 of 57 (74%), where the structure brief's *What each chapter's
+prose owes* says 57% and 73%; `complete.rs` agrees at 65%. The rule behind the
+brief's figures is not stated, and a one-point rounding difference is not a
+defect in either, so chapter 15 gives the **counts** rather than the
+percentages and no leaf was cut. A later chapter quoting the brief's percentage
+for its own root should say which rule it counted under.
+
+
 ## Notes
 
 **This is the draft stage only.** Copy edit, art and proof are the later stages

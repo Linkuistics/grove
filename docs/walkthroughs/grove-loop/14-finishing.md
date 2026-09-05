@@ -1,6 +1,6 @@
 # Finishing
 <!-- book-page id="finishing" slice="the-tree-deletes-itself" order="14" -->
-[Previous: Outcomes are marked in place](13-outcomes.md) | [Contents](README.md)
+[Previous: Outcomes are marked in place](13-outcomes.md) | [Contents](README.md) | [Next: The twelve verbs, and the two that are not](15-the-verbs.md)
 
 <a id="the-tree-deletes-itself"></a>
 ## The rule: the driver writes the last leaf, and the ending deletes the tree
@@ -1679,5 +1679,5 @@ its briefs before step two, which is the finish session's first instruction and
 the reason the tree can be deleted rather than archived: a task tree that has
 been read out is a scaffold, and grove's last act is to take the scaffold down.
 
-[Previous: Outcomes are marked in place](13-outcomes.md) | [Contents](README.md)
+[Previous: Outcomes are marked in place](13-outcomes.md) | [Contents](README.md) | [Next: The twelve verbs, and the two that are not](15-the-verbs.md)
 

@@ -355,6 +355,76 @@ findings are still live obligations for chapters 11 to 21.
   `insert_errors_when_target_missing` asserts a bare `is_err()` and stays green
   under any message at all.
 
+**Promoted from `no-word-for-k127`, whose subtree is now complete.** Chapters 11
+to 14 landed and the node's `Done when` holds: the slice is valid at 7,416
+resolved lines with 3,117 deferred, all nine `tree_lifecycle.rs` ownership rows
+read `resolved`, and `scripts/check.sh` is red on `book-check` alone. Eight of
+its findings are live obligations for chapters 15 to 21.
+
+- **The mutation harness, entire, because k127's brief goes with it.** Copy the
+  workspace to a scratch directory — `crates/`, `.cargo/`, `testing/`,
+  `plugins/`, `scripts/`, `docs/` **and every root-level file**, because
+  `crates/grove-llm/tests/composition_guidance.rs` does `include_str!` on
+  `../../../CONTEXT.md`. Run `cargo build -p grove --bins` **first** or
+  `CARGO_BIN_EXE_grove` is unset and the control reads seventeen failures rather
+  than eleven — a control wrong in that direction **hides** observers. Then
+  `cargo test --no-fail-fast -p grove-loop -p grove-llm`, keeping per-test lines:
+  558 tests, and eleven fail before any mutation because the copy is not a jj
+  repository (all of `crates/grove-loop/tests/prompt.rs`). Replace the **whole
+  macro call** with `panic!("MUTANT")` — a message-preserving panic is invisible
+  to the out-of-process `grove-llm` suite, which asserts on stderr substrings.
+  **Check each mutant ran the control's test count**, since a mutant that fails
+  to compile reads as zero newly failing. Re-run any mutant whose newly-failing
+  set names a `driver_lease.rs` or `prompt.rs` test; both wedge under load and a
+  timeout reads exactly like an observer.
+- **Enumerate the call sites *and their ordering* before calling an arm
+  untested.** A zero means *no test distinguishes this arm*, never *no test
+  could*. `outcomes-k157` found two arms unreachable because both call sites
+  guard them; `finishing-k158` found one unreachable because an **earlier call in
+  the same function consumes the condition** — `materialize_finish`'s
+  *sentinel created without a key* cannot fire, since `new_finish_leaf(None)`
+  succeeds and the `append` that follows is refused first. Reachability is a
+  property of the path, not only of the call graph.
+- **A missing test is worth more as an asymmetry than as an absence.** *This line
+  is untested* is true of a great deal of defensive code. *Five of these six
+  sibling refusals have a test, the sixth is reached by the same fixture shape,
+  and nothing explains the difference* is a finding. Both k157 and k158 met it.
+- **A bare parenthesised word is an anchor citation, and the record it names may
+  hold less than the comment leans on it for — or the right record may have its
+  own anchor elsewhere.** k157 found `(pruning)` cited for an arity asymmetry its
+  section does not argue. k158 found the module header's `(task-tree-scheme)`
+  crediting the *data model* with four lifecycle semantics of which it states
+  one, while the first — the one-live-leaf rule — has its own anchor two sections
+  away, `fresh-grove-start-contract`, arguing it exactly. Read the section, and
+  then check whether a better anchor exists before writing that a comment's claim
+  is recorded somewhere.
+- **A test belongs to the block its line number falls in, not the verb it
+  exercises.** Chapters 15 to 20 each own one root, so the trap is milder there
+  than in `tree_lifecycle.rs` — but chapter 17 splits `driver_lease.rs` at the
+  `#[cfg(test)]` line and chapter 16 owns the production half, so a test
+  attributed by subject rather than by line will land on the wrong page.
+- **Read the assertions, not the name, and not the doc comment.**
+  `transition_leaves_a_current_grove_unchanged_and_ready_for_pick` takes no
+  listing before the call and compares none after; *unchanged* is carried by an
+  observation count. The technique it does not use — `assert_eq!(list(&root),
+  before)` — sits eight lines below it in the same block. Every later chapter
+  citing a test owes a read of what it actually asserts.
+- **A negative mutation result across every arm is itself a measurement.** Two of
+  chapter 14's four `transition_to_current` tests stay green under a silent panic
+  in *all four* arms of that function, which is what establishes that they refuse
+  inside `task_tree::write_or_vacancy` before the `match` is reached. The honest
+  form on the page is *this is chapter 4's grammar observed through chapter 14's
+  verb*, and it is provable rather than inferred.
+- **The instruments have a joint blind spot, and one chapter fell entirely inside
+  it.** `cargo doc --no-deps --document-private-items` sees only `///` and `//!`.
+  `tree_lifecycle.rs` contains **no `//!` at all** and its whole 43-line module
+  header is `//`, so the file earns **none** of the crate's thirty warnings —
+  and both of the header's stale claims sit inside it. A clean `cargo doc` result
+  for a file is evidence about that file's `///` comments and about nothing else.
+  Chapter 20's `loop_driver.rs` is 51% comment prose; check which marker it uses
+  before trusting a clean run.
+
+
 ## Notes
 
 **This is the draft stage only.** Copy edit, art and proof are the later stages

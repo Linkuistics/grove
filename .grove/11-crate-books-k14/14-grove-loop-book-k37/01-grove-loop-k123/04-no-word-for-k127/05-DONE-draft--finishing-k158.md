@@ -70,3 +70,51 @@ close `no-word-for-k127`.
 `copy-edit` cut the document node's brief names is **not** this leaf's last act.
 
 ## Decisions (running log)
+
+1. **Drafted the whole chapter in one session rather than decomposing.** 530
+   lines over two blocks, against the 612, 775 and 808 the three preceding
+   children each took in one session. No decomposition was warranted.
+
+2. **Adjudicated three comment defects on the page and cut no leaf**, following
+   `outcomes-k157`'s precedent for `(pruning)` and the task file's instruction
+   for `llm_cli`. The corpus is frozen and each fix would have to land inside the
+   existing line counts.
+   - `llm_cli` at line 42 — the address is stale, the behaviour is correct; the
+     verbs are dispatched by `crates/grove-llm/src/cli.rs`, whose `run` matches
+     five `Command::*` variants onto five `cmd_*` functions. `canonicalisation-sites-k149`
+     can carry the fix.
+   - `(task-tree-scheme)` at lines 8 and 12 — **new, and the sharpest of the
+     three.** The comment says the module *keeps task-tree-scheme's semantics*
+     and lists four. `docs/ARCHITECTURE.md`'s `task-tree-scheme` section is the
+     *data model*; it states the fourth (terminal filename infixes) and none of
+     the first three. The first — a fresh grove starts with one live leaf so it
+     is never mistaken for finished — has **its own anchor two sections away**,
+     `fresh-grove-start-contract`, which argues it exactly. The comment cites the
+     data model where the contract has its own record.
+   - `finish_commit`'s no-live-leaf arm is the only one of its six
+     operator-facing refusals with no test, while the other five each have one in
+     `crates/grove-llm/tests/finish_commit.rs` and the fixture shape is the same.
+     Adjudicated as an **asymmetry**, per `outcomes-k157`.
+
+3. **Re-ran the mutation study over all fifteen arms rather than citing
+   `a-grove-begins-k155`'s four.** The `ATree`-from-both-sides and
+   `Unrecognised`-is-mine claims are on this page, so they were measured here:
+   control 558 tests / 11 failures, every mutant 558 tests, whole-macro
+   `panic!("MUTANT")`. All four `transition_to_current` outcomes reproduce k155
+   exactly. Nine arms held, six not.
+
+4. **`scripts/check.sh` is red on `book-check` alone** — 7 of 8 green, and every
+   `book-check` failure is a `--final` complaint about chapters 15 to 21 not
+   existing. That is this node's stated shape, not a lapse. `cargo test` is
+   green, and `crates/grove-loop/src/tree_lifecycle.rs` is byte-identical to its
+   pre-session state.
+
+5. **No early-use row was owed, and the vacancy was established by enumeration
+   rather than assumed.** Swept both blocks for symbols owned by chapters 15 to
+   21, in identifier *and* hyphenated-verb spellings: the five verb spellings the
+   module header carries (`root-init`, `leaf-decompose`, `leaf-retire`,
+   `leaf-prune`, `leaf-add`) are each already covered by an existing row whose
+   first use is an earlier page. The three rows owned by this slice —
+   `DEFAULT_ROOT_SLUG`, `transition_to_current`, `CurrentTransition` — moved from
+   `pending` to `explained`.
+

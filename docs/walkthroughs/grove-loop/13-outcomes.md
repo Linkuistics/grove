@@ -1,6 +1,6 @@
 # Outcomes are marked in place
 <!-- book-page id="outcomes" slice="marked-in-place" order="13" -->
-[Previous: A leaf becomes a node](12-leaf-to-node.md) | [Contents](README.md)
+[Previous: A leaf becomes a node](12-leaf-to-node.md) | [Contents](README.md) | [Next: Finishing](14-finishing.md)
 
 <a id="marked-in-place"></a>
 ## The rule: the mark is in the name, and nothing else is touched
@@ -1992,4 +1992,4 @@ anything. Chapter 14 takes the tree to the state this chapter can produce and no
 other — every leaf terminal, nothing live — and finishes it, which is the one
 operation in the crate whose observable end is that the tree stops existing.
 
-[Previous: A leaf becomes a node](12-leaf-to-node.md) | [Contents](README.md)
+[Previous: A leaf becomes a node](12-leaf-to-node.md) | [Contents](README.md) | [Next: Finishing](14-finishing.md)

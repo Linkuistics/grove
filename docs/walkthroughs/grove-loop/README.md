@@ -91,7 +91,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 11. [A grove begins](11-a-grove-begins.md)
 12. [A leaf becomes a node](12-leaf-to-node.md)
 13. [Outcomes are marked in place](13-outcomes.md)
-14. Finishing
+14. [Finishing](14-finishing.md)
 15. The twelve verbs, and the two that are not
 16. One live driver per working tree
 17. Which calls the lease admits

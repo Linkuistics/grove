@@ -55,13 +55,13 @@
 <!-- insert «growing-the-tree» -->
 <!-- /source-root -->
 <!-- source-root «source-tree-lifecycle» source="crates/grove-loop/src/tree_lifecycle.rs" lines="1-2725" -->
-<!-- defer «finish-transition» owner="the-tree-deletes-itself" lines="1-331" -->
+<!-- insert «finish-transition» -->
 <!-- insert «grove-beginning» -->
 <!-- insert «decompose-production» -->
 <!-- insert «outcomes-in-place» -->
 <!-- insert «body-helpers» -->
 <!-- insert «root-init-tests» -->
-<!-- defer «finish-tests» owner="the-tree-deletes-itself" lines="1467-1665" -->
+<!-- insert «finish-tests» -->
 <!-- insert «decompose-tests» -->
 <!-- insert «retire-and-prune-tests» -->
 <!-- /source-root -->
@@ -115,13 +115,13 @@
 | `resolve-tests` | `source-task-tree` | `wider-than-a-key` | `1653-1996` | 344 | `resolved` |
 | `pick-with-brief-chain-tests` | `source-task-tree` | `root-to-leaf` | `1997-2023` | 27 | `resolved` |
 | `growing-the-tree` | `source-task-grow` | `what-the-library-cannot-see` | `1-518` | 518 | `resolved` |
-| `finish-transition` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1-331` | 331 | `deferred` |
+| `finish-transition` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1-331` | 331 | `resolved` |
 | `grove-beginning` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `332-489` | 158 | `resolved` |
 | `decompose-production` | `source-tree-lifecycle` | `the-key-survives` | `490-695` | 206 | `resolved` |
 | `outcomes-in-place` | `source-tree-lifecycle` | `marked-in-place` | `696-1012` | 317 | `resolved` |
 | `body-helpers` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1013-1076` | 64 | `resolved` |
 | `root-init-tests` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1077-1466` | 390 | `resolved` |
-| `finish-tests` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1467-1665` | 199 | `deferred` |
+| `finish-tests` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1467-1665` | 199 | `resolved` |
 | `decompose-tests` | `source-tree-lifecycle` | `the-key-survives` | `1666-2234` | 569 | `resolved` |
 | `retire-and-prune-tests` | `source-tree-lifecycle` | `marked-in-place` | `2235-2725` | 491 | `resolved` |
 | `the-twelve-verbs` | `source-verbs` | `twelve-not-fourteen` | `1-363` | 363 | `deferred` |
@@ -380,6 +380,26 @@
 | `grow-template-and-stem` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `497-516` | `growing-the-tree` | `—` |
 | `grow-test-module` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `517-518` | `growing-the-tree` | `—` |
 | `source-tree-lifecycle` | `source-index` | `source-tree-lifecycle` | `root` | `—` | `1-2725` | `—` | `finish-transition`, `grove-beginning`, `decompose-production`, `outcomes-in-place`, `body-helpers`, `root-init-tests`, `finish-tests`, `decompose-tests`, `retire-and-prune-tests` |
+| `finishing-module-header` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1-44` | `finish-transition` | `—` |
+| `finish-transition` | `finishing` | `source-tree-lifecycle` | `composite` | `the-tree-deletes-itself` | `1-331` | `source-tree-lifecycle` | `finishing-module-header`, `finishing-imports`, `finishing-default-slug`, `finishing-current-transition`, `finishing-transition-contract`, `finishing-transition-body`, `finishing-materialize-contract`, `finishing-materialize-body`, `finishing-new-finish-leaf`, `finishing-finish-handle`, `finishing-finish-slug`, `finishing-finish-body`, `finishing-commit-contract`, `finishing-commit-classify`, `finishing-commit-revalidate`, `finishing-delete-contract`, `finishing-delete-body`, `finishing-recoverable-contract`, `finishing-recoverable-body` |
+| `finishing-imports` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `45-53` | `finish-transition` | `—` |
+| `finishing-default-slug` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `54-57` | `finish-transition` | `—` |
+| `finishing-current-transition` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `58-63` | `finish-transition` | `—` |
+| `finishing-transition-contract` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `64-74` | `finish-transition` | `—` |
+| `finishing-transition-body` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `75-108` | `finish-transition` | `—` |
+| `finishing-materialize-contract` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `109-112` | `finish-transition` | `—` |
+| `finishing-materialize-body` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `113-139` | `finish-transition` | `—` |
+| `finishing-new-finish-leaf` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `140-153` | `finish-transition` | `—` |
+| `finishing-finish-handle` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `154-160` | `finish-transition` | `—` |
+| `finishing-finish-slug` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `161-168` | `finish-transition` | `—` |
+| `finishing-finish-body` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `169-180` | `finish-transition` | `—` |
+| `finishing-commit-contract` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `181-194` | `finish-transition` | `—` |
+| `finishing-commit-classify` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `195-226` | `finish-transition` | `—` |
+| `finishing-commit-revalidate` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `227-259` | `finish-transition` | `—` |
+| `finishing-delete-contract` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `260-264` | `finish-transition` | `—` |
+| `finishing-delete-body` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `265-307` | `finish-transition` | `—` |
+| `finishing-recoverable-contract` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `308-317` | `finish-transition` | `—` |
+| `finishing-recoverable-body` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `318-331` | `finish-transition` | `—` |
 | `grove-beginning-root-init` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `332-350` | `grove-beginning` | `—` |
 | `grove-beginning` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `332-489` | `source-tree-lifecycle` | `grove-beginning-root-init`, `grove-beginning-default-slug`, `grove-beginning-initialize`, `grove-beginning-root-shape-type`, `grove-beginning-root-shape-fn` |
 | `grove-beginning-default-slug` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `351-356` | `grove-beginning` | `—` |
@@ -425,6 +445,15 @@
 | `root-init-tests-prediction` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1411-1423` | `root-init-tests` | `—` |
 | `root-init-tests-refused-grove` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1424-1441` | `root-init-tests` | `—` |
 | `root-init-tests-taskless` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1442-1466` | `root-init-tests` | `—` |
+| `finishing-test-three-spellings` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1467-1495` | `finish-tests` | `—` |
+| `finish-tests` | `finishing` | `source-tree-lifecycle` | `composite` | `the-tree-deletes-itself` | `1467-1665` | `source-tree-lifecycle` | `finishing-test-three-spellings`, `finishing-test-last-key`, `finishing-test-last-ordinal`, `finishing-test-reuse`, `finishing-test-already-current`, `finishing-test-malformed-name`, `finishing-test-no-grove-entries`, `finishing-test-dangling-symlink` |
+| `finishing-test-last-key` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1496-1522` | `finish-tests` | `—` |
+| `finishing-test-last-ordinal` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1523-1539` | `finish-tests` | `—` |
+| `finishing-test-reuse` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1540-1562` | `finish-tests` | `—` |
+| `finishing-test-already-current` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1563-1581` | `finish-tests` | `—` |
+| `finishing-test-malformed-name` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1582-1612` | `finish-tests` | `—` |
+| `finishing-test-no-grove-entries` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1613-1641` | `finish-tests` | `—` |
+| `finishing-test-dangling-symlink` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1642-1665` | `finish-tests` | `—` |
 | `decompose-tests-opening` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1666-1695` | `decompose-tests` | `—` |
 | `decompose-tests` | `leaf-to-node` | `source-tree-lifecycle` | `composite` | `the-key-survives` | `1666-2234` | `source-tree-lifecycle` | `decompose-tests-opening`, `decompose-tests-brief-and-child`, `decompose-tests-kind`, `decompose-tests-nested`, `decompose-tests-refusals`, `decompose-tests-slug-and-path`, `decompose-tests-seam-opening`, `decompose-tests-one-guard`, `decompose-tests-twin`, `decompose-tests-destination`, `decompose-tests-interrupted`, `decompose-tests-last-key`, `decompose-tests-sweep` |
 | `decompose-tests-brief-and-child` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1696-1742` | `decompose-tests` | `—` |
@@ -517,9 +546,9 @@
 | `verbs::leaf_add` | `10-growing.md#a-list-is-not-n-calls` | `twelve-not-fourteen` | The public verb this module-private function is the body of, named in the doc comment's own hyphenated spelling, `leaf-add`. Chapter 10 needs only that the verb is the tree-opening half and takes a validated slug, because the comment's *unreachable from the verb* is a claim about what reaches this function through it; chapter 15 reads it. | `pending` |
 | `verbs::leaf_insert` | `10-growing.md#an-entry-where-the-library-names-an-ordinal` | `twelve-not-fourteen` | The public verb behind `leaf-insert`, named in the doc comment's hyphenated spelling. Chapter 10 needs only that it is the tree-opening half, and that a second wrapper beside it performs the separate shared opening the lint requires; chapter 15 reads both. | `pending` |
 | `tree_lifecycle::initialize_grove` | `10-growing.md#the-prediction-held-to-account` | `never-mistaken-for-finished` | The function `root-init` runs, which creates a grove's root, its charter and its first live leaf as one store operation. Chapter 10 needs only that its report begins with a charter carrying no key, because that is why `allocated` takes a slice of created rows rather than a whole report; chapter 11 reads it. | `explained` |
-| `DEFAULT_ROOT_SLUG` | `11-a-grove-begins.md#one-operation-or-none` | `the-tree-deletes-itself` | The crate-level constant `default_root_slug` wraps, declared above the finishing code the file opens on. Chapter 11 needs only that its value is `"plan"` and that the CLI states the same default separately; chapter 14 owns the block it is declared in. | `pending` |
-| `transition_to_current` | `11-a-grove-begins.md#the-value-nothing-holds` | `the-tree-deletes-itself` | The driver-facing operation that classifies an existing `.grove/` or scaffolds an absent one. Chapter 11 needs only that it is the sole caller of `default_root_slug` and `root_shape`; chapter 14 reads it. | `pending` |
-| `CurrentTransition` | `11-a-grove-begins.md#what-the-tests-establish` | `the-tree-deletes-itself` | What `transition_to_current` answers: the grove was already current, or it was initialized. Chapter 11 needs only the two variants its own tests assert on; chapter 14 owns the type. | `pending` |
+| `DEFAULT_ROOT_SLUG` | `11-a-grove-begins.md#one-operation-or-none` | `the-tree-deletes-itself` | The crate-level constant `default_root_slug` wraps, declared above the finishing code the file opens on. Chapter 11 needs only that its value is `"plan"` and that the CLI states the same default separately; chapter 14 owns the block it is declared in. | `explained` |
+| `transition_to_current` | `11-a-grove-begins.md#the-value-nothing-holds` | `the-tree-deletes-itself` | The driver-facing operation that classifies an existing `.grove/` or scaffolds an absent one. Chapter 11 needs only that it is the sole caller of `default_root_slug` and `root_shape`; chapter 14 reads it. | `explained` |
+| `CurrentTransition` | `11-a-grove-begins.md#what-the-tests-establish` | `the-tree-deletes-itself` | What `transition_to_current` answers: the grove was already current, or it was initialized. Chapter 11 needs only the two variants its own tests assert on; chapter 14 owns the type. | `explained` |
 | `verbs::leaf_decompose` | `12-leaf-to-node.md#one-promote-that-had-to-be-one` | `twelve-not-fourteen` | The public verb behind `leaf-decompose`, named in this block's own doc comment in the hyphenated `leaf-decompose <leaf-path> <first-child-slug>` spelling. Chapter 12 needs only that it is the tree-opening half — it takes a `TreeWrite` and hands this function the guard — and that its `--kind` is documented as an override that excludes the driver-reserved `finish`; chapter 15 reads it. | `pending` |
 | `verbs::leaf_retire` | `13-outcomes.md#two-verbs-one-mark` | `twelve-not-fourteen` | The public verb behind `leaf-retire`, named in this block's own doc comment in the hyphenated `leaf-retire <leaf-path>` spelling. Chapter 13 needs only that it is the tree-opening half — it takes a `TreeWrite` and hands this function the guard — and that the path it accepts is absolute or relative to the grove root; chapter 15 reads it. | `pending` |
 | `verbs::leaf_prune` | `13-outcomes.md#one-guard-is-one-mark` | `twelve-not-fourteen` | The public verb behind `leaf-prune`, named in this block's doc comment in the hyphenated `leaf-prune <path>` spelling and again in the operator instruction `stopped_partway` renders. Chapter 13 needs only that it is the tree-opening half and that the command an operator reruns is spelled `grove-llm leaf-prune`; chapter 15 reads it. | `pending` |

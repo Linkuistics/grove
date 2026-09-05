@@ -97,6 +97,39 @@ one by its handle, here and in every later reference.
 
 ## Found while drafting
 
+**Chapter 10 owns the evidence for two of chapter 9's refusals, and should say
+so.** Found by `resolve-k145`, by mutation over all seven refusal arms in
+`task_tree.rs` 747–1015. `reference`'s two `bail!`s — *no entry matches* and
+*is ambiguous; re-query by key* — are held by `add_under_nonexistent_parent_errors`,
+`insert_requires_an_existing_target` and
+`add_refuses_an_ambiguous_parent_slug_and_lists_the_keys`, all in `task_grow`'s
+tests, which are the book's **one declared corpus exclusion**: chapter 10 cites
+them by name and may not reproduce them. So the crate's read-side grammar has
+its operator-facing refusals pinned only from the write side, and only from the
+1,680 lines this book never shows. Three of the seven arms are held by nothing
+at all, and the two `parse_ref` clauses share one witness that reads no message.
+Chapter 9 carries the table; chapter 10 owes the other half of the sentence.
+
+**A count in a leaf body is not a count in the tree.** `resolve-k145`'s own
+*Context* said two early-use rows closed there and three did — the third,
+`reset_read_count`, `read_count`, was added to the ledger by `the-walk-k143`
+after k145's body was written, and the **parent** brief predicted it in as many
+words. The leaf bodies here were written at decomposition time and the ledger
+has moved under them since. **Every remaining child should enumerate the ledger
+for rows whose owner is its own slice rather than trusting its own body's
+count** — `owner_is_complete` turns a missed row red, so this fails loudly, but
+it fails after the page is written rather than before.
+
+**`resolve` does not accept a path, and `Reference`'s doc comment reads as
+though the grammar does.** `verbs::resolve` is one line over `resolve_in`, which
+checks `.` and then goes straight to the key/slug grammar; the path form belongs
+to `reference`, the door the mutating verbs come through. That is what
+reconciles `lib.rs`'s *Four forms* against the five things the same sentence then
+lists — the list is the union across both callers, and `.` is a path as well as a
+root spelling. Chapter 9 adjudicates it; chapter 1 reproduced it without comment,
+and **chapter 10 should not restate the count** when it reads `reference`'s
+callers.
+
 **The structure brief says chapter 7 has fifteen tests and the block has
 nineteen, and `pick-test-count-k147` holds the correction.** `pick-tests`
 (`crates/grove-loop/src/task_tree.rs` 1,106–1,360) carries nineteen `#[test]`

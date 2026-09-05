@@ -44,11 +44,11 @@
 <!-- insert «paths-and-addressing» -->
 <!-- insert «walk-selection» -->
 <!-- insert «kind-and-brief-chain» -->
-<!-- defer «resolution» owner="wider-than-a-key" lines="747-1015" -->
+<!-- insert «resolution» -->
 <!-- insert «path-composition-tests» -->
 <!-- insert «pick-tests» -->
 <!-- insert «brief-chain-and-kind-tests» -->
-<!-- defer «resolve-tests» owner="wider-than-a-key" lines="1653-1996" -->
+<!-- insert «resolve-tests» -->
 <!-- insert «pick-with-brief-chain-tests» -->
 <!-- /source-root -->
 <!-- source-root «source-task-grow» source="crates/grove-loop/src/task_grow.rs" lines="1-518" -->
@@ -108,11 +108,11 @@
 | `paths-and-addressing` | `source-task-tree` | `paths-are-built-here` | `291-570` | 280 | `resolved` |
 | `walk-selection` | `source-task-tree` | `first-live-leaf` | `571-637` | 67 | `resolved` |
 | `kind-and-brief-chain` | `source-task-tree` | `root-to-leaf` | `638-746` | 109 | `resolved` |
-| `resolution` | `source-task-tree` | `wider-than-a-key` | `747-1015` | 269 | `deferred` |
+| `resolution` | `source-task-tree` | `wider-than-a-key` | `747-1015` | 269 | `resolved` |
 | `path-composition-tests` | `source-task-tree` | `paths-are-built-here` | `1016-1105` | 90 | `resolved` |
 | `pick-tests` | `source-task-tree` | `first-live-leaf` | `1106-1360` | 255 | `resolved` |
 | `brief-chain-and-kind-tests` | `source-task-tree` | `root-to-leaf` | `1361-1652` | 292 | `resolved` |
-| `resolve-tests` | `source-task-tree` | `wider-than-a-key` | `1653-1996` | 344 | `deferred` |
+| `resolve-tests` | `source-task-tree` | `wider-than-a-key` | `1653-1996` | 344 | `resolved` |
 | `pick-with-brief-chain-tests` | `source-task-tree` | `root-to-leaf` | `1997-2023` | 27 | `resolved` |
 | `growing-the-tree` | `source-task-grow` | `what-the-library-cannot-see` | `1-518` | 518 | `deferred` |
 | `finish-transition` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1-331` | 331 | `deferred` |
@@ -291,6 +291,19 @@
 | `leaf-entry-grammar` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `694-707` | `kind-and-brief-chain` | `—` |
 | `leaf-entry-compare` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `708-729` | `kind-and-brief-chain` | `—` |
 | `leaf-entry-walk` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `730-746` | `kind-and-brief-chain` | `—` |
+| `resolution-outcome` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `747-765` | `resolution` | `—` |
+| `resolution` | `resolve` | `source-task-tree` | `composite` | `wider-than-a-key` | `747-1015` | `source-task-tree` | `resolution-outcome`, `resolution-located`, `resolution-located-fn`, `resolution-resolve-in`, `resolution-lookup-type`, `resolution-slug-match-key`, `resolution-grammar`, `resolution-reference`, `resolution-existing-path`, `resolution-ref-type`, `resolution-parse-ref`, `resolution-read-count` |
+| `resolution-located` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `766-787` | `resolution` | `—` |
+| `resolution-located-fn` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `788-804` | `resolution` | `—` |
+| `resolution-resolve-in` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `805-845` | `resolution` | `—` |
+| `resolution-lookup-type` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `846-858` | `resolution` | `—` |
+| `resolution-slug-match-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `859-869` | `resolution` | `—` |
+| `resolution-grammar` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `870-918` | `resolution` | `—` |
+| `resolution-reference` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `919-956` | `resolution` | `—` |
+| `resolution-existing-path` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `957-975` | `resolution` | `—` |
+| `resolution-ref-type` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `976-981` | `resolution` | `—` |
+| `resolution-parse-ref` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `982-1004` | `resolution` | `—` |
+| `resolution-read-count` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1005-1015` | `resolution` | `—` |
 | `paths-tests-module-open` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1016-1029` | `path-composition-tests` | `—` |
 | `path-composition-tests` | `paths` | `source-task-tree` | `composite` | `paths-are-built-here` | `1016-1105` | `source-task-tree` | `paths-tests-module-open`, `paths-tests-composed-verbs`, `paths-tests-a-kind-and-imports`, `paths-tests-brief-chain-at`, `paths-tests-fixtures` |
 | `paths-tests-composed-verbs` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1030-1057` | `path-composition-tests` | `—` |
@@ -322,6 +335,29 @@
 | `kind-tests-relative-path` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1600-1609` | `brief-chain-and-kind-tests` | `—` |
 | `kind-tests-body-ignored` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1610-1641` | `brief-chain-and-kind-tests` | `—` |
 | `kind-tests-absent-root` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1642-1652` | `brief-chain-and-kind-tests` | `—` |
+| `resolve-tests-fixture` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1653-1691` | `resolve-tests` | `—` |
+| `resolve-tests` | `resolve` | `source-task-tree` | `composite` | `wider-than-a-key` | `1653-1996` | `source-task-tree` | `resolve-tests-fixture`, `resolve-tests-bracket-key`, `resolve-tests-bare-number`, `resolve-tests-pruned`, `resolve-tests-decorative-slug`, `resolve-tests-node-by-key`, `resolve-tests-key-not-found`, `resolve-tests-slug-unique`, `resolve-tests-slug-nested`, `resolve-tests-slug-not-found`, `resolve-tests-ambiguous`, `resolve-tests-root-brief`, `resolve-tests-dot`, `resolve-tests-empty-reference`, `resolve-tests-malformed-bracket`, `resolve-tests-absent-root`, `resolve-handle-tests-full-handle`, `resolve-handle-tests-terminal-key`, `resolve-handle-tests-disambiguates`, `resolve-handle-tests-node`, `resolve-handle-tests-precedence`, `resolve-handle-tests-unmatched` |
+| `resolve-tests-bracket-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1692-1704` | `resolve-tests` | `—` |
+| `resolve-tests-bare-number` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1705-1716` | `resolve-tests` | `—` |
+| `resolve-tests-pruned` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1717-1745` | `resolve-tests` | `—` |
+| `resolve-tests-decorative-slug` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1746-1757` | `resolve-tests` | `—` |
+| `resolve-tests-node-by-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1758-1772` | `resolve-tests` | `—` |
+| `resolve-tests-key-not-found` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1773-1778` | `resolve-tests` | `—` |
+| `resolve-tests-slug-unique` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1779-1790` | `resolve-tests` | `—` |
+| `resolve-tests-slug-nested` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1791-1804` | `resolve-tests` | `—` |
+| `resolve-tests-slug-not-found` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1805-1810` | `resolve-tests` | `—` |
+| `resolve-tests-ambiguous` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1811-1832` | `resolve-tests` | `—` |
+| `resolve-tests-root-brief` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1833-1841` | `resolve-tests` | `—` |
+| `resolve-tests-dot` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1842-1851` | `resolve-tests` | `—` |
+| `resolve-tests-empty-reference` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1852-1856` | `resolve-tests` | `—` |
+| `resolve-tests-malformed-bracket` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1857-1863` | `resolve-tests` | `—` |
+| `resolve-tests-absent-root` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1864-1874` | `resolve-tests` | `—` |
+| `resolve-handle-tests-full-handle` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1875-1891` | `resolve-tests` | `—` |
+| `resolve-handle-tests-terminal-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1892-1940` | `resolve-tests` | `—` |
+| `resolve-handle-tests-disambiguates` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1941-1954` | `resolve-tests` | `—` |
+| `resolve-handle-tests-node` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1955-1967` | `resolve-tests` | `—` |
+| `resolve-handle-tests-precedence` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1968-1988` | `resolve-tests` | `—` |
+| `resolve-handle-tests-unmatched` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1989-1996` | `resolve-tests` | `—` |
 | `pick-with-brief-chain-tests` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1997-2023` | `source-task-tree` | `—` |
 | `source-task-grow` | `source-index` | `source-task-grow` | `root` | `—` | `1-518` | `—` | `growing-the-tree` |
 | `source-tree-lifecycle` | `source-index` | `source-tree-lifecycle` | `root` | `—` | `1-2725` | `—` | `finish-transition`, `grove-beginning`, `decompose-production`, `outcomes-in-place`, `body-helpers`, `root-init-tests`, `finish-tests`, `decompose-tests`, `retire-and-prune-tests` |
@@ -343,7 +379,7 @@
 | `TaskName` | `01-orientation.md#the-cast` | `canonical-or-nothing` | One parsed entry name, which renders back to the bytes it was parsed from or refuses to be computed at all. | `explained` |
 | `Tree`, `Vacancy`, `task_tree::Guard`, `task_tree::write` | `01-orientation.md#the-cast` | `one-spelling-of-grove` | The tree read under the store's shared lock; the lock over a root that holds no tree; the store guard one mutation consumes; and the reopening a `TreeWrite` performs when it no longer holds one. | `explained` |
 | `Selection` | `01-orientation.md#the-cast` | `first-live-leaf` | The leaf a session was launched to work: its path, its identity and its kind. | `explained` |
-| `verbs::resolve`, `Resolution` | `01-orientation.md#the-cast` | `wider-than-a-key` | Resolution of one reference against the tree, whose `Ambiguous` case lists the keys of every entry a bare slug matched. | `pending` |
+| `verbs::resolve`, `Resolution` | `01-orientation.md#the-cast` | `wider-than-a-key` | Resolution of one reference against the tree, whose `Ambiguous` case lists the keys of every entry a bare slug matched. | `explained` |
 | `verbs::root_init` | `01-orientation.md#the-cast` | `never-mistaken-for-finished` | The verb that consumes a `Vacancy` and creates the whole grove — charter and first live leaf — as one store operation. | `pending` |
 | `interpret`, `Disposition` | `01-orientation.md#the-cast` | `twelve-not-fourteen` | What the child side of the loop makes of a token written to the control channel: relaunch, or stop. | `pending` |
 | `verbs`, `verbs::stale_cross_refs`, `verbs::signal_channel` | `01-orientation.md#the-cast` | `twelve-not-fourteen` | `verbs` declares fourteen public functions; twelve of them are the tree's verb surface, and `stale_cross_refs` and `signal_channel` each say in their own doc comment why they are not verbs. | `pending` |
@@ -366,7 +402,7 @@
 | `TaskName::Brief`, `TaskName::Positioned` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `canonical-or-nothing` | The two variants of the parsed name: the `BRIEF.md` charter, which carries no ordinal, no key and no parts, and every other entry, which carries all three. `Handle::of` matches on both and derives a handle only for the second. | `explained` |
 | `TaskName::parse` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `canonical-or-nothing` | The one route from a filename to a parsed name, and the canonical half of the asymmetry `Handle::parse` is documented against: it refuses a name spelled any way but the one the renderer would have written. | `explained` |
 | `terminal_key` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `canonical-or-nothing` | The public function that answers *does this reference end in a key* and requires nothing of what precedes it, which is why `resolve`'s bare-slug fallback asks it rather than `Handle::parse`. It reaches the key through the same `peel_key`. | `explained` |
-| `parse_ref` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `wider-than-a-key` | The reference grammar's own front door, already lenient on a bare key — `007` is key 7 there — which is the precedent `Handle::parse`'s leniency on `a-k007` is argued from. | `pending` |
+| `parse_ref` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `wider-than-a-key` | The reference grammar's own front door, already lenient on a bare key — `007` is key 7 there — which is the precedent `Handle::parse`'s leniency on `a-k007` is argued from. | `explained` |
 | `TaskName::compose` | `03-kind-slug-handle.md#the-handle-is-the-identity` | `canonical-or-nothing` | Composition builds a positioned name from a position, a kind, a slug and a key, so the handle's structural claim can be asserted over names built rather than parsed. | `explained` |
 | `entry_path` | `05-opening.md#one-spelling-of-the-root` | `paths-are-built-here` | The one place an entry's absolute path is built, because the store returns no paths. Chapter 5 reproduces the module header that says so; chapter 6 reads the function. | `explained` |
 | `brief_chain`, `kind_in` | `05-opening.md#one-spelling-of-the-root` | `root-to-leaf` | Two of the five reading verbs the module header names in its first sentence: one answers a leaf's session kind, the other its ancestors' briefs root to leaf. Chapter 5 needs only the header's claim that all five read one snapshot taken under one lock; chapter 8 reads both functions. | `explained` |
@@ -376,7 +412,7 @@
 | `tree_lifecycle::leaf_retire` | `06-paths.md#which-entry-a-path-names` | `marked-in-place` | The verb that marks a live leaf `DONE` in place, keeping its position and its key. Chapter 6 needs only that it acts on one named leaf, because *aimed by path at one twin, it silently marks the other and reports success* is the failure `addressable_key` exists to prevent. Chapter 13 reads it. | `pending` |
 | `task_grow::allocated` | `06-paths.md#predicting-the-allocation` | `what-the-library-cannot-see` | The check every grow verb runs over `next_key`'s prediction: it compares the predicted key against the one the library reports and refuses to claim success on a disagreement, which is what keeps a leaf's embedded handle from contradicting its own filename. Chapter 10 reads it. | `pending` |
 | `pick_in`, `select_in` | `06-paths.md#compositions-that-are-the-tests-alone` | `first-live-leaf` | The two walk operations the test module's compositions call after opening the tree: one answers the path of the first live leaf, the other every launch fact about it. Chapter 6 needs only that each takes an already-open tree; chapter 7 reads both. | `explained` |
-| `reset_read_count`, `read_count` | `07-the-walk.md#nineteen-tests` | `wider-than-a-key` | The counter's two accessors: one sets the thread-local read count to zero, the other returns it. Chapter 7's one-observation test resets before the call and asserts the count is `1`, so it needs only that the pair reads the `READ_COUNT` chapter 5 declared; chapter 9 owns the lines they sit on. | `pending` |
+| `reset_read_count`, `read_count` | `07-the-walk.md#nineteen-tests` | `wider-than-a-key` | The counter's two accessors: one sets the thread-local read count to zero, the other returns it. Chapter 7's one-observation test resets before the call and asserts the count is `1`, so it needs only that the pair reads the `READ_COUNT` chapter 5 declared; chapter 9 owns the lines they sit on. | `explained` |
 | `verbs::kind` | `08-kind-and-briefs.md#two-questions-one-entry` | `twelve-not-fourteen` | The public verb `kind_in`'s doc comment links to: it opens the tree, calls `kind_in`, and renders the answer as a `Sought`. Chapter 8 needs only that the verb is the tree-opening half and `kind_in` the already-open half; chapter 15 reads it. | `pending` |
 | `verbs::brief_chain` | `08-kind-and-briefs.md#the-chain-the-library-already-had` | `twelve-not-fourteen` | The public verb the doc comment names in its hyphenated spelling, `brief-chain`, and whose documented contract — a level with no charter is skipped silently — the comment appeals to. Chapter 8 needs only that the contract belongs to the verb and the guide rather than to this function; chapter 15 reads it. | `pending` |
 

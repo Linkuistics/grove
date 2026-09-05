@@ -1,6 +1,6 @@
 # Kind, and the brief chain
 <!-- book-page id="kind-and-briefs" slice="root-to-leaf" order="8" -->
-[Previous: The walk: pick and select](07-the-walk.md) | [Contents](README.md)
+[Previous: The walk: pick and select](07-the-walk.md) | [Contents](README.md) | [Next: Resolve](09-resolve.md)
 
 <a id="root-to-leaf"></a>
 ## The rule: ancestor briefs, root to leaf, and a brief is not a leaf
@@ -1269,5 +1269,5 @@ concerns: the reference grammar, which is wider than a key and has an outcome â€
 ambiguity â€” that the library has no counterpart for. Two of this file's ten
 ownership blocks remain, and both are chapter 9's.
 
-[Previous: The walk: pick and select](07-the-walk.md) | [Contents](README.md)
+[Previous: The walk: pick and select](07-the-walk.md) | [Contents](README.md) | [Next: Resolve](09-resolve.md)
 

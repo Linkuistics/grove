@@ -86,7 +86,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 6. [Paths, and addressing](06-paths.md)
 7. [The walk: pick and select](07-the-walk.md)
 8. [Kind, and the brief chain](08-kind-and-briefs.md)
-9. Resolve
+9. [Resolve](09-resolve.md)
 10. Growing: leaf-add and leaf-insert
 11. A grove begins
 12. A leaf becomes a node

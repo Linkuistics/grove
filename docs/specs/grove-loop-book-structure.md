@@ -325,9 +325,15 @@ key and a position, which is the library's canonicity obligation broken.
 **The rule: a guard is proof the tree was there when it was opened, and no more
 than that.** `Tree`, `Guard`, `Opening`, `TreeVacancy`, the four openings, and the
 three error paths: `absent_tree`, `raised`, and `restate`. The chapter owns
-`announce_contention`, which is the whole reason `libc` is a dependency — grove
+`announce_contention`, which is the use of `libc` the manifest names — grove
 probes `flock(2)` non-blocking before it announces a wait, so a caller is told it
-is waiting only when it really is.
+is waiting only when it really is. It is not the whole reason `libc` is a
+dependency, and the chapter says so rather than repeating the manifest's clause:
+`libc` is reached from three production modules — this probe, `driver_lease.rs`
+for the lease's own locking and its close-on-exec descriptors, and
+`loop_driver.rs` for the terminal and signal calls chapter 20 reads. Chapter 1
+adjudicates the clause against `Cargo.toml`, and
+`manifest-dependency-clauses-k133` holds the source fix.
 
 ### 6 · Paths, and addressing — `paths-are-built-here`
 
@@ -344,8 +350,10 @@ path-taking compositions, which are the tests' alone*.
 
 **The rule: the first live leaf in walk order, and position in that walk is the
 only schedule there is.** `Selection`, `pick_in`, `select_in`, `select_in_write`,
-`selected`. Fifteen tests, and the chapter's prose owes the negative case for
-each: `pick_orders_numerically_not_lexically` passes under a lexical sort too
+`selected`. Nineteen tests — the block-opening
+`select_returns_path_handle_and_kind_from_one_guarded_observation` and eighteen
+named `pick_*` — and the chapter's prose owes the negative case for each:
+`pick_orders_numerically_not_lexically` passes under a lexical sort too
 until there are ten leaves, and it is `10` against `9` that makes it a test.
 `pick_returns_first_live_leaf_in_per_level_order`, `pick_skips_done_leaves`,
 `pick_skips_abandoned_leaves`, `pick_descends_a_node_in_preorder`,
@@ -651,7 +659,17 @@ review can check it against the mapping above.
    for it to pass while the property was broken**. That second half is the part a
    reviewer can check and the test itself cannot state — a `#[test]` body shown
    without it teaches the mechanics and not the claim, and a test *name* is a
-   label rather than an argument.
+   label rather than an argument. **Chapter 6 is on this list vacuously**: its
+   only inline-test block, `task_tree.rs` 1016–1105, is the test module's opening
+   — a section comment, four *open-then-call* compositions and five fixtures —
+   and carries **no** `#[test]` function, so there is no reproduced test for the
+   obligation to attach to. The chapter states the vacancy on the page rather
+   than leaving it silent, so a reviewer checking the list against the mapping
+   can tell vacuous from omitted. No other Part II chapter is in that position:
+   `task_tree.rs`'s sixty-three tests are nineteen in `pick-tests` (chapter 7),
+   twenty-two in `brief-chain-and-kind-tests` and one in
+   `pick-with-brief-chain-tests` (chapter 8), and twenty-one in `resolve-tests`
+   (chapter 9).
 2. **Supply the argument — `driver_lease.rs` 1–819** (chapter 16). Per mechanism:
    the line that enforces it, the failure it prevents, and the record clause it
    keeps. This is the same instruction `keyed-launch`'s chapters 3–5 carry for

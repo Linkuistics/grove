@@ -102,3 +102,54 @@ sweep of the whole brief** — Part II is its scope, and a count outside it is a
 leaf of its own.
 
 ## Decisions (running log)
+
+1. **Nineteen, enumerated rather than inherited.** `#[test]` over
+   `crates/grove-loop/src/task_tree.rs` 1,106–1,360 counts 19, and the block's
+   `fn` lines are the nineteen this file predicted. The control is the same
+   command over the whole file (63) and over each of the ten ownership blocks —
+   19 + 22 + 21 + 1 = 63, with the other six blocks at zero — so the instrument
+   is seen to return both a non-zero and a zero on subjects known to differ,
+   rather than a clean read that could mean anything.
+2. **Named the nineteen's composition in the brief rather than only the total.**
+   The clause now reads *the block-opening
+   `select_returns_path_handle_and_kind_from_one_guarded_observation` and
+   eighteen named `pick_*`*, because a bare number is exactly what was wrong
+   before and a decomposition is checkable by grep. It is not a count of itself:
+   the two parts are stated structurally (block-opening; the `pick_*` prefix).
+3. **Chapter 5's `libc` clause corrected to *the use the manifest names*, with
+   the true relation stated after it.** `libc` is reached from three production
+   modules — 8 grep hits in `task_tree.rs`, 19 in `driver_lease.rs`, 3 in
+   `loop_driver.rs` — plus the excluded `task_grow/tests.rs`. The brief now says
+   what `01-orientation.md` (lines 121–130) and `05-opening.md` (764–773)
+   already say, and cites `manifest-dependency-clauses-k133` for the source fix.
+   Neither page was edited: both were checked and already agree.
+4. **Obligation 1 carries the `path-composition-tests` exception in the
+   obligation itself, not in a footnote.** Enumerating `#[test]` over 1,016–1,105
+   returns zero; the block is `pub(crate) mod tests {` at 1,016, its section
+   comment, four open-then-call compositions (`pick`, `select`, `kind`,
+   `brief_chain_at`) and five fixtures (`a_kind`, `grove`, `touch`, `mknode`,
+   `name_of`) — nine `fn`s, none a test. Chapter 6's page already adjudicates it
+   at `06-paths.md#compositions-that-are-the-tests-alone`.
+5. **Scoped the exception clause to Part II rather than the whole list.** The
+   sentence says *no other Part II chapter is in that position* and gives the
+   per-block counts for `task_tree.rs` only. Chapters 7, 8 and 9 each own a block
+   with tests (19; 22 and 1; 21), and chapters 5 and 10 are not on the list.
+   The other nine chapters named there own blocks in other files and are a leaf
+   of their own if anyone doubts them.
+6. **No other Part II count needed correcting.** Chapter 9's *two resolve test
+   blocks* is the source's two labelled sections at 1,653 and 1,875 — the
+   manifest merges them into one ownership block, and the brief says *blocks* of
+   the source, which is what the file bears out. Chapter 8's *`kind` and
+   `brief-chain` test blocks* likewise (1,361 and 1,523), plus the closing
+   section at 1,997. Chapter 5's *four openings* and *three error paths* stand,
+   as `opening-k141` recorded.
+7. **`bash scripts/check.sh` is red on `book-check` alone, as the brief
+   predicts.** Seven of eight checks green — `cargo fmt`, `shellcheck`, `cargo
+   clippy`, `plugin install`, `conformance`, `conformance suite`, `cargo test`
+   — and one failing book of six: `grove-loop` under `--final`, wholly in the
+   deferred-prefix classes (`F003` unowned deferred fragments and block-state
+   mismatches, `F009` ledger rows for blocks no page owns yet, `M101` the
+   fifteen unwritten pages, `M103`). `jj-workspace`, `keyed-launch`,
+   `ordinal-fs-tree` and `overview` are `final=true`. The run was started after
+   the last edit landed, not across it — an earlier run begun before the final
+   two edits was stopped and discarded rather than read.

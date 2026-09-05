@@ -1,6 +1,6 @@
 # Kind, slug, handle
 <!-- book-page id="kind-slug-handle" slice="the-handle-not-the-position" order="3" -->
-[Previous: The tokens, and the four verdicts](02-the-tokens.md) | [Contents](README.md)
+[Previous: The tokens, and the four verdicts](02-the-tokens.md) | [Contents](README.md) | [Next: The name, and canonicity](04-the-name.md)
 
 <a id="the-handle-not-the-position"></a>
 ## The rule: the handle is the identity, and the position is not in it
@@ -1183,4 +1183,4 @@ the whole seam, the conformance kit the store runs against grove's grammar and t
 canonicity argument the module header opened on are chapter 4's, and every route
 from a filename into the types this chapter defined runs through them.
 
-[Previous: The tokens, and the four verdicts](02-the-tokens.md) | [Contents](README.md)
+[Previous: The tokens, and the four verdicts](02-the-tokens.md) | [Contents](README.md) | [Next: The name, and canonicity](04-the-name.md)

@@ -81,7 +81,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 1. [Orientation](01-orientation.md)
 2. [The tokens, and the four verdicts](02-the-tokens.md)
 3. [Kind, slug, handle](03-kind-slug-handle.md)
-4. The name, and canonicity
+4. [The name, and canonicity](04-the-name.md)
 5. Opening, contention and refusal
 6. Paths, and addressing
 7. The walk: pick and select

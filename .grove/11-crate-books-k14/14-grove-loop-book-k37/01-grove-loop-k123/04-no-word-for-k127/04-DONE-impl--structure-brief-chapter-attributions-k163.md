@@ -82,3 +82,55 @@ once rather than having each remaining chapter rediscover it.
 in one specification file.
 
 ## Decisions (running log)
+
+1. **The transition-table row reads `11, 14`, not `14` alone.** The marker's
+   subject is the four-row table, and the rows split across two chapters'
+   blocks: the dispatch is `transition_to_current` (`tree_lifecycle.rs` 75) and
+   `materialize_finish` (113), both inside `finish-transition` (`1-331`, owner
+   `the-tree-deletes-itself`), while row 1's *create the root brief and the
+   first leaf* is `initialize_grove` (381) and row 2's refusal text is
+   `root_shape`'s classification (455), both inside `grove-beginning`
+   (`332-489`, owner `never-mistaken-for-finished`). Block owners read from
+   `docs/walkthroughs/grove-loop/walkthrough.toml`, not from the verb names.
+   Taking the scaffold half as covered at chapter 14 would have made this row
+   the only one of the four `tree_lifecycle` rows not to name both, against
+   `1080, 1176, 1217` beside it.
+
+2. **All thirty-one marker lines corrected by enumerating both documents, not
+   by sampling.** `grep -n 'residue(' docs/ARCHITECTURE.md` yields exactly
+   thirty-one `grove-loop` markers — 311, 323, 333, 340, 350, 363, 371, 379,
+   433, 451, 461, 472, 706, 739, 779, 857, 873, 884, 905, 969, 1007, 1053,
+   1080, 1163, 1176, 1190, 1217, 1242, 1265, 1325, 1343 — and each is exactly
+   one more than the number the table carried, checked pairwise across all
+   thirty-one rather than on the three the finding named. The prose below the
+   table (`1189`, `1324`, `471`) carried the same offset and was corrected with
+   it.
+
+3. **Added a standing instruction rather than only the numbers.** *Cite the
+   marker's subject, not its line* now sits under the table, because the
+   numbers move whenever anything above them in `docs/ARCHITECTURE.md` does —
+   `architecture-residue-k75` will move all of them — and the subject column is
+   the stable identifier. This is the brief's copy of what
+   `no-word-for-k127`'s brief already tells the remaining chapters.
+
+4. **The 13/16 contrast correction is three places, not one.** *The stated
+   outcome*'s clause was the reported one, but the same false claim about
+   chapter 1 stood in the chapter 16 section (*chapter 1 has already said so in
+   a sentence*) — the summary-layer leak `references/execute.md` warns about,
+   found by sweeping the whole brief for the claim rather than fixing the
+   sentence the finding quoted. Both now name chapter 13, and chapter 13's own
+   section states positively that it carries the sentence for both, so a later
+   stage reconciling chapter 16 to the brief is told to inherit rather than
+   re-argue. Verified against the pages: `01-orientation.md`'s only occurrences
+   of `16` are the Part IV/V boundary (286), a fragment directive (310), a
+   table cell (385) and a cast row (569) — none a thesis contrast — while
+   `13-outcomes.md` 30–36 states it under `#marked-in-place`.
+
+5. **`bash scripts/check.sh` is red on `book-check` alone**, as the part's shape
+   requires: seven of eight green, and `book-check` failing `M101` on the eight
+   pages 14–21 that `finishing-k158` and the later children still owe. Nothing
+   in the workspace reads this specification file — `grep` over `crates/`,
+   `scripts/` and `plugins/` finds it only in two prose sentences of
+   `docs/walkthroughs/grove-loop/10-growing.md` — so `cargo test`, including
+   `every_repository_markdown_reference_resolves`, is green and no page needed
+   reconciling to these corrections.

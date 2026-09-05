@@ -97,9 +97,11 @@ remember that you could re-derive?* — is sharp and explains the crate's single
 strangest fact, that a crate whose thesis is *the tree is the only state*
 contains 1,383 lines of untracked-file locking; but it reaches chapters 2–6 and
 8–10, some 3,700 lines, only by restatement. It survives as the thesis of
-chapters 13 and 16, and the contrast between those two is stated once in chapter
-1. The **maintainer outcome** — *you can now maintain this crate* — follows free
-from source-exactness, is not transferable, and leaves chapter 21 nothing to
+chapters 13 and 16, and the contrast between those two is stated once, in
+chapter 13 — the earlier of the two pages, so the book states it before either
+chapter needs it, and chapter 16 inherits it rather than re-arguing it. The
+**maintainer outcome** — *you can now maintain this crate* — follows free from
+source-exactness, is not transferable, and leaves chapter 21 nothing to
 argue; all four preceding briefs rejected the equivalent on the same ground.
 
 ## The spine: what is left here is grove's own
@@ -438,6 +440,11 @@ mean something; `prune_node_marks_every_live_leaf_in_the_subtree`,
 arity, and `pruning_a_node_takes_one_guard_per_mark` is the cost the atomicity is
 *not* paid with.
 
+**This chapter states the 13/16 contrast, once, for both.** *The tree's shape is
+the only state* is this chapter's thesis and chapter 16's deliberate exception;
+the earlier page is where the pair is named, so chapter 16 inherits the sentence
+instead of writing its own.
+
 ### 14 · Finishing — `the-tree-deletes-itself`
 
 **The rule: the driver is the only author of the leaf that ends the grove, and
@@ -480,8 +487,9 @@ over 819 lines it is the thinnest-argued root in the corpus and the third
 largest; see *What each chapter's prose owes*.
 
 **It is also the book's deliberate counterexample.** Everything else in the crate
-is re-derived from the tree; this is the one thing that cannot be, and chapter 1
-has already said so in a sentence.
+is re-derived from the tree; this is the one thing that cannot be, and chapter 13
+has already said so in a sentence. Inherit it rather than re-arguing it — and
+read chapter 13's page for the wording, not this brief.
 
 ### 17 · Which calls the lease admits — `which-calls-are-admitted`
 
@@ -920,26 +928,31 @@ chapter:
 
 | Markers at | Subject | Chapter |
 |---|---|---:|
-| 310, 339, 349, 362 | the tree grammar and its diagram; the kind token and the `--` separator; malformed against foreign; one classification shared by every verb | 2–4 |
-| 332 | positions, keys, handles and the terminal infixes | 3, 13 |
-| 370 | refusal by name | 4 |
-| 378 | which module owns which half of the tree | 1 |
-| 856, 872, 904 | the lock's scope and holders; what it does and does not promise; the contention probe and `restate` | 5 |
-| 968 | `addressable_key`'s refusal, and `leaf-prune` on a node | 6, 13 |
-| 432, 450 | the walk and the finish-reservation rule; the one pick and what it serves | 7, 14 |
-| 322 | what a node is, and how a missing `BRIEF.md` is read | 8, 12 |
-| 778 | `resolve` on a chained stem, and the grow verbs' refusal | 9, 10 |
-| 883, 1006, 1052 | `leaf-add`'s all-or-nothing on error; the lint's second opening; key prediction and its check | 10 |
-| 1079, 1175, 1216 | the two calls of `root-init`; the one-store-operation scaffold; `root_shape` on a withdrawn layout | 11, 14 |
-| 705 | the two kind tokens grove writes itself | 3, 11, 14 |
-| 1162 | the transition table | 13 |
-| 738, 1241, 1264 | the finish reservation; the finish flow; the four teardown steps and the two undo commands | 14 |
-| 460, 471, 1342 | the core's three parts; what the core reads; the stated VCS in `${prompt}` | 19 |
-| 1189, 1324 | the watch and the escalation; the scrub inside the seam and the loop's complementary list | 20 |
+| 311, 340, 350, 363 | the tree grammar and its diagram; the kind token and the `--` separator; malformed against foreign; one classification shared by every verb | 2–4 |
+| 333 | positions, keys, handles and the terminal infixes | 3, 13 |
+| 371 | refusal by name | 4 |
+| 379 | which module owns which half of the tree | 1 |
+| 857, 873, 905 | the lock's scope and holders; what it does and does not promise; the contention probe and `restate` | 5 |
+| 969 | `addressable_key`'s refusal, and `leaf-prune` on a node | 6, 13 |
+| 433, 451 | the walk and the finish-reservation rule; the one pick and what it serves | 7, 14 |
+| 323 | what a node is, and how a missing `BRIEF.md` is read | 8, 12 |
+| 779 | `resolve` on a chained stem, and the grow verbs' refusal | 9, 10 |
+| 884, 1007, 1053 | `leaf-add`'s all-or-nothing on error; the lint's second opening; key prediction and its check | 10 |
+| 1080, 1176, 1217 | the two calls of `root-init`; the one-store-operation scaffold; `root_shape` on a withdrawn layout | 11, 14 |
+| 706 | the two kind tokens grove writes itself | 3, 11, 14 |
+| 1163 | the transition table | 11, 14 |
+| 739, 1242, 1265 | the finish reservation; the finish flow; the four teardown steps and the two undo commands | 14 |
+| 461, 472, 1343 | the core's three parts; what the core reads; the stated VCS in `${prompt}` | 19 |
+| 1190, 1325 | the watch and the escalation; the scrub inside the seam and the loop's complementary list | 20 |
 
-Two of these are **joint** and their other books are written: line 1189 also
-names `keyed-launch`, line 1324 also names `jj-workspace`. Line 471 is joint with
+Two of these are **joint** and their other books are written: line 1190 also
+names `keyed-launch`, line 1325 also names `jj-workspace`. Line 472 is joint with
 `none`. So this book is the last condition on all thirty-one.
+
+**Cite the marker's subject, not its line.** The numbers above locate the markers
+in `docs/ARCHITECTURE.md` as it stands and move whenever anything above them
+does; the subject column is the stable identifier, and it is what a page should
+name.
 
 **The book neither cites nor edits `docs/ARCHITECTURE.md`.** Anchors stay where
 they are; k75 does the deletion; the book's job is to make the deletion true.

@@ -208,6 +208,40 @@ its own leaf, and — because the ledger holds an exact line count per block —
 fixed **inside the existing line counts**, or every later block of the file
 shifts and finished pages break.
 
+**A fourth thing `cargo doc` sees, and a fifth instrument nobody runs.**
+Promoted from `kind-and-briefs-k144`. Alongside a doc comment's *attachment*,
+`cargo doc --no-deps --document-private-items` reports **unresolved intra-doc
+links**, and this crate has five: `task_tree.rs` 580, 586 and 638 link to
+`pick`, `select` and `kind`, which are `crate::verbs` functions the module does
+not import; `prompt.rs` 28 links to `crate::methodology`; `lib.rs` 283 to
+`Resolution::Ambiguous`. Nothing in `scripts/check.sh` runs `cargo doc`, so none
+of this fails anything. **The prose around each link is true and only the link is
+broken**, so the pages adjudicate and `unresolved-doc-links-k151` holds the fix,
+deferred behind the book because one of the five is in an unwritten chapter's
+block. Every chapter reproducing a doc comment should run the command over its
+own block rather than reading the links.
+
+**A refusal test names a clause; the assertion names which clause actually
+fired, and only a mutation confirms it.** Promoted from `kind-and-briefs-k144`,
+which found three of chapter 8's four refusal tests refusing somewhere other
+than their names say — one at `is_file` twenty-nine lines before the clause it is
+named for, one at the grammar arm rather than the containment check, one in
+chapter 5's opening without reaching the function at all. The procedure that
+settles it: read the `bail!` texts, match each assertion's substring to exactly
+one of them, then replace each refusal in a copy of the workspace and watch which
+tests fail — **including a control mutation of the ones you believe are covered**,
+because that is what rules out a silent second observer and attributes each
+failure to one test. In `leaf_entry` the result was five of seven refusals
+unobserved by all 245 inline tests and all twenty-five `grove-llm` targets.
+**Chapters 9 and 11 to 14 all own private helpers with many `bail!` arms**, and a
+coverage sentence about any of them is worth exactly the same re-run.
+
+**Count the opens before believing a test labelled *together*.** The file's
+closing block is *pick + brief-chain together* and opens the tree twice, which is
+the race both `pick_in`'s and `brief_chain_at`'s doc comments exist to warn
+against. Any later chapter reproducing a test that composes two verbs owes the
+same check.
+
 ## Notes
 
 **This is the draft stage only.** Copy edit, art and proof are the later stages

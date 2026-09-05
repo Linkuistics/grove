@@ -1,6 +1,6 @@
 # The walk: pick and select
 <!-- book-page id="the-walk" slice="first-live-leaf" order="7" -->
-[Previous: Paths, and addressing](06-paths.md) | [Contents](README.md)
+[Previous: Paths, and addressing](06-paths.md) | [Contents](README.md) | [Next: Kind, and the brief chain](08-kind-and-briefs.md)
 
 <a id="first-live-leaf"></a>
 ## The rule: the first live leaf in walk order
@@ -1034,4 +1034,4 @@ composition this chapter's `pick_in` doc comment was written for.
 Five of this file's ten ownership blocks remain, and chapters 8 and 9 resolve
 them.
 
-[Previous: Paths, and addressing](06-paths.md) | [Contents](README.md)
+[Previous: Paths, and addressing](06-paths.md) | [Contents](README.md) | [Next: Kind, and the brief chain](08-kind-and-briefs.md)

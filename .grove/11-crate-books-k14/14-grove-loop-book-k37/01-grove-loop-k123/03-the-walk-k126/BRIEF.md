@@ -188,6 +188,55 @@ never reached. Every later chapter reproducing a test that asserts on refusal te
 owes the same check — chapters 8, 9 and 11 to 14 all have them — and the honest
 form is *this is chapter 4's grammar observed through chapter N's verb*.
 
+**Five rustdoc intra-doc links in this crate do not resolve, and
+`unresolved-doc-links-k151` holds the fix.** Found by `kind-and-briefs-k144`.
+Three are in `task_tree.rs` — line 580 `[`pick`]`, 586 `[`select`]`, 638
+`[`kind`]` — and all three name public functions of `crate::verbs`, which this
+module does not import; the other two are `prompt.rs` line 28 and `lib.rs` line
+283. **The prose around each is true and only the link is broken**, which is the
+same shape as the `llm_cli` stale address, so chapters 7 and 8 adjudicate on the
+page rather than cutting the source. The instrument is `cargo doc --no-deps
+--document-private-items`; nothing else sees it, and no check in this repository
+runs it. **Every remaining chapter that reproduces a doc comment should run it
+over its own block** rather than reading the links.
+
+**`leaf_entry`'s grove-root clause cannot execute, and
+`unreachable-root-clause-k152` holds the decision.** `task_tree.rs` 717–722 fires
+only for an argument that is a regular file *and* canonicalises to the grove
+root, and chapter 5's opening (line 276) guarantees the root is a directory while
+a `Tree` exists. Its own test,
+`brief_chain_errors_when_given_the_grove_root_itself`, refuses at `is_file`
+twenty-nine lines earlier. Removal shifts every later line of a 2,023-line root,
+so k152 is deferred behind the whole book and decides between removing and
+re-ledgering or keeping and renaming the test.
+
+**Mutation, not reading, is what settled `leaf_entry`'s coverage — and the result
+was five of seven.** Replacing each refusal in a copy of the workspace, one at a
+time, showed that the UTF-8 clause, the forwarded grammar `{error}`, both
+root-containment clauses and the closing *not in the task tree* `bail!` are
+unobserved by all 245 inline tests and all twenty-five `grove-llm` targets; only
+the `is_file` clause and the *not a current-format Grove leaf* arm are held. A
+control mutation of those two failed exactly two tests, which is what attributes
+them. **Chapters 9 and 10 own functions with the same shape — a private resolver
+with many `bail!` arms — and a coverage claim about them is worth exactly the same
+re-run.** Note also that three of the four refusal *tests* in chapter 8's block
+assert on messages produced by clauses other than the ones their names describe:
+a test name is a label, and here it is a misleading one.
+
+**A composed-verb test can be integrated at the wrong seam.** The file's closing
+block is labelled *pick + brief-chain together* and opens the tree twice, once per
+composition, which is exactly what `pick_in`'s and `brief_chain_at`'s doc comments
+say production must not do. Chapter 8 states it. **Every later chapter reproducing
+a test that composes two verbs owes the same check** — count the opens before
+believing the label.
+
+**Chapter 7 owes an early-use row it did not add, and k151 carries it.** Its block
+reproduces `[`select`]`, whose referent `verbs::select` has no row anywhere in the
+ledger. Chapter 8 added the two its own bytes owed, `verbs::kind` and
+`verbs::brief_chain`, both from the **hyphenated and the linked spelling** the
+parent brief warned about. The row needs the earlier page to state the minimum
+locally, so it is chapter 7's prose to change and not a later leaf's to bolt on.
+
 ## Notes
 
 **The corpus is frozen.** A defect found while drafting becomes its own leaf and

@@ -85,7 +85,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 5. [Opening, contention and refusal](05-opening.md)
 6. [Paths, and addressing](06-paths.md)
 7. [The walk: pick and select](07-the-walk.md)
-8. Kind, and the brief chain
+8. [Kind, and the brief chain](08-kind-and-briefs.md)
 9. Resolve
 10. Growing: leaf-add and leaf-insert
 11. A grove begins

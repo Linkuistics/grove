@@ -76,3 +76,60 @@ rule.
 after this book. This leaf does not touch either.
 
 ## Decisions (running log)
+
+1. **Row 1's replacement names four categories where the old comment named
+   three, and folds the two selection calls into one word.** Four lines cannot
+   carry seven site-by-site descriptions, and a comment that tried would be the
+   next stale enumeration. *Selection, creation, `finish_commit`, and the three
+   refusals to decompose, retire or prune an existing one* covers all seven —
+   two in `selected`, one in `refuse_finish_kind`, one in `finish_commit`, and
+   `decomposable`, `retire_parts` and `plan_leaf` — with the count stated up
+   front and the site-by-site reading left to chapter 3, which is where a reader
+   who wants the addresses already goes.
+2. **Row 6 drops the *proper prefix* descriptor rather than adding a fixture to
+   satisfy it.** The task file called this out and the source bears it out: a
+   proper-prefix relation between two kinds is what a longest match against a
+   closed label set would have had to disambiguate, and `open-kind-k20` took the
+   set away, so the first-`--` split cannot consult it. The shape the two
+   `integrate-review-*` tokens actually pose is a **shared** two-word prefix,
+   which the split can still get wrong by truncating, and that is what the
+   comment now names. Chapter 4 keeps the distinction as prose about the code.
+3. **Chapter 4 keeps its misattachment adjudication.** Only the caller count was
+   this leaf's; the `///` run from 977 to 1,005 is still unbroken and still
+   attached to `terminal_key`, so the paragraph that says so is still true.
+   `kit-fixture-and-peel-doc-k140` owns the move.
+4. **One adjacent false path in chapter 3 was fixed while verifying row 2.** The
+   page cited `terminal_key` as *a public function at
+   `crates/grove-loop/src/task_tree.rs` line 1,007*; it is `task_name.rs` line
+   1,007, and `task_tree.rs` only calls it. It sits in the sentence immediately
+   above the paragraph this leaf rewrote and concerns the same three callers, so
+   cutting a leaf for a one-token path correction would cost more than it saves.
+5. **Two `concept-index.md` entries restated the corrected enumerations and were
+   reworded** — *the three peels of a terminal `-k<digits>`* (there is one peel
+   and three callers) and *the two the comment names that the fixture does not
+   carry* (there are none now). An index that contradicts the page it points at
+   is the same defect this leaf exists to remove.
+
+## Verification
+
+- `book-check --repo . --book docs/walkthroughs/grove-loop --through
+  canonical-or-nothing --check all` → **valid: 13 files, 2150 resolved lines,
+  8383 deferred lines, final=false** — the same three numbers as before this
+  leaf, which is what proves no reproduced block's line count moved.
+- `cargo test -p grove-loop` → 245 + 23 + 3 + 16 + 20 + 22 passed, 0 failed.
+- `bash scripts/check.sh` → **FAILED — 1 of 8**, red on `book-check` alone and
+  on nothing else. `cargo fmt`, `shellcheck`, `cargo clippy`, `plugin install`,
+  `conformance`, the conformance suite and the whole-workspace `cargo test` are
+  green, and the other five books validate `final=true`. The `grove-loop`
+  book's failures are all the absence of chapters 5–21: `M101` for each missing
+  page, `M103` for the navigation lines that point at page 5, and the `F003` /
+  `F009` rows the ledger still holds as deferred or pending. That is the shape
+  this node's brief predicts and not a lapse.
+
+## Found while fixing
+
+**`UnknownKind` still occurs in `CHANGELOG.md` line 374, and correctly.** That
+line records the rename itself (`TaskNameError::UnknownKind` → `BadKind`), so it
+is history rather than a stale claim. Chapter 3's old paragraph asserted the
+token occurred *exactly once in the whole repository*; it did not, and the
+replacement makes no uniqueness claim at all.

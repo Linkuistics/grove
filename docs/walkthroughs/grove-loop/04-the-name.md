@@ -888,19 +888,19 @@ at all.
 /// Peel a terminal `-k<digits>` into what precedes it and the digit run, or
 /// `None` when there is none.
 ///
-/// **The only peel of the key in grove**, shared by [`split_shape`] and
-/// [`Handle::parse`] — which is what makes *a handle and a filename find the key
-/// identically* a fact rather than a claim. It was two functions
-/// (`task_tree::handle_key` was the second, and its own comment conceded it
-/// "mirrors the filename grammar"), and the terminality rule is subtle enough
-/// that two of it is one too many: the key is the **last** `-k<digits>`, so
-/// `migrate-v1-to-v2-k27` is key 27 and a slug may contain `-k9` and still read
-/// unambiguously.
+/// **The only peel of the key in grove**, shared by [`split_shape`],
+/// [`Handle::parse`] and [`terminal_key`] — which is what makes *a handle and a
+/// filename find the key identically* a fact rather than a claim. It was two
+/// functions (`task_tree::handle_key` was the second, and its own comment
+/// conceded it "mirrors the filename grammar"), and the terminality rule is
+/// subtle enough that two of it is one too many: the key is the **last**
+/// `-k<digits>`, so `migrate-v1-to-v2-k27` is key 27 and a slug may contain
+/// `-k9` and still read unambiguously.
 ///
-/// The digits are returned unparsed because the two callers disagree about what
-/// an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
-/// handle says [`HandleError::KeyOutOfRange`] — and that is their judgement, not
-/// this function's.
+/// The digits are returned unparsed because the three callers disagree about
+/// what an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
+/// handle says [`HandleError::KeyOutOfRange`] and a reference says `None` — and
+/// that is their judgement, not this function's.
 /// The [`Key`] a reference ends in, or `None` when it does not end in one.
 ///
 /// **A narrower question than [`Handle::parse`], asked by the reference
@@ -936,17 +936,16 @@ about the code and attached to the wrong item, so a reader of the rendered
 documentation is told that `terminal_key` returns a pair and that its digits are
 unparsed, and neither is true of it.
 
-**And the count in the first half is two where the file holds three.** Line 989
-says *the two callers disagree about what an over-wide key means*, and line 980
-names the pair as `split_shape` and `Handle::parse`. `peel_key` has three
-callers: `split_shape` at line 973, `Handle::parse` at line 478, and
-`terminal_key` itself at line 1,008. Chapter 3 met the same shortfall from the
-other side, in `Handle::parse`'s own *only peel* clause. The third caller is not
-an oversight the sentence at line 1,004 shares — fifteen lines below the count,
-in the half that really is `terminal_key`'s, the relation is stated correctly: *this and `Handle::parse` both go through `peel_key`, and the
-difference between them is what they require of what precedes it*.
+**And the first half enumerates the three callers.** Line 980 names them —
+`split_shape` at line 973, `Handle::parse` at line 478, and `terminal_key` itself
+at line 1,008 — and line 989 says all three disagree about what an over-wide key
+means. Chapter 3 reads the same relation from the other side, in `Handle::parse`'s
+own clause. The sentence at line 1,004, fifteen lines below the count and in the
+half that really is `terminal_key`'s, states it once more: *this and
+`Handle::parse` both go through `peel_key`, and the difference between them is
+what they require of what precedes it*.
 
-What the two paragraphs argue is right and does not depend on either defect. A
+What the two paragraphs argue does not depend on where they are attached. A
 terminal `-k<digits>` is taken apart in exactly one function; the three callers
 differ only in what they require of the text before it, and in what they make of
 a digit run too wide for a `u32`. `split_shape` hands the width question to
@@ -1269,11 +1268,11 @@ The second kit call replaces the triples and keeps the listings.
     ///
     /// **There is no set to sweep any more** (`open-kind-k20`), so the fixture is
     /// over the *shapes* a token can have rather than over nineteen labels: one
-    /// word, two words, four words, a pair where one token is a proper prefix of
-    /// another, digits, and a single character. Those are the shapes that could
-    /// break the round trip — the `--` has to be found in the right place and
-    /// the token read back whole — and a token nobody has ever configured is in
-    /// the list deliberately, because the grammar must not be able to tell.
+    /// word, two words, three words, a pair sharing a two-word prefix, digits,
+    /// and a single character. Those are the shapes that could break the round
+    /// trip — the `--` has to be found in the right place and the token read
+    /// back whole — and a token nobody has ever configured is in the list
+    /// deliberately, because the grammar must not be able to tell.
     #[test]
     fn every_shape_of_session_kind_survives_the_round_trip() {
         let kinds = [
@@ -1322,28 +1321,27 @@ one: the infix is part of the name a kind renders into and is stripped before th
 kind is read, so an off-by-one in `Outcome::strip` would show up here as a
 mangled kind.
 
-**The comment's list of shapes names two the eight fixtures do not carry.**
+**Each of the six shapes the comment names is in the eight.**
 
 | Shape the comment names | What the eight hold |
 |---|---|
 | one word | `impl`, `x`, `9` |
 | two words | `research-a`, `review-impl`, `postmortem-2` |
-| four words | **none.** Three is the maximum, at `integrate-review-impl` and `integrate-review-prototype` |
-| a pair where one token is a proper prefix of another | **none.** Those two share the two-word prefix `integrate-review`, and neither is a prefix of the other |
+| three words | `integrate-review-impl` and `integrate-review-prototype`, which are also the longest |
+| a pair sharing a two-word prefix | those same two, which agree on `integrate-review` and diverge after it |
 | digits | `9`, which is all digits, and `postmortem-2`, which ends in one |
 | a single character | `x`, and `9` again |
 
-Read the table for which of the six descriptors the fixture actually poses: four
-of them, and the two it does not are of different kinds. *Four words* is a
-miscount with no consequence — a three-word token exercises multi-word splitting
-exactly as a four-word one would, and both are present twice. The prefix pair is
-more interesting, because the shape it names is one this grammar cannot be
-confused by. A kind that is a proper prefix of another kind is the case a
-longest-match against a closed label set would have had to disambiguate; the
-first-`--` split has no set to match against, so a prefix relation between two
-kinds is not a fact the parser can consult. The descriptor describes a hazard the
-withdrawn design had, and the sample that would pose it is absent because there
-is nothing left for it to pose.
+Three words is the maximum and it is enough: a three-word token exercises
+multi-word splitting exactly as a longer one would, and two of the eight carry
+it. The shared prefix is the more interesting row, and it is worth being precise
+about what it is not. A kind that is a *proper prefix* of another kind — the case
+a longest match against a closed label set would have had to disambiguate — is a
+hazard this grammar cannot have, because the first-`--` split has no set to match
+against and a prefix relation between two kinds is not a fact the parser can
+consult. What a shared prefix does pose is the thing the split can still get
+wrong: two tokens that agree for their first two words and diverge after must be
+read back whole, or the round trip fails on the one that was truncated.
 
 **What it would still pass under.** The slug is the constant `a-slug-9` in every
 one of the twenty-four, so nothing here varies the half of the name the kind is

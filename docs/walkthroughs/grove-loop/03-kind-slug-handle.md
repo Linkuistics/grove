@@ -222,9 +222,9 @@ impl Kind {
     /// Is this the driver's own sentinel?
     ///
     /// Grove recognising the leaf it wrote itself — which is what licenses the
-    /// three places that ask: `finish` sorting last in selection, the grow verbs
-    /// refusing to create one, and the loop's own teardown. Not an
-    /// interpretation of the methodology, which grove performs nowhere.
+    /// seven calls in six functions that ask: selection, creation, `finish_commit`,
+    /// and the three refusals to decompose, retire or prune an existing one. Not
+    /// an interpretation of the methodology, which grove performs nowhere.
     #[must_use]
     pub fn is_finish(&self) -> bool {
         self.0 == FINISH
@@ -246,27 +246,24 @@ so the question costs no allocation. Everything else here is the newtype's
 minimum: one validating constructor that returns the same `TokenError` a `Slug`
 returns, two constructors that cannot fail, and one accessor.
 
-**The doc comment on `is_finish` names three places where the crate has more.**
-`Kind::is_finish` is called seven times, in six functions, and the three
-categories the comment lists do not cover three of them. Two calls are in
-selection, at `crates/grove-loop/src/task_tree.rs` lines 615 and 629 — and only
-the second is the ordering the comment describes, since the first refuses a tree
-holding more than one live `finish` leaf, which is a malformed-tree report rather
-than a sort. One is the creation refusal, at
+**Seven calls, six functions, and the comment's four categories cover them.**
+Two calls are in selection, at `crates/grove-loop/src/task_tree.rs` lines 615 and
+629, both inside `selected` — and only the second is the ordering, since the
+first refuses a tree holding more than one live `finish` leaf, which is a
+malformed-tree report rather than a sort. One is the creation refusal, at
 `crates/grove-loop/src/task_grow.rs` line 491, reached by `leaf-add`,
 `leaf-insert`, `root-init` and `leaf-decompose`. One is at
 `crates/grove-loop/src/tree_lifecycle.rs` line 230, inside `finish_commit`, which
-is the verb the finish session runs rather than anything in the loop driver —
-`crates/grove-loop/src/loop_driver.rs` never calls `is_finish` at all. The
+is the verb the finish session runs — `crates/grove-loop/src/loop_driver.rs`
+never calls `is_finish` at all, so nothing in the loop driver itself asks. The
 remaining three, at lines 621, 757 and 921 of `tree_lifecycle.rs`, refuse to
-decompose, retire or prune a `finish` leaf that already exists, which is neither
-selection nor creation nor teardown. Line 621 is provably a separate question
-from the creation refusal, because `leaf-decompose` asks both: line 621 about the
-leaf it is converting, and line 560's call to `refuse_finish_kind` about the kind
-of the child it is growing. Chapters 7, 10, 12, 13 and 14 read the seven sites.
-What the comment is right about is the licence: every one of the seven is grove
-recognising a leaf it wrote itself, and none of them interprets what a `finish`
-session is for.
+decompose, retire or prune a `finish` leaf that already exists. Line 621 is
+provably a separate question from the creation refusal, because `leaf-decompose`
+asks both: line 621 about the leaf it is converting, and line 560's call to
+`refuse_finish_kind` about the kind of the child it is growing. Chapters 7, 10,
+12, 13 and 14 read the seven sites. The licence reaches all of them: every one of
+the seven is grove recognising a leaf it wrote itself, and none of them
+interprets what a `finish` session is for.
 
 <!-- fragment «name-kind-display» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="301-306" parent="kind-slug-and-handle" -->
 ````rust
@@ -541,9 +538,9 @@ identity is that node's. `the_brief_has_no_handle` below is the assertion.
 ````rust
     /// Read a handle back out of its rendering.
     ///
-    /// The inverse of [`Handle::render`], and the *only* peel of the terminal
-    /// `-k<digits>` outside [`split_shape`], which shares [`peel_key`] with it —
-    /// so a handle and a filename find the key by one rule and cannot disagree.
+    /// The inverse of [`Handle::render`], and one of [`peel_key`]'s three callers
+    /// beside [`split_shape`] and [`terminal_key`] — so a handle, a filename and a
+    /// bare reference find the key by one rule and cannot disagree.
     ///
     /// **Deliberately lenient on the key's spelling where [`TaskName::parse`] is
     /// canonical, and the asymmetry is the point.** Canonicity exists because
@@ -609,22 +606,19 @@ The strictness in the other direction is what sends one caller elsewhere.
 retired leaf's whole stem — `01-DONE-impl--build-k5` — would be refused for a head
 that was never going to be a slug. `resolve`'s bare-slug fallback therefore asks
 `terminal_key` instead, a public function at
-`crates/grove-loop/src/task_tree.rs` line 1,007 that answers *does this end in a
+`crates/grove-loop/src/task_name.rs` line 1,007 that answers *does this end in a
 key* and requires nothing of what precedes it. Chapter 4 defines it and chapter 9
 reads the fallback that calls it.
 
-**The uniqueness clause names two peels where the file has three, and the
-conclusion it draws survives anyway.** A terminal `-k<digits>` is taken apart in
-exactly one function, `peel_key`, whose `strip_suffix` is one of the crate's two
-reads of `KEY_MARK`; the other is `Handle::render` below, and the third mention
-of the constant is its own definition. `peel_key` has three callers, not two:
+**One peel, and the three callers that ask it.** A terminal `-k<digits>` is
+taken apart in exactly one function, `peel_key`, whose `strip_suffix` is one of
+the crate's two reads of `KEY_MARK`; the other is `Handle::render` below, and the
+third mention of the constant is its own definition. Its callers are
 `split_shape` for filenames at line 973, `Handle::parse` at line 478, and
-`terminal_key` at line 1,008, which the same file documents as a third peel 550
-lines later. So `Handle::parse` is not
-the only peel outside `split_shape`. The clause the sentence ends on is
-nonetheless true, and true for a stronger reason than the one given: a handle, a
-filename and a bare reference cannot disagree about where the key is, because
-none of the three finds it and all three ask `peel_key`.
+`terminal_key` at line 1,008, which chapter 4 reads. That is what the clause the
+comment ends on rests on: a handle, a filename and a bare reference cannot
+disagree about where the key is, because none of the three finds it and all three
+ask `peel_key`.
 
 <!-- fragment «name-handle-accessors-and-render» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="499-521" parent="kind-slug-and-handle" -->
 ````rust
@@ -800,7 +794,7 @@ still the shape it always was, and the kind is now the same shape.
             // The separator, which the kind/slug boundary owns. The split is
             // still unambiguous with one inside a slug — it takes the *first* —
             // but the spec's rule is that neither token carries one, and a slug
-            // that did would leave `UnknownKind` quoting a token nobody wrote.
+            // that did would leave `BadKind` quoting a token nobody wrote.
             "a--b",
             "--",
             "A",
@@ -846,15 +840,13 @@ about `Kind`: it exercises `Slug::new` alone, and *one rule for both words* is a
 fact about `refuse_token` having one body, which chapter 2 read and no test in
 this file asserts over the pair.
 
-**The comment at line 1,536 names a variant the crate no longer has.**
-`UnknownKind` occurs exactly once in the whole repository, in this comment. It
-was a `TaskNameError` variant under the closed kind set, and `open-kind-k20`
-replaced membership refusal with shape refusal; the variant that carries a
-refused kind today is `BadKind`, whose own doc comment at line 689 records the
-change. The comment's point survives the renaming — a slug carrying `--` would
-move where the name splits and produce a refusal quoting a token nobody wrote —
-but the name it gives that refusal has not existed since the leaf it is arguing
-about landed.
+**`BadKind` is the variant a refused kind arrives in, and it carries a rename.**
+Under the closed kind set it was `TaskNameError::UnknownKind`, and
+`open-kind-k20` replaced membership refusal with shape refusal; `BadKind`'s own
+doc comment at line 689 records that change, calling it *a shape refusal, not an
+unknown-kind one*. The point the inline comment makes does not depend on which
+name carries it: a slug holding `--` would move where the name splits, and the
+refusal would quote a token nobody wrote.
 
 <a id="the-handle-is-the-identity"></a>
 ## The handle owns the grammar, asserted
@@ -1127,7 +1119,7 @@ different reasons.
     /// Lenient where `handle_key` was, on the key's spelling — a handle is a
     /// reference a human types and never a name on disk, so canonicity has no
     /// argument here. Stricter where `handle_key` looked at nothing, on the
-    /// slug — `handle_key` answered *key 3* for three references no entry could
+    /// slug — `handle_key` answered *key 3* for four references no entry could
     /// ever wear, since every slug on disk went through `Slug::new`.
     #[test]
     fn parse_is_lenient_on_the_key_and_strict_on_the_slug() {
@@ -1169,12 +1161,12 @@ that any one of those clauses is reached. And the whole comparison is with a
 function that no longer exists: `task_tree::handle_key` was deleted, so what this
 test protects is a behaviour, not a difference a reader can run both sides of.
 
-**The doc comment counts three references where the loop has four.** `-k3`,
-`A-k3`, `DONE-k3` and `a_b-k3` are all refused here and all four would have
-answered *key 3* under a function that did not look at the slug, since each ends
-in a terminal `-k3`. The count is the only thing wrong with the sentence: the
-claim it supports — that the strictness is on the slug, and that every slug on
-disk went through `Slug::new` — is what the four fixtures show.
+**Four references, and `handle_key` would have answered every one of them.**
+`-k3`, `A-k3`, `DONE-k3` and `a_b-k3` are all refused here, and all four would
+have answered *key 3* under a function that did not look at the slug, since each
+ends in a terminal `-k3`. That is what the fixtures show, and it is the claim the
+doc comment makes: the strictness is on the slug, and every slug on disk went
+through `Slug::new`.
 
 The named parts are defined, and the handle's structural claim is asserted rather
 than promised. What is still missing is the name that carries them: nothing so far

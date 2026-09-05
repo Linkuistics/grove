@@ -282,9 +282,9 @@ impl Kind {
     /// Is this the driver's own sentinel?
     ///
     /// Grove recognising the leaf it wrote itself — which is what licenses the
-    /// three places that ask: `finish` sorting last in selection, the grow verbs
-    /// refusing to create one, and the loop's own teardown. Not an
-    /// interpretation of the methodology, which grove performs nowhere.
+    /// seven calls in six functions that ask: selection, creation, `finish_commit`,
+    /// and the three refusals to decompose, retire or prune an existing one. Not
+    /// an interpretation of the methodology, which grove performs nowhere.
     #[must_use]
     pub fn is_finish(&self) -> bool {
         self.0 == FINISH
@@ -446,9 +446,9 @@ impl Handle {
 
     /// Read a handle back out of its rendering.
     ///
-    /// The inverse of [`Handle::render`], and the *only* peel of the terminal
-    /// `-k<digits>` outside [`split_shape`], which shares [`peel_key`] with it —
-    /// so a handle and a filename find the key by one rule and cannot disagree.
+    /// The inverse of [`Handle::render`], and one of [`peel_key`]'s three callers
+    /// beside [`split_shape`] and [`terminal_key`] — so a handle, a filename and a
+    /// bare reference find the key by one rule and cannot disagree.
     ///
     /// **Deliberately lenient on the key's spelling where [`TaskName::parse`] is
     /// canonical, and the asymmetry is the point.** Canonicity exists because
@@ -977,19 +977,19 @@ fn split_shape(stem: &str) -> Option<(&str, &str, &str)> {
 /// Peel a terminal `-k<digits>` into what precedes it and the digit run, or
 /// `None` when there is none.
 ///
-/// **The only peel of the key in grove**, shared by [`split_shape`] and
-/// [`Handle::parse`] — which is what makes *a handle and a filename find the key
-/// identically* a fact rather than a claim. It was two functions
-/// (`task_tree::handle_key` was the second, and its own comment conceded it
-/// "mirrors the filename grammar"), and the terminality rule is subtle enough
-/// that two of it is one too many: the key is the **last** `-k<digits>`, so
-/// `migrate-v1-to-v2-k27` is key 27 and a slug may contain `-k9` and still read
-/// unambiguously.
+/// **The only peel of the key in grove**, shared by [`split_shape`],
+/// [`Handle::parse`] and [`terminal_key`] — which is what makes *a handle and a
+/// filename find the key identically* a fact rather than a claim. It was two
+/// functions (`task_tree::handle_key` was the second, and its own comment
+/// conceded it "mirrors the filename grammar"), and the terminality rule is
+/// subtle enough that two of it is one too many: the key is the **last**
+/// `-k<digits>`, so `migrate-v1-to-v2-k27` is key 27 and a slug may contain
+/// `-k9` and still read unambiguously.
 ///
-/// The digits are returned unparsed because the two callers disagree about what
-/// an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
-/// handle says [`HandleError::KeyOutOfRange`] — and that is their judgement, not
-/// this function's.
+/// The digits are returned unparsed because the three callers disagree about
+/// what an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
+/// handle says [`HandleError::KeyOutOfRange`] and a reference says `None` — and
+/// that is their judgement, not this function's.
 /// The [`Key`] a reference ends in, or `None` when it does not end in one.
 ///
 /// **A narrower question than [`Handle::parse`], asked by the reference
@@ -1117,11 +1117,11 @@ mod tests {
     ///
     /// **There is no set to sweep any more** (`open-kind-k20`), so the fixture is
     /// over the *shapes* a token can have rather than over nineteen labels: one
-    /// word, two words, four words, a pair where one token is a proper prefix of
-    /// another, digits, and a single character. Those are the shapes that could
-    /// break the round trip — the `--` has to be found in the right place and
-    /// the token read back whole — and a token nobody has ever configured is in
-    /// the list deliberately, because the grammar must not be able to tell.
+    /// word, two words, three words, a pair sharing a two-word prefix, digits,
+    /// and a single character. Those are the shapes that could break the round
+    /// trip — the `--` has to be found in the right place and the token read
+    /// back whole — and a token nobody has ever configured is in the list
+    /// deliberately, because the grammar must not be able to tell.
     #[test]
     fn every_shape_of_session_kind_survives_the_round_trip() {
         let kinds = [
@@ -1533,7 +1533,7 @@ mod tests {
             // The separator, which the kind/slug boundary owns. The split is
             // still unambiguous with one inside a slug — it takes the *first* —
             // but the spec's rule is that neither token carries one, and a slug
-            // that did would leave `UnknownKind` quoting a token nobody wrote.
+            // that did would leave `BadKind` quoting a token nobody wrote.
             "a--b",
             "--",
             "A",
@@ -1688,7 +1688,7 @@ mod tests {
     /// Lenient where `handle_key` was, on the key's spelling — a handle is a
     /// reference a human types and never a name on disk, so canonicity has no
     /// argument here. Stricter where `handle_key` looked at nothing, on the
-    /// slug — `handle_key` answered *key 3* for three references no entry could
+    /// slug — `handle_key` answered *key 3* for four references no entry could
     /// ever wear, since every slug on disk went through `Slug::new`.
     #[test]
     fn parse_is_lenient_on_the_key_and_strict_on_the_slug() {

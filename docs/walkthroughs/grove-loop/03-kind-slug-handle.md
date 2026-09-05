@@ -606,7 +606,7 @@ The strictness in the other direction is what sends one caller elsewhere.
 retired leaf's whole stem — `01-DONE-impl--build-k5` — would be refused for a head
 that was never going to be a slug. `resolve`'s bare-slug fallback therefore asks
 `terminal_key` instead, a public function at
-`crates/grove-loop/src/task_name.rs` line 1,007 that answers *does this end in a
+`crates/grove-loop/src/task_name.rs` line 991 that answers *does this end in a
 key* and requires nothing of what precedes it. Chapter 4 defines it and chapter 9
 reads the fallback that calls it.
 
@@ -615,7 +615,7 @@ taken apart in exactly one function, `peel_key`, whose `strip_suffix` is one of
 the crate's two reads of `KEY_MARK`; the other is `Handle::render` below, and the
 third mention of the constant is its own definition. Its callers are
 `split_shape` for filenames at line 973, `Handle::parse` at line 478, and
-`terminal_key` at line 1,008, which chapter 4 reads. That is what the clause the
+`terminal_key` at line 992, which chapter 4 reads. That is what the clause the
 comment ends on rests on: a handle, a filename and a bare reference cannot
 disagree about where the key is, because none of the three finds it and all three
 ask `peel_key`.

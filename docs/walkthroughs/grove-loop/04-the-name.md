@@ -875,32 +875,14 @@ shape, at `01--k1.md`. Both are Malformed, which is the comment's claim. Disclai
 entry, and the whole subtree beneath it when it is a directory, while the walk
 reported a healthy tree.
 
-The fifth and sixth fragments are the one peel, and they arrive in an order that
-needs stating before it is read. The doc comment below runs from line 977 to line
-1,005 without a break, and the item it is attached to is `terminal_key` at line
-1,007 — so its first two paragraphs, which describe a function returning what
-precedes the key and the digit run, are `terminal_key`'s documentation rather
-than `peel_key`'s. `peel_key`, in the fragment after it, carries no doc comment
-at all.
+The fifth and sixth fragments are the one peel, and they read in the opposite
+order to the call graph: the public narrowing first, then the private primitive
+it goes through. Each carries its own doc comment, and the blank line at line 995
+is what makes that true — two `///` runs with no gap between them are one comment
+on the item below, whichever function the earlier run describes.
 
-<!-- fragment «name-terminal-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="977-1011" parent="the-task-name" -->
+<!-- fragment «name-terminal-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="977-995" parent="the-task-name" -->
 ````rust
-/// Peel a terminal `-k<digits>` into what precedes it and the digit run, or
-/// `None` when there is none.
-///
-/// **The only peel of the key in grove**, shared by [`split_shape`],
-/// [`Handle::parse`] and [`terminal_key`] — which is what makes *a handle and a
-/// filename find the key identically* a fact rather than a claim. It was two
-/// functions (`task_tree::handle_key` was the second, and its own comment
-/// conceded it "mirrors the filename grammar"), and the terminality rule is
-/// subtle enough that two of it is one too many: the key is the **last**
-/// `-k<digits>`, so `migrate-v1-to-v2-k27` is key 27 and a slug may contain
-/// `-k9` and still read unambiguously.
-///
-/// The digits are returned unparsed because the three callers disagree about
-/// what an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
-/// handle says [`HandleError::KeyOutOfRange`] and a reference says `None` — and
-/// that is their judgement, not this function's.
 /// The [`Key`] a reference ends in, or `None` when it does not end in one.
 ///
 /// **A narrower question than [`Handle::parse`], asked by the reference
@@ -923,39 +905,32 @@ pub fn terminal_key(reference: &str) -> Option<Key> {
 ````
 <!-- /fragment -->
 
-**The comment is two comments run together, and rustdoc renders both as
-`terminal_key`'s.** The break falls between lines 992 and 993: line 992 ends *and
-that is their judgement, not this function's*, and line 993 opens *The `Key` a
-reference ends in* — a new first sentence, which is the form a Rust doc comment's
-summary line takes. There is no blank line between them, so the run is one outer
-doc comment on the next item. Built with `--document-private-items`,
-`terminal_key`'s page opens on *Peel a terminal `-k<digits>` into what precedes
-it and the digit run, or `None` when there is none*, which is not `terminal_key`'s
-signature; `peel_key`'s page has an empty docblock. The paragraphs are correct
-about the code and attached to the wrong item, so a reader of the rendered
-documentation is told that `terminal_key` returns a pair and that its digits are
-unparsed, and neither is true of it.
+`terminal_key` is the public narrowing, and what it declines to require is the
+whole of it: nothing before the key has to be a slug. That is what lets
+`resolve`'s bare-slug fallback take an operator's pasted stem —
+`01-DONE-impl--build-k5` — and answer key 5, where `Handle::parse` would refuse a
+head that was never going to be a slug. The body is two statements and neither
+validates anything: peel, and then `digits.parse().ok()`, which is one of the
+three judgements the next fragment's comment enumerates.
 
-**And the first half enumerates the three callers.** Line 980 names them —
-`split_shape` at line 973, `Handle::parse` at line 478, and `terminal_key` itself
-at line 1,008 — and line 989 says all three disagree about what an over-wide key
-means. Chapter 3 reads the same relation from the other side, in `Handle::parse`'s
-own clause. The sentence at line 1,004, fifteen lines below the count and in the
-half that really is `terminal_key`'s, states it once more: *this and
-`Handle::parse` both go through `peel_key`, and the difference between them is
-what they require of what precedes it*.
-
-What the two paragraphs argue does not depend on where they are attached. A
-terminal `-k<digits>` is taken apart in exactly one function; the three callers
-differ only in what they require of the text before it, and in what they make of
-a digit run too wide for a `u32`. `split_shape` hands the width question to
-`parse`, which answers `NotCanonical`; `Handle::parse` answers `KeyOutOfRange`;
-`terminal_key` answers `None`, because a reference that ends in a number nothing
-allocated is a reference to nothing. Returning the digits unparsed is what lets
-one peel serve three judgements.
-
-<!-- fragment «name-peel-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1012-1020" parent="the-task-name" -->
+<!-- fragment «name-peel-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="996-1020" parent="the-task-name" -->
 ````rust
+/// Peel a terminal `-k<digits>` into what precedes it and the digit run, or
+/// `None` when there is none.
+///
+/// **The only peel of the key in grove**, shared by [`split_shape`],
+/// [`Handle::parse`] and [`terminal_key`] — which is what makes *a handle and a
+/// filename find the key identically* a fact rather than a claim. It was two
+/// functions (`task_tree::handle_key` was the second, and its own comment
+/// conceded it "mirrors the filename grammar"), and the terminality rule is
+/// subtle enough that two of it is one too many: the key is the **last**
+/// `-k<digits>`, so `migrate-v1-to-v2-k27` is key 27 and a slug may contain
+/// `-k9` and still read unambiguously.
+///
+/// The digits are returned unparsed because the three callers disagree about
+/// what an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
+/// handle says [`HandleError::KeyOutOfRange`] and a reference says `None` — and
+/// that is their judgement, not this function's.
 fn peel_key(text: &str) -> Option<(&str, &str)> {
     let digits_start = text.len() - text.bytes().rev().take_while(u8::is_ascii_digit).count();
     if digits_start == text.len() {
@@ -968,8 +943,26 @@ fn peel_key(text: &str) -> Option<(&str, &str)> {
 ````
 <!-- /fragment -->
 
-Eight lines, and the terminality rule is line 1,013. The digit run is found
-from the **end** — `bytes().rev().take_while(u8::is_ascii_digit)` — so
+**The doc comment enumerates the three callers.** Line 999 names them —
+`split_shape` at line 973, `Handle::parse` at line 478, and `terminal_key` at
+line 992 — and line 1,008 says all three disagree about what an over-wide key
+means. Chapter 3 reads the same relation from the other side, in
+`Handle::parse`'s own clause, and `terminal_key`'s closing line, at 989, states
+it a third time from its own: *this and `Handle::parse` both go through
+`peel_key`, and the difference between them is what they require of what
+precedes it*.
+
+What those two paragraphs argue is a property of the crate rather than of the
+function. A terminal `-k<digits>` is taken apart in exactly one place; the three
+callers differ only in what they require of the text before it, and in what they
+make of a digit run too wide for a `u32`. `split_shape` hands the width question
+to `parse`, which answers `NotCanonical`; `Handle::parse` answers
+`KeyOutOfRange`; `terminal_key` answers `None`, because a reference that ends in
+a number nothing allocated is a reference to nothing. Returning the digits
+unparsed is what lets one peel serve three judgements.
+
+Eight lines of body, and the terminality rule is line 1,013. The digit run is
+found from the **end** — `bytes().rev().take_while(u8::is_ascii_digit)` — so
 `task-k9-k3` yields the digits `3` and the text `task-k9-k`, and the
 `strip_suffix(KEY_MARK)` then leaves the slug `task-k9`. A rule that searched
 forwards for `-k` would answer the slug `task` and the key `9`, which is the
@@ -1082,19 +1075,19 @@ from *samples*, not *samples* from *samples that pose the question*.
     // ---- the conformance kit ------------------------------------------------
 
     /// Every shape a real `.grove/` holds, in the proportions one holds them:
-    /// the charter, a live leaf, both terminal marks, a node directory, a
-    /// foreign `README.md`, and both transaction sentinels.
+    /// the charter, a live leaf, both terminal marks, a node directory and a
+    /// foreign `README.md` — then the two near-misses the grammar refuses.
     ///
-    /// **The last two lines are the load-bearing ones, and they are not shapes a
-    /// healthy tree holds.** They are the near-misses the grammar is meant to
-    /// refuse, and without them the kit passes a *lenient* domain: its canonicity
-    /// check is `format(parse(f)) == f` over the filenames it is handed, so a
-    /// grammar that accepts `5-…` and renders `05-…` is only caught when it is
-    /// handed a `5-…`. Every other listing parsed, so the kit does not report the
-    /// obligation unexercised either — it reports conforming. Measured, not
-    /// reasoned: disabling this domain's canonicity check leaves the kit green
-    /// without these two entries and red with them
-    /// (`docs/formalism-findings.md` entry 020).
+    /// **The last two lines are not shapes a healthy tree holds, and the first
+    /// of them is what poses canonicity at all.** The check is
+    /// `format(parse(f)) == f` over the filenames handed in, so a grammar that
+    /// accepts `5-…` and renders `05-…` is caught only when handed a `5-…`
+    /// *that parses*; the canonical listings render back as themselves, so the
+    /// kit would report conforming rather than unexercised. Measured, not
+    /// reasoned: removing the seven canonicity lines from `parse` leaves the kit
+    /// green without `5-impl--domain-k29.md` and red with it
+    /// (`docs/formalism-findings.md` entry 020). `07-DONE-grove-flip-k28` is
+    /// `NodeWearsOutcome`: a near-miss for the crate, never for the kit.
     fn listings() -> Vec<(&'static str, Found)> {
         vec![
             ("BRIEF.md", Found::File),
@@ -1103,7 +1096,7 @@ from *samples*, not *samples* from *samples that pose the question*.
             ("03-ABANDONED-design--refusals-k30.md", Found::File),
             ("07-grove-flip-k28", Found::Dir),
             ("README.md", Found::File),
-            ("5-impl-domain-k29.md", Found::File),
+            ("5-impl--domain-k29.md", Found::File),
             ("07-DONE-grove-flip-k28", Found::Dir),
         ]
     }
@@ -1129,62 +1122,58 @@ from *samples*, not *samples* from *samples that pose the question*.
 Eight listings and two triples. The first six listings are the shapes a healthy
 `.grove/` holds — the charter, a live leaf, both terminal marks, a node directory
 and a foreign `README.md` — and the last two are not shapes a healthy tree holds
-at all. The comment above them is where this chapter's second adjudication falls,
-and it is wrong twice: once about what the fixture contains, and once about what
-was measured of it.
+at all. They are the near-misses, and the comment above them says two things
+about them: what the fixture holds, and what a mutation does to it.
 
-**Its first paragraph ends on two entries the fixture does not hold.** It
-enumerates the shapes as *the charter, a live leaf, both terminal marks, a node
-directory, a foreign `README.md`, and both transaction sentinels*. That is eight
-items and the fixture holds eight entries, which is why the sentence reads as
-though it had been kept current — but the last two entries are
-`5-impl-domain-k29.md` and `07-DONE-grove-flip-k28`, and neither is a transaction
-sentinel. Nothing in `ordinal-fs-tree` names one at all today.
-`docs/formalism-findings.md` entry 020 records the fixture the sentence was
-written for: **ten** listings, including a `FORMAT` entry and *the three*
-transaction sentinels. So the count was brought down to eight and the contents
-were not, and the clause that should now read *and the two near-misses the
-grammar refuses* still names the entries the near-misses replaced — contradicted
-by the paragraph's own second half, three lines below it, which is about nothing
-else.
+**The whole fixture, and what the canonicity check is doing to each entry.** The
+kit's listings check renders back only the names that reach `Verdict::Entry`, so
+the entry that poses canonicity is the one canonicity is itself refusing: take
+the check away and it becomes an entry that renders as something else. A name
+refused for any other reason cannot pose it, because removing the check leaves
+that refusal exactly where it was.
 
-**The last two entries no longer do what the comment says was measured of them,
-because the grammar moved after the measurement.** The comment claims that
-disabling this domain's canonicity check leaves the kit green without those two
-entries and red with them, citing `docs/formalism-findings.md` entry 020. That
-was true of the grammar the entry was written against. It is not true of this
-one, and the difference is the separator.
-
-| Fixture | Verdict today | Reaches the kit's canonicity check |
+| Fixture | Verdict | With the check removed |
 |---|---|---|
-| `01-DONE-requirements--plan-k1.md` | `Entry` | yes |
-| `02-impl--domain-k29.md` | `Entry` | yes |
-| `03-ABANDONED-design--refusals-k30.md` | `Entry` | yes |
-| `07-grove-flip-k28` | `Entry` | yes |
-| `BRIEF.md` | `Entry(Brief)` | yes |
-| `README.md` | `Foreign` | no |
-| `5-impl-domain-k29.md` | `Malformed(MissingSeparator)` | **no** |
-| `07-DONE-grove-flip-k28` | `Malformed(NodeWearsOutcome)` | **no** |
+| `BRIEF.md` | `Entry(Brief)` | unchanged |
+| `01-DONE-requirements--plan-k1.md` | `Entry` | unchanged |
+| `02-impl--domain-k29.md` | `Entry` | unchanged |
+| `03-ABANDONED-design--refusals-k30.md` | `Entry` | unchanged |
+| `07-grove-flip-k28` | `Entry` | unchanged |
+| `README.md` | `Foreign` | unchanged |
+| `5-impl--domain-k29.md` | `Malformed(NotCanonical)` | **`Entry`, renders `05-impl--domain-k29.md`** |
+| `07-DONE-grove-flip-k28` | `Malformed(NodeWearsOutcome)` | unchanged |
 
-The table is the reason the claim no longer holds: the kit's listings check
-renders back only the names that reach `Verdict::Entry`, and neither near-miss
-does. `5-impl-domain-k29.md` carries a single `-` where the grammar has required
-`--` since `grammar-separator-k15`, so it is refused for its separator before
-canonicity is ever asked; entry 020 was written when the grammar had no
-separator, and that same name then parsed as kind `impl` and slug `domain` and
-rendered `05-impl-domain-k29.md`, which is exactly the mismatch the check
-catches. The other fixtures were rewritten to the new grammar and this one was
-not.
+`5-impl--domain-k29.md` is the entry the obligation rests on, and it is the only
+one that could fail it. Its kind, slug and key are all well-formed — `impl`,
+`domain`, 29 — so nothing refuses it earlier, and the refusal it does carry is
+canonicity's own: its position is spelled `5` where grove's renderer writes `05`,
+and `NotCanonical` hands that spelling back. Every other listing reaching the
+comparison is already spelled the way grove writes it and would pass either way,
+which is why the fixture's coverage of this obligation is exactly one entry
+wide.
 
-The claim was checked rather than reasoned about, in a copy of the workspace, by
-performing the mutation the comment names. With the seven canonicity lines
-removed from `parse`, `the_task_tree_domain_conforms` passes with the fixture as
-it stands, and passes with the last two entries removed — the same result either
-way, where the comment predicts a difference. Adding one fixture that does reach
-the check, `5-impl--a-k1.md`, turns the same mutation red with
-`TheGrammarIsCanonical` and the message *parsed to a name that renders as
-`05-impl--a-k1.md`*. That last arm is what makes the first two evidence rather
-than a quiet instrument: the check can go red, and this fixture does not make it.
+The double dash is not incidental. A leaf's kind and slug have been divided by
+`--` since `grammar-separator-k15`, and a name carrying a single one is
+`Malformed(MissingSeparator)`: refused for its separator before canonicity is
+ever asked, and so present in the fixture without posing anything. A near-miss
+has to miss by exactly the rule it is there to exercise, and by nothing else.
+
+**Measured, not reasoned.** The comment's claim is a claim about what a mutation
+does, so it was checked by performing that mutation in a copy of the workspace —
+the seven canonicity lines removed from `parse` — rather than reasoned about:
+
+| Arm | `listings()` | `the_task_tree_domain_conforms` |
+|---|---|---|
+| no mutation | all eight | green |
+| canonicity removed | all eight | **red**, `TheGrammarIsCanonical` |
+| canonicity removed | the first six | green |
+
+The second arm is the claim and the third is what makes it evidence: the check
+goes red only because of an entry the first six do not contain, so the fixture is
+what carries the property rather than the checker being loud in general. The
+message the second arm prints is *`5-impl--domain-k29.md` parsed to a name that
+renders as `05-impl--domain-k29.md`. Two spellings of one name means two files on
+disk are one entry.* The first arm is the one the suite runs.
 
 `07-DONE-grove-flip-k28` is inert in the kit for a different reason and is not
 inert in the crate. Under the canonicity mutation it stays `NodeWearsOutcome`,
@@ -1194,12 +1183,13 @@ guard — it parses as a node, renders `07-grove-flip-k28`, and is refused as
 its own line. That is a real property and it is a property of the domain; the kit
 cannot see it either way, because a Malformed name never reaches the comparison.
 
-The clause the comment is right about is the one about coverage, and it is worth
-keeping. The kit's *this obligation was never exercised* finding cannot see this
-gap, because the four canonical listings did parse and rendered back correctly,
-which is what the kit counts as exercising canonicity. A kit reports coverage of
-an obligation, never coverage of the case that could fail it, and the distinction
-is invisible from inside the report.
+The clause about coverage is the one worth carrying away. A kit's *this
+obligation was never exercised* finding cannot see a gap of this shape: the
+canonical listings parse and render back correctly, which is what the kit counts
+as exercising canonicity, so a fixture holding nothing that could fail the
+obligation still reports as covering it. A kit reports coverage of an obligation,
+never coverage of the case that could fail it, and the distinction is invisible
+from inside the report.
 
 `triples()` is the other half of the sample. Two triples — a live leaf and a node
 — feed the kit's `compose` obligation and the second direction of its canonicity
@@ -1247,10 +1237,10 @@ species* is reached the same way, by parsing what `distinguished()` returns and
 every listing beside it.
 
 Canonicity is the one it cannot generate: the kit can only render back names it
-was handed or composed, so its reach here is exactly the fixture's. That is the
-demonstrated case above — with the seven lines removed from `parse` this test
-still passes, because no listing that reaches the comparison is spelled a way
-grove would not write. *A name renders as one path component* cannot fail here at
+was handed or composed, so its reach here is exactly the fixture's, which is why
+one listing carries the whole obligation and the mutation above is what says so.
+Remove `5-impl--domain-k29.md` and the same run is green with the check gone.
+*A name renders as one path component* cannot fail here at
 all, though not for a reason about tokens: the store's check rejects an empty
 rendering, exactly `.` or `..`, a path separator and a NUL, and every name this
 domain renders opens with a digit run and a dash. The `.md` a leaf ends in is a

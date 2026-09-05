@@ -974,22 +974,6 @@ fn split_shape(stem: &str) -> Option<(&str, &str, &str)> {
     Some((digits, middle, key_digits))
 }
 
-/// Peel a terminal `-k<digits>` into what precedes it and the digit run, or
-/// `None` when there is none.
-///
-/// **The only peel of the key in grove**, shared by [`split_shape`],
-/// [`Handle::parse`] and [`terminal_key`] — which is what makes *a handle and a
-/// filename find the key identically* a fact rather than a claim. It was two
-/// functions (`task_tree::handle_key` was the second, and its own comment
-/// conceded it "mirrors the filename grammar"), and the terminality rule is
-/// subtle enough that two of it is one too many: the key is the **last**
-/// `-k<digits>`, so `migrate-v1-to-v2-k27` is key 27 and a slug may contain
-/// `-k9` and still read unambiguously.
-///
-/// The digits are returned unparsed because the three callers disagree about
-/// what an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
-/// handle says [`HandleError::KeyOutOfRange`] and a reference says `None` — and
-/// that is their judgement, not this function's.
 /// The [`Key`] a reference ends in, or `None` when it does not end in one.
 ///
 /// **A narrower question than [`Handle::parse`], asked by the reference
@@ -1009,6 +993,22 @@ pub fn terminal_key(reference: &str) -> Option<Key> {
     digits.parse().ok().map(Key::new)
 }
 
+/// Peel a terminal `-k<digits>` into what precedes it and the digit run, or
+/// `None` when there is none.
+///
+/// **The only peel of the key in grove**, shared by [`split_shape`],
+/// [`Handle::parse`] and [`terminal_key`] — which is what makes *a handle and a
+/// filename find the key identically* a fact rather than a claim. It was two
+/// functions (`task_tree::handle_key` was the second, and its own comment
+/// conceded it "mirrors the filename grammar"), and the terminality rule is
+/// subtle enough that two of it is one too many: the key is the **last**
+/// `-k<digits>`, so `migrate-v1-to-v2-k27` is key 27 and a slug may contain
+/// `-k9` and still read unambiguously.
+///
+/// The digits are returned unparsed because the three callers disagree about
+/// what an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
+/// handle says [`HandleError::KeyOutOfRange`] and a reference says `None` — and
+/// that is their judgement, not this function's.
 fn peel_key(text: &str) -> Option<(&str, &str)> {
     let digits_start = text.len() - text.bytes().rev().take_while(u8::is_ascii_digit).count();
     if digits_start == text.len() {
@@ -1059,19 +1059,19 @@ mod tests {
     // ---- the conformance kit ------------------------------------------------
 
     /// Every shape a real `.grove/` holds, in the proportions one holds them:
-    /// the charter, a live leaf, both terminal marks, a node directory, a
-    /// foreign `README.md`, and both transaction sentinels.
+    /// the charter, a live leaf, both terminal marks, a node directory and a
+    /// foreign `README.md` — then the two near-misses the grammar refuses.
     ///
-    /// **The last two lines are the load-bearing ones, and they are not shapes a
-    /// healthy tree holds.** They are the near-misses the grammar is meant to
-    /// refuse, and without them the kit passes a *lenient* domain: its canonicity
-    /// check is `format(parse(f)) == f` over the filenames it is handed, so a
-    /// grammar that accepts `5-…` and renders `05-…` is only caught when it is
-    /// handed a `5-…`. Every other listing parsed, so the kit does not report the
-    /// obligation unexercised either — it reports conforming. Measured, not
-    /// reasoned: disabling this domain's canonicity check leaves the kit green
-    /// without these two entries and red with them
-    /// (`docs/formalism-findings.md` entry 020).
+    /// **The last two lines are not shapes a healthy tree holds, and the first
+    /// of them is what poses canonicity at all.** The check is
+    /// `format(parse(f)) == f` over the filenames handed in, so a grammar that
+    /// accepts `5-…` and renders `05-…` is caught only when handed a `5-…`
+    /// *that parses*; the canonical listings render back as themselves, so the
+    /// kit would report conforming rather than unexercised. Measured, not
+    /// reasoned: removing the seven canonicity lines from `parse` leaves the kit
+    /// green without `5-impl--domain-k29.md` and red with it
+    /// (`docs/formalism-findings.md` entry 020). `07-DONE-grove-flip-k28` is
+    /// `NodeWearsOutcome`: a near-miss for the crate, never for the kit.
     fn listings() -> Vec<(&'static str, Found)> {
         vec![
             ("BRIEF.md", Found::File),
@@ -1080,7 +1080,7 @@ mod tests {
             ("03-ABANDONED-design--refusals-k30.md", Found::File),
             ("07-grove-flip-k28", Found::Dir),
             ("README.md", Found::File),
-            ("5-impl-domain-k29.md", Found::File),
+            ("5-impl--domain-k29.md", Found::File),
             ("07-DONE-grove-flip-k28", Found::Dir),
         ]
     }

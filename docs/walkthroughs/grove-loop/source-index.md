@@ -215,8 +215,8 @@
 | `name-refusal-helpers` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `928-944` | `the-task-name` | `—` |
 | `name-uncomputable-canonical` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `945-953` | `the-task-name` | `—` |
 | `name-split-shape` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `954-976` | `the-task-name` | `—` |
-| `name-terminal-key` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `977-1011` | `the-task-name` | `—` |
-| `name-peel-key` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1012-1020` | `the-task-name` | `—` |
+| `name-terminal-key` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `977-995` | `the-task-name` | `—` |
+| `name-peel-key` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `996-1020` | `the-task-name` | `—` |
 | `name-tests-support` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1021-1058` | `name-test-support-and-kit` | `—` |
 | `name-test-support-and-kit` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `1021-1177` | `source-task-name` | `name-tests-support`, `name-tests-kit-fixture`, `name-tests-conforms`, `name-tests-kind-shapes`, `name-tests-undeclared-kind` |
 | `name-tests-kit-fixture` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1059-1102` | `name-test-support-and-kit` | `—` |

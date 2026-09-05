@@ -148,6 +148,51 @@ family** — splitting one is a correction to the brief, made in the brief, and 
 a leaf preferring its own wording. Chapters 2, 3 and 4 must use the manifest's
 spelling in their own ledger rows.
 
+**An early-use row is owed by *naming or exercising*, and the manifest's rows are
+a floor.** Promoted from `the-grammar-k125`, which settled it in
+`display-first-use-k137` and wrote it into the structure brief's *Early uses the
+order forces*: a reproduced block owes a row for a later-owned symbol it names or
+exercises, unless an existing row already covers it (`entry_path`'s mandatory row
+is the precedent for *names*). `floor-rows-chapter-two-k138` swept chapter 2 under
+that criterion and added three rows the manifest did not carry. **Every remaining
+child owes the same enumeration over its own blocks** rather than treating the
+manifest's rows as the set — the manifest is the minimum a page must declare, not
+the maximum.
+
+**A family whose members have different first uses is not a family.** k137 split
+the manifest's `` `TaskName::compose`, `impl Display for TaskName` `` row into two
+rows of one token each, in the manifest, the structure brief and the ledger
+together. That is a correction made in the brief, not a leaf preferring its own
+wording; the syntax constraint is `valid_symbol_family` in
+`crates/book-validation/src/ledger.rs`, which refuses prose inside the cell.
+
+**This crate's comments miscount, misattribute, and outlive what they measured —
+count and re-run rather than reproduce.** `the-grammar-k125` found three classes
+of defect in `task_name.rs` alone. **Stale enumerations**: six of them, corrected
+by `stale-enumerations-k139` — miscounted call sites and references, and a
+`TaskNameError` variant `open-kind-k20` deleted that a comment still names.
+**A fixture that had stopped posing its question**: the conformance kit's
+`5-impl-domain-k29.md` became `Malformed(MissingSeparator)` when
+`grammar-separator-k15` changed the grammar under it, so it was refused before
+canonicity was asked and the comment's *measured, not reasoned* claim was no
+longer true of the fixture it described — while the kit still reported both
+*conforming* and *obligation exercised*. **A doc comment welded to the next
+item**: a missing blank line between two `///` runs, so rustdoc rendered
+`peel_key`'s paragraphs as `terminal_key`'s and left `peel_key`'s docblock empty.
+`kit-fixture-and-peel-doc-k140` fixed the last two.
+
+**Three instruments, and none of them is reading the bytes.** A comment's *n
+places / the two callers / the only X* is checked by enumerating the calls. A
+comment claiming *disabling X leaves this green and that red* is checked by
+performing the mutation in a copy of the workspace and watching the arm without
+the subject stay green — a claim about a measurement is worth exactly the re-run.
+A comment's *attachment* is checked from `cargo doc --no-deps
+--document-private-items` and the rendered docblock, never from reading the
+source, because nothing warns. Each defect is adjudicated on the page, fixed by
+its own leaf, and — because the ledger holds an exact line count per block —
+fixed **inside the existing line counts**, or every later block of the file
+shifts and finished pages break.
+
 ## Notes
 
 **This is the draft stage only.** Copy edit, art and proof are the later stages

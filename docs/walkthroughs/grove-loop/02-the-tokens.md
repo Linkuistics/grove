@@ -260,7 +260,10 @@ opened, the only thing left to check about a kind was the same thing already
 checked about a slug. The canonicity of a leaf name depends on both words obeying
 that rule, which makes it a fact about the grammar rather than about either type,
 and the header places it here for exactly that reason. `Kind` and `Slug`
-themselves are chapter 3's.
+themselves are chapter 3's, and so are the two constructors the passage's last
+sentence names: `Kind::new` and `Slug::new` each hand their string to
+`refuse_token` and return the token or the one `TokenError`, which is what makes
+*one rule* a fact about the code rather than an agreement between two types.
 
 <a id="the-handle-in-this-grammar"></a>
 ## The handle is inside this grammar, not beside it
@@ -295,10 +298,30 @@ halves of it. *`Handle::render` is the only `write!` the grammar appears in* and
 *`peel_key` is the only place it is taken apart* are facts about this file that a
 reader can check by searching it. *A filename and a handle saying different
 things is not expressible* is the consequence, and it holds only because both of
-`TaskName`'s rendering arms end in a call to the former. Chapter 3 owns `Handle`
-and the test that asserts the consequence rather than reviewing for it;
-`peel_key` sits at lines 1,012 to 1,019 and so falls in chapter 4's block, which
-is where the single peel is read.
+`TaskName`'s positioned rendering arms end in a call to the former. Chapter 3
+owns `Handle` and the test that asserts the consequence rather than reviewing for
+it.
+
+Three names in the passage are read in later chapters, and none of the three is
+public. `Handle::render` is a private associated function on chapter 3's
+`Handle`: the renderer, reached by `Handle`'s own `Display` and by both arms of a
+positioned `TaskName`'s. The `KEY_MARK` constant read in the next section has
+exactly three uses in the crate — its own definition, this renderer's `write!`,
+and the `strip_suffix` in `peel_key` — which is the header's claim in a form a
+reader can grep for. The claim is about production code: the inline tests build
+fixture names with `format!`, as any other caller writing a filename would.
+`peel_key` and `split_shape` are private free functions in chapter 4's block —
+`peel_key` at lines 1,012 to 1,019 returns what precedes a terminal `-k<digits>`
+and the digit run, leaving each caller to judge an over-wide key for itself, and
+`split_shape` at lines 967 to 975 splits a task-shaped stem into position digits,
+an unexamined middle and key digits by *calling* `peel_key` rather than finding
+the key itself. That call is why the header can say there is one peel.
+
+A fourth name in the passage is read in no chapter at all. `task_tree::handle_key`
+is what the sentence is written against: it was the second peel, it was deleted
+with the rest of the other model, and what survives it in this crate is comments
+recording that it is gone. It is the one name here the book cannot promise a
+reader anywhere to go for.
 
 <!-- fragment «name-handle-terminal-substring» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="71-76" parent="tokens-and-verdicts" -->
 ````rust
@@ -428,13 +451,19 @@ pub enum Outcome {
 <!-- /fragment -->
 
 An outcome is a property of a leaf and of nothing else. The last sentence records
-a design choice a reader can check against chapter 3's `Parts`: the node variant
-has no outcome field at all, rather than a field constrained to one value, so a
-node carrying an outcome is not a state the type can hold. Grove's node — a
-directory of numbered children — is done when no live leaf remains anywhere in
-its subtree, and that is a fact about the subtree rather than a mark on the
-directory. The test that refuses the mark is
-`a_node_wearing_an_outcome_infix_is_malformed`, below.
+a design choice a reader can check against chapter 3's `Parts`: its `Node`
+variant carries a slug and nothing else, having no outcome field at all rather
+than a field constrained to one value, so a node carrying an outcome is not a
+state the type can hold. Grove's node — a directory of numbered children — is
+done when no live leaf remains anywhere in its subtree, and that is a fact about
+the subtree rather than a mark on the directory. The test that refuses the mark
+is `a_node_wearing_an_outcome_infix_is_malformed`, below.
+
+`Live`'s own line names the verb the distinction is for. `pick` is grove's answer
+to *what next*: a depth-first pre-order walk that returns the first leaf still
+live, skipping briefs and every leaf marked `DONE` or `ABANDONED`. Chapter 7
+reads that walk. This enum is the half of it the walk consults, which is why the
+variant that has no infix is the one a verb is documented in terms of.
 
 <!-- fragment «name-outcome-infix-and-strip» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="121-148" parent="tokens-and-verdicts" -->
 ````rust
@@ -708,17 +737,21 @@ reading. This is the section that holds the chapter's rule, and it is where the
 second ending of the carried example lives: each refused name is one the store
 would have accepted as an entry, and grove is what declines it.
 
-**Four names this section uses before the chapter that explains them.**
+**Five names this section uses before the chapter that explains them.**
 `Parts::leaf` is the constructor for the leaf half of chapter 3's `Parts` — the
 named parts a positioned leaf name decomposes into, taking an outcome, a kind and
 a slug. `a_kind` and `slug` are two test helpers defined with the conformance kit
 in chapter 4's block: each takes a label, builds the corresponding token type,
 and panics if the label is not well-formed, so an invalid fixture is a test bug
-rather than a compile error. And the `to_string()` calls in the round-trip test
-below are `TaskName`'s `Display`, chapter 4's renderer: it writes a parsed name
-back to its filename bytes, both of its arms ending in the call to
-`Handle::render` the module header claimed. All four are read where chapter 4 and
-chapter 3 reproduce the blocks that define them.
+rather than a compile error. The `to_string()` calls on an error are
+`TaskNameError`'s `Display`, chapter 4's renderer at line 727, which writes each
+refusal's recovery advice and not merely its detection — three of this section's
+six tests assert on that rendered text, so the advice is part of what they pin
+rather than commentary beside it. And the `to_string()` calls in the round-trip
+test below are `TaskName`'s `Display`, chapter 4's other renderer: it writes a
+parsed name back to its filename bytes, both arms of its positioned case ending
+in the call to `Handle::render` the module header claimed. All five are read
+where chapter 4 and chapter 3 reproduce the blocks that define them.
 
 <!-- fragment «shape-refusal-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1313-1521" parent="source-task-name" -->
 <!-- insert «name-tests-kind-not-a-token» -->

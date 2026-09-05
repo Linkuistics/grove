@@ -1,6 +1,6 @@
 # Growing: leaf-add and leaf-insert
 <!-- book-page id="growing" slice="what-the-library-cannot-see" order="10" -->
-[Previous: Resolve](09-resolve.md) | [Contents](README.md)
+[Previous: Resolve](09-resolve.md) | [Contents](README.md) | [Next: A grove begins](11-a-grove-begins.md)
 
 <a id="what-the-library-cannot-see"></a>
 ## The rule: a precondition is worth the snapshot it is checked against
@@ -1475,4 +1475,4 @@ first live leaf land with it as a single store operation. `allocated` is there
 too, called on a slice of a report whose first row is a charter carrying no key
 — which is the signature this chapter read and could not fully explain.
 
-[Previous: Resolve](09-resolve.md) | [Contents](README.md)
+[Previous: Resolve](09-resolve.md) | [Contents](README.md) | [Next: A grove begins](11-a-grove-begins.md)

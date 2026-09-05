@@ -88,7 +88,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 8. [Kind, and the brief chain](08-kind-and-briefs.md)
 9. [Resolve](09-resolve.md)
 10. [Growing: leaf-add and leaf-insert](10-growing.md)
-11. A grove begins
+11. [A grove begins](11-a-grove-begins.md)
 12. A leaf becomes a node
 13. Outcomes are marked in place
 14. Finishing

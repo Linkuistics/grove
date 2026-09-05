@@ -56,11 +56,11 @@
 <!-- /source-root -->
 <!-- source-root «source-tree-lifecycle» source="crates/grove-loop/src/tree_lifecycle.rs" lines="1-2725" -->
 <!-- defer «finish-transition» owner="the-tree-deletes-itself" lines="1-331" -->
-<!-- defer «grove-beginning» owner="never-mistaken-for-finished" lines="332-489" -->
+<!-- insert «grove-beginning» -->
 <!-- defer «decompose-production» owner="the-key-survives" lines="490-695" -->
 <!-- defer «outcomes-in-place» owner="marked-in-place" lines="696-1012" -->
-<!-- defer «body-helpers» owner="never-mistaken-for-finished" lines="1013-1076" -->
-<!-- defer «root-init-tests» owner="never-mistaken-for-finished" lines="1077-1466" -->
+<!-- insert «body-helpers» -->
+<!-- insert «root-init-tests» -->
 <!-- defer «finish-tests» owner="the-tree-deletes-itself" lines="1467-1665" -->
 <!-- defer «decompose-tests» owner="the-key-survives" lines="1666-2234" -->
 <!-- defer «retire-and-prune-tests» owner="marked-in-place" lines="2235-2725" -->
@@ -116,11 +116,11 @@
 | `pick-with-brief-chain-tests` | `source-task-tree` | `root-to-leaf` | `1997-2023` | 27 | `resolved` |
 | `growing-the-tree` | `source-task-grow` | `what-the-library-cannot-see` | `1-518` | 518 | `resolved` |
 | `finish-transition` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1-331` | 331 | `deferred` |
-| `grove-beginning` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `332-489` | 158 | `deferred` |
+| `grove-beginning` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `332-489` | 158 | `resolved` |
 | `decompose-production` | `source-tree-lifecycle` | `the-key-survives` | `490-695` | 206 | `deferred` |
 | `outcomes-in-place` | `source-tree-lifecycle` | `marked-in-place` | `696-1012` | 317 | `deferred` |
-| `body-helpers` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1013-1076` | 64 | `deferred` |
-| `root-init-tests` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1077-1466` | 390 | `deferred` |
+| `body-helpers` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1013-1076` | 64 | `resolved` |
+| `root-init-tests` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1077-1466` | 390 | `resolved` |
 | `finish-tests` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1467-1665` | 199 | `deferred` |
 | `decompose-tests` | `source-tree-lifecycle` | `the-key-survives` | `1666-2234` | 569 | `deferred` |
 | `retire-and-prune-tests` | `source-tree-lifecycle` | `marked-in-place` | `2235-2725` | 491 | `deferred` |
@@ -380,6 +380,31 @@
 | `grow-template-and-stem` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `497-516` | `growing-the-tree` | `—` |
 | `grow-test-module` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `517-518` | `growing-the-tree` | `—` |
 | `source-tree-lifecycle` | `source-index` | `source-tree-lifecycle` | `root` | `—` | `1-2725` | `—` | `finish-transition`, `grove-beginning`, `decompose-production`, `outcomes-in-place`, `body-helpers`, `root-init-tests`, `finish-tests`, `decompose-tests`, `retire-and-prune-tests` |
+| `grove-beginning-root-init` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `332-350` | `grove-beginning` | `—` |
+| `grove-beginning` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `332-489` | `source-tree-lifecycle` | `grove-beginning-root-init`, `grove-beginning-default-slug`, `grove-beginning-initialize`, `grove-beginning-root-shape-type`, `grove-beginning-root-shape-fn` |
+| `grove-beginning-default-slug` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `351-356` | `grove-beginning` | `—` |
+| `grove-beginning-initialize` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `357-408` | `grove-beginning` | `—` |
+| `grove-beginning-root-shape-type` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `409-443` | `grove-beginning` | `—` |
+| `grove-beginning-root-shape-fn` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `444-489` | `grove-beginning` | `—` |
+| `body-helpers-grove-name` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1013-1037` | `body-helpers` | `—` |
+| `body-helpers` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `1013-1076` | `source-tree-lifecycle` | `body-helpers-grove-name`, `body-helpers-root-brief`, `body-helpers-retitle` |
+| `body-helpers-root-brief` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1038-1053` | `body-helpers` | `—` |
+| `body-helpers-retitle` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1054-1076` | `body-helpers` | `—` |
+| `root-init-tests-open` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1077-1092` | `root-init-tests` | `—` |
+| `root-init-tests` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `1077-1466` | `source-tree-lifecycle` | `root-init-tests-open`, `root-init-tests-worktrees`, `root-init-tests-grow-leaf`, `root-init-tests-guards`, `root-init-tests-root-init-at`, `root-init-tests-writers`, `root-init-tests-basics`, `root-init-tests-refusals`, `root-init-tests-one-guard`, `root-init-tests-one-operation`, `root-init-tests-no-self-wait`, `root-init-tests-prediction`, `root-init-tests-refused-grove`, `root-init-tests-taskless` |
+| `root-init-tests-worktrees` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1093-1145` | `root-init-tests` | `—` |
+| `root-init-tests-grow-leaf` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1146-1167` | `root-init-tests` | `—` |
+| `root-init-tests-guards` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1168-1199` | `root-init-tests` | `—` |
+| `root-init-tests-root-init-at` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1200-1220` | `root-init-tests` | `—` |
+| `root-init-tests-writers` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1221-1261` | `root-init-tests` | `—` |
+| `root-init-tests-basics` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1262-1308` | `root-init-tests` | `—` |
+| `root-init-tests-refusals` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1309-1333` | `root-init-tests` | `—` |
+| `root-init-tests-one-guard` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1334-1352` | `root-init-tests` | `—` |
+| `root-init-tests-one-operation` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1353-1375` | `root-init-tests` | `—` |
+| `root-init-tests-no-self-wait` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1376-1410` | `root-init-tests` | `—` |
+| `root-init-tests-prediction` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1411-1423` | `root-init-tests` | `—` |
+| `root-init-tests-refused-grove` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1424-1441` | `root-init-tests` | `—` |
+| `root-init-tests-taskless` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1442-1466` | `root-init-tests` | `—` |
 | `source-verbs` | `source-index` | `source-verbs` | `root` | `—` | `1-363` | `—` | `the-twelve-verbs` |
 | `source-driver` | `source-index` | `source-driver` | `root` | `—` | `1-57` | `—` | `driver-operations` |
 | `source-complete` | `source-index` | `source-complete` | `root` | `—` | `1-96` | `—` | `complete-verb` |
@@ -399,7 +424,7 @@
 | `Tree`, `Vacancy`, `task_tree::Guard`, `task_tree::write` | `01-orientation.md#the-cast` | `one-spelling-of-grove` | The tree read under the store's shared lock; the lock over a root that holds no tree; the store guard one mutation consumes; and the reopening a `TreeWrite` performs when it no longer holds one. | `explained` |
 | `Selection` | `01-orientation.md#the-cast` | `first-live-leaf` | The leaf a session was launched to work: its path, its identity and its kind. | `explained` |
 | `verbs::resolve`, `Resolution` | `01-orientation.md#the-cast` | `wider-than-a-key` | Resolution of one reference against the tree, whose `Ambiguous` case lists the keys of every entry a bare slug matched. | `explained` |
-| `verbs::root_init` | `01-orientation.md#the-cast` | `never-mistaken-for-finished` | The verb that consumes a `Vacancy` and creates the whole grove — charter and first live leaf — as one store operation. | `pending` |
+| `verbs::root_init` | `01-orientation.md#the-cast` | `never-mistaken-for-finished` | The verb that consumes a `Vacancy` and creates the whole grove — charter and first live leaf — as one store operation. | `explained` |
 | `interpret`, `Disposition` | `01-orientation.md#the-cast` | `twelve-not-fourteen` | What the child side of the loop makes of a token written to the control channel: relaunch, or stop. | `pending` |
 | `verbs`, `verbs::stale_cross_refs`, `verbs::signal_channel` | `01-orientation.md#the-cast` | `twelve-not-fourteen` | `verbs` declares fourteen public functions; twelve of them are the tree's verb surface, and `stale_cross_refs` and `signal_channel` each say in their own doc comment why they are not verbs. | `pending` |
 | `admit_ambient_session`, `DriverLease`, `SessionEpochGuard` | `01-orientation.md#the-cast` | `one-per-working-tree` | The lease that keeps one live driver per working tree, the epoch that decides which calls it admits, and the check a session runs when there is no driver at all. | `pending` |
@@ -436,7 +461,10 @@
 | `verbs::brief_chain` | `08-kind-and-briefs.md#the-chain-the-library-already-had` | `twelve-not-fourteen` | The public verb the doc comment names in its hyphenated spelling, `brief-chain`, and whose documented contract — a level with no charter is skipped silently — the comment appeals to. Chapter 8 needs only that the contract belongs to the verb and the guide rather than to this function; chapter 15 reads it. | `pending` |
 | `verbs::leaf_add` | `10-growing.md#a-list-is-not-n-calls` | `twelve-not-fourteen` | The public verb this module-private function is the body of, named in the doc comment's own hyphenated spelling, `leaf-add`. Chapter 10 needs only that the verb is the tree-opening half and takes a validated slug, because the comment's *unreachable from the verb* is a claim about what reaches this function through it; chapter 15 reads it. | `pending` |
 | `verbs::leaf_insert` | `10-growing.md#an-entry-where-the-library-names-an-ordinal` | `twelve-not-fourteen` | The public verb behind `leaf-insert`, named in the doc comment's hyphenated spelling. Chapter 10 needs only that it is the tree-opening half, and that a second wrapper beside it performs the separate shared opening the lint requires; chapter 15 reads both. | `pending` |
-| `tree_lifecycle::initialize_grove` | `10-growing.md#the-prediction-held-to-account` | `never-mistaken-for-finished` | The function `root-init` runs, which creates a grove's root, its charter and its first live leaf as one store operation. Chapter 10 needs only that its report begins with a charter carrying no key, because that is why `allocated` takes a slice of created rows rather than a whole report; chapter 11 reads it. | `pending` |
+| `tree_lifecycle::initialize_grove` | `10-growing.md#the-prediction-held-to-account` | `never-mistaken-for-finished` | The function `root-init` runs, which creates a grove's root, its charter and its first live leaf as one store operation. Chapter 10 needs only that its report begins with a charter carrying no key, because that is why `allocated` takes a slice of created rows rather than a whole report; chapter 11 reads it. | `explained` |
+| `DEFAULT_ROOT_SLUG` | `11-a-grove-begins.md#one-operation-or-none` | `the-tree-deletes-itself` | The crate-level constant `default_root_slug` wraps, declared above the finishing code the file opens on. Chapter 11 needs only that its value is `"plan"` and that the CLI states the same default separately; chapter 14 owns the block it is declared in. | `pending` |
+| `transition_to_current` | `11-a-grove-begins.md#the-value-nothing-holds` | `the-tree-deletes-itself` | The driver-facing operation that classifies an existing `.grove/` or scaffolds an absent one. Chapter 11 needs only that it is the sole caller of `default_root_slug` and `root_shape`; chapter 14 reads it. | `pending` |
+| `CurrentTransition` | `11-a-grove-begins.md#what-the-tests-establish` | `the-tree-deletes-itself` | What `transition_to_current` answers: the grove was already current, or it was initialized. Chapter 11 needs only the two variants its own tests assert on; chapter 14 owns the type. | `pending` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

@@ -40,7 +40,7 @@
 <!-- insert «handle-grammar-tests» -->
 <!-- /source-root -->
 <!-- source-root «source-task-tree» source="crates/grove-loop/src/task_tree.rs" lines="1-2023" -->
-<!-- defer «tree-opening» owner="one-spelling-of-grove" lines="1-290" -->
+<!-- insert «tree-opening» -->
 <!-- defer «paths-and-addressing» owner="paths-are-built-here" lines="291-570" -->
 <!-- defer «walk-selection» owner="first-live-leaf" lines="571-637" -->
 <!-- defer «kind-and-brief-chain» owner="root-to-leaf" lines="638-746" -->
@@ -104,7 +104,7 @@
 | `shape-refusal-tests` | `source-task-name` | `four-verdicts` | `1313-1521` | 209 | `resolved` |
 | `slug-rule-tests` | `source-task-name` | `the-handle-not-the-position` | `1522-1550` | 29 | `resolved` |
 | `handle-grammar-tests` | `source-task-name` | `the-handle-not-the-position` | `1551-1714` | 164 | `resolved` |
-| `tree-opening` | `source-task-tree` | `one-spelling-of-grove` | `1-290` | 290 | `deferred` |
+| `tree-opening` | `source-task-tree` | `one-spelling-of-grove` | `1-290` | 290 | `resolved` |
 | `paths-and-addressing` | `source-task-tree` | `paths-are-built-here` | `291-570` | 280 | `deferred` |
 | `walk-selection` | `source-task-tree` | `first-live-leaf` | `571-637` | 67 | `deferred` |
 | `kind-and-brief-chain` | `source-task-tree` | `root-to-leaf` | `638-746` | 109 | `deferred` |
@@ -250,6 +250,24 @@
 | `name-tests-refused-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1651-1684` | `handle-grammar-tests` | `—` |
 | `name-tests-lenient-strict` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1685-1714` | `handle-grammar-tests` | `—` |
 | `source-task-tree` | `source-index` | `source-task-tree` | `root` | `—` | `1-2023` | `—` | `tree-opening`, `paths-and-addressing`, `walk-selection`, `kind-and-brief-chain`, `resolution`, `path-composition-tests`, `pick-tests`, `brief-chain-and-kind-tests`, `resolve-tests`, `pick-with-brief-chain-tests` |
+| `tree-header-who-owns-the-walk` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `1-13` | `tree-opening` | `—` |
+| `tree-opening` | `opening` | `source-task-tree` | `composite` | `one-spelling-of-grove` | `1-290` | `source-task-tree` | `tree-header-who-owns-the-walk`, `tree-header-paths-here`, `tree-header-no-canonicalising`, `tree-header-refusal-precedence`, `tree-imports`, `tree-alias-and-read-count`, `tree-vacant-and-read-or-vacant`, `tree-guard-opening-vacancy`, `tree-read`, `tree-write`, `tree-write-or-vacancy`, `tree-reopen-write`, `tree-open-write`, `tree-absent-tree`, `tree-raised`, `tree-announce-contention`, `tree-restate` |
+| `tree-header-paths-here` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `14-23` | `tree-opening` | `—` |
+| `tree-header-no-canonicalising` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `24-30` | `tree-opening` | `—` |
+| `tree-header-refusal-precedence` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `31-40` | `tree-opening` | `—` |
+| `tree-imports` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `41-51` | `tree-opening` | `—` |
+| `tree-alias-and-read-count` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `52-64` | `tree-opening` | `—` |
+| `tree-vacant-and-read-or-vacant` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `65-93` | `tree-opening` | `—` |
+| `tree-guard-opening-vacancy` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `94-122` | `tree-opening` | `—` |
+| `tree-read` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `123-141` | `tree-opening` | `—` |
+| `tree-write` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `142-154` | `tree-opening` | `—` |
+| `tree-write-or-vacancy` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `155-163` | `tree-opening` | `—` |
+| `tree-reopen-write` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `164-177` | `tree-opening` | `—` |
+| `tree-open-write` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `178-185` | `tree-opening` | `—` |
+| `tree-absent-tree` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `186-198` | `tree-opening` | `—` |
+| `tree-raised` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `199-209` | `tree-opening` | `—` |
+| `tree-announce-contention` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `210-259` | `tree-opening` | `—` |
+| `tree-restate` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `260-290` | `tree-opening` | `—` |
 | `source-task-grow` | `source-index` | `source-task-grow` | `root` | `—` | `1-518` | `—` | `growing-the-tree` |
 | `source-tree-lifecycle` | `source-index` | `source-tree-lifecycle` | `root` | `—` | `1-2725` | `—` | `finish-transition`, `grove-beginning`, `decompose-production`, `outcomes-in-place`, `body-helpers`, `root-init-tests`, `finish-tests`, `decompose-tests`, `retire-and-prune-tests` |
 | `source-verbs` | `source-index` | `source-verbs` | `root` | `—` | `1-363` | `—` | `the-twelve-verbs` |
@@ -268,7 +286,7 @@
 | `Outcome`, `TokenError` | `01-orientation.md#the-cast` | `four-verdicts` | The terminal marks a name can carry — `DONE` and `ABANDONED` — and the refusal a token that is not well-formed produces. | `explained` |
 | `Handle`, `HandleError`, `Kind`, `Parts`, `Slug` | `01-orientation.md#the-cast` | `the-handle-not-the-position` | The named parts of a task name: a kind token, a slug, and the `<slug>-k<key>` handle that is the entry's identity. `Parts` is the set of them a positioned name decomposes into. | `explained` |
 | `TaskName` | `01-orientation.md#the-cast` | `canonical-or-nothing` | One parsed entry name, which renders back to the bytes it was parsed from or refuses to be computed at all. | `explained` |
-| `Tree`, `Vacancy`, `task_tree::Guard`, `task_tree::write` | `01-orientation.md#the-cast` | `one-spelling-of-grove` | The tree read under the store's shared lock; the lock over a root that holds no tree; the store guard one mutation consumes; and the reopening a `TreeWrite` performs when it no longer holds one. | `pending` |
+| `Tree`, `Vacancy`, `task_tree::Guard`, `task_tree::write` | `01-orientation.md#the-cast` | `one-spelling-of-grove` | The tree read under the store's shared lock; the lock over a root that holds no tree; the store guard one mutation consumes; and the reopening a `TreeWrite` performs when it no longer holds one. | `explained` |
 | `Selection` | `01-orientation.md#the-cast` | `first-live-leaf` | The leaf a session was launched to work: its path, its identity and its kind. | `pending` |
 | `verbs::resolve`, `Resolution` | `01-orientation.md#the-cast` | `wider-than-a-key` | Resolution of one reference against the tree, whose `Ambiguous` case lists the keys of every entry a bare slug matched. | `pending` |
 | `verbs::root_init` | `01-orientation.md#the-cast` | `never-mistaken-for-finished` | The verb that consumes a `Vacancy` and creates the whole grove — charter and first live leaf — as one store operation. | `pending` |
@@ -296,6 +314,9 @@
 | `parse_ref` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `wider-than-a-key` | The reference grammar's own front door, already lenient on a bare key — `007` is key 7 there — which is the precedent `Handle::parse`'s leniency on `a-k007` is argued from. | `pending` |
 | `TaskName::compose` | `03-kind-slug-handle.md#the-handle-is-the-identity` | `canonical-or-nothing` | Composition builds a positioned name from a position, a kind, a slug and a key, so the handle's structural claim can be asserted over names built rather than parsed. | `explained` |
 | `entry_path` | `05-opening.md#one-spelling-of-the-root` | `paths-are-built-here` | The one place an entry's absolute path is built, because the store returns no paths. Chapter 5 reproduces the module header that says so; chapter 6 reads the function. | `pending` |
+| `brief_chain`, `kind_in` | `05-opening.md#one-spelling-of-the-root` | `root-to-leaf` | Two of the five reading verbs the module header names in its first sentence: one answers a leaf's session kind, the other its ancestors' briefs root to leaf. Chapter 5 needs only the header's claim that all five read one snapshot taken under one lock; chapter 8 reads both functions. | `pending` |
+| `leaf_entry` | `05-opening.md#one-spelling-of-the-root` | `root-to-leaf` | The one place canonicalisation appears, and it appears only to *compare* a caller's spelling of a leaf against the tree's — never to produce a path grove hands back. Chapter 5 reproduces the module header that states the exception; chapter 8 reads the function. | `pending` |
+| `tree_lifecycle::leaf_prune` | `05-opening.md#the-four-openings` | `marked-in-place` | The bulk mark that carries the consequence of a mutation consuming its guard: it marks each entry under a guard of its own, so a run interrupted part way leaves some entries marked and some not. Chapter 13 reads it. | `pending` |
 
 <a id="owned-source-totals"></a>
 ## Owned source totals

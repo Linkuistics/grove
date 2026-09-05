@@ -1,6 +1,6 @@
 # The name, and canonicity
 <!-- book-page id="the-name" slice="canonical-or-nothing" order="4" -->
-[Previous: Kind, slug, handle](03-kind-slug-handle.md) | [Contents](README.md)
+[Previous: Kind, slug, handle](03-kind-slug-handle.md) | [Contents](README.md) | [Next: Opening, contention and refusal](05-opening.md)
 
 <a id="canonical-or-nothing"></a>
 ## The rule: `format(parse(f)) == f`, or one entity occupies two files
@@ -1724,4 +1724,4 @@ Chapter 5 opens the tree those names live in: what a `Tree` is, what its guard
 proves, and why a caller who has one has been told only that the tree was there
 when it was opened.
 
-[Previous: Kind, slug, handle](03-kind-slug-handle.md) | [Contents](README.md)
+[Previous: Kind, slug, handle](03-kind-slug-handle.md) | [Contents](README.md) | [Next: Opening, contention and refusal](05-opening.md)

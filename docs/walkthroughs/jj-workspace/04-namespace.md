@@ -98,11 +98,13 @@ an exotic setting — it is exactly what the crate's own `native` fixture passes
 config may default colocation on, which would silently turn every native fixture
 into a colocated one.
 
-Two of the colocated shape's three names are the two the crate reserves. The
-third is not, and the gap is not a detail this chapter can leave out: it is the
-one-directional cost the reserved list's own comment prices, showing up as an
-observable. The worked example ends on it — in a colocated workspace, which is
-the shape in which it is observable at all.
+All three of the colocated shape's names are names the crate reserves — and two
+of them were the whole list for as long as this book was being written. The third
+was added by hand afterwards, because this chapter's own worked example found it
+missing, and the gap it left in the meantime is not a detail the chapter can
+leave out: it is the one-directional cost the reserved list's own comment prices,
+showing up as an observable rather than as a hypothetical. The worked example
+ends on it, and on what the reservation does with the name now.
 
 <a id="worked-reservation"></a>
 ## Worked example: reserving `grove`
@@ -201,35 +203,66 @@ directory after `"repo"` was refused. A validation that ran after the `join`
 would have passed both assertions too; these two tests are what make the ordering
 observable from outside.
 
-**A fourth case, which the reserved list does not catch.** This one steps outside
-the carried tree, because it is only observable in a **colocated** workspace —
-`/work/atlas` is native and has no `.jj/.gitignore` for a reservation to collide
-with, so the same call there succeeds and hands the caller a directory called
-`.jj/.gitignore`. In a colocated workspace, which is what a stock `jj git init`
-produces, the entry exists. Either way `.gitignore` is a plain directory name, it
-contains no separator, and it is not in the crate's list — so
-`validated_namespace` accepts it, and in the colocated case the refusal comes
-from the filesystem instead:
+**A fourth case, which the reserved list did not catch until it was made to.**
+This one steps outside the carried tree, because the two endings it had need two
+different shapes of workspace. `/work/atlas` is native and has no
+`.jj/.gitignore` for a reservation to collide with; a colocated workspace, which
+is what a stock `jj git init` produces, holds the entry. `.gitignore` is a plain
+directory name either way: it contains no separator, it is not `.` or `..`, and
+while the list held only `repo` and `working_copy` it was not in the list — so
+`validated_namespace` accepted it, and the colocated case was refused by the
+filesystem instead:
 
 ```text
-control_dir(".gitignore")                       in a colocated /work/atlas-git
+control_dir(".gitignore")                       in a colocated /work/atlas-git, while the list held two names
   -> the control directory /work/atlas-git/.jj/.gitignore is not usable: File exists (os error 17)
 
      It must exist and be writable before anything can coordinate through it.
      Check the permissions on the workspace's `.jj` directory.
 ```
 
-The reservation still does not happen, so no guarantee is broken; what is lost is
-the remedy. A consumer is told to check permissions on a directory whose
+The reservation still did not happen, so no guarantee was broken; what was lost
+was the remedy. A consumer was told to check permissions on a directory whose
 permissions are fine, when the true remedy is the one the third refusal above
-would have given it. This is exactly the collision the reserved list's comment
-prices as the cost of a name jj adds and the list has not heard of, and it is
-already outstanding on jj 0.44.0 rather than hypothetical — in the native case it
-is worse rather than absent, because there the consumer is handed a directory
-sitting on a name jj will write a file to if the tree is ever colocated. No test
-in the crate's suite covers either shape. The corpus is frozen for this book, so
-it is recorded here and carried as its own work item rather than fixed on the
-page.
+would have given it. In a native workspace it was worse rather than absent: there
+the call succeeded, and the consumer was handed a directory standing on a name jj
+had not used in that tree yet and writes a file to the moment the tree is
+colocated. That is exactly the collision the reserved list's comment prices as
+the cost of a name jj adds and the list has not heard of, priced before it was
+observed rather than explained after the fact. Neither ending is reachable now.
+What jj does is unchanged: the entry was measured on jj 0.44.0 and re-measured on
+0.45.1 when the name was added, and every other measurement in this book is
+0.44.0's.
+
+`.gitignore` is the third name in the list because of this case, and the call now
+ends in the third refusal above with `.gitignore` in place of `repo`:
+
+```text
+control_dir(".gitignore")                       in any workspace, colocated or not
+  -> cannot reserve the control namespace `.gitignore`: Jujutsu owns that name inside `.jj`
+
+     A namespace is one plain directory name, owned by the consumer that asks for it
+     and kept apart from Jujutsu's own.
+```
+
+**In any workspace** is the over-reservation the comment licenses, taken
+deliberately: a native tree has no `.jj/.gitignore`, nothing there would have
+collided, and a consumer that wanted the word is refused one it has an infinite
+supply of alternatives to. That is the cheap direction, chosen over a guard that
+would have had to ask which shape of workspace it was standing in.
+`the_git_ignore_jujutsu_writes_is_refused` is the test, and it stands in a
+**colocated** fixture on purpose: that is the one shape in which a filesystem
+refusal and a reserved-list refusal can be told apart, so it is the only fixture
+in which the assertion means what it says. It makes three assertions, and the
+first is the one that earns the fixture: that jj really did write a
+`.jj/.gitignore` there. Then that the refusal names Jujutsu, and that jj's own
+file is byte-identical afterwards.
+
+**None of that was fixed on this page.** The corpus is frozen for this book, so
+the missing name was recorded here and carried as its own work item; the source
+change, this page and a green validator run over the whole book landed together
+in one commit, which is the only shape in which a corrected crate and a
+byte-exact book are both true at once.
 
 > **The consumer's half.** The string is `"grove"` because
 > `crates/grove-loop/src/driver_lease.rs` holds it in a constant and passes it at
@@ -247,7 +280,7 @@ page.
 > workspace would be a lock over the wrong thing.
 
 <a id="the-reserved-list"></a>
-## The two names jj owns, and why the list is allowed to be incomplete
+## The three names jj owns, and why the list is allowed to be incomplete
 
 The list and the argument for it head the file, immediately after the imports
 [*Orientation*](01-orientation.md#crate-thesis) owns, and before every type in the
@@ -260,7 +293,7 @@ knowledge visible to a reader who opens the file and reads nothing else.
 <!-- insert «namespace-owned-names-list» -->
 <!-- /fragment -->
 
-The comment spends five lines on a two-element array, and four of them are one
+The comment spends five lines on a three-element array, and four of them are one
 argument. The argument is that the list does not have to be right, only
 *cheaply wrong in one direction*, and it is worth reading as the general shape it
 is: a crate that must model a foreign system's private namespace can either track
@@ -279,12 +312,12 @@ achievable without an interface the foreign system does not offer.
 
 Both directions are priced, and they are not symmetric. **A name jj adds that
 this list has not heard of costs a collision** — the `.gitignore` case above,
-where a consumer asking for a name jj has quietly started using gets a refusal
-naming the wrong remedy, or, in the worse shape the crate is protected from only
-by `create_dir_all` failing, would get a directory it shares with jj. **A name
-listed here that jj drops costs a consumer a different word** — it asks for
-`working_copy`, is refused, and calls its namespace something else. The first
-cost is paid by a consumer at the moment of failure and is hard to diagnose; the
+where a consumer asking for a name jj had quietly started using got a refusal
+naming the wrong remedy, and, in the shape where `create_dir_all` had nothing to
+trip over, a directory standing on a name jj would take back. **A name listed
+here that jj drops costs a consumer a different word** — it asks for
+`working_copy`, is refused, and calls its namespace something else. The first cost
+is paid by a consumer at the moment of failure and is hard to diagnose; the
 second is paid once, at design time, by a consumer who has an infinite supply of
 other words. So the list is allowed to over-reserve freely and is dangerous only
 when it under-reserves, and that asymmetry is why it is a hand-maintained
@@ -294,21 +327,25 @@ The alternative would have been to ask jj. There is no interface to ask with: jj
 documents no command that enumerates the names it owns inside `.jj/`, and a crate
 that shelled out to discover them would be reading a private layout jj has never
 promised to keep stable — which is a stronger dependency on jj's internals than
-the two literals below, not a weaker one. Reserving every name beginning with a
-dot was the other option, and it would have caught `.gitignore` while refusing a
-consumer a perfectly good word for no reason jj has given; it also would not
-generalise, because two of the three entries a colocated workspace holds do not
-begin with a dot, and a native one holds neither a third entry nor a dotted name.
+the three literals below, not a weaker one. Reserving every name beginning with a
+dot was the other option, and it is the one that would have caught `.gitignore`
+in advance rather than after the fact — at the price of refusing a consumer every
+dotted word for no reason jj has given, and without generalising, because two of
+the three entries a colocated workspace holds do not begin with a dot and a
+native one holds neither a third entry nor a dotted name. The list bought the
+narrower rule and paid for it once, in the currency its own comment named.
 
 <!-- fragment «namespace-owned-names-list» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="60-61" parent="namespace-reserved-names" -->
 ````rust
-const JJ_OWNED_NAMES: [&str; 2] = ["repo", "working_copy"];
+const JJ_OWNED_NAMES: [&str; 3] = ["repo", "working_copy", ".gitignore"];
 
 ````
 <!-- /fragment -->
 
-`[&str; 2]` rather than `&[&str]`, so the count is in the type. It is the same
-choice the seam makes for its four environment variables
+`[&str; 3]` rather than `&[&str]`, so the count is in the type — and it is a `3`
+rather than a `2` because the list was made current by hand rather than by
+anything that could have noticed on its own. It is the same choice the seam makes
+for its four environment variables
 ([*The subprocess seam*](03-subprocess-seam.md#the-selectors)), and the two lists
 are worth reading together because they are lists of opposite things. A reader
 who merges them in memory will mis-remember both, so they are set side by side
@@ -621,8 +658,8 @@ also the only guard that consults data rather than the string's own shape.
 ````
 <!-- /fragment -->
 
-`JJ_OWNED_NAMES.contains(&namespace)` is a linear scan of two elements, which is
-the right shape at this size and would remain so at ten; the array is the data
+`JJ_OWNED_NAMES.contains(&namespace)` is a linear scan of three elements, which
+is the right shape at this size and would remain so at ten; the array is the data
 structure because the list is small, fixed at compile time, and never searched in
 a loop. The reason string names Jujutsu explicitly rather than saying the name is
 taken, because a consumer reading *Jujutsu owns that name inside `.jj`* knows both
@@ -653,20 +690,20 @@ resolved to something that already means something:
 | 1 | empty | `""` | `/work/atlas/.jj/` — jj's whole administrative area | verified on jj 0.44.0; `a_namespace_that_is_a_path_is_refused` covers `""` |
 | 2 | contains `/`, `\` or `\0` | `nested/deeper`, `../elsewhere` | a path under or outside `.jj/` rather than one component | `a_namespace_that_is_a_path_is_refused`, through `/` only; `\` and `\0` checked directly on jj 0.44.0 |
 | 3 | `.` or `..` | `..` | `/work/atlas/.jj/..` — the tracked working copy | verified on jj 0.44.0; `a_namespace_that_is_a_path_is_refused` covers `".."` |
-| 4 | in `JJ_OWNED_NAMES` | `repo` | `/work/atlas/.jj/repo` — a directory jj owns | `a_namespace_jujutsu_owns_is_refused` |
+| 4 | in `JJ_OWNED_NAMES` | `repo` | `/work/atlas/.jj/repo` — a directory jj owns | `a_namespace_jujutsu_owns_is_refused`; `the_git_ignore_jujutsu_writes_is_refused` reaches the same guard through `.gitignore` |
 
 Nothing downstream catches any of the four. `create_dir_all` succeeds on every
 path in the fourth column — three of them already exist and the remaining one it
 would create — so the guards are the whole of the check, and their position ahead
-of the `join` is what the worked example's two refusal tests make observable from
-outside.
+of the `join` is what the worked example's three refusal tests make observable
+from outside.
 
 <a id="what-this-chapter-settled"></a>
 ## What this chapter settled
 
 The crate's one addition is one directory, and the crate does not know what it is
-for. Fifty-eight lines carry it: a two-name array with a four-line argument about
-being wrong cheaply, a four-line method under a nineteen-line comment, and a
+for. Fifty-eight lines carry it: a three-name array with a four-line argument
+about being wrong cheaply, a four-line method under a nineteen-line comment, and a
 four-guard validator whose ordering keeps a caller from being handed `.jj/` or
 the working copy under the name of a namespace. The postcondition is four clauses,
 three of which hold by construction — the path is built from a canonical root and
@@ -676,9 +713,12 @@ are two directories — and the fourth, *created if absent*, is one idempotent c
 The tension the chapter opened on is not closed, and the crate does not pretend
 otherwise: `.jj/` is jj's by jj's own definition, and this crate puts something
 else there. What it does instead is price the intrusion — over-reserve freely,
-under-reserve dangerously, and say which — and on jj 0.44.0 the list is one name
-short of what a colocated workspace actually contains, with the observable
-consequence recorded above.
+under-reserve dangerously, and say which — and the list has now been on both
+sides of that price: it was one name short of what a colocated workspace
+contains, with the observable consequence recorded above, and it is one name
+longer than a native one needs now that the third name is in it. Only the first
+of those two cost a consumer anything, which is the argument holding rather than
+the argument being spared a test.
 
 Everything so far has been the crate declining to decide, and this chapter was
 the crate adding one thing without deciding what it means. The next chapter is

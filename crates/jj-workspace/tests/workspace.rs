@@ -383,6 +383,38 @@ fn a_namespace_jujutsu_owns_is_refused() {
     );
 }
 
+/// The third name the list reserves, and the only one of the three that is
+/// never a directory — `repo` is a directory or a pointer file and
+/// `working_copy` is always a directory, so this is the one whose collision
+/// `create_dir_all` would have reported rather than silently accepted. A
+/// colocated workspace is the shape that has the entry at all, and it is the
+/// fixture for that reason: the refusal has to come from the reserved list
+/// rather than from `create_dir_all` tripping over something already there,
+/// and only a tree holding the entry can tell those two endings apart.
+#[test]
+fn the_git_ignore_jujutsu_writes_is_refused() {
+    let tmp = TempDir::new().unwrap();
+    let root = colocated(&tmp.path().join("repo"));
+    let ignore = root.join(".jj/.gitignore");
+    assert!(
+        ignore.is_file(),
+        "the fixture must be a workspace jj wrote a `.jj/.gitignore` into"
+    );
+    let before = fs::read_to_string(&ignore).unwrap();
+    let workspace = Workspace::resolve(&root).unwrap();
+
+    let refusal = workspace.control_dir(".gitignore").unwrap_err().to_string();
+
+    assert!(
+        refusal.contains("Jujutsu owns that name"),
+        "the collision must be named: {refusal}"
+    );
+    assert!(
+        ignore.is_file() && fs::read_to_string(&ignore).unwrap() == before,
+        "the refusal must not have disturbed jj's own file"
+    );
+}
+
 // ---- is_tracked ------------------------------------------------------------
 
 #[test]

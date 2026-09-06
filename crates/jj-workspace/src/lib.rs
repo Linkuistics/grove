@@ -57,7 +57,7 @@ use std::path::{Path, PathBuf};
 /// the cost of a name jj adds later and this list has not heard of is a
 /// collision, and the cost of a name listed here that jj drops is a consumer
 /// picking a different word.
-const JJ_OWNED_NAMES: [&str; 2] = ["repo", "working_copy"];
+const JJ_OWNED_NAMES: [&str; 3] = ["repo", "working_copy", ".gitignore"];
 
 /// A commit this crate took.
 ///

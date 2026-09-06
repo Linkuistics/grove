@@ -114,7 +114,7 @@ asserted.
 | 1 | Start a child process with a controlled environment; read and create a directory | `std::process`, `std::fs`, `std::error::Error` | Yes — these are the operations, not approximations of them | Yes, by the compiler: an empty `[dependencies]` table cannot silently acquire an entry | Justified |
 | 2 | This tree is a jj workspace, and here are its root and its main repo | jj's own on-disk shape, and `jj workspace root` | Yes for shape; the gate deliberately does not promise health | Yes — the shape is jj's documented one, and the resolution tests exercise it against native, colocated, nested-Git, symlinked and secondary trees | Justified, with the boundary stated |
 | 3 | The repository is chosen by the directory, not by what the calling process inherited | jj's documented selection rule, with four Git variables removed | Yes, *given* the four names are the four that matter | Partly — the mechanism is proved by a test; the completeness of the list is not | Justified, on the same unchecked list as row 4 |
-| 4 | The reserved directory is not one Jujutsu owns | A two-element array in this crate | Yes if the array is right | **No** — the array is a copy of jj's contents, and on jj 0.44.0 it is one name short of a colocated workspace's | **Abdication, by the second clause** |
+| 4 | The reserved directory is not one Jujutsu owns | A three-element array in this crate | Yes if the array is right | **No** — the array is a copy of jj's contents, and on jj 0.44.0 it was one name short of a colocated workspace's until a human noticed | **Abdication, by the second clause** |
 | 5 | The work is durably recorded, and recoverable if the wrong thing lands | jj's snapshot and operation log | Yes, and it is the one row settled by a measurement rather than an argument | Yes for the delegation; **no** at the interface into it | Justified, with a hole at the call |
 | 6 | A stop that says what is wrong and names a repair that exists | jj's `undo`, `op log` and `git init` commands | Yes — the named repairs are jj's, and they do repair | Weakly: the remedies are static strings, and one URL in them has already moved | Justified, and the weakest check of the five |
 
@@ -277,21 +277,22 @@ consumer needs from it is exactly one sentence: *the directory you have been giv
 is not one Jujutsu owns*. The row reads like a delegation — jj owns `.jj/`, the
 crate reserves a corner of it and refuses to hand over anything jj has claimed —
 and it is not one. Nothing in `control_dir` or `validated_namespace` asks jj what
-it owns. The answer is a two-element array, `["repo", "working_copy"]`, compiled
-into this crate, and that array is a fork of jj's on-disk layout that no longer
-tracks it.
+it owns. The answer is a three-element array, `["repo", "working_copy",
+".gitignore"]`, compiled into this crate, and that array is a fork of jj's
+on-disk layout that tracks it only when someone notices that it has stopped.
 
-It is not a hypothetical fork. On jj 0.44.0 the array is one name short of what a
-stock `jj git init` produces, and
-[*Reserving `grove`*](04-namespace.md#worked-reservation) traced both endings that
-gap has: a refusal about the wrong thing in a colocated workspace, and, in one
-that is not, a call that succeeds and hands the consumer a directory sitting on a
-name jj will want later. What matters at this row is only which check produced
-them. Neither ending comes from the guard that exists to catch a name jj owns —
-one comes from the filesystem refusing an entry that is already there, and the
-other from nothing at all. In both endings it is the array that was asked and not
-jj, which is the second clause failing stated as an outcome rather than as a
-worry.
+It is not a hypothetical fork, and the proof is that it has already drifted once.
+On jj 0.44.0 the array was one name short of what a stock `jj git init` produces,
+and [*Reserving `grove`*](04-namespace.md#worked-reservation) traced both endings
+that gap had: a refusal about the wrong thing in a colocated workspace, and, in
+one that is not, a call that succeeded and handed the consumer a directory
+sitting on a name jj would want later. What matters at this row is only which
+check produced them. Neither ending came from the guard that exists to catch a
+name jj owns — one came from the filesystem refusing an entry that was already
+there, and the other from nothing at all. The third name is in the array now, so
+both endings are gone; what is not gone is the mechanism that let them happen. It
+was still the array that was asked and not jj, and a reader who takes the repair
+as the answer has mistaken a corrected copy for a delegation.
 
 What makes this the least comfortable row is not that a list is out of date. Lists
 go out of date. It is that **the fourth refusal is the one `CONTEXT-MAP.md` uses
@@ -300,7 +301,8 @@ not a bounded context of its own, because every term in it is Jujutsu's and the
 one thing it adds is a namespace it will not name. That argument is exactly right
 about the *naming*. The crate genuinely refuses to know what `"grove"` means; the
 reader watched the string be passed in. But underneath the naming, the crate did
-not delegate the ownership question at all. It answered it, from memory, once.
+not delegate the ownership question at all. It answered it from memory, and then
+answered it from memory again when the first answer went stale.
 
 Three things keep this a finding rather than a condemnation, and each is checkable
 on the page.
@@ -318,17 +320,26 @@ which would make a stale editor file a reserved name. The comparison is chapter
 4's, and the list won it on the direction-of-error argument. The test's verdict is
 that winning that comparison does not make the result a delegation.
 
-**And it is now the second clause failing on a known list rather than an unknown
-one.** `jj-owned-names-k65` carries the fix, and it is placed after every crate
-book because the fix moves a line boundary inside a fragment this book quotes: the
-source change, the ledger, the page and a green validator run land in one commit
-or not at all. The freeze that makes this book provable is also what makes the fix
-a scheduled piece of work rather than a footnote.
+**And the repair is evidence for the finding rather than against it.**
+`jj-owned-names-k65` carried it, placed after every crate book because a byte of a
+frozen root cannot move while a book that quotes it is being written: the source
+change, the page and a green validator run over the book landed in one commit or
+would not have landed at all. What repaired the list was a human reading jj's
+`.jj/` while drafting chapter 4 — the same instrument that found it, on a
+schedule nobody controls. Nothing went red, because in that direction there is
+nothing that could: no test in the suite asserts that the array covers `.jj/`.
+The repair did leave a check behind, and only in the cheap direction —
+`the_git_ignore_jujutsu_writes_is_refused` opens by asserting its colocated
+fixture really holds a `.jj/.gitignore`, so the suite now goes red if jj *stops*
+writing the entry, and stays silent if jj *adds* a fourth. That is the asymmetry
+the constant's own comment describes, turned into the one place the suite can
+observe it. It is the second clause failing with its consequence paid rather than
+predicted.
 
 The honest summary is the one the test produces without special pleading. Five
 rows are subtractions. The fourth is an abdication with a good excuse, a priced
-error, and a leaf against its name — and it is the row the crate's own
-architectural argument leans on hardest.
+error, and one round of that error already paid — and it is the row the crate's
+own architectural argument leans on hardest.
 
 <a id="taking-the-test-away"></a>
 ## Taking the test to a boundary of your own
@@ -370,7 +381,7 @@ answered by what the code looks like: 698 lines, four files, no dependencies, an
 six chapters that could each be read on their own. A justified subtraction leaves
 something small enough to hold in one reading. An abdication leaves the same thing
 and moves the missing work into whoever calls you — which, when it is spelled out
-as a two-element array, is not visible from either side of the boundary until
+as a three-name array, is not visible from either side of the boundary until
 someone stands where this chapter stands and asks the question directly.
 
 <a id="the-closed-ledgers"></a>
@@ -423,28 +434,37 @@ itself: what in it would go red if the crate's behaviour moved?
 | 2 | jj's output is not text, and `OutputNotText` is the refusal | [ch. 3](03-subprocess-seam.md#worked-invocation) | nothing: no jj command can be asked to emit non-UTF-8 on stdout |
 | 3 | `GIT_INDEX_FILE` is removed from every child | [ch. 3](03-subprocess-seam.md#the-selectors) | one builder and one loop: the test sets the other three, and the fourth is removed by the same line |
 | 4 | `\` and `\0` are refused as namespaces | [ch. 4](04-namespace.md#the-validation) | measured on jj 0.44.0; the suite reaches that guard through `/` only |
-| 5 | `control_dir(".gitignore")` collides in a colocated tree and succeeds in a native one | [ch. 4](04-namespace.md#worked-reservation) | measured on jj 0.44.0, in both shapes |
+| 5 | `control_dir(".gitignore")` is refused in a native workspace too, where nothing would have collided | [ch. 4](04-namespace.md#worked-reservation) | reading the guard: it consults an array and never the tree; `the_git_ignore_jujutsu_writes_is_refused` stands in the colocated shape only |
 | 6 | A path containing `"` or `\` survives into the fileset unchanged | [ch. 5](05-scope-and-commit.md#the-path-algebra) | jj's documented string-literal syntax, and reading the loop |
 | 7 | A canonicalised parent that *does* strip resolves a deleted path | [ch. 5](05-scope-and-commit.md#the-path-algebra) | measured here on jj 0.44.0, through a symlinked ancestor |
 | 8 | A non-UTF-8 path becomes a fileset matching nothing, with no refusal | [ch. 5](05-scope-and-commit.md#the-path-algebra) | inspection: `jj file list` and `jj commit` over a non-matching fileset were measured, the end-to-end case was not constructed |
 | 9 | The workspace root is refused as a scope inside itself | [ch. 5](05-scope-and-commit.md#the-path-algebra) | a reading of the code, and nothing else — the weakest row in the table |
 
 The fourth column is the one to read down, because the rows are not equally weak.
-Rows 4, 5 and 7 rest on a measurement taken against jj 0.44.0 and written into the
+Rows 4 and 7 rest on a measurement taken against jj 0.44.0 and written into the
 page beside the code, which is a check a later reader can repeat against a later
-jj. Row 6 rests on jj's published syntax, and row 3 on the seam's one builder —
-the property [chapter 3](03-subprocess-seam.md#nothing-ambient) argues is
-inherited by construction rather than tested per call site. Row 8 is half of each:
-what jj does with a fileset matching nothing was measured, and that the lossy
-rendering can produce one was reasoned about. Rows 1, 2 and 9 rest on nothing
+jj. Row 6 rests on jj's published syntax, and rows 3 and 5 on a property inherited
+by construction rather than tested per case — for row 3 the seam's one builder,
+which [chapter 3](03-subprocess-seam.md#nothing-ambient) argues is inherited
+rather than tested per call site, and for row 5 a guard that reads an array and
+never the workspace it is standing in. Row 8 is half of each: what jj does with a
+fileset matching nothing was measured, and that the lossy rendering can produce
+one was reasoned about. Rows 1, 2 and 9 rest on nothing
 repeatable at all.
 
-Three of the nine already have leaves against them — row 5 is
-`jj-owned-names-k65`, and rows 7 and 8 are both `lossy-path-rendering-k66`, whose
-leaf carries the untested branch alongside the rendering that runs through it. The
-other six stand. That is the honest total: this book proves 698 lines byte for
-byte, and argues nine claims that nothing goes red on. Chapter 1's row of the
-verdict table set the ceiling — a check the compiler performs — and every row here
+Two of the nine have leaves against them — rows 7 and 8 are both
+`lossy-path-rendering-k66`, whose leaf carries the untested branch alongside the
+rendering that runs through it. The other seven stand. Row 5 is the one that has
+changed hands rather than closed: `jj-owned-names-k65` retired the claim that
+stood there — that `control_dir(".gitignore")` collides in a colocated tree and
+succeeds in a native one — by putting the name in the list, and what took its
+place is the narrower claim the repair itself created. A row leaving this table
+by being fixed is the ordinary case; a row leaving it by being replaced with its
+own successor is what a hand-maintained list looks like from here.
+
+That is the honest total: this book proves 698 lines byte for byte, and argues
+nine claims that nothing goes red on. Chapter 1's row of the verdict table set
+the ceiling — a check the compiler performs — and every row here
 falls short of it. Saying by how much is what the assembly owed a reader who has
 just been taught to ask.
 
@@ -501,11 +521,11 @@ $ cargo test --locked -p jj-workspace
      Running tests/environment.rs
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/workspace.rs
-test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 
 The crate's own suite, which is the evidence this book cites and does not
-reproduce. Twenty-nine tests, all of them integration tests: the crate carries no
+reproduce. Thirty tests, all of them integration tests: the crate carries no
 unit tests and no documentation tests, because its public surface is the three
 types and six functions [*Orientation*](01-orientation.md#public-surface) listed
 — `Workspace`, `Commit` and `Refusal`, with `resolve` the only constructor — and

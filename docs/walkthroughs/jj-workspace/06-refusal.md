@@ -572,16 +572,19 @@ The message therefore reads as *what you asked for, why it was refused, what the
 rule is*, and only the middle third is computed.
 
 **`ControlDir`'s remedy names permissions, and chapter 4 recorded the case where
-that is the wrong thing to say.** `control_dir(".gitignore")` reaches this arm
-rather than the one above it, because `.gitignore` is a name jj writes inside
-`.jj/` of a colocated workspace and the crate's reserved list does not hold it,
-so the refusal a consumer sees suggests checking permissions on a directory that
+that was the wrong thing to say.** `control_dir(".gitignore")` used to reach this
+arm rather than the one above it, because `.gitignore` is a name jj writes inside
+`.jj/` of a colocated workspace and the crate's reserved list did not hold it, so
+the refusal a consumer saw suggested checking permissions on a directory that
 already exists — measured on jj 0.44.0 and recorded in
-[*The reserved list*](04-namespace.md#the-reserved-list). The message is not wrong
-about what it observed; `create_dir_all` did refuse. It is wrong about what to do,
-and that is the shape of defect this arm can have: the remedy is chosen by which
-constructor was reached, so a gap in the validation upstream becomes a misleading
-remedy here.
+[*The reserved list*](04-namespace.md#the-reserved-list) and traced to both its
+endings in [*Reserving `grove`*](04-namespace.md#worked-reservation), which is
+also where the third name arrives and sends this call to `Namespace`. The message
+was not wrong about what it observed; `create_dir_all` did refuse. It was wrong about
+what to do, and that is still the shape of defect this arm can have rather than
+one it has had and lost: the remedy is chosen by which constructor was reached,
+so a gap in the validation upstream becomes a misleading remedy here, and closing
+the one gap that was found closes no other.
 
 <a id="scopes-two"></a>
 ## Scope's two, and reasons written for the condition

@@ -640,7 +640,7 @@
 - [The three places meaning is expensive, for the crate as a whole](21-what-could-not-move.md#the-crates-answer)
 - [The three questions restated for a layer that is not this one](21-what-could-not-move.md#the-crates-answer)
 - [Thirty-one residue markers checked by subject rather than by line](21-what-could-not-move.md#what-the-book-made-redundant)
-- [A marker covered by a chapter its own map does not name](21-what-could-not-move.md#what-the-book-made-redundant)
+- [A joint map row that was right for one marker and wrong for the other](21-what-could-not-move.md#what-the-book-made-redundant)
 - [Why a wrong attribution is a live cost even when the coverage holds](21-what-could-not-move.md#what-the-book-made-redundant)
 - [A ledger the validator refuses to let be false](21-what-could-not-move.md#the-closed-ledgers)
 - [An early-use manifest as a floor rather than a set](21-what-could-not-move.md#the-closed-ledgers)

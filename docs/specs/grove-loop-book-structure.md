@@ -948,7 +948,8 @@ chapter:
 | 379 | which module owns which half of the tree | 1 |
 | 857, 873, 905 | the lock's scope and holders; what it does and does not promise; the contention probe and `restate` | 5 |
 | 969 | `addressable_key`'s refusal, and `leaf-prune` on a node | 6, 13 |
-| 433, 451 | the walk and the finish-reservation rule; the one pick and what it serves | 7, 14 |
+| 433 | the walk and the finish-reservation rule | 7, 14 |
+| 451 | the one pick and what it serves | 20 |
 | 323 | what a node is, and how a missing `BRIEF.md` is read | 8, 12 |
 | 779 | `resolve` on a chained stem, and the grow verbs' refusal | 9, 10 |
 | 884, 1007, 1053 | `leaf-add`'s all-or-nothing on error; the lint's second opening; key prediction and its check | 10 |

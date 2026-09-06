@@ -311,7 +311,7 @@ first two questions this crate answers well. The third is where it has four
 answers and no rule.
 
 <a id="what-the-book-made-redundant"></a>
-## Thirty-one markers, and one whose map is wrong
+## Thirty-one markers, and the one whose map was corrected
 
 The book neither cites nor edits `docs/ARCHITECTURE.md`. What it does is make
 that document's crate-internal description of `grove-loop` redundant, which is
@@ -321,51 +321,56 @@ joint with `keyed-launch`, one with `jj-workspace`, one with `none` — and ever
 one of the thirty-one has been checked against the chapter the structure brief
 maps it to, by the marker's own subject rather than by its line number.
 
-**Thirty of the thirty-one are covered by the chapters the map names.** The
-grammar and its diagram, the kind token and the separator, malformed against
-foreign, and one classification shared by every verb are chapters 2 to 4's;
-positions, keys, handles and the terminal infixes are chapters 3 and 13's;
-refusal by name is chapter 4's; which module owns which half of the tree is
-chapter 1's; the lock's scope, what it does and does not promise, and the
-contention probe are chapter 5's; `addressable_key`'s refusal and `leaf-prune` on
-a node are chapters 6 and 13's; the walk and the finish-reservation rule are
-chapters 7 and 14's; what a node is and how a missing `BRIEF.md` is read are
-chapters 8 and 12's; `resolve` on a stem several leaves share, and the grow
-verbs' refusal on the same reference, are chapters 9 and 10's; `leaf-add`'s
-unwinding, the lint's second opening and key prediction are chapter 10's; the two
-calls of `root-init`, the one-store-operation scaffold, `root_shape` on a
-withdrawn layout and `finish-commit`'s symlink gate are chapters 11 and 14's; the
-transition table is chapters 11 and 14's; the two kind tokens grove writes itself
-are chapters 3, 11 and 14's; the finish reservation, the finish flow and the four
-teardown steps with their two undo commands are chapter 14's; the core's three
-parts, what the core reads and the stated VCS in `${prompt}` are chapter 19's;
-and the watch and the escalation, and the scrub inside the seam with the loop's
-complementary list, are chapter 20's.
+**All thirty-one are covered by the chapters the map names.** The grammar and
+its diagram, the kind token and the separator, malformed against foreign, and
+one classification shared by every verb are chapters 2 to 4's; positions, keys,
+handles and the terminal infixes are chapters 3 and 13's; refusal by name is
+chapter 4's; which module owns which half of the tree is chapter 1's; the lock's
+scope, what it does and does not promise, and the contention probe are chapter
+5's; `addressable_key`'s refusal and `leaf-prune` on a node are chapters 6 and
+13's; the walk and the finish-reservation rule are chapters 7 and 14's; the one
+pick and what it serves is chapter 20's; what a node is and how a missing
+`BRIEF.md` is read are chapters 8 and 12's; `resolve` on a stem several leaves
+share, and the grow verbs' refusal on the same reference, are chapters 9 and
+10's; `leaf-add`'s unwinding, the lint's second opening and key prediction are
+chapter 10's; the two calls of `root-init`, the one-store-operation scaffold,
+`root_shape` on a withdrawn layout and `finish-commit`'s symlink gate are
+chapters 11 and 14's; the transition table is chapters 11 and 14's; the two kind
+tokens grove writes itself are chapters 3, 11 and 14's; the finish reservation,
+the finish flow and the four teardown steps with their two undo commands are
+chapter 14's; the core's three parts, what the core reads and the stated VCS in
+`${prompt}` are chapter 19's; and the watch and the escalation, and the scrub
+inside the seam with the loop's complementary list, are chapter 20's.
 
-**One is covered by a chapter the map does not name, and that is a finding.** The
-marker whose subject is *the one pick and what it serves* — the driver's single
-authoritative pick per iteration, one guarded read copying the selected leaf's
-path, handle and kind, the guard released before the second configuration load
-and the spawn, and that one value serving readiness, the launch diagnostic,
-template selection and the mandate with no second tree read — is mapped to
-chapters 7 and 14. It is covered by neither. **[Chapter 20](20-the-loop.md) is where it
-is covered**, and all but one clause of it: that page reproduces the block which
-performs the pick and argues *the kind is passed, never re-read* against it — one
-guarded selection reaches four consumers, so the prompt and the command a session
-receives cannot disagree about what kind it is. The one clause it does not argue
-is the marker's *the read guard is released before the second configuration load
-and the spawn*: chapter 20 reads the two configuration loads and the spawn in
-order, but its guard passages are the terminal's and the signal's rather than the
-tree read's, so the release point is shown and not argued.
+**One of those thirty-one reads that way only because the map was corrected, and
+how it got there is the finding.** As drafted, the map carried *the walk and the
+finish-reservation rule* and *the one pick and what it serves* as a single joint
+row against chapters 7 and 14. That pairing is right for the first marker and
+was wrong for the second. The one pick — the driver's single authoritative pick
+per iteration, one guarded read copying the selected leaf's path, handle and
+kind, the guard released before the second configuration load and the spawn, and
+that one value serving readiness, the launch diagnostic, template selection and
+the mandate with no second tree read — is covered by neither of those chapters.
+**[Chapter 20](20-the-loop.md) is where it is covered**, and all but one clause
+of it: that page reproduces the block which performs the pick and argues *the
+kind is passed, never re-read* against it — one guarded selection reaches four
+consumers, so the prompt and the command a session receives cannot disagree
+about what kind it is. The one clause it does not argue is the marker's *the
+read guard is released before the second configuration load and the spawn*:
+chapter 20 reads the two configuration loads and the spawn in order, but its
+guard passages are the terminal's and the signal's rather than the tree read's,
+so the release point is shown and not argued. The map now splits the joint row
+and names chapter 20 for the second marker alone, so the brief and this page say
+the same thing.
 
-That matters rather than being cosmetic, and for the reason a previous correction
-to the same map recorded: the map **is** the deletion's coverage obligation, so a
-marker attributed to a chapter that does not cover it is a passage deleted on the
-strength of a page that never made it redundant — or, read the other way, a
-passage left standing because the named chapters do not carry it. The subject is
-covered, so the deletion is safe; the attribution is wrong, so the checklist is
-not. The correction belongs in the structure brief and has its own leaf, and this
-page records the coverage as the book actually delivers it.
+The split mattered rather than being cosmetic, and for the reason a previous
+correction to the same map recorded: the map **is** the deletion's coverage
+obligation, so a marker attributed to a chapter that does not cover it is a
+passage deleted on the strength of a page that never made it redundant — or,
+read the other way, a passage left standing because the named chapters do not
+carry it. The subject was covered either way, so the deletion was never unsafe;
+what was wrong was the checklist, and the checklist is the only instrument the
+deleting session has.
 
 **So the condition holds.** Every one of the thirty-one markers naming this crate
 has a chapter that makes its subject redundant, the two joint markers' other

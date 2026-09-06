@@ -64,21 +64,19 @@ models read it, so `grove --version` and `grove-llm --version` print one
 number. At the corpus this book is frozen against that number is `20.1.0`, the
 workspace's release, and the worked example below shows it.
 
-The comment above that line makes a claim this page checks against the
-manifest *Orientation* read. It says `crates/grove-llm` carries a `0.1.0` of
-its own; line 3 of that manifest is `version.workspace = true`, so the package
-carries no version of its own and its `CARGO_PKG_VERSION` is the workspace's.
-The situation the comment describes is the one the crate was created in — a
-package with a version field, whose bare `version` attribute answered `0.1.0`
-— and the manifest has since moved to inheritance. Two mechanisms therefore
-keep the two numbers equal today, inheritance and the shared constant, and the
-comment argues for the second: agreement is a fact about one definition rather
-than about two manifests staying in step, and the two commands are what an
-operator runs to diagnose a skew between installed binaries. The test
-`the_two_binaries_report_one_version` in `crates/grove-llm/tests/llm_cli.rs`
-pins both halves — the numbers are equal, and neither is `0.1.0`. The comment's
-factual clause is stale and its reason still holds; it is corpus, and is
-reproduced as written.
+The comment above that line argues for that mechanism, and the argument is
+worth reading because a second mechanism would already do the job. Line 3 of
+`crates/grove-llm/Cargo.toml` is `version.workspace = true`, as *Orientation*
+read, and `crates/grove-loop/Cargo.toml` inherits the same way, so two
+independent `env!("CARGO_PKG_VERSION")` reads would agree by inheritance alone.
+Reading one constant makes the agreement a fact about a single definition
+instead: a binary whose manifest stopped inheriting would still report the
+release rather than a version of its own. Why an operator cares is the
+comment's last clause, and `the_two_binaries_report_one_version` in
+`crates/grove-llm/tests/llm_cli.rs` is where both halves are pinned — that the
+two numbers are equal, and that `grove-llm`'s is not `0.1.0`, the number that
+test's own comment records a bare `version` attribute answering when this crate
+was first split into a package of its own.
 
 `arg_required_else_help = true` is the attribute the struct's `Option` exists
 for, and its effect is measured rather than described: a bare `grove-llm`
@@ -97,10 +95,10 @@ terminal.
 #[command(
     name = "grove-llm",
     // **grove's version, not this package's.** One workspace, one release
-    // version: `crates/grove-llm` carries a `0.1.0` that names nothing an
-    // operator can install, and `grove --version` and `grove-llm --version` have
-    // to agree because a skew between them is exactly what an operator reaches
-    // for them to diagnose.
+    // version: both binaries read one constant instead of each reading its
+    // own `env!("CARGO_PKG_VERSION")`, so agreement is a fact about one
+    // definition rather than about two manifests staying in step — and a skew
+    // between them is exactly what an operator reaches for them to diagnose.
     version = grove_loop::VERSION,
     arg_required_else_help = true,
     about = "Grove: LLM-driven verbs for mid-session use",

@@ -37,10 +37,10 @@ use std::path::{Path, PathBuf};
 #[command(
     name = "grove-llm",
     // **grove's version, not this package's.** One workspace, one release
-    // version: `crates/grove-llm` carries a `0.1.0` that names nothing an
-    // operator can install, and `grove --version` and `grove-llm --version` have
-    // to agree because a skew between them is exactly what an operator reaches
-    // for them to diagnose.
+    // version: both binaries read one constant instead of each reading its
+    // own `env!("CARGO_PKG_VERSION")`, so agreement is a fact about one
+    // definition rather than about two manifests staying in step — and a skew
+    // between them is exactly what an operator reaches for them to diagnose.
     version = grove_loop::VERSION,
     arg_required_else_help = true,
     about = "Grove: LLM-driven verbs for mid-session use",

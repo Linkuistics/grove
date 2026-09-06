@@ -359,14 +359,13 @@ assembly, and the total is the 1,017 the campaign froze.
 
 **The corpus's own claims.** Every comment a chapter checked and found wanting
 was adjudicated beside its fragment rather than corrected in place, because the
-corpus is frozen and a book may not edit what it proves. Six were judged worth a
-source change, and each now has a leaf to carry one. Three of the six were known
+corpus is frozen and a book may not edit what it proves. Five were judged worth a
+source change, and each now has a leaf to carry one. Two of the five were known
 before drafting began —
 the manifest's *everything this binary can reach is something `grove-loop` chose
 to publish*, which holds for what is reached and not for what is reachable
-through the direct `jj-workspace` dependency; `lib.rs`'s *or `grove`*, naming a
-dependency the manifest's own comment records as removed; and the `0.1.0` the
-`#[command]` attribute describes, which `Cargo.toml` line 3 does not carry. Three
+through the direct `jj-workspace` dependency; and `lib.rs`'s *or `grove`*, naming
+a dependency the manifest's own comment records as removed. Three
 were found while drafting: `cmd_root_init`'s drop-order argument for `match` over
 `let … else`, which is the reverse of what the compiler does; `eprint_next_steps`
 naming a *jj/git* lane this build cannot reach; and the `Complete` variant's

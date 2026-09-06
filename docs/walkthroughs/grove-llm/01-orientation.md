@@ -67,7 +67,7 @@ the workspace root rather than stated, and the one that matters to a later page
 is `version`: the package carries no number of its own, so `grove-llm
 --version` cannot report one. *The grammar and the openings* reads the
 attribute that makes both binaries report the same constant, beside a comment
-that describes a `0.1.0` this line shows the package does not carry. The
+that argues for that constant against the inheritance this line supplies. The
 `description` is the one field that is this crate's alone, and it is the
 audience split in a sentence; it and `name` are the two fields stated rather
 than inherited.

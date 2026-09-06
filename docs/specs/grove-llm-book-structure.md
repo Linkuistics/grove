@@ -720,12 +720,19 @@ violate the settled chapter boundary and add ownership joins. Exact identifiers,
 concrete values, the early-use ledger and source-backed later chapters give the
 same technical trace with a smaller fragment graph.
 
-## Known in advance: what chapter 1 and chapter 2 adjudicate
+## Known in advance: what chapter 1 adjudicates
 
-Three claims in the frozen corpus do not survive a check against the source
+Two claims in the frozen corpus do not survive a check against the source
 beside them. Each page states the checkable fact beside the fragment that
 carries the stale one, as the overview's pages do for theirs; none licenses a
 code change from inside the book, under the root brief's freeze rule.
+
+A third was corrected rather than adjudicated. `cli.rs` lines 39–43 once said
+`crates/grove-llm` carries a `0.1.0` of its own, against a manifest whose line
+3 is `version.workspace = true`; `grove-llm-version-comment-k83` rewrote the
+comment to argue only for reading one constant, and rewrote chapter 2's
+paragraph in the same commit. The corpus no longer carries that claim, and a
+re-draft should not re-adjudicate it.
 
 1. **The manifest's reachability claim, and the direct `jj-workspace`
    dependency.** `Cargo.toml` line 15 says everything this binary can reach is
@@ -743,14 +750,8 @@ code change from inside the book, under the root brief's freeze rule.
    comment, lines 17–22, records that the `grove` dependency went at
    `loop-crate-driver-k22`. The manifest is right and the module doc is stale;
    chapter 1 says so. Same owner, same rule.
-3. **The `0.1.0` that the manifest does not carry.** `cli.rs` lines 39–43 say
-   `crates/grove-llm` carries a `0.1.0` of its own; line 3 of the manifest is
-   `version.workspace = true`. This one is already leafed as
-   `grove-llm-version-comment-k83`, positioned after every book: chapter 2
-   states the checkable fact beside the fragment, and that leaf rewrites the
-   paragraph in the same commit as the comment.
 
-The draft's technical-truth charter may find more. These three are known, and a
+The draft's technical-truth charter may find more. These two are known, and a
 drafting session should not have to discover them.
 
 ## What this brief does not settle

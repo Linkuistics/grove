@@ -34,7 +34,7 @@
 - [Admitted before dispatch: the four things `run` does, in order](02-the-grammar.md#admitted-before-dispatch)
 - [The session epoch, as this book's premise](02-the-grammar.md#admitted-before-dispatch)
 - [One version constant, read by both binaries](02-the-grammar.md#the-grammar-head)
-- [A `0.1.0` the manifest does not carry](02-the-grammar.md#the-grammar-head)
+- [Inheritance would already agree; the constant makes agreement a definition](02-the-grammar.md#the-grammar-head)
 - [`arg_required_else_help`: help on stderr, exit 2](02-the-grammar.md#the-grammar-head)
 - [`command` is an `Option` that is never `None` past `parse`](02-the-grammar.md#the-grammar-head)
 - [`worktree`: the grove root spelled by the loop, the working tree resolved per verb](02-the-grammar.md#the-openings)

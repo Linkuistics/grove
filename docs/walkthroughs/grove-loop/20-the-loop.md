@@ -1,6 +1,6 @@
 # The loop
 <!-- book-page id="the-loop" slice="four-things-a-runner-cannot-choose" order="20" -->
-[Previous: The guaranteed core](19-the-core.md) | [Contents](README.md)
+[Previous: The guaranteed core](19-the-core.md) | [Contents](README.md) | [Next: What could not move](21-what-could-not-move.md)
 
 <a id="four-things-a-runner-cannot-choose"></a>
 ## The rule: all of the spawning, watching and escalating is `keyed-launch`'s
@@ -1948,4 +1948,4 @@ still act. **Restart is continuation** because there is nothing to restore — a
 that is chapter 13's *the tree's shape is the only state* proved in the one module
 that had every excuse to break it.
 
-[Previous: The guaranteed core](19-the-core.md) | [Contents](README.md)
+[Previous: The guaranteed core](19-the-core.md) | [Contents](README.md) | [Next: What could not move](21-what-could-not-move.md)

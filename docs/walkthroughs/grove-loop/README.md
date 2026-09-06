@@ -98,7 +98,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 18. [Which files take part](18-which-files.md)
 19. [The guaranteed core](19-the-core.md)
 20. [The loop](20-the-loop.md)
-21. What could not move
+21. [What could not move](21-what-could-not-move.md)
 
 Optional lookup:
 

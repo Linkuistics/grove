@@ -880,10 +880,11 @@ find it, and here the reader who most needs it is a marketplace manifest in
 another directory, held in step by one test and nothing else.
 
 **On the way through — the preconditions.** None. Enumerated across the crate's
-twelve Rust roots, `prompt.rs` is the **only one with no fallible construct at
-all** — no `Result`, no `?`, no `bail!`, no `unwrap`, no `expect`, no `panic!`;
-the next lowest is three, and `driver_lease.rs` has 215. The precondition work
-happened upstream — the lease admitted the driver,
+twelve Rust roots — counting the lines that match `Result`, `?`, `bail!`,
+`unwrap`, `expect` or `panic!` once `//` comments are stripped — `prompt.rs` is
+the **only one with no fallible construct at all**, and it is a zero rather than
+a minimum: the next lowest root carries four, and the two heaviest carry 257
+apiece. The precondition work happened upstream — the lease admitted the driver,
 the walk chose the leaf, the configuration resolved a template — and composition
 is what happens once none of it can fail. The outcome's second cost, *the check
 must run against the same snapshot the operation then plans from*, is discharged

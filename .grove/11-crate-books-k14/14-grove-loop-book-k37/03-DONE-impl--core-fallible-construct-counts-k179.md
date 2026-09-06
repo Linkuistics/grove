@@ -88,3 +88,47 @@ fragment — `book-check` compares those byte for byte.
 fallible construct at all* is measured, reproduced and load-bearing for chapter
 19's answer to the second question. Only the clause after the semicolon is in
 doubt.
+
+## Decisions (running log)
+
+1. **The rule is stated on the page, and both figures are corrected.** Chapter
+   19's sentence now names the counting rule inline — *counting the lines that
+   match `Result`, `?`, `bail!`, `unwrap`, `expect` or `panic!` once `//`
+   comments are stripped* — which is the rule the task file's own table used, and
+   the one the neighbouring *Enumerated across the crate's twelve Rust roots*
+   already promised. Preferring the rule over bare figures is what the *Done
+   when* asked for.
+
+2. **`215` reproduces under no rule in the token set, so it is not a rule I
+   failed to guess.** Enumerated all 63 non-empty subsets of the six constructs
+   × {matching lines, occurrences} × {raw, `//`-stripped} over all twelve Rust
+   roots: 1,512 readings. `215` occurs exactly once in the whole matrix, and for
+   `tree_lifecycle.rs` under `Result|?|unwrap|panic!` raw lines — not for
+   `driver_lease.rs` under anything. The figure is wrong rather than
+   under-specified.
+
+3. **The ordinal is replaced by a characterisation, per the node's promoted
+   guidance.** `driver_lease.rs` and `tree_lifecycle.rs` tie at 257 under the
+   stated rule, so *`driver_lease.rs` has N* asserted a uniqueness that does not
+   hold whatever N was. The page now reads *the two heaviest carry 257 apiece*,
+   which encodes the tie instead of denying it, and names neither root — the
+   third size claim in Part V to be corrected this way after
+   `lease-size-ranking-k171` and `chapter-eighteen-size-claim-k175`.
+
+4. **`the next lowest is three` becomes `carries four`.** Under the stated rule
+   `complete.rs` is 4 — `use anyhow::Result;` (line 19), `let token = token?;`
+   (80), the `Result<()>` signature (93) and the `?` in its body (94). Three is
+   what you get by silently dropping the `use` line, and dropping it is exactly
+   the unstated rule this leaf exists to close.
+
+5. **The confirmed half is untouched and not weakened.** `prompt.rs` is still
+   *the only one with no fallible construct at all*, still explicitly *a zero
+   rather than a minimum*, and chapter 21's restatement needed no edit — it
+   already carried only that half.
+
+## Outcome
+
+Chapter 19's `## What could not move` paragraph rewritten; nothing else changed.
+`book-check --repo . --book docs/walkthroughs/grove-loop --final --check all` →
+`valid: 13 files, 10533 resolved lines, 0 deferred lines, final=true`.
+No literal fragment touched; nothing under `crates/` touched.

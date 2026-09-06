@@ -28,8 +28,8 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
-# The loop. This binary's only grove dependency, and the reason it is three
-# functions long.
+# The loop. This binary's only grove dependency, and the reason there is
+# nothing else in it.
 grove-loop = { path = "../grove-loop" }
 
 # **The repository-surface tests live here**, and that is deliberate rather than

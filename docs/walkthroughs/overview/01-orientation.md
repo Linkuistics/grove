@@ -218,14 +218,14 @@ third. The
 type that `cli.rs` calls `Workspace` is the VCS seam's own type, published
 through the loop's root; *Three steps* reads that line.
 
-One number in the comment is inconsistent with the source. *The reason it is
-three functions long* — outside the test module the crate defines two
-functions, `main` and `run`; counting the test helper `undescribed` makes
-three, and counting the two tests makes five. No reading a reader will take
-first yields
-three, and the page states the structural fact instead: two production
-functions, one of which is a one-line call to the other. The comment is part of
-the frozen corpus and is reproduced as written.
+The comment names no count, and the source is why it cannot. Outside the test
+module at the bottom of `cli.rs` the crate defines two functions — `main`, and
+the `run` it calls — while the helper and the two tests below take that to three
+or to five depending on where a reader stops counting. Any number in the comment
+would be right for one of those readings and wrong for the other two. *The
+reason there is nothing else in it* is the same claim without the arithmetic,
+and there is nothing left in it to go stale. The comment is part of the frozen
+corpus and is reproduced as written.
 
 <!-- fragment «manifest-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="27-33" parent="manifest-thin-by-construction" -->
 ````toml
@@ -233,8 +233,8 @@ the frozen corpus and is reproduced as written.
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
-# The loop. This binary's only grove dependency, and the reason it is three
-# functions long.
+# The loop. This binary's only grove dependency, and the reason there is
+# nothing else in it.
 grove-loop = { path = "../grove-loop" }
 ````
 <!-- /fragment -->

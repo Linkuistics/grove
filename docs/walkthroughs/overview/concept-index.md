@@ -19,7 +19,7 @@
 - [Reachability as the compiler's proof](01-orientation.md#crate-not-a-bin)
 - [No library target, and why the closure tests are a test module](01-orientation.md#crate-not-a-bin)
 - [One grove dependency, and what arrives through it](01-orientation.md#one-dependency)
-- [The function count the manifest states](01-orientation.md#one-dependency)
+- [The count the manifest does not state](01-orientation.md#one-dependency)
 - [Repository-surface tests, and why they live here](01-orientation.md#tests-live-here)
 - [Evidence, not corpus](01-orientation.md#tests-live-here)
 - [The loop fixtures' `kill(2)`](01-orientation.md#tests-live-here)

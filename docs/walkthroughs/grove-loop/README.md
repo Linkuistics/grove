@@ -97,7 +97,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 17. [Which calls the lease admits](17-the-epoch.md)
 18. [Which files take part](18-which-files.md)
 19. [The guaranteed core](19-the-core.md)
-20. The loop
+20. [The loop](20-the-loop.md)
 21. What could not move
 
 Optional lookup:

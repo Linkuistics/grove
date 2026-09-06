@@ -486,6 +486,68 @@ percentages and no leaf was cut. A later chapter quoting the brief's percentage
 for its own root should say which rule it counted under.
 
 
+**Promoted from `what-a-runner-cannot-k129`, whose subtree is now complete.**
+Chapters 16 to 20 landed and the node's `Done when` holds: the slice is valid at
+10,533 resolved lines with **0 deferred**, every one of the book's thirty-nine
+ownership rows reads `resolved`, all fifty early-use rows read `explained` — the
+`run` / `LoopOutcome` row closing the last of them — and `scripts/check.sh` is red
+on `book-check` alone, because chapter 21 does not exist. Seven findings are live
+obligations for `what-could-not-move-k130`.
+
+- **The mutation harness needs `-p grove`, and the omission hides observers.**
+  Every child from `no-word-for-k127` on ran `cargo test --no-fail-fast -p
+  grove-loop -p grove-llm`. `loop_driver.rs`'s production half is observed almost
+  entirely from `crates/grove/tests/` — `loop_driver.rs` (11 tests),
+  `lifecycle_cutover.rs` (17), `env_hygiene.rs` (4) — which that command never
+  builds, so run unchanged it reports a 615-line block held by nothing. Better
+  still, scoping to just the binaries that reach a block gives a control with
+  **zero** pre-existing failures (277 tests for chapter 20), and a control with
+  nothing already red is what makes every row attributable — there is nothing to
+  subtract. Chapter 21 cites other chapters' coverage claims and should re-derive
+  rather than inherit any of them.
+- **A hang is not a failure, and cargo hides the difference.** Three of chapter
+  20's mutants leave tests that never finish, waiting on a completion signal that
+  cannot arrive. Under a whole-workspace `cargo test` the hung binary blocked
+  everything after it and 583 of 625 tests never ran — a reading indistinguishable
+  from *not an observer*. Bound every mutant with a timeout, run test binaries
+  separately, and report *never reported* in its own column.
+- **A control can cancel itself by changing its own observer.** Rewording
+  `INVALIDATION_CONTEXT` with `sed` moved the constant **and** both tests'
+  `contains` literals — three occurrences of one string — and read as a clean
+  *245 passed*. Mutating only the constant's line turns exactly two tests red.
+  Before crediting a control, check the patch applied where you meant and nowhere
+  else.
+- **A zero is unreachable as often as untested, and a second mutation names the
+  guard.** Chapter 20 met five zeros. A silent panic on **entry** to
+  `reset_terminal` turns 20 tests red; the same panic one line **after** the
+  `isatty` guard turns none — so nothing under `cargo test` has a TTY on stdin and
+  the whole body below that line, `stty` spawn included, cannot execute under the
+  suite. Bracketing a function with two panics is what converts a zero into a
+  named guard, and it costs one extra run.
+- **Ask whether a sentence wants a rank at all.** Two chapters of Part V got a
+  size claim wrong (`lease-size-ranking-k171`, `chapter-eighteen-size-claim-k175`),
+  and chapter 20 answered the same `## What could not move` opener without one.
+  Chapter 19 remains the single page a later page should take a Part V size from.
+  Chapter 21 makes twenty chapters' worth of comparative claims and is the page
+  where this class is most likely to recur; enumerate, and prefer a
+  characterisation to an ordinal.
+- **A bare parenthesised anchor is a fourth broken citation form, and no
+  instrument reads any of them.** `loop_driver.rs:86`'s `(driver-side-kill)` names
+  nothing in the repository — found by enumerating the file's seven parenthesised
+  citations and resolving each. With chapter 18's nonexistent *requirement 6* and
+  its unreachable Markdown link, and chapter 19's `skill-` prefixed rule id, that
+  is four forms `cargo doc`, the link sweep and
+  `every_adr_citation_names_a_decision_record` are jointly silent about.
+  `loop-driver-kill-anchor-k176` holds the fix.
+- **A record that states written source can drift from it.**
+  `docs/specs/module-decomposition.md`'s decision 9 declares `run`'s third
+  parameter as `&Templates` where the shipped type is `&TemplateSource` — a name
+  belonging to a different crate — and `LoopOutcome` with two variants where the
+  shipped enum has three. The *clause* the corpus cites decision 9 for is correct,
+  which is why chapter 20 gives it one sentence and no adjudication;
+  `decision-nine-loop-signature-k177` owes the enumeration over the whole block.
+  A record is not corpus, and a book does not correct one.
+
 ## Notes
 
 **This is the draft stage only.** Copy edit, art and proof are the later stages

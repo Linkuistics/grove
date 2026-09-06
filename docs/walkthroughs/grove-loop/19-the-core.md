@@ -1,6 +1,6 @@
 # The guaranteed core
 <!-- book-page id="the-core" slice="too-late-to-say-later" order="19" -->
-[Previous: Which files take part](18-which-files.md) | [Contents](README.md)
+[Previous: Which files take part](18-which-files.md) | [Contents](README.md) | [Next: The loop](20-the-loop.md)
 
 <a id="too-late-to-say-later"></a>
 ## The rule: a sentence rides `${prompt}` only if its failure mode is one the skill cannot repair
@@ -917,4 +917,4 @@ it cannot check is to write the judgement down, close it on a definition, and ke
 245 lines of prose arguing why each sentence that is not there has somewhere better
 to be.
 
-[Previous: Which files take part](18-which-files.md) | [Contents](README.md)
+[Previous: Which files take part](18-which-files.md) | [Contents](README.md) | [Next: The loop](20-the-loop.md)

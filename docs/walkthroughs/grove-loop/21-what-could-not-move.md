@@ -310,6 +310,24 @@ operation it guards? and which of your chosen values is written down twice?* The
 first two questions this crate answers well. The third is where it has four
 answers and no rule.
 
+The three questions have run down twenty-one chapters as three column headings
+and three recurring subheadings, and this is the one place they can be set out
+whole. It is the page's last figure because it is the only thing here a reader is
+meant to take away and use on a codebase this book says nothing about: the first
+column is the frame, the third is what to go and ask, and the fourth is what
+happened when it was asked of `grove-loop`.
+
+| The question | Where meaning turns out to be expensive | What to ask of the layer that stayed | This crate's answer |
+|---|---|---|---|
+| On the way in — the names | where a name must survive a round trip through a filesystem | which of your names does something read back? | answered well — one grammar, canonical, and a conformance kit paid for it |
+| On the way through — the preconditions | where a check must see what the operation will act on | which of your checks sees a different snapshot from the operation it guards? | answered well — uniform discipline, and the cost is always the snapshot rather than the check |
+| On the way out — the policy | where a value must be true in two places at once | which of your chosen values is written down twice? | **four answers and no rule** — the ladder above |
+
+The asymmetry in the last column is the book's result. Two of the three questions
+this crate can be said to have settled; the third it answers four times over,
+differently each time, and no page before this one could have seen that because
+each of the four is alone on its own page.
+
 <a id="what-the-book-made-redundant"></a>
 ## Thirty-one markers, and the one whose map was corrected
 

@@ -1773,6 +1773,15 @@ nothing to subtract.
 | 3 · all three scrub names replaced | 1 | 0 |
 | 4 · both graces zeroed | **0** | 0 |
 
+The run is drawn as three tables because the mutations were aimed at three
+different things, and the split is what makes the counts comparable. The first
+table is the four choices this chapter is about. The second is the machinery that
+places them — the orderings and the match arms — and it is here so that a choice's
+score can be read against the score of the code that carries it. The third is
+every mutation that moved nothing, gathered rather than scattered so that the
+zeros can be read as a set; its last row is a negative control and is expected
+there.
+
 | The orderings, and the arms | Newly failing | Never reported |
 |---|---:|---:|
 | epoch invalidation skipped entirely | **4** | 0 |

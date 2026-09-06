@@ -170,12 +170,26 @@ declared anchors already existed in explicit form.
 
 ## Handed forward
 
-- **`art` — chapter 21 draws two tables and no figure.** The twenty-by-three
-  application of the three questions and the four-row enforcement ladder are both
-  relations the prose contract required to be drawn. Whether the three questions
-  themselves want a figure — they are the book's stated outcome and are drawn
-  nowhere in twenty-one pages — is `art`'s call and not the draft's, and the
-  draft deliberately left it rather than pre-empting the stage.
+Nothing outstanding. The draft's one entry — whether the three questions
+themselves want a figure — was `art`'s call and `grove-loop-k181` took it: they
+are drawn, in chapter 21's *The crate's answer*.
+
+## Carried forward from the art stage
+
+**Four figures were added and no prose was rewritten around them.** Chapter 2
+gains the four-verdict partition its title names; chapter 15 and chapter 20 gain
+role statements a figure was standing without; chapter 21 gains the
+three-question table. Every cell of the two new tables is taken from a sentence
+already on its own page — **no number, count or claim was derived, adjusted or
+introduced** — so a `proof` reading that finds a figure disagreeing with its page
+has found a transcription error in the figure, not a claim to re-verify.
+
+**The book's figure inventory is 69**: 46 tables and 23 non-fragment fenced
+blocks — 21 `text`, 2 `console` — against 475 four-backtick source fragments,
+which are not figures and take the source-fragment introduction rule instead.
+Counted after this stage's two new tables. Four of `source-index.md`'s
+five tables take no lead-in by `F009`; the fifth, the owned-source totals, states
+its role like any other figure.
 
 ## Notes
 

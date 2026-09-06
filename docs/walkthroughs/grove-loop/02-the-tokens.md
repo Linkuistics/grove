@@ -207,6 +207,19 @@ broken entry, or not grove's. The verdict a reader should expect never to see is
 worth knowing about precisely because the chapter is named for four of them, and
 chapter 4 owns the arms of `parse` that show only three are reachable.
 
+The four are the chapter's subject and they are argued a paragraph at a time
+above, so here they are as one partition. Read the third column rather than the
+first: what separates these verdicts is not what each says about a name but what
+the store does next, and the difference between skipping a subtree and halting is
+the whole of why the care goes to the classification.
+
+| Verdict | What grove is saying | What the store does with it | Returned by this module |
+|---|---|---|---|
+| `Entry` | the name is grove's and parses — the charter, or a positioned entry | reads it | yes |
+| `Foreign` | a disclaimer: the name is not grove's | skips the entry, and everything beneath it when the entry is a directory | yes |
+| `Malformed` | a report: the name *is* grove's and is broken | halts, wherever in the tree it sits | yes |
+| `Reserved` | nothing — it is how the store's other consumers name a transaction witness or a lock marker | — | **never** |
+
 **Seven names this page uses before the chapter that explains them.** The verdict
 is produced by the `EntryName` implementation, which is chapter 4's, so every
 symbol on the path to one is named here and read there.

@@ -50,6 +50,13 @@ a session mid-task, holding one opening
                                              fact that there was nothing
 ```
 
+Read the right-hand column rather than the left. The six calls are the surface in
+the order the fourteen chapters before this one met them, and the figure is here
+for what they answer with rather than for what they do: a path, a report of
+paths, or the fact that there was nothing. That the whole surface reports in one
+shape is what makes the sections below a reading of a *surface* rather than of
+fourteen unrelated functions.
+
 <a id="fourteen-declarations-twelve-verbs"></a>
 ## Fourteen declarations, twelve verbs
 

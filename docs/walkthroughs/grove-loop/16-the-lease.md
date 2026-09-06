@@ -1,6 +1,6 @@
 # One live driver per working tree
 <!-- book-page id="the-lease" slice="one-per-working-tree" order="16" -->
-[Previous: The twelve verbs, and the two that are not](15-the-verbs.md) | [Contents](README.md)
+[Previous: The twelve verbs, and the two that are not](15-the-verbs.md) | [Contents](README.md) | [Next: Which calls the lease admits](17-the-epoch.md)
 
 <a id="one-per-working-tree"></a>
 ## The rule: the seam owns *where*, grove owns *whose*
@@ -2165,4 +2165,4 @@ must not hold — and the reason they are worth it is in the record's very first
 rejected option, which is that without them two bare drivers can select and launch
 the same work.
 
-[Previous: The twelve verbs, and the two that are not](15-the-verbs.md) | [Contents](README.md)
+[Previous: The twelve verbs, and the two that are not](15-the-verbs.md) | [Contents](README.md) | [Next: Which calls the lease admits](17-the-epoch.md)

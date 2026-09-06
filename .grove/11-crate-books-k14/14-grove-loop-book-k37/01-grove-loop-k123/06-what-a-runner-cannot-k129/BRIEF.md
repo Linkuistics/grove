@@ -28,18 +28,20 @@ the book.
 
 **Five draft children, one per chapter**, in page order because `--through`
 proves a canonical prefix. Each is one root or one half of one, so a child is a
-chapter and nothing else; none of them is expected to decompose again. One
-correction leaf sits between the first two, cut by chapter 16 and placed so the
-rest of Part V reads a corrected structure brief.
+chapter and nothing else; none of them is expected to decompose again. **Two
+correction leaves sit among them**, each cut by the chapter that found the defect
+and placed so the rest of Part V reads a corrected structure brief; both correct
+`docs/specs/grove-loop-book-structure.md` and neither touches the book.
 
 | Pos | Child | Kind | Chapter | Root and block | Lines | Cumulative | Deferred |
 |---:|---|---|---:|---|---:|---:|---:|
 | 01 | `the-lease-k164` | draft | 16 | `driver_lease.rs` 1–819 | 819 | 8,751 | 1,782 |
 | 02 | `lease-size-ranking-k171` | impl | — | — | — | — | — |
 | 03 | `the-epoch-k165` | draft | 17 | `driver_lease.rs` 820–1383 | 564 | 9,315 | 1,218 |
-| 04 | `which-files-k166` | draft | 18 | `session_config.rs` 1–358 | 358 | 9,673 | 860 |
-| 05 | `the-core-k167` | draft | 19 | `prompt.rs` 1–245 | 245 | 9,918 | 615 |
-| 06 | `the-loop-k168` | draft | 20 | `loop_driver.rs` 1–615 | 615 | 10,533 | 0 |
+| 04 | `structure-brief-test-list-k172` | impl | — | — | — | — | — |
+| 05 | `which-files-k166` | draft | 18 | `session_config.rs` 1–358 | 358 | 9,673 | 860 |
+| 06 | `the-core-k167` | draft | 19 | `prompt.rs` 1–245 | 245 | 9,918 | 615 |
+| 07 | `the-loop-k168` | draft | 20 | `loop_driver.rs` 1–615 | 615 | 10,533 | 0 |
 
 `the-loop-k168` resolves the last deferred block in the book and is the one that leaves
 `--through` reporting `0 deferred`; it is **not** the last child of
@@ -163,6 +165,60 @@ it, so both are `draft`'s. **Every later child should check the same two pages**
 consume your chapter's placeholder line rather than adding beside it, and append
 your concept entries after the last chapter's run rather than before the
 lookup sections.
+
+**Promoted from `the-epoch-k165`.** Chapter 17 landed: the slice is valid at
+9,315 resolved lines with 1,218 deferred, the `lease-tests` ownership row reads
+`resolved`, and `scripts/check.sh` is red on `book-check` alone — 1 of 8, the
+four remaining failures being the unwritten chapters 18 to 21. Five findings are
+live obligations for chapters 18 to 21.
+
+- **The structure brief's chapter 17 test list was wrong in both directions, and
+  `structure-brief-test-list-k172` holds the correction.** It said *the whole
+  inline test module* and named nine; the block holds eighteen, and one of the
+  nine — `an_alias_equivalent_second_owner_is_refused_immediately` — is in
+  `crates/grove-loop/tests/driver_lease.rs`, which is evidence rather than a
+  root. **Chapters 18 to 20 should count their own block's tests against the
+  brief before writing a word**; this is the fifth structure-brief correction in
+  this book and the class is not closed.
+- **`cargo doc` cannot see a `#[cfg(test)]` module at all, and this is a second
+  blind spot rather than more of chapter 16's.** Chapter 16's was about which
+  *marker* a comment uses; this one is about which *cfg* the item sits under, and
+  it removes 3,984 lines — every inline test module in the book — from the
+  instrument's reach. Measured with a control in each direction: a broken
+  intra-doc link planted inside the test module leaves the crate at thirty
+  warnings, the identical construct in the production header takes it to
+  thirty-one. **Chapter 20 owns `loop_driver.rs`'s inline test block** and
+  inherits this exactly; a clean run says nothing about it.
+- **A bound is usually pinned by a string literal, not by its symbol, and
+  sometimes by neither.** `lease_path_replacement_fails_closed_after_eight_attempts`
+  asserts the count against `IDENTITY_RETRY_LIMIT` — which moves with the constant
+  and so pins nothing — and pins 8 only through the message it matches. Worse,
+  `an_orphaned_epoch_guard_times_out_post_reap_once_at_the_fixed_bound` injects
+  its own thirty seconds and matches a message rendered from that same argument,
+  so **`EPOCH_HANDOFF_TIMEOUT` and `EPOCH_WAIT_INTERVAL` are pinned by nothing in
+  the corpus**: each appears exactly twice, at its declaration and at the one
+  wrapper that passes it. Chapters 18 to 20 all own constants; enumerate a
+  constant's uses before writing that a test holds its value.
+- **A shared context string defeats attribution, and the mutation is what shows
+  it.** Six of `admit_session`'s rungs and the whole liveness probe — seven sites
+  — wrap their refusal in `stale Grove session for {operation}`, so
+  `a_malformed_epoch_is_stale`'s bare `contains("stale Grove session")` pins
+  *refused and classified stale* and not *refused because malformed*. Its sibling
+  one rung up shows the fix: a negative assertion. Chapters 18 to 20 all reproduce
+  tests asserting on refusal text; match each substring against the `bail!` texts
+  **and** run the mutation, because a substring matching seven sites looks exactly
+  like one matching one.
+- **A zero is deadness as often as absence, and the two need separating on the
+  page.** Four of `admit_session`'s refusal arms are observed by nothing. Three
+  are reachable — the working-tree identity rung, the probe's record comparison,
+  and the probe's eight-attempt identity exhaustion, whose fixture the existing
+  `after_successful_probe` hook already makes possible. The fourth is the trailing
+  `bail!` after the retry loop, which control never reaches because the last
+  iteration always returns or bails; **the file has three of those, one after each
+  bounded-retry loop, and all three are in chapter 16's half**. Report the
+  reachable ones as asymmetries against their tested siblings, not as bare
+  absences.
+
 
 ## Notes
 

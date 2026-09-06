@@ -94,7 +94,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 14. [Finishing](14-finishing.md)
 15. [The twelve verbs, and the two that are not](15-the-verbs.md)
 16. [One live driver per working tree](16-the-lease.md)
-17. Which calls the lease admits
+17. [Which calls the lease admits](17-the-epoch.md)
 18. Which files take part
 19. The guaranteed core
 20. The loop

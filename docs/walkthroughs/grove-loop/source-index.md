@@ -79,7 +79,7 @@
 <!-- insert «lease-tests» -->
 <!-- /source-root -->
 <!-- source-root «source-session-config» source="crates/grove-loop/src/session_config.rs" lines="1-358" -->
-<!-- defer «whose-file» owner="whose-file-and-whether" lines="1-358" -->
+<!-- insert «whose-file» -->
 <!-- /source-root -->
 <!-- source-root «source-prompt» source="crates/grove-loop/src/prompt.rs" lines="1-245" -->
 <!-- defer «the-prompt-core» owner="too-late-to-say-later" lines="1-245" -->
@@ -129,7 +129,7 @@
 | `complete-verb` | `source-complete` | `twelve-not-fourteen` | `1-96` | 96 | `resolved` |
 | `lease-and-epoch` | `source-driver-lease` | `one-per-working-tree` | `1-819` | 819 | `resolved` |
 | `lease-tests` | `source-driver-lease` | `which-calls-are-admitted` | `820-1383` | 564 | `resolved` |
-| `whose-file` | `source-session-config` | `whose-file-and-whether` | `1-358` | 358 | `deferred` |
+| `whose-file` | `source-session-config` | `whose-file-and-whether` | `1-358` | 358 | `resolved` |
 | `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-245` | 245 | `deferred` |
 | `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-615` | 615 | `deferred` |
 
@@ -598,6 +598,29 @@
 | `epoch-tests-active-no-lease` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1347-1366` | `lease-tests` | `—` |
 | `epoch-tests-malformed` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `1367-1383` | `lease-tests` | `—` |
 | `source-session-config` | `source-index` | `source-session-config` | `root` | `—` | `1-358` | `—` | `whose-file` |
+| `config-header` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `1-17` | `whose-file` | `—` |
+| `whose-file` | `which-files` | `source-session-config` | `composite` | `whose-file-and-whether` | `1-358` | `source-session-config` | `config-header`, `config-imports`, `config-two-paths`, `config-four-slots`, `config-vocabulary`, `config-expansion-context`, `config-delta-roots`, `config-template-source`, `config-template-source-open`, `config-from-env`, `config-personal-path`, `config-template-source-load`, `config-session-config`, `config-path-and-candidates`, `config-load`, `config-read`, `config-load-for-worktree`, `config-source-and-require`, `config-expand`, `config-find-delta`, `config-refuse-tracked`, `config-delta-is-tracked` |
+| `config-imports` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `18-25` | `whose-file` | `—` |
+| `config-two-paths` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `26-30` | `whose-file` | `—` |
+| `config-four-slots` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `31-56` | `whose-file` | `—` |
+| `config-vocabulary` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `57-63` | `whose-file` | `—` |
+| `config-expansion-context` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `64-70` | `whose-file` | `—` |
+| `config-delta-roots` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `71-84` | `whose-file` | `—` |
+| `config-template-source` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `85-101` | `whose-file` | `—` |
+| `config-template-source-open` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `102-108` | `whose-file` | `—` |
+| `config-from-env` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `109-123` | `whose-file` | `—` |
+| `config-personal-path` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `124-130` | `whose-file` | `—` |
+| `config-template-source-load` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `131-136` | `whose-file` | `—` |
+| `config-session-config` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `137-140` | `whose-file` | `—` |
+| `config-path-and-candidates` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `141-155` | `whose-file` | `—` |
+| `config-load` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `156-171` | `whose-file` | `—` |
+| `config-read` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `172-181` | `whose-file` | `—` |
+| `config-load-for-worktree` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `182-200` | `whose-file` | `—` |
+| `config-source-and-require` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `201-220` | `whose-file` | `—` |
+| `config-expand` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `221-260` | `whose-file` | `—` |
+| `config-find-delta` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `261-293` | `whose-file` | `—` |
+| `config-refuse-tracked` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `294-326` | `whose-file` | `—` |
+| `config-delta-is-tracked` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `327-358` | `whose-file` | `—` |
 | `source-prompt` | `source-index` | `source-prompt` | `root` | `—` | `1-245` | `—` | `the-prompt-core` |
 | `source-loop-driver` | `source-index` | `source-loop-driver` | `root` | `—` | `1-615` | `—` | `loop-driver` |
 
@@ -616,7 +639,7 @@
 | `interpret`, `Disposition` | `01-orientation.md#the-cast` | `twelve-not-fourteen` | What the child side of the loop makes of a token written to the control channel: relaunch, or stop. | `explained` |
 | `verbs`, `verbs::stale_cross_refs`, `verbs::signal_channel` | `01-orientation.md#the-cast` | `twelve-not-fourteen` | `verbs` declares fourteen public functions; twelve of them are the tree's verb surface, and `stale_cross_refs` and `signal_channel` each say in their own doc comment why they are not verbs. | `explained` |
 | `admit_ambient_session`, `DriverLease`, `SessionEpochGuard` | `01-orientation.md#the-cast` | `one-per-working-tree` | The lease that keeps one live driver per working tree, the epoch that decides which calls it admits, and the check a session runs when there is no driver at all. | `explained` |
-| `SessionConfig`, `TemplateSource` | `01-orientation.md#the-cast` | `whose-file-and-whether` | Whose configuration file a launch is expanded from, and whether a second one beside it is admissible. | `pending` |
+| `SessionConfig`, `TemplateSource` | `01-orientation.md#the-cast` | `whose-file-and-whether` | Whose configuration file a launch is expanded from, and whether a second one beside it is admissible. | `explained` |
 | `compose`, `Mandate` | `01-orientation.md#the-cast` | `too-late-to-say-later` | The prompt a session is launched with, composed from the parts a skill cannot supply because by the time it could speak the moment has passed. | `pending` |
 | `run`, `LoopOutcome` | `01-orientation.md#the-cast` | `four-things-a-runner-cannot-choose` | The loop itself, and how it ends: relaunched with fresh context, stopped resumably, or interrupted. | `pending` |
 | `TaskName::distinguished` | `02-the-tokens.md#the-four-verdicts` | `canonical-or-nothing` | The associated function by which the domain advertises the name of a node's distinguished child. The classification test asserts that what `parse` makes of `BRIEF.md` and what the domain advertises are the same variant. | `explained` |

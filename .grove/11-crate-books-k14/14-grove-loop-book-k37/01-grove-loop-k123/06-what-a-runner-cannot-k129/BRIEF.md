@@ -233,6 +233,63 @@ candidate sections and by a reverse grep of all eighteen names.
   their own block, and owe it against the block rather than against any prose
   list of it, this brief's *Pointers* included.
 
+**Promoted from `which-files-k166`.** Chapter 18 landed: the slice is valid at
+9,673 resolved lines with 860 deferred, the `whose-file` ownership row reads
+`resolved`, the chapter-1 cast row owned by `whose-file-and-whether` reads
+`explained`, and `scripts/check.sh` is red on `book-check` alone — 1 of 8, the
+remaining failures being the unwritten chapters 19 to 21. Six findings are live
+obligations for chapters 19 to 21.
+
+- **The citation class is wide open, and this block held two more.**
+  `session_config.rs` line 271 cites *the search precedence requirement 6 fixes*
+  — **there is no requirement 6** anywhere in the repository;
+  `module-decomposition.md` numbers its *decisions* 1–11 and names its four
+  requirements, and decision 6 fixes the quantifier, not a search order. Line 331
+  cites the same record the block cites correctly three times elsewhere, but as a
+  Markdown link to `../docs/adr/…`, which resolves neither from the rendered page
+  nor from the source file. Both are address-only — the claims are true — so both
+  were adjudicated on the page under the `paths-k142` precedent rather than cut,
+  and `template-source-read-count-k86` is already editing this file's comments
+  inside the frozen line counts and can carry them. **Chapters 19 and 20 are 69%
+  and 51% comment prose and cite heavily**; enumerate every citation's target and
+  read the section, rather than trusting that a named record holds what the
+  sentence leans on it for.
+- **A seventh instrument gap: `cargo doc` never checks an explicit-URL Markdown
+  link.** It reports unresolved *intra-doc* links (`` [`Foo`] ``) and says nothing
+  at all about `[text](some/path.md)`. That is distinct from chapter 16's marker
+  blind spot and chapter 17's `#[cfg(test)]` one, and it is why line 331 earns no
+  warning. **Any chapter checking its block's links must read the link forms, not
+  only the warning list.** `prompt.rs` line 28 carries one of the crate's five
+  genuine unresolved intra-doc links, so chapter 19 has both kinds to separate.
+- **This root was the exception on instruments, and chapters 19 and 20 are not.**
+  `session_config.rs` has zero plain `//` comments and no `#[cfg(test)]` module,
+  so `cargo doc` reaches all of it — established with a control that took the
+  crate from thirty warnings to thirty-one by planting a link in its header. Do
+  not carry that conclusion forward: `loop_driver.rs` has an inline test module
+  the instrument cannot see at all, and its marker mix is unchecked.
+- **An assertion entailed by the one above it holds nothing, and reads as though
+  it holds the remedy.** In `a_snapshotted_jj_delta_is_refused_in_both_jj_shapes`
+  the third assertion checks for `/.grove.kdl` while the second already requires
+  the candidate's full path, which ends in those bytes. Deleting the refusal's
+  **entire** `Untrack it (…)` sentence leaves all twenty tests in the evidence
+  file green. **Before writing that a test pins a message, check whether each
+  assertion can fail independently of its neighbours** — and confirm by deleting
+  the text, not by matching it.
+- **A substring shared by two failure modes defeats attribution even when the
+  mutation is decisive.** `a_trackedness_probe_that_cannot_be_completed_fails_closed`
+  asserts `contains("is tracked")`; the mutation proves the `with_context` wrapper
+  is what carries it, but the `bail!` below reads *it is tracked in version
+  control* and would satisfy the same assertion. The test pins *refused while
+  asking about trackedness*, not *the probe was unanswerable*. This is
+  `the-epoch-k165`'s class met a second time, and chapters 19 and 20 both
+  reproduce refusal text.
+- **Enumerate a uniqueness claim before writing it, including your own prose.**
+  This draft wrote *the one item in the block with no prose of its own* about
+  `ExpansionContext`; enumeration returned **seven** of the block's twenty-five
+  items, and the sentence was corrected before the page shipped. The counting
+  discipline the earlier children applied to the source applies to the page as
+  well.
+
 ## Notes
 
 **The corpus is frozen.** A defect found while drafting becomes its own leaf and

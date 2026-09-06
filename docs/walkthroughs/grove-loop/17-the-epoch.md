@@ -1,6 +1,6 @@
 # Which calls the lease admits
 <!-- book-page id="the-epoch" slice="which-calls-are-admitted" order="17" -->
-[Previous: One live driver per working tree](16-the-lease.md) | [Contents](README.md)
+[Previous: One live driver per working tree](16-the-lease.md) | [Contents](README.md) | [Next: Which files take part](18-which-files.md)
 
 <a id="which-calls-are-admitted"></a>
 ## The rule: the epoch decides, and a handoff is ordered rather than raced
@@ -1365,4 +1365,4 @@ by listing a directory. These end by racing something and watching what happened
 and that is the same fact about untracked state, seen from the side that has to
 prove it.
 
-[Previous: One live driver per working tree](16-the-lease.md) | [Contents](README.md)
+[Previous: One live driver per working tree](16-the-lease.md) | [Contents](README.md) | [Next: Which files take part](18-which-files.md)

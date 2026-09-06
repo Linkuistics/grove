@@ -102,7 +102,7 @@
 - [`split_shape`'s two boundaries, and why each is unambiguous](04-the-name.md#under-the-seam)
 - [Why the two peel fragments read in the opposite order to the call graph](04-the-name.md#under-the-seam)
 - [Three callers of one peel, and the three judgements they make of an over-wide key](04-the-name.md#under-the-seam)
-- [The kit's five sampled obligations, and the two Rust constrains instead](04-the-name.md#the-conformance-kit)
+- [The kit's five sampled obligations, and the two Rust constraints instead](04-the-name.md#the-conformance-kit)
 - [The near-miss fixtures, and the one entry the canonicity obligation rests on](04-the-name.md#the-conformance-kit)
 - [Coverage of an obligation is not coverage of the case that could fail it](04-the-name.md#the-conformance-kit)
 - [Eight kind shapes, and the six descriptors the comment names for them](04-the-name.md#the-conformance-kit)

@@ -152,7 +152,7 @@ pub enum TaskName {
 
 The obligation the comment names — *a name is positioned or distinguished, never
 neither* — is one of the seven `EntryName` obligations, and it is the first of
-the two Rust constrains rather than the kit samples. The store's `NameView` carries the
+the two Rust constraints rather than the kit samples. The store's `NameView` carries the
 triple and the positioned-or-distinguished choice in **one** returned value, so a
 domain cannot return a leaf with no ordinal or a distinguished name carrying a
 triple. This enum has the same shape one level up: the three fields live inside

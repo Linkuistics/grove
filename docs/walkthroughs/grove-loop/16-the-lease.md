@@ -446,7 +446,7 @@ impl LockMode {
 <!-- /fragment -->
 
 Two variants and two methods of two lines each, and the type prevents a
-class of mistake rather than by abstracting anything. `operation` is the only
+class of mistake rather than abstracting anything. `operation` is the only
 place in the block that maps a mode to `libc::LOCK_SH` or `libc::LOCK_EX`, and
 `label` the only place that maps one to a word for a diagnostic. Without the
 type, `acquire_epoch_file_with` would take a raw `c_int` and a `&str`, and a

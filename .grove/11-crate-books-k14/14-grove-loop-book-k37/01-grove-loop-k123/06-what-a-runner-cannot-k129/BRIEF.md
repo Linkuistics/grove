@@ -28,10 +28,11 @@ the book.
 
 **Five draft children, one per chapter**, in page order because `--through`
 proves a canonical prefix. Each is one root or one half of one, so a child is a
-chapter and nothing else; none of them is expected to decompose again. **Two
+chapter and nothing else; none of them is expected to decompose again. **Three
 correction leaves sit among them**, each cut by the chapter that found the defect
-and placed so the rest of Part V reads a corrected structure brief; both correct
-`docs/specs/grove-loop-book-structure.md` and neither touches the book.
+and placed so the rest of Part V reads a corrected artifact. The first two correct
+`docs/specs/grove-loop-book-structure.md` and neither touches the book; the third
+corrects a finished page and not the brief.
 
 | Pos | Child | Kind | Chapter | Root and block | Lines | Cumulative | Deferred |
 |---:|---|---|---:|---|---:|---:|---:|
@@ -41,7 +42,8 @@ and placed so the rest of Part V reads a corrected structure brief; both correct
 | 04 | `structure-brief-test-list-k172` | impl | — | — | — | — | — |
 | 05 | `which-files-k166` | draft | 18 | `session_config.rs` 1–358 | 358 | 9,673 | 860 |
 | 06 | `the-core-k167` | draft | 19 | `prompt.rs` 1–245 | 245 | 9,918 | 615 |
-| 07 | `the-loop-k168` | draft | 20 | `loop_driver.rs` 1–615 | 615 | 10,533 | 0 |
+| 07 | `chapter-eighteen-size-claim-k175` | impl | — | — | — | — | — |
+| 08 | `the-loop-k168` | draft | 20 | `loop_driver.rs` 1–615 | 615 | 10,533 | 0 |
 
 `the-loop-k168` resolves the last deferred block in the book and is the one that leaves
 `--through` reporting `0 deferred`; it is **not** the last child of
@@ -289,6 +291,88 @@ obligations for chapters 19 to 21.
   items, and the sentence was corrected before the page shipped. The counting
   discipline the earlier children applied to the source applies to the page as
   well.
+
+**Promoted from `the-core-k167`.** Chapter 19 landed: the slice is valid at 9,918
+resolved lines with 615 deferred, the `the-prompt-core` ownership row reads
+`resolved`, the chapter-1 cast row owned by `too-late-to-say-later` reads
+`explained`, and `scripts/check.sh` is red on `book-check` alone — 1 of 8, the
+remaining failures being the unwritten chapters 20 and 21. Seven findings are
+live obligations for chapters 20 and 21.
+
+- **The baseline's eleven are two causes, and the loss happened in the summary
+  rather than in the measurement.** `grove-loop-k123`'s brief carried *558 tests,
+  547 passed, 11 failed, all `crates/grove-loop/tests/prompt.rs`, because the copy
+  is not a jj repository* — but **chapter 11 had already recorded the split
+  correctly** (*ten … with `NotAWorkspace`, and one … on a manifest the copy does
+  not carry*) and chapter 10 reported **ten** under a wider copy of 626 tests.
+  Both briefs are now corrected; the lesson is that a promoted figure is a
+  paraphrase of a page and can lose a distinction the page made. Ten of that
+  file's sixteen tests reach `compose` — nine through it or `compose_with`, one
+  through `signalling_contract()` — and die in the `workspace()` fixture, which
+  resolves the repository root and unwraps. The eleventh,
+  `the_namespace_is_the_shipped_plugin_entrys_declared_name`, composes nothing: it
+  reads `.claude-plugin/marketplace.json`, which **the promoted copy recipe did
+  not copy** until this leaf added it. With the directory in place the control is
+  exactly ten. **A control taken at eleven hides an observer** — a mutation of
+  `PLUGIN`, which that test reads five times, would produce an empty
+  newly-failing set against a baseline that had already written the test off.
+  This is the same direction of error as omitting `cargo build -p grove --bins`,
+  and chapter 20 owns the last inline test block in the book.
+- **A root's instrument reach is a measurement, not an inheritance.**
+  `which-files-k166` forecast that chapters 19 and 20 were *not* the exception
+  `session_config.rs` was; measured, `prompt.rs` is one — zero plain `//`, zero
+  `#[cfg(test)]`, so `cargo doc` reaches all 171 of its comment lines, confirmed
+  by a control that took the crate from thirty warnings to thirty-one from inside
+  a `///` docblock. The forecast was argued about `loop_driver.rs`'s inline test
+  module only, and it still stands for chapter 20. **Take the reading rather than
+  the prediction, in both directions.**
+- **A rule id is a citation form no instrument in this repository checks, and the
+  crate uses it.** `prompt.rs:234` names *the spine's
+  `skill-stated-vcs-is-definitive`*; the inventory is
+  `plugins/grove/conformance/rules.tsv`, 169 rows with ids unique across the file,
+  and the rule is `stated-vcs-is-definitive` — **no id there begins with
+  `skill-`**. The claim is true and only the identifier is wrong, so it is
+  adjudicated on the page and `prompt-rule-id-prefix-k174` holds the fix. It is
+  not an intra-doc link, not a Markdown link and not an `ADR <slug>` citation, so
+  `cargo doc`, the link sweep and `every_adr_citation_names_a_decision_record` are
+  all silent. **Only enumerating a block's backticked tokens and resolving each
+  one finds this class** — chapter 16's `probe_lease_holder` procedure, met a
+  second time and now with a second citation *form* behind it.
+- **Census the citations rather than spot-checking them.** `prompt.rs` carries
+  eighteen citations to a document or record over 245 lines — seven to
+  `module-decomposition.md` alone, naming four distinct decisions. Seventeen
+  resolve and hold what their sentence leans on them for, including decision 9,
+  which carries `Mandate`'s four fields and `compose`'s signature as written
+  source. Chapter 20's root is 46.7% comment prose whole and cites at a similar
+  rate; the count that matters is *citation sites*, not *distinct targets*, and
+  the two differ here by a factor of two.
+- **A count of the shipped kind set goes stale silently, and this campaign is what
+  staled it.** `tests/prompt.rs`'s `no_prompt_states_the_stop_flag` doc comment
+  says `--done` would reach *the eighteen kinds it is not an ending for*;
+  `plugins/grove/skills/` holds twenty-four directories, twenty-three of them
+  `grove-<kind>`, so it is twenty-two. Nineteen is the count `prompt.rs`'s own
+  header records twice, so the comment was right when written. The **test** is
+  unaffected — it iterates `shipped_kinds()`, which reads the directory — which is
+  exactly why nothing went red. `stop-flag-kind-count-k173` carries this and the
+  same defect at `crates/grove-llm/tests/kind.rs:2`, which additionally still
+  calls the set *closed*.
+- **`lease-size-ranking-k171`'s class recurred on a finished page, and the
+  enumeration is now on chapter 19.** `18-which-files.md` calls
+  `session_config.rs` *the smallest root in Part V* at two sites; Part V's roots
+  are 1,383 / 615 / 358 / **245**, so `prompt.rs` is. `chapter-eighteen-size-claim-k175`
+  holds the correction and is placed **ahead of `the-loop-k168`** so chapter 20
+  reads a corrected page, exactly as k171 was placed ahead of the rest of the
+  part. The structure brief carries the word nowhere, so no brief edit is owed —
+  which is the difference from k171 and the reason this one is two sites rather
+  than three. **Chapter 20 and chapter 21 still owe the enumeration for their own
+  size and count claims**; two chapters of this part have now got one wrong.
+- **A block with no failure path leaves Part V's two sharpest instruments with
+  nothing to bite on, and that is worth stating rather than skipping.**
+  `prompt.rs` has no `Result`, no `?`, no `unwrap`, no `expect`, no `panic!` and
+  no `bail!` — and no conditional at all, which is what makes *the driver
+  interprets a kind nowhere* checkable rather than asserted. There were no refusal
+  arms to attribute and no mutation to run. Chapter 21 should not read the absence
+  of a coverage table on this page as an omission.
 
 ## Notes
 

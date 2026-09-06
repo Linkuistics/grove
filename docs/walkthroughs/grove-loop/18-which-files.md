@@ -1,6 +1,6 @@
 # Which files take part
 <!-- book-page id="which-files" slice="whose-file-and-whether" order="18" -->
-[Previous: Which calls the lease admits](17-the-epoch.md) | [Contents](README.md)
+[Previous: Which calls the lease admits](17-the-epoch.md) | [Contents](README.md) | [Next: The guaranteed core](19-the-core.md)
 
 <a id="whose-file-and-whether"></a>
 ## The rule: everything a template *is* is the runner's; what is left is whose file, and whether the second one is admissible
@@ -1077,4 +1077,4 @@ could not move to `jj-workspace`, which knows nothing about what a delta is for.
 It is the boundary itself, and it stayed here because there was nowhere else for
 it to be.
 
-[Previous: Which calls the lease admits](17-the-epoch.md) | [Contents](README.md)
+[Previous: Which calls the lease admits](17-the-epoch.md) | [Contents](README.md) | [Next: The guaranteed core](19-the-core.md)

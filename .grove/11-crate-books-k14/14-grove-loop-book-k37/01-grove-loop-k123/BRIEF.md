@@ -363,15 +363,27 @@ its findings are live obligations for chapters 15 to 21.
 
 - **The mutation harness, entire, because k127's brief goes with it.** Copy the
   workspace to a scratch directory — `crates/`, `.cargo/`, `testing/`,
-  `plugins/`, `scripts/`, `docs/` **and every root-level file**, because
-  `crates/grove-llm/tests/composition_guidance.rs` does `include_str!` on
-  `../../../CONTEXT.md`. Run `cargo build -p grove --bins` **first** or
-  `CARGO_BIN_EXE_grove` is unset and the control reads seventeen failures rather
-  than eleven — a control wrong in that direction **hides** observers. Then
+  `plugins/`, `scripts/`, `docs/`, **`.claude-plugin/`** and **every root-level
+  file**, because `crates/grove-llm/tests/composition_guidance.rs` does
+  `include_str!` on `../../../CONTEXT.md`, and
+  `the_namespace_is_the_shipped_plugin_entrys_declared_name` reads
+  `.claude-plugin/marketplace.json` (added at `the-core-k167`, which found the
+  recipe short by that directory). Run `cargo build -p grove --bins` **first** or
+  `CARGO_BIN_EXE_grove` is unset and the control reads far more failures than the
+  baseline — seventeen against the eleven measured under the older recipe — and a
+  control wrong in that direction **hides** observers. Then
   `cargo test --no-fail-fast -p grove-loop -p grove-llm`, keeping per-test lines:
-  558 tests, and eleven fail before any mutation because the copy is not a jj
-  repository (all of `crates/grove-loop/tests/prompt.rs`). Replace the **whole
-  macro call** with `panic!("MUTANT")` — a message-preserving panic is invisible
+  558 tests, and eleven fail before any mutation — but **the eleven are two
+  causes, not one**, and this line said one until `the-core-k167`. Ten are
+  `crates/grove-loop/tests/prompt.rs`'s ten of sixteen that reach `compose` and
+  die in its `workspace()` fixture because the copy is not a jj repository; the
+  eleventh is `the_namespace_is_the_shipped_plugin_entrys_declared_name` failing
+  on the `.claude-plugin/` the recipe above used to omit. **Chapter 11 recorded
+  the split correctly and chapter 10 reported ten under a wider copy**; the
+  flattening was this summary's. Copy the directory and the baseline is a clean
+  ten. A control one too high hides an observer, so re-derive it rather than
+  carrying any of these numbers. Replace
+  the **whole macro call** with `panic!("MUTANT")` — a message-preserving panic is invisible
   to the out-of-process `grove-llm` suite, which asserts on stderr substrings.
   **Check each mutant ran the control's test count**, since a mutant that fails
   to compile reads as zero newly failing. Re-run any mutant whose newly-failing

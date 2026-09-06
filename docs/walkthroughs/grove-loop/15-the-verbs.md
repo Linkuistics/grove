@@ -1,6 +1,6 @@
 # The twelve verbs, and the two that are not
 <!-- book-page id="the-verbs" slice="twelve-not-fourteen" order="15" -->
-[Previous: Finishing](14-finishing.md) | [Contents](README.md)
+[Previous: Finishing](14-finishing.md) | [Contents](README.md) | [Next: One live driver per working tree](16-the-lease.md)
 
 <a id="twelve-not-fourteen"></a>
 ## The rule: twelve verbs, and everything else says why it is not one
@@ -1253,4 +1253,4 @@ the split that puts the kill in a process the sandbox cannot deny.
 The surface is twelve verbs. Two functions beside them and two files apart from
 them say why they are not, and the count survives because they do.
 
-[Previous: Finishing](14-finishing.md) | [Contents](README.md)
+[Previous: Finishing](14-finishing.md) | [Contents](README.md) | [Next: One live driver per working tree](16-the-lease.md)

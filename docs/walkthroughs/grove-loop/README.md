@@ -93,8 +93,7 @@ planned work, not an unresolved reference, and not reconstructed source.
 13. [Outcomes are marked in place](13-outcomes.md)
 14. [Finishing](14-finishing.md)
 15. [The twelve verbs, and the two that are not](15-the-verbs.md)
-15. The twelve verbs, and the two that are not
-16. One live driver per working tree
+16. [One live driver per working tree](16-the-lease.md)
 17. Which calls the lease admits
 18. Which files take part
 19. The guaranteed core

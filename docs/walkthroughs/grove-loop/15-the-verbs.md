@@ -342,7 +342,7 @@ pub fn resolve(tree: &Tree, reference: &Reference) -> Result<Sought<Resolution>,
 ````
 <!-- /fragment -->
 
-**Ambiguity is an answer, not an error** is this surface's sharpest single
+**Ambiguity is an answer, not an error** is this surface's most consequential
 decision, and the reason is in the next clause: the caller is a session that can
 re-ask. Chapter 9 read the four spellings and the `Ambiguous` case that lists
 every match's handle. The verb adds only the judgement that a list of candidates

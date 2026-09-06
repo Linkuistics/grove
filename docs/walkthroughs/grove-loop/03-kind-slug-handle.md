@@ -47,7 +47,7 @@ observable end is that `Handle::of` applied to the parsed `01-requirements--plan
 and `Handle::parse` applied to the string `plan-k1` are equal, which is asserted
 over three filenames in `a_handle_and_a_filename_peel_the_same_key` below.
 
-What the separation buys is visible where the position changes and the identity
+The separation preserves references where the position changes and the identity
 must not. `leaf-insert` shifts every later sibling up one position, and
 `leaf-decompose` turns a leaf file into a node directory; in both the entry keeps
 its key, so it keeps its handle, so every reference already written to it still
@@ -145,8 +145,8 @@ holds. Extracting every string literal from the production source of
 parenthesis is right about which near-misses to expect and is not a complete
 partition of what the extraction returns: `"plan"` at
 `crates/grove-loop/src/tree_lifecycle.rs` line 56 and `"finish"` at line 166 of
-the same file are the two slug literals it names, and the second is the sharpest
-case in the crate, a literal `"finish"` that is a slug rather than a kind and
+the same file are the two slug literals it names. The second is the clearest
+case in the crate: a literal `"finish"` that is a slug rather than a kind and
 reaches `Slug::new` rather than `Kind::new`. Beyond those the extraction also
 returns tokens that are neither — `"done"` and `"relaunch"` in
 `crates/grove-loop/src/complete.rs`, `"shared"` and `"exclusive"` in

@@ -1373,7 +1373,7 @@ rather than a policy for both. Two seconds lets the agent's `complete` tool call
 return and its turn end before its session dies; five more is time for an orderly
 SIGTERM shutdown before SIGKILL. The first number is about an *agent's* turn
 structure, which is the kind of thing only the layer that knows what a session is
-could pick — and it is the sharpest single illustration of the chapter's rule.
+could pick — and it is the clearest single illustration of the chapter's rule.
 `keyed-launch` could not have defaulted two seconds, because two seconds is a fact
 about the thing grove launches and not about launching.
 
@@ -1791,8 +1791,8 @@ nothing to subtract.
 | `worktree_name`'s fallback replaced by a silent panic | 0 |
 | a `revalidate` context string reworded — negative control | 0 |
 
-**The instrument bites, and that is established by the rows that fire rather than
-asserted.** Nine of the ten rows in the first two tables turn tests red, one of
+**The instrument detects the mutations, as established by the rows that fire
+rather than asserted.** Nine of the ten rows in the first two tables turn tests red, one of
 them by four; the mutation form
 throughout is a panic that **says nothing**, replacing a whole macro call, because
 a message-preserving panic is invisible to an out-of-process suite asserting on
@@ -1850,8 +1850,8 @@ observer: `(Err, Ok)` is held by
 alone; `(Ok, Err)` by the second inline test **and**
 `an_orphaned_epoch_guard_stops_before_consuming_the_relaunch_signal`; `(Err, Err)`
 by the first inline test and nothing else. Skipping invalidation altogether turns
-four red, both inline tests among them. So the block earns its place by covering
-the one combination no end-to-end fixture produces — two failures at once.
+four red, both inline tests among them. The block therefore covers the one
+combination no end-to-end fixture produces — two failures at once.
 
 <a id="the-zeros"></a>
 ## Five zeros, and which kind of zero each one is

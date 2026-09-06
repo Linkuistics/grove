@@ -617,8 +617,8 @@ test 2 left open, and nothing else. That is a real thing to close and a thin
 thing to have a test for; the honest description is that this test pins the
 *contract* against a future rewrite rather than the code that exists.
 
-The pair that follows is the block's sharpest, and it is sharp because of what
-differs between its two halves.
+The pair that follows provides the block's strongest discrimination because of
+what differs between its two halves.
 
 <!-- fragment «chain-tests-skipping» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1417-1452" parent="brief-chain-and-kind-tests" -->
 ````rust
@@ -1270,4 +1270,3 @@ ambiguity — that the library has no counterpart for. Two of this file's ten
 ownership blocks remain, and both are chapter 9's.
 
 [Previous: The walk: pick and select](07-the-walk.md) | [Contents](README.md) | [Next: Resolve](09-resolve.md)
-

@@ -534,7 +534,7 @@ functions apart. What is missing is the assertion, not a way to write one.
 
 Resolving an argument to an entry is half of clause 1. The other half is turning
 that entry into the key the library will be called with, and it is where the
-chapter's sharpest precondition lives.
+chapter's strongest precondition is enforced.
 
 <!-- fragment «paths-addressable-key» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="405-472" parent="paths-and-addressing" -->
 ````rust
@@ -759,9 +759,9 @@ ordinals would have to agree as well, and the node would have to be empty — bu
 hand edit that built exactly this shape does, which is precisely how the test
 below constructs it. And *nothing in the verb set* produces it by another route,
 because `leaf-decompose` creates the brief in the same store operation, so Grove
-itself never writes a childless node. What the signature buys, then, is not
-that only one route reaches the shape but that only one route reaches it
-**by accident** — and that is enough to make the specific advice safe, since the
+itself never writes a childless node. The signature does not guarantee that only
+one route reaches the shape; it guarantees that only one route reaches it **by
+accident** — and that is enough to make the specific advice safe, since the
 advice is right for the shape however it was arrived at.
 
 The comment's claim that the compared ordinals always exist is sound, and it is
@@ -1133,7 +1133,7 @@ is where the file's own history put them.
 ````
 <!-- /fragment -->
 
-**This is the block's sharpest doc comment and it is an argument, not a
+**This is the block's most substantive doc comment and it is an argument, not a
 description.** `brief_chain_at` exists only for tests, and the comment says why
 production never wants it: the CLI holds **one** tree across `pick` and the
 ancestor walk, because selecting a leaf and reading its brief chain under two

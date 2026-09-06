@@ -318,7 +318,7 @@ The doc comment's citation of `docs/specs/module-decomposition.md`,
 decision 7, checks out exactly: that decision's sketch of `Vocabulary` carries
 the same sentence — *supplied at load, because every template rule is checked
 there*. It is the one bare citation in this block that names a record holding
-precisely what the comment leans on it for.
+precisely the claim on which the comment depends.
 
 What the comment does not say is why the function is `pub`. Production reaches it
 once, at `read` below. Its only other callers are the two conformance-kit tests,
@@ -381,7 +381,7 @@ pub struct DeltaRoots<'a> {
 ````
 <!-- /fragment -->
 
-This doc comment is the module's sharpest argument and the chapter does
+This doc comment is the module's strongest argument and the chapter does
 not paraphrase it. The claim is that a second notion of *the repository root*,
 computed inside this module, is the drift that would let the search order
 disagree with what `${repo}` expands to **in the very template it selected** —

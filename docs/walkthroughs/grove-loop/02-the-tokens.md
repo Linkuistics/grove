@@ -1089,7 +1089,7 @@ reason named the wrong character or named none at all — the obligation to name
 the offending character is asserted for a kind in the first test of this section
 and, for a slug, nowhere. What carries it is that both nouns run through the same
 `refuse_token`, which is the structural claim the header's *one refusal because
-there is one rule* passage makes; this test leans on that sharing rather than
+there is one rule* passage makes; this test depends on that sharing rather than
 re-checking it. The test would also pass while a leaf's slug and a node's slug
 were validated by two different rules that happened to agree on these five
 fixtures.

@@ -223,7 +223,7 @@ It calls `refuse_finish_kind` and `new_leaf`, and then checks its own promotion
 with a helper of its own rather than with `allocated` — a second reading of the
 same report, in chapter 12's block. `allocated`'s own doc comment, at the other
 end of this file, names its other caller and it is not `leaf_decompose`. So the
-file's sharpest argument here — *one constructor rather than two is the point* —
+file's strongest argument here — *one constructor rather than two is the point* —
 is true of the new-leaf constructor and is not true of the check that
 constructor's key prediction earns.
 
@@ -1303,7 +1303,7 @@ is what the fixture asserts, so an invalid slug is refused before the tree is
 opened and long before `leaf_add` is entered. What the test pins is therefore
 that grove's front door burns no ordinal and no key, which is worth pinning and
 is not the same claim. **The claim about the run itself is held by the five
-tests above it in the same section**, and the sharpest of them sits immediately
+tests above it in the same section**, and the most discriminating sits immediately
 above it. `a_failed_run_leaves_the_next_call_a_clean_slate` fails a three-kind
 run against a directory squatting on the first destination, removes the
 squatter, retries, and gets back the very ordinals and keys the failed run had
@@ -1444,7 +1444,7 @@ and a slug are meanings, and a store that holds no meaning cannot check them;
 the price is a classification step in front of every mutation, and the
 discipline that it use the library's own predicate off the same snapshot rather
 than a second one. **The template** could not move because the library has no
-content model, and the price is the sharpest thing in the chapter: bytes that
+content model, and the price is the chapter's most consequential one: bytes that
 embed a key have to be written before the key is allocated, so the allocation is
 predicted, and a prediction that is not checked is a file that will one day
 contradict itself. **The lint** could not move because nothing beneath grove

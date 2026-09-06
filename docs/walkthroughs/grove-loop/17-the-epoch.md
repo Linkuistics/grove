@@ -29,8 +29,8 @@ symptoms. Neither is where the ordering is decided. It is decided here, in a
 place — and the contract they hold is the one the decision record
 `one-live-driver-per-working-tree` states.
 
-The carried example reaches its sharpest step. A driver is replaced under a
-running one.
+The carried example reaches its most consequential step. A driver is replaced
+under a running one.
 
 ```text
 a driver holds <worktree>, and has spawned a session on

@@ -14,8 +14,8 @@ domain-free crate cannot hold, and every chapter of this book opens on what this
 module kept when the others took the rest and on why that part could not move.
 
 Two files state that for the crate as a whole, and this chapter reconstructs
-both: `Cargo.toml`, whose comment marks the crate *not domain-free* and buys
-five dependencies against that permission, and `src/lib.rs`, whose first
+both: `Cargo.toml`, whose comment marks the crate *not domain-free* and permits
+five dependencies on that basis, and `src/lib.rs`, whose first
 paragraph is the claim and whose remaining lines are the crate's own map of
 itself.
 
@@ -23,8 +23,8 @@ itself.
 nowhere else.** The `jj-workspace` book opens each chapter on something that
 crate declines to own and names who owns it instead; the `keyed-launch` book
 opens each chapter on what a stage must not add and must not interpret. Every
-refusal in those two crates hands work to this one, and this book is their
-mirror: what arrives here is the part nobody underneath could take.
+refusal in those two crates assigns work to this one: what arrives here is the
+part nobody underneath could take.
 
 **One collision is worth naming before any code is read.** This crate takes the
 store's `Key` and `Entry` and adds a vocabulary of its own beside them — a kind,
@@ -40,7 +40,8 @@ The manifest is production source and this chapter reconstructs all fifty-nine
 lines of it, in six fragments that follow the file's own blocks. It is read
 first because the crate's central claim is checkable there before any Rust is
 read: a crate that is allowed to be domain-bound says so in the one file that
-holds no code, and what it buys is the evidence for what that permission costs.
+holds no code, and the dependency declarations expose the cost of that
+permission.
 
 <!-- fragment «manifest-domain-bound» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="1-59" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
@@ -131,7 +132,8 @@ about `libc` does not. Neither is repeated as though it described the whole
 crate, and neither is corrected here: the corpus is frozen, and
 `manifest-dependency-clauses-k133` holds the source fix.
 
-The third fragment is the fifth dependency and the sharpest claim in the file.
+The third fragment is the fifth dependency and the file's most consequential
+claim.
 `ordinal-fs-tree` is taken with `default-features = false`, which turns off the
 `cli` feature that exists for that crate's own `syllabus` binary and would
 otherwise pull in `clap`. The consequence is stated as the point of the line

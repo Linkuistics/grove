@@ -65,7 +65,7 @@ bare `grove`, in <worktree>
 Nothing in that sketch is recoverable from `.grove/`. The lease file carries no
 ownership once its lock is gone, the epoch file carries none either, and neither
 is committed. A reader who has followed the book this far and asks the crate's
-own question — *what did not move, and why could it not?* — gets the sharpest
+own question — *what did not move, and why could it not?* — gets the clearest
 answer in the corpus here: what could not move is a fact about **this process, on
 this machine, right now**, and there is no name to spell it in.
 
@@ -262,7 +262,7 @@ inside admission. `libc` is never imported at all and is always spelled in full:
 them. `keyed_launch` is reached the same way, once, at
 `keyed_launch::Channel::discard_abandoned`. And nothing from `ordinal-fs-tree`
 appears — which, in a crate that spends 7,496 of its lines on a task tree over
-exactly that store, is the sharpest thing these eleven lines say.
+exactly that store, is the most consequential thing these eleven lines say.
 
 <a id="the-names-on-disk"></a>
 ## The names on disk, and the two bounds
@@ -445,7 +445,7 @@ impl LockMode {
 ````
 <!-- /fragment -->
 
-Two variants and two two-line methods, and the type earns its place by removing a
+Two variants and two methods of two lines each, and the type prevents a
 class of mistake rather than by abstracting anything. `operation` is the only
 place in the block that maps a mode to `libc::LOCK_SH` or `libc::LOCK_EX`, and
 `label` the only place that maps one to a word for a diagnostic. Without the
@@ -543,10 +543,10 @@ still holds it — that question is answered by trying the lock.
 argument is in the record: each driver writes a fresh 128-bit value from the
 operating system's randomness source, *not derived from a PID, clock, address,
 iteration counter, or task key*, and the accepted cost of that choice is stated
-as at most one in 2^128 per independent draw. What it buys is that a replacement
-driver's epoch is distinguishable from its predecessor's even when every other
-field — device, inode, path — is identical, which is the case that matters, since
-a replacement driver by definition owns the same working tree.
+as at most one in 2^128 per independent draw. The nonce ensures that a
+replacement driver's epoch is distinguishable from its predecessor's even when
+every other field — device, inode, path — is identical. That is the case that
+matters, since a replacement driver by definition owns the same working tree.
 
 <!-- fragment «lease-session-epoch-guard-type» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="103-108" parent="lease-and-epoch" -->
 ````rust
@@ -1327,8 +1327,8 @@ the lease lock never waits. `lock_exclusively_nonblocking` either takes it or
 refuses, because a second driver is a human error to report rather than a
 handoff to await.
 
-Its opening comment is fourteen lines for a two-word argument, and every one of
-them earns its place. The mechanism is `truncate(false)`; the line it is enforced
+Its opening comment is fourteen lines for a two-word argument, and each line is
+necessary. The mechanism is `truncate(false)`; the line it is enforced
 on is 469; the failure it prevents is **destroying a live incumbent's lease
 record before knowing whether this process can take the lock at all** — and the
 comment names the compounding case, that on the path where the lock attempt then

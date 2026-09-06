@@ -740,7 +740,7 @@ neither: `root_init` creates the grove itself, and it never renames an entry.
 Every other lifecycle verb in this root does rename one, and renaming is where jj
 enters.
 
-`jj_grove()` is the other half, and its comment is the sharpest thing in the
+`jj_grove()` is the other half, and its comment is the clearest argument in the
 support block: **the repository is these tests' instrument rather than their
 prerequisite.** Every verb below renames inside an `ordinal-fs-tree` operation,
 which uses `rename(2)` and records nothing of its own, so nothing here *needs*

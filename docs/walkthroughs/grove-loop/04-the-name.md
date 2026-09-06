@@ -481,8 +481,8 @@ Even the charter is asked the species question.
 positioned path ends on, and it refuses a `BRIEF.md` the listing found as a
 directory — the one shape in which a node's charter could hide a subtree.
 
-The second fragment is the shape question: is this name grove's at all, and are
-its two numbers numbers?
+The second fragment decides whether the name belongs to Grove at all and whether
+both number fields are numeric.
 
 <!-- fragment «name-parse-shape» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="798-821" parent="the-task-name" -->
 ````rust
@@ -599,9 +599,10 @@ function that resolved the ambiguity by consulting the closed kind set, and says
 `open-kind-k20` took the set away — so the separator is what makes the single
 line safe rather than merely shorter.
 
-The second comment states what the two-stage failure buys: a name with no
-separator is *shaped* wrong and can only be told to rename, while a name with a
-separator has a single token to quote back. Those are the `MissingSeparator` and
+The second comment states the distinction made by the two-stage failure: a name
+with no separator is *shaped* wrong and can only be told to rename, while a name
+with a separator has a single token to quote back. Those are the
+`MissingSeparator` and
 `BadKind` variants, and chapter 2 read both being asserted.
 
 The fourth fragment is canonicity, and the check itself is seven lines of it.

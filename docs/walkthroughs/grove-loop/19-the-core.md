@@ -46,7 +46,7 @@ The carried example reaches the point where a selected leaf becomes a session.
 Three parts in the session's own timeline order — what to do first, what is true
 now, how to end — and nothing between them but a blank line.
 
-This is the outcome's third question at its sharpest. *On the way out — the
+This is the outcome's third question in its most direct form. *On the way out — the
 policy: what does this layer choose that nothing beneath it could have
 defaulted?* Chapter 18 answered it with four slot **names**. This chapter answers
 it with the contents of the one slot that is required, and the cost the outcome
@@ -263,8 +263,8 @@ enumeration shows which.** Counted across all 245 lines, the block carries
 one to a methodology rule id. Two grove task keys — `prompt-names-the-kind-k18`
 and `open-kind-k20` — date changes rather than cite arguments, and one intra-doc
 link points at a module; both fall outside that count and are read below.
-**Seventeen of the eighteen resolve and hold what the sentence leans on them
-for** — decision 9 carries `Mandate`'s four fields and `compose`'s signature as
+**Seventeen of the eighteen resolve and support the sentence that cites them** —
+decision 9 carries `Mandate`'s four fields and `compose`'s signature as
 written source, and its own paragraph on the provisioning gap is nearly this
 header's wording. The one that does not is at line 234, and the last section of
 this chapter reads it. That census is worth taking because chapter 18 found two

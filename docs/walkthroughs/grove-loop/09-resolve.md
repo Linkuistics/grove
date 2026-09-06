@@ -197,7 +197,8 @@ retired or abandoned dead end look live, and the alternative — letting the cal
 read the outcome off the filename — is the one thing principle 3 forbids anything
 but `TaskName` to do. So the field is added back against the listing in
 `docs/specs/module-decomposition.md`, and the comment says so rather than
-quietly diverging. The chapter's fourth test is where that field earns its place.
+quietly diverging. The chapter's fourth test demonstrates why that field is
+required.
 
 The construction is a single function, and it is the only place in the block
 that can fail for a reason that is not the caller's fault.
@@ -589,8 +590,8 @@ fn existing_path(grove_root: &Path, argument: &str) -> Option<PathBuf> {
 
 Absolute, then grove-root-relative, then cwd-relative — and `None` if none of
 the three exists, which is the signal to try the key/slug namespace. The doc
-comment names what each branch buys: the absolute branch preserves the *pass
-back what `pick`/`resolve` printed* ergonomics, which is the loop's own habit,
+comment names what each branch preserves: the absolute branch retains the *pass
+back what `pick`/`resolve` printed* workflow, which is the loop's own habit,
 and the grove-relative branch is the worktree convenience. The function tests
 existence rather than shape, which is what makes the two namespaces disjoint by
 construction instead of by grammar.
@@ -1349,7 +1350,7 @@ is separately tested nine tests earlier and resolves to the same file. Taken by
 itself this test establishes nothing about the fallback at all; its force comes
 entirely from `resolve_full_handle_disambiguates_what_a_bare_slug_could_not`
 below, where the slug is *not* unique and the key is the only thing that could
-have chosen. That is the sharpest instance in this chapter of a test whose name
+have chosen. That is the clearest instance in this chapter of a test whose name
 promises more than its fixture can deliver.
 
 The next test is the section's argument, and it carries the longest doc comment
@@ -1691,7 +1692,7 @@ one absence: the grammar, the walk, the three-way outcome, and the cost.
 **The cost is the walk, and it is paid for the outcome rather than for the
 match.** A `seek` would find *an* entry with the slug more cheaply, and grove
 declines it, because the question `resolve` answers is not *is there one?* but
-*how many, and which?* That is the sharpest example in the book of grove paying
+*how many, and which?* That is the clearest example in the book of grove paying
 for meaning: the mechanism was available and was rejected because it answers a
 different question. The `Ambiguous` variant is the shape of the answer the
 library has no counterpart for, and `Located::handle` is what makes it

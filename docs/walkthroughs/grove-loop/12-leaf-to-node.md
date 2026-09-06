@@ -346,7 +346,8 @@ for itself. Brief-ness, an outcome infix and `finish`-reservation are the three
 the doc comment names, and node-ness is the fourth, named in its next clause for a
 different reason.
 
-That different reason is the sharpest thing in the function. `Refusal::PromoteNotLeaf`
+That different reason is the function's most consequential distinction.
+`Refusal::PromoteNotLeaf`
 is a refusal the library owns and can raise — *this key names something that is
 not a leaf* — and grove never sees it, because **a node falls out of the same
 match**, before any key is handed to the library at all. The classification grove
@@ -520,7 +521,7 @@ test cannot state.
 <!-- insert «decompose-tests-sweep» -->
 <!-- /fragment -->
 
-**The support these tests lean on is chapter 11's**, at lines 1077 to 1261, and
+**These tests depend on chapter 11's support block**, at lines 1077 to 1261, and
 this is the block that collects on it. Chapter 11 counted five of its own eighteen
 items called by its own tests; **this block calls twelve of the eighteen, and nine
 of those twelve are ones chapter 11's tests never touched** — `a_kind`, `jj_grove`,

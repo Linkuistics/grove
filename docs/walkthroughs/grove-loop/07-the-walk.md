@@ -152,9 +152,9 @@ chapter 6's, and one in the excluded `task_grow/tests.rs` that chapter 10 may
 only cite by name. The composition itself is performed outside this crate, by
 `crates/grove-llm/src/cli.rs`, whose `cmd_brief_chain` opens one tree, reaches
 the same selection through the public `pick` verb, and hands that same guard to
-`brief_chain`. Chapter 6 met the mirror of this in `brief_chain_at`'s comment,
-which says production never wants the test-only pairing for exactly this
-reason.
+`brief_chain`. Chapter 6 met the corresponding case in `brief_chain_at`'s
+comment, which says production never wants the test-only pairing for exactly
+this reason.
 
 The shared-guard entry point carries the chapter's second rule in its own doc
 comment.
@@ -174,7 +174,7 @@ pub(crate) fn select_in(tree: &Tree) -> Result<Option<Selection>> {
 ````
 <!-- /fragment -->
 
-**This is the chapter's sharpest statement of what did not move.** The library
+**This is the chapter's clearest statement of what did not move.** The library
 orders entries; it does not rank them. As far as the grammar is concerned
 `finish` is a session kind like any other — chapter 3 read `Kind::is_finish` and
 the two tokens grove spells for itself — and nothing in the store could have known
@@ -529,11 +529,11 @@ Outcome::Live, .. }` and answers `None` for anything else, so the two marks are
 handled by one pattern rather than by two checks, and this pair is the evidence
 that the pattern covers both.
 
-**What both would pass under with the property broken, and it is the sharpest
-case in the block:** an implementation that skipped any filename *containing* the
-substring `DONE`. `ABANDONED` contains those four letters in the middle of the
-word, so a substring test passes `pick_skips_abandoned_leaves` for entirely the
-wrong reason, and passes `pick_skips_done_leaves` as well. Neither test
+**The clearest way both tests can pass with the property broken is an
+implementation that skips any filename *containing* the substring `DONE`.**
+`ABANDONED` contains those four letters in the middle of the word, so a
+substring test passes `pick_skips_abandoned_leaves` for entirely the wrong
+reason, and passes `pick_skips_done_leaves` as well. Neither test
 distinguishes *the parsed outcome was terminal* from *the filename contained four
 particular letters*. What does distinguish them lies outside this block: chapter 2
 read the `Outcome` type, whose `strip` matches the literal prefixes `DONE-` and
@@ -848,7 +848,7 @@ wrong species halts everything.
 ````
 <!-- /fragment -->
 
-**This is the spine's sharpest case in the whole book, and the doc comment is
+**This is the spine's clearest case in the whole book, and the doc comment is
 the argument rather than a description.** The property is that a task-*shaped*
 name whose species contradicts what the listing found under it is malformed
 rather than foreign, and that a later live leaf does not paper over it. Both

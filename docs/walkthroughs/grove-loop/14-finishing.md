@@ -51,7 +51,7 @@ materialize_finish(guard)          no live work under an exclusive guard
 ├── 02-build-k3/
 │   ├── BRIEF.md
 │   └── 01-DONE-impl--step-k4.md
-└── 03-finish--finish-k5.md        the one leaf leaf-add may not write
+└── 03-finish--finish-k5.md        the one leaf that leaf-add may not write
                                    "# finish-k5", and inside it:
                                    "grove-llm finish-commit finish-k5"
 
@@ -1680,4 +1680,3 @@ the reason the tree can be deleted rather than archived: a task tree that has
 been read out is a scaffold, and grove's last act is to take the scaffold down.
 
 [Previous: Outcomes are marked in place](13-outcomes.md) | [Contents](README.md) | [Next: The twelve verbs, and the two that are not](15-the-verbs.md)
-

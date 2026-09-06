@@ -212,7 +212,7 @@ two terminal marks rather than one, and an arity asymmetry between them
 bound and a poll interval ([16](16-the-lease.md)); four slot names and the
 refusal of a tracked delta ([18](18-which-files.md)); four launch choices
 ([20](20-the-loop.md)). [Chapter 19](19-the-core.md) is the odd one and the
-sharpest: its answer to question 3 is not a value but a **test** — a sentence
+most revealing: its answer to question 3 is not a value but a **test** — a sentence
 rides `${prompt}` only if its failure mode is one the skill cannot repair —
 because a value can be stated and a judgement has to be bounded or it grows.
 

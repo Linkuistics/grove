@@ -189,7 +189,7 @@ caller's own spelling*.
 ````
 <!-- /fragment -->
 
-This is the chapter's sharpest small decision and it is a decision about a
+This is the chapter's most consequential small decision, and it concerns a
 platform. On macOS `/var` is a symbolic link to `/private/var`, so the two spell
 one inode; a reader that canonicalised for output would answer `/private/var/…`
 to a caller that asked about `/var/…`, and it would do so *only when a lock had
@@ -769,8 +769,8 @@ signal calls in `loop_driver.rs` that chapter 20 reads.
 `manifest-dependency-clauses-k133` holds the source fix. What is true of this
 function is narrower and still worth having: it is the use the manifest names,
 and it is the one that would be hardest to justify without the argument above,
-because a probe that is never a decision looks like a line worth deleting until
-you know what it buys.
+because a probe that is never a decision appears redundant until its diagnostic
+purpose is stated.
 
 <a id="refusal-precedence"></a>
 ## Refusal precedence, and the order grove owes its operator

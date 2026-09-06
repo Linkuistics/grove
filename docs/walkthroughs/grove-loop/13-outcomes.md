@@ -593,7 +593,7 @@ lands on opposite outcomes in the two verbs, and is the reason those two tests
 cannot be swapped.
 
 **The last clause is the one the doc comment singles out, and it is the chapter's
-sharpest connection to chapter 6.** `task_tree::addressable_key` is called on
+strongest connection to chapter 6.** `task_tree::addressable_key` is called on
 line 925, and the comment says what it is for: *that the leaf's key addresses it
 and nothing else — is what makes the *by key* call the mark is about mean anything
 at all*. `rewrite` takes a key. If two entries in the tree carry that key, the
@@ -1565,7 +1565,7 @@ leaf-by-leaf implementation would have marked two before finding out.
 one.** The property survived a change and the *diagnosis* did not. The twin wears
 the very name the mark would place, so it necessarily carries the same key — an
 outcome infix is part of the name and the key is part of the name, and a name that
-collides collides in both. So what is wrong with this tree is not a taken
+collides on both. So what is wrong with this tree is not a taken
 destination but that **key 5 names two entries**, and `rewrite` is called by key,
 which on this tree means grove cannot say which leaf it would mark. Refusing that
 is strictly prior, and it is grove's own precondition rather than a second wording
@@ -1969,7 +1969,7 @@ this chapter is where the inheritance is spent.
 
 What grove chose is that there are **two** terminal marks rather than one. A store
 constrained as above needs only *not live*; grove writes `DONE` and `ABANDONED` and
-keeps them rigorously apart, and the sharpest statement of why is a comment on a
+keeps them rigorously apart, and the clearest statement of why is a comment on a
 test rather than on a verb — *a missing flag must degrade to something harmless,
 never to the opposite outcome*, because retiring an abandoned leaf would silently
 assert that rejected work was finished. Nothing beneath grove could have defaulted

@@ -62,10 +62,10 @@ by anything here.
 - **Chapter 16 is the book's deliberate counterexample, and the page that states
   it is chapter 13, not chapter 1.** Everything else in the crate is re-derived
   from the tree; the lease and the epoch cannot be. `13-outcomes.md` lines 25–37
-  carry the wording — *the second largest block in the corpus is 1,383 lines of
-  locking whose whole purpose is to hold state the tree must **not** hold* — and
-  the structure brief's *The stated outcome* says the contrast is stated once, at
-  the earlier page, and inherited by chapter 16. Do not re-argue it, and do not
+  carry the wording — *1,383 lines of locking whose whole purpose is to hold
+  state the tree must **not** hold* — and the structure brief's *The stated
+  outcome* says the contrast is stated once, at the earlier page, and inherited
+  by chapter 16. Do not re-argue it, and do not
   let the chapter open by contradicting the spine. (This brief said *chapter 1*
   when it was k129's leaf body; chapter 1 names the lease in its Part IV/Part V
   paragraph and makes no re-derivation claim at all. Corrected at
@@ -120,11 +120,17 @@ are live obligations for chapters 17 to 21.
   The claim was settled by **enumerating the roots and the owned blocks**, not by
   finding the sentence. Chapters 17 to 21 all carry size or count claims, and
   each is worth the enumeration rather than the search.
-- **Two landed sentences rank `driver_lease.rs` by size and both are wrong.**
-  Roots run 2,725 / 2,023 / 1,714 / **1,383**, so it is fourth; owned blocks run
-  819 / 808 / 775, so chapter 16's is first. `lease-size-ranking-k171` corrects
-  the structure brief and `13-outcomes.md`, and runs before chapter 17. Until it
-  lands, do not reconcile a page to either rank.
+- **The size of `driver_lease.rs` is settled, and the unit is the trap.** Roots
+  run 2,725 / 2,023 / 1,714 / **1,383**, so the root is fourth; owned blocks run
+  819 / 808 / 775, so chapter 16's is first, and 1,383 is not a block at all.
+  `lease-size-ranking-k171` has landed: it corrected *the third largest* in the
+  structure brief's chapter 16 section, *the second-largest owned block* in the
+  same brief's rejected-spines paragraph — a third site the leaf body did not
+  name, found by enumeration — and dropped the rank from `13-outcomes.md`,
+  leaving its argument and its 1,383 intact. Chapter 16 states the enumeration
+  and is the one place a later page should take a size from. **Chapters 17 to 21
+  still owe the enumeration for their own size and count claims**; what is closed
+  is this root's rank, not the class.
 - **A clean `cargo doc` run is evidence about `///` and `//!` and nothing else,
   and this part will meet the blind spot again.** Thirty warnings over the crate,
   none naming `driver_lease.rs` — and the block's one wrong name is in the 33 of

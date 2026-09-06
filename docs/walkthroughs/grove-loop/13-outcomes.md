@@ -27,10 +27,10 @@ true.** *The tree's shape is the only state grove keeps* — which is why `pick`
 can step over finished work without opening a single file, why an interrupted
 bulk mark needs no recovery procedure, and why there is no operation in this
 module that writes an outcome anywhere a reader would have to look for it. The
-book does not carry that as its spine, and the reason is chapter 16: the second
-largest block in the corpus is 1,383 lines of locking whose whole purpose is to
-hold state the tree must **not** hold. `driver_lease.rs` opens by naming it — the
-seam owns *where an untracked coordination directory may live* — and the two
+book does not carry that as its spine, and the reason is chapter 16: 1,383 lines
+of locking whose whole purpose is to hold state the tree must **not** hold.
+`driver_lease.rs` opens by naming it — the seam owns *where an untracked
+coordination directory may live* — and the two
 chapters are the thesis and its deliberate exception. State that must survive a
 checkout is spelled in a name; state that must not survive one is spelled in a
 file no commit records.

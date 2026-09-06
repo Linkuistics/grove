@@ -25,17 +25,15 @@ chapter 13's and not this one's is ordering — it is worth having before either
 page needs it, and the earlier page is where it goes. What is left here is the
 mechanism.
 
-**The size, stated once and checkably, because two sentences in this book get it
-wrong.** `driver_lease.rs` is 1,383 lines, which makes it the **fourth** largest
-of the thirteen roots, behind `tree_lifecycle.rs` at 2,725, `task_tree.rs` at
-2,023 and `task_name.rs` at 1,714. Split at its `#[cfg(test)]` line it yields
-this chapter's 819 lines and chapter 17's 564 — and 819 is the **largest single
-owned block in the book**, ahead of chapter 13's 808 and chapter 12's 775.
-Chapter 13's own paragraph ranks the root second, and the structure brief's
-chapter 16 section ranks it third; both are ranking the same file and neither
-matches the enumeration. `lease-size-ranking-k171` holds the correction. The
-argument both sentences are making is untouched by it, which is why this chapter
-inherits the argument and counts the lines itself.
+**The size, stated once and checkably.** `driver_lease.rs` is 1,383 lines, which
+makes it the **fourth** largest of the thirteen roots, behind `tree_lifecycle.rs`
+at 2,725, `task_tree.rs` at 2,023 and `task_name.rs` at 1,714. Split at its
+`#[cfg(test)]` line it yields this chapter's 819 lines and chapter 17's 564 — and
+819 is the **largest single owned block in the book**, ahead of chapter 13's 808
+and chapter 12's 775. A rank is easy to get wrong here because the root and the
+owned block are two different units and only one of them is 1,383 lines, which is
+why this chapter counts the lines itself rather than carrying a rank in from
+anywhere else.
 
 **Say which tree.** The store's vocabulary does not reach this block at all.
 There is no `Entry`, no `Key`, no `Sought`, no ordinal and no position in these

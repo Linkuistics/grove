@@ -151,8 +151,9 @@ compiler-enforced rather than tested — a `Vacancy` is consumed, so `root_init`
 **cannot** run over a live grove — but it reaches 5,629 lines and misses the
 whole driver half, which has no locks and no `Tree` in its signatures. It is
 chapter 1's stated claim and chapters 5–13's proof. *The tree's shape is the only
-state* reaches 76% but makes `driver_lease.rs`, the second-largest owned block,
-open by contradicting the spine; it is the thesis of chapters 13 and 16 instead.
+state* reaches 76% but makes `driver_lease.rs` — whose 819-line production half
+is the largest single owned block in the book — open by contradicting the spine;
+it is the thesis of chapters 13 and 16 instead.
 *A library of verbs and, since `loop-crate-driver-k22`, a driver* is the crate's
 true structural fact and explains the only odd thing about it, but it is one
 boundary and so gives the book two rules rather than a rule per chapter — the
@@ -483,8 +484,10 @@ encodings, the record parsers, `probe_live_lease`, and `admit_ambient_session`
 with `admit_session` under it.
 
 **This is the chapter where the prose carries the load.** At 12% comment prose
-over 819 lines it is the thinnest-argued root in the corpus and the third
-largest; see *What each chapter's prose owes*.
+over 819 lines it is the thinnest-argued root in the corpus. It is the **fourth**
+largest root at 1,383 lines, behind `tree_lifecycle.rs`, `task_tree.rs` and
+`task_name.rs`, and its 819-line production half is the **largest single owned
+block in the book**; see *What each chapter's prose owes*.
 
 **It is also the book's deliberate counterexample.** Everything else in the crate
 is re-derived from the tree; this is the one thing that cannot be, and chapter 13

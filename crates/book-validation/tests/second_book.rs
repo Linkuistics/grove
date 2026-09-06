@@ -218,6 +218,28 @@ fn source_index(chapters: usize) -> String {
     text.push_str(&format!(
         "| `Widget` | `01-first-look.md#vocabulary` | `inner-workings-w2` | A widget is the fixture's one value and its constructor is explained later. | `{status}` |\n"
     ));
+
+    // The fifth table. Its lead-in is the role statement every figure takes,
+    // and its rows are derived from the manifest exactly as the four above are
+    // — including the afterword's zero, since a slice that owns no block still
+    // gets a row.
+    text.push_str(
+        "\n<a id=\"owned-source-totals\"></a>\n## Owned source totals\n\nEvery line of the one source root is credited once, to the slice whose page\nowns it.\n\n| Slice | Page | Owned lines |\n|---|---|---:|\n",
+    );
+    for (index, slice) in SLICES.iter().enumerate() {
+        let owned: usize = BLOCKS
+            .iter()
+            .filter(|(_, owner, ..)| owner == slice)
+            .map(|(_, _, first, last)| last - first + 1)
+            .sum();
+        text.push_str(&format!(
+            "| `{slice}` | `{}` | {owned} |\n",
+            CHAPTERS[index].0
+        ));
+    }
+    text.push_str(&format!(
+        "| **Total** | 1 source root | **{ROOT_LINES}** |\n"
+    ));
     text
 }
 

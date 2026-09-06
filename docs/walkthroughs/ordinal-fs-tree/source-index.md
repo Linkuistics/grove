@@ -276,3 +276,22 @@
 | `WriteGuard`, `Error`, `apply::Faults`, `apply::Run` | `01-orientation.md#insert-tour` | `filesystem-interpreter-k16` | A write guard couples an exclusive lock and snapshot and is consumed by one mutation, errors distinguish refusal, clean rollback, partial rollback, and boundary failure, Faults is a test seam, and Run owns per-plan forward and undo state. | `explained` |
 | `Cli`, `Verb`, `Streams`, `Failure` | `01-orientation.md#insert-tour` | `syllabus-cli-k17` | Parsed verbs drive dispatch, stdout is result data, stderr carries advisories and errors, and failure pairs operator-facing text with an exit category. | `explained` |
 | `conformance` | `02-name-seam.md#entry-name-contract` | `reference-domain-k13` | The reusable conformance kit samples five semantic `EntryName` obligations and publishes the two type-shape constraints with their remaining deterministic-call assumptions; the reference-domain chapter defines its scope and limits. | `explained` |
+
+<a id="owned-source-totals"></a>
+## Owned source totals
+
+Every line of the seventeen source roots is credited once, to the slice whose
+page owns it; the table shows how the 8,720 lines divide across the eight
+chapters, and its total is what a completed book must account for.
+
+| Slice | Page | Owned lines |
+|---|---|---:|
+| `orientation-k11` | `01-orientation.md` | 208 |
+| `name-seam-k12` | `02-name-seam.md` | 849 |
+| `reference-domain-k13` | `03-reference-domain.md` | 1,226 |
+| `read-path-k14` | `04-read-path.md` | 1,328 |
+| `mutation-algebra-k15` | `05-mutation-algebra.md` | 1,417 |
+| `filesystem-interpreter-k16` | `06-filesystem-interpreter.md` | 1,947 |
+| `syllabus-cli-k17` | `07-syllabus-cli.md` | 1,745 |
+| `book-assembly-k18` | `08-invariants-and-trade-offs.md` | 0 |
+| **Total** | 17 source roots | **8,720** |

@@ -47,6 +47,7 @@ fn each_mandatory_ledger_table_is_required() {
         "Ownership blocks",
         "Fragment index",
         "Early uses",
+        "Owned source totals",
     ] {
         let mut snapshot = support::corpus(true);
         edit_source_index(&mut snapshot, |text| {
@@ -59,6 +60,86 @@ fn each_mandatory_ledger_table_is_required() {
 
         assert_f009(&validate_final(&snapshot));
     }
+}
+
+/// The owned-source totals table is derived, so it is reconciled rather than
+/// trusted: a cell that disagrees with the manifest's ownership blocks is
+/// `F009` exactly as a wrong ownership row is.
+#[test]
+fn owned_source_totals_disagreeing_with_the_manifest_are_rejected() {
+    let mut snapshot = support::corpus(true);
+    edit_source_index(&mut snapshot, |text| {
+        text.replace(
+            "| `orientation-k11` | `01-orientation.md` | 208 |\n",
+            "| `orientation-k11` | `01-orientation.md` | 209 |\n",
+        )
+    });
+
+    assert_f009(&validate_final(&snapshot));
+}
+
+/// The total row is the corpus, not a free number: the root count and the line
+/// count both come from the declared roots.
+#[test]
+fn a_wrong_owned_source_total_row_is_rejected() {
+    let mut snapshot = support::corpus(true);
+    edit_source_index(&mut snapshot, |text| {
+        text.replace(
+            "| **Total** | 17 source roots |",
+            "| **Total** | 16 source roots |",
+        )
+    });
+
+    assert_f009(&validate_final(&snapshot));
+}
+
+/// The totals table is a figure and takes an adjacent statement of its role,
+/// but that statement is editorial: `F009`'s no-lead-in rule reaches the four
+/// fixed tables and not this one, and the validator inspects no figure's role
+/// statement anywhere. So the lead-in is permitted, not parsed — its presence
+/// and its absence both leave the rows below it reconciled.
+#[test]
+fn the_owned_source_totals_lead_in_is_permitted_and_unparsed() {
+    for lead_in in [
+        "",
+        "\nEvery line of the source roots is credited once.\n",
+        "\nA role statement.\n\nAnd a second paragraph of one.\n",
+    ] {
+        let mut snapshot = support::corpus(true);
+        edit_source_index(&mut snapshot, |text| {
+            let (early, totals) = text.split_once("## Owned source totals\n").unwrap();
+            let rows = totals
+                .split_once("| Slice |")
+                .expect("the fixture totals table opens with its header");
+            format!(
+                "{early}## Owned source totals\n{lead_in}\n| Slice |{}",
+                rows.1
+            )
+        });
+
+        let report = validate_final(&snapshot);
+        assert!(
+            report.valid,
+            "lead-in {lead_in:?}: {:#?}",
+            report.diagnostics
+        );
+    }
+}
+
+/// Ownership is a manifest fact from the first slice onward, so the totals
+/// reconcile under a prefix exactly as they do at final — unlike the ownership
+/// table's own State column, which is what the prefix moves.
+#[test]
+fn owned_source_totals_reconcile_under_a_prefix() {
+    let report = validate_orientation(&support::corpus(false));
+
+    assert!(
+        !report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "F009" && diagnostic.message.contains("Owned source totals")
+        }),
+        "{:#?}",
+        report.diagnostics
+    );
 }
 
 #[test]
@@ -329,7 +410,15 @@ fn corpus_with_early_uses(final_: bool, entries: &[(&str, &str, &str, &str)]) ->
             format!("| {symbols} | `{first_use}` | `{owner}` | {statement} | `{status}` |\n")
         })
         .collect();
-    edit_source_index(&mut snapshot, |text| format!("{text}{rows}"));
+    // Into the `Early uses` table, not onto the end of the page: the owned-source
+    // totals table is the last section now, and rows appended past it would be
+    // testing two broken tables rather than the ledger rule in hand.
+    edit_source_index(&mut snapshot, |text| {
+        let (early, totals) = text
+            .split_once("\n<a id=\"owned-source-totals\"></a>\n")
+            .expect("the fixture source index ends with its owned-source totals section");
+        format!("{early}{rows}\n<a id=\"owned-source-totals\"></a>\n{totals}")
+    });
     snapshot
 }
 

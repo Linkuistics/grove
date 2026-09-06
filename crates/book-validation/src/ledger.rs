@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::manifest::{Manifest, Page};
+use crate::manifest::{Manifest, Page, SourceRoot};
 use crate::parser::{Child, Fragment, FragmentBody, ParsedBook, Root};
 use crate::{BookSnapshot, Diagnostic, Location, Scope};
 
@@ -17,6 +17,20 @@ struct LedgerTable {
     rows: Vec<LedgerRow>,
 }
 
+/// Where a ledger table's header sits relative to its H2 heading.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum LeadIn {
+    /// The four fixed tables: one blank line and then the header, with a
+    /// paragraph there reported as `F009` (*Source and ownership ledger*).
+    Forbidden,
+    /// The owned-source totals table, which is a figure and so carries an
+    /// adjacent statement of its role between the heading and the header
+    /// (*Figures*). The lead-in's prose is editorial and unchecked — the
+    /// validator inspects no figure's role statement — but the rows below it
+    /// are reconciled against the manifest like any other derived index.
+    Permitted,
+}
+
 pub(crate) fn check(
     snapshot: &BookSnapshot,
     parsed: &ParsedBook,
@@ -30,11 +44,41 @@ pub(crate) fn check(
         .get(&index_path)
         .and_then(|bytes| std::str::from_utf8(bytes).ok());
 
-    let source_tables = required_table(&index_path, source_index, "Source roots", diagnostics);
-    let ownership_tables =
-        required_table(&index_path, source_index, "Ownership blocks", diagnostics);
-    let fragment_tables = required_table(&index_path, source_index, "Fragment index", diagnostics);
-    let early_tables = required_table(&index_path, source_index, "Early uses", diagnostics);
+    let source_tables = required_table(
+        &index_path,
+        source_index,
+        "Source roots",
+        LeadIn::Forbidden,
+        diagnostics,
+    );
+    let ownership_tables = required_table(
+        &index_path,
+        source_index,
+        "Ownership blocks",
+        LeadIn::Forbidden,
+        diagnostics,
+    );
+    let fragment_tables = required_table(
+        &index_path,
+        source_index,
+        "Fragment index",
+        LeadIn::Forbidden,
+        diagnostics,
+    );
+    let early_tables = required_table(
+        &index_path,
+        source_index,
+        "Early uses",
+        LeadIn::Forbidden,
+        diagnostics,
+    );
+    let totals_tables = required_table(
+        &index_path,
+        source_index,
+        "Owned source totals",
+        LeadIn::Permitted,
+        diagnostics,
+    );
 
     if let Some(table) = source_tables {
         check_exact_table(
@@ -85,6 +129,17 @@ pub(crate) fn check(
         check_early_uses(snapshot, &table, scope, diagnostics);
     }
 
+    if let Some(table) = totals_tables {
+        check_exact_table(
+            &table,
+            "| Slice | Page | Owned lines |\n",
+            "|---|---|---:|\n",
+            &declared_totals_rows(manifest),
+            "Owned source totals disagree with the declared ownership contract",
+            diagnostics,
+        );
+    }
+
     check_root_locations(manifest, &index_path, source_index, parsed, diagnostics);
     check_fragment_locations(manifest, parsed, diagnostics);
 }
@@ -93,9 +148,12 @@ fn required_table(
     index_path: &str,
     source_index: Option<&str>,
     heading: &str,
+    lead_in: LeadIn,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<LedgerTable> {
-    let tables = source_index.map_or_else(Vec::new, |text| find_tables(index_path, text, heading));
+    let tables = source_index.map_or_else(Vec::new, |text| {
+        find_tables(index_path, text, heading, lead_in)
+    });
     if tables.len() == 1 {
         return tables.into_iter().next();
     }
@@ -114,7 +172,7 @@ fn required_table(
     None
 }
 
-fn find_tables(index_path: &str, text: &str, heading: &str) -> Vec<LedgerTable> {
+fn find_tables(index_path: &str, text: &str, heading: &str, lead_in: LeadIn) -> Vec<LedgerTable> {
     let lines: Vec<&str> = text.split_inclusive('\n').collect();
     let mut offsets = Vec::with_capacity(lines.len());
     let mut offset = 0;
@@ -145,6 +203,20 @@ fn find_tables(index_path: &str, text: &str, heading: &str) -> Vec<LedgerTable> 
         if blank {
             cursor += 1;
         }
+        if lead_in == LeadIn::Permitted {
+            // Walk the role statement. It ends at the table's own first row;
+            // a new heading or a fence means there is no table under this
+            // one, and leaving the cursor there reports that as `F009`
+            // through the header the caller then fails to match.
+            while let Some(line) = lines.get(cursor) {
+                let bare = line.strip_suffix('\n').unwrap_or(line);
+                if bare.starts_with('|') || bare.starts_with("## ") || fence_opener(bare).is_some()
+                {
+                    break;
+                }
+                cursor += 1;
+            }
+        }
         let header = lines.get(cursor).map(|line| (*line).to_owned());
         cursor += usize::from(header.is_some());
         let separator = lines.get(cursor).map(|line| (*line).to_owned());
@@ -163,7 +235,7 @@ fn find_tables(index_path: &str, text: &str, heading: &str) -> Vec<LedgerTable> 
             separator,
             rows,
         };
-        if !blank {
+        if !blank && lead_in == LeadIn::Forbidden {
             table.header = None;
         }
         tables.push(table);
@@ -264,6 +336,42 @@ fn directive_source_rows(index_path: &str, parsed: &ParsedBook) -> Vec<String> {
             )
         })
         .collect()
+}
+
+/// The owned-source totals table, derived from the manifest alone.
+///
+/// One row per chapter in manifest order, crediting each source line once to
+/// the slice whose top-level block owns it, then a total row naming the root
+/// count and the corpus line count. Both columns are safe to derive because
+/// the schema already refuses a chapter with no slice and a block whose owner
+/// is no chapter's slice, so every owned line lands in exactly one row and the
+/// column sums to the corpus.
+///
+/// State plays no part: a line is owned by its slice from the manifest onward,
+/// whether or not the owning chapter has resolved its defer yet, so a scoped
+/// run reconciles this table exactly as a final one does.
+fn declared_totals_rows(manifest: &Manifest) -> Vec<String> {
+    let mut rows: Vec<String> = manifest
+        .chapters()
+        .map(|page| {
+            let slice = page.slice().unwrap_or_default();
+            let owned: usize = manifest
+                .blocks()
+                .iter()
+                .filter(|block| block.owner() == slice)
+                .map(|block| block.last() - block.first() + 1)
+                .sum();
+            format!("| `{slice}` | `{}` | {} |\n", page.file(), grouped(owned))
+        })
+        .collect();
+    let corpus: usize = manifest.roots().iter().map(SourceRoot::lines).sum();
+    let roots = manifest.roots().len();
+    rows.push(format!(
+        "| **Total** | {roots} source root{} | **{}** |\n",
+        if roots == 1 { "" } else { "s" },
+        grouped(corpus)
+    ));
+    rows
 }
 
 fn declared_ownership_rows(manifest: &Manifest, scope: &Scope) -> Vec<String> {

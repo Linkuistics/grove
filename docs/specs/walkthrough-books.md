@@ -724,9 +724,10 @@ and fragment rows follow manifest root order, then ascending source range, then
 fragment ID; the early-use order is defined with that table. A missing, extra,
 reordered, or malformed column is `F009`.
 
-**The four tables are derived indexes, not authority.** The manifest is the
-contract, the directives are the execution, and the tables are the reconciled
-human-readable view of both. The validator recomputes every relationship and
+**Every table on the page is a derived index, not authority** — the four above
+and the owned-source totals below them. The manifest is the contract, the
+directives are the execution, and the tables are the reconciled human-readable
+view of both. The validator recomputes every relationship and
 reports `F009` for a row that disagrees with the manifest or with the directives.
 That is the stated trust order, and it is why raw Markdown still provides
 outward relationships in parents and inward lookup without an author-maintained
@@ -772,10 +773,33 @@ separated by comma plus one space. Deferred targets do not receive non-root
 fragment rows until defined; their outbound occurrence remains visible in the
 root row and ownership table.
 
-`source-index.md` also carries an owned-source totals table — slice, page, and
-owned lines, with a total row naming the root count and the corpus line count.
-It is outside the four-table exemption and takes an adjacent statement of its
-role like any other figure (*Figures*).
+`source-index.md` also carries an owned-source totals table, under the exact H2
+heading `Owned source totals`: one row per chapter in manifest order giving its
+slice, its page and its owned lines, then a total row naming the root count and
+the corpus line count. Its schema:
+
+```markdown
+| Slice | Page | Owned lines |
+|---|---|---:|
+| `name-seam-k12` | `02-name-seam.md` | 849 |
+| **Total** | 17 source roots | **8,720** |
+```
+
+**It is the fifth derived index, recomputed and compared like the four above.**
+Every cell is a manifest fact — the chapter order, the sum of each owner's
+top-level blocks, the declared root count and the corpus line count — so a
+cell that disagrees with any of them is `F009`. A chapter that owns no source
+still gets a row, carrying `0`. The total row's noun agrees with its count:
+`1 source root`, `17 source roots`. Ownership is a manifest fact from the first
+slice onward and does not depend on the `deferred`/`resolved` state the prefix
+moves, so this table reconciles under a scope exactly as it does at final.
+
+Two things it does not share with the four. Its position is not fixed: the
+validator finds it by its heading, and it conventionally follows the early-use
+ledger because it reads as the page's closing summary. And the no-lead-in rule
+does not reach it — it is a figure and takes an adjacent statement of its role
+(*Figures*), which is editorial prose the validator permits and does not read.
+
 The totals count each source line once at its top-level block and do not count
 composite ancestors or lookup prose. A scoped report prints completed lines,
 deferred lines, and `final=false`; it never presents a prefix as exhaustive.
@@ -1404,10 +1428,11 @@ outside the reading order, and the role rule does not reach them.
 
 **The exemption is those four tables and nothing else.** `source-index.md`'s
 owned-source totals table is a fifth table on the same page and is not one of
-them: the validator requests exactly the four fixed headings, nothing reconciles
-the totals against the manifest, and `F009`'s no-lead-in rule names only the
-four. It is an editorial table, it is where a reader looks to see how the corpus
-divides across the book, and it states its role like any other figure.
+them: `F009`'s no-lead-in rule names only the four. It is where a reader looks
+to see how the corpus divides across the book, and it states its role like any
+other figure. Being exempt from the *lead-in* rule is all this exemption is
+about — the totals table is reconciled against the manifest like the four, and
+only its role statement is editorial (*Source and ownership ledger*).
 
 ### Worked examples
 

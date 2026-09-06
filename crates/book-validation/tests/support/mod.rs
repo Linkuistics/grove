@@ -627,6 +627,28 @@ pub fn corpus(final_: bool) -> BookSnapshot {
         ));
     }
 
+    source_index.push_str(
+        "\n<a id=\"owned-source-totals\"></a>\n## Owned source totals\n\nEvery line of the source roots is credited once, to the slice whose page owns\nit.\n\n| Slice | Page | Owned lines |\n|---|---|---:|\n",
+    );
+    for (slice, _, _, _) in PAGES {
+        let owned: usize = ROOTS
+            .iter()
+            .flat_map(|root| root.blocks)
+            .filter(|block| block.owner == *slice)
+            .map(|block| block.last - block.first + 1)
+            .sum();
+        source_index.push_str(&format!(
+            "| `{slice}` | `{}` | {} |\n",
+            page(slice).0,
+            grouped(owned)
+        ));
+    }
+    source_index.push_str(&format!(
+        "| **Total** | {} source roots | **{}** |\n",
+        ROOTS.len(),
+        grouped(ROOTS.iter().map(|root| root.lines).sum())
+    ));
+
     let mut book_files = BTreeMap::from([(
         "docs/walkthroughs/ordinal-fs-tree/source-index.md".into(),
         source_index.into_bytes(),

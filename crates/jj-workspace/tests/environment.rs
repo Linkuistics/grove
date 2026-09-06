@@ -68,10 +68,28 @@ fn resolution_ignores_repository_selection_and_temporary_directory_environment()
     let nested = intended.join("src");
     fs::create_dir_all(&nested).unwrap();
 
+    // A path that does not exist yet, so its later existence is unambiguous:
+    // the index jj exports for a colocated tree is the only thing that could
+    // have created it.
+    let ambient_index = foreign.join(".git/ambient-index");
+
+    // The second control on this test, alongside the colocated fixture. The
+    // index below is written as part of the snapshot `is_tracked` triggers, and
+    // `snapshot.auto-track` decides whether that snapshot takes the new file at
+    // all — so a developer whose own configuration sets it to `none()` would see
+    // both assertions below go red with the scrub perfectly intact, which is the
+    // one reading this test exists to rule out. The seam deliberately leaves
+    // `JJ_CONFIG` in the child's environment (it configures the *user*), so
+    // pinning it here is what makes the red signal specific to the selectors.
+    let config = tmp.path().join("pinned.toml");
+    fs::write(&config, "[snapshot]\nauto-track = \"all()\"\n").unwrap();
+
     let mut env = EnvGuard::new();
-    env.set("GIT_DIR", foreign.join(".git"))
+    env.set("JJ_CONFIG", &config)
+        .set("GIT_DIR", foreign.join(".git"))
         .set("GIT_WORK_TREE", &foreign)
         .set("GIT_COMMON_DIR", foreign.join(".git"))
+        .set("GIT_INDEX_FILE", &ambient_index)
         // Not a repository selector, but the other way a derived path can be
         // redirected: a control directory that followed `TMPDIR` would let two
         // processes on one working tree derive different ones.
@@ -88,5 +106,32 @@ fn resolution_ignores_repository_selection_and_temporary_directory_environment()
     assert!(
         !foreign.join(".jj/notekeeper").exists(),
         "nothing may have been created in the environment-selected repository"
+    );
+
+    // Everything above is answered by the filesystem walk and by `create_dir_all`
+    // — both trees here are colocated, so `.jj/repo` is a directory, `main_repo_of`
+    // returns without asking jj anything, and no child is spawned. The selectors
+    // are removed at the child-process seam, so an assertion about them has to
+    // reach that seam: `is_tracked` runs `jj file list`, which snapshots the
+    // working copy and exports it to the colocated Git repository. That export is
+    // what the four selectors redirect, and `GIT_INDEX_FILE` is the member only a
+    // snapshotting call can reach — `main_repo_of` passes `--ignore-working-copy`,
+    // which writes no index at all.
+    let file = nested.join("f.txt");
+    fs::write(&file, "hello").unwrap();
+    assert!(workspace.is_tracked(&file).unwrap());
+
+    assert!(
+        intended.join(".git/index").exists(),
+        "the colocated index must have been exported into the intended repository"
+    );
+    // The discriminating assertion is the one above: under the only mutation that
+    // turns this test red — `GIT_INDEX_FILE` removed from the array — the index
+    // is absent from the intended repository and that assertion fires first. This
+    // one adds signal only in a world where jj wrote both, and is kept as the
+    // direct statement of the property rather than as a second check.
+    assert!(
+        !ambient_index.exists(),
+        "no index may have been written to the environment-selected path"
     );
 }

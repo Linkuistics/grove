@@ -28,8 +28,8 @@ and it would have cost the one test in the crate that asserts the property any
 generality at all.
 `resolution_ignores_repository_selection_and_temporary_directory_environment`
 (`crates/jj-workspace/tests/environment.rs`) exercises exactly one of the four
-call sites — the gate's — and that is all a test can ever do, because a test can
-only reach a call site that exists. What makes its green result a statement about
+call sites — `is_tracked`'s — and that is all a test can ever do, because a test
+can only reach a call site that exists. What makes its green result a statement about
 all four is not the test: it is that there is one builder, so the other three
 inherit the property by construction. Under the checklist alternative the same
 test would prove one call site and nothing else, and the gap would be invisible
@@ -383,19 +383,53 @@ not of the parent, which is what lets a consumer keep whatever it was holding.
 The claim that this works is asserted directly, and by a fixture built to make
 the assertion meaningful:
 `resolution_ignores_repository_selection_and_temporary_directory_environment`
-(`crates/jj-workspace/tests/environment.rs`) sets `GIT_DIR`, `GIT_WORK_TREE` and
-`GIT_COMMON_DIR` to a **colocated** foreign repository, resolves a workspace from
-inside a different colocated tree, and requires the answer to be the intended
-tree and nothing to have been created in the foreign one. The fixture is
+(`crates/jj-workspace/tests/environment.rs`) sets all four to a **colocated**
+foreign repository — `GIT_INDEX_FILE` to a path inside it that does not exist
+yet — resolves a workspace from inside a different colocated tree, requires the
+answer to be the intended tree and nothing to have been created in the foreign
+one, and then asks `is_tracked` about a file it has just written. The fixture is
 colocated on purpose, and the test says so: in a tree with no `.git` the
 selectors point at nothing and the test would pass whether or not the scrub
 existed. That is a control on the test rather than on the code, and it is what
-makes the green result evidence. Two things about its scope are worth stating
-plainly: it sets three of the four variables and not `GIT_INDEX_FILE`, and it
-lives in its own integration binary because `cargo test` runs a file's tests as
-threads of one process that share an environment — which the file's own comment
-explains, and which is why setting a variable here cannot leak into an unrelated
-test.
+makes the green result evidence. It carries a second control for the same reason,
+pointing `JJ_CONFIG` at a file it writes: the index is written as part of the
+snapshot, `snapshot.auto-track` decides whether that snapshot takes the new file
+at all, and a reader whose own configuration set it to `none()` would watch the
+test go red with the scrub perfectly intact. Pinning it is what keeps the red
+signal specific to the array — and the seam deliberately leaves `JJ_CONFIG` in
+the child's environment, for the reason
+[*The premise*](03-subprocess-seam.md#the-premise) gives, which is what makes pinning it from the
+parent possible at all.
+
+Two things about its scope are worth stating plainly. The first is that the
+resolution half of it reaches no child at all — both trees are colocated, so
+`.jj/repo` is a directory, [the gate](02-the-gate.md#worked-resolution) returns
+without asking jj anything, and the assertions above the `is_tracked` call would
+hold with this whole array deleted. It is that last call, snapshotting the
+working copy and exporting it to the colocated Git repository, that reaches the
+seam, and the export is what the selectors redirect. The second is that of the
+four names, exactly one is load-bearing in the green result: deleting
+`GIT_INDEX_FILE` from the array turns the test red, and deleting any of the other
+three individually leaves it green — measured against jj 0.45.1, one mutation at
+a time.
+
+Read that result precisely, because the tempting reading is stronger than the
+evidence. What three green mutations establish is that **this test cannot detect
+those three names**, not that jj ignores them: the only things it looks at are the
+resolved root, the absence of a control directory in the foreign tree, and where
+the index landed, and a jj that followed `GIT_DIR` to write a ref or read a config
+would leave all three green. The narrower claim can be checked, and was: running
+`jj file list` in a colocated tree with all three pointed at a foreign colocated
+repository changes nothing in that repository — no file added, removed or altered
+— and still writes the intended tree's own index. So *for the commands this crate
+runs*, on this version, those three have no observable effect, and
+`GIT_INDEX_FILE` does. That is a statement about four jj subcommands, not about
+Git, and it is the reason the array cannot be trimmed to its one tested member:
+the hazard the doc comment names is a **Git-aware child**, jj is only the nearest
+one, and the crate makes no promise about what a future jj shells out to. The test also lives in its own integration
+binary, because `cargo test` runs a file's tests as threads of one process that
+share an environment — which the file's own comment explains, and which is why
+setting a variable here cannot leak into an unrelated test.
 
 <a id="the-two-entry-points"></a>
 ## Two entry points over one builder

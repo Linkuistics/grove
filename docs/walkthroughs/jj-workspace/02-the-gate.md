@@ -94,14 +94,19 @@ Workspace::resolve("/work/atlas/crates/gateway/src")
 Nothing in that trace consults jj, and nothing in it writes. The walk is the
 filesystem's, so no environment variable and no shared repository store can
 redirect it — the claim `resolve`'s own doc comment makes, read in full below.
-One half of it is asserted:
+One half of it is exercised:
 `resolution_ignores_repository_selection_and_temporary_directory_environment`
-(`crates/jj-workspace/tests/environment.rs`) sets three of the four
-repository-selection variables to a foreign colocated repository and requires the
-intended workspace to come back. The other half is not, because no test constructs a shared
-repository store; [*The subprocess seam*](03-subprocess-seam.md#the-selectors)
-states that test's scope exactly, and this page's claim is the doc comment's
-rather than that test's.
+(`crates/jj-workspace/tests/environment.rs`) sets all four
+repository-selection variables at a foreign colocated repository — three of them
+at the repository itself, `GIT_INDEX_FILE` at a path inside it that does not
+exist yet — and requires the intended workspace to come back. Exercised rather
+than asserted, though, and the trace above is the reason: on a colocated tree the
+walk answers alone, so those variables have nothing to act on and that half of
+the test would pass with the seam's scrub deleted. The other half is not
+exercised at all, because no test constructs a shared repository store;
+[*The subprocess seam*](03-subprocess-seam.md#the-selectors) states that test's
+scope exactly, and this page's claim is the doc comment's rather than that
+test's.
 
 **Second ending: the same tree with no `.jj/`.** The walk reaches the filesystem
 root without finding one, and returns instead of falling back.

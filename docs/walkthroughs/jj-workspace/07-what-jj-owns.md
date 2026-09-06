@@ -178,14 +178,27 @@ on the parent's.
 The strength clause passes cleanly. The checkability clause is where this row is
 interesting, because it half-passes in a way that is easy to mistake for passing.
 **The mechanism is checked**: `resolution_ignores_repository_selection_and_temporary_directory_environment`
-sets `GIT_DIR`, `GIT_WORK_TREE` and `GIT_COMMON_DIR` to point at a second, foreign
-workspace, resolves from a subdirectory of the intended one, and asserts both that
-the intended workspace came back and that nothing was created in the foreign one.
-If the removal loop were deleted, that test would fail. **The list is not
-checked**: it is a four-element array literal, and nothing anywhere goes red if
-jj — or Git beneath it — begins reading a fifth name. `GIT_INDEX_FILE` is the
-fourth element and is the one the test does not set, so even the mechanism is
-proved for three names rather than four.
+sets all four names to point at a second, foreign workspace, resolves from a
+subdirectory of the intended one, asserts that the intended workspace came back
+and that nothing was created in the foreign one, and then snapshots the intended
+tree through `is_tracked` and requires the exported Git index to have landed in
+the intended repository. That last assertion is the one that discriminates. If the removal loop were
+deleted, that test would fail. **The list is not checked**: it is a four-element
+array literal, and nothing anywhere goes red if jj — or Git beneath it — begins
+reading a fifth name.
+
+And the mechanism is checked by exactly one of its four members. Deleting
+`GIT_INDEX_FILE` from the array turns the test red; deleting `GIT_DIR`,
+`GIT_WORK_TREE` or `GIT_COMMON_DIR` — one at a time, against jj 0.45.1 — leaves
+it green. The honest reading of three green mutations is *this test does not
+detect them*, which is weaker than *jj ignores them*; the stronger claim was
+checked separately and separately narrowed, and
+[chapter 3](03-subprocess-seam.md#the-selectors) states exactly how far it goes —
+the four subcommands this crate runs leave a foreign repository untouched under
+all three. Three of the four names are therefore removed on an argument about a
+class of child, and the fourth on a check. That is not a hole to close: the array
+guards against a Git-aware child, and a test can only ever reach the children this
+crate actually spawns.
 
 This is the copy failure at its cheapest, and it is worth naming here precisely
 because the verdict is still *justified*. The direction of error is the good one:
@@ -383,11 +396,12 @@ Four questions, in this order, and the third is the one that does the work.
 
 Run those four over this crate and you get the table above: rows 1, 2 and 5 answer
 question 3 with a compiler or a test, row 6 answers it with a URL a reader might
-follow, and rows 3 and 4 answer it with nothing at all. Rows 3 and 4 differ only
-in question 4 — one is a slow-moving list of Git variables where over-removal is
-free, the other is a fast-moving directory listing where under-reservation is a
-collision — and that difference is the whole distance between *passes on a margin*
-and *fails*.
+follow, row 3 answers it with a test that reaches one of the four names it lists,
+and row 4 answers it with nothing at all. Rows 3 and 4 are the pair to compare,
+and they differ on question 4 as well as on question 3 — one is a slow-moving list
+of Git variables where over-removal is free, the other is a fast-moving directory
+listing where under-reservation is a collision — and that difference is the whole
+distance between *passes on a margin* and *fails*.
 
 The one thing the test will not tell you is whether the subtraction was worth
 making. That is a question about the third column of the assembly table, and it is
@@ -455,7 +469,7 @@ itself: what in it would go red if the crate's behaviour moved?
 |---:|---|---|---|
 | 1 | jj is absent, and `NotRunnable` is the refusal | [ch. 3](03-subprocess-seam.md#worked-invocation) | nothing: a fixture that removed `jj` from `PATH` could not build its own tree |
 | 2 | jj's output is not text, and `OutputNotText` is the refusal | [ch. 3](03-subprocess-seam.md#worked-invocation) | nothing: no jj command can be asked to emit non-UTF-8 on stdout |
-| 3 | `GIT_INDEX_FILE` is removed from every child | [ch. 3](03-subprocess-seam.md#the-selectors) | one builder and one loop: the test sets the other three, and the fourth is removed by the same line |
+| 3 | `GIT_DIR`, `GIT_WORK_TREE` and `GIT_COMMON_DIR` are removed from every child | [ch. 3](03-subprocess-seam.md#the-selectors) | an argument about a class of child this crate never spawns; the suite stays green with any one of them deleted, which is a measure of the suite's reach and not of jj's behaviour |
 | 4 | `\` and `\0` are refused as namespaces | [ch. 4](04-namespace.md#the-validation) | measured on jj 0.44.0; the suite reaches that guard through `/` only |
 | 5 | `control_dir(".gitignore")` is refused in a native workspace too, where nothing would have collided | [ch. 4](04-namespace.md#worked-reservation) | reading the guard: it consults an array and never the tree; `the_git_ignore_jujutsu_writes_is_refused` stands in the colocated shape only |
 | 6 | A path containing `"` or `\` survives into the fileset unchanged | [ch. 5](05-scope-and-commit.md#the-path-algebra) | jj's documented string-literal syntax, and reading the loop |
@@ -464,12 +478,14 @@ itself: what in it would go red if the crate's behaviour moved?
 The fourth column is the one to read down, because the rows are not equally weak.
 Row 4 rests on a measurement taken against jj 0.44.0 and written into the page
 beside the code, which is a check a later reader can repeat against a later jj.
-Row 6 rests on jj's published syntax, and rows 3 and 5 on a property inherited by
-construction rather than tested per case — for row 3 the seam's one builder,
-which [chapter 3](03-subprocess-seam.md#nothing-ambient) argues is inherited
-rather than tested per call site, and for row 5 a guard that reads an array and
-never the workspace it is standing in. Rows 1, 2 and 7 rest on nothing repeatable
-at all.
+Row 6 rests on jj's published syntax. Row 3 is the row whose fourth column is
+easiest to over-read: the mutation *can* be written and was run, and it leaves the
+suite green — which measures how far this suite reaches, not what jj does. Those
+three names guard a Git-aware child, a test can only reach the children this crate
+spawns, and so the row rests on the class argument with a measurement bounding it
+rather than supporting it. Row 5 rests on a property inherited by construction
+rather than tested per case: a guard that reads an array and never the workspace
+it is standing in. Rows 1, 2 and 7 rest on nothing repeatable at all.
 
 **This table was nine rows, and the two that left it are the more instructive
 half.** Both were `lossy-path-rendering-k66`'s: *a canonicalised parent that does
@@ -485,10 +501,15 @@ coverage, but an assertion that has been seen to fail.
 The two departures are not the same kind of departure, either, and the difference
 is worth keeping. The first row was a *gap in the tests* over correct code. The
 second was a gap in the code, and the row was honest about it — *the end-to-end
-case was not constructed* — so closing it took a source change and not a test. One
-of the remaining seven has a leaf against it: row 3 is
-`env-selector-coverage-k68`. The other six stand. Row 5 is the one that has
-changed hands rather than closed: `jj-owned-names-k65` retired the claim that
+case was not constructed* — so closing it took a source change and not a test. Row 3
+is the second row to change hands rather than close: `env-selector-coverage-k68`
+took the claim that stood there — that `GIT_INDEX_FILE` is removed and no test
+sets it — and closed it, by setting all four names and requiring the index jj
+exports for the intended tree to land in the intended repository. What took its
+place is the residue that repair exposed: the removal loop's *other* three names,
+which the row it replaced had recorded as the ones the test *set* — a description
+two other pages had already rounded up into *tested*. Row 5 changed hands
+the same way: `jj-owned-names-k65` retired the claim that
 stood there — that `control_dir(".gitignore")` collides in a colocated tree and
 succeeds in a native one — by putting the name in the list, and what took its
 place is the narrower claim the repair itself created. A row leaving this table

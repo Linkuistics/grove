@@ -267,13 +267,15 @@ the manifest's `[[root]]` array follows.
 | **total** | | **698** |
 
 **Every line count in this brief records the crate as it was when the book was
-commissioned, and the crate has since moved.** `lossy-path-rendering-k66` added
-sixteen lines to `lib.rs`, twenty-four to `refusal.rs` and eighty-five to
-`tests/workspace.rs` — a source change the corpus-freeze rule in `.grove/BRIEF.md`
-permits, landed in one commit with every page and ledger row it invalidated. The
-current figures are 359, 254 and 738 for the corpus, and 872 across the two test
-files (*The tests*, below, says 755, which was already short of the mark before
-that leaf). The authoritative record is the book's own `walkthrough.toml` and
+commissioned, and the crate has since moved twice.** `lossy-path-rendering-k66`
+added sixteen lines to `lib.rs`, twenty-four to `refusal.rs` and eighty-five to
+`tests/workspace.rs`; `duplicated-cause-k67` then added fourteen more to
+`refusal.rs` and twenty-eight to `tests/workspace.rs`. Both are source changes
+the corpus-freeze rule in `.grove/BRIEF.md` permits, each landed in one commit
+with every page and ledger row it invalidated. The current figures are 359, 268
+and 752 for the corpus, and 900 across the two test files (*The tests*, below,
+says 755, which was already short of the mark before either leaf). The
+authoritative record is the book's own `walkthrough.toml` and
 `source-index.md`, which `book-check --final` proves. This brief is left at the
 numbers it was written with, because it is the input the book was built from
 rather than a description of the book today.

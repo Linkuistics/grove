@@ -11,7 +11,7 @@
 | `source-crate-manifest` | `crates/jj-workspace/Cargo.toml` | 44 |
 | `source-library` | `crates/jj-workspace/src/lib.rs` | 359 |
 | `source-subprocess` | `crates/jj-workspace/src/jj.rs` | 81 |
-| `source-refusal` | `crates/jj-workspace/src/refusal.rs` | 254 |
+| `source-refusal` | `crates/jj-workspace/src/refusal.rs` | 268 |
 
 <!-- source-root «source-crate-manifest» source="crates/jj-workspace/Cargo.toml" lines="1-44" -->
 <!-- insert «manifest-no-dependencies» -->
@@ -29,7 +29,7 @@
 <!-- source-root «source-subprocess» source="crates/jj-workspace/src/jj.rs" lines="1-81" -->
 <!-- insert «subprocess-seam-source» -->
 <!-- /source-root -->
-<!-- source-root «source-refusal» source="crates/jj-workspace/src/refusal.rs" lines="1-254" -->
+<!-- source-root «source-refusal» source="crates/jj-workspace/src/refusal.rs" lines="1-268" -->
 <!-- insert «refusal-source» -->
 <!-- /source-root -->
 
@@ -48,7 +48,7 @@
 | `gate-main-repo-and-canonical` | `source-library` | `one-lane` | `291-335` | 45 | `resolved` |
 | `namespace-validation` | `source-library` | `no-consumer-vocabulary` | `336-359` | 24 | `resolved` |
 | `subprocess-seam-source` | `source-subprocess` | `nothing-ambient` | `1-81` | 81 | `resolved` |
-| `refusal-source` | `source-refusal` | `no-remedy-of-its-own` | `1-254` | 254 | `resolved` |
+| `refusal-source` | `source-refusal` | `no-remedy-of-its-own` | `1-268` | 268 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -124,30 +124,30 @@
 | `subprocess-raw-output-build` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `50-57` | `subprocess-seam-source` | `—` |
 | `subprocess-raw-output-endings` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `58-69` | `subprocess-seam-source` | `—` |
 | `subprocess-rendered` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `70-81` | `subprocess-seam-source` | `—` |
-| `source-refusal` | `source-index` | `source-refusal` | `root` | `—` | `1-254` | `—` | `refusal-source` |
+| `source-refusal` | `source-index` | `source-refusal` | `root` | `—` | `1-268` | `—` | `refusal-source` |
 | `refusal-module-thesis` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `1-13` | `refusal-source` | `—` |
-| `refusal-source` | `refusal` | `source-refusal` | `composite` | `no-remedy-of-its-own` | `1-254` | `source-refusal` | `refusal-module-thesis`, `refusal-imports`, `refusal-opaque-type`, `refusal-kind-open`, `refusal-kind-gate`, `refusal-kind-namespace`, `refusal-kind-scope`, `refusal-kind-seam`, `refusal-kind-commit`, `refusal-constructors-gate`, `refusal-constructors-namespace`, `refusal-constructors-scope`, `refusal-constructors-seam`, `refusal-constructors-commit`, `refusal-display-open`, `refusal-display-gate`, `refusal-display-namespace`, `refusal-display-scope`, `refusal-display-seam`, `refusal-display-commit`, `refusal-error-source-caused`, `refusal-error-source-uncaused` |
+| `refusal-source` | `refusal` | `source-refusal` | `composite` | `no-remedy-of-its-own` | `1-268` | `source-refusal` | `refusal-module-thesis`, `refusal-imports`, `refusal-opaque-type`, `refusal-kind-open`, `refusal-kind-gate`, `refusal-kind-namespace`, `refusal-kind-scope`, `refusal-kind-seam`, `refusal-kind-commit`, `refusal-constructors-gate`, `refusal-constructors-namespace`, `refusal-constructors-scope`, `refusal-constructors-seam`, `refusal-constructors-commit`, `refusal-display-open`, `refusal-display-gate`, `refusal-display-namespace`, `refusal-display-scope`, `refusal-display-seam`, `refusal-display-commit`, `refusal-error-source-caused`, `refusal-error-source-uncaused` |
 | `refusal-imports` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `14-18` | `refusal-source` | `—` |
-| `refusal-opaque-type` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `19-29` | `refusal-source` | `—` |
-| `refusal-kind-open` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `30-31` | `refusal-source` | `—` |
-| `refusal-kind-gate` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `32-35` | `refusal-source` | `—` |
-| `refusal-kind-namespace` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `36-39` | `refusal-source` | `—` |
-| `refusal-kind-scope` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `40-45` | `refusal-source` | `—` |
-| `refusal-kind-seam` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `46-55` | `refusal-source` | `—` |
-| `refusal-kind-commit` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `56-59` | `refusal-source` | `—` |
-| `refusal-constructors-gate` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `60-72` | `refusal-source` | `—` |
-| `refusal-constructors-namespace` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `73-86` | `refusal-source` | `—` |
-| `refusal-constructors-scope` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `87-105` | `refusal-source` | `—` |
-| `refusal-constructors-seam` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `106-126` | `refusal-source` | `—` |
-| `refusal-constructors-commit` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `127-135` | `refusal-source` | `—` |
-| `refusal-display-open` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `136-138` | `refusal-source` | `—` |
-| `refusal-display-gate` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `139-160` | `refusal-source` | `—` |
-| `refusal-display-namespace` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `161-173` | `refusal-source` | `—` |
-| `refusal-display-scope` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `174-202` | `refusal-source` | `—` |
-| `refusal-display-seam` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `203-217` | `refusal-source` | `—` |
-| `refusal-display-commit` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `218-237` | `refusal-source` | `—` |
-| `refusal-error-source-caused` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `238-244` | `refusal-source` | `—` |
-| `refusal-error-source-uncaused` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `245-254` | `refusal-source` | `—` |
+| `refusal-opaque-type` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `19-34` | `refusal-source` | `—` |
+| `refusal-kind-open` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `35-36` | `refusal-source` | `—` |
+| `refusal-kind-gate` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `37-40` | `refusal-source` | `—` |
+| `refusal-kind-namespace` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `41-44` | `refusal-source` | `—` |
+| `refusal-kind-scope` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `45-50` | `refusal-source` | `—` |
+| `refusal-kind-seam` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `51-60` | `refusal-source` | `—` |
+| `refusal-kind-commit` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `61-64` | `refusal-source` | `—` |
+| `refusal-constructors-gate` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `65-77` | `refusal-source` | `—` |
+| `refusal-constructors-namespace` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `78-91` | `refusal-source` | `—` |
+| `refusal-constructors-scope` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `92-110` | `refusal-source` | `—` |
+| `refusal-constructors-seam` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `111-131` | `refusal-source` | `—` |
+| `refusal-constructors-commit` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `132-140` | `refusal-source` | `—` |
+| `refusal-display-open` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `141-152` | `refusal-source` | `—` |
+| `refusal-display-gate` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `153-174` | `refusal-source` | `—` |
+| `refusal-display-namespace` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `175-187` | `refusal-source` | `—` |
+| `refusal-display-scope` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `188-216` | `refusal-source` | `—` |
+| `refusal-display-seam` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `217-231` | `refusal-source` | `—` |
+| `refusal-display-commit` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `232-251` | `refusal-source` | `—` |
+| `refusal-error-source-caused` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `252-258` | `refusal-source` | `—` |
+| `refusal-error-source-uncaused` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `259-268` | `refusal-source` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -171,7 +171,7 @@
 ## Owned source totals
 
 Every line of the four source roots is credited once, to the slice whose page
-owns it; the table shows how the 738 lines divide across the seven chapters, and
+owns it; the table shows how the 752 lines divide across the seven chapters, and
 its total is what a completed book must account for.
 
 | Slice | Page | Owned lines |
@@ -181,6 +181,6 @@ its total is what a completed book must account for.
 | `nothing-ambient` | `03-subprocess-seam.md` | 81 |
 | `no-consumer-vocabulary` | `04-namespace.md` | 58 |
 | `no-transactions` | `05-scope-and-commit.md` | 155 |
-| `no-remedy-of-its-own` | `06-refusal.md` | 254 |
+| `no-remedy-of-its-own` | `06-refusal.md` | 268 |
 | `assembly` | `07-what-jj-owns.md` | 0 |
-| **Total** | 4 source roots | **738** |
+| **Total** | 4 source roots | **752** |

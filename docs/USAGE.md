@@ -757,13 +757,17 @@ repository with several workspaces checked out — see
 [Running Grove](#usage-running-grove).
 
 **The control directory must be usable.** Grove creates `.jj/grove/` on start
-and refuses if it cannot, naming the directory and the underlying cause:
+and refuses if it cannot, naming the directory it could not use and then, under
+`Caused by:`, what the filesystem said about it:
 
 ```console
 $ grove
-Error: the control directory /home/you/app/.jj/grove is not usable: Permission denied (os error 13)
+Error: the control directory /home/you/app/.jj/grove is not usable
 
 It must exist and be writable before anything can coordinate through it. Check the permissions on the workspace's `.jj` directory.
+
+Caused by:
+    Permission denied (os error 13)
 ```
 
 Nothing is created or changed when that refusal lands. Fix the permissions on

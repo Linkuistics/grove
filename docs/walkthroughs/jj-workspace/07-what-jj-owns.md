@@ -5,7 +5,7 @@
 <a id="assembly"></a>
 ## Six subtractions, assembled
 
-This chapter owns no production source. The four roots and 738 lines are already
+This chapter owns no production source. The four roots and 752 lines are already
 reconstructed by the fragment graph the six chapters before it built, and the
 [source index](source-index.md) records that graph in full. What is left is the
 thing no single chapter could state: the six refusals are one design, and the
@@ -22,7 +22,7 @@ hole.
 | # | What was subtracted | Who owns it instead | What the subtraction bought |
 |---:|---|---|---|
 | 1 | Every dependency | `std` spawns a process, reads a directory, and defines `Error` | A crate a consumer takes without inheriting a build, and a refusal a consumer can put in `anyhow` without this crate having chosen `anyhow` |
-| 2 | A repository abstraction, and any second lane behind it | jj, which *is* the version control system here | Resolution as a precondition rather than a dispatch: no trait, no enum, and no branch on which VCS owns the tree anywhere in 738 lines |
+| 2 | A repository abstraction, and any second lane behind it | jj, which *is* the version control system here | Resolution as a precondition rather than a dispatch: no trait, no enum, and no branch on which VCS owns the tree anywhere in 752 lines |
 | 3 | Ambient repository selection | The child process's working directory, with jj's four Git selectors removed | One property proved once at one seam, instead of a hygiene checklist repeated at every call site |
 | 4 | A vocabulary for its consumer | The consumer, which passes its namespace in as an ordinary string | One crate that serves any consumer, and a boundary the reader can watch `"grove"` cross rather than being told about |
 | 5 | Transactions, and history added by a read | jj's snapshot and its operation log | 155 lines where six mechanisms would have been, and a change id that still names the work after a rewrite |
@@ -162,7 +162,7 @@ command.
 > session re-derives it. `docs/adr/jj-is-the-only-lane.md` is where that decision
 > is recorded and where the alternatives it closed off are argued. The crate does
 > not know any of this. It has no lane to choose because there is only one, and
-> the reason there is only one lives in grove's documents, not in these 738
+> the reason there is only one lives in grove's documents, not in these 752
 > lines — which is exactly why the crate can be read without them.
 
 ### 3 · Ambient repository selection
@@ -358,7 +358,7 @@ own architectural argument leans on hardest.
 <a id="taking-the-test-away"></a>
 ## Taking the test to a boundary of your own
 
-The crate is 738 lines and it is not the point. The point is the move it makes six
+The crate is 752 lines and it is not the point. The point is the move it makes six
 times, which is the most common move in any code that sits on top of a real tool,
 and which is almost never examined because it looks like restraint.
 
@@ -391,7 +391,7 @@ and *fails*.
 
 The one thing the test will not tell you is whether the subtraction was worth
 making. That is a question about the third column of the assembly table, and it is
-answered by what the code looks like: 738 lines, four files, no dependencies, and
+answered by what the code looks like: 752 lines, four files, no dependencies, and
 six chapters that could each be read on their own. A justified subtraction leaves
 something small enough to hold in one reading. An abdication leaves the same thing
 and moves the missing work into whoever calls you — which, when it is spelled out
@@ -435,14 +435,15 @@ scoped the anchor check to the proved prefix and moved them into the manifest. T
 four that remain ledger-only are first used in chapters 3, 4 and 5, and nothing now
 stops them being declared either — they are a choice rather than a workaround.
 
-**Owned source.** 98 + 92 + 81 + 58 + 155 + 254 = 738 lines across six chapters,
+**Owned source.** 98 + 92 + 81 + 58 + 155 + 268 = 752 lines across six chapters,
 and 0 for this one. The seventh row of that table exists to be zero: a chapter
 that owns no source is the shape the structure brief chose for the assembly. The
-total is forty lines above the 698 the root brief froze, and the forty are
-`lossy-path-rendering-k66`'s: sixteen in `lib.rs` and twenty-four in `refusal.rs`.
-The freeze is not a promise that the corpus never moves — it is the rule that a
-source change and every page it invalidates land in one commit, re-proved by the
-validator, which is what that leaf did.
+total is fifty-four lines above the 698 the root brief froze, and the fifty-four
+belong to two leaves: forty to `lossy-path-rendering-k66`, sixteen in `lib.rs` and
+twenty-four in `refusal.rs`, and fourteen more to `duplicated-cause-k67`, all of
+them in `refusal.rs`. The freeze is not a promise that the corpus never moves — it
+is the rule that a source change and every page it invalidates land in one commit,
+re-proved by the validator, which is what both leaves did.
 
 **Evidence.** Seven claims in this book are held by no test, and each chapter said
 so where it made one — *stated here as unasserted rather than left for a reader to
@@ -494,7 +495,7 @@ place is the narrower claim the repair itself created. A row leaving this table
 by being fixed is the ordinary case; a row leaving it by being replaced with its
 own successor is what a hand-maintained list looks like from here.
 
-That is the honest total: this book proves 738 lines byte for byte, and argues
+That is the honest total: this book proves 752 lines byte for byte, and argues
 seven claims that nothing goes red on. Chapter 1's row of the verdict table set
 the ceiling — a check the compiler performs — and every row here
 falls short of it. Saying by how much is what the assembly owed a reader who has
@@ -515,14 +516,14 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/jj-workspace --final --check all
-valid: 4 files, 738 resolved lines, 0 deferred lines, final=true
+valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 738 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 752 resolved and 0 deferred is the whole corpus
 reconstructed.
 
 ```console
@@ -534,7 +535,7 @@ valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/grove-loop
 valid: 13 files, 10533 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
-valid: 4 files, 738 resolved lines, 0 deferred lines, final=true
+valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/keyed-launch
 valid: 9 files, 2073 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/ordinal-fs-tree
@@ -573,7 +574,7 @@ every claim worth making about it is a claim about a real workspace on disk. It
 is outside the corpus by design — chapter 1 said so — and every claim in the six
 chapters that names a test names one that runs here.
 
-The book is complete: four roots, 738 lines, seven chapters, two lookup surfaces,
+The book is complete: four roots, 752 lines, seven chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that six refusals are one design, and what
 it leaves the reader with is the test that tells a subtraction from an abdication
 — including, on the crate's own fourth refusal, the answer nobody drafting it

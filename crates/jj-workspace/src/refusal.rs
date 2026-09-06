@@ -24,6 +24,11 @@ use std::path::{Path, PathBuf};
 /// nothing to recover from in code. What a consumer needs is the message, which
 /// [`Display`](fmt::Display) gives it, and a cause chain, which
 /// [`Error::source`] gives it.
+///
+/// **The message states this refusal's own layer and never restates its cause.**
+/// A refusal that has one returns it from [`Error::source`], so a consumer that
+/// wants the *why* renders the chain — `{:?}` on an `anyhow::Error`, or a walk
+/// of `source` — and one that prints only `{}` is left the layer and the remedy.
 #[derive(Debug)]
 pub struct Refusal(Kind);
 
@@ -133,6 +138,15 @@ impl Refusal {
     }
 }
 
+// Every arm states its own layer and stops. Four of these kinds hold a cause —
+// three an `io::Error`, one a boxed `Refusal` — and all four hand it to
+// `Error::source` below, so interpolating it here as well is what a consumer
+// rendering the chain prints twice: `anyhow`'s `Debug`, which is how a refusal
+// reaches an operator through grove, writes the top message with a plain
+// `write!(f, "{}", …)` and then repeats every link under `Caused by:`
+// (`anyhow` 1.0.102, `src/fmt.rs:27`). The rejected alternative was to keep the
+// interpolation and drop the `source` links, which buys a self-contained `{}`
+// at the cost of the one structured thing an opaque error hands a consumer.
 impl fmt::Display for Refusal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
@@ -150,9 +164,9 @@ impl fmt::Display for Refusal {
                  Nothing was created or changed.",
                 searched_from.display()
             ),
-            Kind::UnresolvablePath { path, cause } => write!(
+            Kind::UnresolvablePath { path, .. } => write!(
                 f,
-                "a `.jj` directory was found at {} but the path could not be resolved: {cause}\n\n\
+                "a `.jj` directory was found at {} but the path could not be resolved\n\n\
                  A workspace is identified by its canonical path, so aliases reach one \
                  workspace; check the path for a broken symlink or a directory that has been \
                  removed underneath this process.",
@@ -164,9 +178,9 @@ impl fmt::Display for Refusal {
                  A namespace is one plain directory name, owned by the consumer that asks for \
                  it and kept apart from Jujutsu's own.",
             ),
-            Kind::ControlDir { path, cause } => write!(
+            Kind::ControlDir { path, .. } => write!(
                 f,
-                "the control directory {} is not usable: {cause}\n\n\
+                "the control directory {} is not usable\n\n\
                  It must exist and be writable before anything can coordinate through it. \
                  Check the permissions on the workspace's `.jj` directory.",
                 path.display()
@@ -200,11 +214,11 @@ impl fmt::Display for Refusal {
                  snapshots the working copy. Rename it and ask again about the new name.",
                 path.display()
             ),
-            Kind::NotRunnable { command, cause } => write!(
+            Kind::NotRunnable { command, .. } => write!(
                 f,
-                "could not run `{command}`: {cause}\n\n\
-                 Jujutsu drives this workspace, so its binary has to be on `PATH`. Install it \
-                 (https://docs.jj-vcs.dev/latest/install-and-setup/) and rerun."
+                "could not run `{command}`\n\n\
+                 Jujutsu drives this workspace, so its binary has to be on `PATH` and runnable. \
+                 Install it (https://docs.jj-vcs.dev/latest/install-and-setup/) and rerun."
             ),
             Kind::CommandFailed {
                 command,
@@ -219,9 +233,9 @@ impl fmt::Display for Refusal {
             // than about a command: the caller asked for a commit and does not
             // have one, so the working copy is holding whatever it prepared.
             // jj owns the repair and this names it; the crate runs none of it.
-            Kind::CommitNotRecorded { root, cause } => write!(
+            Kind::CommitNotRecorded { root, .. } => write!(
                 f,
-                "the commit did not land in {}: {cause}\n\n\
+                "the commit did not land in {}\n\n\
                  Jujutsu snapshots the working copy before every command and its operation log \
                  is the transaction record, so the state before this attempt is still \
                  reachable:\n      \

@@ -215,16 +215,22 @@ filesystem instead:
 
 ```text
 control_dir(".gitignore")                       in a colocated /work/atlas-git, while the list held two names
-  -> the control directory /work/atlas-git/.jj/.gitignore is not usable: File exists (os error 17)
+  -> the control directory /work/atlas-git/.jj/.gitignore is not usable
 
      It must exist and be writable before anything can coordinate through it.
      Check the permissions on the workspace's `.jj` directory.
+
+     source() -> File exists (os error 17)
 ```
 
 The reservation still did not happen, so no guarantee was broken; what was lost
 was the remedy. A consumer was told to check permissions on a directory whose
 permissions are fine, when the true remedy is the one the third refusal above
-would have given it. In a native workspace it was worse rather than absent: there
+would have given it — and the `io::Error` on the last line, which the refusal
+carries as its cause rather than in its message
+([*Refusal*](06-refusal.md#the-cause-chain)), says *File exists* rather than
+anything about permissions, so the two halves of what a consumer was handed
+disagreed with each other. In a native workspace it was worse rather than absent: there
 the call succeeded, and the consumer was handed a directory standing on a name jj
 had not used in that tree yet and writes a file to the moment the tree is
 colocated. That is exactly the collision the reserved list's comment prices as

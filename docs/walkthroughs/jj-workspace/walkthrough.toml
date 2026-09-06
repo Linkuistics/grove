@@ -102,7 +102,7 @@ lines = 81
 [[root]]
 id    = "source-refusal"
 path  = "crates/jj-workspace/src/refusal.rs"
-lines = 254
+lines = 268
 
 [[block]]
 id    = "manifest-no-dependencies"
@@ -168,7 +168,7 @@ lines = "1-81"
 id    = "refusal-source"
 root  = "source-refusal"
 owner = "no-remedy-of-its-own"
-lines = "1-254"
+lines = "1-268"
 
 [[early-use]]
 symbols   = "`Workspace`"

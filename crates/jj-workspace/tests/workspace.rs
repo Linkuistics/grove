@@ -13,6 +13,7 @@
 //! would be asserting this file's beliefs about jj rather than jj's behaviour.
 
 use jj_workspace::Workspace;
+use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -723,7 +724,8 @@ fn a_commit_that_cannot_land_names_the_operation_log_repair() {
     let outcome = workspace.commit(&[Path::new("unreadable")], "record it");
 
     fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o755)).unwrap();
-    let refusal = outcome.unwrap_err().to_string();
+    let error = outcome.unwrap_err();
+    let refusal = error.to_string();
 
     assert!(
         refusal.contains("the commit did not land"),
@@ -736,6 +738,32 @@ fn a_commit_that_cannot_land_names_the_operation_log_repair() {
     assert!(
         refusal.contains("Nothing here runs a recovery of its own"),
         "the refusal must disclaim repairing anything: {refusal}"
+    );
+
+    // The cause is reachable and is not also in the message. That pair is the
+    // rule: `anyhow`'s `Debug` — how a refusal reaches an operator through
+    // grove — prints the message and then every `source()` link below it, so a
+    // cause in both is printed twice, and asserting either half alone permits
+    // the defect. No `anyhow` rendering is exercised here; the crate has no
+    // dependency to exercise it with, so what is asserted is the two inputs
+    // `anyhow` concatenates rather than the concatenation. And this covers
+    // `CommitNotRecorded` only — the three kinds holding an `io::Error` obey the
+    // same rule by inspection, which chapter 6 of the book states rather than
+    // implies.
+    let cause =
+        Error::source(&error).expect("a commit that did not land carries the command that failed");
+    let cause_message = cause.to_string();
+    assert!(
+        cause_message.contains("failed in"),
+        "the cause must be the jj command that failed: {cause_message}"
+    );
+    assert!(
+        !refusal.contains(&cause_message),
+        "the message must not restate a cause `source()` already carries: {refusal}"
+    );
+    assert!(
+        cause.source().is_none(),
+        "the chain is one link: {cause_message}"
     );
 }
 

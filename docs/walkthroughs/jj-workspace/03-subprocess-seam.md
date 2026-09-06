@@ -158,10 +158,18 @@ Command::output()  Err(io::Error { kind: NotFound, .. })
 What a consumer prints:
 
 ```text
-could not run `jj commit -m rate-limit-k3: refuse a request over the burst ceiling root:".grove/01-DONE-impl--rate-limit-k3.md"`: No such file or directory (os error 2)
+could not run `jj commit -m rate-limit-k3: refuse a request over the burst ceiling root:".grove/01-DONE-impl--rate-limit-k3.md"`
 
-Jujutsu drives this workspace, so its binary has to be on `PATH`. Install it (https://docs.jj-vcs.dev/latest/install-and-setup/) and rerun.
+Jujutsu drives this workspace, so its binary has to be on `PATH` and runnable. Install it (https://docs.jj-vcs.dev/latest/install-and-setup/) and rerun.
 ```
+
+**The `io::Error` is not in that message, and it is not lost.** The refusal keeps
+it and returns it from `Error::source`, so a consumer rendering the chain reads
+*No such file or directory (os error 2)* below the remedy rather than inside the
+first line; [*Refusal*](06-refusal.md#the-cause-chain) is where that rule is
+stated and why. It is also why the remedy says *on `PATH` and runnable* rather
+than naming only installation: the same arm renders a binary that is present and
+not executable, and the message has to be true of both.
 
 The remedy is installation, and it is the same remedy whichever of the four call
 sites spawned the child — which is why the seam constructs this refusal and none
@@ -553,10 +561,14 @@ construction, which is the honest shape of a function whose job is a boundary.
 (`crates/jj-workspace/tests/workspace.rs`) is the test that exercises this half
 for real. It makes a directory unreadable so that jj's own snapshot fails, which
 means the `CommandFailed` it produces comes from a jj that started and declined
-rather than from a mocked status — and the message the test asserts on is the
-`CommitNotRecorded` that wraps it, because the commit path adds its own remedy on
-top of the one this file supplied. *Refusal* owns that wrapping and the `source()`
-chain it builds.
+rather than from a mocked status — and the refusal the test holds is the
+`CommitNotRecorded` that wraps it, because the commit path is what adds a remedy:
+this file's `CommandFailed` supplies none, only jj's own stderr. The test reads
+both frames, asserting on the wrapper's message and then reaching this file's
+refusal through `Error::source` to check that the wrapper does not restate it.
+*Refusal* owns that wrapping, the `source()` chain it builds, and the rule that
+keeps the two frames from saying the same thing
+([*Refusal*](06-refusal.md#the-cause-chain)).
 
 <a id="a-command-a-reader-could-type"></a>
 ## The command as a reader would type it

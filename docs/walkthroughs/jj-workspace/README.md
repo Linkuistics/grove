@@ -30,7 +30,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and the source index records how
 those fragments reconstruct each in-scope file. During authoring a scoped check
 proves the completed prefix and reports later-owned ranges as deferred; only the
-final check proves complete reconstruction of all four files and 738 lines.
+final check proves complete reconstruction of all four files and 752 lines.
 
 <a id="reading-fragments"></a>
 ## Reading fragments

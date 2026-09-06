@@ -481,7 +481,7 @@ $ bash scripts/check.sh
   book-check docs/walkthroughs/grove-llm
 valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
-valid: 4 files, 738 resolved lines, 0 deferred lines, final=true
+valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/keyed-launch
 valid: 9 files, 2073 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/ordinal-fs-tree

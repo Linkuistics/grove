@@ -374,6 +374,33 @@ live obligations for chapters 20 and 21.
   arms to attribute and no mutation to run. Chapter 21 should not read the absence
   of a coverage table on this page as an omission.
 
+**Promoted from `chapter-eighteen-size-claim-k175`.** `18-which-files.md` no
+longer calls `session_config.rs` the smallest root in Part V at either site, and
+no page gained a ranking in exchange: chapter 19's *What could not move* is still
+the one place a later page takes a Part V size from. The slice is unchanged at
+9,918 resolved / 615 deferred and `scripts/check.sh` is still red on `book-check`
+alone.
+
+- **The repair for a wrong rank is usually not a right rank.** Both sites were
+  rewritten to characterisations rather than to *second-smallest*, because the
+  correct rank would have left a second Part V ranking standing on a page in the
+  part that has now got that class wrong twice — and neither sentence's argument
+  ever needed one. The `## What could not move` opener is an idiom across this
+  part (*of the one chapter whose answer is not about meaning*, *of a block that
+  is entirely evidence*), and chapter 18 alone had reached for a size where its
+  siblings reached for a subject. **Chapter 20 and chapter 21 still owe the
+  enumeration**, and should also ask whether the sentence wants a rank at all.
+- **Sweep the class, not the word that was wrong.** `smallest` found the two
+  sites the leaf body named; sweeping chapter 18 for `largest`, `biggest`,
+  `shortest`, `longest`, `second-…`, `…er than`, `fewest` and `least` is what
+  established there was no third. A one-word grep confirms the report and
+  measures nothing else.
+- **A corpus arithmetic control is free and worth taking.** `wc -l` over the
+  whole book corpus gives 12,213 across 14 files, and 12,213 minus the 1,680 of
+  the one declared `[[corpus.exclude]]` is exactly 10,533 — so a size enumeration
+  can be checked against the figure the briefs carry before any claim rests on
+  it.
+
 ## Notes
 
 **The corpus is frozen.** A defect found while drafting becomes its own leaf and

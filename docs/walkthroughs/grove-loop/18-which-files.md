@@ -6,10 +6,10 @@
 ## The rule: everything a template *is* is the runner's; what is left is whose file, and whether the second one is admissible
 
 Chapters 16 and 17 read a file whose whole subject was state the tree must not
-hold. This one reads the smallest root in Part V, and its subject is the
-opposite: not state at all, but a **choice** — which document on this machine
-decides what grove executes, and whether a second document sitting beside it in
-the checkout is allowed to have a say.
+hold. This one reads a much smaller root, and its subject is the opposite: not
+state at all, but a **choice** — which document on this machine decides what
+grove executes, and whether a second document sitting beside it in the checkout
+is allowed to have a say.
 
 > **Everything a template *is* belongs to `keyed-launch`. What is left here is
 > whose file, and whether the second one is admissible.** The personal file's
@@ -1036,7 +1036,8 @@ the only broken part.
 <a id="what-could-not-move-here"></a>
 ## What could not move
 
-The book's question, asked of the smallest root in Part V.
+The book's question, asked of a root whose whole subject is a choice rather
+than state.
 
 **On the way in — the names.** Four of them, and they are the clearest instance
 of an owned vocabulary in the crate. `prompt`, `session_name`, `worktree` and

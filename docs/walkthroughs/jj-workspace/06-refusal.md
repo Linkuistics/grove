@@ -7,8 +7,8 @@
 
 Every operation in the five chapters before this one returns
 `Result<_, Refusal>`, and every one of those chapters printed a refusal's message
-without reading the type behind it. This chapter reads it. Two hundred and thirty
-lines, one public struct, one private enum, and two trait implementations — the
+without reading the type behind it. This chapter reads it. Two hundred and
+fifty-four lines, one public struct, one private enum, and two trait implementations — the
 largest single ownership block in the book, and the last one it has.
 
 The sixth refusal is what the file declines to say. **The crate has no consumer
@@ -17,8 +17,11 @@ jj offers and stops there. The distinction is checkable on any line of the file.
 *Make the tree jj-enabled and rerun: `jj git init --colocate`* is a statement
 about jj's offer, and it is true whoever is calling. *Abort the session and
 report to the operator* would be a statement about one consumer's policy, and the
-crate has no way to know whether it is true. The first shape is in this file ten
-times. The second shape is in it zero times.
+crate has no way to know whether it is true. The first shape — a statement that is
+true whoever is calling — is in this file eleven times. The second shape is in it
+zero times. One of the eleven is the instance that most nearly tests the rule:
+`PathNotText` ends on *rename it*, a remedy that belongs to the filesystem, and it
+is there because jj has nothing to offer about a path it will not track.
 
 That is a narrower claim than *the crate is polite about errors*, and it is the
 one this chapter has to defend, because the file does contain remedies. Two of
@@ -185,7 +188,7 @@ recorded here as an outstanding observable in the way chapters 4 and 5 recorded
 theirs. `grove-llm`'s `main` returns `anyhow::Result<()>`
 (`crates/grove-llm/src/main.rs:1`), so a refusal that reaches the top is printed
 with `anyhow`'s `Debug`: the top message, then `Caused by:`, then a chain whose
-one link is text the top message already contains. Four of the ten kinds
+one link is text the top message already contains. Four of the eleven kinds
 interpolate a cause they also return from `source()`, so four of them print it
 twice. The corpus is frozen for this book and the fix moves line boundaries
 inside arms this chapter quotes, so it must land in one commit with this page.
@@ -212,7 +215,7 @@ The whole file is one ownership block, and it is the only block in the book that
 is an entire source root. Its parts are declared here and read in the sections
 that follow, in the order the file writes them.
 
-<!-- fragment «refusal-source» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="1-230" parent="source-refusal" -->
+<!-- fragment «refusal-source» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="1-254" parent="source-refusal" -->
 <!-- insert «refusal-module-thesis» -->
 <!-- insert «refusal-imports» -->
 <!-- insert «refusal-opaque-type» -->
@@ -266,7 +269,7 @@ The last paragraph is the boundary, stated as a limit rather than as a courtesy:
 *The remedies named here are jj's.* The sentence after it is the one that makes
 the limit checkable — the crate has no consumer to speak for, so it never says
 what the caller should do; it says what jj offers. Every message later in the file
-can be held against that sentence, and this chapter holds all ten against it.
+can be held against that sentence, and this chapter holds all eleven against it.
 
 The type itself is eleven lines, eight of which argue for the three that declare
 it. A newtype over a private enum is the smallest construction in Rust that
@@ -322,7 +325,7 @@ is exactly two things: the message, from `Display`, and the cause chain, from
 reads how they are produced.
 
 <a id="the-case-analysis"></a>
-## Ten kinds, in nearly the order the reader met them
+## Eleven kinds, in nearly the order the reader met them
 
 The private enum is the case analysis the public type refuses to publish. Its
 variants are ordinary Rust with no derive but `Debug`, and the `Debug` is what
@@ -336,9 +339,9 @@ enum Kind {
 ````
 <!-- /fragment -->
 
-Ten variants follow, and their order in the file is close to the order this book
-met them: the gate's two, the namespace's two, scope's two, the seam's three, and
-the commit's one. That is not a coincidence and it is not a plan either — it is
+Eleven variants follow, and their order in the file is close to the order this
+book met them: the gate's two, the namespace's two, scope's three, the seam's
+three, and the commit's one. That is not a coincidence and it is not a plan either — it is
 the order the crate's own `lib.rs` introduces the operations, and this file was
 written alongside it. The one displacement is the seam's three, which the reader
 met in chapter 3 and the file lists fourth of the five groups: the enum follows
@@ -360,13 +363,14 @@ here and argued in place below:
 | `ControlDir` | namespace | `path`, `io::Error` | the `io::Error` | check the permissions on the workspace's `.jj` directory |
 | `OutsideWorkspace` | scope | `path`, `root` | none | resolve the workspace that contains the path and ask that one |
 | `NotScoped` | scope | `reason` | none | name the paths the operation is about |
+| `PathNotText` | scope | `path` | none | rename the file: the remedy is the filesystem's, because jj will not track the path |
 | `NotRunnable` | seam | `command`, `io::Error` | the `io::Error` | install jj, at a hard-coded URL |
 | `CommandFailed` | seam | `command`, `directory`, `stderr` | none | none: everything after the colon is jj's own stderr |
 | `OutputNotText` | seam | `command` | none | none: there is no action a person takes |
 | `CommitNotRecorded` | commit | `root`, `Box<Refusal>` | the boxed `Refusal` | `jj undo` and `jj op log`, followed by a disclaimer |
 
 The fourth column is read again under [*What `source()` gives a consumer in place
-of variants*](#the-cause-chain), where its four causes and six absences are one
+of variants*](#the-cause-chain), where its four causes and seven absences are one
 exhaustive `match` written out rather than defaulted. The fifth is where this
 chapter's thesis is checkable row by row: every entry in it is a statement about
 jj's offer, and none is a statement about a consumer's policy.
@@ -397,7 +401,7 @@ The constructors are the crate's only way to build a refusal, and they are
 `pub(crate)`: nothing outside this crate can construct one, so a `Refusal` a
 consumer holds was produced by an operation that actually declined.
 
-<!-- fragment «refusal-constructors-gate» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="58-70" parent="refusal-source" -->
+<!-- fragment «refusal-constructors-gate» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="60-72" parent="refusal-source" -->
 ````rust
 impl Refusal {
     pub(crate) fn not_a_workspace(searched_from: &Path) -> Self {
@@ -422,11 +426,11 @@ returns it up the stack, boxes it, or converts it into `anyhow::Error`, and ever
 one of those requires `'static`. The allocation is on the failure path only, and
 the failure path is a stop.
 
-`Display` is one `match` over the ten kinds, and every arm is a single `write!`.
+`Display` is one `match` over the eleven kinds, and every arm is a single `write!`.
 There is no shared prefix, no severity, no code and no wrapping helper, so an arm
 can be read as the complete text of its message.
 
-<!-- fragment «refusal-display-open» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="128-130" parent="refusal-source" -->
+<!-- fragment «refusal-display-open» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="136-138" parent="refusal-source" -->
 ````rust
 impl fmt::Display for Refusal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -434,12 +438,13 @@ impl fmt::Display for Refusal {
 ````
 <!-- /fragment -->
 
-The gate's arm is the longest in the file and carries the file's only comment
-about a message. It is worth reading as an argument about defaults: the crate
+The gate's arm carries one of the file's three comments about a message —
+`PathNotText`'s and the commit's are the others — and it is worth reading as an
+argument about defaults: the crate
 knows the tree is not a jj workspace, and it does not know whether it is a Git
 repository, so it states both initialisation commands and lets the person choose.
 
-<!-- fragment «refusal-display-gate» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="131-152" parent="refusal-source" -->
+<!-- fragment «refusal-display-gate» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="139-160" parent="refusal-source" -->
 ````rust
             // The gate's refusal, and the one a consumer's user is most likely
             // to meet. Both remedies are stated unconditionally rather than
@@ -517,7 +522,7 @@ kinds with a `source()`.
 The constructors show the split: one takes `impl Into<String>` for a reason the
 caller composes, the other takes an `io::Error` the filesystem composed.
 
-<!-- fragment «refusal-constructors-namespace» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="71-84" parent="refusal-source" -->
+<!-- fragment «refusal-constructors-namespace» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="73-86" parent="refusal-source" -->
 ````rust
 
     pub(crate) fn namespace(namespace: &str, reason: impl Into<String>) -> Self {
@@ -546,7 +551,7 @@ change.
 The two arms differ in where their remedy comes from, and that is the whole of
 what this section adds to chapter 4.
 
-<!-- fragment «refusal-display-namespace» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="153-165" parent="refusal-source" -->
+<!-- fragment «refusal-display-namespace» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="161-173" parent="refusal-source" -->
 ````rust
             Kind::Namespace { namespace, reason } => write!(
                 f,
@@ -586,18 +591,23 @@ one it has had and lost: the remedy is chosen by which constructor was reached,
 so a gap in the validation upstream becomes a misleading remedy here, and closing
 the one gap that was found closes no other.
 
-<a id="scopes-two"></a>
-## Scope's two, and reasons written for the condition
+<a id="scopes-three"></a>
+## Scope's three, and reasons written for the condition
 
-[*Scope and commit*](05-scope-and-commit.md#the-path-algebra) produced both of
-these from the path algebra, and one of them from two different places in it.
+[*Scope and commit*](05-scope-and-commit.md#the-path-algebra) produced all three
+of these from the path algebra, and one of them from two different places in it.
+The third is the newest kind in the file, and it arrived long after the other
+ten: `PathNotText` was added when the render loop at the end of `relative` stopped
+converting a path lossily and started being allowed to fail.
 
-<!-- fragment «refusal-kind-scope» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="40-43" parent="refusal-source" -->
+<!-- fragment «refusal-kind-scope» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="40-45" parent="refusal-source" -->
 ````rust
     /// A path was handed to a workspace that does not contain it.
     OutsideWorkspace { path: PathBuf, root: PathBuf },
     /// An operation whose point is a narrow scope was given none.
     NotScoped { reason: String },
+    /// A path that cannot be named to jj at all, because it is not text.
+    PathNotText { path: PathBuf },
 ````
 <!-- /fragment -->
 
@@ -605,9 +615,17 @@ these from the path algebra, and one of them from two different places in it.
 root is in the message because *not inside the workspace* is unfalsifiable without
 it — a caller reading the refusal is usually holding a path it believes is inside
 one. `NotScoped` carries a reason and no path at all, because there is nothing to
-name: the refusal is that nothing was named.
+name: the refusal is that nothing was named. `PathNotText` carries the path and
+nothing else — no root, because the path is not outside one, and no reason,
+because the kind *is* the reason.
 
-<!-- fragment «refusal-constructors-scope» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="85-97" parent="refusal-source" -->
+Its comment says *cannot be named to jj at all*, and *at all* is doing real work.
+The path may exist, may be inside the workspace, and may be perfectly addressable
+by every other tool on the machine; what it cannot be is an argument to jj, which
+addresses files by text. That is a narrower claim than *this crate cannot cope*,
+and the narrower claim is the true one — jj does not track such a path either.
+
+<!-- fragment «refusal-constructors-scope» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="87-105" parent="refusal-source" -->
 ````rust
 
     pub(crate) fn outside_workspace(path: &Path, root: &Path) -> Self {
@@ -622,6 +640,12 @@ name: the refusal is that nothing was named.
             reason: reason.into(),
         })
     }
+
+    pub(crate) fn path_not_text(path: &Path) -> Self {
+        Self(Kind::PathNotText {
+            path: path.to_path_buf(),
+        })
+    }
 ````
 <!-- /fragment -->
 
@@ -630,12 +654,13 @@ path with no parent, a path with no file name, and a canonical parent still
 outside the root. That is one condition with three detections rather than three
 conditions, and this constructor is where the decision to treat them alike is
 made visible: they produce the same refusal because a caller's next action is the
-same for all three.
+same for all three. `path_not_text` is the opposite shape: one detection, in the
+render loop, and it takes only the path because there is nothing else to say.
 
-The two arms are the file's plainest, and both end in a sentence that says what
-the crate will not do instead.
+The first two arms are the file's plainest. All three end on a remedy the crate
+states and does not perform.
 
-<!-- fragment «refusal-display-scope» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="166-179" parent="refusal-source" -->
+<!-- fragment «refusal-display-scope» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="174-202" parent="refusal-source" -->
 ````rust
             Kind::OutsideWorkspace { path, root } => write!(
                 f,
@@ -650,6 +675,21 @@ the crate will not do instead.
                 "a path-scoped operation was given no scope: {reason}\n\n\
                  Name the paths the operation is about. Widening it to the whole working copy \
                  is not the fallback, because the scope is what the caller asked for.",
+            ),
+            // The counterpart of `OutputNotText` at the other end of the same
+            // boundary: the crate speaks to jj in text, so bytes have to become
+            // text on the way *in* as well as on the way out. No jj command is
+            // named because jj has none to offer — it does not track such a
+            // path — so the remedy stated is the filesystem's. Rendering the
+            // name here *is* lossy, and that is right: showing a name is not
+            // the same act as addressing a file with it.
+            Kind::PathNotText { path } => write!(
+                f,
+                "{} cannot be named to Jujutsu: the path is not valid UTF-8\n\n\
+                 A path reaches jj as text, as a fileset in a command line, and jj does not \
+                 track a path whose name is not valid UTF-8 — it skips such a path when it \
+                 snapshots the working copy. Rename it and ask again about the new name.",
+                path.display()
             ),
 ````
 <!-- /fragment -->
@@ -667,6 +707,20 @@ person reads it. The reason string that precedes it is written for the condition
 neither guesses at the caller's mistake. A message that said *did you mean to pass
 the files you changed?* would be speaking for a consumer this crate does not know.
 
+`PathNotText`'s arm is one of the three in the file carrying a comment — the
+gate's and the commit's are the others — and the comment is there because the arm
+looks like an oversight without it. It renders
+the offending path with `path.display()`, which is lossy — the very conversion the
+refusal exists to prevent. The distinction is that showing a name and addressing a
+file with it are different acts: a person reading the message needs to recognise
+which file is meant, and replacement characters are adequate for recognition and
+useless for addressing. The comment also records why the message names no jj
+command. jj has none to offer: since 0.44.0 it skips a path whose name is not
+valid UTF-8 when it snapshots and warns, rather than tracking it
+([jj 0.44.0 changelog, *Fixed bugs*](https://docs.jj-vcs.dev/v0.44.0/changelog/)).
+So the remedy is the filesystem's — *rename it* — which is neither a jj command
+nor, as `OutsideWorkspace`'s is, a call back into this crate.
+
 <a id="the-seams-three"></a>
 ## The seam's three: could not start, ran and declined, said something unreadable
 
@@ -675,7 +729,7 @@ printed two of them. They are grouped in the enum because they are produced at o
 place — `jj.rs` — and because the distinction between the first two is the seam's
 reason for existing.
 
-<!-- fragment «refusal-kind-seam» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="44-53" parent="refusal-source" -->
+<!-- fragment «refusal-kind-seam» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="46-55" parent="refusal-source" -->
 ````rust
     /// `jj` could not be run at all.
     NotRunnable { command: String, cause: io::Error },
@@ -697,7 +751,7 @@ is jj's rather than the operating system's, and what jj has to say is its stderr
 `OutputNotText` carries the command and nothing else, because there is nothing
 useful to carry — bytes that are not UTF-8 cannot be put in a message.
 
-<!-- fragment «refusal-constructors-seam» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="98-118" parent="refusal-source" -->
+<!-- fragment «refusal-constructors-seam» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="106-126" parent="refusal-source" -->
 ````rust
 
     pub(crate) fn not_runnable(command: &str, cause: io::Error) -> Self {
@@ -730,10 +784,11 @@ between one line and a paragraph with a hole in it. Nothing else is done to it �
 no truncation, no first-line extraction, no filtering of jj's hints — because the
 crate cannot tell which part of jj's output a person needs.
 
-The three arms are the file's only place where a remedy is not jj's to run, and
-one of the three has no remedy at all.
+None of the three arms names a jj command. `NotRunnable` points at an install
+page, and the other two name no remedy at all — `CommandFailed` because jj's own
+stderr is the remedy, and `OutputNotText` because there is nothing a person does.
 
-<!-- fragment «refusal-display-seam» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="180-194" parent="refusal-source" -->
+<!-- fragment «refusal-display-seam» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="203-217" parent="refusal-source" -->
 ````rust
             Kind::NotRunnable { command, cause } => write!(
                 f,
@@ -784,11 +839,11 @@ and neither message is asserted on anywhere.
 <a id="the-commit-that-did-not-land"></a>
 ## The one refusal about state
 
-Nine of the ten kinds say something about a command: it could not run, it was
-refused, its argument was wrong. The tenth says something about the tree the
+Ten of the eleven kinds say something about a command: it could not run, it was
+refused, its argument was wrong. The eleventh says something about the tree the
 caller is standing in.
 
-<!-- fragment «refusal-kind-commit» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="54-57" parent="refusal-source" -->
+<!-- fragment «refusal-kind-commit» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="56-59" parent="refusal-source" -->
 ````rust
     /// A commit was attempted and did not land.
     CommitNotRecorded { root: PathBuf, cause: Box<Refusal> },
@@ -803,7 +858,7 @@ caller is standing in.
 than the paths that were being committed, because the remedy is about the
 workspace: `jj undo` reverses an operation in a repository, not a file.
 
-<!-- fragment «refusal-constructors-commit» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="119-127" parent="refusal-source" -->
+<!-- fragment «refusal-constructors-commit» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="127-135" parent="refusal-source" -->
 ````rust
 
     pub(crate) fn commit_not_recorded(root: &Path, cause: Refusal) -> Self {
@@ -829,7 +884,7 @@ named*, since it cannot tell them apart by matching.
 The arm is the second of the two that carry a command listing, and it is the only
 one whose subject is what is true now rather than what was attempted.
 
-<!-- fragment «refusal-display-commit» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="195-214" parent="refusal-source" -->
+<!-- fragment «refusal-display-commit» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="218-237" parent="refusal-source" -->
 ````rust
             // The only refusal that has to say something about *state* rather
             // than about a command: the caller asked for a commit and does not
@@ -886,11 +941,11 @@ present.
 <a id="the-cause-chain"></a>
 ## What `source()` gives a consumer in place of variants
 
-The last sixteen lines are the second half of the interface. `Display` gives a
+The last seventeen lines are the second half of the interface. `Display` gives a
 consumer the message; `Error::source` gives it the one thing the message cannot —
 a value it can walk.
 
-<!-- fragment «refusal-error-source-caused» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="215-221" parent="refusal-source" -->
+<!-- fragment «refusal-error-source-caused» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="238-244" parent="refusal-source" -->
 ````rust
 impl Error for Refusal {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
@@ -909,15 +964,16 @@ chain crosses from this crate's error into this crate's error again. That is the
 only chain the crate produces with a `Refusal` at both ends, and the worked
 example measured its depth: one link, then `None`.
 
-The remaining six return `None`, and the exhaustive list is what makes that a
+The remaining seven return `None`, and the exhaustive list is what makes that a
 decision rather than a default.
 
-<!-- fragment «refusal-error-source-uncaused» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="222-230" parent="refusal-source" -->
+<!-- fragment «refusal-error-source-uncaused» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="245-254" parent="refusal-source" -->
 ````rust
             Kind::NotAWorkspace { .. }
             | Kind::Namespace { .. }
             | Kind::OutsideWorkspace { .. }
             | Kind::NotScoped { .. }
+            | Kind::PathNotText { .. }
             | Kind::CommandFailed { .. }
             | Kind::OutputNotText { .. } => None,
         }
@@ -926,10 +982,10 @@ decision rather than a default.
 ````
 <!-- /fragment -->
 
-A catch-all `_ => None` would compile and would be shorter by five lines. Writing
+A catch-all `_ => None` would compile and would be shorter by six lines. Writing
 every kind out means a new variant fails to compile until someone decides which
 group it belongs to, and *has this kind a cause* is exactly the question a new
-variant's author should be made to answer. The five-line cost buys one
+variant's author should be made to answer. The six-line cost buys one
 non-negotiable review question.
 
 `CommandFailed` is in this list, and it is the one whose absence from the chain is
@@ -963,7 +1019,7 @@ use std::path::{Path, PathBuf};
 type three kinds hold, and `std::path` is what the rest carry. There is no
 `thiserror` derive, no `anyhow` in the library, no `miette` diagnostic and no
 error-code enum from a shared crate. The manual `Display` implementation is
-roughly eighty lines that `thiserror` would have written from attributes, and that
+roughly a hundred lines that `thiserror` would have written from attributes, and that
 is the measurable cost of the empty table.
 
 The cost is paid for two reasons and only one of them is the dependency count.
@@ -974,7 +1030,7 @@ that no reader would go looking for there. The messages are the deliverable of
 this file, and writing them in the body puts them where they are edited. **A
 derived error also publishes the variants**, or at least makes keeping them private
 awkward, and the opacity argued at the top of this chapter is the design. A
-`thiserror` enum that is then wrapped in a newtype to hide it is the same eighty
+`thiserror` enum that is then wrapped in a newtype to hide it is the same hundred
 lines with an extra type.
 
 What this file inherits from the empty table, in return, is that a consumer
@@ -987,8 +1043,9 @@ reaching the same line from opposite directions.
 <a id="what-this-chapter-settled"></a>
 ## What this chapter settled
 
-Two hundred and thirty lines, and about a hundred and thirty of them are text a
-person reads. The type is one field wide and publishes nothing: ten kinds behind a
+Two hundred and fifty-four lines, of which eighty-four are either a comment or a
+line of message text — a third of the file is prose a person reads rather than
+machinery. The type is one field wide and publishes nothing: eleven kinds behind a
 newtype, every one of them a stop, so a consumer branches on none of them and
 loses nothing by it. The alternative is in this repository and is the right choice
 there — `ordinal_fs_tree::Refusal` is a public enum whose variants grove names,
@@ -1014,7 +1071,7 @@ in the file that says what the crate will not do, placed in the one arm where a
 reader would most reasonably expect it to act.
 
 And the empty dependency table survived the file that was most likely to break it.
-Four `use` lines, all `std`, an eighty-line `Display` written by hand rather than
+Four `use` lines, all `std`, a hundred-line `Display` written by hand rather than
 derived, and an error a consumer can put in `anyhow` without this crate having
 depended on `anyhow` to make that true.
 

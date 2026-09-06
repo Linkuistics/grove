@@ -41,6 +41,8 @@ enum Kind {
     OutsideWorkspace { path: PathBuf, root: PathBuf },
     /// An operation whose point is a narrow scope was given none.
     NotScoped { reason: String },
+    /// A path that cannot be named to jj at all, because it is not text.
+    PathNotText { path: PathBuf },
     /// `jj` could not be run at all.
     NotRunnable { command: String, cause: io::Error },
     /// `jj` ran and failed.
@@ -93,6 +95,12 @@ impl Refusal {
     pub(crate) fn not_scoped(reason: impl Into<String>) -> Self {
         Self(Kind::NotScoped {
             reason: reason.into(),
+        })
+    }
+
+    pub(crate) fn path_not_text(path: &Path) -> Self {
+        Self(Kind::PathNotText {
+            path: path.to_path_buf(),
         })
     }
 
@@ -177,6 +185,21 @@ impl fmt::Display for Refusal {
                  Name the paths the operation is about. Widening it to the whole working copy \
                  is not the fallback, because the scope is what the caller asked for.",
             ),
+            // The counterpart of `OutputNotText` at the other end of the same
+            // boundary: the crate speaks to jj in text, so bytes have to become
+            // text on the way *in* as well as on the way out. No jj command is
+            // named because jj has none to offer — it does not track such a
+            // path — so the remedy stated is the filesystem's. Rendering the
+            // name here *is* lossy, and that is right: showing a name is not
+            // the same act as addressing a file with it.
+            Kind::PathNotText { path } => write!(
+                f,
+                "{} cannot be named to Jujutsu: the path is not valid UTF-8\n\n\
+                 A path reaches jj as text, as a fileset in a command line, and jj does not \
+                 track a path whose name is not valid UTF-8 — it skips such a path when it \
+                 snapshots the working copy. Rename it and ask again about the new name.",
+                path.display()
+            ),
             Kind::NotRunnable { command, cause } => write!(
                 f,
                 "could not run `{command}`: {cause}\n\n\
@@ -223,6 +246,7 @@ impl Error for Refusal {
             | Kind::Namespace { .. }
             | Kind::OutsideWorkspace { .. }
             | Kind::NotScoped { .. }
+            | Kind::PathNotText { .. }
             | Kind::CommandFailed { .. }
             | Kind::OutputNotText { .. } => None,
         }

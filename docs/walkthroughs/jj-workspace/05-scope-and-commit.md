@@ -27,7 +27,7 @@ a design intuition: it is a **measurement**, taken against jj 0.44.0, recorded i
 the crate's own module documentation and re-taken for this chapter. The
 asymmetry, and what was measured to license it, is this chapter's central claim.
 
-One hundred and thirty-nine lines carry all of it: a ten-line type, a four-line
+One hundred and fifty-five lines carry all of it: a ten-line type, a four-line
 probe, a thirty-three-line commit, and two private functions that turn a caller's
 path into one string. The commit is the smallest of the three arguments and the
 path algebra is the largest, which is the shape a reader should expect from a
@@ -268,12 +268,12 @@ hand-written implementation to perform.
 ## The one probe that lets jj snapshot, and the measurement that licenses it
 
 The rest of this chapter's source is one contiguous run of a hundred and
-twenty-nine lines: the tracking probe, the commit, and the two private functions
+forty-five lines: the tracking probe, the commit, and the two private functions
 that address a path. They are contiguous in the file and they are one argument,
 so the block is declared here and its parts are read in the three sections that
 follow.
 
-<!-- fragment «scope-tracking-and-commit» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="146-274" parent="source-library" -->
+<!-- fragment «scope-tracking-and-commit» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="146-290" parent="source-library" -->
 <!-- insert «tracking-contract» -->
 <!-- insert «tracking-probe» -->
 <!-- insert «commit-contract» -->
@@ -583,7 +583,7 @@ format jj has never promised this crate.
 ## The path algebra: one argument, spread over two functions and the gate
 
 `fileset` and `relative` are private, called from two places, and total
-sixty-three lines. Read as two functions they are string manipulation. Read as
+seventy-nine lines. Read as two functions they are string manipulation. Read as
 one argument they are the consequence of a decision made two chapters ago: the
 gate canonicalises the workspace root, so every path the crate later compares
 against that root has to be made comparable to a canonical path. Nothing else in
@@ -651,10 +651,11 @@ and this is a crate with no dependencies to borrow an escaper from.
 argument above rests on jj's documented literal syntax and on reading the loop,
 and not on anything that goes red. It is stated rather than left to be assumed,
 because it is the one place in this chapter where a claim about correctness has
-no assertion behind it: every path the suite's thirty interface tests name is
-ordinary.
+no assertion behind it. The suite's thirty-two interface tests name exactly one
+extraordinary path — the non-UTF-8 one the render section closes — and it is
+refused before the quoting loop is reached, so it holds nothing about quoting.
 
-<!-- fragment «relative-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="231-238" parent="scope-tracking-and-commit" -->
+<!-- fragment «relative-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="231-242" parent="scope-tracking-and-commit" -->
 ````rust
     /// `path` expressed relative to the workspace root, with `/` separators.
     ///
@@ -664,10 +665,15 @@ ordinary.
     /// does not contain it. Canonicalisation is applied to the **parent**, so a
     /// path that no longer exists — the one the caller is about to commit the
     /// deletion of — still resolves.
+    ///
+    /// A path whose name is not valid UTF-8 is **refused** rather than rendered
+    /// lossily. The rendering is the whole of what jj is asked about, so a
+    /// lossy one asks a different question and gets an answer to that.
 ````
 <!-- /fragment -->
 
-Both sentences of that comment are consequences rather than choices. The first:
+The first paragraph's two sentences are consequences rather than choices. The
+first:
 because [*The gate*](02-the-gate.md#the-value-and-the-gate) canonicalises the
 root, a caller that reached its file through a symlinked ancestor holds a path
 that is not textually under the root, and a crate that only compared strings
@@ -677,7 +683,11 @@ filesystem cannot resolve a path that is not there — so canonicalising the who
 path would refuse exactly the case a version control system exists to record, a
 file the caller has just deleted and wants the deletion of committed.
 
-<!-- fragment «relative-absolute» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="239-244" parent="scope-tracking-and-commit" -->
+The second paragraph is a *refusal*, and it is the one sentence of this contract
+that was not here when the crate was first written. It is argued at the site that
+performs the conversion, at the end of this section.
+
+<!-- fragment «relative-absolute» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="243-248" parent="scope-tracking-and-commit" -->
 ````rust
     fn relative(&self, path: &Path) -> Result<String, Refusal> {
         let absolute = if path.is_absolute() {
@@ -695,7 +705,7 @@ wherever the caller happens to be running, and the crate never consults
 `current_dir` to interpret one. `an_absolute_path_and_a_root_relative_one_answer_alike`
 is the test that the two spellings reach the same answer.
 
-<!-- fragment «relative-strip-or-canonical-parent» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="245-259" parent="scope-tracking-and-commit" -->
+<!-- fragment «relative-strip-or-canonical-parent» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="249-263" parent="scope-tracking-and-commit" -->
 ````rust
         let relative = match absolute.strip_prefix(&self.root) {
             Ok(relative) => relative.to_path_buf(),
@@ -745,16 +755,24 @@ draw — the parent is what locates the name, and a name with nowhere to be is n
 a scope — but it is a line worth knowing, because the refusal a caller then sees
 is `UnresolvablePath`, which talks about broken symlinks rather than about a
 directory the caller has just removed. The crate's own suite reaches this
-fallback in one place and by its refusing end:
+fallback by both its ends, and it took two tests to get there.
 `a_path_outside_the_workspace_is_refused_rather_than_answered` hands the
 workspace an absolute path in the temporary directory *above* the root, so
 `strip_prefix` fails, the parent is canonicalised, and the canonical parent is
-still not under the root — the third `outside_workspace` of the three. Its
-succeeding end is untested. `a_deletion_is_committable_after_the_path_is_gone`,
-the test that covers a path that no longer exists, passes a *relative* path and
-therefore never leaves the textual branch, so nothing in the suite exercises a
-canonicalised parent that does strip; the symlink-and-deletion combination above
-is covered by measurement here and by no test.
+still not under the root — the third `outside_workspace` of the three. That is
+the branch's refusing end, and for a long time it was the only end covered:
+`a_deletion_is_committable_after_the_path_is_gone`, the test that covers a path
+that no longer exists, passes a *relative* path and therefore never leaves the
+textual branch. So a coverage instrument saw the branch as reached while the
+clause this contract is *about* — canonicalise the parent, strip it, rejoin the
+name — was held by nothing.
+`a_deletion_reached_through_a_symlinked_ancestor_is_committable` is the test that
+closes it, and it is the measurement above turned into an assertion: it commits a
+note, deletes the file, and commits the deletion through
+`<tmp>/alias/notes/one.md` where `alias` is a symlink to the workspace. Removing
+the `canonical(parent)?` call while leaving the branch otherwise intact fails that
+test and no other in the suite, which is how the coverage is known to be the
+clause's rather than the branch's.
 
 `Refusal::outside_workspace` is returned three times in this branch, for three
 different failures — no parent, no file name, and a canonical parent that is
@@ -763,7 +781,7 @@ three cases collapsed carelessly. All three mean the caller named a path this
 workspace does not answer for; the message says so and names the root it was
 compared against.
 
-<!-- fragment «relative-root-is-not-a-scope» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="260-264" parent="scope-tracking-and-commit" -->
+<!-- fragment «relative-root-is-not-a-scope» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="264-268" parent="scope-tracking-and-commit" -->
 ````rust
         if relative.as_os_str().is_empty() {
             return Err(Refusal::not_scoped(
@@ -784,14 +802,26 @@ scope, so the second route is argued from the code and closed by no assertion,
 while the first route — the empty slice — is held by
 `a_commit_with_no_paths_is_refused_rather_than_widened`.
 
-<!-- fragment «relative-render» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="265-274" parent="scope-tracking-and-commit" -->
+<!-- fragment «relative-render» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="269-290" parent="scope-tracking-and-commit" -->
 ````rust
         let mut rendered = String::new();
         for component in relative.components() {
+            // The crate's one conversion from bytes to text on the way *in*,
+            // and so the one that has to be able to fail. Rendering it lossily
+            // would name a different file — a fileset that matches nothing,
+            // which jj answers without complaint — and nothing is given up by
+            // refusing, because jj cannot address such a path either: *"Such
+            // paths can't be tracked, so they are now skipped and reported as a
+            // warning instead"* (jj 0.44.0, `Fixed bugs`,
+            // <https://docs.jj-vcs.dev/v0.44.0/changelog/>).
+            let component = component
+                .as_os_str()
+                .to_str()
+                .ok_or_else(|| Refusal::path_not_text(path))?;
             if !rendered.is_empty() {
                 rendered.push('/');
             }
-            rendered.push_str(&component.as_os_str().to_string_lossy());
+            rendered.push_str(component);
         }
         Ok(rendered)
     }
@@ -805,23 +835,52 @@ fileset syntax uses `/`, so a Windows build that emitted `\` would produce a
 pattern in which every separator was an escape character — the same two bytes the
 quoting loop above is careful about, arriving from the other direction.
 
-`to_string_lossy` is the crate's one lossy conversion, and it is where a path
-stops being bytes and becomes text. It has to happen somewhere: a fileset is an
-argument in a command line and jj's arguments are text. The consequence is worth
-stating plainly, because nothing refuses it — a path whose bytes are not valid
-UTF-8 is rendered with replacement characters, and the fileset built from it
-names a file that does not exist. What jj does with a fileset that matches
-nothing was measured on 0.44.0: `jj file list` prints nothing and exits 0, and
-`jj commit` warns on stderr, takes an **empty** commit and exits 0. So
-`is_tracked` would answer `false` and `commit` would return a `Commit` naming an
-empty change, both without a refusal anywhere. That the lossy rendering can reach
-that state is inspection rather than measurement: no test in the suite constructs
-a non-UTF-8 path, and the crate has no refusal for one.
+`to_str` is where a path stops being bytes and becomes text, and it is the crate's
+one conversion in that direction. The conversion has to happen somewhere: a
+fileset is an argument in a command line and jj's arguments are text. What is
+worth reading closely is that it is allowed to **fail**, because for most of this
+crate's life it was not.
+
+The line was `rendered.push_str(&component.as_os_str().to_string_lossy())`, and
+the consequence was silent. A path whose bytes are not valid UTF-8 came out with
+replacement characters in it, so the fileset built from it named a file that does
+not exist — and what jj does with a fileset that matches nothing was measured on
+0.44.0: `jj file list` prints nothing and exits 0, and `jj commit` warns on
+stderr, takes an **empty** commit and exits 0. So `is_tracked` answered `false`
+about a file that is tracked, and `commit` returned a `Commit` naming an empty
+change while its caller believed the work was committed. No refusal was raised
+anywhere, which is the one shape this crate rejects everywhere else: `control_dir`
+refuses a namespace it cannot honour rather than quietly reinterpreting it, and
+`validated_namespace` refuses `'\0'` precisely so that an obscure operating-system
+error becomes a refusal that names the problem.
+
+Refusing costs nothing, and the reason is jj's rather than this crate's. jj does
+not track a path whose name is not valid UTF-8 at all — since 0.44.0 it skips
+such a path when it snapshots and warns, where earlier versions failed outright:
+*"Such paths can't be tracked, so they are now skipped and reported as a warning
+instead"*
+([jj 0.44.0 changelog, *Fixed bugs*](https://docs.jj-vcs.dev/v0.44.0/changelog/)).
+So the alternative fix — widening the subprocess seam to carry `OsStr` and handing
+jj the bytes — would buy a caller nothing but a different refusal, from jj, about
+a file jj was never going to track. `Refusal::path_not_text` is the crate's
+eleventh and newest refusal kind, and it is the counterpart of
+`OutputNotText`: text on the way out of jj, text on the way in, and a refusal at
+each. [*Refusal*](06-refusal.md#scopes-three) reads both.
+
+The comment carries a URL because the claim behind the design is jj's behaviour
+in a stated version, and a reader who wants to check it should not have to take
+this book's word for it. `a_path_whose_name_is_not_valid_utf8_is_refused_rather_than_rendered_lossily`
+is the test: it names `not\xffutf8.txt` inside the workspace, asserts that both
+`is_tracked` and `commit` refuse with the reason, and asserts that jj's operation
+count does not move — the refusal is reached before any subprocess. **The file is
+never created**, which is what lets the test run on a filesystem that would refuse
+the name: rendering is textual, and the refusal comes before anything touches the
+disk. Restoring `to_string_lossy` fails that test and no other.
 
 <a id="what-this-chapter-settled"></a>
 ## What this chapter settled
 
-A hundred and thirty-nine lines, and the transaction is not in them. What is in
+A hundred and fifty-five lines, and the transaction is not in them. What is in
 them is a type holding one identifier, a probe that asks jj about the tree as it
 is now, one `jj commit` with a fileset per path, and the addressing that turns a
 caller's path into that fileset. The six mechanisms this chapter opened by

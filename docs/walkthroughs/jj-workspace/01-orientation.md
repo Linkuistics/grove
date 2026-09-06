@@ -7,7 +7,8 @@
 
 `jj-workspace` resolves a Jujutsu workspace, refuses a working tree that is not
 one, and takes a path-scoped commit. That is the whole crate: four operations, a
-value, and one error type, over roughly seven hundred lines with no dependencies.
+value, and one error type, over roughly seven hundred and fifty lines with no
+dependencies.
 
 The first of those refusals is this chapter's, and it is declared rather than
 argued: **no dependencies**. `std` owns what was subtracted — it spawns the child

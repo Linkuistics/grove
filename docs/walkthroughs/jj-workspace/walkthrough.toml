@@ -92,7 +92,7 @@ lines = 44
 [[root]]
 id    = "source-library"
 path  = "crates/jj-workspace/src/lib.rs"
-lines = 343
+lines = 359
 
 [[root]]
 id    = "source-subprocess"
@@ -102,7 +102,7 @@ lines = 81
 [[root]]
 id    = "source-refusal"
 path  = "crates/jj-workspace/src/refusal.rs"
-lines = 230
+lines = 254
 
 [[block]]
 id    = "manifest-no-dependencies"
@@ -144,19 +144,19 @@ lines = "119-145"
 id    = "scope-tracking-and-commit"
 root  = "source-library"
 owner = "no-transactions"
-lines = "146-274"
+lines = "146-290"
 
 [[block]]
 id    = "gate-main-repo-and-canonical"
 root  = "source-library"
 owner = "one-lane"
-lines = "275-319"
+lines = "291-335"
 
 [[block]]
 id    = "namespace-validation"
 root  = "source-library"
 owner = "no-consumer-vocabulary"
-lines = "320-343"
+lines = "336-359"
 
 [[block]]
 id    = "subprocess-seam-source"
@@ -168,7 +168,7 @@ lines = "1-81"
 id    = "refusal-source"
 root  = "source-refusal"
 owner = "no-remedy-of-its-own"
-lines = "1-230"
+lines = "1-254"
 
 [[early-use]]
 symbols   = "`Workspace`"

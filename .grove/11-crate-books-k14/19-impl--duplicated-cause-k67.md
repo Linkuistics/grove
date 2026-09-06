@@ -2,8 +2,8 @@
 
 ## Goal
 
-Stop `jj-workspace` printing the same cause twice to an operator: four of the ten
-refusal kinds interpolate a cause into their own `Display` **and** return it from
+Stop `jj-workspace` printing the same cause twice to an operator: four of the
+eleven refusal kinds interpolate a cause into their own `Display` **and** return it from
 `Error::source`, so any consumer that renders the chain renders it once inside
 the message and once after it — landed as a corpus change the book contract
 permits.
@@ -11,11 +11,14 @@ permits.
 ## Context
 
 - Four kinds hold a cause and return it from `source()`
-  (`crates/jj-workspace/src/refusal.rs:215-221`): `UnresolvablePath`,
+  (`crates/jj-workspace/src/refusal.rs:238-244`): `UnresolvablePath`,
   `ControlDir` and `NotRunnable` return their `io::Error`, and
   `CommitNotRecorded` returns its boxed `Refusal`. All four also interpolate that
-  same cause into their `Display` arm with `{cause}` (`refusal.rs:145-152`,
-  `159-165`, `180-185`, `199-210`).
+  same cause into their `Display` arm with `{cause}` (`refusal.rs:153-160`,
+  `167-173`, `203-208`, `222-233`).
+  **These line numbers were re-derived at `lossy-path-rendering-k66`**, which
+  added an eleventh kind and moved `refusal.rs` from 230 lines to 254; the
+  citations above are against the new file and the four kinds are unchanged.
 - **It is reachable from grove and it was measured, not inferred.**
   `crates/grove-llm/src/main.rs:1` is `fn main() -> anyhow::Result<()>`, so a
   refusal that reaches the top is printed with `anyhow`'s `Debug` — the top
@@ -61,7 +64,7 @@ permits.
   renderings.
 - The corpus-freeze rule in `.grove/BRIEF.md` is honoured: **one commit** carries
   the source change, every affected book ledger and page, and a green validator
-  run over every book it touched. `refusal.rs:1-230` is the `refusal-source`
+  run over every book it touched. `refusal.rs:1-254` is the `refusal-source`
   block, owned by chapter 6 of the `jj-workspace` book and split into
   twenty-two literal fragments — a line moved in any `Display` arm moves
   `refusal-display-gate`, `refusal-display-namespace`, `refusal-display-seam` or

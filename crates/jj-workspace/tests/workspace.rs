@@ -511,6 +511,63 @@ fn operation_count(root: &Path) -> usize {
     String::from_utf8(out.stdout).unwrap().lines().count()
 }
 
+// The other half of the same claim: a path *inside* the workspace that cannot be
+// rendered as a fileset is refused too. Without this the rendering was lossy, so
+// the path became a fileset naming a file that does not exist — and jj answers a
+// fileset that matches nothing without complaint, so `is_tracked` said `false`
+// about a tracked file and a scoped `commit` took an empty change. Nothing is
+// given up by refusing: jj cannot track such a path either.
+//
+// The file is never created, which is what lets this run on a filesystem that
+// would reject the name: rendering is textual, so the refusal is reached before
+// anything touches the disk.
+#[test]
+#[cfg(unix)]
+fn a_path_whose_name_is_not_valid_utf8_is_refused_rather_than_rendered_lossily() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    let tmp = TempDir::new().unwrap();
+    let root = native(&tmp.path().join("repo"));
+    let workspace = Workspace::resolve(&root).unwrap();
+    let unnameable = root.join(OsStr::from_bytes(b"not\xffutf8.txt"));
+    let before = operation_count(&root);
+
+    let refusal = workspace.is_tracked(&unnameable).unwrap_err().to_string();
+
+    assert!(
+        refusal.contains("the path is not valid UTF-8"),
+        "the refusal must name the reason: {refusal}"
+    );
+    assert!(
+        refusal.contains("not") && refusal.contains("utf8.txt"),
+        "the refusal must name the path: {refusal}"
+    );
+    assert!(
+        !refusal.contains("is not inside the Jujutsu workspace"),
+        "the path is inside the workspace; the refusal must not say otherwise: {refusal}"
+    );
+    assert_eq!(
+        operation_count(&root),
+        before,
+        "a path that cannot be rendered must be refused before jj is asked anything"
+    );
+
+    assert!(
+        workspace
+            .commit(&[&unnameable], "record it")
+            .unwrap_err()
+            .to_string()
+            .contains("the path is not valid UTF-8"),
+        "a scoped commit must refuse rather than take an empty change"
+    );
+    assert_eq!(
+        operation_count(&root),
+        before,
+        "the refused commit must not have run jj either"
+    );
+}
+
 #[test]
 fn a_path_outside_the_workspace_is_refused_rather_than_answered() {
     let tmp = TempDir::new().unwrap();
@@ -568,6 +625,34 @@ fn a_deletion_is_committable_after_the_path_is_gone() {
     fs::remove_dir_all(root.join("notes")).unwrap();
     workspace
         .commit(&[Path::new("notes")], "remove the notes")
+        .unwrap();
+
+    assert!(files_in(&root, "@-").is_empty());
+}
+
+// `relative`'s other branch. The test above passes a relative path, which strips
+// textually against the root and never reaches the canonicalising fallback; this
+// one reaches the path through a symlinked alias of the workspace, so the textual
+// strip fails and the *parent* has to be canonicalised. Canonicalising the parent
+// rather than the path is what makes the deletion committable: the leaf is gone,
+// so canonicalising it would fail, and the caller would be unable to commit the
+// very removal it is holding.
+#[test]
+#[cfg(unix)]
+fn a_deletion_reached_through_a_symlinked_ancestor_is_committable() {
+    let tmp = TempDir::new().unwrap();
+    let root = native(&tmp.path().join("repo"));
+    let alias = tmp.path().join("alias");
+    std::os::unix::fs::symlink(&root, &alias).unwrap();
+    let workspace = Workspace::resolve(&root).unwrap();
+    write(&root.join("notes/one.md"), "content");
+    workspace
+        .commit(&[Path::new("notes/one.md")], "record the note")
+        .unwrap();
+
+    fs::remove_file(root.join("notes/one.md")).unwrap();
+    workspace
+        .commit(&[&alias.join("notes/one.md")], "remove the note")
         .unwrap();
 
     assert!(files_in(&root, "@-").is_empty());

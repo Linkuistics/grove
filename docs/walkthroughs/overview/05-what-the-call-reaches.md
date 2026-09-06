@@ -391,7 +391,7 @@ $ bash scripts/check.sh
 ...
 === book-check
   book-check docs/walkthroughs/jj-workspace
-valid: 4 files, 698 resolved lines, 0 deferred lines, final=true
+valid: 4 files, 738 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/ordinal-fs-tree
 valid: 17 files, 8720 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/overview

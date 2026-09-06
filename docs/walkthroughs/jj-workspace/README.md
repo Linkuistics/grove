@@ -11,7 +11,7 @@ crate's resolution has to answer for.
 The crate resolves a Jujutsu workspace, refuses a working tree that is not one,
 reserves a control namespace for its consumer, and takes a path-scoped commit.
 The book covers all of it: the manifest, the gate, the child-process seam, the
-namespace, the commit algebra, and the ten refusals. Every chapter opens on
+namespace, the commit algebra, and the eleven refusals. Every chapter opens on
 something the crate declines to own and names who owns it instead.
 
 **The intended outcome is a transferable test, not a reference card.** At the end
@@ -30,7 +30,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and the source index records how
 those fragments reconstruct each in-scope file. During authoring a scoped check
 proves the completed prefix and reports later-owned ranges as deferred; only the
-final check proves complete reconstruction of all four files and 698 lines.
+final check proves complete reconstruction of all four files and 738 lines.
 
 <a id="reading-fragments"></a>
 ## Reading fragments

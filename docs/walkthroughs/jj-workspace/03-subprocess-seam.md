@@ -536,7 +536,11 @@ together. Stdout is *parsed* — a change id, a path — so a byte that is not t
 makes the answer unusable and must refuse. Stderr is *displayed*, so a byte that
 is not text costs a replacement character in a message a human reads, and
 refusing to show a diagnostic because one character was malformed would withhold
-the only remedy the crate has. The trimming is a third detail with the same
+the only remedy the crate has. The rule generalises past this file, and
+[*Scope and commit*](05-scope-and-commit.md#the-path-algebra) applies it to a
+third case: a caller's path, which is *addressed* rather than parsed or
+displayed, and so refuses when it is not text — while the refusal that reports it
+renders that same path lossily, because reporting is displaying. The trimming is a third detail with the same
 motive: `Refusal::command_failed` trims the stderr it is given, so a refusal
 interpolated into a sentence does not carry jj's trailing newline into the middle
 of it.

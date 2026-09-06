@@ -553,7 +553,7 @@ the guards is load-bearing in a way a reader who skims it will miss: the first
 and third are the two that prevent `control_dir` from returning a directory that
 already means something.
 
-<!-- fragment «namespace-validation» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="320-343" parent="source-library" -->
+<!-- fragment «namespace-validation» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="336-359" parent="source-library" -->
 <!-- insert «namespace-validation-empty» -->
 <!-- insert «namespace-validation-path» -->
 <!-- insert «namespace-validation-self-reference» -->
@@ -570,7 +570,7 @@ returning the administrative directory raw. Verified on this crate at jj 0.44.0:
 `Path::new("/work/atlas").join(".jj").join("")` is `/work/atlas/.jj/`, and
 `create_dir_all` on an existing directory succeeds.
 
-<!-- fragment «namespace-validation-empty» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="320-323" parent="namespace-validation" -->
+<!-- fragment «namespace-validation-empty» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="336-339" parent="namespace-validation" -->
 ````rust
 fn validated_namespace(namespace: &str) -> Result<&str, Refusal> {
     if namespace.is_empty() {
@@ -587,7 +587,7 @@ allocation on the accept path at all.
 The second check is the one a reader expects to be the whole function: a name
 containing a separator is a path, not a name.
 
-<!-- fragment «namespace-validation-path» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="324-329" parent="namespace-validation" -->
+<!-- fragment «namespace-validation-path» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="340-345" parent="namespace-validation" -->
 ````rust
     if namespace.contains('/') || namespace.contains('\\') || namespace.contains('\0') {
         return Err(Refusal::namespace(
@@ -618,7 +618,7 @@ The third check is the one whose absence would be silent, and it exists because
 `.` and `..` are names rather than paths — neither contains a separator, so the
 guard above lets both through.
 
-<!-- fragment «namespace-validation-self-reference» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="330-335" parent="namespace-validation" -->
+<!-- fragment «namespace-validation-self-reference» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="346-351" parent="namespace-validation" -->
 ````rust
     if namespace == "." || namespace == ".." {
         return Err(Refusal::namespace(
@@ -647,7 +647,7 @@ is what has to move — and keeping the structural checks ahead of it means a
 malformed name is always reported as malformed rather than as a collision. It is
 also the only guard that consults data rather than the string's own shape.
 
-<!-- fragment «namespace-validation-owned» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="336-341" parent="namespace-validation" -->
+<!-- fragment «namespace-validation-owned» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="352-357" parent="namespace-validation" -->
 ````rust
     if JJ_OWNED_NAMES.contains(&namespace) {
         return Err(Refusal::namespace(
@@ -668,7 +668,7 @@ why it cannot have the word and that no version of its own code will ever get it
 that `.jj/repo` is still a directory afterwards — the refusal must not have
 disturbed jj's own.
 
-<!-- fragment «namespace-validation-accept» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="342-343" parent="namespace-validation" -->
+<!-- fragment «namespace-validation-accept» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="358-359" parent="namespace-validation" -->
 ````rust
     Ok(namespace)
 }

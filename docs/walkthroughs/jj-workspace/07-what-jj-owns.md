@@ -5,7 +5,7 @@
 <a id="assembly"></a>
 ## Six subtractions, assembled
 
-This chapter owns no production source. The four roots and 698 lines are already
+This chapter owns no production source. The four roots and 738 lines are already
 reconstructed by the fragment graph the six chapters before it built, and the
 [source index](source-index.md) records that graph in full. What is left is the
 thing no single chapter could state: the six refusals are one design, and the
@@ -22,10 +22,10 @@ hole.
 | # | What was subtracted | Who owns it instead | What the subtraction bought |
 |---:|---|---|---|
 | 1 | Every dependency | `std` spawns a process, reads a directory, and defines `Error` | A crate a consumer takes without inheriting a build, and a refusal a consumer can put in `anyhow` without this crate having chosen `anyhow` |
-| 2 | A repository abstraction, and any second lane behind it | jj, which *is* the version control system here | Resolution as a precondition rather than a dispatch: no trait, no enum, and no branch on which VCS owns the tree anywhere in 698 lines |
+| 2 | A repository abstraction, and any second lane behind it | jj, which *is* the version control system here | Resolution as a precondition rather than a dispatch: no trait, no enum, and no branch on which VCS owns the tree anywhere in 738 lines |
 | 3 | Ambient repository selection | The child process's working directory, with jj's four Git selectors removed | One property proved once at one seam, instead of a hygiene checklist repeated at every call site |
 | 4 | A vocabulary for its consumer | The consumer, which passes its namespace in as an ordinary string | One crate that serves any consumer, and a boundary the reader can watch `"grove"` cross rather than being told about |
-| 5 | Transactions, and history added by a read | jj's snapshot and its operation log | 139 lines where six mechanisms would have been, and a change id that still names the work after a rewrite |
+| 5 | Transactions, and history added by a read | jj's snapshot and its operation log | 155 lines where six mechanisms would have been, and a change id that still names the work after a rewrite |
 | 6 | Any remedy of its own | jj, whose repair the message quotes and does not run | Messages that are true whoever is calling, because none of them is a statement about one consumer's policy |
 
 Two things about the table are worth saying before the test is applied to it.
@@ -123,7 +123,7 @@ asserted.
 The cheapest row, and the only one where the guarantee cannot drift. `std` spawns
 the child, reads the directory, and supplies the `Error` trait that lets a
 `Refusal` sit inside `anyhow` without this crate ever having named `anyhow`.
-Chapter 6 showed what the empty table cost here in full: an eighty-line `Display`
+Chapter 6 showed what the empty table cost here in full: a hundred-line `Display`
 written by hand where `thiserror` would have written it, kept because the messages
 are multi-paragraph text that belongs in a body rather than in an attribute, and
 because a derived error publishes the variants the whole type exists to hide.
@@ -162,7 +162,7 @@ command.
 > session re-derives it. `docs/adr/jj-is-the-only-lane.md` is where that decision
 > is recorded and where the alternatives it closed off are argued. The crate does
 > not know any of this. It has no lane to choose because there is only one, and
-> the reason there is only one lives in grove's documents, not in these 698
+> the reason there is only one lives in grove's documents, not in these 738
 > lines — which is exactly why the crate can be read without them.
 
 ### 3 · Ambient repository selection
@@ -214,22 +214,33 @@ in the operation log around two probes and shows an unchanged tree records none.
 That is the checkability clause satisfied in its strongest form after the
 compiler's — a test that goes red if jj's behaviour moves under the crate.
 
-**And then the row fails at the interface into the delegation.** `commit` builds a
-`root:` fileset per path, and jj's guarantee for a fileset is about the files it
-matches, not about the paths the caller meant. A fileset that matches nothing
-makes `jj file list` print nothing and exit 0, and makes `jj commit` take an
-*empty* commit and exit 0 — measured on jj 0.44.0, and recorded in chapter 5's
-account of the path algebra. `relative` renders each path component with
-`to_string_lossy`, so a path whose bytes are not valid UTF-8 becomes a fileset
-naming a file that does not exist. The delegation is sound; the argument handed
-across it can be silently wrong, and the failure shape is `is_tracked` answering
-`false` about a tracked file, or a `Commit` naming an empty change, with no
-refusal anywhere.
+**And then the row failed at the interface into the delegation — which is where
+this book's test earned its keep.** `commit` builds a `root:` fileset per path,
+and jj's guarantee for a fileset is about the files it matches, not about the
+paths the caller meant. A fileset that matches nothing makes `jj file list` print
+nothing and exit 0, and makes `jj commit` take an *empty* commit and exit 0 —
+measured on jj 0.44.0, and recorded in chapter 5's account of the path algebra.
+`relative` used to render each path component with `to_string_lossy`, so a path
+whose bytes were not valid UTF-8 became a fileset naming a file that does not
+exist: the delegation was sound and the argument handed across it was silently
+wrong, with `is_tracked` answering `false` about a tracked file, or a `Commit`
+naming an empty change, and no refusal anywhere.
 
-The test as stated is about the guarantee, and this is about the call. That is not
-a reason to widen the test — it is the reason to apply it twice. **A delegation is
-only as strong as the argument you pass into it**, and the argument is code you
-wrote rather than a guarantee the tool made.
+That hole was found by applying this row's test rather than by a failing test, and
+it has since been closed — the render loop refuses a path it cannot express, and
+chapter 5 reads the refusal. Two things about the repair are worth keeping. The
+first is where the argument for it came from: not from this crate's taste for
+refusing, but from jj's own changelog, which says a path whose name is not valid
+UTF-8 *"can't be tracked"* and is skipped with a warning. Question 2 of the four
+below — *find where the tool underneath states its counterpart, and read it
+there* — is what turned a plausible fix into a settled one. The second is that
+nothing in the suite had gone red, and nothing would have: the failure was an
+argument, not a guarantee.
+
+The test as stated is about the guarantee, and that was about the call. That is
+not a reason to widen the test — it is the reason to apply it twice. **A
+delegation is only as strong as the argument you pass into it**, and the argument
+is code you wrote rather than a guarantee the tool made.
 
 > **The consumer's half.** grove commits at a
 > [task commit boundary](../../../CONTEXT.md#task-commit-boundary): one task is one
@@ -245,10 +256,13 @@ wrote rather than a guarantee the tool made.
 The needed guarantee is that a stop names a repair that exists and that running it
 helps. jj supplies it: `jj git init`, `jj git init --colocate`, `jj undo` and
 `jj op log` are jj's commands and they do what the messages say. Chapter 6's
-distinction is the sharp one here — every remedy in the file is a statement about
-jj's offer, true whoever is calling, and none is a statement about a consumer's
-policy, which the crate has no way to know. That shape appears ten times and its
-opposite zero times.
+distinction is the sharp one here — every remedy in the file is a statement true
+whoever is calling, and none is a statement about a consumer's policy, which the
+crate has no way to know. That shape appears eleven times and its opposite zero
+times. Ten of the eleven speak for jj; the eleventh, `PathNotText`, speaks for the
+filesystem, because jj has nothing to offer about a path it will not track — and
+that is the one row where the needed guarantee is met by something other than the
+tool underneath.
 
 The checkability clause passes weakest here. The remedies are string literals, so
 nothing goes red if a jj command is renamed, and the file has already supplied the
@@ -344,7 +358,7 @@ own architectural argument leans on hardest.
 <a id="taking-the-test-away"></a>
 ## Taking the test to a boundary of your own
 
-The crate is 698 lines and it is not the point. The point is the move it makes six
+The crate is 738 lines and it is not the point. The point is the move it makes six
 times, which is the most common move in any code that sits on top of a real tool,
 and which is almost never examined because it looks like restraint.
 
@@ -377,7 +391,7 @@ and *fails*.
 
 The one thing the test will not tell you is whether the subtraction was worth
 making. That is a question about the third column of the assembly table, and it is
-answered by what the code looks like: 698 lines, four files, no dependencies, and
+answered by what the code looks like: 738 lines, four files, no dependencies, and
 six chapters that could each be read on their own. A justified subtraction leaves
 something small enough to hold in one reading. An abdication leaves the same thing
 and moves the missing work into whoever calls you — which, when it is spelled out
@@ -399,30 +413,38 @@ directive remains anywhere in the book, and none may: `F003` reports any defer a
 all in final mode, so *"every deferral has become an insertion"* is a statement the
 validator refuses to let be false rather than one this page asserts.
 
-**Early use.** Eleven rows, every one `explained`. The structure brief fixed seven
+**Early use.** Twelve rows, every one `explained`. The structure brief fixed seven
 of them in advance as the minimum ledger: five forced by chapter 1 tracing the
 carried operation through every layer before any of those layers had been read —
 `Workspace`, `Refusal`, `Commit`, `control_dir` and `is_tracked` — and two forced
-by the narrative order putting the gate ahead of the seam it calls. Four more were
+by the narrative order putting the gate ahead of the seam it calls. Five more were
 added under the clause that requires a row before any additional later-owned name
 is introduced: three for the chapters that first name a refusal constructor they do
-not own, and one for `main_repo_of`, which chapter 1's trace names two chapters
-before the gate explains it. Each row turned `explained` in its owner's slice and
-in no other.
+not own, one for `main_repo_of`, which chapter 1's trace names two chapters before
+the gate explains it, and one for `Refusal::path_not_text`, which arrived with the
+refusal itself at `lossy-path-rendering-k66`. Each row turned `explained` in its
+owner's slice and in no other.
 
-The manifest declares only the six whose first use is in chapter 1, and the other
-five live in the book's own ledger rather than in the manifest. That is a
-workaround rather than a preference: a manifest `[[early-use]]` row must appear in
-the ledger *and* its first-use anchor must be found in a page present in the
-snapshot, which a scoped prefix cannot satisfy for a row whose first use is on a
-later chapter. `early-use-scope-k63` carries the defect.
+The manifest declares eight of the twelve and the book's own ledger carries the
+other four. That split was six and five when this chapter was first written, and
+the reason was a defect rather than a preference: a manifest `[[early-use]]` row
+had to have its first-use anchor in a page present in the snapshot, which a scoped
+prefix cannot satisfy for a row whose first use is on a later chapter, so the two
+rows first used in chapter 2 could not be declared at all. `early-use-scope-k63`
+scoped the anchor check to the proved prefix and moved them into the manifest. The
+four that remain ledger-only are first used in chapters 3, 4 and 5, and nothing now
+stops them being declared either — they are a choice rather than a workaround.
 
-**Owned source.** 98 + 92 + 81 + 58 + 139 + 230 = 698 lines across six chapters,
+**Owned source.** 98 + 92 + 81 + 58 + 155 + 254 = 738 lines across six chapters,
 and 0 for this one. The seventh row of that table exists to be zero: a chapter
-that owns no source is the shape the structure brief chose for the assembly, and
-the total is the same 698 the root brief froze.
+that owns no source is the shape the structure brief chose for the assembly. The
+total is forty lines above the 698 the root brief froze, and the forty are
+`lossy-path-rendering-k66`'s: sixteen in `lib.rs` and twenty-four in `refusal.rs`.
+The freeze is not a promise that the corpus never moves — it is the rule that a
+source change and every page it invalidates land in one commit, re-proved by the
+validator, which is what that leaf did.
 
-**Evidence.** Nine claims in this book are held by no test, and each chapter said
+**Evidence.** Seven claims in this book are held by no test, and each chapter said
 so where it made one — *stated here as unasserted rather than left for a reader to
 assume covered*. What no chapter could do is say how many there are, because each
 saw only its own. This is the third question of the test above turned on the book
@@ -436,25 +458,35 @@ itself: what in it would go red if the crate's behaviour moved?
 | 4 | `\` and `\0` are refused as namespaces | [ch. 4](04-namespace.md#the-validation) | measured on jj 0.44.0; the suite reaches that guard through `/` only |
 | 5 | `control_dir(".gitignore")` is refused in a native workspace too, where nothing would have collided | [ch. 4](04-namespace.md#worked-reservation) | reading the guard: it consults an array and never the tree; `the_git_ignore_jujutsu_writes_is_refused` stands in the colocated shape only |
 | 6 | A path containing `"` or `\` survives into the fileset unchanged | [ch. 5](05-scope-and-commit.md#the-path-algebra) | jj's documented string-literal syntax, and reading the loop |
-| 7 | A canonicalised parent that *does* strip resolves a deleted path | [ch. 5](05-scope-and-commit.md#the-path-algebra) | measured here on jj 0.44.0, through a symlinked ancestor |
-| 8 | A non-UTF-8 path becomes a fileset matching nothing, with no refusal | [ch. 5](05-scope-and-commit.md#the-path-algebra) | inspection: `jj file list` and `jj commit` over a non-matching fileset were measured, the end-to-end case was not constructed |
-| 9 | The workspace root is refused as a scope inside itself | [ch. 5](05-scope-and-commit.md#the-path-algebra) | a reading of the code, and nothing else — the weakest row in the table |
+| 7 | The workspace root is refused as a scope inside itself | [ch. 5](05-scope-and-commit.md#the-path-algebra) | a reading of the code, and nothing else — the weakest row in the table |
 
 The fourth column is the one to read down, because the rows are not equally weak.
-Rows 4 and 7 rest on a measurement taken against jj 0.44.0 and written into the
-page beside the code, which is a check a later reader can repeat against a later
-jj. Row 6 rests on jj's published syntax, and rows 3 and 5 on a property inherited
-by construction rather than tested per case — for row 3 the seam's one builder,
+Row 4 rests on a measurement taken against jj 0.44.0 and written into the page
+beside the code, which is a check a later reader can repeat against a later jj.
+Row 6 rests on jj's published syntax, and rows 3 and 5 on a property inherited by
+construction rather than tested per case — for row 3 the seam's one builder,
 which [chapter 3](03-subprocess-seam.md#nothing-ambient) argues is inherited
 rather than tested per call site, and for row 5 a guard that reads an array and
-never the workspace it is standing in. Row 8 is half of each: what jj does with a
-fileset matching nothing was measured, and that the lossy rendering can produce
-one was reasoned about. Rows 1, 2 and 9 rest on nothing
-repeatable at all.
+never the workspace it is standing in. Rows 1, 2 and 7 rest on nothing repeatable
+at all.
 
-Two of the nine have leaves against them — rows 7 and 8 are both
-`lossy-path-rendering-k66`, whose leaf carries the untested branch alongside the
-rendering that runs through it. The other seven stand. Row 5 is the one that has
+**This table was nine rows, and the two that left it are the more instructive
+half.** Both were `lossy-path-rendering-k66`'s: *a canonicalised parent that does
+strip resolves a deleted path*, and *a non-UTF-8 path becomes a fileset matching
+nothing, with no refusal*. The first is now
+`a_deletion_reached_through_a_symlinked_ancestor_is_committable` and the second
+`a_path_whose_name_is_not_valid_utf8_is_refused_rather_than_rendered_lossily`, and
+each was checked by mutation before it was credited: removing the clause the test
+claims to hold fails that test and no other in the suite. That is what a row
+leaving this table for the right reason looks like — not a paragraph asserting
+coverage, but an assertion that has been seen to fail.
+
+The two departures are not the same kind of departure, either, and the difference
+is worth keeping. The first row was a *gap in the tests* over correct code. The
+second was a gap in the code, and the row was honest about it — *the end-to-end
+case was not constructed* — so closing it took a source change and not a test. One
+of the remaining seven has a leaf against it: row 3 is
+`env-selector-coverage-k68`. The other six stand. Row 5 is the one that has
 changed hands rather than closed: `jj-owned-names-k65` retired the claim that
 stood there — that `control_dir(".gitignore")` collides in a colocated tree and
 succeeds in a native one — by putting the name in the list, and what took its
@@ -462,8 +494,8 @@ place is the narrower claim the repair itself created. A row leaving this table
 by being fixed is the ordinary case; a row leaving it by being replaced with its
 own successor is what a hand-maintained list looks like from here.
 
-That is the honest total: this book proves 698 lines byte for byte, and argues
-nine claims that nothing goes red on. Chapter 1's row of the verdict table set
+That is the honest total: this book proves 738 lines byte for byte, and argues
+seven claims that nothing goes red on. Chapter 1's row of the verdict table set
 the ceiling — a check the compiler performs — and every row here
 falls short of it. Saying by how much is what the assembly owed a reader who has
 just been taught to ask.
@@ -483,25 +515,33 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/jj-workspace --final --check all
-valid: 4 files, 698 resolved lines, 0 deferred lines, final=true
+valid: 4 files, 738 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 698 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 738 resolved and 0 deferred is the whole corpus
 reconstructed.
 
 ```console
 $ bash scripts/check.sh
 ...
 === book-check
+  book-check docs/walkthroughs/grove-llm
+valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
+  book-check docs/walkthroughs/grove-loop
+valid: 13 files, 10533 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
-valid: 4 files, 698 resolved lines, 0 deferred lines, final=true
+valid: 4 files, 738 resolved lines, 0 deferred lines, final=true
+  book-check docs/walkthroughs/keyed-launch
+valid: 9 files, 2073 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/ordinal-fs-tree
 valid: 17 files, 8720 resolved lines, 0 deferred lines, final=true
-  2 book(s) checked, 0 failing
+  book-check docs/walkthroughs/overview
+valid: 3 files, 204 resolved lines, 0 deferred lines, final=true
+  6 book(s) checked, 0 failing
   ✓ book-check
 
 check: all 8 principal checks pass
@@ -521,11 +561,11 @@ $ cargo test --locked -p jj-workspace
      Running tests/environment.rs
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/workspace.rs
-test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 
 The crate's own suite, which is the evidence this book cites and does not
-reproduce. Thirty tests, all of them integration tests: the crate carries no
+reproduce. Thirty-two tests, all of them integration tests: the crate carries no
 unit tests and no documentation tests, because its public surface is the three
 types and six functions [*Orientation*](01-orientation.md#public-surface) listed
 — `Workspace`, `Commit` and `Refusal`, with `resolve` the only constructor — and
@@ -533,7 +573,7 @@ every claim worth making about it is a claim about a real workspace on disk. It
 is outside the corpus by design — chapter 1 said so — and every claim in the six
 chapters that names a test names one that runs here.
 
-The book is complete: four roots, 698 lines, seven chapters, two lookup surfaces,
+The book is complete: four roots, 738 lines, seven chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that six refusals are one design, and what
 it leaves the reader with is the test that tells a subtraction from an abdication
 — including, on the crate's own fourth refusal, the answer nobody drafting it

@@ -236,6 +236,10 @@ impl Workspace {
     /// does not contain it. Canonicalisation is applied to the **parent**, so a
     /// path that no longer exists — the one the caller is about to commit the
     /// deletion of — still resolves.
+    ///
+    /// A path whose name is not valid UTF-8 is **refused** rather than rendered
+    /// lossily. The rendering is the whole of what jj is asked about, so a
+    /// lossy one asks a different question and gets an answer to that.
     fn relative(&self, path: &Path) -> Result<String, Refusal> {
         let absolute = if path.is_absolute() {
             path.to_path_buf()
@@ -264,10 +268,22 @@ impl Workspace {
         }
         let mut rendered = String::new();
         for component in relative.components() {
+            // The crate's one conversion from bytes to text on the way *in*,
+            // and so the one that has to be able to fail. Rendering it lossily
+            // would name a different file — a fileset that matches nothing,
+            // which jj answers without complaint — and nothing is given up by
+            // refusing, because jj cannot address such a path either: *"Such
+            // paths can't be tracked, so they are now skipped and reported as a
+            // warning instead"* (jj 0.44.0, `Fixed bugs`,
+            // <https://docs.jj-vcs.dev/v0.44.0/changelog/>).
+            let component = component
+                .as_os_str()
+                .to_str()
+                .ok_or_else(|| Refusal::path_not_text(path))?;
             if !rendered.is_empty() {
                 rendered.push('/');
             }
-            rendered.push_str(&component.as_os_str().to_string_lossy());
+            rendered.push_str(component);
         }
         Ok(rendered)
     }

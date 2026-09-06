@@ -181,7 +181,7 @@ impl fmt::Display for Refusal {
                 f,
                 "could not run `{command}`: {cause}\n\n\
                  Jujutsu drives this workspace, so its binary has to be on `PATH`. Install it \
-                 (https://jj-vcs.github.io/jj/latest/install-and-setup/) and rerun."
+                 (https://docs.jj-vcs.dev/latest/install-and-setup/) and rerun."
             ),
             Kind::CommandFailed {
                 command,

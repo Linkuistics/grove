@@ -160,7 +160,7 @@ What a consumer prints:
 ```text
 could not run `jj commit -m rate-limit-k3: refuse a request over the burst ceiling root:".grove/01-DONE-impl--rate-limit-k3.md"`: No such file or directory (os error 2)
 
-Jujutsu drives this workspace, so its binary has to be on `PATH`. Install it (https://jj-vcs.github.io/jj/latest/install-and-setup/) and rerun.
+Jujutsu drives this workspace, so its binary has to be on `PATH`. Install it (https://docs.jj-vcs.dev/latest/install-and-setup/) and rerun.
 ```
 
 The remedy is installation, and it is the same remedy whichever of the four call

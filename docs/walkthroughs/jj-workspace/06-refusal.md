@@ -736,7 +736,7 @@ one of the three has no remedy at all.
                 f,
                 "could not run `{command}`: {cause}\n\n\
                  Jujutsu drives this workspace, so its binary has to be on `PATH`. Install it \
-                 (https://jj-vcs.github.io/jj/latest/install-and-setup/) and rerun."
+                 (https://docs.jj-vcs.dev/latest/install-and-setup/) and rerun."
             ),
             Kind::CommandFailed {
                 command,
@@ -751,14 +751,17 @@ one of the three has no remedy at all.
 <!-- /fragment -->
 
 **`NotRunnable`'s remedy is installation, and it is the only arm that hard-codes a
-URL.** That URL is a defect the book records rather than fixes: on jj 0.44.0
-`https://jj-vcs.github.io/jj/latest/install-and-setup/` answers `301 Moved
-Permanently` to `docs.jj-vcs.dev`, so the crate prints a redirect. The corpus is
-frozen for this book, and the fix moves a line boundary inside the fragment above,
-so it must land in one commit with this page; it is carried as `jj-docs-url-k64`
-and is the reason chapter 2 links jj's glossary at the current host instead of
-propagating this one. A reader following the printed link still arrives, which is
-why this is a defect and not a break.
+URL.** It has already decayed once. The literal read
+`https://jj-vcs.github.io/jj/latest/install-and-setup/` when this book was
+drafted, and that host had begun answering `301 Moved Permanently` to
+`docs.jj-vcs.dev`; a reader following the printed link still arrived, which is why
+it was a defect and not a break, and why the book recorded it rather than fixing
+it under a frozen corpus. `jj-docs-url-k64` re-pointed it at the current host in
+one commit carrying the source line, the fragment above and the rendered sample in
+chapter 3 — and it is the reason chapter 2 cites jj's glossary at that host
+instead of propagating the old one. Nothing in the crate's suite reported the
+drift and nothing will report the next one: the remedy is a string literal, which
+is the concession chapter 7 makes for this whole file.
 
 **`CommandFailed`'s arm has no remedy paragraph, and that is the correct shape.**
 It is the only arm that renders on one line, and everything after the colon is

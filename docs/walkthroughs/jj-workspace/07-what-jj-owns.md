@@ -251,14 +251,15 @@ policy, which the crate has no way to know. That shape appears ten times and its
 opposite zero times.
 
 The checkability clause passes weakest here. The remedies are string literals, so
-nothing goes red if a jj command is renamed, and the file already contains the
-proof that this decays: the `NotRunnable` remedy prints an installation URL whose
-host now answers `301 Moved Permanently`. That is the copy failure again, in the
-one part of the crate whose entire content is quoted from another tool. It is
-justified rather than an abdication because the substance is right and the decay
-is visible to a reader the moment they follow the link — but *visible to a reader
-who follows it* is a much weaker check than *red in CI*, and the row should be
-read as passing on substance while conceding the mechanism.
+nothing goes red if a jj command is renamed, and the file has already supplied the
+proof that this decays: the `NotRunnable` remedy printed an installation URL whose
+host began answering `301 Moved Permanently`, and re-pointing it took a leaf of
+its own (`jj-docs-url-k64`, chapter 6) rather than a failing test. That is the
+copy failure again, in the one part of the crate whose entire content is quoted
+from another tool. It is justified rather than an abdication because the substance
+is right and the decay is visible to a reader the moment they follow the link —
+but *visible to a reader who follows it* is a much weaker check than *red in CI*,
+and the row should be read as passing on substance while conceding the mechanism.
 
 The [guide's account of undoing a mistake](../../USAGE.md#undoing-a-mistake) is
 where a grove user meets the `CommitNotRecorded` remedy in practice, and it is

@@ -73,7 +73,7 @@
 - [When a remedy is right about the observation and wrong about the repair](06-refusal.md#the-namespaces-two)
 - [Reason strings written for the condition](06-refusal.md#scopes-two)
 - [The one arm with no remedy paragraph](06-refusal.md#the-seams-three)
-- [The stale installation URL in production source](06-refusal.md#the-seams-three)
+- [The one hard-coded URL, and the decay it already suffered](06-refusal.md#the-seams-three)
 - [The refusal about state rather than about a command](06-refusal.md#the-commit-that-did-not-land)
 - [Naming a repair without running it](06-refusal.md#the-commit-that-did-not-land)
 - [Why every kind is listed rather than a catch-all](06-refusal.md#the-cause-chain)

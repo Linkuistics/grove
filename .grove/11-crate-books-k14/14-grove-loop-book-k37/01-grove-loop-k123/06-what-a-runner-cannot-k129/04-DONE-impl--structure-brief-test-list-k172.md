@@ -70,3 +70,39 @@ still owes the enumeration for its own block; what this leaf closes is chapter
 the whole of every sentence you touch, not the clause you came for.
 
 ## Decisions (running log)
+
+**Ten were missing, not nine — and the leaf body's own list was the second wrong
+list.** The block holds eighteen `#[test]` functions; the brief's nine held eight
+real names plus the misattributed
+`an_alias_equivalent_second_owner_is_refused_immediately`, so the shortfall is
+ten. This leaf's *Context* named only nine of them, omitting
+`a_successful_liveness_probe_releases_the_lease_before_validation`
+(`driver_lease.rs` line 1305, the sixteenth in file order). Settled by
+enumerating the block with `awk 'NR>=820 && NR<=1383'` over `#[test]` and
+diffing that against both the brief and `17-the-epoch.md#eighteen-not-nine` —
+which agree with the source name-for-name and in order — rather than by trusting
+either prose list. **A list handed to you is evidence of the same rank as the
+list you came to fix.**
+
+**The chapter 17 section is the only site.** Enumerated rather than grepped, per
+the leaf's instruction: *What each chapter's prose owes* names chapter 17 on the
+*supply the claim* list but states no per-chapter count (its figures are the
+block set's — 3,984 lines, 38%, 14% prose); *The mapping onto the corpus* gives
+`driver_lease.rs` two blocks and chapter 17 564 lines (1383 − 820 + 1 ✓); the
+chapter-sequence table and the worked-example row carry no count; and the
+outbound-link and glossary-anchor tables carry only anchors. A reverse sweep —
+each of the eighteen names, and `alias_equivalent`, grepped across the whole
+brief — returns nothing outside the corrected section.
+
+**Recorded, not corrected: the rule sentence is worded two ways.** The brief says
+*a handoff is ordered rather than timed out of trouble*; `17-the-epoch.md`'s
+heading and rule blockquote say *ordered rather than raced*, and expand it to
+*no deadline is any part of it*. Both are true of the block, so this is not a
+defect in either and was left alone; a later editorial stage checking brief↔page
+rule agreement should expect the divergence rather than read it as drift.
+
+**Verification.** `cargo test -p grove-loop --lib driver_lease` reports
+`18 passed`. `bash scripts/check.sh` is `FAILED — 1 of 8`, red on `book-check`
+alone, whose five failures are chapter 18–21's absence and the README/navigation
+entries that wait on them — unchanged by this leaf, which touched `docs/specs/`
+only.

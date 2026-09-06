@@ -498,14 +498,25 @@ read chapter 13's page for the wording, not this brief.
 
 **The rule: the epoch decides which `grove-llm` calls a live driver admits, and a
 handoff is ordered rather than timed out of trouble.** The whole inline test
-module: `an_alias_equivalent_second_owner_is_refused_immediately`,
+module — **eighteen** `#[test]` functions, in file order:
 `lease_path_replacement_retries_until_the_locked_descriptor_is_current`,
 `lease_path_replacement_fails_closed_after_eight_attempts`,
 `acquired_driver_descriptors_are_close_on_exec`,
 `activation_and_invalidation_replace_one_stable_epoch_record`,
-`an_admitted_old_operation_finishes_before_replacement_invalidates_new_calls`,
+`epoch_acquisition_retries_open_lock_path_replacement_in_event_order`,
+`an_orphaned_epoch_guard_times_out_post_reap_once_at_the_fixed_bound`,
+`the_epoch_contention_diagnostic_names_the_lock_mode_and_operation`,
 `manual_agent_operations_need_no_driver_epoch`,
-`an_active_epoch_without_a_live_lease_is_stale`, `a_malformed_epoch_is_stale`.
+`only_a_nonempty_loop_control_value_is_ambient_context`,
+`an_admitted_old_operation_finishes_before_replacement_invalidates_new_calls`,
+`replacement_keeps_the_old_lease_record_until_it_owns_epoch_handoff`,
+`ambient_context_from_another_worktree_names_both_roots`,
+`an_inactive_epoch_is_reported_without_claiming_a_session_is_active`,
+`a_rotated_epoch_refuses_the_old_signal_path`,
+`an_epoch_signal_path_round_trips_record_separator_bytes`,
+`a_successful_liveness_probe_releases_the_lease_before_validation`,
+`an_active_epoch_without_a_live_lease_is_stale` and
+`a_malformed_epoch_is_stale`.
 
 At 3% comment prose this is the barest block in the corpus, and the chapter's
 whole job is to say what each scenario establishes and what it would still pass

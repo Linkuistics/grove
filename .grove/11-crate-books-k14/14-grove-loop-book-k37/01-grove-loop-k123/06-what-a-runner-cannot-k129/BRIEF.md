@@ -220,6 +220,19 @@ live obligations for chapters 18 to 21.
   absences.
 
 
+**Promoted from `structure-brief-test-list-k172`.** The chapter 17 section of
+`docs/specs/grove-loop-book-structure.md` now names eighteen tests in file
+order and no longer names the `tests/` integration test; it is the only site in
+the brief that states chapter 17's count, confirmed by enumerating the four
+candidate sections and by a reverse grep of all eighteen names.
+
+- **A list handed to you is evidence of the same rank as the list you came to
+  fix.** The leaf body's own inventory of missing names was short by one —
+  `a_successful_liveness_probe_releases_the_lease_before_validation`, line 1305 —
+  so the shortfall was ten, not nine. Chapters 18 to 20 owe the count against
+  their own block, and owe it against the block rather than against any prose
+  list of it, this brief's *Pointers* included.
+
 ## Notes
 
 **The corpus is frozen.** A defect found while drafting becomes its own leaf and

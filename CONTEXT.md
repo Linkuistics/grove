@@ -6,9 +6,23 @@ Definitions only. How a seam works belongs to `docs/ARCHITECTURE.md`, the
 specs under `docs/specs/` and the walkthrough books under `docs/walkthroughs/`;
 this glossary names those seams rather than restating them.
 
+Every term entry carries an explicit `<a id="…"></a>` anchor on the line
+**immediately preceding** its heading — the only form `book-validation` counts,
+and so the only form a walkthrough book may reserve
+(`docs/specs/walkthrough-books.md`, *Anchors are declared, and the declaration is
+what is checked*). The scheme, for a term added later: the slug is the entry's
+**first** term, lowercased, with runs of non-alphanumerics collapsed to a single
+`-` and any parenthetical or `/`-alternate dropped; the heading sits one level
+below its container — `###` for a term directly under `## Language`, `####` for a
+term inside one of the two grouping headings. Retitle a heading freely and never
+rename its anchor: a book reserves the slug, and a rename breaks that book
+silently.
+
 ## Language
 
-**Skill delivery** / **the retired sweep**:
+<a id="skill-delivery"></a>
+### Skill delivery / the retired sweep
+
 How grove's methodology reaches a session: it does not. The methodology is the
 **`grove` plugin** — a spine skill and one `grove-<kind>` skill per kind — and a
 human installs it the way this repo's other plugins are installed. `${prompt}`
@@ -48,7 +62,9 @@ disappeared with their lifecycle verbs. There is no launcher and no launcher
 prose anywhere: `content/MANDATE.md` framed the mandate and went with it, and
 what the driver writes is the [[Guaranteed core]], in Rust, under a rule.
 
-**Mandate slice** *(retired)*:
+<a id="mandate-slice"></a>
+### Mandate slice *(retired)*
+
 A byte-exact projection of one span of `content/` into one session's `${prompt}`
 — the grain a 100%-specific mandate was composed out of. **Nothing projects one,
 and every piece of machinery that did is deleted**: the methodology reaches a
@@ -113,7 +129,9 @@ a default `finish` overrides, is recorded at `crates/grove-loop/src/prompt.rs`.
 _Avoid_: reading its 4 KiB assertion as a budget the design was fitted to — it is
 an alarm on the test, and nothing legitimate approaches it.
 
-**Family reference file**:
+<a id="family-reference-file"></a>
+### Family reference file
+
 The one file in the spine's `references/` carrying the discipline a **family** of
 [[Session kind]]s shares — `review.md` for the five `review-*` kinds,
 `integrate-review.md` for the five `integrate-review-*`, `research.md` for the
@@ -141,7 +159,9 @@ _Avoid_: one file per kind label. The reviews, the integrations, the research
 halves and the editorial stages would each be near-duplicates of one text, and
 duplicated prose is the drift risk one level down from the one being removed.
 
-**Loop-step reference file**:
+<a id="loop-step-reference-file"></a>
+### Loop-step reference file
+
 The other species in the spine's `references/`: a file carrying the **universal**
 procedures that one step of the loop needs, which no [[Session kind]] selects and
 which the spine's `SKILL.md` conditions reach by naming it. The seam is the loop
@@ -160,7 +180,9 @@ _Avoid_: growing the set per rule. It is bounded at roughly ten in the directory
 because a directory a session cannot hold in mind stops being disclosure and
 starts being a second corpus to search.
 
-**Condition** / **procedure** (the `if` / `then` split):
+<a id="condition"></a>
+### Condition / procedure (the `if` / `then` split)
+
 The split the progressive-disclosure skill is cut along: the spine's `SKILL.md`
 states **conditions**, and each names the [[Loop-step reference file]] — or, for
 a family, the [[Family reference file]] — its **procedure** lives in. Every rule in the
@@ -214,7 +236,9 @@ was checkable — never that a session notices the situation a condition describ
 That noticing was always the session's, and it is the whole of what the delivery
 change is judged on.
 
-**Spine skill** / **kind skill**:
+<a id="spine-skill"></a>
+### Spine skill / kind skill
+
 The two species the corpus becomes once the methodology ships as a skill plugin
 rather than as bytes the binary provisions ([`plugins/CONTEXT.md`](./plugins/CONTEXT.md)
 owns that delivery vocabulary). The **spine** is one skill, `grove`,
@@ -235,7 +259,9 @@ _Avoid_: a manifest of kinds anywhere — in the machinery, in the conformance
 runner, or in the spine. Writing one is the signal that the openness has been
 lost.
 
-**Composed loaded path**:
+<a id="composed-loaded-path"></a>
+### Composed loaded path
+
 The [[Loaded path]] read off a *shipped skill set* instead of computed from
 `crates/grove-loop/src/prompt.rs`: the closure of every skill-relative file the [[Kind skill]]'s
 and the [[Spine skill]]'s `SKILL.md` reach, following what the bytes actually
@@ -246,7 +272,9 @@ _Avoid_: recomputing it from a table of edges. A path computed by a parallel
 notion of what a session reads drifts from the real one and then lies, which is
 the failure mode the measurement exists to avoid rather than reproduce.
 
-**Loaded path**:
+<a id="loaded-path"></a>
+### Loaded path
+
 The bytes one session actually **reads** on its normal path for its kind — that
 kind's [[Kind skill]], the [[Spine skill]] it is told to load, the
 [[Family reference file]] its own skill names if it has one, and whatever a
@@ -299,7 +327,9 @@ path only once the condition naming it fires, so a session that meets more
 conditions legitimately reads more; a budget states the ordinary case and is not
 a ceiling on a session that needed a procedure.
 
-**Complete finish cycle**:
+<a id="complete-finish-cycle"></a>
+### Complete finish cycle
+
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:
 (1) promote durable artifacts from the briefs; (2) delete `.grove/` in a focused
 commit whose message names the finish leaf's [[Work-item handle]]; (3) signal
@@ -327,7 +357,9 @@ the new leaf and the sentinel waits. Three endings, distinguished by what the
 session *did* — teardown (`--done`, stop), reopening (`complete`, relaunch), or
 declining (no signal, stop, leaf still live).
 
-**Grove name**:
+<a id="grove-name"></a>
+### Grove name
+
 The working-tree directory's basename — never a branch, a bookmark, or a
 canonical layout — resolved from the closest `.jj/` marker walking up. The name
 supplies the root brief (`# <name> — brief`) and the harness session name
@@ -337,7 +369,9 @@ _Avoid_: describing resolution as consulting `.git` at all. Grove drives jj only
 (`docs/adr/jj-is-the-only-lane.md`); a tree with no `.jj/` is refused before any
 mutation, and a `.git` beside a `.jj` is jj's business, never grove's.
 
-**Meta-grove**:
+<a id="meta-grove"></a>
+### Meta-grove
+
 A grove whose subject *is* the grove machinery — this repo. The distinguishing
 property is not the topic but the **process ancestry**: its build and test
 commands run as descendants of the very session driving them, so they inherit
@@ -375,7 +409,9 @@ property of the configured command, not of grove.
 _Avoid_: calling the path a credential or security token — any descendant can read or deliberately discard its environment. The session epoch prevents ordinary stale-loop behavior; it does not defend against a hostile local process.
 _Avoid_: treating a redirected `cargo test` as evidence the guard works — a redirected run is safe by construction and passes with the guard removed. The acceptance test is a full run from a live pane with the real path in ambient env, verified absent afterwards.
 
-**root-init** / **fresh-grove start**:
+<a id="root-init"></a>
+### root-init / fresh-grove start
+
 The mechanical first step of bare `grove` when the provided working tree has no
 `.grove/`: before launching any agent the driver creates `.grove/`, the root
 `BRIEF.md` stub and `01-requirements--plan-k1.md`, then runs the ordinary authoritative [[Pick]] and launches that requirements
@@ -386,7 +422,9 @@ _Avoid_: "the bootstrap leaf is planning" — that was the pre-taxonomy answer, 
 _Avoid_: asking the first agent to run `grove-llm root-init`; the driver creates
 the leaf it must select before the agent exists.
 
-**Bootstrap**:
+<a id="bootstrap"></a>
+### Bootstrap
+
 The per-session context-loading step of the grove loop: read the glossary, the ancestor `BRIEF.md` chain, the cited ADRs, and the task file. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
 
 <a id="task-commit-boundary"></a>
@@ -435,7 +473,9 @@ edits, commits, or forged signal writes. See ADR
 _Avoid_: a durable **grove generation** in `.grove/` or in a [[Work-item handle]]. Epoch rotation is stronger and catches stale sessions between every launch as well as after finish plus root recreation; stable handles remain identities within one task tree.
 _Avoid_: inferring authority from the existence or bytes of a control file. The live kernel locks bind the record; unlocked leftovers mean nothing.
 
-**Session kind**:
+<a id="session-kind"></a>
+### Session kind
+
 The launch-and-discipline label encoded only in a [[Leaf]] `.md` filename as
 `NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md`. The kind is routing
 metadata, not identity: the stable [[Work-item handle]] remains `<slug>-k<key>`.
@@ -464,7 +504,9 @@ grove reads, a default on a grow verb's `--kind`, or a constant naming a shape's
 steps. The two tokens above are the whole of it, and each is licensed by grove
 writing that leaf itself.
 
-**No migration**:
+<a id="no-migration"></a>
+### No migration
+
 Grove converts no task tree. A tree whose names the current grammar cannot spell
 is **refused by name** — `TaskNameError` carries the filename on disk and the
 shape it should have had — and the operator renames it or starts a fresh grove.
@@ -479,7 +521,9 @@ _Avoid_: expecting the refusal to say *which* withdrawn layout this is. That
 classifier was migration's and went with it; the operator does not need it in
 order to act.
 
-**Review chain** / **vendor pair**:
+<a id="review-chain"></a>
+### Review chain / vendor pair
+
 Two of the three composition patterns over the [[Session kind]] set; the third
 is the [[Editorial chain]]. The **review chain**
 is `X` → `review-X` → `integrate-review-X`: sequential, **adversarial** (the
@@ -580,7 +624,9 @@ flag, not a confirmation**. None of a pair's three leaves runs an in-session
 doubt reviewer: the two producers already supply independent corpora and the
 combiner already supplies the adversarial move.
 
-**Editorial chain**:
+<a id="editorial-chain"></a>
+### Editorial chain
+
 The third composition pattern over the [[Session kind]] set, and the one no
 `review-*` kind appears in: `draft` → `copy-edit` → `art` → `proof`, the four
 stages of a document's publishing pipeline. Every stage is a **producer** — it
@@ -605,7 +651,9 @@ bare stem, for the reason a [[Review chain]]'s steps do.
 _Avoid_: reading `art` as a licence to add files beside the page. A stage works
 only in the medium the document's own contract admits.
 
-**HITL** / **AFK**:
+<a id="hitl"></a>
+### HITL / AFK
+
 Whether a [[Session kind]] resolves through live exchange with a human who
 speaks for themselves (`requirements`, `prototype`, `finish`) or is driven by
 the agent alone (every other kind). The generating rule: a kind is HITL when its
@@ -622,7 +670,9 @@ every kind runs every step, so a question in the Retire or Commit step overrides
 the mark by construction and stalls AFK kinds at a moment nothing in the tree
 predicts.
 
-**Confirmation boundary**:
+<a id="confirmation-boundary"></a>
+### Confirmation boundary
+
 The rule deciding which moments in the loop stop and ask a human, applied in two
 ordered tests: **(1) does the answer change what is written?** — if every answer
 leaves the same bytes on disk, do not ask; **(2) if it does, is the fact the
@@ -645,7 +695,9 @@ _Avoid_: re-adding a per-ancestor question as the cascade recurses — that is t
 wizard anti-pattern *in-session-finish-cycle* already rejects, and it terminated
 into that cycle's own confirmation, giving up to four questions about one fact.
 
-**Grove configuration** (`~/.config/grove/config.kdl`):
+<a id="grove-configuration"></a>
+### Grove configuration (`~/.config/grove/config.kdl`)
+
 The complete source of Grove's user configuration: a flat document assigning each
 [[Session kind]] one complete command-template string, which
 chooses the executable or wrapper and every user-controlled argument — harness,
@@ -674,7 +726,9 @@ configured process remains Grove's direct foreground child.
 _Avoid_: describing a diagnostic environment override as configuration; a
 delta is the only second source, and it is still personal policy.
 
-**Configuration delta** (`.grove.kdl`):
+<a id="configuration-delta"></a>
+### Configuration delta (`.grove.kdl`)
+
 The untracked, worktree-local partial that overrides [[Grove configuration]] per
 [[Session kind]]. Searched at the worktree root and then the main repository root
 — the two paths `${worktree}` and `${repo}` expand to — with the first file found
@@ -697,7 +751,9 @@ reaches the person who can fix it.
 _Avoid_: reading the ignore rule instead of the index — a file already committed
 stays tracked after a `.gitignore` line is added.
 
-**Kind routing**:
+<a id="kind-routing"></a>
+### Kind routing
+
 How the self-driving loop launches the [[Leaf]] selected by one authoritative
 driver-side [[Pick]]. The driver reads the session kind from that leaf's
 filename, obtains its complete session target from [[Grove configuration]],
@@ -737,7 +793,9 @@ _Avoid_: reading it as a choice among lanes. There is one, and a working tree
 with no `.jj/` never reaches a mandate at all — it is refused at the gate, with
 `jj git init --colocate` named as the remedy.
 
-**Review target diversity**:
+<a id="review-target-diversity"></a>
+### Review target diversity
+
 Whether a scheduled review uses a different harness or model from its producer
 is explicit policy in [[Grove configuration]]. Grove does not interpret command
 templates to recover target identity, persist producer launch receipts, export
@@ -745,7 +803,9 @@ session-target metadata, compare targets, or warn; a `review-*` leaf supplies a
 fresh session, and choosing a materially different command is the configuration
 owner's responsibility.
 
-**Spec** (`docs/specs/<slug>.md`):
+<a id="spec"></a>
+### Spec (`docs/specs/<slug>.md`)
+
 The human-facing, team-shareable design of an *area* of the system — problem,
 solution, settled decisions, agreed test seams, out-of-scope — written lazily by a
 `design` task at a genuine agreement point, in a flow spanning four kinds: grill
@@ -769,7 +829,9 @@ spec, an ADR set, or both; `planning` consumes it and cuts the leaves.
 <a id="task-tree-scheme"></a>
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 
-**Node directory** / **node**:
+<a id="node-directory"></a>
+#### Node directory / node
+
 A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding its numbered children (leaf files and child node directories), headed by a `BRIEF.md` charter; `.grove/` is itself the root node (its charter is `.grove/BRIEF.md`). The filesystem carries the hierarchy, so a name encodes only its *per-level* position — not a global path (task-tree-scheme).
 **One species, and it always carries a charter.** A node is a leaf that proved
 *bigger than one session*, so the charter is exactly the context those extra
@@ -797,10 +859,14 @@ done; such a name is a malformed tree that stops reads and mutations. Names
 outside that grammar stay foreign at either species, and the reserved
 transaction witnesses are unpositioned, so none is reached by the rule.
 
-**Leaf**:
+<a id="leaf"></a>
+#### Leaf
+
 A single unit of work — a file `NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md` inside a node directory, executed in one session. The only thing `pick` returns is a *live* leaf — one carrying **no outcome infix** at all. A leaf has exactly two terminal states: `DONE` (the work was done) and `ABANDONED` (the path was closed); see [[DONE infix]] and [[Pruning]].
 
-**Pick** (`grove-llm pick`):
+<a id="pick"></a>
+#### Pick (`grove-llm pick`)
+
 The loop's dispatcher: the **first
 eligible live [[Leaf]] in depth-first pre-order** over `.grove/`, read from
 filenames and never from task-file contents. Eligibility has one
@@ -825,7 +891,9 @@ is the first non-finish name with no outcome infix — which is what makes "the
 tree is the only state" worth something rather than merely true.
 _Avoid_: expecting `pick` to **schedule** — to finish a group before considering an earlier live leaf, or to skip a leaf that is merely blocked. Answering "is a group in flight?" needs either state outside the tree (constraint 1) or a rule that skips live work and ranks groups, turning the walk into a scheduler no reader of `find .grove` can predict (task-tree-scheme, *`pick` is a walk, not a scheduler*).
 
-**Position** (`NN`):
+<a id="position"></a>
+#### Position (`NN`)
+
 The **mutable** 2-digit zero-padded per-level locator of an entry among its directory's siblings — the sort input within one directory (lexical == numeric == DFS), rewritten on insert/reorder. It is a locator, **not** an identity.
 _Avoid_: using a position (or a directory path) as a durable cross-reference — it moves under renumber. Reference by the [[Permanent key]] or [[Work-item handle]] instead.
 _Avoid_: reading adjacency as a structural claim, or as a fact about how chains
@@ -837,12 +905,16 @@ where a step lands is free. It is free for a `review-*` step and not for an
 `integrate-review-*` one, whose findings are anchored to positions in files an
 intervening leaf can move without erroring. See [[Review chain]].
 
-**Permanent key** / **stable id** (`-k<key>`):
+<a id="permanent-key"></a>
+#### Permanent key / stable id (`-k<key>`)
+
 The never-rewritten identity token of a leaf or node, always the **terminal** token before the extension/slash, assigned once as `max key in tree + 1` (the keys in the names *are* the counter — no counter file; **every finished leaf stays in the tree, `DONE` or `ABANDONED` alike**, so the max is always visible). `grove-llm resolve [n]` / `n` finds an entity's current path by key across any renumber, move, or slug edit.
 _Avoid_: "position" as identity; reusing a retired key.
 _Avoid_: **deleting** a leaf to abandon it (`git rm`, or just removing the file in a jj tree) — that lowers the max and the next `leaf-add` re-issues a live key. Use [[Pruning]] (`leaf-prune`); the mark is what keeps the counter monotonic.
 
-**Work-item handle** / **title** (`<slug>-k<key>`):
+<a id="work-item-handle"></a>
+#### Work-item handle / title (`<slug>-k<key>`)
+
 The position-free in-file `# …` header of a task or brief (`# <slug>-k<key>`, or `# <slug>-k<key> — brief` for a node; the root brief is `# <grove name> — brief`) **and** the canonical way to name a work item in commit messages and prose (task-tree-scheme §5). Stable across renumber, because it omits the mutable position. `resolve` also accepts the full handle, not just the bare key.
 _Avoid_: naming a work item by its position or directory path in a commit message.
 _Avoid_: citing a **real** work item in the shipped methodology at all — not even by a
@@ -858,7 +930,7 @@ bare position: a position merely fails to resolve, while a number can resolve
 *incorrectly* against an unrelated live series of the same shape (task-tree-scheme §5).
 
 <a id="tree-access-lock"></a>
-### Tree access lock
+#### Tree access lock
 
 The process-scoped advisory lock every task-tree reader and mutator takes on an
 open descriptor for the **working-tree root** before inspecting names — shared
@@ -877,7 +949,9 @@ _Avoid_: locking `.grove/` itself — it cannot serialize either its own creatio
 or its finish deletion, and adding a second lifecycle lock creates an ordering
 contract instead of one seam.
 
-**DONE infix**:
+<a id="done-infix"></a>
+#### DONE infix
+
 The in-place retirement marker: the literal `DONE` placed right after the
 position in a retired leaf's filename
 (`NN-DONE-<session-kind>--<slug>-k<key>.md`), written by `leaf-retire`. Leaves
@@ -887,7 +961,9 @@ position and key, and **its own contents remain untouched**. Its sibling mark is
 `ABANDONED` ([[Pruning]]); the two are the only terminal leaf states.
 _Avoid_: moving a retired leaf into a separate folder or list — retirement is in place, so the tree always shows complete state.
 
-**Pruning** / **ABANDONED infix** (`leaf-prune`):
+<a id="pruning"></a>
+#### Pruning / ABANDONED infix (`leaf-prune`)
+
 Marking a work path **decided against** — as opposed to done — with an
 `ABANDONED` infix written in place by `grove-llm leaf-prune`, exactly as
 `leaf-retire` writes `DONE`; `pick` skips both, and neither ever leaves the
@@ -908,6 +984,7 @@ expressed by **ordering** and would break the finish trigger if `pick` skipped i
 blocked leaf is *live* work); `deferred` is a reorder or a GitHub issue; `superseded`
 differs only in *reason*, which is prose and belongs in the ADR, not the filename.
 
+<a id="root-and-lifecycle-semantics"></a>
 ### Root and lifecycle semantics (from the retired formal contract)
 
 These terms were fixed by `docs/specs/semantic-contract.md`, the claim catalogue
@@ -921,8 +998,9 @@ diagnostics still print. What went
 with the catalogue is the vocabulary that only ever described the checking
 apparatus itself.
 
+<a id="taskless-root"></a>
+#### Taskless root (`Taskless`)
 
-**Taskless root** (`Taskless`):
 A task root that exists and holds **nothing but its charter, if even that** — no
 entry the grammar owns. It is **refused**, naming what is missing, and nothing
 grove does produces it: [[root-init]] is one store operation that writes the
@@ -942,7 +1020,9 @@ _Avoid_: treating the charter as proof the root is Grove's. Its bytes derive fro
 the working-tree name and every earlier format wrote the same ones
 (`docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md`).
 
-**Unrecognised root** (`Unrecognised`):
+<a id="unrecognised-root"></a>
+#### Unrecognised root (`Unrecognised`)
+
 A task root holding names Grove **disclaims** — foreign at every species — and
 nothing else. It is **refused**, mutating nothing, and the refusal names the
 entries it disclaimed and the grammar Grove does read.
@@ -957,7 +1037,9 @@ _Avoid_: confusing it with a [[Taskless root]]. A taskless root holds nothing;
 this holds something Grove cannot account for. Both are refused, and the refusals
 say different things.
 
-**Lifecycle transition**:
+<a id="lifecycle-transition"></a>
+#### Lifecycle transition
+
 In the lifecycle claims, a step that advances the grove's own lifecycle
 **stage**: `initialise-root`, `allocate-finish-leaf`, and the driver's own
 advance of the task tree between sessions. It is what `SY-04`'s two obligations are quantified
@@ -977,7 +1059,9 @@ _Avoid_: counting a step of the finish **teardown** as one. Those belong to the
 finish leaf's own session, which deletes the tree and takes one commit; the
 iteration's part is allocating the sentinel and reading the signal that follows.
 
-**Admitted action**:
+<a id="admitted-action"></a>
+#### Admitted action
+
 In the lifecycle claims, an action Grove itself may take — the Observation, Tree
 mutation, Finish and Lifecycle groups of the semantic contract's §*Actions*, and
 **exactly not** its fifth group. The five Environment actions (`crash`,
@@ -993,7 +1077,9 @@ therefore outside the set every reachability claim quantifies over.
 _Avoid_: reading it as *enabled*. An action is admitted by its group, not by its
 guard; a guard that fails yields a named refusal, which is still the action.
 
-**Terminal disposition**:
+<a id="terminal-disposition"></a>
+#### Terminal disposition
+
 In the lifecycle claims, an ending from which the loop has no further admitted
 action of its own. There are exactly two: a **proven successful finish** (the
 exact attempt-bound commit proven and the task root absent), and a **blocked

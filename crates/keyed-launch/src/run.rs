@@ -348,9 +348,9 @@ fn own_group() -> libc::pid_t {
 /// the launcher survives a Ctrl-C it never has to catch; and the escalation can
 /// signal the whole group, so a grandchild the child spawned is reaped with it
 /// rather than left running and attached to the terminal. The child's group is
-/// *not* a new session: a session leader has no controlling terminal, which is
-/// what would put an interactive child in a background group and stop it with
-/// SIGTTIN on its first read.
+/// *not* a new session: `setsid` leaves it with no controlling terminal, so
+/// the handover fails silently at both ends — the return is ignored — and an
+/// interactive child reads on unstopped while the launcher keeps the Ctrl-C.
 ///
 /// The child's signal dispositions are the defaults, whatever the launcher's
 /// are — see [`DEFAULT_DISPOSITION_IN_CHILD`].
@@ -436,10 +436,10 @@ pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError> {
         ))
     })?;
 
-    // The parent's half of the same `setpgid`. Whichever side runs first wins
-    // and the other fails harmlessly — EACCES once the child has exec'd, ESRCH
-    // once it has exited — and doing it on both sides is what closes the window
-    // in which the parent could signal a group that does not exist yet.
+    // The parent's half of the same `setpgid` — insurance, not a race. The
+    // `pre_exec` above takes `std` off `posix_spawn` onto fork-and-exec, and
+    // `spawn` then returns only after the child has exec'd, so this call is
+    // measured to fail EACCES. Kept: that ordering is undocumented, not a rule.
     let pgid = child.id() as libc::pid_t;
     // SAFETY: `setpgid(2)` naming this process's own child.
     unsafe { libc::setpgid(pgid, pgid) };
@@ -588,11 +588,11 @@ fn watch(
 /// grandchild can hold a lock its launcher's caller is about to wait on, and
 /// then the escalation's SIGKILL buys a stall rather than a teardown.
 ///
-/// `pgid` is the child's pid, made a group leader by the `setpgid` on both
-/// sides of the fork in [`run`]. A group with that id can only have been
-/// created by that process, so `-pgid` cannot name an unrelated job even in the
-/// impossible case where both `setpgid` calls failed; the direct `kill` behind
-/// it covers that case.
+/// `pgid` is the child's pid, made a group leader by the `process_group(0)`
+/// [`run`] sets before the spawn — a failure there is a failed spawn, and no
+/// child. A group with that id can only have been created by that process, so
+/// `-pgid` cannot name an unrelated job even in the impossible case where the
+/// group was never created; the direct `kill` behind it covers that case.
 ///
 /// A failure is ignored on purpose — ESRCH means the process exited between the
 /// poll and the signal, which the next `try_wait` reports anyway. This is the

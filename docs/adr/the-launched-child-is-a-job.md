@@ -22,15 +22,33 @@ locks it had taken.
 
 The trade-off settled is **which** of the child's identities changes. Signalling
 a group at all requires the child to lead one, and the cost of getting that wrong
-is a session that stops dead on its first read from the terminal.
+is a child that cannot be handed the terminal at all, reading it in competition
+with the launcher that was supposed to hand it over.
 
 ## Considered options
 
 - **Give the child its own session (`setsid`).** Rejected: a session leader has
-  no controlling terminal, so an interactive child is permanently a background
-  job and takes SIGTTIN the first time it reads. Its own group is all the
+  no controlling terminal, and there is no route back to one. `tcsetpgrp`
+  returns ENOTTY from inside the child and EPERM from the launcher, which cannot
+  name a group in another session; `TIOCSCTTY` is EPERM in both its plain and
+  its stealing form, because the terminal is already the launcher's session's;
+  and reopening the device by name gets a descriptor but no controlling terminal
+  (`/dev/tty` stays ENXIO). Both handover sites ignore `tcsetpgrp`'s return, and
+  the launcher retries its own every poll tick, so the failure is silent and
+  repeated rather than reported. Nor is the child protected by being stopped:
+  SIGTTIN is raised only for a background group *of a controlling terminal*, so
+  its reads succeed and it takes terminal input the launcher was never asked to
+  give up — while a typed Ctrl-C goes to the launcher's group, which still holds
+  the foreground, and never reaches the child at all. Its own group is all the
   escalation needs, and it keeps the terminal. Reopen only for a launcher whose
   children are never interactive, where a session buys detachment worth having.
+
+  Measured on a pseudo-terminal made a controlling terminal by a `setsid` leader
+  (macOS 26.6, arm64): the child in its own session was never stopped, read a
+  queued line while the launcher's group held the foreground, and did not
+  receive the Ctrl-C the launcher did. The control — the same reader, same
+  queued line, same own group, but *in* the launcher's session — was stopped by
+  SIGTTIN, so the negative result is a reading rather than a blind instrument.
 - **Leave the escalation on the pid alone.** Rejected: the compound failure is
   expensive rather than untidy — a surviving `grove-llm` grandchild holds shared
   epoch admission, so the driver's post-reap invalidation waits out its full 30s

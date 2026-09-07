@@ -744,9 +744,9 @@ thirty-one lines because three separate cases live in it.
 /// the launcher survives a Ctrl-C it never has to catch; and the escalation can
 /// signal the whole group, so a grandchild the child spawned is reaped with it
 /// rather than left running and attached to the terminal. The child's group is
-/// *not* a new session: a session leader has no controlling terminal, which is
-/// what would put an interactive child in a background group and stop it with
-/// SIGTTIN on its first read.
+/// *not* a new session: `setsid` leaves it with no controlling terminal, so
+/// the handover fails silently at both ends — the return is ignored — and an
+/// interactive child reads on unstopped while the launcher keeps the Ctrl-C.
 ///
 /// The child's signal dispositions are the defaults, whatever the launcher's
 /// are — see [`DEFAULT_DISPOSITION_IN_CHILD`].
@@ -771,24 +771,42 @@ refusal to add is what keeps the configuration file a complete account of what
 will run, and a complete account is the only thing an operator can audit.
 
 The second paragraph's rejected alternative is the one to read against the
-disposition list above, and it is the one place on this page where the book
-declines to adopt the source's reasoning as its own. The **decision** is not in
-doubt and its shape is this page's to connect: the child gets a process *group*
-and not a new *session*, and SIGTTIN — the sixth entry of
-`DEFAULT_DISPOSITION_IN_CHILD` — is handed back at its default rather than
-the crate relying on the child never being in a position to receive it. Those are
-two halves of one job-control decision, and neither comment mentions the other.
+disposition list above. The **decision** is not in doubt and its shape is this
+page's to connect: the child gets a process *group* and not a new *session*, and
+SIGTTIN — the sixth entry of `DEFAULT_DISPOSITION_IN_CHILD` — is handed back at
+its default rather than the crate relying on the child never being in a position
+to receive it. Those are two halves of one job-control decision, and neither
+comment mentions the other.
 
-The **mechanism** the comment offers for the rejection is a separate question,
-and this book neither repeats it as fact nor contradicts it. Whether a child in a
-fresh session is stopped by SIGTTIN on its first read turns on whether that
-terminal is still *its* controlling terminal — which is exactly what
-creating a session removes — and the competing account is that the handover
-becomes impossible instead, since `tcsetpgrp` cannot name a group in another
-session. Settling it needs a controlling terminal to run the case on, and nothing
-in this repository tests it. The book's obligation is to reproduce the argument
-exactly, which the fragment above does, and not to convert an argument it has not
-checked into a fact.
+The **mechanism** for that rejection is the one thing on this page the book once
+declined to adopt, and it has since been run. The comment used to say that a
+child in a fresh session would be stopped by SIGTTIN on its first read. Measured
+on a pseudo-terminal — allocated by a test program and made a controlling
+terminal by a leader that calls `setsid` and opens the slave — it is not. SIGTTIN
+is raised only for a background group *of a controlling terminal*, and `setsid`
+is exactly what leaves the child without one, so its reads succeed. The control
+arm is what makes that a reading rather than a blind instrument: the same
+reader, with the same line already queued and its own process group, but *in*
+the launcher's session, was stopped by SIGTTIN every run.
+
+What fails instead is the handover, and it fails everywhere it could be tried.
+`tcsetpgrp` returns ENOTTY from inside the child and EPERM from the launcher,
+which cannot name a group in another session; `TIOCSCTTY` — the idiom a serious
+implementation of the rejected option would reach for — is EPERM in both its
+plain and its stealing form, because the terminal already belongs to the
+launcher's session; and reopening the device by name yields a descriptor but
+still no controlling terminal. Both of this crate's handover sites discard
+`tcsetpgrp`'s return value, and `watch` retries the launcher's every poll tick,
+so none of that would ever be reported — it would fail silently, in a loop.
+
+The consequence is what the comment now carries, and the rejection is stronger
+for it. The same run showed the child reading a line off the terminal while the
+launcher's group still held the foreground, and showed a typed Ctrl-C reaching
+the launcher and not the child. A session does not fail safe; it fails quietly,
+with the child taking input nobody handed it and the interrupt going to the
+process that was supposed to be shielded from it. All of this is one platform —
+macOS 26.6 on arm64 — and the errnos are POSIX's, not Darwin's, but the reading
+is a reading and not a portability proof.
 
 The third paragraph belongs to chapter 8 and is reproduced here only because it is
 `run`'s contract: the three observables, and the honest statement that a child
@@ -986,10 +1004,10 @@ asserts on both halves: the program's name, and the word *executable*.
 <!-- fragment «run-parent-group-and-supervise» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="438-448" parent="terminal-and-spawn" -->
 ````rust
 
-    // The parent's half of the same `setpgid`. Whichever side runs first wins
-    // and the other fails harmlessly — EACCES once the child has exec'd, ESRCH
-    // once it has exited — and doing it on both sides is what closes the window
-    // in which the parent could signal a group that does not exist yet.
+    // The parent's half of the same `setpgid` — insurance, not a race. The
+    // `pre_exec` above takes `std` off `posix_spawn` onto fork-and-exec, and
+    // `spawn` then returns only after the child has exec'd, so this call is
+    // measured to fail EACCES. Kept: that ordering is undocumented, not a rule.
     let pgid = child.id() as libc::pid_t;
     // SAFETY: `setpgid(2)` naming this process's own child.
     unsafe { libc::setpgid(pgid, pgid) };
@@ -999,26 +1017,26 @@ asserts on both halves: the program's name, and the word *executable*.
 ````
 <!-- /fragment -->
 
-The parent's `setpgid` is the same call `process_group(0)` already made inside the
-child, and the comment above it describes the two as a race whose loser fails
-harmlessly. **Measured, there is no race left to lose.** Installing a `pre_exec`
-closure takes `std` off its `posix_spawn` fast path and onto fork-and-exec, and
-that path's own synchronisation makes `Command::spawn` return only once the child
-has `execve`d — by which point the child is no longer a candidate for its
-parent's `setpgid`, and the call fails with `EACCES` every time. Thirty spawns of
-this exact shape returned `EACCES` thirty times, with the child already its own
-group leader on each; the same measurement's controls show the call can return
-success and can return `ESRCH`, so that is a reading rather than a stuck
-instrument.
+The parent's `setpgid` is the same call `process_group(0)` already made inside
+the child, and the comment above it now says what that makes it: insurance, not a
+race. **There is no race left to lose, and it was measured.** Installing a
+`pre_exec` closure takes `std` off its `posix_spawn` fast path and onto
+fork-and-exec, and that path's own synchronisation makes `Command::spawn` return
+only once the child has `execve`d — by which point the child is no longer a
+candidate for its parent's `setpgid`, and the call fails with `EACCES` every
+time. Thirty spawns of this exact shape returned `EACCES` thirty times, with the
+child already its own group leader on each; the same measurement's controls show
+the call can return success and can return `ESRCH`, so that is a reading rather
+than a stuck instrument.
 
-**Nothing in this repository pins that**, and `std` does not document the
-ordering it rests on, so the honest reading of the second call is insurance
-against an implementation detail changing rather than one half of a live race.
-Either way the parent ends up holding a `pgid` it knows exists before it can
-possibly need to signal it, which is what chapter 8's escalation addresses when
-it sends to `-pgid` rather than to the child alone. The ignored return value is
-right in both readings: every failure the call can produce here means the group
-already exists.
+**Nothing in this repository pins that ordering**, and `std` does not document
+it, which is exactly why the second call stays. It is insurance against an
+implementation detail changing, and the comment says so. Either way the parent
+ends up holding a `pgid` it knows exists before it can possibly need to signal
+it, which is what chapter 8's escalation addresses when it sends to `-pgid`
+rather than to the child alone. The ignored return value is right on either
+reading: every failure the call can produce here means the group already
+exists.
 
 `supervise` takes the child, the channel, the escalation, the terminal and the
 group, and everything after this line is chapter 8's. `run` keeps nothing: the

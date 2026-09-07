@@ -924,11 +924,11 @@ and its eighteen lines of comment are the record this chapter keeps.
 /// grandchild can hold a lock its launcher's caller is about to wait on, and
 /// then the escalation's SIGKILL buys a stall rather than a teardown.
 ///
-/// `pgid` is the child's pid, made a group leader by the `setpgid` on both
-/// sides of the fork in [`run`]. A group with that id can only have been
-/// created by that process, so `-pgid` cannot name an unrelated job even in the
-/// impossible case where both `setpgid` calls failed; the direct `kill` behind
-/// it covers that case.
+/// `pgid` is the child's pid, made a group leader by the `process_group(0)`
+/// [`run`] sets before the spawn — a failure there is a failed spawn, and no
+/// child. A group with that id can only have been created by that process, so
+/// `-pgid` cannot name an unrelated job even in the impossible case where the
+/// group was never created; the direct `kill` behind it covers that case.
 ///
 /// A failure is ignored on purpose — ESRCH means the process exited between the
 /// poll and the signal, which the next `try_wait` reports anyway. This is the
@@ -957,8 +957,9 @@ that the job was over.
 This function is where *the launched child is a job* is kept, and the record
 settles which of the child's identities changes. The child gets a process group
 of its own so that the group can be signalled, and explicitly **not** a session,
-because a session leader has no controlling terminal and an interactive child
-would then be a background job stopped on its first read. Chapter 7 owns the
+because a session leader has no controlling terminal — which makes the handover
+fail outright and leaves an interactive child reading the terminal in competition
+with the launcher rather than stopped by it. Chapter 7 owns the
 spawn side of that record — the group, the terminal, the dispositions — and this
 function is its other half: signalling `-pgid` is the reason the group exists at
 all. The record weighs four alternatives and rejects every one; the two these two
@@ -978,18 +979,19 @@ Without that control a fixture that reported "gone" for any pid, a `kill(2)`
 probe misreading its errno, would pass identically. The pair is what makes the
 claim *the group and only the group* checkable rather than merely observed.
 
-One sentence of the comment is not this book's to repeat. It attributes the
-child's group leadership to *the `setpgid` on both sides of the fork*, and
-chapter 7 measured that spawn: installing a `pre_exec` closure takes `std` off
-its `posix_spawn` fast path, `Command::spawn` returns only once the child has
-already `execve`d, and the parent's `setpgid` fails `EACCES` every time — thirty
-of thirty, with controls showing that the same call can return success and can
-return `ESRCH`. The leadership comes from `command.process_group(0)` alone.
+The third paragraph names where the group leadership comes from, and it names
+`process_group(0)` rather than the parent's `setpgid` because chapter 7 measured
+that spawn: installing a `pre_exec` closure takes `std` off its `posix_spawn`
+fast path, `Command::spawn` returns only once the child has already `execve`d,
+and the parent's `setpgid` fails `EACCES` every time — thirty of thirty, with
+controls showing that the same call can return success and can return `ESRCH`.
 [The measurement and its controls](07-the-job.md#the-latch-and-the-child-away)
-are chapter 7's; what matters here is that the comment's **conclusion** is
-untouched by it. A process group with that id can only have been created by that
-process, so `-pgid` cannot name an unrelated job, and the direct `kill` behind it
-covers the case the comment calls impossible.
+are chapter 7's; what matters here is that the comment's **conclusion** never
+depended on which call created the group. A process group with that id can only
+have been created by that process, so `-pgid` cannot name an unrelated job, and
+the direct `kill` behind it covers the case the comment calls impossible — a
+case that is now unreachable twice over, since a `process_group(0)` that failed
+would have failed the spawn and left no child to signal.
 
 The last paragraph is the one that turns a discarded return value into a
 decision. `ESRCH` means the process exited between the poll and the signal, which

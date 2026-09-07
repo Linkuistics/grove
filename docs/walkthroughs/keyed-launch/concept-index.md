@@ -222,7 +222,7 @@
 - [`own_group` as a question rather than a system call](07-the-job.md#the-gate-that-needs-no-flag)
 - [A configuration file that stays a complete account of what will run](07-the-job.md#the-child-is-a-job)
 - [Why a new session was rejected, and the decision the two comments share](07-the-job.md#the-child-is-a-job)
-- [The one mechanism this book declines to adopt from the source](07-the-job.md#the-child-is-a-job)
+- [Measured: a fresh session is not a SIGTTIN stop, it is a failed handover](07-the-job.md#the-child-is-a-job)
 - [Scrub first, grant second, and the hung session the order prevents](07-the-job.md#nothing-added)
 - [No `sh -c`: spawned whole and directly](07-the-job.md#nothing-added)
 - [Entitlement and timing: two different conditions on one handover](07-the-job.md#both-sides-of-the-handover)

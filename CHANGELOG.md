@@ -51,6 +51,28 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **Three comments in `keyed-launch`'s `run` described mechanisms the code does
+  not exercise, and the one nobody could check has now been run.** The parent's
+  post-spawn `setpgid` was written up as one half of a race against the child's;
+  it is not, because a `pre_exec` closure takes `std` off `posix_spawn` and onto
+  fork-and-exec, whose `spawn` returns only after the child has `execve`d — so
+  the group already exists and the call is measured to fail `EACCES` every time.
+  It stays as insurance against an undocumented ordering changing, and `kill`'s
+  doc no longer credits the child's group leadership to *both sides of the fork*
+  when `command.process_group(0)` is what creates it. The third was the reason
+  `run` rejects a new **session**, recorded as SIGTTIN stopping an interactive
+  child on its first read. Measured on a pseudo-terminal, it does not: SIGTTIN
+  needs a controlling terminal the child has just given up, so its reads succeed
+  and it takes terminal input while a typed Ctrl-C goes to the launcher instead.
+  The handover, meanwhile, fails at every route — ENOTTY inside the child, EPERM
+  from the launcher, EPERM from `TIOCSCTTY` either way — and both call sites
+  discard the return, so it would fail silently and on every poll tick. The
+  rejection is stronger for it, and *[the launched child is a
+  job](docs/adr/the-launched-child-is-a-job.md)* now says so. No behaviour
+  changed: every rewrite is fitted to the exact line budget it replaced, so the
+  `keyed-launch` book's ranges are untouched and its three literal fragments and
+  four adjudicating paragraphs move with the source in one commit.
+
 - **`docs/USAGE.md` covers the whole installed command surface, against a
   standard rather than a judgement.** The guide had the `grove` lifecycle and
   named three `grove-llm` verbs in passing; it now documents all twelve — what

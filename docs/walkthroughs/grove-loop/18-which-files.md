@@ -451,7 +451,9 @@ source change, the fragment above and both adjudicating paragraphs in a single
 commit. The reader can hold this fragment and chapter 20's side by side and count
 the calls, so nothing outside this book had to be taken on trust — the same
 property [chapter 6](06-paths.md#canonicalise-to-compare)'s canonicalisation
-count has, where the header's claim and the second call site are in one file.
+clause had, where the header's claim and the second call site sat in one file —
+and it took the same route, adjudicated on the page and then corrected at source
+by a leaf of its own.
 
 The last paragraph of the comment is unaffected and worth keeping in view: the
 delta roots are *not* held on this type. They come from the workspace `run` is

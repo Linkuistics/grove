@@ -24,9 +24,9 @@
 // Nothing here canonicalises for **output**. The library deliberately never
 // does: on macOS `/var` and `/private/var` name the same inode, so
 // canonicalising would make the mere presence of a lock rewrite every path a
-// read verb returns. Canonicalisation appears once, in [`leaf_entry`], and only
-// to *compare* a caller's spelling of a leaf against the tree's — which is what
-// the path-walking reader did too.
+// read verb returns. Canonicalisation happens only where a caller's path is
+// resolved to an entry — in [`target`] and in [`leaf_entry`], nowhere else
+// here — and only to *compare*, as the path-walking reader did too.
 //
 // # Refusal precedence is grove's, and the halt is the library's
 //

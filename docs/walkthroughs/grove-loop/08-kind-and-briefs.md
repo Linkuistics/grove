@@ -387,12 +387,14 @@ one.** On macOS `/var` and `/private/var` are that pair. A comparison's answer i
 answer itself. So a function may canonicalise all it likes as long as it throws
 the result away.
 
-**The header's claim that this is the only place it happens is false, and chapter
-6 owns the counterexample.** `target`, in chapter 6's block, canonicalises three
-times for the same reason — its own doc comment says *exactly as `leaf_entry`
-does* — and the adjudication, with the enumeration of all eight call sites behind
-it, is at [chapter 6's account](06-paths.md#canonicalise-to-compare). This
-chapter reads the second of the two functions and does not restate the count.
+**The header once claimed this was the only place it happens, and chapter 6 owns
+the counterexample.** `target`, in chapter 6's block, canonicalises three times
+for the same reason — its own doc comment says *exactly as `leaf_entry` does* —
+which is why the header now names both functions and scopes the clause to the
+module. The adjudication, the enumeration of all eight call sites behind it, and
+the account of the corrected wording are at
+[chapter 6's section](06-paths.md#canonicalise-to-compare). This chapter reads
+the second of the two functions and makes no count of its own.
 
 **Both of the refusals in this fragment are unobserved by the entire workspace**,
 and that is measured rather than inferred: deleting the two `if` blocks — lines

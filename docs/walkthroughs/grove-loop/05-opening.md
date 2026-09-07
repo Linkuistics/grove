@@ -182,9 +182,9 @@ caller's own spelling*.
 // Nothing here canonicalises for **output**. The library deliberately never
 // does: on macOS `/var` and `/private/var` name the same inode, so
 // canonicalising would make the mere presence of a lock rewrite every path a
-// read verb returns. Canonicalisation appears once, in [`leaf_entry`], and only
-// to *compare* a caller's spelling of a leaf against the tree's — which is what
-// the path-walking reader did too.
+// read verb returns. Canonicalisation happens only where a caller's path is
+// resolved to an entry — in [`target`] and in [`leaf_entry`], nowhere else
+// here — and only to *compare*, as the path-walking reader did too.
 //
 ````
 <!-- /fragment -->
@@ -197,12 +197,28 @@ been taken*, because that is when a canonicalising reader would have resolved th
 path. The user-visible effect is that the mere presence of a lock rewrites every
 path grove prints. Chapter 6 carries the full account beside `entry_path`.
 
-`leaf_entry` is named here and owned by chapter 8. The minimum is the exception
-the passage states: it is the one place canonicalisation appears, and it appears
-only to **compare** a caller's spelling of a leaf against the tree's, never to
-produce a path grove hands back. Comparing is not the same operation as
-normalising for output, and the difference is exactly that a comparison's result
-is a boolean the caller never sees the two sides of.
+`target` and `leaf_entry` are both named here and neither is this chapter's:
+chapter 6 reads the first and chapter 8 the second. The minimum is the exception
+the passage states — canonicalisation happens where a caller's path is resolved
+to an entry and nowhere else in this module, and there only to **compare** a
+caller's spelling against the tree's, never to produce a path grove hands back.
+Comparing is not the same operation as normalising for output, and the
+difference is exactly that a comparison's result is a boolean the caller never
+sees the two sides of.
+
+**The passage named only one of the two until this book read the other.** It
+used to say *Canonicalisation appears once, in `leaf_entry`* — a uniqueness
+claim written from the shape of the design rather than from an enumeration of
+the code, and refuted from inside the same file, since `target`'s own doc
+comment says it canonicalises *exactly as `leaf_entry` does*. Chapter 6 owns
+that counterexample and adjudicated the claim beside the fragment that
+reproduces it; `canonicalisation-sites-k149` then widened the clause to both
+functions. What did not change is the operation the second half named, which was
+always true of both — compare, and never report — nor the appeal to the
+path-walking reader that did the same. Its noun did change: the old clause
+compared *a caller's spelling of a leaf*, and `target` resolves a node directory
+or the grove root as readily as a leaf, so the corrected clause says *a caller's
+path*.
 
 The fourth passage is the chapter's other answer to *what did not move*, on the
 way out, and the whole of `restate`'s charter.

@@ -155,7 +155,7 @@
 - [An environmental failure and a deliberate refusal, one line apart](06-paths.md#which-entry-a-path-names)
 - [Why canonicalising for output would let a lock rewrite every path](06-paths.md#canonicalise-to-compare)
 - [`/var` and `/private/var`, measured rather than remembered](06-paths.md#canonicalise-to-compare)
-- [*Canonicalisation appears once*, adjudicated against the same file](06-paths.md#canonicalise-to-compare)
+- [*Canonicalisation appears once*, adjudicated against the same file and then corrected](06-paths.md#canonicalise-to-compare)
 - [Three reasons a path under the root names no entry](06-paths.md#no-walk-reaches-it)
 - [Why all three arms live under a subtree the grammar disclaimed](06-paths.md#no-walk-reaches-it)
 - [Followed and unfollowed: two classifications of one name](06-paths.md#no-walk-reaches-it)

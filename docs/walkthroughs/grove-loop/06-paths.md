@@ -363,7 +363,7 @@ what refuses to operate on the tree afterwards. The order matters: resolving by
 name alone would pick a twin, and the refusal would then be about the wrong one.
 
 <a id="canonicalise-to-compare"></a>
-## Canonicalising to compare, and the claim about where that happens
+## Canonicalising to compare, and where that happens
 
 The doc comment above states the rule the module header opened on, and this is
 the chapter that owes the account.
@@ -388,27 +388,51 @@ either side of it. `target` canonicalises three times — the candidate, the roo
 and each candidate entry's built path — and returns a `Target` carrying no path
 at all.
 
-**The module header says this happens in one place, and it happens in two.**
-Chapter 5 reproduced the sentence: *Canonicalisation appears once, in `leaf_entry`,
-and only to compare a caller's spelling of a leaf against the tree's.* The second
-half is true of both functions. The first half is refuted from inside this
-corpus, and by the very fragment above: `target`'s own doc comment says
-*Canonicalised to compare and never to report, **exactly as `leaf_entry` does***,
-which is an admission that there are two. Across the whole of
-`crates/grove-loop/src/`, `canonicalize` is called at eight sites. Six are
-production and all six are in this file — lines 346, 349 and 369 inside `target`,
-and 712, 715 and 734 inside `leaf_entry` — and the remaining two are assertions
-inside `driver_lease.rs`'s own `#[cfg(test)]` module, which chapter 17 owns.
-`target` and `leaf_entry` are two functions whose tails are near-duplicates of
-one another, one resolving any entry and one resolving a leaf; chapter 8 reads
-the second.
+**The header used to say this happens in one place, and it happens in two.**
+Until `canonicalisation-sites-k149` the sentence chapter 5 reproduces read
+*Canonicalisation appears once, in `leaf_entry`, and only to compare a caller's
+spelling of a leaf against the tree's.* The second half named the operation both
+functions perform — comparing, and never reporting — but its own wording was
+narrow in a second way nobody had called out: it says *a caller's spelling of a
+leaf*, and `target`'s doc comment says it resolves *a leaf file or a node
+directory alike*, returning `Target::Root` for the root itself. The first half
+was refuted from inside this corpus, and by the very
+fragment above: `target`'s own doc comment says *Canonicalised to compare and
+never to report, **exactly as `leaf_entry` does***, which is an admission that
+there are two. Across the whole of `crates/grove-loop/src/`, `canonicalize` is
+called at eight sites. Six are production and all six are in this file — lines
+346, 349 and 369 inside `target`, and 712, 715 and 734 inside `leaf_entry` —
+and the remaining two are assertions inside `driver_lease.rs`'s own
+`#[cfg(test)]` module, which chapter 17 owns. `target` and `leaf_entry` are two
+functions whose tails are near-duplicates of one another, one resolving any
+entry and one resolving a leaf; chapter 8 reads the second.
 
-**The claim is stated on the page and not repeated as true, and it is not
-corrected here.** The corpus is frozen — a fix would shift every line below it
-and break the pages that have already proved themselves — so the comment is
-adjudicated where it is reproduced and fixed by a leaf of its own,
-`canonicalisation-sites-k149`, which carries the source change together with
-every ledger row and fragment it moves.
+**The corrected clause names a property rather than a count, and that is
+deliberate.** It now reads *Canonicalisation happens only where a caller's path
+is resolved to an entry — in `target` and in `leaf_entry`, nowhere else here —
+and only to compare.* Two things in that wording are doing work. *Resolved to an
+entry* is narrower than *interprets a path*, because several functions in this
+module do the latter without canonicalising anything — `kind_in` and
+`brief_chain` take a leaf path and delegate, and `existing_path`, later in this
+file and in chapter 9's block, turns an argument into a path that exists by
+joining it onto the grove root or the cwd and testing `exists()`. Only the two
+that resolve a path to an entry canonicalise. And *here* scopes the claim to
+this module, which is the only
+scope it is true in — the grove root arrives already canonical, because
+`Workspace::resolve` canonicalises the workspace root before `grove_root` joins
+`.grove` onto it, which is what chapter 16's figure records as *the closest
+`.jj/`, canonicalised*. The claim the module can make is that it adds no
+canonicalisation of its own, not that an operator's spelling survives to the
+output.
+
+**The fix and this page landed in one commit**, which is what the corpus freeze
+requires: a source change shifts every line below it and breaks pages that have
+already proved themselves, so `canonicalisation-sites-k149` reworded the comment
+inside its own line count — seven lines before and seven after, and
+`task_tree.rs` still 2,023 — and carried chapter 5's fragment, this account and
+the early-use ledger with it. The adjudicating paragraph became this explanation
+rather than a deletion, because the reason a sentence is phrased oddly outlives
+the defect that forced it.
 
 **The class is familiar, and this is not the first of it.** Chapter 1 met the
 manifest's clause locating `libc` in `task_tree` alone, which three production
@@ -420,17 +444,27 @@ same way at `grove-root-join-clauses-k148`: six other production sites spell the
 root — three of them openings inside `grove-loop` that each take their own lock
 before any opening exists, and three in `crates/grove-llm/src/cli.rs` that spell
 it only to name it in output — so chapter 1 now explains a join scoped to the two
-public openings rather than adjudicating one claimed for the crate. Each of the three is a
+public openings rather than adjudicating one claimed for the crate. Each of the three was a
 **uniqueness claim written from the shape of the design rather than from an
-enumeration of the code**, each is true of the intent and false of the source,
-and none of them has an instrument over its own call sites — unlike the lock,
-where `the_librarys_tree_lock_is_taken_from_exactly_one_module` in
+enumeration of the code**, each was true of the intent and false of the source,
+and all three have now been corrected at source. None of them gained an
+instrument over its own call sites — unlike the lock, where
+`the_librarys_tree_lock_is_taken_from_exactly_one_module` in
 `crates/grove-llm/tests/tree_lock.rs` counts them and fails on a rename. That
-test is what the class lacks, and chapter 5 read it — though the analogy is not
-automatic, and `grove-root-join-clauses-k148` declined to build one for its own
-member: the lock test pins a deadlock, where a count of join sites pins tidiness
-and would go red on a new opening that is correct. Whether canonicalisation is
-the same case is `canonicalisation-sites-k149`'s to judge.
+test is what the class lacks, and chapter 5 read it — but the analogy is not
+automatic, and each leaf declined it for a reason of its own.
+`grove-root-join-clauses-k148` declined because the lock test pins a deadlock
+where a count of join sites pins tidiness, and would go red on a new opening
+that is correct. `canonicalisation-sites-k149` declined for that reason and one
+more: the property worth pinning here is behavioural rather than structural — *a
+reported path keeps the caller's spelling* — and no verb can be made to assert
+it, because the root is canonical before `task_tree` ever sees it. The suite
+already works around exactly this. `crates/grove-llm/tests/resolve.rs` compares
+a resolved path against `grove.canonicalize()` and says why: *`Workspace::resolve`
+reports the real path. The claim is the tree itself, not a spelling of it.* So
+what the corrected comment claims is the strongest thing that is true — this
+module adds none — and that is a claim a reader checks by reading the module,
+which is what this section is for.
 
 <a id="no-walk-reaches-it"></a>
 ## Three reasons a path under the root names no entry

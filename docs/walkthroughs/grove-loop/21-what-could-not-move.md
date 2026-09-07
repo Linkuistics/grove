@@ -447,20 +447,28 @@ intra-doc links, a parenthesised citation naming no anchor at all — and each w
 adjudicated beside its fragment, because the corpus was frozen while this book
 was written and a book may not edit what it is proving. Where a page judged a source change worth making, a leaf
 carries it; where it did not, the bytes stand as written and the page says so.
-Two of that second group have since landed, both of them chapter 1's.
+Three of that second group have since landed, two of them chapter 1's and one
+chapters 5, 6 and 8's.
 `Cargo.toml`'s clauses locating `libc` in `task_tree` alone and `keyed-launch`
 behind one verb were found while chapter 1 was drafted and corrected at
 `manifest-dependency-clauses-k133`. `lib.rs`'s two claims that
 `<worktree>/.grove` is spelled in exactly one place were found at
 [chapter 5](05-opening.md)'s drafting, which could stop repeating them but owned
 none of the bytes, and were corrected at `grove-root-join-clauses-k148` against
-an enumeration of seven production sites. Chapter 1 now explains corrected
-wording in every place it once judged a standing claim, and adjudicates none.
-The structure brief's *Known in advance* counts four claims in total, against the
-two this paragraph knew before drafting began, and none of the four now stands in
-the corpus. That list counts only claims a leaf has corrected at source; the ones
-this book judged and left standing — chapter 6's *canonicalisation appears once*
-among them — are recorded on their own pages and are not in it.
+an enumeration of seven production sites. And `task_tree.rs`'s header claim that
+canonicalisation appears once was found at [chapter 6](06-paths.md)'s drafting,
+reproduced by [chapter 5](05-opening.md) and restated by
+[chapter 8](08-kind-and-briefs.md), and corrected at
+`canonicalisation-sites-k149`. Chapter 1 now explains corrected wording in every
+place it once judged a standing claim, and adjudicates none.
+The structure brief's *Known in advance* counts five claims in total, against the
+two this paragraph knew before drafting began, and none of the five now stands in
+the corpus. The fifth is chapter 6's *canonicalisation appears once*, which this
+book adjudicated and left standing because no leaf had yet corrected it;
+`canonicalisation-sites-k149` did, and it joined the list on the same terms as
+the other four. That list counts only claims a leaf has corrected at source, so
+the ones this book judged and left standing are recorded on their own pages and
+are not in it, wherever they fall.
 
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces and neither is part of the reading order. The source index

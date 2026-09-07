@@ -897,10 +897,12 @@ placement buys, and it is visible in the block above rather than inferred.
 The claim and its refutation were both inside this book's corpus, and it is
 worth naming what that bought. Several of this book's adjudications rest on
 evidence the reader has to take on trust from another crate's page or from a
-record; this one does not, and neither does [chapter 6](06-paths.md#canonicalise-to-compare)'s
-canonicalisation count, which `task_tree.rs` refutes in the same file that
-asserts it. Here the reader can hold `18-which-files.md`'s fragment and this
-page's fragment side by side and count the calls — which is also why this defect
+record; this one does not, and neither did
+[chapter 6](06-paths.md#canonicalise-to-compare)'s canonicalisation clause,
+which `task_tree.rs` refuted in the same file that asserted it, and which a leaf
+of its own has since corrected. Here the reader can hold
+`18-which-files.md`'s fragment and this page's fragment side by side and count
+the calls — which is also why this defect
 could be fixed without leaving the book, and the outcome's third question — *what does this layer choose that
 nothing beneath it could have defaulted* — is exactly what the two reads answer
 differently. Neither read is a default; each is a choice about **when** to ask.

@@ -1056,20 +1056,19 @@ nowhere, under the link contract above.
 
 ## Known in advance: the claims this book adjudicates
 
-Four, of which two were found while this brief was written and two while the book
-was drafted. Each has a leaf that fixes it, and every one of those leaves sat
-**after** `grove-loop-book-k37` in the node — which is correct under the
+Five, of which two were found while this brief was written and three while the
+book was drafted. Each has a leaf that fixes it, and every one of those leaves
+sat **after** `grove-loop-book-k37` in the node — which is correct under the
 corpus-freeze rule and meant the book had to adjudicate rather than wait.
-All four have since landed and none of the four claims is left in the corpus.
+All five have since landed and none of the five claims is left in the corpus.
 
 **This is not the book's whole ledger of judged claims, and does not try to be.**
 It counts the claims a leaf has corrected **at source**. The ones the book
-adjudicates and leaves standing are recorded on their own pages instead:
-`task_tree.rs`'s *canonicalisation appears once*, which chapter 6 judges and
-`canonicalisation-sites-k149` still holds, is the member of chapter 6's class of
-three that is not yet corrected, and chapters 11, 13 and 14 each carry
-adjudications of their own. The exhaustiveness below is over this list, not over
-those.
+adjudicates and leaves standing are recorded on their own pages instead, and
+this list has never enumerated them. The exhaustiveness below is over this list,
+not over those. Entry 5 was on the other side of that
+line until `canonicalisation-sites-k149` landed, and joined this list when it
+did.
 The rule they were written under still governs any claim found later: an
 adjudicating paragraph sits beside the fragment that reproduces a standing claim,
 the claim is never repeated as though true, and it is never silently corrected,
@@ -1181,9 +1180,44 @@ lacks: the leaf **decided against** a test over `join(".grove")` call sites,
 because `the_librarys_tree_lock_is_taken_from_exactly_one_module` pins a
 deadlock where a join-site count pins tidiness, and would go red on a new
 opening that is correct. That decision binds this claim only;
-`canonicalisation-sites-k149` judges the same question for its own.
+`canonicalisation-sites-k149` judged the same question for its own and reached
+the same answer by a second route — entry 5.
 
-**And `grove-llm-dependency-comments-k102` is not a fifth.** It reaches
+### 5 · *Canonicalisation appears once, in `leaf_entry`* — chapters 5, 6 and 8, corrected
+
+`src/task_tree.rs` lines 27–29, in the module header. Found at `paths-k142`,
+chapter 6's draft, which owns `target` and therefore owns the counterexample: the
+claim is refuted from inside the same file, since `target`'s own doc comment says
+it canonicalises *exactly as `leaf_entry` does*. Chapter 5 reproduces the header
+bytes and chapter 6 adjudicated the claim beside the fragment that reproduces
+`target`, which is where the account sits. Chapter 8, which owns `leaf_entry`,
+carried an adjudicating paragraph of its own pointing at chapter 6's, so the fix
+rewrote three pages rather than two.
+
+`grep -rn 'canonicalize' crates/grove-loop/src/` finds eight call sites. Six are
+production and all six are in this file — 346, 349 and 369 inside `target`, and
+712, 715 and 734 inside `leaf_entry`, each function canonicalising the candidate,
+the grove root and every walked entry's built path. The remaining two are
+assertions inside `driver_lease.rs`'s `#[cfg(test)]` module, which opens at line
+820. The second half of the clause named the operation both functions perform —
+comparing, never reporting — and survives. Its noun did not: it compared *a
+caller's spelling of a leaf*, while `target` resolves a node directory or the
+grove root too, so the corrected clause says *a caller's path*.
+
+`canonicalisation-sites-k149` landed the fix, rewording the header inside its own
+line count so no ownership range moved: seven lines before and seven after, and
+`task_tree.rs` still 2,023. The corrected clause is scoped to the module and
+states a property rather than a count — *canonicalisation happens only where a
+caller's path is resolved to an entry, in `target` and in `leaf_entry`, nowhere
+else here* — because `existing_path` also interprets a caller's path argument and
+deliberately canonicalises nothing, and because the grove root reaches this module
+already canonical from `Workspace::resolve`. The leaf **decided against** a test
+here too, for entry 4's reason and one more: the property worth pinning is
+behavioural — *a reported path keeps the caller's spelling* — and no verb can
+assert it, since the root is canonical before `task_tree` sees it, which is why
+`crates/grove-llm/tests/resolve.rs` compares through `canonicalize` and says so.
+
+**And `grove-llm-dependency-comments-k102` is not a sixth.** It reaches
 `crates/grove-loop/src/lib.rs` line 81 only as *evidence* — the `Workspace`
 re-export — and changes nothing in this corpus.
 

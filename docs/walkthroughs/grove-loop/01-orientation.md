@@ -177,7 +177,9 @@ paragraph was rewritten rather than deleted, because the reason a sentence is
 worded oddly outlives the defect that forced it. The second member of that class
 is `src/lib.rs`'s and belongs to this chapter too: *[the two
 openings](#the-two-openings)* reads it, and `grove-root-join-clauses-k148`
-corrected it the same way.
+corrected it the same way. The third is `task_tree.rs`'s, reproduced by chapter 5
+and adjudicated by chapter 6, and `canonicalisation-sites-k149` corrected it
+last, so none of the three is still in the corpus.
 
 The third fragment is the fifth dependency and the file's most consequential
 claim.

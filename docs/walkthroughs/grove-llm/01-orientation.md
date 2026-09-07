@@ -652,7 +652,7 @@ the structure the pages follow.
 | the grammar, dispatch and the two openings | every verb is admitted before it is dispatched, and a grove that is not there is not a grove that is finished | — | The grammar and the openings |
 | `pick`, `brief-chain`, `kind`, `resolve` | an absent answer is information, not an error | — | Reading the tree |
 | `root-init`, `leaf-add`, `leaf-insert`, `leaf-decompose` | text before lock, presence before mutation | the first and the second | Growing the tree |
-| `leaf-retire`, `leaf-prune` | the last grove verbs a session runs say on stderr what remains | — | Ending work |
+| `leaf-retire`, `leaf-prune` | the last tree verbs a session runs say on stderr what remains | — | Ending work |
 | `finish-commit`, `complete` | admit against the channel before writing to it | the third | Leaving the loop |
 | all twelve, in one table | what the compiler holds, what order holds, what tests hold | all three, applied back | What order holds |
 

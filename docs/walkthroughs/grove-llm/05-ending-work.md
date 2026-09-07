@@ -145,8 +145,8 @@ does.
 ````rust
 // The two steps that always follow a terminal mark: the commit that carries it,
 // then the completion signal. `leaf-retire` and `leaf-prune` are the
-// terminal-marking pair and the **last grove verbs a session runs** — Retire
-// precedes Commit, and the commit itself is jj/git — so their output lands in
+// terminal-marking pair and the **last tree verbs a session runs** — Retire
+// precedes Commit, and the commit itself is jj's — so their output lands in
 // the agent's context at the moment of decision, rather than only in the mandate
 // a whole session earlier. **stderr**: stdout is data (callers parse the printed
 // paths), and `leaf-prune`'s existing advisories already set that precedent.
@@ -174,24 +174,28 @@ only form it prints; the plural is reachable only through a node prune that
 marked at least two leaves, which is the worked example's second transcript.
 
 The comment gives two reasons, and the page checks each. The first is timing:
-these are the last grove verbs a session runs, Retire precedes Commit, and the
+these are the last tree verbs a session runs, Retire precedes Commit, and the
 commit is not this binary's, so the two steps are printed where the session
-will read them at the moment it has to take them. Read as a claim about the
-session it is one verb short — `grove-llm complete` runs after both, and the
-reminder's own second line says so — so *last grove verbs* means the last that
-touch the tree, and the page reads it that way. That order is the
+will read them at the moment it has to take them. Both qualifiers in *the last
+tree verbs a session runs* are load-bearing, and dropping either makes the
+sentence false. **Tree verbs**, because `grove-llm complete` runs after both
+and the reminder's own second line says so — it is a verb of this binary that
+opens no tree, so it ends the session without ending the work on the tree.
+**A session runs**, because `finish-commit` does open the tree — not in its
+handler, which takes neither opening, but in the call behind it — and it opens
+it exclusively; the session that retires never runs it, as
+[*Leaving the loop*](06-leaving-the-loop.md#worked-complete) reads, because
+that verb belongs to the finish session the driver launches once the last live
+leaf is terminal. The order is the
 [task commit boundary](../../../CONTEXT.md#task-commit-boundary)'s — Retire
 precedes Commit — and the binary keeps none of it: nothing stops a session from
-adding a leaf after retiring its own. What the module does keep is that
-`complete`, its own verb that follows, opens no tree. The comment's *jj/git*
-names a tool this binary never commits through. Grove drives jj and refuses a
-working tree that is not jj-enabled (`docs/adr/jj-is-the-only-lane.md`) — *The
-grammar and the openings* read `worktree` refusing exactly that — and admits a
-colocated tree as jj's business, touching no git index on it, which
+adding a leaf after retiring its own. The commit the comment calls jj's is jj's
+on every tree the binary accepts. Grove drives jj and refuses a working tree
+that is not jj-enabled (`docs/adr/jj-is-the-only-lane.md`) — *The grammar and
+the openings* read `worktree` refusing exactly that — and admits a colocated
+tree as jj's business, touching no git index on it, which
 `leaf_retire_in_a_colocated_tree_leaves_the_git_index_alone` in
-`crates/grove-llm/tests/jj_tree_verbs.rs` requires. So the commit the first
-step names is jj's on every tree the binary accepts. Rewording the comment is a
-frozen-corpus change and is not the book's.
+`crates/grove-llm/tests/jj_tree_verbs.rs` requires.
 
 The second reason is the stream, and it is the one a test holds. stdout is
 data — the marked paths, which callers parse — so the reminder goes to stderr,

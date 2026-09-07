@@ -1052,7 +1052,7 @@ The composite that reassembles the three grow variants is stated here.
 The four verbs that write have now been read, and each parses its text and asks
 the presence rule before it takes the exclusive lock, so a refusal at either step
 changes nothing on disk. What a session runs after the tree is grown is the two
-terminal marks, and the next chapter reads them — the last grove verbs a session
+terminal marks, and the next chapter reads them — the last tree verbs a session
 runs, which say on stderr what remains.
 
 [Previous: Reading the tree](03-reading-the-tree.md) | [Contents](README.md) | [Next: Ending work](05-ending-work.md)

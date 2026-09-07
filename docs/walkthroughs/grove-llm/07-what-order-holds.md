@@ -373,13 +373,17 @@ reach its own library's private items*, which *Orientation* adjudicates and
 were found while drafting: `cmd_root_init`'s drop-order argument for `match` over
 `let … else`, which was the reverse of what the compiler does; `eprint_next_steps`
 naming a *jj/git* lane this build cannot reach; and the `Complete` variant's
-*a session not under `grove do`*, naming a verb neither binary has. **One of the
-five has since landed.** `root-init-drop-order-comment-k99` rewrote the
+*a session not under `grove do`*, naming a verb neither binary has. **Two of the
+five have since landed.** `root-init-drop-order-comment-k99` rewrote the
 drop-order comment to state the order the compiler actually produces, and
-rewrote *Growing the tree*'s passage in the same commit, so that page now reads a
-comment that holds instead of adjudicating one that does not; the other four are
-still reproduced as written and judged beside their fragments. A further set
-were found narrower or looser than stated and left exactly where they are, no
+`next-steps-comment-lane-k100` rewrote `eprint_next_steps`'s to name jj alone
+and to narrow *the last grove verbs a session runs* to *the last tree verbs a
+session runs* — `complete` is a grove verb that runs after both and opens no
+tree, so only the narrower word is true of the pair. Each rewrote its own
+chapter's passage in the same commit, so those two pages now read comments that
+hold instead of adjudicating ones that do not; the other three are still
+reproduced as written and judged beside their fragments. A further set were
+found narrower or looser than stated and left exactly where they are, no
 page judging a rewrite worth a leaf of its own: `no_live_leaves` saying *four
 times* where it has three callers, `kind`'s help offering a *missing or unknown*
 refusal only half of which is still reachable, `label`'s parenthesis about the

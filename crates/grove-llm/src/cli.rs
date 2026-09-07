@@ -767,8 +767,8 @@ fn inherited_kind(worktree: &Path, leaf_path: &Path) -> Option<Kind> {
 
 // The two steps that always follow a terminal mark: the commit that carries it,
 // then the completion signal. `leaf-retire` and `leaf-prune` are the
-// terminal-marking pair and the **last grove verbs a session runs** — Retire
-// precedes Commit, and the commit itself is jj/git — so their output lands in
+// terminal-marking pair and the **last tree verbs a session runs** — Retire
+// precedes Commit, and the commit itself is jj's — so their output lands in
 // the agent's context at the moment of decision, rather than only in the mandate
 // a whole session earlier. **stderr**: stdout is data (callers parse the printed
 // paths), and `leaf-prune`'s existing advisories already set that precedent.

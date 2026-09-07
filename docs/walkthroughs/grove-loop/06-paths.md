@@ -410,13 +410,15 @@ adjudicated where it is reproduced and fixed by a leaf of its own,
 `canonicalisation-sites-k149`, which carries the source change together with
 every ledger row and fragment it moves.
 
-**The class is familiar, and this is not the first of it.** Chapter 1 already
-adjudicated the manifest's clause locating `libc` in `task_tree` alone, which
-three modules reach; `manifest-dependency-clauses-k133` holds that fix. Beside it
-sits `lib.rs`'s *`<worktree>/.grove`, spelled in exactly one place*, which three
-production callers spell a second way — a claim chapter 1 reproduces **and still
-states as true**, and which `grove-root-join-clauses-k148` holds together with
-the adjudicating paragraph chapter 1 owes beside it. Each of the three is a
+**The class is familiar, and this is not the first of it.** Chapter 1 met the
+manifest's clause locating `libc` in `task_tree` alone, which three production
+modules reach; that one has since been corrected at source by
+`manifest-dependency-clauses-k133`, so chapter 1 now explains the widened clause
+instead of adjudicating the narrow one. Beside it sits `lib.rs`'s
+*`<worktree>/.grove`, spelled in exactly one place*, which three production
+callers spell a second way — a claim chapter 1 reproduces **and still states as
+true**, and which `grove-root-join-clauses-k148` holds together with the
+adjudicating paragraph chapter 1 owes beside it. Each of the three is a
 **uniqueness claim written from the shape of the design rather than from an
 enumeration of the code**, each is true of the intent and false of the source,
 and none of them has an instrument over its own call sites — unlike the lock,

@@ -8,7 +8,7 @@
 
 | Root ID | Source path | Lines |
 |---|---|---|
-| `source-crate-manifest` | `crates/grove-loop/Cargo.toml` | 59 |
+| `source-crate-manifest` | `crates/grove-loop/Cargo.toml` | 68 |
 | `source-library-root` | `crates/grove-loop/src/lib.rs` | 377 |
 | `source-task-name` | `crates/grove-loop/src/task_name.rs` | 1,714 |
 | `source-task-tree` | `crates/grove-loop/src/task_tree.rs` | 2,023 |
@@ -22,7 +22,7 @@
 | `source-prompt` | `crates/grove-loop/src/prompt.rs` | 245 |
 | `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 615 |
 
-<!-- source-root «source-crate-manifest» source="crates/grove-loop/Cargo.toml" lines="1-59" -->
+<!-- source-root «source-crate-manifest» source="crates/grove-loop/Cargo.toml" lines="1-68" -->
 <!-- insert «manifest-domain-bound» -->
 <!-- /source-root -->
 <!-- source-root «source-library-root» source="crates/grove-loop/src/lib.rs" lines="1-377" -->
@@ -93,7 +93,7 @@
 
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
-| `manifest-domain-bound` | `source-crate-manifest` | `allowed-to-mean` | `1-59` | 59 | `resolved` |
+| `manifest-domain-bound` | `source-crate-manifest` | `allowed-to-mean` | `1-68` | 68 | `resolved` |
 | `library-root` | `source-library-root` | `allowed-to-mean` | `1-377` | 377 | `resolved` |
 | `tokens-and-verdicts` | `source-task-name` | `four-verdicts` | `1-220` | 220 | `resolved` |
 | `kind-slug-and-handle` | `source-task-name` | `the-handle-not-the-position` | `221-590` | 370 | `resolved` |
@@ -138,14 +138,14 @@
 
 | Fragment ID | Page ID | Root ID | Kind | Owner | Source lines | Parent ID | Child IDs |
 |---|---|---|---|---|---|---|---|
-| `source-crate-manifest` | `source-index` | `source-crate-manifest` | `root` | `—` | `1-59` | `—` | `manifest-domain-bound` |
+| `source-crate-manifest` | `source-index` | `source-crate-manifest` | `root` | `—` | `1-68` | `—` | `manifest-domain-bound` |
 | `manifest-package-identity` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `1-10` | `manifest-domain-bound` | `—` |
-| `manifest-domain-bound` | `orientation` | `source-crate-manifest` | `composite` | `allowed-to-mean` | `1-59` | `source-crate-manifest` | `manifest-package-identity`, `manifest-dependencies`, `manifest-extracted-tree`, `manifest-dev-dependencies`, `manifest-lints`, `manifest-release` |
-| `manifest-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `11-30` | `manifest-domain-bound` | `—` |
-| `manifest-extracted-tree` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `31-38` | `manifest-domain-bound` | `—` |
-| `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `39-41` | `manifest-domain-bound` | `—` |
-| `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `42-44` | `manifest-domain-bound` | `—` |
-| `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `45-59` | `manifest-domain-bound` | `—` |
+| `manifest-domain-bound` | `orientation` | `source-crate-manifest` | `composite` | `allowed-to-mean` | `1-68` | `source-crate-manifest` | `manifest-package-identity`, `manifest-dependencies`, `manifest-extracted-tree`, `manifest-dev-dependencies`, `manifest-lints`, `manifest-release` |
+| `manifest-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `11-39` | `manifest-domain-bound` | `—` |
+| `manifest-extracted-tree` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `40-47` | `manifest-domain-bound` | `—` |
+| `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `48-50` | `manifest-domain-bound` | `—` |
+| `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `51-53` | `manifest-domain-bound` | `—` |
+| `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `54-68` | `manifest-domain-bound` | `—` |
 | `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-377` | `—` | `library-root` |
 | `library-root-thesis` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `1-10` | `library-root` | `—` |
 | `library-root` | `orientation` | `source-library-root` | `composite` | `allowed-to-mean` | `1-377` | `source-library-root` | `library-root-thesis`, `library-root-and-the-driver`, `library-root-opening-mirrors`, `library-root-three-shapes`, `library-root-one-error`, `library-root-modules`, `library-root-version`, `library-root-imports-and-exports`, `library-root-tree-and-vacancy`, `library-root-reading-and-writing`, `library-root-tree-write`, `library-root-tree-write-impl`, `library-root-read-and-write`, `library-root-grove-root`, `library-root-reference`, `library-root-reference-display`, `library-root-selection`, `library-root-error`, `library-root-error-traits` |
@@ -724,7 +724,7 @@
 ## Owned source totals
 
 Every line of the thirteen source roots is credited once, to the slice whose
-page owns it; the table shows how the 10,533 lines divide across the twenty-one
+page owns it; the table shows how the 10,542 lines divide across the twenty-one
 chapters, and its total is what a completed book must account for. Nine roots are
 owned whole by one chapter; the four that split — `src/task_name.rs` three ways,
 `src/task_tree.rs` five, `src/tree_lifecycle.rs` four and `src/driver_lease.rs`
@@ -732,7 +732,7 @@ two — are why the ownership table above has thirty-nine rows rather than thirt
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `allowed-to-mean` | `01-orientation.md` | 436 |
+| `allowed-to-mean` | `01-orientation.md` | 445 |
 | `four-verdicts` | `02-the-tokens.md` | 451 |
 | `the-handle-not-the-position` | `03-kind-slug-handle.md` | 563 |
 | `canonical-or-nothing` | `04-the-name.md` | 700 |
@@ -753,4 +753,4 @@ two — are why the ownership table above has thirty-nine rows rather than thirt
 | `too-late-to-say-later` | `19-the-core.md` | 245 |
 | `four-things-a-runner-cannot-choose` | `20-the-loop.md` | 615 |
 | `assembly` | `21-what-could-not-move.md` | 0 |
-| **Total** | 13 source roots | **10,533** |
+| **Total** | 13 source roots | **10,542** |

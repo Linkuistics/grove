@@ -25,6 +25,17 @@ The chapter sequence and ownership mapping below are what
 `[[block]]` groups. Where the two disagree, that is a defect in one of them, not
 a licence to prefer either.
 
+**The corpus has moved since this brief was written, and every line count below
+is the count as it stood then.** Accepted source changes carry their ledgers and
+pages with them, so the authoritative record of the corpus as it now stands is
+`docs/walkthroughs/grove-loop/walkthrough.toml` and the book's own
+[source index](../walkthroughs/grove-loop/source-index.md). The tables here are
+left as written because they are what the chapter cut was decided against, and
+rewriting them would make them false about the decision they record. As of
+`manifest-dependency-clauses-k133` the corpus is 10,542 lines over the same
+thirteen roots, `Cargo.toml` being 68 rather than 59 and chapter 1 owning 445
+rather than 436.
+
 **What is different about this corpus.** Thirteen roots and 10,533 lines: 72% of
 the campaign's remaining corpus, and five times the largest book written so far.
 Three things about it are new.
@@ -45,9 +56,9 @@ Three things about it are new.
   those 3,984 lines is owned, reconstructed and explained like any other. That
   fact drives the chapter cut rather than following from it.
 - **One claim inside the corpus is known to be false**, and it is refuted by
-  another root of the same book. It is adjudicated on the page; a second such
-  claim was adjudicated at drafting and has since been corrected at source. See
-  *Known in advance: the claims this book adjudicates*.
+  another root of the same book. It is adjudicated on the page; a second and a
+  third such claim were adjudicated at drafting and have since been corrected at
+  source. See *Known in advance: the claims this book adjudicates*.
 
 **And it is the last book.** Of `docs/ARCHITECTURE.md`'s forty-one residue
 markers, **thirty-one name this crate** — thirty spelled `residue(grove-loop…)`
@@ -261,9 +272,10 @@ in the reader's own terms, and which no other book reserves.
 something.** `Cargo.toml` and `lib.rs` are the crate's own statement of that,
 and the chapter reproduces both whole. The manifest's `[dependencies]` table
 declares **five**, and four of them carry their reason in situ — `anyhow`
-internal only, so a consumer takes on no error library; `libc` for the
-`flock(2)` contention probe alone; `keyed-launch` reached by exactly one verb;
-`ordinal-fs-tree` with `default-features = false`, so the dependency set this
+internal only, so a consumer takes on no error library; `libc` for the three
+production modules that reach it, the `flock(2)` contention probe among them;
+`keyed-launch` reached once by the verb surface and in four more places by the
+crate; `ordinal-fs-tree` with `default-features = false`, so the dependency set this
 crate *imposes* is exactly `libc` — and `tests/library_dependency.rs` holds that
 last claim against `cargo metadata` rather than leaving it as a comment. The
 fifth is `jj-workspace`, and it has no clause of its own: the comment accounts
@@ -289,7 +301,8 @@ grove's `Kind`, `Handle` and `Outcome` beside them, which
 not blur.
 
 **It explains which crates take `version.workspace = true`, and which member
-does not.** See *Known in advance*.
+does not, and why the manifest's `libc` and `keyed-launch` clauses are worded as
+they are.** See *Known in advance*.
 
 ### 2 · The tokens, and the four verdicts — `four-verdicts`
 
@@ -330,15 +343,15 @@ key and a position, which is the library's canonicity obligation broken.
 **The rule: a guard is proof the tree was there when it was opened, and no more
 than that.** `Tree`, `Guard`, `Opening`, `TreeVacancy`, the four openings, and the
 three error paths: `absent_tree`, `raised`, and `restate`. The chapter owns
-`announce_contention`, which is the use of `libc` the manifest names — grove
-probes `flock(2)` non-blocking before it announces a wait, so a caller is told it
-is waiting only when it really is. It is not the whole reason `libc` is a
-dependency, and the chapter says so rather than repeating the manifest's clause:
-`libc` is reached from three production modules — this probe, `driver_lease.rs`
-for the lease's own locking and its close-on-exec descriptors, and
-`loop_driver.rs` for the terminal and signal calls chapter 20 reads. Chapter 1
-adjudicates the clause against `Cargo.toml`, and
-`manifest-dependency-clauses-k133` holds the source fix.
+`announce_contention`, which is the use of `libc` the manifest named alone until
+`manifest-dependency-clauses-k133` — grove probes `flock(2)` non-blocking before
+it announces a wait, so a caller is told it is waiting only when it really is. It
+is not the whole reason `libc` is a dependency, and the chapter says so rather
+than letting the probe stand for the crate: `libc` is reached from three
+production modules — this probe, `driver_lease.rs` for the lease's own locking
+and its close-on-exec descriptors, and `loop_driver.rs` for the terminal and
+signal calls chapter 20 reads. Chapter 1 owns the manifest and explains all
+three.
 
 ### 6 · Paths, and addressing — `paths-are-built-here`
 
@@ -1040,13 +1053,18 @@ nowhere, under the link contract above.
 
 ## Known in advance: the claims this book adjudicates
 
-Two were found while this brief was written, both had leaves that fix them, and
-both leaves sat **after** `grove-loop-book-k37` in the node — which is correct
-under the corpus-freeze rule and meant the book had to adjudicate rather than
-wait. One has since landed and the claim is gone from the corpus; the other still
-stands. An adjudicating paragraph sits beside the fragment that reproduces a
-standing claim; the claim is never repeated as though true, and it is never
-silently corrected, since the fragment reproduces the bytes as they are.
+Three, of which two were found while this brief was written and the third while
+chapter 1 was drafted. Each has a leaf that fixes it, and every one of those
+leaves sat **after** `grove-loop-book-k37` in the node — which is correct under
+the corpus-freeze rule and meant the book had to adjudicate rather than wait.
+Two have since landed and their claims are gone from the corpus; the remaining
+one still stands. An adjudicating paragraph sits beside the fragment that
+reproduces a standing claim; the claim is never repeated as though true, and it
+is never silently corrected, since the fragment reproduces the bytes as they are.
+Where the fix has landed, that paragraph was rewritten in the same commit as the
+comment — into an explanation of the corrected wording rather than a deletion,
+because the reason a sentence is phrased oddly outlives the defect that forced
+it.
 
 ### 1 · *Every member takes `version.workspace = true`* — chapter 1, corrected
 
@@ -1087,7 +1105,37 @@ the question the two reads answer. The overview does not repeat the stale count;
 its ledger row and chapter 3 were amended at `three-steps-k79`, so nothing there
 changes when the comment does.
 
-**No third stale claim was found.** `grove-llm-dependency-comments-k102` reaches
+### 3 · *`libc` is the probe in `task_tree`* and *`keyed-launch` is reached by exactly one verb* — chapter 1, corrected
+
+`Cargo.toml`'s dependency comment, found at `orientation-k124` rather than while
+this brief was written, which is why the brief above once recorded that no third
+claim existed. Two clauses described the crate as it stood before
+`loop-crate-driver-k22` moved the driver into it, and they were wrong in two
+different ways.
+
+The `libc` clause named one user where there are three: the probe in `task_tree`,
+`driver_lease` (the lease's own `flock(2)` and the `fcntl(2)` close-on-exec
+calls) and `loop_driver` (`isatty`, `tcgetpgrp` and `signal`). The one it named
+is not the largest — outside the test modules `driver_lease` reaches `libc` on
+thirteen lines, more than the other two together. The `keyed-launch` clause was **true of the verbs and false
+of the crate**: `complete` is still the only one of the twelve verbs that
+reaches the runner, but `driver_lease`, `loop_driver`, `session_config` and
+`src/lib.rs`'s `reraise` re-export reach it too.
+
+`manifest-dependency-clauses-k133` landed both fixes, and the distinction is what
+the correction turns on: the clause now says the **verb surface** reaches the
+runner once *and* that the crate reaches it in four more places, rather than
+letting the first stand for the second. Deleting the clauses was ruled out —
+the dependency argument is chapter 1's evidence for what the crate imposes, so
+what was wrong was their scope, not their existence.
+
+**The chapter no longer adjudicates.** Its paragraph explains why the two clauses
+are not parallel, and keeps what the adjudication carried: that both attributions
+were true of a smaller crate and the driver's arrival widened them. Chapter 5,
+which owns the probe, cross-references chapter 1 rather than restating the
+manifest.
+
+**And `grove-llm-dependency-comments-k102` is not a fourth.** It reaches
 `crates/grove-loop/src/lib.rs` line 81 only as *evidence* — the `Workspace`
 re-export — and changes nothing in this corpus.
 

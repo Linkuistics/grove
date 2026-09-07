@@ -5,7 +5,7 @@
 <a id="assembly"></a>
 ## The page that owns no source
 
-This chapter owns none of the crate's 10,533 lines. The fragment graph closed at
+This chapter owns none of the crate's 10,542 lines. The fragment graph closed at
 the end of [chapter 20](20-the-loop.md), where the last of `loop_driver.rs`'s 615
 lines was reproduced and the book's thirty-ninth ownership block turned
 `resolved`; the [source index](source-index.md) records that graph in full and
@@ -419,10 +419,10 @@ and the drafting added to it, because **an early-use row is owed by naming or
 exercising** and the manifest's rows are a floor rather than the set — a rule
 this book established in its own chapter 2 and applied in every chapter after it.
 
-**Owned source.** 436 + 451 + 563 + 700 + 290 + 370 + 322 + 428 + 613 + 518 + 612
-+ 775 + 808 + 530 + 516 + 819 + 564 + 358 + 245 + 615 = 10,533 lines across
+**Owned source.** 445 + 451 + 563 + 700 + 290 + 370 + 322 + 428 + 613 + 518 + 612
++ 775 + 808 + 530 + 516 + 819 + 564 + 358 + 245 + 615 = 10,542 lines across
 twenty chapters, and 0 for this one. The five parts are 1,714, 2,541, 2,725, 516
-and 2,601 lines, with chapter 1's 436 standing outside them. The largest single
+and 2,601 lines, with chapter 1's 445 standing outside them. The largest single
 owned block is [chapter 16](16-the-lease.md)'s 819 lines, which is that chapter's
 own enumerated claim; measured per *chapter* rather than per block the range runs
 from those 819 down to [chapter 19](19-the-core.md)'s 245, and the thirty-nine
@@ -446,6 +446,13 @@ intra-doc links, a parenthesised citation naming no anchor at all — and each w
 adjudicated beside its fragment, because the corpus is frozen and a book may not
 edit what it proves. Where a page judged a source change worth making, a leaf
 carries it; where it did not, the bytes stand as written and the page says so.
+One of that second group has since landed: `Cargo.toml`'s clauses locating
+`libc` in `task_tree` alone and `keyed-launch` behind one verb were found while
+chapter 1 was drafted and corrected at `manifest-dependency-clauses-k133`, so
+chapter 1 now carries two explanations of corrected wording rather than one
+explanation and one adjudication. The structure brief's *Known in advance*
+counts three claims in total, against the two this paragraph knew before
+drafting began.
 
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces and neither is part of the reading order. The source index
@@ -462,7 +469,7 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/grove-loop --final --check all
-valid: 13 files, 10533 resolved lines, 0 deferred lines, final=true
+valid: 13 files, 10542 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what separates this from every scoped run the twenty drafting
@@ -470,7 +477,7 @@ sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved, and each of this book's first five
 children ended with thousands of lines legitimately deferred; in final mode a
 defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Thirteen files, 10,533 resolved
+page inventory must match the manifest exactly. Thirteen files, 10,542 resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 ```console
@@ -480,7 +487,7 @@ $ bash scripts/check.sh
   book-check docs/walkthroughs/grove-llm
 valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/grove-loop
-valid: 13 files, 10533 resolved lines, 0 deferred lines, final=true
+valid: 13 files, 10542 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
 valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/keyed-launch
@@ -512,7 +519,7 @@ exclusion and its subject to equal the tables in
 `docs/specs/walkthrough-books.md`, the third by attacking a narrowed subject. All of those live in the `grove` crate's
 tests, not this crate's.
 
-The book is complete: thirteen roots, 10,533 lines, twenty-one chapters, two
+The book is complete: thirteen roots, 10,542 lines, twenty-one chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

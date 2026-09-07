@@ -36,14 +36,14 @@ means in each sentence rather than relying on the word to carry it.
 <a id="the-package"></a>
 ## The package: five dependencies, and the set it imposes
 
-The manifest is production source and this chapter reconstructs all fifty-nine
+The manifest is production source and this chapter reconstructs all sixty-eight
 lines of it, in six fragments that follow the file's own blocks. It is read
 first because the crate's central claim is checkable there before any Rust is
 read: a crate that is allowed to be domain-bound says so in the one file that
 holds no code, and the dependency declarations expose the cost of that
 permission.
 
-<!-- fragment «manifest-domain-bound» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="1-59" parent="source-crate-manifest" -->
+<!-- fragment «manifest-domain-bound» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="1-68" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
 <!-- insert «manifest-dependencies» -->
 <!-- insert «manifest-extracted-tree» -->
@@ -83,15 +83,16 @@ decision 1, marks it *not domain-free* for that reason. The comment then account
 for the dependency table beneath it as three modules the crate composes —
 `jj-workspace`, `keyed-launch` and `ordinal-fs-tree` — plus `anyhow` and `libc`,
 and gives a reason for three of them here: `anyhow` is internal only, so a
-consumer takes on no error library of grove's; `libc` it attributes to the
-lock-contention probe in `task_tree`, which needs `flock(2)` non-blocking before
-it announces a wait; and `keyed-launch` it calls the runner, reached by exactly
-one verb. The fifth entry's reason is a comment of its own in the next fragment,
-and `jj-workspace` has none. The table declares five dependencies and this
-fragment carries four of them. The paragraph after the fragment says which of
-those three attributions the code still bears out.
+consumer takes on no error library of grove's; `libc` is attributed to three
+modules, the lock-contention probe in `task_tree` first among them; and
+`keyed-launch` is called the runner, reached once by the verb surface and in
+four more places by the crate. The fifth entry's reason is a comment of its own
+in the next fragment, and `jj-workspace` has none. The table declares five
+dependencies and this fragment carries four of them. Those last two attributions
+are the longest in the file, and the paragraph after the fragment says what made
+them so.
 
-<!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-30" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-39" parent="manifest-domain-bound" -->
 ````toml
 
 # **This crate is the one that is allowed to be domain-bound.** The other three
@@ -103,11 +104,20 @@ those three attributions the code still bears out.
 # `anyhow` is **internal only**: every public entry point answers this crate's
 # own opaque [`Error`], so a consumer takes on no error library of ours — the
 # same rule `crates/jj-workspace`, `crates/keyed-launch` and
-# `crates/ordinal-fs-tree` state for theirs. `libc` is the lock-contention probe
-# in `task_tree`, which needs `flock(2)` non-blocking before it announces a wait.
-# `keyed-launch` is the runner, reached by exactly one verb: `complete` writes
-# the relaunch flag into the channel the driver allocated, through the runner's
-# own child-side half of it.
+# `crates/ordinal-fs-tree` state for theirs. `libc` is the POSIX surface three
+# production modules reach: the lock-contention probe in `task_tree`, which
+# needs `flock(2)` non-blocking before it announces a wait; `driver_lease`, the
+# largest user, for the lease's own `flock(2)` and for the `fcntl(2)`
+# close-on-exec descriptors it carries across a spawn; and `loop_driver`, for
+# `isatty`, `tcgetpgrp` and `signal`. `keyed-launch` is the runner, and the
+# **verb surface** reaches it exactly once: `complete` writes the relaunch flag
+# into the channel the driver allocated, through the runner's own child-side
+# half of it. The crate reaches it in four more places, all of which arrived
+# with the driver at `loop-crate-driver-k22`: `driver_lease` discards an
+# abandoned channel, `loop_driver` spawns and reaps through it, `session_config`
+# compiles grove's templates against the runner's own types, and `lib.rs`
+# re-exports `reraise` so grove's binary can die of a signal without depending
+# on the runner itself.
 [dependencies]
 anyhow = "1.0"
 jj-workspace = { path = "../jj-workspace" }
@@ -116,21 +126,55 @@ libc = "0.2"
 ````
 <!-- /fragment -->
 
-**Two of those clauses describe the crate as it was before the driver arrived,
-and the book states that rather than repeating them.** Since
-`loop-crate-driver-k22` the lease, the loop and the launch configuration are in
-this crate, and both clauses stop short of them. `libc` is reached from three
-modules, not one: the contention probe in `task_tree`, nineteen calls in
-`driver_lease` for the lease's own locking and its close-on-exec descriptors, and
-three in `loop_driver` for the terminal and signal calls chapter 20 reads.
-`keyed-launch` is reached from four: the `complete` verb the clause names, and
-also `driver_lease`, which discards an abandoned channel, `loop_driver`, which
-spawns and reaps through the runner, and `session_config`, which compiles grove's
-templates against the runner's own types. The clause about verbs remains true as
-written — `complete` is the only **verb** that reaches the runner — and the one
-about `libc` does not. Neither is repeated as though it described the whole
-crate, and neither is corrected here: the corpus is frozen, and
-`manifest-dependency-clauses-k133` holds the source fix.
+**Both of those attributions are longer than they need to be, and the reason is
+a move.** Until `loop-crate-driver-k22` the lease, the loop and the launch
+configuration were not in this crate, and the comment could name one user of
+each: the contention probe for `libc`, and the `complete` verb for
+`keyed-launch`. The driver's arrival widened both, and it widened them in two
+different ways, which is why the two clauses are not parallel.
+
+`libc` simply gained users. Three of the crate's production modules reach it, and
+the comment names all three because the one it used to name is not the largest:
+`task_tree`'s contention probe, which chapter 5 reads, is the smallest of the
+three; `driver_lease` is the largest, reaching `libc` on thirteen lines — more
+than the other two together — for the lease's own `flock(2)` and the `fcntl(2)`
+calls that mark a descriptor close-on-exec, which chapter 16 reads; and
+`loop_driver` on three, the `isatty`, `tcgetpgrp` and `signal` calls chapter 20
+reads. The clause says *production* modules because test code inside `src/`
+reaches `libc` in two further places, and counting them would change the answer
+twice over: `driver_lease`'s own test module, which chapter 17 owns, reaches it
+on six more lines — four locking, two asserting a descriptor is close-on-exec —
+and `task_grow`'s inline tests run a lock probe of their own, which makes them a
+**fourth module** and puts the widest reading of the clause in the 1,680 lines
+this book's corpus excludes.
+
+`keyed-launch` gained a **distinction**, and that is the more interesting half.
+*Reached by exactly one verb* was true when it was written and is still true —
+`complete` is the only one of the twelve verbs chapter 15 counts that touches
+the runner — but it was doing duty as a statement about the whole crate, and as
+that it stopped being true the moment the driver arrived. So the clause now says
+the two things separately rather than letting one stand for the other: the
+**verb surface** reaches the runner once, and the crate reaches it in four more
+places. Three of those came with the driver — `driver_lease` discards an
+abandoned channel, `loop_driver` spawns and reaps through the runner, and
+`session_config` compiles grove's templates against the runner's own types — and
+the fourth is `src/lib.rs`, this chapter's other root, which re-exports
+`reraise` so that grove's binary can end on a signal without naming the runner
+as a dependency of its own. That re-export is one of four names this crate
+lifts out of its dependencies into its own public surface, and the account of
+the library root's exports later in this chapter reads all four.
+
+**A clause that names one user is a class of defect rather than an accident
+here**, and [chapter 6](06-paths.md#canonicalise-to-compare) is where the book
+makes that case: it groups this clause with two others — *canonicalisation
+appears once* and *`<worktree>/.grove`, spelled in exactly one place* — as
+uniqueness claims written from the shape of the design rather than from an
+enumeration of the code, each true of the intent and false of the source. This
+one was found while this chapter was being drafted and corrected at
+`manifest-dependency-clauses-k133`, in the same commit as this paragraph, under
+the rule that a source change carries its ledger and its pages with it. The
+paragraph was rewritten rather than deleted, because the reason a sentence is
+worded oddly outlives the defect that forced it.
 
 The third fragment is the fifth dependency and the file's most consequential
 claim.
@@ -146,7 +190,7 @@ in `the_library_imposes_only_libc` and
 evidence rather than corpus, and chapter 21 returns to them as the third
 question's proof.
 
-<!-- fragment «manifest-extracted-tree» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="31-38" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-extracted-tree» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="40-47" parent="manifest-domain-bound" -->
 ````toml
 # The extracted tree library (gh issue #13). `default-features = false` turns off
 # its `cli` feature, which exists for its own `syllabus` binary and pulls in
@@ -166,7 +210,7 @@ tree whose shape is its state cannot be tested against a mock of the filesystem
 without testing the mock instead, so the 3,984 lines of inline tests this book
 reproduces run against directories on disk.
 
-<!-- fragment «manifest-dev-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="39-41" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-dev-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="48-50" parent="manifest-domain-bound" -->
 ````toml
 
 [dev-dependencies]
@@ -178,7 +222,7 @@ The lints table inherits the workspace's lint configuration rather than declarin
 its own, which is the mechanism by which this crate is held to the same clippy
 and rustc settings as every other member.
 
-<!-- fragment «manifest-lints» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="42-44" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-lints» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="51-53" parent="manifest-domain-bound" -->
 ````toml
 
 [lints]
@@ -197,7 +241,7 @@ does **not** freeze the version, because the package block above takes
 The second paragraph records that publication is an answered question rather than
 an open one, and names where the answer lives.
 
-<!-- fragment «manifest-release» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="45-59" parent="manifest-domain-bound" -->
+<!-- fragment «manifest-release» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="54-68" parent="manifest-domain-bound" -->
 ````toml
 
 # `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures

@@ -1490,7 +1490,7 @@ requires it still be a symlink, which is what rules out a transition that
 "helpfully" replaced the dangling link with a real directory.
 
 **It is also the only `#[cfg(unix)]` in the book's entire corpus.** Thirteen
-roots and 10,533 lines carry exactly one platform-guarded item, and it is this
+roots and 10,542 lines carry exactly one platform-guarded item, and it is this
 test — because a dangling symlink is the one fixture in the crate that cannot be
 built portably. The block's other seven tests are platform-neutral.
 

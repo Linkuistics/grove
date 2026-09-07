@@ -201,7 +201,7 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove-loop/Cargo.toml"
-lines = 59
+lines = 68
 
 [[root]]
 id    = "source-library-root"
@@ -267,7 +267,7 @@ lines = 615
 id    = "manifest-domain-bound"
 root  = "source-crate-manifest"
 owner = "allowed-to-mean"
-lines = "1-59"
+lines = "1-68"
 
 [[block]]
 id    = "library-root"

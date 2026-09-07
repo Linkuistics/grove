@@ -646,7 +646,7 @@ recorded, and the book names it rather than linking to it.
 
 The longest item in the chapter is fifty lines, thirty of them comment — the
 highest proportion of argument to code anywhere in the block. It is also the use
-the crate's manifest names when it explains `libc`.
+the crate's manifest names first when it explains `libc`.
 
 <!-- fragment «tree-announce-contention» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="210-259" parent="tree-opening" -->
 ````rust
@@ -761,16 +761,17 @@ reported its own errors would be grove deciding — about a condition the librar
 is a few lines from stating properly. It is also what lets the three call sites
 invoke this unconditionally, with no guard and no result to check.
 
-**On `libc`.** `Cargo.toml`'s dependency comment names this probe as what `libc`
-is for, and chapter 1 adjudicated that clause rather than repeating it: `libc` is
-reached from three production modules, not one — this probe, the lease's own
-locking and close-on-exec descriptors in `driver_lease.rs`, and the terminal and
-signal calls in `loop_driver.rs` that chapter 20 reads.
-`manifest-dependency-clauses-k133` holds the source fix. What is true of this
-function is narrower and still worth having: it is the use the manifest names,
-and it is the one that would be hardest to justify without the argument above,
-because a probe that is never a decision appears redundant until its diagnostic
-purpose is stated.
+**On `libc`.** `Cargo.toml`'s dependency comment names this probe first among
+three, and until `manifest-dependency-clauses-k133` it named it alone —
+[chapter 1](01-orientation.md#the-package) reads the corrected clause and
+explains why the probe is no longer allowed to stand for the crate. `libc` is
+reached from three production modules: this probe, the lease's own locking and
+close-on-exec descriptors in `driver_lease.rs`, and the terminal and signal calls
+in `loop_driver.rs` that chapter 20 reads. What is true of this function is
+narrower than the dependency and still worth having: it is the use the manifest
+names first, and it is the one that would be hardest to justify without the
+argument above, because a probe that is never a decision appears redundant until
+its diagnostic purpose is stated.
 
 <a id="refusal-precedence"></a>
 ## Refusal precedence, and the order grove owes its operator

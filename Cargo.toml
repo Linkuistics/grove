@@ -7,8 +7,19 @@
 # `crates/grove` is the human's binary — bare `grove`, the loop's entry point —
 # and `crates/grove-llm` is the session's. Both are **crates rather than
 # `[[bin]]` targets inside a library**, and that is the point: a binary target
-# can reach its own library's private items, so *the binary is thin* stops being
-# compiler-enforced the moment it is a target rather than a crate
+# declared beside a library can compile that library's modules into itself with
+# a `#[path]` attribute and then name the items it keeps private, so *the binary
+# is thin* stops being compiler-enforced for that shape. It is only that shape.
+# A target that merely depends on the library beside it sees what a separate
+# crate sees — a `pub(crate)` item named through the library's path is refused
+# with `E0603` — and modules it compiles into itself land in its own crate
+# rather than the library's, so what it reaches is a second instance of those
+# items and not the library's own (a type declared that way is distinct from
+# the library's, `E0308`). The discipline that shape defeats is the
+# source-level one, which is the only one *the binary is thin* was ever about.
+# What a separate crate adds is that the `#[path]` has to point outside the
+# package, where a reader of the entry point's own files can see it: the
+# boundary makes the move visible rather than impossible
 # (`docs/specs/module-decomposition.md`, decision 1).
 #
 # `crates/grove-loop` is grove's loop (decision 9): the task tree in grove's own

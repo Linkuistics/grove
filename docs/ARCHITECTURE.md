@@ -157,8 +157,11 @@ provisioning at `delete-provisioning-k19`. There is no metadata argument left, s
 
 Since `loop-crate-driver-k22` **both binaries are separate crates** over
 `grove-loop`, so *the binary is thin* is compiler-enforced rather than reviewed
-(`docs/specs/module-decomposition.md`, decision 1): a binary target inside a
-library could reach that library's private items, and neither of these is one.
+(`docs/specs/module-decomposition.md`, decision 1): a binary target declared
+beside a library can compile that library's modules into itself and name the
+items it keeps private, and a separate package cannot do that without a
+`#[path]` attribute pointing outside itself, where it is visible in the entry
+point's own files.
 
 ## Session configuration
 

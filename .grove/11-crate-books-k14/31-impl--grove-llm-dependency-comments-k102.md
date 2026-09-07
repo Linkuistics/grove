@@ -2,11 +2,12 @@
 
 ## Goal
 
-Correct the two claims about `crates/grove-llm`'s own dependencies that the
-crate's source does not bear out — `Cargo.toml`'s *everything this binary can
-reach is something `grove-loop` chose to publish* (lines 9–15) and `src/lib.rs`'s
-*something `grove-loop` or `grove` chose to publish* (lines 7–8) — and land them
-as one corpus change the book contract permits.
+Correct the three claims in `crates/grove-llm` that the crate's source does not
+bear out — `Cargo.toml`'s *A binary target can reach its own library's private
+items* and *everything this binary can reach is something `grove-loop` chose to
+publish* (both in lines 9–15) and `src/lib.rs`'s *something `grove-loop` or
+`grove` chose to publish* (lines 7–8) — and land them as one corpus change the
+book contract permits.
 
 ## Context
 
@@ -28,6 +29,24 @@ as one corpus change the book contract permits.
   that crate's whole public surface *reachable*: a `use jj_workspace::` of any
   item it publishes compiles today. The sentence is about what can be reached,
   and as written it does not hold.
+- **The privacy claim, added by `bin-target-privacy-claim-k87`.** Lines 11–12
+  restate decision 1 of `docs/specs/module-decomposition.md` as a universal: *A
+  binary target can reach its own library's private items*. It is true only of a
+  target that compiles the library's modules as its own, and false of the
+  ordinary shape — a target that depends on the library beside it is refused
+  with `E0603`, measured twice, at `proving-a-negative-k80` and again at k87.
+  k87 corrected the same clause in `crates/grove/Cargo.toml`, in decision 1
+  itself, and in `docs/ARCHITECTURE.md`; this site was left here because it sits
+  **inside the same fragment** — `manifest-crate-not-a-target`, lines 9–15 —
+  that this leaf must rewrite anyway, and two leaves editing seven lines in
+  succession would make the second re-derive the first's ranges. Decision 1 now
+  carries the long form, so this comment needs only the shape named, in the room
+  it has. Chapter 1 is where the book adjudicates it — *the comment's own
+  sentence states the clause without naming the shape it holds for, and is
+  reproduced as written* — and that paragraph moves with the comment.
+  `07-what-order-holds.md` only **points at** that reading (*Orientation read
+  the alternative that clause holds for and the shape it does not*), so it
+  survives unchanged; check it rather than assume it.
 - **The library-root claim.** *`grove-loop` or `grove`* was true while this
   package depended on both. The dependency table now names `grove-loop` and
   `jj-workspace`, no `use grove::` appears in the crate, and the manifest's own
@@ -47,12 +66,13 @@ as one corpus change the book contract permits.
 
 ## Done when
 
-- Both comments state something the source bears out, and chapter 1 of
+- All three sentences state something the source bears out, and chapter 1 of
   `docs/walkthroughs/grove-llm/` has been reconciled: the affected literal
   fragments carry the new bytes, any changed line counts are reflected in the
-  ownership blocks, the manifest and the source index, and the two paragraphs
+  ownership blocks, the manifest and the source index, and the paragraphs
   that adjudicate the stale claims are rewritten to describe what the comments
-  now say.
+  now say — chapter 1 owns all three, and `07-what-order-holds.md`'s pointer at
+  chapter 1's reading is re-read rather than assumed.
 - The corpus-freeze rule in `.grove/BRIEF.md` is honoured: **one commit** carries
   the source change, every affected fragment, ledger row and page, and a green
   `book-check --final --check all` over the `grove-llm` book.

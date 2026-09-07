@@ -13,10 +13,10 @@ rust-version.workspace = true
 # decision 9).
 #
 # **A crate, not a `[[bin]]` target, and that is the point** (decision 1). A
-# binary target inside `grove-loop` could reach that library's private items, so
-# *the binary is thin* would stop being compiler-enforced. Here the compiler
-# holds it: everything `main.rs` can reach is something `grove-loop` chose to
-# publish.
+# binary target inside `grove-loop` that compiled the library's modules into
+# itself could name the items that library keeps private, so *the binary is
+# thin* would stop being compiler-enforced. Here the compiler holds it:
+# everything `main.rs` can reach is something `grove-loop` chose to publish.
 #
 # **There is no `[lib]`.** The package is one binary target, so `cli.rs` is a
 # module of the binary and its clap model is asserted by the binary's own unit

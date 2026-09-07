@@ -135,44 +135,55 @@ test that keeps it empty.
 ## A crate, not a `[[bin]]` target
 
 The second comment is the chapter's argument, and it names the alternative it
-rejects: a `[[bin]]` target declared inside `grove-loop`'s own manifest,
-with the same thirteen-line `main` at `src/bin/grove.rs`. Cargo would
-accept that, and the binary would be one file shorter to describe. What it
-would cost is the
-thesis, and the comment's clause about private items holds for one of the two
-shapes such a target can take. Rust privacy is drawn at the crate. A binary
-target that lists the library's modules as its own — `mod driver_lease;`
-beside its `main`, compiling the same files a second time — is the same crate
-as the code it includes and can name any `pub(crate)` item in it:
-`driver_lease`'s control-directory accessor, the loop's child-environment
-scrub, the tree operations no verb exposes. A binary target that instead
-depends on the library sees only what the library publishes, exactly as a
-separate crate does; a `pub(crate)` item named through the library's path is
-refused with `E0603`, measured on a scratch package with one library and one
-binary beside it, and the same item reached by including its source file as a
-module compiles. What the package boundary adds is that the entry point cannot
-take the first shape without a `#[path]` attribute pointing outside its own
-package, which the two Rust files visibly do not carry. Inside `grove-loop`'s
-package, *the binary is thin* would be a fact about which of the two shapes
-the current commit uses, held by whoever reviews the next one. As a separate
-crate the entry point sees exactly the items `crates/grove-loop/src/lib.rs`
-re-exports and nothing else, and a `use` of anything further is a compile
-error. That is the whole of the first mechanism: the boundary is the compiler's,
-and no test is needed to assert it, which is also why it is the mechanism a
-reader is most likely to take on trust. The check is one line: every
-`grove_loop::` path the two Rust files name is a `pub` re-export in that
-library's root. The comment's own sentence, and decision 1 of
-`docs/specs/module-decomposition.md` which it cites, state the clause without
-naming the shape it holds for; both are reproduced as written.
+rejects: a `[[bin]]` target declared inside `grove-loop`'s own manifest, with
+the same thirteen-line `main` at `src/bin/grove.rs`. Cargo would accept that,
+and the binary would be one file shorter to describe. What it would cost is
+the thesis — but only for one of the two shapes such a target can take, which
+is why the comment names that shape rather than stating the clause of binary
+targets in general. Rust privacy is drawn at the crate. A binary target that
+lists the library's modules as its own — `#[path = "../driver_lease.rs"] mod
+driver_lease;` beside its `main` at `src/bin/grove.rs`, compiling the same
+files a second time — is the same crate as the code it includes and can name
+any `pub(crate)` item in it: `driver_lease`'s control-directory accessor, the
+loop's child-environment scrub, the tree operations no verb exposes. The
+attribute is not decoration: a bare `mod driver_lease;` in a file under
+`src/bin/` resolves against `src/bin/`, and is `E0583`. What such a target
+holds is its own second copy — a type it declares that way is distinct from
+the library's, `E0308` — so the discipline the shape defeats is the
+source-level one, which is the only one the thesis was ever about. A binary
+target that instead depends on the library sees only what the library
+publishes, exactly as a separate crate does; a `pub(crate)` item named through
+the library's path is refused with `E0603`, measured on a scratch package with
+one library and one binary beside it, and the same item reached by including
+its source file as a module compiles. That second shape is the ordinary one —
+it is what `src/bin/grove.rs` beside a `src/lib.rs` gets from Cargo without
+anyone asking for it — so a clause that did not name the first shape would be
+false of the arrangement a reader pictures. What the package boundary adds is
+not that the first shape becomes impossible — a `#[path]` can point outside a
+package, and three of this repository's test targets do exactly that — but
+that from here it has to, and the two Rust files visibly do not carry one. The
+move is made visible rather than unavailable. Inside `grove-loop`'s package,
+*the binary is thin* would be a fact about which of the two shapes the current
+commit uses, held by whoever reviews the next one. As a separate crate the
+entry point sees exactly the items `crates/grove-loop/src/lib.rs` re-exports
+and nothing else, and a `use` of anything further is a compile error. That is
+the whole of the first mechanism: the boundary is the compiler's, and no test
+is needed to assert it, which is also why it is the mechanism a reader is most
+likely to take on trust. The check is one line: every `grove_loop::` path the
+two Rust files name is a `pub` re-export in that library's root. The comment's
+own sentence, and decision 1 of `docs/specs/module-decomposition.md` which it
+cites, both name the shape the clause holds for; the comment says it in one
+clause because five lines is all the room the manifest gives it, and this
+section is where the shape it excludes is spelled out.
 
 <!-- fragment «manifest-crate-not-a-bin» owner="compiler-held" source="crates/grove/Cargo.toml" lines="14-19" parent="manifest-thin-by-construction" -->
 ````toml
 #
 # **A crate, not a `[[bin]]` target, and that is the point** (decision 1). A
-# binary target inside `grove-loop` could reach that library's private items, so
-# *the binary is thin* would stop being compiler-enforced. Here the compiler
-# holds it: everything `main.rs` can reach is something `grove-loop` chose to
-# publish.
+# binary target inside `grove-loop` that compiled the library's modules into
+# itself could name the items that library keeps private, so *the binary is
+# thin* would stop being compiler-enforced. Here the compiler holds it:
+# everything `main.rs` can reach is something `grove-loop` chose to publish.
 ````
 <!-- /fragment -->
 

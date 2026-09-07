@@ -46,9 +46,26 @@ entirely different path, and its half of that guarantee is met by its own
 conformance runner instead.
 
 The two binaries are separate crates rather than binary targets inside
-`grove-loop`, for the same reason: a binary target can reach its own library's
-private items, so *the binary is thin* would stop being compiler-enforced the
-moment it were a target rather than a crate. A crate boundary is also a
+`grove-loop`, for the same reason: a binary target declared beside the library
+can compile the library's modules into itself — a `#[path]` attribute and a
+`mod` — and then name the items that library keeps private, so *the binary is
+thin* would stop being compiler-enforced for that shape.
+
+It is only that shape, and two measurements bound it. A target that merely
+depends on the library beside it sees what a separate crate sees: a `pub(crate)`
+item named through the library's path is refused with `E0603`. And the modules
+such a target compiles into itself land in **its own** crate rather than the
+library's, so what it reaches is a second instance of those items rather than
+the library's own — a type declared that way is distinct from the library's,
+`E0308`, and rustc names it *defined in the current crate*. What the shape
+defeats is therefore the source-level discipline, which is the only one *the
+binary is thin* was ever about.
+
+What a separate crate adds is not that the shape becomes impossible — a `#[path]`
+can point outside a package, and three test targets in this workspace do exactly
+that — but that it has to, and a reader of the entry point's own two files can
+see whether it does. The boundary makes the move visible rather than
+unavailable. A crate boundary is also a
 reachability boundary, which is what lets `dead_code` report an item whose only
 callers are another package's tests.
 

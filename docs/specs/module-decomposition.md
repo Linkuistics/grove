@@ -320,7 +320,16 @@ impl Templates {
     /// The file this key's template was actually read from. `None` when the
     /// primary does not declare it, whatever the overlay says.
     pub fn source(&self, key: &str) -> Option<&Path>;
+    /// Does this key resolve to exactly one complete template? The obligation a
+    /// consumer discharges *before* it commits to a key — before it writes down
+    /// work of that kind, or launches it — stated once, here, so the refusal's
+    /// wording has one owner. `expand` asks the same question on its own way in.
+    pub fn require(&self, key: &str) -> Result<(), ConfigError>;
     pub fn expand(&self, key: &str, values: &[Slot<'_>]) -> Result<Argv, ConfigError>;
+    /// The keys the primary document declares, in name order. The conformance
+    /// kit's one window into a loaded configuration — enough to say *this
+    /// checked nothing*, and nothing more.
+    pub fn keys(&self) -> Vec<&str>;
 }
 
 /// A value for one declared slot, at expansion. Substitution is whole-word: the
@@ -333,6 +342,9 @@ pub struct Argv { /* program, args */ }
 impl Argv {
     pub fn program(&self) -> &OsStr;
     pub fn args(&self) -> &[OsString];
+    /// The whole launch as one word list, program first — the shape a
+    /// `Command`-building consumer and a diagnostic both want.
+    pub fn words(&self) -> Vec<OsString>;
 }
 
 /// The out-of-band completion signal: a fresh, collision-resistant path per
@@ -343,6 +355,11 @@ impl Channel {
     pub fn path(&self) -> &Path;
     pub fn read(&self) -> Option<Token>;
     pub fn discard(self) -> Result<(), LaunchError>;
+    /// Remove every channel file in `dir` — the ones a previous launcher
+    /// allocated and did not live to discard. **The name grammar is this
+    /// crate's, so recognising an abandoned channel has to be too**: the
+    /// alternative is a consumer open-coding the name in its own cleanup.
+    pub fn discard_abandoned(dir: &Path) -> Result<(), LaunchError>;
 }
 /// Opaque to the runner. Its appearance ends the launch; its content is the
 /// caller's to interpret, which is why the content is readable.
@@ -360,13 +377,35 @@ pub struct Launch<'a> {
     pub channel: &'a Channel,
     pub channel_var: &'a str,
     pub scrub: &'a [&'a OsStr],
+    /// The child's working directory. `None` inherits the launcher's, which is
+    /// rarely what a launcher wants: it is wherever a human happened to be
+    /// standing.
+    pub cwd: Option<&'a Path>,
     pub escalation: Escalation,
 }
 
 pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError>;
 
 pub struct Ended { pub end: End, pub status: ExitStatus, pub elapsed: Duration, pub token: Option<Token> }
-pub enum End { Exited, Signalled, Interrupted }
+/// `Interrupted` is the *launcher's* own process signalled during this launch.
+/// **The signal is carried rather than merely noted**, because a process that
+/// catches a termination signal, tidies up and exits 0 has told its parent it
+/// finished its work; the only way to say what actually happened is to die of
+/// the same signal, and that needs its number. `reraise` is that ending, and
+/// this field is its argument.
+pub enum End { Exited, Signalled, Interrupted { signal: i32 } }
+
+/// Which signal, if any, was sent to this process *outside* a launch — clearing
+/// the latch. A signal arriving between two launches has no launch to be
+/// reported against, and `run` discards it rather than spending it on the next
+/// child, which has signalled nothing and done nothing wrong; a looping
+/// launcher calls this at the top of its loop to honour it instead.
+pub fn take_interrupt() -> Option<i32>;
+/// Die of the signal that ended this launcher, so **its** parent sees the
+/// conventional `128 + N` in the wait status — which an exit *code* cannot
+/// express at all. **This crate owns the call because this crate installed the
+/// handler**; what stays the consumer's is *whether* to re-raise.
+pub fn reraise(signal: i32) -> !;
 
 /// Both errors are opaque types implementing `Error + Display`. Their obligation
 /// is the design's, not a variant list: every one names what is wrong, where —

@@ -193,8 +193,9 @@ completion channel's own framing, `libc` for holding the tree lock from outside
 the binary, `ordinal-fs-tree` for reading a filename back through the seam
 production uses, `tempfile`; and `release = false` as an answered question.
 
-This chapter adjudicates the two stale claims recorded under *Known in advance*
-below, beside the fragments that carry them. It carries the worked example at
+This chapter reads the clauses recorded under *Known in advance* below — all
+of them corrected in the source since drafting — beside the fragments that
+carry them. It carries the worked example at
 low resolution.
 
 ### 2 · The grammar and the openings — admitted before dispatch
@@ -720,39 +721,52 @@ violate the settled chapter boundary and add ownership joins. Exact identifiers,
 concrete values, the early-use ledger and source-backed later chapters give the
 same technical trace with a smaller fragment graph.
 
-## Known in advance: what chapter 1 adjudicates
+## Known in advance: what chapter 1 once adjudicated
 
-Two claims in the frozen corpus do not survive a check against the source
-beside them. Each page states the checkable fact beside the fragment that
-carries the stale one, as the overview's pages do for theirs; none licenses a
-code change from inside the book, under the root brief's freeze rule.
+Two claims in the frozen corpus did not survive a check against the source
+beside them. Each page stated the checkable fact beside the fragment that
+carried the stale one, as the overview's pages do for theirs; neither licensed
+a code change from inside the book, under the root brief's freeze rule. Both
+have since been corrected by `grove-llm-dependency-comments-k102`, which
+carried the source change, the two fragments and chapter 1's paragraphs in one
+commit. The corpus no longer carries either, and a re-draft should not
+re-adjudicate them.
 
-A third was corrected rather than adjudicated. `cli.rs` lines 39–43 once said
-`crates/grove-llm` carries a `0.1.0` of its own, against a manifest whose line
-3 is `version.workspace = true`; `grove-llm-version-comment-k83` rewrote the
-comment to argue only for reading one constant, and rewrote chapter 2's
+A third claim never reached a page as a live one. `cli.rs` lines 39–43 once
+said `crates/grove-llm` carries a `0.1.0` of its own, against a manifest whose
+line 3 is `version.workspace = true`; `grove-llm-version-comment-k83` rewrote
+the comment to argue only for reading one constant, and rewrote chapter 2's
 paragraph in the same commit. The corpus no longer carries that claim, and a
 re-draft should not re-adjudicate it.
 
 1. **The manifest's reachability claim, and the direct `jj-workspace`
-   dependency.** `Cargo.toml` line 15 says everything this binary can reach is
+   dependency.** `Cargo.toml` line 15 said everything this binary can reach is
    something `grove-loop` chose to publish; line 31 declares `jj-workspace` as a
    second dependency, and `cli.rs` line 32 imports `Workspace` from it directly.
    `grove-loop` re-exports that same type (`crates/grove-loop/src/lib.rs`, line
    81), so the binary reaches nothing `grove-loop` did not also publish — but
    the dependency line makes the whole of `jj-workspace`'s public surface
-   reachable, and the claim as written is a claim about what *can* be reached.
-   Chapter 1 states both facts. Dropping the dependency and importing
-   `grove_loop::Workspace` is a defect leaf's, not the book's, and it may be
-   deferred behind the book it would invalidate.
-2. **The module documentation's second publisher.** `lib.rs` lines 7–8 say
+   reachable, and the claim as written was a claim about what *can* be reached.
+   k102 narrowed the sentence to `grove-loop` — of that crate, only the
+   published surface is reachable, which is the half the compiler holds
+   outright — rather than dropping the dependency and importing
+   `grove_loop::Workspace`, so `cli.rs` is untouched and the direct edge stays.
+2. **The module documentation's second publisher.** `lib.rs` lines 7–8 said
    *something `grove-loop` or `grove` chose to publish*. The manifest's own
    comment, lines 17–22, records that the `grove` dependency went at
-   `loop-crate-driver-k22`. The manifest is right and the module doc is stale;
-   chapter 1 says so. Same owner, same rule.
+   `loop-crate-driver-k22`. The manifest was right and the module doc was
+   stale; k102 dropped the second publisher and scoped the clause the same way.
 
-The draft's technical-truth charter may find more. These two are known, and a
-drafting session should not have to discover them.
+k102 rewrote a further clause in the same seven lines, one not known before
+drafting: `Cargo.toml`'s *a binary target can reach its own library's private
+items*, which holds only for a target that compiles the library's modules into
+itself. `bin-target-privacy-claim-k87` had corrected that wording in decision 1,
+in `crates/grove/Cargo.toml` and in `docs/ARCHITECTURE.md`, and left this site
+inside the fragment k102 had to rewrite anyway.
+
+The draft's technical-truth charter found three more, carried by
+`root-init-drop-order-comment-k99`, `next-steps-comment-lane-k100` and
+`complete-help-grove-do-k101`; *What order holds* keeps that tally.
 
 ## What this brief does not settle
 

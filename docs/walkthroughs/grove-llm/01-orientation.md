@@ -93,15 +93,20 @@ modules as its own — compiling the same files a second time as part of itself
 library beside it sees only what the library publishes, exactly as a separate
 crate does. What the package boundary adds is that this entry point cannot take
 the first shape without a `#[path]` attribute pointing outside its own package,
-which none of its three Rust files carries. The comment's own sentence states
-the clause without naming the shape it holds for, and is reproduced as written.
+which none of its three Rust files carries. The comment names that shape rather
+than stating the clause universally, and that is what makes it true: it once
+read *a binary target can reach its own library's private items*, which holds
+only for the first of those two shapes.
+`bin-target-privacy-claim-k87` corrected that wording in decision 1 itself, in
+`crates/grove/Cargo.toml` and in `docs/ARCHITECTURE.md`, and
+`grove-llm-dependency-comments-k102` brought this last site into line with them.
 Inside `grove-loop`'s package, *the binary is thin* would be a fact about which
 shape the current commit uses, held by whoever reviews the next one; as a
 separate crate it is a fact the compiler holds, and no test is needed to assert
 it.
 
-The comment's last sentence is a claim this page checks two ways, and the two
-answers differ. Every `grove_loop::` name the module uses — the fourteen
+The comment's last sentence is scoped to `grove-loop`, and this page is where
+that scope is earned. Every `grove_loop::` name the module uses — the fourteen
 imported items and the module under *The imports*, and the five reached by
 path — is a `pub` item of that crate, twelve of the imports at its root and
 two in its `pub mod verbs`; and the one type it imports from elsewhere,
@@ -110,22 +115,27 @@ two in its `pub mod verbs`; and the one type it imports from elsewhere,
 `grove-loop` did not also publish. But the dependency table below declares
 `jj-workspace` directly, and a declared dependency makes the whole of that
 crate's public surface *reachable*: a `use jj_workspace::` of any item it
-publishes would compile today. The sentence is about what *can* be reached, and
-as written it does not hold; what holds is the narrower fact that nothing
-reached is unpublished by `grove-loop`. Dropping the line and importing
-`grove_loop::Workspace` would make the sentence true and is a source change,
-which is a defect leaf's under the corpus freeze and not this book's; the page
-states both facts and reproduces the comment as written.
+publishes would compile today. So an unscoped claim about everything this
+binary *can* reach would be false, and the comment used to make one —
+*everything this binary can reach is something `grove-loop` chose to publish*.
+`grove-llm-dependency-comments-k102` narrowed it to the crate the thinness
+argument is about, which is also the half the compiler holds outright: of
+`grove-loop`, only the published surface is reachable, and no dependency added
+later can widen that. The alternative fix was to drop the `jj-workspace` line
+and import `grove_loop::Workspace`, which would have made the wider sentence
+true. That leaf rejected it: naming a type through another crate's re-export
+rather than through the crate that owns it is the weaker dependency edge, and
+*The imports* below reads the direct one.
 
 <!-- fragment «manifest-crate-not-a-target» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="9-15" parent="manifest-thin-by-crate" -->
 ````toml
 
 # **A crate, not a `[[bin]]` target, and that is the whole point**
-# (`docs/specs/module-decomposition.md`, decision 1). A binary target can reach
-# its own library's private items, so *the binary is thin* stops being
-# compiler-enforced the moment it is a target rather than a crate. Here the
-# compiler holds it: everything this binary can reach is something
-# `grove-loop` chose to publish.
+# (`docs/specs/module-decomposition.md`, decision 1). A binary target inside
+# `grove-loop` that compiled that library's modules into itself could name the
+# items it keeps private, so *the binary is thin* would stop being
+# compiler-enforced. Here the compiler holds it: of `grove-loop`, this binary
+# can reach only what that crate chose to publish.
 ````
 <!-- /fragment -->
 
@@ -177,8 +187,9 @@ helper that resolves the working tree from the current directory before any
 grove is opened, and `finish-commit`'s handler, which resolves it again from
 that root to commit through it. That
 type is also published by `grove-loop`'s root, so the direct line buys the
-binary nothing it could not already name — and it is what makes the manifest's
-reachability sentence wider than the facts.
+binary nothing it could not already name — and it is why the comment above
+scopes its reachability claim to `grove-loop` rather than to everything this
+binary can reach.
 
 <!-- fragment «manifest-dependencies» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="26-31" parent="manifest-thin-by-crate" -->
 ````toml
@@ -290,14 +301,16 @@ lines over this library, and this library is a `clap` surface over
 `grove_loop::verbs`, so a separate crate is what makes *thin* the compiler's
 fact rather than review's.
 
-Its last clause names two publishers, and the manifest's third fragment above
-records that one of them is gone. *Something `grove-loop` or `grove` chose to
-publish* was true while this package depended on both; the dependency table
-now names `grove-loop` and `jj-workspace`, and no `use grove::` appears in the
-module. The manifest's comment is the current fact and this doc comment is the
-stale one; the page says so and reproduces the comment as written, under the
-same rule as the reachability sentence — a comment is corpus, and a corpus
-change is a defect leaf's.
+Its last clause names one publisher, and the manifest's third fragment above
+says why only one. It read *something `grove-loop` or `grove` chose to publish*
+while this package depended on both; the dependency table now names
+`grove-loop` and `jj-workspace`, no `use grove::` appears in the module, and
+`loop-crate-driver-k22` is when the `grove` edge went.
+`grove-llm-dependency-comments-k102` dropped the second publisher and scoped
+the clause the way the manifest's own comment is scoped — to `grove-loop`, not
+to *a dependency*, for the reason *The package* gives above: `jj-workspace` is
+a dependency too, and the fact the compiler holds is about the crate this one
+is thin over.
 
 <!-- fragment «library-root-thin» owner="one-call-plus-rendering" source="crates/grove-llm/src/lib.rs" lines="1-8" parent="library-root" -->
 ````rust
@@ -307,8 +320,8 @@ change is a defect leaf's.
 //! surface over [`grove_loop::verbs`]. It is a separate crate from the loop it
 //! drives so that *the binary is thin* is a fact the compiler holds rather than
 //! a discipline review has to keep (`docs/specs/module-decomposition.md`,
-//! decision 1): everything reachable from here is something `grove-loop` or
-//! `grove` chose to publish.
+//! decision 1): of `grove-loop`, only what that crate chose to publish is
+//! reachable from here.
 ````
 <!-- /fragment -->
 

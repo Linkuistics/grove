@@ -8,11 +8,11 @@ repository.workspace = true
 rust-version.workspace = true
 
 # **A crate, not a `[[bin]]` target, and that is the whole point**
-# (`docs/specs/module-decomposition.md`, decision 1). A binary target can reach
-# its own library's private items, so *the binary is thin* stops being
-# compiler-enforced the moment it is a target rather than a crate. Here the
-# compiler holds it: everything this binary can reach is something
-# `grove-loop` chose to publish.
+# (`docs/specs/module-decomposition.md`, decision 1). A binary target inside
+# `grove-loop` that compiled that library's modules into itself could name the
+# items it keeps private, so *the binary is thin* would stop being
+# compiler-enforced. Here the compiler holds it: of `grove-loop`, this binary
+# can reach only what that crate chose to publish.
 #
 # It once depended on `grove` as well, because two of its concerns were the
 # driver's: the session-epoch admission every verb passes through, and the

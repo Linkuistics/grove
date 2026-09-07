@@ -19,7 +19,7 @@
 - [`release = false`, and what it does not freeze](01-orientation.md#the-release-block)
 - [A library target that carries the CLI and no logic](01-orientation.md#the-library-root)
 - [Why a library costs the thin guarantee nothing](01-orientation.md#the-library-root)
-- [A second publisher the manifest says is gone](01-orientation.md#the-library-root)
+- [The publisher the doc comment no longer names](01-orientation.md#the-library-root)
 - [Three lines](01-orientation.md#the-entry-point)
 - [The audience split: verbs for the LLM, deterministically](01-orientation.md#the-header)
 - [Flat verbs, and bootstrap recovery](01-orientation.md#the-header)

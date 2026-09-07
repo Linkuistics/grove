@@ -361,17 +361,19 @@ assembly, and the total is the 1,017 the campaign froze.
 as these seven chapters were drafted, each was reproduced as written and
 judged beside its fragment, because the corpus is frozen and a book may not
 edit what it proves. Five were judged worth a source change, and four leaves
-carry them. Two of the five were known before drafting began — the manifest's
+carried them. Two of the five were known before drafting began — the
+manifest's
 *everything this binary can reach is something `grove-loop` chose to publish*,
 which holds for what is reached and not for what is reachable through the
 direct `jj-workspace` dependency; and `lib.rs`'s *or `grove`*, naming a
 dependency the manifest's own comment records as removed;
-`grove-llm-dependency-comments-k102` carries both, together with a third
-clause it must rewrite in the same seven lines — the manifest's *a binary
-target can reach its own library's private items*, which *Orientation*
-adjudicates and `bin-target-privacy-claim-k87` corrected everywhere else.
-Three were found while drafting: `cmd_root_init`'s drop-order argument for
-`match` over `let … else`, which was the reverse of what the compiler does;
+`grove-llm-dependency-comments-k102` carried both, together with a third
+clause it rewrote in the same seven lines — the manifest's *a binary target
+can reach its own library's private items*, which *Orientation* had read
+against the one shape it holds for and which `bin-target-privacy-claim-k87`
+had corrected everywhere else. Three were found while drafting:
+`cmd_root_init`'s drop-order argument for `match` over `let … else`, which was
+the reverse of what the compiler does;
 `eprint_next_steps` naming a *jj/git* lane this build cannot reach; and the
 `Complete` variant's *a session not under `grove do`*, naming a verb neither
 binary has. **All three found while drafting have since landed.**
@@ -385,10 +387,15 @@ variant's parenthesis with *a session bare `grove` did not launch*, the
 spelling `removed_surface.rs` itself uses for the driver. Each rewrote its own
 chapter's passage in the same commit, so *Growing the tree*, *Ending work* and
 *Leaving the loop* now read comments that hold instead of adjudicating ones
-that do not; the two known before drafting began are still reproduced as
-written and judged beside their fragments, and
-`grove-llm-dependency-comments-k102` is the leaf that carries both. A further
-set were found narrower or looser than stated and left exactly where they are,
+that do not. **The two known before drafting began have landed too.**
+`grove-llm-dependency-comments-k102` narrowed the manifest's reachability
+sentence to `grove-loop` — the scope the compiler holds outright, rather than
+the wider one the direct `jj-workspace` dependency falsifies — dropped
+`lib.rs`'s second publisher, and named the shape the privacy clause holds for,
+rewriting *Orientation*'s three passages in the same commit. All five have
+landed, so no page of this book still reads a comment it judged worth a source
+change. A further set were found narrower or looser than stated and left
+exactly where they are,
 no page judging a rewrite worth a leaf of its own: `no_live_leaves` saying
 *four times* where it has three callers, `kind`'s help offering a *missing or
 unknown* refusal only half of which is still reachable, `label`'s parenthesis

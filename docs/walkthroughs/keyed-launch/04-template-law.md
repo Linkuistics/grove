@@ -47,10 +47,10 @@ of the chapter against it.
 
 | Rule | Enforced at | The diagnostic | Pinned by |
 |---|---|---|---|
-| a node has no properties and no child block | 422 | `` properties and child blocks are not allowed `` | `schema_and_template_failures_are_aggregated_with_source_locations` |
-| neither the node nor an entry carries a type annotation | 428 | `` type annotations are not allowed `` | — |
-| a node has exactly one positional argument | 440 | `` a key must have exactly one positional argument `` | — |
-| that argument is a string | 448 | `` a key's sole argument must be a string `` | — |
+| a node has no properties and no child block | 422 | `` properties and child blocks are not allowed `` | `schema_and_template_failures_are_aggregated_with_source_locations`, `a_child_block_is_refused_like_a_property` |
+| neither the node nor an entry carries a type annotation | 428 | `` type annotations are not allowed `` | `a_type_annotation_is_refused_on_the_node_and_on_its_argument` |
+| a node has exactly one positional argument | 440 | `` a key must have exactly one positional argument `` | `a_key_needs_exactly_one_positional_argument` |
+| that argument is a string | 448 | `` a key's sole argument must be a string `` | `a_keys_sole_argument_must_be_a_string` |
 | no key is declared twice in one document | 376–389, chapter 3's | `` duplicate key `one`; declarations at … `` naming every declaration | `a_duplicate_key_reports_every_declaration_location` |
 | no unquoted `#` begins a word | 477 | `` `#` starts a comment in a command template; quote it to pass it literally `` | `an_unquoted_hash_is_refused_rather_than_truncating_the_argv`, `quoted_and_midword_hashes_stay_literal` |
 | every quote closes | 486 | `` command template has unmatched quotes `` | `unmatched_quotes_are_refused` |
@@ -60,17 +60,27 @@ of the chapter against it.
 | a required slot appears exactly once | 524 | `` command template must contain `${prompt}` exactly once `` | `schema_and_template_failures_are_aggregated_with_source_locations` |
 | an optional slot appears at most once | 524 | `` `${label}` may appear at most once `` | `schema_and_template_failures_are_aggregated_with_source_locations` |
 
-Three rows carry no test, and the gap is worth naming rather than reading past.
-The property arm of the first rule is exercised by the aggregate test, which
-loads a five-node document in which every node is faulty in a different way; the
-type-annotation, argument-count and argument-type rules are not exercised
-anywhere in `crates/keyed-launch/tests/`, and two of them are not exercised
-anywhere in the workspace at all. Nothing about them is wrong — each is four
-lines of `if` and each produces a message in the same shape as its neighbours —
-but *enforced* and *proved* are different words, and the book uses the second one
-only where it is earned. Closing that gap adds tests and touches no root, so it
-is not a corpus change and does not wait on any book. It is
-`template-rule-tests-k118`.
+Every row carries a test, and three of them did not when this chapter was first
+written. The four node-shape rules at the top of the table were the gap: the
+aggregate test loads a five-node document in which every node is faulty in a
+different way, and the property arm of the first rule was the only one of the
+four it reached. The type-annotation, argument-count and argument-type rules were
+exercised nowhere in `crates/keyed-launch/tests/`, and two of the three nowhere
+in the workspace at all. Nothing about them was ever wrong — each is four lines
+of `if` and each produces a message in the same shape as its neighbours — but
+*enforced* and *proved* are different words, and this book uses the second one
+only where it is earned. `template-rule-tests-k118` earned it: four tests in the
+same `load_error` + `assert_contains` idiom as the rest of the file, one per
+node-shape rule, each asserting the exact text of the row it stands under. They
+touch no root, so closing the gap was not a corpus change and waited on no book.
+
+Two of the four are worth reading for what they say about the rules rather than
+about the tests. The count rule is `positional.len() != 1`, not a
+missing-argument check, so a second template on the line is refused as firmly as
+none, and the test asserts both directions. And the argument-type rule is
+reachable only through KDL values this crate never mentions — `one 42`,
+`one true`, `one null` all parse, and all take the `as_string() == None` arm —
+so the test asserts all three rather than assume they travel together.
 
 Two records are what these rules keep, and this chapter is where their lines are.
 *Complete session configuration* settles that the whole of a document is read and

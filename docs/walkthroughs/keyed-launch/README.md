@@ -55,7 +55,7 @@ used and their *consequences* are argued at length, because the consequences are
 the design, while their signatures and portability are the operating system's
 documentation. The crate is Unix-only by construction and no chapter treats
 portability as an open question. The crate's own `tests/` directory — five files
-and 1,319 lines — is cited as evidence throughout and is not reproduced: it is
+and 1,370 lines — is cited as evidence throughout and is not reproduced: it is
 outside the corpus this book reconstructs. The nine tests the book *does*
 reproduce are the inline module inside `src/channel.rs`, which are corpus because
 a root is `src/**/*.rs`.

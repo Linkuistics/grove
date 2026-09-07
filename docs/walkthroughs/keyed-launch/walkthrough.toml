@@ -10,7 +10,7 @@ subject = "crates/keyed-launch"
 # `#[cfg(test)] mod tests`, and they are **not** excluded — a root is
 # `src/**/*.rs`, the exception class `inline-test-module` is checked against a
 # file named `tests.rs`, and those 133 lines are owned, reconstructed and
-# explained by chapter 9 like any other. `crates/keyed-launch/tests/` is 1,319
+# explained by chapter 9 like any other. `crates/keyed-launch/tests/` is 1,370
 # lines and all of it is evidence rather than corpus, so this book carries no
 # `[[corpus.add]]` and no `[[corpus.exclude]]`, and the normative inventory in
 # `docs/specs/walkthrough-books.md` records that emptiness by giving the book no

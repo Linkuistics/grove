@@ -392,7 +392,7 @@ detect that it did not run; and the nine inline channel tests, read as what a
 `is_channel_name`, a private function whose exactness chapter 6 argued and only
 this module can pin.
 
-The chapter states, once, why these nine tests are in the corpus and the 1,319
+The chapter states, once, why these nine tests are in the corpus and the 1,370
 lines under `crates/keyed-launch/tests/` are not: a root is `src/**/*.rs`, and the
 corpus exception inventory carries no `keyed-launch` row.
 
@@ -489,7 +489,7 @@ chapter's prose owes, and a technical review checks for them:
 1. **Adjudicate the claim.** For every argued claim, name the behaviour it rests
    on, the test that proves it, and the alternative rejected with what it would
    have cost. A doc comment cannot cite an integration test in another file, and
-   this crate's evidence is 1,319 lines against a 2,073-line corpus.
+   this crate's evidence is 1,370 lines against a 2,073-line corpus.
 2. **Carry the through-line.** Show where a decision in one root is only
    explicable by a decision in another: the vocabulary being an input to `load`
    is *why* `Templates` keeps an owned `SlotSpec` table, which is *why*
@@ -699,7 +699,7 @@ document, which the contract does not permit as a target.
 
 ### The `tests/` directory
 
-`crates/keyed-launch/tests/` is 1,319 lines across five files — 64% of the
+`crates/keyed-launch/tests/` is 1,370 lines across five files — 66% of the
 corpus's own size — and every one of them is evidence rather than a root. The book
 names a test whenever it adjudicates a claim, and reproduces none of them. The
 nine tests it *does* reproduce are the inline module inside `src/channel.rs`,

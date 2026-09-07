@@ -520,12 +520,12 @@ test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/reraise.rs
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/templates.rs
-test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
    Doc-tests keyed_launch
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 
-Fifty tests and one documentation test, and the split across the two surfaces is
+Fifty-four tests and one documentation test, and the split across the two surfaces is
 itself a fact this book explained. Nine are the inline `#[cfg(test)] mod tests`
 inside `src/channel.rs`, which are corpus and are on
 [chapter 9's page](09-how-checked.md#inside-the-root) like any other lines. The
@@ -533,8 +533,8 @@ inside `src/channel.rs`, which are corpus and are on
 can see, and one of the nine tests takes that up: only a module inside the file
 can call `is_channel_name`, whose exactness chapter 6 argued. The other eight use
 the public surface and would compile anywhere; they are in here because their
-subject matter is. The other forty-one live in five files and 1,319 lines under
-`crates/keyed-launch/tests/` — 64% of the corpus's own size — and are evidence
+subject matter is. The other forty-five live in five files and 1,370 lines under
+`crates/keyed-launch/tests/` — 66% of the corpus's own size — and are evidence
 rather than corpus: named wherever a chapter adjudicates a claim, reproduced
 nowhere. The single doctest is the conformance kit's usage example, which is
 `no_run` because running it would need a configuration file that does not exist.

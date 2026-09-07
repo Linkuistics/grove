@@ -30,8 +30,8 @@ from inside the file that states them. Neither learns a meaning on the way.
 of this book is every `src/**/*.rs` file of the crate plus the crate's own
 `Cargo.toml`, and `docs/specs/walkthrough-books.md`'s corpus exception inventory
 carries no `keyed-launch` row. So those 133 lines are owned, reconstructed and
-explained exactly like production source, while the five files and 1,319 lines
-under `crates/keyed-launch/tests/` — 64% of the corpus's own size — are evidence:
+explained exactly like production source, while the five files and 1,370 lines
+under `crates/keyed-launch/tests/` — 66% of the corpus's own size — are evidence:
 named wherever a chapter adjudicates a claim, reproduced nowhere. The rule is
 about where a file sits, not about what it contains, and this is the one page in
 the book where the difference is visible.

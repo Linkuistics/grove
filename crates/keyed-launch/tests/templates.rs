@@ -323,6 +323,57 @@ fn schema_and_template_failures_are_aggregated_with_source_locations() {
     }
 }
 
+/// The child-block arm of the same rule the aggregate test reaches through
+/// `extra=1`. A child block is refused for the reason a property is: a key is a
+/// line, and anything hanging off it is a shape the loader has no meaning for.
+#[test]
+fn a_child_block_is_refused_like_a_property() {
+    let error = load_error("one \"wrapper ${prompt}\" {\n    two \"wrapper ${prompt}\"\n}\n");
+    assert_contains(&error, "properties and child blocks are not allowed");
+}
+
+/// `kdl` 4.7 is a KDL **1.0** parser, where an annotation is a parenthesised
+/// name immediately before the node or before the value — the two places this
+/// rule looks. https://github.com/kdl-org/kdl/blob/1.0.0/SPEC.md#type-annotation
+#[test]
+fn a_type_annotation_is_refused_on_the_node_and_on_its_argument() {
+    assert_contains(
+        &load_error("(shell)one \"wrapper ${prompt}\"\n"),
+        "type annotations are not allowed",
+    );
+    assert_contains(
+        &load_error("one (string)\"wrapper ${prompt}\"\n"),
+        "type annotations are not allowed",
+    );
+}
+
+/// Both directions of the count, because the rule is `!= 1` rather than a
+/// missing-argument check: a second template on the line is as wrong as none.
+#[test]
+fn a_key_needs_exactly_one_positional_argument() {
+    assert_contains(
+        &load_error("one\n"),
+        "a key must have exactly one positional argument",
+    );
+    assert_contains(
+        &load_error("one \"wrapper ${prompt}\" \"wrapper ${prompt}\"\n"),
+        "a key must have exactly one positional argument",
+    );
+}
+
+/// A number, a boolean and a null are all valid KDL values that a template can
+/// never be, and each takes the same arm. The crate names none of them, so the
+/// three are asserted rather than assumed to travel together.
+#[test]
+fn a_keys_sole_argument_must_be_a_string() {
+    for document in ["one 42\n", "one true\n", "one null\n"] {
+        assert_contains(
+            &load_error(document),
+            "a key's sole argument must be a string",
+        );
+    }
+}
+
 #[test]
 fn a_duplicate_key_reports_every_declaration_location() {
     let error = load_error("one \"a ${prompt}\"\none \"b ${prompt}\"\n");

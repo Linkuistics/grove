@@ -487,25 +487,28 @@ definition rather than about several manifests staying in step.
 /// The version this repository ships, and the only one.
 ///
 /// **One workspace, one release version** (`docs/specs/module-decomposition.md`,
-/// decision 1): every member takes `version.workspace = true`, so this constant
-/// is the workspace's field however it is reached. The two binaries and the
-/// prompt's published version all read it — `crates/grove-llm` would otherwise
+/// decision 1): every crate an operator installs takes `version.workspace = true`,
+/// so this constant is the workspace's field however reached. The two binaries and
+/// the prompt's published version all read it — `crates/grove-llm` would otherwise
 /// answer `--version` with a package version of its own, and the prompt would
 /// publish one, neither of which names anything an operator can install.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 ````
 <!-- /fragment -->
 
-The comment says *every member* takes `version.workspace = true`, and the
-manifests do not bear that out as written. Six of the seven workspace members do
-— the two binaries and the four libraries an operator's install is built from —
-and the seventh, `book-validation`, is the authoring tool behind this book and
-carries a `version = "0.1.0"` of its own; nothing an operator installs reads it.
-The claim the comment needs is the narrower one, that every crate on the path
-from `grove` to `grove-loop` inherits one version, and that one holds — which is
-what makes `VERSION` the only version an operator can install. The comment is
-part of the frozen corpus and is reproduced as written. The overview's chapter 2
-adjudicates the identical sentence where `crates/grove/src/cli.rs` makes it.
+The comment quantifies over the crates an operator installs rather than over the
+workspace's members, and the two sets differ by one crate. Six of the seven
+workspace members take `version.workspace = true` — the two binaries and the
+four libraries an operator's install is built from. The seventh,
+`book-validation`, is the authoring tool behind this book: it carries a
+`version = "0.1.0"` of its own, nothing an operator installs reads it, and the
+workspace root's manifest records that it does not inherit deliberately, because
+its home is with the walkthrough skill rather than this workspace. That is why
+the sentence quantifies the way it does, and the invariant it states is what
+makes `VERSION` the only version an operator can install: every crate the
+install is built from inherits the workspace's field, so there is no second
+version for the constant to disagree with. The identical clause appears in
+`crates/grove/src/cli.rs`, which the overview's chapter 2 reads.
 
 The last block of the file's declarations is the import list and the export list,
 and the export list is the cast in one place. Nine `pub use` lines publish this

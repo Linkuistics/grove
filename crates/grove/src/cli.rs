@@ -9,10 +9,10 @@ use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
 #[command(
     name = "grove",
     // **The workspace's version, read through the loop.** One workspace, one
-    // release version: every member takes `version.workspace = true`, and both
-    // binaries read the same constant so `grove --version` and
-    // `grove-llm --version` cannot skew — which is exactly what an operator
-    // reaches for them to diagnose.
+    // release version: every crate an operator installs takes
+    // `version.workspace = true`, and both binaries read the same constant so
+    // `grove --version` and `grove-llm --version` cannot skew — which is
+    // exactly what an operator reaches for them to diagnose.
     version = grove_loop::VERSION,
     about = "Grove: hierarchical workstream tool for AI agents"
 )]

@@ -44,9 +44,10 @@ Three things about it are new.
   exactly one `grove-loop` row, for `src/task_grow/tests.rs`, so every one of
   those 3,984 lines is owned, reconstructed and explained like any other. That
   fact drives the chapter cut rather than following from it.
-- **Two claims inside the corpus are already known to be false**, and one of
-  them is refuted by another root of the same book. Both are adjudicated on the
-  page; see *Known in advance: the two claims this book adjudicates*.
+- **One claim inside the corpus is known to be false**, and it is refuted by
+  another root of the same book. It is adjudicated on the page; a second such
+  claim was adjudicated at drafting and has since been corrected at source. See
+  *Known in advance: the claims this book adjudicates*.
 
 **And it is the last book.** Of `docs/ARCHITECTURE.md`'s forty-one residue
 markers, **thirty-one name this crate** — thirty spelled `residue(grove-loop…)`
@@ -287,7 +288,8 @@ grove's `Kind`, `Handle` and `Outcome` beside them, which
 [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md) keeps apart by hand and the book must
 not blur.
 
-**It adjudicates the `version.workspace` claim.** See *Known in advance*.
+**It explains which crates take `version.workspace = true`, and which member
+does not.** See *Known in advance*.
 
 ### 2 · The tokens, and the four verdicts — `four-verdicts`
 
@@ -1036,30 +1038,34 @@ the ADRs `one-live-driver-per-working-tree`, `complete-session-configuration`,
 `entries-are-never-removed`, are named at the chapters that keep them and cited
 nowhere, under the link contract above.
 
-## Known in advance: the two claims this book adjudicates
+## Known in advance: the claims this book adjudicates
 
-Both were found while this brief was written, both have leaves that fix them, and
-both leaves sit **after** `grove-loop-book-k37` in the node — which is correct
-under the corpus-freeze rule and means the book must adjudicate rather than wait.
-An adjudicating paragraph sits beside the fragment that reproduces the claim; the
-claim is never repeated as though true, and it is never silently corrected, since
-the fragment reproduces the bytes as they are.
+Two were found while this brief was written, both had leaves that fix them, and
+both leaves sat **after** `grove-loop-book-k37` in the node — which is correct
+under the corpus-freeze rule and meant the book had to adjudicate rather than
+wait. One has since landed and the claim is gone from the corpus; the other still
+stands. An adjudicating paragraph sits beside the fragment that reproduces a
+standing claim; the claim is never repeated as though true, and it is never
+silently corrected, since the fragment reproduces the bytes as they are.
 
-### 1 · *Every member takes `version.workspace = true`* — chapter 1
+### 1 · *Every member takes `version.workspace = true`* — chapter 1, corrected
 
-`src/lib.rs` lines 67–68, in `VERSION`'s doc comment. It is false:
+`src/lib.rs` lines 67–68, in `VERSION`'s doc comment. It was false:
 `crates/book-validation/Cargo.toml` sets `version = "0.1.0"` and is a workspace
-member, so six of seven members inherit. `every-member-version-comment-k84` holds
-the fix and prefers the wording with no universal quantifier over a set that is
-about to change — the root brief already earmarks `book-validation` to leave.
+member, so six of seven members inherit. `every-member-version-comment-k84`
+landed the fix, taking the wording with no universal quantifier over a set that
+is about to change — the root brief earmarks `book-validation` to leave — so the
+comment now reads *every crate an operator installs takes `version.workspace =
+true`*, which the manifests bear out.
 
-**The invariant the comment needs is true and the chapter states it:** every
-crate on the path from `grove` to `grove-loop` inherits one version, which is
-what makes `VERSION` the only version an operator can install. The overview's
-chapter 2 already adjudicates the identical sentence at `crates/grove/src/cli.rs`
-line 12, so this paragraph is written to be uniform with that one. When k84
-lands, both adjudicating paragraphs are rewritten in the same commit as the
-comments.
+**The chapter no longer adjudicates.** Its paragraph explains why the comment
+quantifies over the installed crates rather than the members, names
+`book-validation` as the member that does not inherit and why, and keeps the
+point the adjudication carried: the invariant is what makes `VERSION` the only
+version an operator can install. The identical clause is at
+`crates/grove/src/cli.rs` line 12 and the overview's chapter 2 reads it, so the
+two pages stay uniform. Both paragraphs, both comments and the workspace root's
+own comment moved in k84's single commit.
 
 ### 2 · *The loop re-reads the configuration once per iteration* — chapters 18 and 20
 

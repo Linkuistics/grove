@@ -35,12 +35,19 @@ The doctor checks the pinned Rust toolchain, all release targets, Zig,
 
 ## One release, six packages, one tag
 
-Every member of the workspace takes `version.workspace = true`, so a cut rewrites
-one field and moves all six versions together — one workspace, one release
-version, one changelog, one tag
+Every crate this release ships takes `version.workspace = true`, so a cut
+rewrites one field and moves all six versions together — one workspace, one
+release version, one changelog, one tag
 (`docs/specs/module-decomposition.md`, decision 1). Only `crates/grove` is
 *released*: it is the human's binary and the thing the tag names. The other five
 carry `[package.metadata.release] release = false`.
+
+The workspace has a seventh member the cut does not touch.
+`crates/book-validation` is the authoring tool behind `docs/walkthroughs/`, not
+part of the shipped system; it sets `publish = false` and carries a
+`version = "0.1.0"` of its own rather than inheriting, so it neither moves with a
+cut nor needs a `release = false` line. Read every claim on this page as a claim
+about the six, not about workspace membership.
 
 **That line is the answer to a question, not a deferral of one.** `release =
 false` means no tag, no changelog section and no publish of its own — it does
@@ -107,8 +114,8 @@ cargo release patch --execute
 ```
 
 The first `cargo release` is a dry run. The executed command bumps the root
-`Cargo.toml`'s `[workspace.package] version` — the one field every member
-inherits, so all six move together — and `Cargo.lock`, closes the changelog's
+`Cargo.toml`'s `[workspace.package] version` — the one field all six inherit,
+so they move together — and `Cargo.lock`, closes the changelog's
 `## Unreleased` section, creates a `chore: release v<version>` commit, and
 creates the corresponding `v<version>` tag. Use `minor` or `major` instead of `patch` when appropriate.
 
@@ -141,7 +148,7 @@ Do the three edits `cargo release` would have made, then let jj and git make the
 two artifacts it would have created:
 
 ```sh
-# 1. the version — ONE field, the workspace's. Every member takes
+# 1. the version — ONE field, the workspace's. All six shipped crates take
 #    `version.workspace = true`, so editing `[workspace.package] version` in the
 #    root `Cargo.toml` moves all six together; no member manifest is touched.
 #    Edit `version = "<old>"` → "<new>" there, then:

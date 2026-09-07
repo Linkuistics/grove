@@ -431,13 +431,15 @@ blocks themselves run smaller still, down to twenty-two lines. The largest root 
 across five roots — is inline `#[cfg(test)] mod tests`, none of it excluded, and
 every line of it is owned and explained by the chapter whose concept it proves.
 
-**The corpus's own claims.** Two were known false before drafting began and are
-adjudicated on the page rather than repeated or corrected: `lib.rs`'s *every
-member takes `version.workspace = true`*, which one workspace member does not,
-and `session_config.rs`'s *the loop re-reads the configuration once per
-iteration*, which `loop_driver.rs` refutes twice inside this same corpus. Both
-have leaves that will rewrite the adjudicating paragraph in the same commit as
-the comment. Many more were found while drafting — stale enumerations, a
+**The corpus's own claims.** Two were known false before drafting began. One
+still is, and is adjudicated on the page rather than repeated or corrected:
+`session_config.rs`'s *the loop re-reads the configuration once per iteration*,
+which `loop_driver.rs` refutes twice inside this same corpus, and its leaf will
+rewrite the adjudicating paragraph in the same commit as the comment. The other
+— `lib.rs`'s claim about which crates take `version.workspace = true` — has
+since been corrected at source, in one commit with the paragraph that judged it,
+so chapter 1 now explains the quantifier the comment carries rather than
+adjudicating one it does not. Many more were found while drafting — stale enumerations, a
 miscounted helper list naming a function that never existed, four comments
 addressing a module by a name this workspace does not have, five unresolved
 intra-doc links, a parenthesised citation naming no anchor at all — and each was

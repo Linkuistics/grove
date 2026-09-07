@@ -30,7 +30,7 @@
 - [The twelve verbs, and the chapter that reads each](01-orientation.md#the-crates-own-map)
 - [Eleven modules, four public](01-orientation.md#the-cast)
 - [`VERSION`, and the one version an operator can install](01-orientation.md#the-cast)
-- [The `version.workspace` claim, adjudicated](01-orientation.md#the-cast)
+- [Which crates take `version.workspace = true`, and the member that does not](01-orientation.md#the-cast)
 - [The export list, and the three crates it republishes from](01-orientation.md#the-cast)
 - [The early-use table: thirteen names ahead of their chapters](01-orientation.md#the-cast)
 - [`Tree` and `Vacancy`: the read side and the create side](01-orientation.md#the-two-openings)

@@ -55,11 +55,18 @@ exclude = [".grove-worktrees"]
 
 # **One workspace, one release version** (`docs/specs/module-decomposition.md`,
 # decision 1), and since `loop-crate-driver-k22` that is a fact about the
-# manifests rather than a convention: every member takes `version.workspace =
-# true`, so there is exactly one place a version can be written and no way for
-# two members to disagree. `cargo release` cuts `crates/grove` — the binary the
-# tag names and an operator installs — and bumping it rewrites the field below,
-# which every member reads.
+# manifests rather than a convention: every crate an operator installs takes
+# `version.workspace = true`, so there is exactly one place their version can be
+# written and no way for two of them to disagree. `cargo release` cuts
+# `crates/grove` — the binary the tag names and an operator installs — and
+# bumping it rewrites the field below, which every one of them reads.
+#
+# The quantifier is *installed*, not *member*, and the two differ by one crate.
+# `crates/book-validation` carries a `version = "0.1.0"` of its own: it is the
+# authoring tool behind `docs/walkthroughs/`, not part of the grove system, its
+# home is with the walkthrough skill rather than this workspace, and nothing an
+# operator installs reads it. Tying it to the release would move a crate that is
+# on its way out, so it deliberately does not inherit.
 #
 # That is what makes `grove_loop::VERSION` answerable at all. The prompt
 # publishes grove's release version (decision 10) and the loop composes the

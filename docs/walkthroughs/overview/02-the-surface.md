@@ -161,15 +161,17 @@ workspace root's `[workspace.package]` carries the value. At the corpus this
 book is frozen against that value is `20.1.0`, which is what both commands print
 in the worked example.
 
-The comment says *every member* takes the workspace version, and the manifests
-do not bear that out as written. Six of the seven members do — the two
-binaries and the four libraries an operator's install is built from — and
-the seventh, `book-validation`, is the authoring tool behind this book and
-carries a
-`0.1.0` of its own; nothing an operator installs reads it. The claim the comment
-needs is the narrower one, that every crate on the path from `grove` to
-`grove-loop` inherits one version, and that one holds. The comment is part of
-the frozen corpus and is reproduced as written.
+The comment quantifies over the crates an operator installs rather than over the
+workspace's members, and the two sets differ by one crate. Six of the seven
+members take `version.workspace = true` — the two binaries and the four
+libraries an operator's install is built from. The seventh, `book-validation`,
+is the authoring tool behind this book: it carries a `0.1.0` of its own, nothing
+an operator installs reads it, and the workspace root's manifest records that it
+does not inherit deliberately, because its home is with the walkthrough skill
+rather than this workspace. So the quantifier is doing work — it picks out the
+set the invariant is true of, and *every member* would not have been. What this
+page depends on is narrower still and sits inside it: every crate on the path
+from `grove` to `grove-loop` reaches one version.
 
 Two mechanisms make the two numbers equal today, and the comment argues for the
 second. Both binaries inherit the workspace version, so two independent
@@ -188,10 +190,10 @@ is explained; *Orientation* named it and *Three steps* does not return to it.
 #[command(
     name = "grove",
     // **The workspace's version, read through the loop.** One workspace, one
-    // release version: every member takes `version.workspace = true`, and both
-    // binaries read the same constant so `grove --version` and
-    // `grove-llm --version` cannot skew — which is exactly what an operator
-    // reaches for them to diagnose.
+    // release version: every crate an operator installs takes
+    // `version.workspace = true`, and both binaries read the same constant so
+    // `grove --version` and `grove-llm --version` cannot skew — which is
+    // exactly what an operator reaches for them to diagnose.
     version = grove_loop::VERSION,
     about = "Grove: hierarchical workstream tool for AI agents"
 )]

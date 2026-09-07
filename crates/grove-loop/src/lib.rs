@@ -65,9 +65,9 @@ pub mod verbs;
 /// The version this repository ships, and the only one.
 ///
 /// **One workspace, one release version** (`docs/specs/module-decomposition.md`,
-/// decision 1): every member takes `version.workspace = true`, so this constant
-/// is the workspace's field however it is reached. The two binaries and the
-/// prompt's published version all read it — `crates/grove-llm` would otherwise
+/// decision 1): every crate an operator installs takes `version.workspace = true`,
+/// so this constant is the workspace's field however reached. The two binaries and
+/// the prompt's published version all read it — `crates/grove-llm` would otherwise
 /// answer `--version` with a package version of its own, and the prompt would
 /// publish one, neither of which names anything an operator can install.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

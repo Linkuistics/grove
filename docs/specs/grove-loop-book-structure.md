@@ -289,8 +289,8 @@ manifest's own account rather than an incidental omission, because
 chapter says what it is reached for where the manifest does not.
 
 From `lib.rs`: the module list, `VERSION`, the *Opening mirrors the store's* and
-*Three shapes* theses, the one-error rule, and the `<worktree>/.grove` join that
-means no caller can spell the root a second way. The chapter names nearly every
+*Three shapes* theses, the one-error rule, and the `<worktree>/.grove` join
+`read` and `write` share. The chapter names nearly every
 public type before its owner explains it — that is what a crate's own map is for,
 and it is the shape all four preceding orientation chapters took.
 
@@ -1056,11 +1056,20 @@ nowhere, under the link contract above.
 
 ## Known in advance: the claims this book adjudicates
 
-Three, of which two were found while this brief was written and the third while
-chapter 1 was drafted. Each has a leaf that fixes it, and every one of those
-leaves sat **after** `grove-loop-book-k37` in the node — which is correct under
-the corpus-freeze rule and meant the book had to adjudicate rather than wait.
-All three have since landed and none of the three claims is left in the corpus.
+Four, of which two were found while this brief was written and two while the book
+was drafted. Each has a leaf that fixes it, and every one of those leaves sat
+**after** `grove-loop-book-k37` in the node — which is correct under the
+corpus-freeze rule and meant the book had to adjudicate rather than wait.
+All four have since landed and none of the four claims is left in the corpus.
+
+**This is not the book's whole ledger of judged claims, and does not try to be.**
+It counts the claims a leaf has corrected **at source**. The ones the book
+adjudicates and leaves standing are recorded on their own pages instead:
+`task_tree.rs`'s *canonicalisation appears once*, which chapter 6 judges and
+`canonicalisation-sites-k149` still holds, is the member of chapter 6's class of
+three that is not yet corrected, and chapters 11, 13 and 14 each carry
+adjudications of their own. The exhaustiveness below is over this list, not over
+those.
 The rule they were written under still governs any claim found later: an
 adjudicating paragraph sits beside the fragment that reproduces a standing claim,
 the claim is never repeated as though true, and it is never silently corrected,
@@ -1144,7 +1153,37 @@ were true of a smaller crate and the driver's arrival widened them. Chapter 5,
 which owns the probe, cross-references chapter 1 rather than restating the
 manifest.
 
-**And `grove-llm-dependency-comments-k102` is not a fourth.** It reaches
+### 4 · *`<worktree>/.grove`, spelled in exactly one place* — chapter 1, corrected
+
+`src/lib.rs` in two places: line 268, the doc comment on `grove_root`, and lines
+28–30 of the module header, which said that putting the join there *means no
+caller can spell it a second way*. Found at `opening-k141`, chapter 5's draft,
+whose own figure had repeated the claim; that page could stop repeating it but
+owns none of these bytes, and adjudication sits beside the fragment that
+reproduces a claim, so both halves fell to chapter 1.
+
+`grep -rn 'join(".grove")' crates/*/src/` finds seven production sites. Three
+besides `grove_root` are in this crate and each open the tree for themselves:
+`tree_lifecycle.rs` line 76 (`transition_to_current`) and `driver.rs` line 55
+(`materialize_finish`) are the driver's two tree operations, which run before it
+has an opening to give them, and `tree_lifecycle.rs` line 197 is the session verb
+`finish_commit`, which takes a `&Workspace` rather than a worktree. The other
+three are in `crates/grove-llm/src/cli.rs`, at lines 505, 570 and 881, and are
+not openings at all: they spell the root to **name** it in output, because the
+library returns no path for a root it did not open. A consumer outside the crate
+spelling `.grove` three times is the plainest refutation of *no caller*.
+
+`grove-root-join-clauses-k148` landed the fix, rewording both comments inside
+their own line counts so no ownership range moved and no ledger row changed.
+The chapter explains a join scoped to the two public openings instead of
+adjudicating one claimed for the crate, and it records what the class still
+lacks: the leaf **decided against** a test over `join(".grove")` call sites,
+because `the_librarys_tree_lock_is_taken_from_exactly_one_module` pins a
+deadlock where a join-site count pins tidiness, and would go red on a new
+opening that is correct. That decision binds this claim only;
+`canonicalisation-sites-k149` judges the same question for its own.
+
+**And `grove-llm-dependency-comments-k102` is not a fifth.** It reaches
 `crates/grove-loop/src/lib.rs` line 81 only as *evidence* — the `Workspace`
 re-export — and changes nothing in this corpus.
 

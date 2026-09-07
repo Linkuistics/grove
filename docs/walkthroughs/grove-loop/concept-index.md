@@ -39,7 +39,7 @@
 - [`TreeWrite` is not a lock held for as long as you hold it](01-orientation.md#the-two-openings)
 - [Three consequences of reopening between verbs](01-orientation.md#the-two-openings)
 - [`relinquish`, and the one verb that needs it](01-orientation.md#the-two-openings)
-- [`<worktree>/.grove`, spelled in exactly one place](01-orientation.md#the-two-openings)
+- [`grove_root`, and the six other production sites that spell `<worktree>/.grove`](01-orientation.md#the-two-openings)
 - [The reference grammar's five forms](01-orientation.md#naming-an-entry)
 - [Which form a reference is, decided against the tree](01-orientation.md#naming-an-entry)
 - [`Selection`: the leaf a session was launched to work](01-orientation.md#naming-an-entry)

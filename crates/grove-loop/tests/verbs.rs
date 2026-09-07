@@ -130,8 +130,8 @@ fn opening_answers_a_vacancy_before_a_grove_and_a_tree_after_it() {
     ));
 }
 
-/// The opening takes a **worktree**, and joins `.grove` itself — so no consumer
-/// can spell the grove root a second way.
+/// The opening takes a **worktree**, and joins `.grove` itself — so these two
+/// need no second spelling. Other openings have one; see `grove_root`'s comment.
 #[test]
 fn the_opening_joins_the_grove_root_itself() {
     let (_tmp, root) = worktree();

@@ -174,7 +174,10 @@ one was found while this chapter was being drafted and corrected at
 `manifest-dependency-clauses-k133`, in the same commit as this paragraph, under
 the rule that a source change carries its ledger and its pages with it. The
 paragraph was rewritten rather than deleted, because the reason a sentence is
-worded oddly outlives the defect that forced it.
+worded oddly outlives the defect that forced it. The second member of that class
+is `src/lib.rs`'s and belongs to this chapter too: *[the two
+openings](#the-two-openings)* reads it, and `grove-root-join-clauses-k148`
+corrected it the same way.
 
 The third fragment is the fifth dependency and the file's most consequential
 claim.
@@ -350,8 +353,10 @@ careful about which half of that is absolute. `verbs::root_init` takes a
 compiler-enforced and there is no check to skip; a `Tree` or a `TreeWrite`, by
 contrast, is proof only that a tree was there when it was opened. The second
 paragraph is the join: `read` and `write` take a **worktree**, not a grove root,
-so `<worktree>/.grove` is spelled in exactly one place and no caller can spell it
-a second way.
+and `grove_root` is the join those two share. It used to claim more — that no
+caller could spell `<worktree>/.grove` a second way — and *[the two
+openings](#the-two-openings)* below reads the function, counts the callers that
+do, and says what the corrected wording claims instead.
 
 <!-- fragment «library-root-opening-mirrors» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="16-30" parent="library-root" -->
 ````rust
@@ -367,9 +372,9 @@ a second way.
 //! proof that a tree was there **when it was opened**, and [`TreeWrite`]'s own
 //! header carries what that does and does not buy across two verbs.
 //!
-//! They take a **worktree**, not a grove root: `<worktree>/.grove` is the only
-//! spelling grove has ever opened, and putting the join here means no caller can
-//! spell it a second way (`docs/ARCHITECTURE.md#tree-access-lock`).
+//! They take a **worktree**, not a grove root, and `grove_root` is the join
+//! these two share (`docs/ARCHITECTURE.md#tree-access-lock`). It is not the
+//! crate's only one: three more production openings spell it for themselves.
 ````
 <!-- /fragment -->
 
@@ -458,8 +463,8 @@ the permanent key, and `plan-k1` the handle. The same literal appears nine times
 in the crate's own inline tests, all of them in `src/tree_lifecycle.rs`, and it
 is the first entry of the tree this book was written inside — which is what makes
 it checkable rather than illustrative.
-The one other value fixed here is the root itself, `<worktree>/.grove`, in the
-one spelling the join above allows.
+The one other value fixed here is the root itself, `<worktree>/.grove`, which the
+join read later in this chapter builds.
 
 This chapter's step of the example is the smallest one: the two files just read
 go in, and what comes out is the crate's cast — five dependencies, one error, and
@@ -621,7 +626,7 @@ this table is the part of it this page owes.
 | `run`, `LoopOutcome` | The loop itself, and how it ends: relaunched with fresh context, stopped resumably, or interrupted. | 20 |
 
 <a id="the-two-openings"></a>
-## The two openings, and the one spelling of the root
+## The two openings, and the join they share
 
 Two type aliases, two enums, one struct and two functions are the whole of how a
 caller gets at the tree, and they are in this file rather than in `task_tree`
@@ -880,15 +885,78 @@ pub fn write(worktree: &Path) -> Result<Writing, Error> {
 <!-- /fragment -->
 
 The join itself is three lines and it is the reason the two openings take a
-worktree rather than a grove root. `<worktree>/.grove` is spelled here and
-nowhere else, so no caller can spell it a second way — which is what makes *the
-grove root* a fact about this function rather than a convention every consumer
-has to keep.
+worktree rather than a grove root: `read` and `write` both call it, so neither
+signature mentions `.grove` and neither can be handed a root that is not one.
+
+**Both comments claimed more than that until this commit, and the claim is one of
+the three that [chapter 6](06-paths.md#canonicalise-to-compare) groups as a
+class.**
+The function's line read *`<worktree>/.grove`, spelled in exactly one place*, and
+the module header said that putting the join here *means no caller can spell it a
+second way*. Enumerated at the time of the fix rather than taken from the leaf
+that recorded it — `grep -rn 'join(".grove")' crates/*/src/`, thirty hits, of
+which twenty-three are inside test modules: nineteen in `tree_lifecycle.rs`, one
+in `task_tree.rs`, and three in `task_grow/tests.rs`, whose whole file is the
+`mod tests` that `task_grow.rs` declares under `#[cfg(test)]`. That leaves
+**seven** production sites, and this function is one.
+
+Three of the other six are in this crate and are openings. `tree_lifecycle.rs`
+line 76 (`transition_to_current`) and `driver.rs` line 55 (`materialize_finish`)
+are the driver's two tree operations, and `driver.rs`'s own header says why
+neither could have gone through `read` or `write`: the driver runs them *before*
+it has an opening to give them. The third, `tree_lifecycle.rs` line 197, is not
+the driver's — `finish_commit` is a session verb, and it does not take a worktree
+either but a `&Workspace`, off which it reads one. What the three have in common
+is only that each opens the tree for itself, and that is the same list
+`TreeWrite`'s header gives from the other side, where `read`, `write`,
+`verbs::finish_commit` and the driver's two are named as the calls that must not
+be made while a guard is in hand: five openings, two of them through this
+function.
+
+The last three are not openings and are not in this crate.
+`crates/grove-llm/src/cli.rs` spells the root at lines 505, 570 and 881 to
+**name** it: in the refusal when a grove is already there, in `resolve`'s answer
+for the root itself, and in the refusal when there is no tree. It has to, because
+the library hands back no path for a root it did not open, and the comment above
+line 570 says as much — the root is *the caller's own spelling of the tree, not
+something read out of it*. That a consumer outside this crate spells `.grove`
+three times is the plainest refutation of *no caller*, and it is not a reading
+this book had to supply: the `grove-llm` book owns those lines and counts the
+same three from inside them.
+
+What survives is narrower and is what both comments now say: `grove_root` is the
+join `read` and `write` share, which is what lets both take a worktree, and it is
+not the crate's only one. One **true** clause went with the false one, and it is
+worth naming because nothing in the corrected wording replaces it: the header
+also said `<worktree>/.grove` was *the only spelling grove has ever opened*, which
+is a claim about the name rather than about the number of joins, and it still
+holds. `grove_name` in `tree_lifecycle.rs` states it in almost those words, and
+[chapter 11](11-a-grove-begins.md) reads it there.
+
+**Nothing holds even the narrowed claim.** There is no test over `join(".grove")`
+call sites, and this leaf decided against adding one rather than leaving the
+question open. `the_librarys_tree_lock_is_taken_from_exactly_one_module`, which
+chapter 5 reads, is the instrument this class is usually measured against, and
+the disanalogy is the point: that test pins a deadlock, because a second module
+taking the store's lock is the failure `collapse-tree-access-k13` deleted a layer
+to remove. A count of join sites pins tidiness. A sixth opening that takes a
+worktree would need a join of its own and would violate nothing, so a test over
+the count would go red on a change that is correct — which is a worse instrument
+than none. The absence is recorded here instead, and both comments were narrowed
+to what this function's two callers show.
+
+`grove-root-join-clauses-k148` carried both comments, this paragraph, the two
+fragments that reproduce them, the three pages of this book that restated the
+claim elsewhere and the structure brief's record of it, in one commit. Both
+rewordings stayed inside their own line
+counts, so no ownership range moved, no ledger row changed and no other book was
+touched — which is the cheapest shape a source fix can take while the corpus is
+frozen.
 
 <!-- fragment «library-root-grove-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="267-271" parent="library-root" -->
 ````rust
 
-/// `<worktree>/.grove`, spelled in exactly one place.
+/// `<worktree>/.grove`, for [`read`] and [`write`]. Not the crate's only join.
 fn grove_root(worktree: &Path) -> PathBuf {
     worktree.join(".grove")
 }

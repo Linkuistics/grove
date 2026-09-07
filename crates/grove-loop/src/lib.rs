@@ -25,9 +25,9 @@
 //! proof that a tree was there **when it was opened**, and [`TreeWrite`]'s own
 //! header carries what that does and does not buy across two verbs.
 //!
-//! They take a **worktree**, not a grove root: `<worktree>/.grove` is the only
-//! spelling grove has ever opened, and putting the join here means no caller can
-//! spell it a second way (`docs/ARCHITECTURE.md#tree-access-lock`).
+//! They take a **worktree**, not a grove root, and `grove_root` is the join
+//! these two share (`docs/ARCHITECTURE.md#tree-access-lock`). It is not the
+//! crate's only one: three more production openings spell it for themselves.
 //!
 //! # Three shapes recur across [`verbs`], and each is deliberate
 //!
@@ -265,7 +265,7 @@ pub fn write(worktree: &Path) -> Result<Writing, Error> {
     })
 }
 
-/// `<worktree>/.grove`, spelled in exactly one place.
+/// `<worktree>/.grove`, for [`read`] and [`write`]. Not the crate's only join.
 fn grove_root(worktree: &Path) -> PathBuf {
     worktree.join(".grove")
 }

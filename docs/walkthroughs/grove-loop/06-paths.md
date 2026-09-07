@@ -415,16 +415,22 @@ manifest's clause locating `libc` in `task_tree` alone, which three production
 modules reach; that one has since been corrected at source by
 `manifest-dependency-clauses-k133`, so chapter 1 now explains the widened clause
 instead of adjudicating the narrow one. Beside it sits `lib.rs`'s
-*`<worktree>/.grove`, spelled in exactly one place*, which three production
-callers spell a second way — a claim chapter 1 reproduces **and still states as
-true**, and which `grove-root-join-clauses-k148` holds together with the
-adjudicating paragraph chapter 1 owes beside it. Each of the three is a
+*`<worktree>/.grove`, spelled in exactly one place*, which has since gone the
+same way at `grove-root-join-clauses-k148`: six other production sites spell the
+root — three of them openings inside `grove-loop` that each take their own lock
+before any opening exists, and three in `crates/grove-llm/src/cli.rs` that spell
+it only to name it in output — so chapter 1 now explains a join scoped to the two
+public openings rather than adjudicating one claimed for the crate. Each of the three is a
 **uniqueness claim written from the shape of the design rather than from an
 enumeration of the code**, each is true of the intent and false of the source,
 and none of them has an instrument over its own call sites — unlike the lock,
 where `the_librarys_tree_lock_is_taken_from_exactly_one_module` in
 `crates/grove-llm/tests/tree_lock.rs` counts them and fails on a rename. That
-test is what the class lacks, and chapter 5 read it.
+test is what the class lacks, and chapter 5 read it — though the analogy is not
+automatic, and `grove-root-join-clauses-k148` declined to build one for its own
+member: the lock test pins a deadlock, where a count of join sites pins tidiness
+and would go red on a new opening that is correct. Whether canonicalisation is
+the same case is `canonicalisation-sites-k149`'s to judge.
 
 <a id="no-walk-reaches-it"></a>
 ## Three reasons a path under the root names no entry

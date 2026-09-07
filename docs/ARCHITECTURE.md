@@ -30,6 +30,7 @@ system owns them.
 | Runtime and repository design — the decisions, the constraints, and the measurement records | this document |
 | Grove vocabulary | [`CONTEXT.md`](../CONTEXT.md) |
 | Relationships between this repository's bounded contexts | [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) |
+| Working rules for an agent in this checkout | [`CLAUDE.md`](../CLAUDE.md) — `AGENTS.md` is a symlink to it, so both harnesses read one file |
 | `ordinal-fs-tree` design and vocabulary | [`ordinal-fs-tree/ARCHITECTURE.md`](ordinal-fs-tree/ARCHITECTURE.md) and [`ordinal-fs-tree/CONTEXT.md`](ordinal-fs-tree/CONTEXT.md) |
 | `ordinal-fs-tree` source, read page by page | [`walkthroughs/ordinal-fs-tree/README.md`](walkthroughs/ordinal-fs-tree/README.md) — the code walkthrough: a reader-navigable book whose fragments reconstruct every byte of the crate's frozen corpus |
 | `jj-workspace` source, read page by page | [`walkthroughs/jj-workspace/README.md`](walkthroughs/jj-workspace/README.md) — the code walkthrough: a book whose every chapter opens on something the crate declines to own, and whose fragments reconstruct every byte of the crate's frozen corpus |

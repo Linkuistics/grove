@@ -357,19 +357,28 @@ chapters, and 0 for this one. The seventh row of that table exists to be zero:
 a chapter that owns no source is the shape the structure brief chose for the
 assembly, and the total is the 1,017 the campaign froze.
 
-**The corpus's own claims.** Every comment a chapter checked and found wanting
-was adjudicated beside its fragment rather than corrected in place, because the
-corpus is frozen and a book may not edit what it proves. Five were judged worth a
-source change, and each now has a leaf to carry one. Two of the five were known
-before drafting began —
+**The corpus's own claims.** No chapter corrected a comment it found wanting: as
+these seven chapters were drafted, each was reproduced as written and judged
+beside its fragment, because the corpus is frozen and a book may not edit what
+it proves. Five were judged worth a source change, and four leaves carry them.
+Two of the five were known before drafting began —
 the manifest's *everything this binary can reach is something `grove-loop` chose
 to publish*, which holds for what is reached and not for what is reachable
 through the direct `jj-workspace` dependency; and `lib.rs`'s *or `grove`*, naming
-a dependency the manifest's own comment records as removed. Three
+a dependency the manifest's own comment records as removed;
+`grove-llm-dependency-comments-k102` carries both, together with a third clause
+it must rewrite in the same seven lines — the manifest's *a binary target can
+reach its own library's private items*, which *Orientation* adjudicates and
+`bin-target-privacy-claim-k87` corrected everywhere else. Three
 were found while drafting: `cmd_root_init`'s drop-order argument for `match` over
-`let … else`, which is the reverse of what the compiler does; `eprint_next_steps`
+`let … else`, which was the reverse of what the compiler does; `eprint_next_steps`
 naming a *jj/git* lane this build cannot reach; and the `Complete` variant's
-*a session not under `grove do`*, naming a verb neither binary has. A further set
+*a session not under `grove do`*, naming a verb neither binary has. **One of the
+five has since landed.** `root-init-drop-order-comment-k99` rewrote the
+drop-order comment to state the order the compiler actually produces, and
+rewrote *Growing the tree*'s passage in the same commit, so that page now reads a
+comment that holds instead of adjudicating one that does not; the other four are
+still reproduced as written and judged beside their fragments. A further set
 were found narrower or looser than stated and left exactly where they are, no
 page judging a rewrite worth a leaf of its own: `no_live_leaves` saying *four
 times* where it has three callers, `kind`'s help offering a *missing or unknown*

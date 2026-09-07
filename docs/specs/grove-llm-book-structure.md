@@ -150,7 +150,7 @@ the rule they enforce. That is what the spine asks for, and it is what makes
 
 **Chapter 4 is one chapter, at 37% of the corpus, rather than two.** It is one
 rule with four instances, and each instance adds one lock-scope argument in
-order: `root-init`'s `match`-not-`let … else` drop order, `leaf-add` printing
+order: `root-init`'s drop order for the live `TreeWrite`, `leaf-add` printing
 only after the run landed, `leaf-insert`'s cross-reference lint outside the
 lock, and `leaf-decompose`'s read of the inherited kind before the write
 opening. Splitting `leaf-decompose` into a 78-line chapter of its own would
@@ -256,8 +256,8 @@ Walk the four verbs in this order, because each adds one lock-scope argument:
 
 1. **`root-init`**, the vacancy case and the rule in its simplest form —
    `Kind::requirements()` fixed, the slug read before the lock, and the
-   `match`-not-`let … else` argument about when the live `TreeWrite` is
-   dropped.
+   drop-order fact about how long the live `TreeWrite` — and its exclusive
+   lock — outlives the `match` arm that refuses.
 2. **`leaf-add`** — the ordered list of kinds as one atomic run, and
    `print_paths` **after** the call, never per leaf, because a run that fails is
    rolled back and stdout must not describe files that are no longer there.

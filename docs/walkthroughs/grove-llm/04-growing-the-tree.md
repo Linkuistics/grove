@@ -126,7 +126,7 @@ at all. `root_init_asks_about_the_requirements_leaf_it_mints` in
 tree holds no grove afterward.
 
 <a id="the-vacancy"></a>
-## `root-init`: the vacancy, and why `match`
+## `root-init`: the vacancy, and what `match` costs
 
 `cmd_root_init` is the rule in its simplest form: one kind, fixed, and a tree
 that must **not** already be there. It reads its text first — the slug, then the
@@ -166,12 +166,12 @@ about Rust's drop order that this page checks against the compiler.
     // The refusal to clobber is the **shape** rather than a check: a live grove
     // opens as a tree, and `root-init` takes a vacancy.
     //
-    // `match` rather than `let … else`, and the reason is not style. A `let …
-    // else` binding drops the unmatched value at the end of the whole statement
-    // — *after* the `else` block — so the live `TreeWrite` would still be
-    // holding the exclusive lock while that block ran, and a later improvement
-    // to this message that read the tree to name the live leaf would deadlock
-    // against this process. `match` drops it on entry to the arm.
+    // `match` holds the write open through the arm: a scrutinee is a value of
+    // the enclosing `let` statement, so the live `TreeWrite` and its exclusive
+    // lock are alive throughout `Writing::Tree(_)`, and drop only once that
+    // statement ends. So the message stays a literal: a later improvement that
+    // read the tree to name the live leaf would deadlock here, and would need
+    // a `let … else`, which drops the value *before* the else block runs.
     let vacancy = match grove_loop::write(&worktree)? {
         Writing::Vacancy(vacancy) => vacancy,
         Writing::Tree(_) => bail!(
@@ -201,38 +201,37 @@ message and the existing charter untouched, and `after_root_init_pick_returns_th
 holds the load-bearing half of the happy path — that `pick` answers the new leaf
 rather than reporting the fresh grove finished.
 
-The comment argues for `match` over `let … else` on a drop-order ground, and the
-ground does not hold. It says a `let … else` binding drops the unmatched value
-after the else block, so a future message that read the tree to name the live
-leaf would deadlock against the still-held exclusive lock, and that `match` drops
-the value on entry to the arm. Compiled and run under this workspace's
-toolchain, in both the 2021 and the 2024 editions, the compiler does the
-reverse. A `match` scrutinee is a value of the enclosing `let` statement and
-lives until that statement ends, so the `Writing::Tree` value — and the lock it
-owns — is still alive while the `Writing::Tree(_)` arm runs and is dropped only
-after it; a `let … else` initializer's value is dropped **before** the else
-block runs. So the lock is held through the `match` failure arm the code uses
-and released before a `let … else` failure block — and a tree read added to name
-the live leaf would deadlock in the arm this code chose, not in the form the
-comment rejects. The code is correct today regardless of which form it uses,
-because the arm reads no tree: it builds a literal message and returns, so no
-second opening is taken and the deadlock the comment fears is unreachable either
-way. Stating that is this page's; rewording the comment is a change to a frozen
-byte, and belongs to a defect leaf under the corpus-freeze rule, deferred behind
-this book as *Orientation*'s stale claims are — the page reproduces the comment
-as written.
+The comment's drop-order claim is checkable, and this page checks it rather than
+taking it on trust. Compiled and run under this workspace's toolchain, in both
+the 2021 and the 2024 editions: a `match` scrutinee is a value of the enclosing
+`let` statement and lives until that statement ends, so the `Writing::Tree`
+value — and the exclusive lock it owns — is still alive while the
+`Writing::Tree(_)` arm runs and is dropped only after it; a `let … else`
+initializer's value is dropped **before** the else block runs. The comment says
+that, which is why it reads as a caution about the form the code uses rather
+than an argument for it. `match` is the style here; holding the write through
+the failure arm is what the style costs, and the literal message is what keeps
+that cost free.
 
-The table sets the comment's claim beside the compiler's behaviour, one row per
-form, and what a reader is to take from it is that the two rows swap: the
-deadlock the comment moves *away* from is the one the form it chose would have.
+The arm reads no tree: it builds a message from the worktree path the handler
+already has and returns, so no second opening is taken and the self-deadlock is
+unreachable. The caution is for whoever changes that — and from `cli.rs`,
+dropping the value is the only release there is, because the loop's own
+`relinquish`, which this chapter meets later on the lint's path, is private to
+`grove-loop`. A failure arm that needed to name the live leaf would have to
+become the `let … else` the comment points at.
 
-| The form | When the comment says the value drops | When it drops | A tree read added to the failure path |
-|---|---|---|---|
-| `match`, the form the code uses | on entry to the arm, so the lock is already gone | after the enclosing `let` statement ends, so the `Writing::Tree` value and the exclusive lock it owns are alive throughout the arm | would deadlock |
-| `let … else`, the form the comment rejects | after the else block, so the lock is still held through it | before the else block runs | would not |
+The table sets the two forms side by side, one row each, and what a reader is to
+take from it is that the safe form for a failure path that touches the tree is
+the one this handler does not use.
 
-Neither row is a defect today, because the arm reads no tree; the swap matters
-only to whoever adds the message the comment imagines.
+| The form | When the value drops | A tree read added to the failure path |
+|---|---|---|
+| `match`, the form the code uses | after the enclosing `let` statement ends, so the `Writing::Tree` value and the exclusive lock it owns are alive throughout the arm | would deadlock |
+| `let … else`, the form the comment points at | before the else block runs | would not |
+
+Neither row is a defect today, because the arm reads no tree; the difference
+matters only to whoever adds the message the comment imagines.
 
 The self-deadlock the comment gestures at is not an ending this book traces,
 because the property that rules it out is stated rather than provoked, and it is

@@ -77,7 +77,7 @@
 - [One leaf added, and the refusal before the lock](04-growing-the-tree.md#worked-leaf-add)
 - [The two endings of one argument vector, as a relation](04-growing-the-tree.md#worked-leaf-add)
 - [`root-init`: the vacancy, and the refusal to clobber as a shape](04-growing-the-tree.md#the-vacancy)
-- [`match` versus `let … else`: the drop order the comment gets backwards](04-growing-the-tree.md#the-vacancy)
+- [`match` versus `let … else`: which form holds the write through its failure path](04-growing-the-tree.md#the-vacancy)
 - [The self-deadlock scan, and what it does not prove](04-growing-the-tree.md#the-vacancy)
 - [`require_declared`: the just-in-time presence rule, before the lock](04-growing-the-tree.md#presence-before-mutation)
 - [Why the whole configuration is loaded to ask about one kind](04-growing-the-tree.md#presence-before-mutation)

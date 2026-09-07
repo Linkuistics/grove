@@ -492,12 +492,12 @@ fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
     // The refusal to clobber is the **shape** rather than a check: a live grove
     // opens as a tree, and `root-init` takes a vacancy.
     //
-    // `match` rather than `let … else`, and the reason is not style. A `let …
-    // else` binding drops the unmatched value at the end of the whole statement
-    // — *after* the `else` block — so the live `TreeWrite` would still be
-    // holding the exclusive lock while that block ran, and a later improvement
-    // to this message that read the tree to name the live leaf would deadlock
-    // against this process. `match` drops it on entry to the arm.
+    // `match` holds the write open through the arm: a scrutinee is a value of
+    // the enclosing `let` statement, so the live `TreeWrite` and its exclusive
+    // lock are alive throughout `Writing::Tree(_)`, and drop only once that
+    // statement ends. So the message stays a literal: a later improvement that
+    // read the tree to name the live leaf would deadlock here, and would need
+    // a `let … else`, which drops the value *before* the else block runs.
     let vacancy = match grove_loop::write(&worktree)? {
         Writing::Vacancy(vacancy) => vacancy,
         Writing::Tree(_) => bail!(

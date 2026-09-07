@@ -386,11 +386,11 @@ pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError> {
 
     let terminal = Terminal::open();
     // Hand the terminal over from *inside* the child as well as from the parent
-    // below, because either one alone leaves a window: the parent can reach
-    // `tcsetpgrp` before the child's `setpgid` has created the group, and the
-    // child can reach its first read before the parent has handed anything
-    // over. Only when this launcher is the terminal's current owner — handing
-    // over a terminal owned by somebody else's job is theft, not job control.
+    // below, which cannot be early enough on its own: the parent's handover
+    // waits on `spawn` returning, nothing orders the child's first read after
+    // that, and a read from a background group is what SIGTTIN stops. Only when
+    // this launcher is the terminal's current owner — handing over a terminal
+    // owned by somebody else's job is theft, not job control.
     let handover_fd = terminal
         .as_ref()
         .filter(|terminal| terminal.foreground() == own_group())

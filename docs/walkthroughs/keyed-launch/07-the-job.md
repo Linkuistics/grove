@@ -876,11 +876,11 @@ separate questions of it before handing anything over.
 
     let terminal = Terminal::open();
     // Hand the terminal over from *inside* the child as well as from the parent
-    // below, because either one alone leaves a window: the parent can reach
-    // `tcsetpgrp` before the child's `setpgid` has created the group, and the
-    // child can reach its first read before the parent has handed anything
-    // over. Only when this launcher is the terminal's current owner — handing
-    // over a terminal owned by somebody else's job is theft, not job control.
+    // below, which cannot be early enough on its own: the parent's handover
+    // waits on `spawn` returning, nothing orders the child's first read after
+    // that, and a read from a background group is what SIGTTIN stops. Only when
+    // this launcher is the terminal's current owner — handing over a terminal
+    // owned by somebody else's job is theft, not job control.
     let handover_fd = terminal
         .as_ref()
         .filter(|terminal| terminal.foreground() == own_group())
@@ -896,12 +896,17 @@ for, and it is the same guard chapter 8's `supervise` applies in reverse before
 taking the terminal back.
 
 The comment's own argument is about **timing**, and it is why a `RawFd` is
-captured into a closure at all. Either side of the handover alone leaves a window:
-the parent can reach its `tcsetpgrp` before the child's `setpgid` has created the
-group to hand to, and the child can reach its first read before the parent has
-handed anything over. Doing it from both sides closes the window from both ends,
-and the cost is that the same operation appears twice in this function —
-once here as a captured descriptor and once in `pre_exec` below.
+captured into a closure at all. The parent's own handover cannot run before
+`spawn` has returned and `watch` has reached its first tick, and nothing orders
+the child's first read after that point: a child that got there first would be
+reading from a background process group, which is what SIGTTIN stops. The closure
+is the answer because of *where* it runs — between the fork and the exec, ordered
+before the first instruction of the program being launched. The cost is that the
+same operation is performed at two sites: here, as a descriptor captured for the
+closure that will perform it inside the child, and again from the parent, which
+is not in this function at all but in chapter 8's `watch`. That second site is
+not the other half of a race. It earns its place for a reason of its own, and the
+reason is chapter 8's too: it is re-asked every tick.
 
 <!-- fragment «run-process-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="398-403" parent="terminal-and-spawn" -->
 ````rust

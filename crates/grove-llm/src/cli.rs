@@ -284,7 +284,7 @@ pub enum Command {
     /// it. The default relaunches the loop for the next task; `--done` — the
     /// Finish cycle's last action — stops it cleanly. The signal-file default
     /// comes from the loop driver's environment (`GROVE_SIGNAL_FILE`); when
-    /// that is absent (a session not under `grove do`) it is a safe
+    /// that is absent (a session bare `grove` did not launch) it is a safe
     /// near-no-op that just tells you to exit manually.
     Complete(CompleteArgs),
 }

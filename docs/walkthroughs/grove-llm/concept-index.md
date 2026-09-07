@@ -133,7 +133,7 @@
 - [`Handle::parse`: lenient on the key, strict on the slug](06-leaving-the-loop.md#the-teardown)
 - [The last frame that still has the operator's spelling](06-leaving-the-loop.md#the-teardown)
 - [The working tree resolved twice, and what the second context covers](06-leaving-the-loop.md#the-teardown)
-- [A `grove do` the binaries no longer carry](06-leaving-the-loop.md#the-two-contracts)
+- [The driver named *bare `grove`*, after a `grove do` neither binary carries](06-leaving-the-loop.md#the-two-contracts)
 - [No transaction, and the remedy that is jj's](06-leaving-the-loop.md#the-two-contracts)
 - [The two contracts, and the line and test behind each promise](06-leaving-the-loop.md#the-two-contracts)
 - [Twelve verbs compared by text, opening, check, streams, and evidence](07-what-order-holds.md#assembly)

@@ -357,42 +357,47 @@ chapters, and 0 for this one. The seventh row of that table exists to be zero:
 a chapter that owns no source is the shape the structure brief chose for the
 assembly, and the total is the 1,017 the campaign froze.
 
-**The corpus's own claims.** No chapter corrected a comment it found wanting: as
-these seven chapters were drafted, each was reproduced as written and judged
-beside its fragment, because the corpus is frozen and a book may not edit what
-it proves. Five were judged worth a source change, and four leaves carry them.
-Two of the five were known before drafting began —
-the manifest's *everything this binary can reach is something `grove-loop` chose
-to publish*, which holds for what is reached and not for what is reachable
-through the direct `jj-workspace` dependency; and `lib.rs`'s *or `grove`*, naming
-a dependency the manifest's own comment records as removed;
-`grove-llm-dependency-comments-k102` carries both, together with a third clause
-it must rewrite in the same seven lines — the manifest's *a binary target can
-reach its own library's private items*, which *Orientation* adjudicates and
-`bin-target-privacy-claim-k87` corrected everywhere else. Three
-were found while drafting: `cmd_root_init`'s drop-order argument for `match` over
-`let … else`, which was the reverse of what the compiler does; `eprint_next_steps`
-naming a *jj/git* lane this build cannot reach; and the `Complete` variant's
-*a session not under `grove do`*, naming a verb neither binary has. **Two of the
-five have since landed.** `root-init-drop-order-comment-k99` rewrote the
-drop-order comment to state the order the compiler actually produces, and
-`next-steps-comment-lane-k100` rewrote `eprint_next_steps`'s to name jj alone
-and to narrow *the last grove verbs a session runs* to *the last tree verbs a
-session runs* — `complete` is a grove verb that runs after both and opens no
-tree, so only the narrower word is true of the pair. Each rewrote its own
-chapter's passage in the same commit, so those two pages now read comments that
-hold instead of adjudicating ones that do not; the other three are still
-reproduced as written and judged beside their fragments. A further set were
-found narrower or looser than stated and left exactly where they are, no
-page judging a rewrite worth a leaf of its own: `no_live_leaves` saying *four
-times* where it has three callers, `kind`'s help offering a *missing or unknown*
-refusal only half of which is still reachable, `label`'s parenthesis about the
-grove name, `resolve`'s help omitting `.`, and `Reference::parse`'s refusal
-offering a path form `resolve` does not accept. The line between the two sets is
-a judgement each chapter made about its own fragment, not a property of the
-comments. Every page reproduces the bytes as written either way; correcting one
-is a source change, and a source change belongs to a leaf that can carry the
-affected ledgers and pages in one commit.
+**The corpus's own claims.** No chapter corrected a comment it found wanting:
+as these seven chapters were drafted, each was reproduced as written and
+judged beside its fragment, because the corpus is frozen and a book may not
+edit what it proves. Five were judged worth a source change, and four leaves
+carry them. Two of the five were known before drafting began — the manifest's
+*everything this binary can reach is something `grove-loop` chose to publish*,
+which holds for what is reached and not for what is reachable through the
+direct `jj-workspace` dependency; and `lib.rs`'s *or `grove`*, naming a
+dependency the manifest's own comment records as removed;
+`grove-llm-dependency-comments-k102` carries both, together with a third
+clause it must rewrite in the same seven lines — the manifest's *a binary
+target can reach its own library's private items*, which *Orientation*
+adjudicates and `bin-target-privacy-claim-k87` corrected everywhere else.
+Three were found while drafting: `cmd_root_init`'s drop-order argument for
+`match` over `let … else`, which was the reverse of what the compiler does;
+`eprint_next_steps` naming a *jj/git* lane this build cannot reach; and the
+`Complete` variant's *a session not under `grove do`*, naming a verb neither
+binary has. **All three found while drafting have since landed.**
+`root-init-drop-order-comment-k99` rewrote the drop-order comment to state the
+order the compiler actually produces; `next-steps-comment-lane-k100` rewrote
+`eprint_next_steps`'s to name jj alone and to narrow *the last grove verbs a
+session runs* to *the last tree verbs a session runs* — `complete` is a grove
+verb that runs after both and opens no tree, so only the narrower word is true
+of the pair; and `complete-help-grove-do-k101` replaced the `Complete`
+variant's parenthesis with *a session bare `grove` did not launch*, the
+spelling `removed_surface.rs` itself uses for the driver. Each rewrote its own
+chapter's passage in the same commit, so *Growing the tree*, *Ending work* and
+*Leaving the loop* now read comments that hold instead of adjudicating ones
+that do not; the two known before drafting began are still reproduced as
+written and judged beside their fragments, and
+`grove-llm-dependency-comments-k102` is the leaf that carries both. A further
+set were found narrower or looser than stated and left exactly where they are,
+no page judging a rewrite worth a leaf of its own: `no_live_leaves` saying
+*four times* where it has three callers, `kind`'s help offering a *missing or
+unknown* refusal only half of which is still reachable, `label`'s parenthesis
+about the grove name, `resolve`'s help omitting `.`, and `Reference::parse`'s
+refusal offering a path form `resolve` does not accept. The line between the
+two sets is a judgement each chapter made about its own fragment, not a
+property of the comments. Every page reproduces the bytes as written either
+way; correcting one is a source change, and a source change belongs to a leaf
+that can carry the affected ledgers and pages in one commit.
 
 The [concept index](concept-index.md) and the [source index](source-index.md)
 are the two lookup surfaces, and neither is part of the reading order. The source

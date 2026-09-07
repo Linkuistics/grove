@@ -558,7 +558,7 @@ corpus that names the driver's escalation.
     /// it. The default relaunches the loop for the next task; `--done` — the
     /// Finish cycle's last action — stops it cleanly. The signal-file default
     /// comes from the loop driver's environment (`GROVE_SIGNAL_FILE`); when
-    /// that is absent (a session not under `grove do`) it is a safe
+    /// that is absent (a session bare `grove` did not launch) it is a safe
     /// near-no-op that just tells you to exit manually.
     Complete(CompleteArgs),
 ````
@@ -575,16 +575,22 @@ show is the half the comment says is left here: the flag is written, and the
 verb returns. The measured transcript is exactly that, and the driver acting on
 it afterwards was observed rather than asserted.
 
-One clause in the comment does not survive a check against this build. It
-describes the no-channel case as *a session not under `grove do`*, and `do` is
-a verb neither binary has: `removed_surface.rs` records it as removed from both
-as *bare `grove`'s business*, and the driver the rest of this comment describes
-is bare `grove`, which is what the live measurement ran. The rest of the
-sentence is accurate — an absent channel is the safe near-no-op the worked
-example's no-channel invocation showed. Correcting the name is a change to a frozen source root and
-is not the book's; it is cut as its own leaf, beside the comment defects
-*Growing the tree* and *Ending work* cut, and the fragment above reproduces
-the bytes as written.
+One clause in the comment names the driver, and it names it *bare `grove`*
+because the spelling it had did not survive a check against this build. It
+described the no-channel case as *a session not under `grove do`*, and `do` is
+a verb neither binary has: `removed_surface.rs` records it as removed from
+both as *bare `grove`'s business*, and that same spelling is the driver the
+rest of the comment describes — the binary the live measurement ran under. The
+rest of the sentence was accurate as written: an absent channel is the safe
+near-no-op the worked example's no-channel invocation showed, so only the
+parenthesis moved. Correcting it is a change to a frozen source root and was
+not this chapter's to make; `complete-help-grove-do-k101` made it, and the
+fragment above reproduces the corrected bytes. The substitution fits the line
+it replaced, so the fragment's own `272-289` and every range below it in this
+file are unmoved — which is the property that let one commit carry the source,
+this page and the closing chapter's tally together. It is the last of the
+three comment defects these chapters found while drafting to be corrected,
+after the two that *Growing the tree* and *Ending work* found.
 
 The table gathers both verbs' promises against the line that keeps each and the
 test that holds it, in the form the closing chapter's rows are built from.

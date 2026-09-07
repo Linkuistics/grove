@@ -55,10 +55,12 @@ Three things about it are new.
   exactly one `grove-loop` row, for `src/task_grow/tests.rs`, so every one of
   those 3,984 lines is owned, reconstructed and explained like any other. That
   fact drives the chapter cut rather than following from it.
-- **One claim inside the corpus is known to be false**, and it is refuted by
-  another root of the same book. It is adjudicated on the page; a second and a
-  third such claim were adjudicated at drafting and have since been corrected at
-  source. See *Known in advance: the claims this book adjudicates*.
+- **Three claims inside the corpus were known to be false**, two of them refuted
+  by other roots of the same book and the third from outside it. Each was
+  adjudicated on the page while the corpus was frozen, and all three have since
+  been corrected at source, every adjudicating paragraph rewritten in the same
+  commit as its comment. See *Known in advance: the claims this book
+  adjudicates*.
 
 **And it is the last book.** Of `docs/ARCHITECTURE.md`'s forty-one residue
 markers, **thirty-one name this crate** — thirty spelled `residue(grove-loop…)`
@@ -551,7 +553,8 @@ Pinned by `the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one`,
 `a_trackedness_probe_that_cannot_be_completed_fails_closed` and
 `a_grove_configuration_conforms_to_the_runners_own_kit`.
 
-**It adjudicates the read-count claim.** See *Known in advance*.
+**It explains the corrected read count on `TemplateSource`.** See *Known in
+advance*. Chapter 20 carries the other half of that explanation.
 
 ### 19 · The guaranteed core — `too-late-to-say-later`
 
@@ -1057,14 +1060,14 @@ Three, of which two were found while this brief was written and the third while
 chapter 1 was drafted. Each has a leaf that fixes it, and every one of those
 leaves sat **after** `grove-loop-book-k37` in the node — which is correct under
 the corpus-freeze rule and meant the book had to adjudicate rather than wait.
-Two have since landed and their claims are gone from the corpus; the remaining
-one still stands. An adjudicating paragraph sits beside the fragment that
-reproduces a standing claim; the claim is never repeated as though true, and it
-is never silently corrected, since the fragment reproduces the bytes as they are.
-Where the fix has landed, that paragraph was rewritten in the same commit as the
-comment — into an explanation of the corrected wording rather than a deletion,
-because the reason a sentence is phrased oddly outlives the defect that forced
-it.
+All three have since landed and none of the three claims is left in the corpus.
+The rule they were written under still governs any claim found later: an
+adjudicating paragraph sits beside the fragment that reproduces a standing claim,
+the claim is never repeated as though true, and it is never silently corrected,
+since the fragment reproduces the bytes as they are. When the fix lands, that
+paragraph is rewritten in the same commit as the comment — into an explanation of
+the corrected wording rather than a deletion, because the reason a sentence is
+phrased oddly outlives the defect that forced it.
 
 ### 1 · *Every member takes `version.workspace = true`* — chapter 1, corrected
 
@@ -1085,25 +1088,31 @@ version an operator can install. The identical clause is at
 two pages stay uniform. Both paragraphs, both comments and the workspace root's
 own comment moved in k84's single commit.
 
-### 2 · *The loop re-reads the configuration once per iteration* — chapters 18 and 20
+### 2 · *The loop re-reads the configuration once per iteration* — chapters 18 and 20, corrected
 
-`src/session_config.rs` line 89, in `TemplateSource`'s doc comment. It is false:
+`src/session_config.rs` line 89, in `TemplateSource`'s doc comment. It was false:
 `src/loop_driver.rs` calls `templates.load(&delta_roots)` **twice** per iteration
 — line 241 before `transition_to_current`, so the just-in-time presence rule for
 the finish leaf is asked against the document as it stood *before* the tree was
 mutated, and line 260 after the leaf is selected, so the launch expands the
 selected kind's template from the document as it stands. The type's own doc
-comment names both reads in the same sentence that says *once*, so the count is
-stale rather than the design. `template-source-read-count-k86` holds the fix.
+comment named both reads in the same sentence that said *once*, so the count was
+stale rather than the design. `template-source-read-count-k86` landed the fix
+inside the comment's frozen seven-line span, so no ownership range moved: the
+sentence now reads *twice per iteration* and attaches each of its two clauses to
+the read it belongs to.
 
-**This is the only adjudication in the campaign where the claim and its
-refutation are both inside one book's corpus.** Chapter 18 owns the sentence and
-chapter 20 owns the two calls, so the book shows the contradiction on its own
-pages rather than citing another crate for it — and the outcome's third question,
-*what does this layer choose that nothing beneath it could default*, is exactly
-the question the two reads answer. The overview does not repeat the stale count;
-its ledger row and chapter 3 were amended at `three-steps-k79`, so nothing there
-changes when the comment does.
+**Neither chapter adjudicates any longer.** Chapter 18 owns the sentence and
+explains why the corrected wording enumerates rather than asserts a single
+consequence; chapter 20 owns the two calls and shows the count against the bytes,
+which is the evidence the fix was made from. That the claim and its refutation
+were **both inside this book's corpus** is why the defect could be settled
+without citing another crate's page — the same property claim 3 has, and the
+reason both were fixable from evidence the book itself reproduces. The outcome's
+third question, *what does this layer choose that nothing beneath it could
+default*, is exactly the question the two reads answer. The overview never
+repeated the stale count; its ledger row and chapter 3 were amended at
+`three-steps-k79`, so nothing there changed when the comment did.
 
 ### 3 · *`libc` is the probe in `task_tree`* and *`keyed-launch` is reached by exactly one verb* — chapter 1, corrected
 

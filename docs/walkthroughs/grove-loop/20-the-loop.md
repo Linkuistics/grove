@@ -816,10 +816,12 @@ guarding — a lease revalidation and a configuration load, immediately before
 <a id="the-two-reads"></a>
 ## Two reads, two reasons — the claim chapter 18 could not settle alone
 
-Chapter 18 reproduced `TemplateSource`'s doc comment, which says **the loop
-re-reads the configuration once per iteration**, and adjudicated it as far as that
-page could: the design argument is right, the count in it is wrong, and the
-refutation is on this page. Here it is, against the bytes.
+Chapter 18 reproduces `TemplateSource`'s doc comment, which said **the loop
+re-reads the configuration once per iteration** while this book was drafted, and
+adjudicated it as far as that page could: the design argument is right, the count
+in it is wrong, and the refutation is on this page. Here it is, against the bytes
+— and the bytes are what the comment now says, because
+`template-source-read-count-k86` corrected the count from this page's evidence.
 
 `templates.load(&delta_roots)` is called **twice** in one pass of the loop body,
 at line 241 and again at line 260, with `transition_to_current` and the whole of
@@ -848,13 +850,16 @@ possible, and what `TemplateSource`'s own *a source rather than a snapshot*
 argument is for. A session that adds a kind to `config.kdl` and then signals
 relaunch is launched from the file it just wrote.
 
-**So the count is stale and the design is not.** The type's doc comment names
-both reads in the very sentence that says *once* — the just-in-time presence rule
-and the document as it stands are its two clauses — so the comment describes a
-two-read loop and miscounts it in its own first clause. Neither chapter corrects
-it: the corpus is frozen, and both pages reproduce the bytes as they are.
-`template-source-read-count-k86` holds the fix and will rewrite both adjudicating
-paragraphs in the same commit as the comment.
+**So the count was stale and the design was not.** The type's doc comment named
+both reads in the very sentence that said *once* — the just-in-time presence rule
+and the document as it stands were its two clauses — so the comment described a
+two-read loop and miscounted it in its own first clause. Neither chapter could
+correct it while the book was being written: the corpus was frozen, and both
+pages reproduce the bytes as they stand. `template-source-read-count-k86` carried
+the fix once the book had landed, rewriting both adjudicating paragraphs in the
+same commit as the comment, and the sentence now reads *twice per iteration* with
+each clause attached to the read it belongs to. The two rows of the table above
+are what it enumerates.
 
 **And the count is the only half of this that any test can see.** Three mutations
 bracket it, against the same 277-test control used later in this chapter:
@@ -889,12 +894,14 @@ that reads it is the `Sought::Nothing` arm. The loop parses the configuration
 twice per iteration and discards one of the two results. That is the cost the
 placement buys, and it is visible in the block above rather than inferred.
 
-This is the only adjudication in the campaign whose claim and refutation are both
-inside one book's corpus, and it is worth naming what that buys. Every other
-stale comment in this book is adjudicated against evidence the reader has to take
-on trust from another crate's page or from a record. Here the reader can hold
-`18-which-files.md`'s fragment and this page's fragment side by side and count the
-calls, and the outcome's third question — *what does this layer choose that
+The claim and its refutation were both inside this book's corpus, and it is
+worth naming what that bought. Several of this book's adjudications rest on
+evidence the reader has to take on trust from another crate's page or from a
+record; this one does not, and neither does [chapter 6](06-paths.md#canonicalise-to-compare)'s
+canonicalisation count, which `task_tree.rs` refutes in the same file that
+asserts it. Here the reader can hold `18-which-files.md`'s fragment and this
+page's fragment side by side and count the calls — which is also why this defect
+could be fixed without leaving the book, and the outcome's third question — *what does this layer choose that
 nothing beneath it could have defaulted* — is exactly what the two reads answer
 differently. Neither read is a default; each is a choice about **when** to ask.
 
@@ -1932,8 +1939,8 @@ asked against the **pre-transition** document, before anything is written, becau
 `entries-are-never-removed` makes a leaf written in error permanent. That is the
 outcome's second cost — *the check must run against the same snapshot the
 operation then plans from* — and it is the reason this file reads its
-configuration twice rather than once, which is the very sentence
-`session_config.rs` gets wrong about it.
+configuration twice rather than once, which is what `session_config.rs`'s own
+doc comment miscounted until `template-source-read-count-k86` corrected it.
 
 **On the way out — the policy.** Four values, and the module is nothing else.
 `keyed-launch` can spawn a child, publish a path to it, poll a file beside it and

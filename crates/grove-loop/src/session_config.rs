@@ -86,10 +86,10 @@ pub struct DeltaRoots<'a> {
 /// argument [`crate::run`] takes.
 ///
 /// It is a *source* rather than a snapshot, and that is deliberate. The loop
-/// re-reads the configuration once per iteration, so a session that adds a kind
-/// to `config.kdl` is launched from the document as it stands rather than as it
-/// stood when the loop started, and the just-in-time presence rule is asked
-/// against the document that was live before the tree was mutated
+/// reads the configuration twice per iteration: once before the tree is
+/// mutated, so the just-in-time presence rule is asked against the document
+/// that was live then, and once after the leaf is selected, so a session that
+/// added a kind to `config.kdl` is launched from the document as it stands
 /// (`docs/adr/complete-session-configuration.md`). A loaded [`SessionConfig`]
 /// handed in once could express neither.
 ///

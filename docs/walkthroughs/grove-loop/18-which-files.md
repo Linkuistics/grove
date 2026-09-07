@@ -394,10 +394,11 @@ from the workspace the binary already resolved, and the same two paths become
 `${worktree}` and `${repo}` at expansion. One resolution, three consumers.
 
 <a id="a-source-not-a-snapshot"></a>
-## A source rather than a snapshot — and the count in its own doc comment
+## A source rather than a snapshot — and the two reads its comment counts
 
-This is the type the book has been carrying an adjudication for since
-chapter 1's cast, and the sentence in question is line 89.
+This is the type the book carried an adjudication for from chapter 1's cast
+onward, and the count in its doc comment has since been corrected at source.
+Line 89 reads *twice per iteration*; it said *once* while this book was drafted.
 
 <!-- fragment «config-template-source» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="85-101" parent="whose-file" -->
 ````rust
@@ -405,10 +406,10 @@ chapter 1's cast, and the sentence in question is line 89.
 /// argument [`crate::run`] takes.
 ///
 /// It is a *source* rather than a snapshot, and that is deliberate. The loop
-/// re-reads the configuration once per iteration, so a session that adds a kind
-/// to `config.kdl` is launched from the document as it stands rather than as it
-/// stood when the loop started, and the just-in-time presence rule is asked
-/// against the document that was live before the tree was mutated
+/// reads the configuration twice per iteration: once before the tree is
+/// mutated, so the just-in-time presence rule is asked against the document
+/// that was live then, and once after the leaf is selected, so a session that
+/// added a kind to `config.kdl` is launched from the document as it stands
 /// (`docs/adr/complete-session-configuration.md`). A loaded [`SessionConfig`]
 /// handed in once could express neither.
 ///
@@ -421,31 +422,36 @@ pub struct TemplateSource {
 ````
 <!-- /fragment -->
 
-**The design argument is right and the count in it is wrong.** *A source
-rather than a snapshot* is exactly what the type is for, and the two consequences
-the comment names are both real: a session that adds a kind to `config.kdl` is
-launched from the document as it stands, and the just-in-time presence rule is
-asked against the document that was live before the tree was mutated. A loaded
-`SessionConfig` handed in once could express neither.
+**The design argument was never the defective half, and it is why the comment is
+worded the way it is.** *A source rather than a snapshot* is exactly what the
+type is for, and the two consequences it names are both real: the just-in-time
+presence rule is asked against the document that was live before the tree was
+mutated, and a session that adds a kind to `config.kdl` is launched from the
+document as it stands. A loaded `SessionConfig` handed in once could express
+neither.
 
-**But the loop does not re-read the configuration *once* per iteration. It reads
-it twice, and this same sentence names both reads.** `loop_driver.rs` calls
-`templates.load(&delta_roots)` at line 241 and again at line 260, both inside the
-loop body: the first is bound to `pre_transition_config` and is what the finish
-sentinel's presence rule is asked against, *before* `transition_to_current`
-mutates anything; the second is taken after the leaf is selected, and is the
-document the launch expands the selected kind's template from. Those are the two
-clauses of the sentence that says *once*, so the count is stale rather than the
-design — the comment describes a two-read loop and then miscounts it in its own
-first clause.
+**What the fix changed is that the sentence now counts the reads it was already
+naming.** `loop_driver.rs` calls `templates.load(&delta_roots)` at line 241 and
+again at line 260, both inside the loop body: the first is bound to
+`pre_transition_config` and is what the finish sentinel's presence rule is asked
+against, *before* `transition_to_current` mutates anything; the second is taken
+after the leaf is selected, and is the document the launch expands the selected
+kind's template from. Those were always the two clauses of this sentence, which
+is why the defect was a count and not a design — the comment described a two-read
+loop and then said *once* in its own first clause. The corrected wording keeps
+both clauses and attaches each to the read it belongs to, which is why it reads
+as an enumeration rather than as a single consequence with two effects.
 
-This is the only adjudication in the campaign whose claim and refutation are both
-inside one book's corpus. **Chapter 20 owns those two calls and shows the
-refutation against the bytes**; this chapter owns the sentence and states it
-beside the fragment that reproduces it. The comment is not corrected here — the
-corpus is frozen, and this page reproduces the bytes as they are.
-`template-source-read-count-k86` holds the fix and lands after this book, and
-will rewrite this paragraph in the same commit as the comment.
+The claim is stated on two pages of this book rather than one, and that is what
+made it fixable here at all. **Chapter 20 owns those two calls and shows the
+count against the bytes**; this chapter owns the sentence. While the corpus was
+frozen neither page could touch the comment, so both adjudicated it instead, and
+`template-source-read-count-k86` carried the fix once this book had landed — the
+source change, the fragment above and both adjudicating paragraphs in a single
+commit. The reader can hold this fragment and chapter 20's side by side and count
+the calls, so nothing outside this book had to be taken on trust — the same
+property [chapter 6](06-paths.md#canonicalise-to-compare)'s canonicalisation
+count has, where the header's claim and the second call site are in one file.
 
 The last paragraph of the comment is unaffected and worth keeping in view: the
 delta roots are *not* held on this type. They come from the workspace `run` is
@@ -857,8 +863,8 @@ almost these words, is the decision record `untracked-configuration-delta`, whic
 this same file cites correctly three times elsewhere. **The rule the sentence
 describes is right; only its address is wrong**, which is the same shape as the
 stale module path chapter 6 adjudicated and is handled the same way — on the page,
-not by a fix. `template-source-read-count-k86` is already editing this file's
-comments within the frozen line counts and can carry it.
+not by a fix. `requirement-six-citation-k189` holds the fix, and will land it
+within this file's frozen line count so no range above moves.
 
 <a id="the-refusal-and-its-remedy"></a>
 ## The refusal, and a remedy nothing holds
@@ -1031,7 +1037,9 @@ links and never an explicit URL target — which is why this is a different blin
 spot from the five unresolved intra-doc links the crate does warn about, and why
 the clean run this chapter opened with is not evidence about this line. The
 record it names is real and says what the comment says it says; the address is
-the only broken part.
+the only broken part. `requirement-six-citation-k189` holds this fix beside the
+`requirement 6` one — both are addresses in this file, and both land inside its
+frozen line count.
 
 <a id="what-could-not-move-here"></a>
 ## What could not move

@@ -431,20 +431,21 @@ blocks themselves run smaller still, down to twenty-two lines. The largest root 
 across five roots — is inline `#[cfg(test)] mod tests`, none of it excluded, and
 every line of it is owned and explained by the chapter whose concept it proves.
 
-**The corpus's own claims.** Two were known false before drafting began. One
-still is, and is adjudicated on the page rather than repeated or corrected:
-`session_config.rs`'s *the loop re-reads the configuration once per iteration*,
-which `loop_driver.rs` refutes twice inside this same corpus, and its leaf will
-rewrite the adjudicating paragraph in the same commit as the comment. The other
-— `lib.rs`'s claim about which crates take `version.workspace = true` — has
-since been corrected at source, in one commit with the paragraph that judged it,
-so chapter 1 now explains the quantifier the comment carries rather than
-adjudicating one it does not. Many more were found while drafting — stale enumerations, a
+**The corpus's own claims.** Two were known false before drafting began, and
+neither still is: each has been corrected at source, in one commit with the
+paragraph that judged it. `session_config.rs`'s *the loop re-reads the
+configuration once per iteration*, which `loop_driver.rs` refutes twice inside
+this same corpus, went at `template-source-read-count-k86`, so chapters 18 and 20
+now explain a comment that counts both of its reads rather than adjudicating one
+that counts neither. `lib.rs`'s claim about which crates take
+`version.workspace = true` went at `every-member-version-comment-k84`, so chapter
+1 now explains the quantifier the comment carries rather than adjudicating one it
+does not. Many more were found while drafting — stale enumerations, a
 miscounted helper list naming a function that never existed, four comments
 addressing a module by a name this workspace does not have, five unresolved
 intra-doc links, a parenthesised citation naming no anchor at all — and each was
-adjudicated beside its fragment, because the corpus is frozen and a book may not
-edit what it proves. Where a page judged a source change worth making, a leaf
+adjudicated beside its fragment, because the corpus was frozen while this book
+was written and a book may not edit what it is proving. Where a page judged a source change worth making, a leaf
 carries it; where it did not, the bytes stand as written and the page says so.
 One of that second group has since landed: `Cargo.toml`'s clauses locating
 `libc` in `task_tree` alone and `keyed-launch` behind one verb were found while
@@ -452,7 +453,7 @@ chapter 1 was drafted and corrected at `manifest-dependency-clauses-k133`, so
 chapter 1 now carries two explanations of corrected wording rather than one
 explanation and one adjudication. The structure brief's *Known in advance*
 counts three claims in total, against the two this paragraph knew before
-drafting began.
+drafting began, and none of the three now stands in the corpus.
 
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces and neither is part of the reading order. The source index

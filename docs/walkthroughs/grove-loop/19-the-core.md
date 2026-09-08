@@ -83,12 +83,13 @@ still holds for chapter 20. It does not hold here, and only the measurement
 settles which.
 
 So the reading here means something in both directions. `cargo doc --no-deps
---document-private-items -p grove-loop` reports thirty warnings over the crate and
-names this file in exactly **one** of them — the unresolved intra-doc link at line
-28. That the instrument reaches the rest is a measurement rather than an
-assumption: planting a broken link inside a `///` docblock in this file takes the
-crate to thirty-one and names the new line, so the silence over the other 170
-comment lines is silence about links that resolve.
+--document-private-items -p grove-loop` reports twenty-six warnings over the crate
+and names this file in **none** of them. It named it in exactly one until
+`unresolved-doc-links-k151` landed — the unresolved intra-doc link at line 28,
+which the section below reads. That the instrument reaches this file is a
+measurement rather than an assumption: planting a broken link inside a `///`
+docblock in it takes the crate to twenty-seven and names the new line, so the
+silence over all 171 comment lines is silence about links that resolve.
 
 **One thing it still cannot see, and this root has none of them.** Chapter 18's
 last finding was that `cargo doc` says nothing at all about a Markdown link with
@@ -213,7 +214,7 @@ says what the closure costs, and names the one coupling it cannot close.
 //! from and no per-kind content decision to keep in step. That is what
 //! `prompt-names-the-kind-k18` deleted — `reference_file`'s nineteen-to-ten
 //! `match`, `ending_file`'s nineteen-to-two one, the `${locations}` slot, and
-//! with all three this module's dependency on [`crate::methodology`]. The driver
+//! with all three this module's dependency on `crate::methodology`. The driver
 //! now interprets a kind **nowhere**: it renders the kind's own label into a
 //! skill name and stops.
 //!
@@ -261,8 +262,9 @@ enumeration shows which.** Counted across all 245 lines, the block carries
 `plugins/grove/README.md`, `crates/grove-loop/tests/prompt.rs` and
 `docs/ARCHITECTURE.md` anchors; one to `docs/research/wording-micro-test.md`; and
 one to a methodology rule id. Two grove task keys — `prompt-names-the-kind-k18`
-and `open-kind-k20` — date changes rather than cite arguments, and one intra-doc
-link points at a module; both fall outside that count and are read below.
+and `open-kind-k20` — date changes rather than cite arguments, and one code span
+names a module this workspace no longer has; both fall outside that count and are
+read below.
 **Seventeen of the eighteen resolve and support the sentence that cites them** —
 decision 9 carries `Mandate`'s four fields and `compose`'s signature as
 written source, and its own paragraph on the provisioning gap is nearly this
@@ -271,17 +273,21 @@ this chapter reads it. That census is worth taking because chapter 18 found two
 addresses in its block that did not resolve and chapter 16 found a name that
 resolved to nothing, and because this file cites more heavily than either.
 
-**The intra-doc link is a separate defect, and `cargo doc` is the instrument that
-finds it.**
-`[`crate::methodology`]` is one of the crate's five unresolved intra-doc links
-and the only one in this block. The prose around it is true: a `methodology`
+**The module name in that sentence is deliberately not a link, and `cargo doc` is
+why.**
+`crate::methodology` is written as a plain code span, and it is the one name in
+this block that resolves to nothing. The prose around it is true: a `methodology`
 module is exactly what `prompt-names-the-kind-k18` deleted, along with the two
-`match`es and the `${locations}` slot the same sentence lists. So the sentence is
-right and the link is broken *because* the sentence is right — rustdoc renders the
-text literally and warns, and nothing in `scripts/check.sh` runs `cargo doc`, so
-nothing fails. `unresolved-doc-links-k151` holds the repair for all five and is
-deferred behind this book, because fixing this line before this page existed would
-put corrected bytes in the source ahead of the page that has to reproduce them.
+`match`es and the `${locations}` slot the same sentence lists. Until
+`unresolved-doc-links-k151` it was spelled as an intra-doc link, and it was one of
+the crate's five unresolved ones — the sentence was right and the link was broken
+*because* the sentence was right, so rustdoc rendered the target text literally
+and warned. **The repair was to unlink rather than to re-point**, and that is the
+part worth keeping: there is no module to point at, so any path spelled here would
+be a second broken link wearing a resolvable shape. A code span says the name and
+claims nothing about where it lives. Nothing in `scripts/check.sh` runs `cargo
+doc`, so nothing failed either way — the warning was the whole of the report, and
+it is gone.
 
 **The coupling the header ends on is the one it cannot close, and the honesty is
 the point.** The prompt names a `grove-<kind>` skill; whether that skill is
@@ -847,8 +853,8 @@ doc` is silent; it is not a Markdown link, so no link sweep sees it; and it is n
 an `ADR <slug>` citation, so `every_adr_citation_names_a_decision_record` does not
 read it either. It was found by enumerating the block's backticked tokens and
 resolving each one, which is the only procedure that finds this class.
-`prompt-rule-id-prefix-k174` holds the fix, deferred behind this book with the
-unresolved link at line 28.
+`prompt-rule-id-prefix-k174` holds the fix, deferred behind this book alongside
+`unresolved-doc-links-k151`, which has since repaired the link at line 28.
 
 **And one clause the module keeps out on a different ground.** The
 commit-boundary commands are *not* here, and the reason cited is

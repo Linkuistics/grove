@@ -93,7 +93,7 @@ which six are a refusal the file itself calls unreachable.
 
 <!-- fragment «kind-in» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="638-656" parent="kind-and-brief-chain" -->
 ````rust
-/// [`kind`] against a tree already read.
+/// `kind` against a tree already read.
 pub(crate) fn kind_in(tree: &Tree, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
     let target = match leaf_path {
         Some(path) => Some(path.to_path_buf()),
@@ -135,12 +135,16 @@ stderr, nothing on stdout, and exit `0`
 crate's contribution is that the *absence* of live work travels as a value rather
 than as an error, so the loop above can tell *done* from *broken*.
 
-The `[`kind`]` the doc comment points at is `verbs::kind`, the public verb of that
-name in `verbs.rs`: it opens the tree, calls this function, and renders the answer
-as a `Sought`. Chapter 15 reads it with the other eleven. The minimum here is that
-`kind_in` is the half of that verb which runs against a tree somebody else opened,
-which is why its own name carries the crate's `_in` suffix — and that the link is
-one the compiler does not check, a point the closing section returns to.
+The `` `kind` `` the doc comment opens with is not `verbs::kind`, the public verb
+of that name in `verbs.rs`, which chapter 15 reads with the other eleven: that
+verb takes an already-open `&Tree` too, so *against a tree already read* would
+distinguish it from nothing. It is `tests::kind`, the composition
+[chapter 6](06-paths.md#compositions-that-are-the-tests-alone) read at line
+1,053, which opens the root and then calls this function. The minimum here is
+that `kind_in` is the half that runs against a tree somebody else opened, which
+is why its own name carries the crate's `_in` suffix. The name is a code span
+rather than a link, and the closing section returns to why it had to become
+one.
 
 **The last arm is the file admitting to a shape its types cannot rule out.** The
 match asks for `Parts::Leaf` and the comment beside the fallback says
@@ -1251,16 +1255,24 @@ is the `kind` section's whole subject. And the block named for the two verbs
 together composes them under two observations, which is the one thing both doc
 comments say production must not do.
 
-**One smaller defect sits in the block's first line and is not a test's fault.**
-`kind_in`'s doc comment opens `[`kind`]`, an intra-doc link, and it does not
-resolve: `verbs` is not imported into `task_tree`, so rustdoc renders the text
-and emits *unresolved link to `kind`*. The sentence it appears in is true — the
-link is the only broken thing about it — and `task_tree.rs` carries two more of
-the same shape in chapter 7's block, at `[`pick`]` and `[`select`]`. Checked with
-`cargo doc --no-deps --document-private-items`, which is the only instrument that
-sees it, because nothing about a doc link fails a build or a test. It is recorded
-here rather than repaired: the corpus is frozen, and a fix changes bytes two
-chapters reproduce.
+**One smaller thing sits in the block's first line and is not a test's fault.**
+`kind_in`'s doc comment opens `` `kind` ``, and until `unresolved-doc-links-k151`
+it opened `[`kind`]`, an intra-doc link that resolved to nothing:
+`cargo doc --no-deps --document-private-items` emitted *unresolved link to
+`kind`*. The sentence it appears in was true, and the link was the only broken
+thing about it. **No path would have repaired it**, which is the part worth
+keeping. Its referent is `tests::kind`, in this file's own `#[cfg(test)]` module,
+and `cargo doc` compiles with `cfg(test)` off — so there is no documented item at
+the end of any spelling, and the repair was to unlink. `task_tree.rs` carried two
+more of the same shape in chapter 7's block, at `[`pick`]` and `[`select`]`, and
+[that chapter](07-the-walk.md#what-a-launch-needs) reads what settled the reading
+for all three: `verbs` has never declared a `select` at all, so the public-verb
+reading was available for only two of the three sentences and those three
+sentences are identical. This chapter recorded the defect rather than repairing
+it, because the corpus was frozen and a fix changes bytes two chapters reproduce;
+`unresolved-doc-links-k151` landed it with those pages. `cargo doc` remains the
+only instrument that sees the class, because nothing about a doc link fails a
+build or a test.
 
 None of that makes a claim in this chapter false. It makes the tests a weaker
 witness than their names suggest, and the difference between those two things is

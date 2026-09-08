@@ -997,7 +997,7 @@ crate-wide obligation that every error say what fixes it.
 /// **Which form a reference *is* is decided against the tree, not against the
 /// text.** A bare slug and a path are told apart by whether the path exists, and
 /// a slug may match several entries — which is why [`verbs::resolve`] answers
-/// [`Resolution::Ambiguous`] rather than refusing. What [`Reference::parse`]
+/// [`verbs::Resolution::Ambiguous`] rather than refusing. What [`Reference::parse`]
 /// settles is only that there is something to look for.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Reference(String);

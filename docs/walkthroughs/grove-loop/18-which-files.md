@@ -83,12 +83,14 @@ module header is entirely `//`, and of `tree_lifecycle.rs`, which contains no
 work around are simply absent from this root.
 
 So the clean run means something. `cargo doc --no-deps --document-private-items
--p grove-loop` reports thirty warnings over the crate and names
+-p grove-loop` reports twenty-six warnings over the crate and names
 `session_config.rs` in none of them — and that is a measurement rather than an
 instrument looking away, because planting a broken intra-doc link in this
-module's header takes the count to thirty-one and names the file and the line.
-None of the crate's five unresolved intra-doc links is here, and neither is any
-of the four ambiguity warnings chapter 15 counted in `verbs.rs`.
+module's header takes the count to twenty-seven and names the file and the line.
+None of the four ambiguity warnings chapter 15 counted in `verbs.rs` is here
+either, and neither was any of the five unresolved intra-doc links this book
+adjudicated elsewhere — `unresolved-doc-links-k151` has since repaired all five,
+so that class no longer appears anywhere in the count.
 
 **One thing `cargo doc` still cannot see, and this root has an instance.** It
 checks *intra-doc* links — the `` [`Foo`] `` form — and says nothing whatever
@@ -1036,8 +1038,10 @@ generated documentation tree, where no `docs/adr/` exists; and read as a path
 relative to the source file it would be `crates/grove-loop/docs/adr/`, which does
 not exist either. **`cargo doc` reports nothing**, because it checks intra-doc
 links and never an explicit URL target — which is why this is a different blind
-spot from the five unresolved intra-doc links the crate does warn about, and why
-the clean run this chapter opened with is not evidence about this line. The
+spot from the five unresolved intra-doc links the crate warned about while this
+book was drafted, and why the clean run this chapter opened with is not evidence
+about this line. `unresolved-doc-links-k151` repaired those five; this address
+was untouched by it, because no `cargo doc` run has ever seen it. The
 record it names is real and says what the comment says it says; the address is
 the only broken part. `requirement-six-citation-k189` holds this fix beside the
 `requirement 6` one — both are addresses in this file, and both land inside its

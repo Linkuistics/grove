@@ -1031,7 +1031,7 @@ word in one file. Its header explains why that is the correct amount of work.
 <!-- /fragment -->
 
 **These seventeen lines are invisible to every instrument this book uses.**
-`cargo doc --no-deps --document-private-items` reports thirty warnings across
+`cargo doc --no-deps --document-private-items` reports twenty-six warnings across
 `grove-loop` and **none** for `complete.rs` — but it sees only `///` and `//!`,
 and this header is written in `//`. The clean result is evidence about the file's
 four doc comments and about nothing at all above line 19. A module header in

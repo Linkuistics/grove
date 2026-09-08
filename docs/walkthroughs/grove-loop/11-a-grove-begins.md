@@ -516,8 +516,8 @@ items in this module's index carry a multi-sentence summary, so a long one is
 unremarkable here. A summary that says the same thing twice is not.
 
 **Nothing in this repository reports it.** `cargo doc --no-deps
---document-private-items -p grove-loop` emits thirty warnings across the crate and
-**none at all for this file**, because both paragraphs are attached to the right
+--document-private-items -p grove-loop` emits twenty-six warnings across the crate
+and **none at all for this file**, because both paragraphs are attached to the right
 item; there is nothing for the compiler to complain about. The check that finds it
 is counting the paragraphs in the *rendered* docblock — `fn.grove_name.html` has
 two `<p>` elements, and the first is three sentences —

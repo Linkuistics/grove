@@ -121,7 +121,7 @@ test name is a label. It asserts nothing, and it cannot be wrong in a way that
 fails a build.
 
 Chapter 16 leaned on `cargo doc --no-deps --document-private-items -p
-grove-loop`, which reports thirty warnings over this crate and names
+grove-loop`, which reports twenty-six warnings over this crate and names
 `driver_lease.rs` in none of them, and it was careful to say that the clean
 result was evidence about the seventy of its 103 comment lines written as `///`
 and about nothing else. For this block the instrument is not merely narrow. It
@@ -136,9 +136,9 @@ and no tool in this repository has ever checked that they do.
 
 That was measured rather than assumed, in a copy of the workspace, with a
 control in each direction. Planting a link to a nonexistent symbol *inside* this
-module leaves the crate at its usual **thirty** warnings. Planting the identical
-construct in the production module header at the top of the same file takes it
-to **thirty-one**, and the new warning names `driver_lease.rs:2` and quotes the
+module leaves the crate at its usual **twenty-six** warnings. Planting the
+identical construct in the production module header at the top of the same file
+takes it to **twenty-seven**, and the new warning names `driver_lease.rs:2` and quotes the
 dangling target. The instrument works; it cannot see here.
 
 That is a second blind spot, orthogonal to the one chapter 16 met. Chapter 16's

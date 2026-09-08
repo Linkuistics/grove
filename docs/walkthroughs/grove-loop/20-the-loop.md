@@ -109,16 +109,16 @@ shell sketch, *restart ≡ continuation* — and the test module carries the ent
 of the file's own evidence. The instrument reads the 492 lines in between.
 
 So the clean run has to be earned rather than assumed. `cargo doc --no-deps
---document-private-items -p grove-loop` reports thirty warnings over the crate and
-names this file in **none** of them: all eight of its intra-doc links resolve.
+--document-private-items -p grove-loop` reports twenty-six warnings over the crate
+and names this file in **none** of them: all eight of its intra-doc links resolve.
 Three controls establish what that silence covers, and each was watched to fail:
 
 | Control | Where the broken link was planted | Crate warnings |
 |---|---|---:|
-| baseline | — | 30 |
-| A | inside a production `///` docblock | **31** |
-| B | inside the `#[cfg(test)]` module | 30 |
-| C | inside the plain `//` header | 30 |
+| baseline | — | 26 |
+| A | inside a production `///` docblock | **27** |
+| B | inside the `#[cfg(test)]` module | 26 |
+| C | inside the plain `//` header | 26 |
 
 Control A is what makes the reading a measurement: the instrument does reach this
 file's `///` comments, so their silence is about links that resolve. Controls B

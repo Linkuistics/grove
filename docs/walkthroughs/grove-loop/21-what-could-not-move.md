@@ -447,8 +447,21 @@ intra-doc links, a parenthesised citation naming no anchor at all — and each w
 adjudicated beside its fragment, because the corpus was frozen while this book
 was written and a book may not edit what it is proving. Where a page judged a source change worth making, a leaf
 carries it; where it did not, the bytes stand as written and the page says so.
-Three of that second group have since landed, two of them chapter 1's and one
-chapters 5, 6 and 8's.
+Four of that second group have since landed, two of them chapter 1's, one
+chapters 5, 6 and 8's, and one spread across chapters 1, 7, 8 and 19.
+`unresolved-doc-links-k151` is the fourth: all five broken intra-doc links were
+repaired in one commit with the four pages that reproduce them. Chapters 7, 8 and
+19 now explain the corrected spelling rather than adjudicating the broken one;
+chapter 1 carries the fifth line's new bytes and explains nothing, because it
+never adjudicated that link and owes no paragraph for one it did not judge. The
+five did not share a cause, and the leaf landed two kinds of repair rather than
+one. Four were unlinked: three named `task_tree.rs`'s own `#[cfg(test)]`
+compositions, which `cargo doc` compiles away — the blind spot
+[chapter 17](17-the-epoch.md#three-per-cent-and-a-blind-instrument) measures from
+the inside — so no path could have resolved them, and the fourth named a module
+`prompt-names-the-kind-k18` had deleted. Only the fifth took a path:
+`Resolution` is public inside a private module and reaches the API as
+`verbs::Resolution`, so the re-export is the only spelling that resolves.
 `Cargo.toml`'s clauses locating `libc` in `task_tree` alone and `keyed-launch`
 behind one verb were found while chapter 1 was drafted and corrected at
 `manifest-dependency-clauses-k133`. `lib.rs`'s two claims that

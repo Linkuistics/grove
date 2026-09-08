@@ -25,7 +25,7 @@
 //! from and no per-kind content decision to keep in step. That is what
 //! `prompt-names-the-kind-k18` deleted — `reference_file`'s nineteen-to-ten
 //! `match`, `ending_file`'s nineteen-to-two one, the `${locations}` slot, and
-//! with all three this module's dependency on [`crate::methodology`]. The driver
+//! with all three this module's dependency on `crate::methodology`. The driver
 //! now interprets a kind **nowhere**: it renders the kind's own label into a
 //! skill name and stops.
 //!

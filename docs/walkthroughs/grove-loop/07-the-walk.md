@@ -126,7 +126,7 @@ re-exports the type at the crate root, which is the `Selection` chapter 1 met.
 
 <!-- fragment «walk-pick-in» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="580-585" parent="walk-selection" -->
 ````rust
-/// [`pick`] against a tree already read. Used by every verb that needs a leaf
+/// `pick` against a tree already read. Used by every verb that needs a leaf
 /// and its brief chain from the *same* observation.
 pub(crate) fn pick_in(tree: &Tree) -> Result<Option<PathBuf>> {
     Ok(select_in(tree)?.map(|selection| selection.path))
@@ -156,12 +156,34 @@ the same selection through the public `pick` verb, and hands that same guard to
 comment, which says production never wants the test-only pairing for exactly
 this reason.
 
+**The name that opens this comment is a code span, and until
+`unresolved-doc-links-k151` it was a link that could never have resolved.** The
+`pick` it names is not [chapter 15](15-the-verbs.md)'s public verb: that one
+takes an already-open `&Tree` as well, so *against a tree already read* would
+distinguish it from nothing. It is the composition
+[chapter 6](06-paths.md#compositions-that-are-the-tests-alone) read at line
+1,039 — `read(grove_root)?` and then `pick_in(&tree)` — and this comment is the
+whole of the difference between the two. Written `[`pick`]` it emitted
+*unresolved link to `pick`*, and **no spelling of it could have done otherwise**:
+that composition sits in this file's `#[cfg(test)]` module, and `cargo doc`
+compiles with `cfg(test)` off. That is the blind spot
+[chapter 17](17-the-epoch.md#three-per-cent-and-a-blind-instrument) measures from
+the inside, met here from the other side. Chapter 17 plants a broken link
+*within* a test module and watches the crate's count not move; a link *into* one
+warns and no qualified path repairs it, because there is no documented item at
+the end of any path. So the repair was to unlink, which puts the production side
+in step with the file's own practice. The three compositions, reproduced in
+chapter 6, each name themselves with a code span — `` `pick` ``, `` `select` ``,
+`` `kind [<leaf>]` `` — and the one place `task_tree.rs` writes `` [`pick`] `` as
+a link and gets away with it is `kind`'s own comment at line 1,051, inside that
+same test module, where it resolves.
+
 The shared-guard entry point carries the chapter's second rule in its own doc
 comment.
 
 <!-- fragment «walk-select-in» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="586-595" parent="walk-selection" -->
 ````rust
-/// [`select`] against a tree already read.
+/// `select` against a tree already read.
 ///
 /// The `finish` rule is grove's alone and the library knows nothing of it: a
 /// `finish` leaf is the driver's own, so ordinary work outranks it wherever it
@@ -173,6 +195,17 @@ pub(crate) fn select_in(tree: &Tree) -> Result<Option<Selection>> {
 
 ````
 <!-- /fragment -->
+
+**The same repair, and this one is what settles which reading was right.**
+There is no `verbs::select`: `verbs.rs` declares fourteen public functions and
+`select` is not among them, `grove-llm` has no such subcommand, and a sweep of
+every commit in this repository's history for the declaration finds none — with
+`pub fn pick`, which the same sweep finds in 236 of them, as the control that
+shows the sweep can find one. So `[`select`]` never named a verb. `tests::select`
+sits 450 lines below in this same file and is exactly this function against a
+tree it opens first, which is the sentence the comment is making. What is forced
+for one is forced for all three: the three comments share a sentence, and only
+one reading makes that sentence say anything at all.
 
 **This is the chapter's clearest statement of what did not move.** The library
 orders entries; it does not rank them. As far as the grammar is concerned

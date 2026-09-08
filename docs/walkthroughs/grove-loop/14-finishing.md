@@ -253,9 +253,9 @@ written in `//`, not `//!`. `cargo doc --no-deps --document-private-items` sees
 only `///` and `//!`, so none of this text is documentation as far as the
 toolchain is concerned: it renders nowhere, its links are never resolved, and
 its claims are never checked against anything. Run over this crate the command
-emits thirty warnings — ten in `task_name.rs`, nine in `lib.rs`, six in
-`task_tree.rs`, four in `verbs.rs` and one in `prompt.rs` — and **not one of them
-names `tree_lifecycle.rs`**. That clean result is true and says nothing whatever
+emits twenty-six warnings — ten in `task_name.rs`, nine in `lib.rs`, four in
+`verbs.rs` and three in `task_tree.rs` — and **not one of them names
+`tree_lifecycle.rs`**. That clean result is true and says nothing whatever
 about the file's first forty-three lines. Both stale claims above sit inside
 them. A module header written in `//` is checked by reading it, and by nothing
 else.

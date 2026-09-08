@@ -577,13 +577,13 @@ pub struct Selection {
     pub kind: Kind,
 }
 
-/// [`pick`] against a tree already read. Used by every verb that needs a leaf
+/// `pick` against a tree already read. Used by every verb that needs a leaf
 /// and its brief chain from the *same* observation.
 pub(crate) fn pick_in(tree: &Tree) -> Result<Option<PathBuf>> {
     Ok(select_in(tree)?.map(|selection| selection.path))
 }
 
-/// [`select`] against a tree already read.
+/// `select` against a tree already read.
 ///
 /// The `finish` rule is grove's alone and the library knows nothing of it: a
 /// `finish` leaf is the driver's own, so ordinary work outranks it wherever it
@@ -635,7 +635,7 @@ fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selecti
     }))
 }
 
-/// [`kind`] against a tree already read.
+/// `kind` against a tree already read.
 pub(crate) fn kind_in(tree: &Tree, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
     let target = match leaf_path {
         Some(path) => Some(path.to_path_buf()),

@@ -108,8 +108,9 @@ about them.**
 | `///` item documentation | 61 | renders, and checks attachment and links |
 | `//` plain comments | 33 | reads nothing at all |
 
-`cargo doc --no-deps --document-private-items -p grove-loop` reports **thirty
-warnings** over this crate, and **none of them names `driver_lease.rs`** — the
+`cargo doc --no-deps --document-private-items -p grove-loop` reports
+**twenty-six warnings** over this crate, and **none of them names
+`driver_lease.rs`** — the
 run was repeated with the file's timestamp touched, so the silence is a fresh
 reading and not a cached one. That clean result is true, and it is evidence about
 seventy lines. It says nothing whatever about the other thirty-three, and the one
@@ -1359,8 +1360,8 @@ reproduced by a finished page; until it lands this paragraph is the record.
 
 **Nothing in this repository could have caught it.** These are plain `//` lines
 inside a function body, and `cargo doc --no-deps --document-private-items` reads
-only `///` and `//!`. It reports thirty warnings over this crate and none over
-this file, and that clean result is honest about the seventy lines it can see and
+only `///` and `//!`. It reports twenty-six warnings over this crate and none
+over this file, and that clean result is honest about the seventy lines it can see and
 silent about the thirty-three it cannot. A comment written in `//` is checked by
 reading it, and by nothing else.
 

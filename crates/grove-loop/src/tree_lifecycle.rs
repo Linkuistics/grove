@@ -535,10 +535,10 @@ pub(crate) fn leaf_decompose(
     first_child_slug: &Slug,
     kind_override: Option<Kind>,
 ) -> Result<(PathBuf, PathBuf)> {
-    // Grove's own precondition, before the tree is even observed, so a bad slug
-    // leaves the leaf un-decomposed. It could sit inside the guard with the rest
-    // of them; it stays out here because it needs nothing from the tree, and
-    // refusing without taking an exclusive lock is strictly kinder.
+    // No check here: `Slug` is the precondition, discharged wherever one was
+    // built. Text the grammar disclaims never becomes a `Slug`, so a bad child
+    // slug leaves the leaf un-decomposed — and `grove-llm` spells it before it
+    // opens the tree, so refusing one there costs no exclusive lock.
     let child_slug = first_child_slug;
 
     let root = tree.root().to_path_buf();

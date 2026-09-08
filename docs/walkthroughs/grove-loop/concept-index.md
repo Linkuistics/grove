@@ -303,7 +303,7 @@
 - [Why quiescence makes an intermediate state safe](12-leaf-to-node.md#one-promote-that-had-to-be-one)
 - [Two keys predicted, and only one of them a prediction](12-leaf-to-node.md#one-promote-that-had-to-be-one)
 - [A precondition that moved into a type, and its comment](12-leaf-to-node.md#the-precondition-that-moved-into-the-type)
-- [A file that is its own refutation, 1,386 lines apart](12-leaf-to-node.md#the-precondition-that-moved-into-the-type)
+- [Two passages of one file, 1,386 lines apart, brought back into agreement](12-leaf-to-node.md#the-precondition-that-moved-into-the-type)
 - [A library refusal made unreachable rather than translated](12-leaf-to-node.md#every-clause-the-library-cannot-see)
 - [One predicate per condition, read off the snapshot](12-leaf-to-node.md#every-clause-the-library-cannot-see)
 - [Three claims about bytes, and three shape checks under them](12-leaf-to-node.md#three-claims-about-bytes)

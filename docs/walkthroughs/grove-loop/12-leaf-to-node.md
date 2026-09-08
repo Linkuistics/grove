@@ -184,10 +184,10 @@ pub(crate) fn leaf_decompose(
     first_child_slug: &Slug,
     kind_override: Option<Kind>,
 ) -> Result<(PathBuf, PathBuf)> {
-    // Grove's own precondition, before the tree is even observed, so a bad slug
-    // leaves the leaf un-decomposed. It could sit inside the guard with the rest
-    // of them; it stays out here because it needs nothing from the tree, and
-    // refusing without taking an exclusive lock is strictly kinder.
+    // No check here: `Slug` is the precondition, discharged wherever one was
+    // built. Text the grammar disclaims never becomes a `Slug`, so a bad child
+    // slug leaves the leaf un-decomposed — and `grove-llm` spells it before it
+    // opens the tree, so refusing one there costs no exclusive lock.
     let child_slug = first_child_slug;
 
     let root = tree.root().to_path_buf();
@@ -248,45 +248,55 @@ needs — the key, the slug, the kind and the predicted child key — get out of
 snapshot's lifetime alive.
 
 <a id="the-precondition-that-moved-into-the-type"></a>
-### A precondition that moved into the type, and the comment left behind
+### A precondition that moved into the type, and the comment that says so
 
-Lines 538 to 542 need adjudicating, because they describe a check that is no
-longer there.
+Lines 538 to 541 talk about a precondition and line 542 performs none, which is
+the shape this section exists to adjudicate.
 
-    // Grove's own precondition, before the tree is even observed, so a bad slug
-    // leaves the leaf un-decomposed. It could sit inside the guard with the rest
-    // of them; it stays out here because it needs nothing from the tree, and
-    // refusing without taking an exclusive lock is strictly kinder.
+    // No check here: `Slug` is the precondition, discharged wherever one was
+    // built. Text the grammar disclaims never becomes a `Slug`, so a bad child
+    // slug leaves the leaf un-decomposed — and `grove-llm` spells it before it
+    // opens the tree, so refusing one there costs no exclusive lock.
     let child_slug = first_child_slug;
 
-**The line refuses nothing.** It is a rebinding of a parameter whose type is
-already `&Slug`, and a `Slug` cannot be constructed from text the grammar
-disclaims — chapter 3's rule. There is no precondition here to sit inside the
-guard or outside it, and nothing is being refused with or without an exclusive
-lock.
+**The line refuses nothing, and the comment opens by saying so.** It is a
+rebinding of a parameter whose type is already `&Slug`, and a `Slug` cannot be
+constructed from text the grammar disclaims — chapter 3's rule. There is no
+check here to sit inside the guard or outside it.
 
-**The claim the comment makes is still true; the mechanism it gives is not.** A
-bad child slug really does leave the leaf un-decomposed, and this file says so
-1,386 lines further down, in the doc comment of the test that used to assert it:
-*the claim used to be about ordering: the slug was validated before the rename,
-so a bad one left no half-built node directory. Since `loop-crate-verbs-k21` the
-verb takes a [`Slug`], so the text is read by the type that owns it and a bad
-slug never reaches a tree at all.* The file is its own refutation, and the two
-passages disagree about which mechanism holds the claim.
+**The claim is still true, and it is not this function that holds it.** A bad
+child slug really does leave the leaf un-decomposed: the refusal happens at
+construction, and construction is the caller's. What moved is who holds the
+claim — from a check this function performed to a type its signature demands.
 
-This is the class chapter 11 met at `default_root_slug` and chapter 6 met at the
-stale `llm_cli` address: a comment that outlived what it described. It is
-adjudicated here and fixed by `stale-slug-precondition-comment-k162`, which is
-deferred behind this book because these bytes are now reproduced by a finished
-page and the fix has to land inside the file's frozen 2,725 lines.
+**The cost of that refusal is the caller's too, and it is not uniform.** Grove's
+own CLI builds the child slug before it opens the tree for writing, so there a
+bad spelling is refused before a lock exists to take. The crate's own tests are
+the other way round: `leaf_decompose(guard(&g), &node, &a_slug("x"), …)` is
+evaluated left to right, so the guard is taken first and the slug is built inside
+it. Which is why the comment names `grove-llm` rather than claiming an ordering
+for every caller — the signature takes an already-open `Guard`, so this verb
+cannot enforce one, and the old comment's *refusing without taking an exclusive
+lock* read as a property of the function when it was only ever a property of one
+call site.
 
-**One clause survives a rewrite, and it is not about this function.** *Before the
-tree is even observed* is false of `leaf_decompose` — the caller has already
-opened the tree and handed it in, and the next line reads its snapshot — but it is
-true of the thing it was about: a `Slug` is built by whoever calls the verb,
-before `write` is ever reached, so a spelling grove refuses costs no exclusive
-lock. The claim was right and stayed right; what moved is who holds it, from a
-check this function performed to a type its signature demands.
+This file says the same thing 1,386 lines further down, in the doc comment of the
+test that used to assert it: *the claim used to be about ordering: the slug was
+validated before the rename, so a bad one left no half-built node directory.
+Since `loop-crate-verbs-k21` the verb takes a [`Slug`], so the text is read by
+the type that owns it and a bad slug never reaches a tree at all.*
+
+**The two passages agree now, and they did not when this chapter was drafted.**
+The production comment used to open *Grove's own precondition, before the tree is
+even observed*, and to weigh putting the check inside the guard against leaving
+it outside — a choice described in a function that performs no check either way.
+It was the class chapter 11 met at `default_root_slug` and chapter 6 met at the
+stale `llm_cli` address: a comment that outlived what it described, and one no
+instrument reports, because `//` is invisible to `cargo doc`. Adjudicating it
+here is what produced `stale-slug-precondition-comment-k162`, and the comment
+above is what that leaf wrote: four lines replacing four, so the file stayed at
+2,725 lines and no fragment range, ownership range or manifest count in this book
+had to move.
 
 <a id="every-clause-the-library-cannot-see"></a>
 ## Every clause is a precondition the library cannot see
@@ -1048,8 +1058,9 @@ verb*.
 <!-- /fragment -->
 
 **`decompose_cannot_be_reached_with_a_bad_child_slug`** is the test whose doc
-comment refutes the production comment adjudicated above, and it is worth reading
-as a record of a claim that changed shape. It no longer calls `leaf_decompose` at
+comment recorded the move into the type before the production comment above
+caught up with it, and it is worth reading as a record of a claim that changed
+shape. It no longer calls `leaf_decompose` at
 all. It asserts `Slug::new("Bad Slug").is_err()` and then that the tree is
 untouched — which it must be, since nothing was called.
 

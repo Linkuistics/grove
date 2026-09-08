@@ -580,7 +580,7 @@
 - [A structural comparison that catches an addition no `contains` can see](19-the-core.md#composition)
 - [An alarm placed in the suite rather than the build, deliberately](19-the-core.md#composition)
 - [A clause shed to the skill because it is a consequence rather than a fact](19-the-core.md#the-value-and-the-clause)
-- [A rule id wrong by one prefix, invisible to every instrument](19-the-core.md#the-value-and-the-clause)
+- [A rule id that was wrong by one prefix, invisible to every instrument](19-the-core.md#the-value-and-the-clause)
 - [A chapter whose block can refuse nothing, and what that leaves to measure](19-the-core.md#what-could-not-move-here)
 - [The four things a loop chooses and a runner cannot](20-the-loop.md#four-things-a-runner-cannot-choose)
 - [A module that spawns nothing it supervises](20-the-loop.md#four-things-a-runner-cannot-choose)

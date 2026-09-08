@@ -231,7 +231,7 @@ pub fn compose(mandate: &Mandate<'_>) -> String {
 /// **Two elements, and the third one left**: identity and the resolved root, and
 /// no *do not probe for it*. That clause is a normative consequence of a value,
 /// and the closed fact test hands every such consequence to the skill — the
-/// spine's `skill-stated-vcs-is-definitive` states it, and stating it here again
+/// spine's `stated-vcs-is-definitive` states it, and stating it here again
 /// would be the second source the core exists to avoid.
 ///
 /// Still deliberately **not** the commit-boundary commands — those live in the

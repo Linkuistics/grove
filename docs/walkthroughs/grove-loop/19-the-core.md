@@ -809,7 +809,7 @@ The last item, and the only value this module computes rather than receives.
 /// **Two elements, and the third one left**: identity and the resolved root, and
 /// no *do not probe for it*. That clause is a normative consequence of a value,
 /// and the closed fact test hands every such consequence to the skill — the
-/// spine's `skill-stated-vcs-is-definitive` states it, and stating it here again
+/// spine's `stated-vcs-is-definitive` states it, and stating it here again
 /// would be the second source the core exists to avoid.
 ///
 /// Still deliberately **not** the commit-boundary commands — those live in the
@@ -841,22 +841,46 @@ the closed test hands every such consequence to the skill. The clause is not los
 it is one rung up, and the spine's *do not re-derive which lane this working tree
 is on* is where a session meets it.
 
-**The record naming that rule does not resolve, and this is the one address in
+**The record naming that rule once did not resolve, and it was the one address in
 the block no instrument checks.** The comment attributes the shed clause to
-`skill-stated-vcs-is-definitive`. The methodology's rule inventory is
+`stated-vcs-is-definitive`, and the methodology's rule inventory —
 `plugins/grove/conformance/rules.tsv`, 169 rows whose ids are unique across the
-file, and the rule is there under the id **`stated-vcs-is-definitive`**, owned by
-`grove/SKILL.md` — no id in the file begins with `skill-`. So the claim is true
-twice over: the rule exists, and the spine's own text states it. Only the
-identifier is wrong, by one prefix. This is the class chapter 16 met in a comment
-naming a reader called `probe_lease_holder` — a name in a comment resolving to
-nothing, and repaired there since — and it is invisible to every instrument this
-book has used: it is not an intra-doc link, so `cargo doc` is silent; it is not a
-Markdown link, so no link sweep sees it; and it is not an `ADR <slug>` citation,
-so `every_adr_citation_names_a_decision_record` does not read it either. It was found by enumerating the block's backticked tokens and
-resolving each one, which is the only procedure that finds this class.
-`prompt-rule-id-prefix-k174` holds the fix, deferred behind this book alongside
-`unresolved-doc-links-k151`, which has since repaired the link at line 28.
+file — carries exactly that id, owned by `grove/SKILL.md`. As this chapter first
+read it the comment spelled it `skill-stated-vcs-is-definitive`, and no id in the
+inventory begins with `skill-`. So the claim was true twice over — the rule
+exists, and the spine's own text states it — and only the identifier was wrong,
+by one prefix. `prompt-rule-id-prefix-k174` dropped the prefix, and because
+removing six characters cannot lengthen a line the file is still 245 lines: no
+ownership range, manifest `lines` value or fragment range on this page moved.
+
+**The prefix was not the inventory's own earlier grain, which is the first thing
+a repair here has to rule out.** That file's header does record a regrading — but
+of its *owner* column, which used to be written skill-relative and stopped being
+unambiguous once every kind owned a file called `SKILL.md`. That is the second
+column, not the first, and it never licensed a `skill-` id. The prefix belongs to
+a namespace the changelog still carries: the composed methodology's units, which
+were spelled `skill-bootstrap`, `skill-do-not-pick-again`, `skill-finish-cycle`
+in the era before `content/` was deleted at `delete-provisioning-k19`. Their
+stems differ from the rule ids that state the same things today —
+`bootstrap-order`, `no-second-pick` — so the broken token was a unit prefix over
+a rule stem, and named nothing under either scheme. It is also the only rule-id
+citation in any crate's `src/`: enumerating every backticked kebab-case token
+under `crates/*/src` and resolving each against the 169 ids returns this one and
+nothing else. The suites cite the inventory more freely — ten ids across
+`composition_guidance.rs`, `commit_guidance.rs` and `plugin_fallback.rs` — and
+every one of those resolves; run over every `.rs` file in the workspace, the same
+enumeration now returns no token that becomes an inventory id when a leading
+segment is dropped. The repair had one site because there was only ever one.
+
+**And it sat in the blind spot of every instrument this book has used.** It is
+not an intra-doc link, so `cargo doc` is silent; it is not a Markdown link, so no
+link sweep sees it; and it is not an `ADR <slug>` citation, so
+`every_adr_citation_names_a_decision_record` does not read it either. It was
+found by enumerating the block's backticked tokens and resolving each one, which
+is the only procedure that finds this class — the class chapter 16 met in a
+comment naming a reader called `probe_lease_holder`, a name resolving to nothing
+and repaired there since. `unresolved-doc-links-k151` repaired the other broken
+address in this same root, the link at line 28.
 
 **And one clause the module keeps out on a different ground.** The
 commit-boundary commands are *not* here, and the reason cited is

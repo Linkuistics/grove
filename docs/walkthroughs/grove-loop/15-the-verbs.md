@@ -925,15 +925,27 @@ The header says the two are *the only way to put a tree into the two states the
 verb suite has to test against*. One of those states is reached that way:
 `crates/grove-loop/tests/verbs.rs` calls `driver::materialize_finish` at lines 495
 and 516, in the two `finish_commit` tests, because nothing else may write a
-`finish` leaf. The other is not. `driver::transition_to_current` has exactly one call
-site in the whole workspace — `crates/grove-loop/src/loop_driver.rs:243`, which is
-production — and the suite reaches a scaffolded grove through `verbs::root_init`
-over a `Vacancy` instead, in the `scaffold` helper at `tests/verbs.rs:75`. So the
-verb suite tests against one of the two states, not both, and the module's
-publicity is earned by `materialize_finish` alone. The decision is still the
-right one — a crate-private module would cost a second copy of the jj fixture
-harness, as the header says — but the reason it gives covers one of its two
-subjects.
+`finish` leaf. The other is not. `driver::transition_to_current` has one
+production call site, `crates/grove-loop/src/loop_driver.rs:243`, and this crate's
+verb suite does not use it at all: `tests/verbs.rs` reaches a scaffolded grove
+through `verbs::root_init` over a `Vacancy` instead, in the `scaffold` helper at
+line 75. So the verb suite tests against one of the two states, not both, and the
+justification the header gives is earned by `materialize_finish` alone.
+
+**The publicity is nonetheless spent, and by a caller the header does not
+describe.** `default-root-slug-two-spellings-k159` added
+`both_scaffolding_doors_name_the_first_leaf_the_same` to
+`crates/grove-llm/tests/root_init.rs`, which calls
+`grove_loop::driver::transition_to_current` to scaffold a grove the way the driver
+does and compare its first leaf against `root-init`'s ([chapter
+11](11-a-grove-begins.md#the-value-nothing-holds) carries why). That is a *second
+package's* test rather than this crate's verb suite, so it discharges nothing the
+header claims — but it is the first thing outside this crate to call the
+operation, which is exactly what a `pub` on a module nothing outside called was
+paying for in advance. The decision is still the right one — a crate-private
+module would cost a second copy of the jj fixture harness, as the header says —
+and the gap between the reason given and the use made is the finding, not the
+`pub`.
 
 The `flock` argument arrives here for the fourth time and in its most consequential
 form: it is *why they take a worktree path rather than an opening*. The driver

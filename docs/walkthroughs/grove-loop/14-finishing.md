@@ -318,14 +318,16 @@ illustrative.
 
 Two things about it are worth a reader's care, and both are recorded rather than
 argued here. The wrapper `default_root_slug` that validates it into a `Slug` is
-[chapter 11's](11-a-grove-begins.md#the-value-nothing-holds), sixty lines below
-in the file, and its own doc comment opens *The slug `root-init` uses when
-nobody supplied one* — which `root_init` does not, taking a validated `Slug`
-from its caller; the one caller `default_root_slug` has anywhere is line 82 of
-this block. And the string `"plan"` is spelled a second time, independently, as
-`#[arg(default_value = "plan")]` in `crates/grove-llm/src/cli.rs`. Chapter 11
-established by mutation that each literal is pinned by its own test and their
-*agreement* by none. Both findings are chapter 11's to carry; this chapter needs
+[chapter 11's](11-a-grove-begins.md#the-value-nothing-holds), at line 351 of this
+file and so 295 lines below the constant; its doc comment used to open *The slug
+`root-init` uses when nobody supplied one* — which `root_init` does not, taking a
+validated `Slug` from its caller — and now names the one caller
+`default_root_slug` has anywhere, which is line 82 of this block. And the string
+`"plan"` is spelled a second time, independently, as
+`#[arg(default_value = "plan")]` in
+`crates/grove-llm/src/cli.rs`. Chapter 11 established by mutation that each
+literal was pinned by its own test and their *agreement* by none, and records the
+test that now holds them equal. Both are chapter 11's to carry; this chapter needs
 only that the constant exists because the driver has nobody to ask.
 
 <!-- fragment «finishing-current-transition» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="58-63" parent="finish-transition" -->

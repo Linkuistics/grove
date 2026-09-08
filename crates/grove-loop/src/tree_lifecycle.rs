@@ -348,8 +348,8 @@ pub(crate) fn root_init(vacancy: TreeVacancy, slug: &Slug, kind: &Kind) -> Resul
     initialize_grove(vacancy, &name, slug, kind)
 }
 
-/// The slug `root-init` uses when nobody supplied one, and the only slug the
-/// driver's own scaffold can use.
+/// The slug the driver's own scaffold names a grove with; its one caller is
+/// [`transition_to_current`]. `root-init` defaults in clap, held equal by a test.
 fn default_root_slug() -> Slug {
     Slug::new(DEFAULT_ROOT_SLUG).expect("the default root slug is a valid slug")
 }

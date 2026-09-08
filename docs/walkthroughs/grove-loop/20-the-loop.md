@@ -918,10 +918,14 @@ precisely because a session may not call them.
 
 **This loop body is the only production call site of either of them**, which is
 what the enumeration shows rather than what the module's visibility implies.
-`crate::driver::transition_to_current` is called at line 243 and nowhere else in
-the workspace; `crate::driver::materialize_finish` is called at line 256 and,
-beyond that, only from `crates/grove-loop/tests/verbs.rs`, which is evidence and
-not a root. The count needs the module prefix to be true: `tree_lifecycle`'s
+`crate::driver::transition_to_current` is called at line 243 and, beyond that,
+only from `crates/grove-llm/tests/root_init.rs`, which is evidence and not a root;
+`crate::driver::materialize_finish` is called at line 256 and, beyond that, only
+from `crates/grove-loop/tests/verbs.rs`, which is evidence and not a root either.
+The symmetry is recent: the first of those two test call sites arrived with
+`default-root-slug-two-spellings-k159`, and before it `transition_to_current` had
+no caller outside this crate at all. The count needs the module prefix to be
+true: `tree_lifecycle`'s
 functions of the same two names carry twelve further call sites between them, all
 inline tests in that file, and a sweep for the bare names would return them and
 read as though the operations had many callers. Chapter 15 recorded the

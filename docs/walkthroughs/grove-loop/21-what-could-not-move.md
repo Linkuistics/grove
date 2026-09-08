@@ -238,21 +238,34 @@ together.**
 
 | Value | Stated in | And again in | What holds them in step |
 |---|---|---|---|
-| The default root slug `plan` ([11](11-a-grove-begins.md)) | `DEFAULT_ROOT_SLUG` | a second crate's argument default | **Nothing** |
+| The default root slug `plan` ([11](11-a-grove-begins.md)) | `DEFAULT_ROOT_SLUG` | a second crate's argument default | **One test**, and it postdates the reading |
 | The four slot names ([18](18-which-files.md)) | `SLOTS` | the operator-facing configuration document | A comment, checked by no one |
 | `PLUGIN` ([19](19-the-core.md)) | the constant | a marketplace manifest in another directory | **One test** |
 | `CHANNEL_VAR` ([20](20-the-loop.md)) | this crate | the binary that reads it back, with no shared constant | Renaming it makes **nine tests** fail or hang |
 
 Read down the last column and the four are a ladder rather than four instances of
-one lapse: nothing, a comment, one test, nine tests. That is a range, and the
-range is the finding — the crate is not careless about restated values, it is
-*inconsistent* about them, and the inconsistency is invisible from any one page
-because each page has exactly one instance of it. The first rung already has a
-leaf against it; the book records the other three and corrects none of them,
-because the corpus is frozen and a book may not edit what it proves.
+one lapse: a comment nobody checks, two values each held by a single test, and one
+held by nine. That is a range, and the range is the finding — the crate is not
+careless about restated values, it is *inconsistent* about them, and the
+inconsistency is invisible from any one page because each page has exactly one
+instance of it.
+
+**The first row has moved since the chapter that found it, and the column says
+so.** When chapter 11 measured the default root slug its agreement was held by
+nothing, which is the reading that put a leaf against it;
+`default-root-slug-two-spellings-k159` closed the gap with a single test in
+`crates/grove-llm/tests/`, a directory that is neither book's corpus — but the
+repair was not free of the freeze, and this page is the wrong one to pretend
+otherwise. It edited two lines of frozen source, the `default_root_slug` doc
+comment, which moved the fragment reproducing them; and the `grove-llm` book reads
+that test directory twice without owning it, in a console transcript and in a
+total, so both moved by one. The other three rows the book records and corrects
+none of them, because the corpus is frozen and a book may not edit what it proves
+— and the ladder is the shorter for it: what was *nothing, a comment, one test,
+nine tests* is now floored at one comment.
 
 **None of that makes the code wrong**, and it is worth saying in the same breath
-as the table. Every one of the four values is correct today, and two of the
+as the table. Every one of the four values is correct today, and three of the
 four are held by a test. What the assembly shows is the shape of the crate's
 answer to its own third cost: it prefers one definition, says so, and pays for a
 second statement four times where a second reader lives somewhere the first

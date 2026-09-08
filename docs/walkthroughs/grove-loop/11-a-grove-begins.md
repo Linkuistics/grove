@@ -134,8 +134,8 @@ with, read as a coverage fact.
 
 <!-- fragment «grove-beginning-default-slug» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="351-356" parent="grove-beginning" -->
 ````rust
-/// The slug `root-init` uses when nobody supplied one, and the only slug the
-/// driver's own scaffold can use.
+/// The slug the driver's own scaffold names a grove with; its one caller is
+/// [`transition_to_current`]. `root-init` defaults in clap, held equal by a test.
 fn default_root_slug() -> Slug {
     Slug::new(DEFAULT_ROOT_SLUG).expect("the default root slug is a valid slug")
 }
@@ -144,13 +144,13 @@ fn default_root_slug() -> Slug {
 <!-- /fragment -->
 
 <a id="the-value-nothing-holds"></a>
-### The value nothing holds
+### The value chosen twice, and what holds it
 
 Five lines, and the reader should stop on them, because this is the *on the way
 out — the policy* question at its smallest: **the layer chose a value, and the
 book's own test asks whether a chosen value is stated where a reader can find
-it.** It is stated here. It is also stated somewhere else, and the two statements
-are not connected.
+it.** It is stated here. It is also stated somewhere else, and what connects the
+two statements is the rest of this section.
 
 `DEFAULT_ROOT_SLUG` is `"plan"`, declared at line 56 of this file — which is
 **chapter 14's block**, not this one, because the constants sit above the finishing
@@ -158,30 +158,85 @@ code the file opens on. `default_root_slug` wraps it in a `Slug`, and the `expec
 is honest: the constant is a literal this crate controls, so a failure there is a
 build-time mistake rather than a runtime condition.
 
-**The first clause of that doc comment names a caller the function does not
-have.** *The slug `root-init` uses when nobody supplied one* — `root_init` takes
-`slug: &Slug` and never falls back. Enumerating the call sites settles it: across
-`crates/`, `default_root_slug` and `DEFAULT_ROOT_SLUG` occur at the definition,
-the constant, and exactly **one** call — `transition_to_current`, at line 82,
-which is the driver's own scaffold and is the comment's second clause. That clause
-is exactly right. `grove-llm root-init` with no argument gets its default from a
-different place entirely: `#[arg(default_value = "plan")]`, in
+**The doc comment names its one caller, and until this book was finished it named
+one the function does not have.** It opened *The slug `root-init` uses when nobody
+supplied one* — and `root_init` takes `slug: &Slug` and never falls back.
+Enumerating the call sites settles it: across `crates/`, `default_root_slug` and
+`DEFAULT_ROOT_SLUG` occur at the definition, the constant, and exactly **one**
+call — `transition_to_current`, at line 82, which is the driver's own scaffold and
+was the comment's second clause. That clause was always exactly right; the first
+was the defect, and `default-root-slug-two-spellings-k159` replaced it with the
+caller the function has. `grove-llm root-init` with no argument gets its default
+from a different place entirely: `#[arg(default_value = "plan")]`, in
 `crates/grove-llm/src/cli.rs`.
 
 So the value is chosen twice, in two crates, as two literals that happen to
-match — and **nothing holds them to each other**. That is not a reading of the
-code; it is a measurement. Changing the constant to `"mutant"` in a copy of the
-workspace reddens exactly one test of 558, and it is
+match — and when this chapter was drafted **nothing held them to each other**.
+That was not a reading of the code; it was a measurement. Changing the constant to
+`"mutant"` in a copy of the workspace reddened exactly one test of 558, and it was
 `transition_initializes_an_absent_grove_under_one_exclusive_guard` in this
 chapter's own block, which asserts the picked leaf is `01-requirements--plan-k1.md`.
-`root_init_default_slug_is_plan`, which drives the binary, stays green throughout,
-because it is pinned to the clap literal. Each spelling has an observer; their
-agreement has none.
+`root_init_default_slug_is_plan`, which drives the binary, stayed green throughout,
+because it is pinned to the clap literal. Each spelling had an observer; their
+agreement had none.
 
-The book adjudicates this rather than repeating it. The comment's second clause
-is true and the first is not, and the crate's two defaults are independent.
-`default-root-slug-two-spellings-k159` holds the repair, deferred behind this
-book because these bytes are reproduced on this page.
+**What k159 added is an observer of the agreement**, and the shape of it is worth
+a reader's attention because it is the cheapest thing that could have worked.
+`both_scaffolding_doors_name_the_first_leaf_the_same`, in
+`crates/grove-llm/tests/root_init.rs`, opens both doors and compares what comes
+out: it runs `root-init` with no argument against a fixture repository, calls
+`grove_loop::driver::transition_to_current` against a bare directory, and asserts
+the two first leaves carry the same name. It lives in `grove-llm` because that is
+the only package that can reach both spellings. `DEFAULT_ROOT_SLUG` is private, so
+what any test can observe is its *effect* through `driver::transition_to_current`;
+the clap default is this package's own, reachable either by running the binary or
+in-process through `grove_llm::cli`, which is why the library target exists at all.
+`crates/grove` takes `grove-loop` as its only grove dependency and so reaches one
+half; `grove-loop` cannot reach the other at all. And the test opens the driver's
+door by calling it rather than through a verb, because `transition_to_current`
+runs before any session exists and no verb exposes it — which is [chapter
+15's](15-the-verbs.md#the-two-that-would-have-made-it-fourteen) reading of
+`driver.rs`, not this chapter's.
+
+**Re-running both mutations says the rung is no longer empty, and corrects the
+first reading while it is here.** The harness is this chapter's, described under
+[*What the refusals are worth,
+measured*](11-a-grove-begins.md#what-the-refusals-are-worth-measured), with three
+differences stated rather than smoothed. The copy carries the plugin marketplace,
+so ten `prompt.rs` tests fail before any mutation instead of eleven. The two
+crates' suite has grown to 560, 559 of them before k159 added its own. And **the
+constant's mutant must be relinked into the `grove` binary before the suite runs**
+— `cargo build -p grove --bins` after the edit, not before it — because
+`crates/grove-loop/tests/driver_lease.rs` drives that binary from outside. Skip
+that step and the run reuses a `grove` built from unmutated source, which is how
+the *exactly one test* above was arrived at.
+
+Against a control of 560 with those ten failures, the constant mutation reddens
+**three** tests: the lock-count one above,
+`both_scaffolding_doors_name_the_first_leaf_the_same`, and
+`bare_scaffolding_is_anchored_before_the_configured_command_inherits_git_context`,
+which scaffolds a grove by running the driver against a worktree that has none.
+The clap mutation reddens **eight**, the new one among them. Their intersection is
+a single test and it is the new one: the only observer in the suite that both
+mutations reach, which is what *holding an agreement* means when the agreement is
+between two literals nothing can merge. Take k159's test back out and the
+intersection is empty, which is the finding above restated as a measurement rather
+than as a reading.
+
+The repair k159 did not make is worth naming, because a reader reaches for it
+first. The CLI could have read the crate's constant instead, leaving one spelling
+and nothing to keep in step — which is the preference [chapter
+21](21-what-could-not-move.md#stated-twice) records this crate stating elsewhere,
+about `VERSION`. It was not taken because `cli.rs` line 327 is the `grove-llm`
+book's frozen corpus — it is a root of that book and of no other — so changing it
+moves a reproduced fragment, that book's ledger and its validator run, plus the two
+places this book quotes the literal in prose. **The route taken was cheaper, not
+free**, and the difference is worth stating exactly: a test under
+`crates/grove-llm/tests/` is a root of neither book, but the `grove-llm` book
+*reads that directory twice* — a console transcript naming each test binary's
+count, and a sentence totalling the integration tests — and both moved by one.
+That is a cost argument rather than a correctness one, and naming its real price is
+the honest thing a frozen corpus can do about a repair it priced out.
 
 <a id="there-is-no-second-phase"></a>
 ### There is no second phase, and that is the deletion
@@ -1149,12 +1204,18 @@ instrumentation, met in chapter 7's tests; here the assertion is `1`, and the
 inline comment says what it replaced: classifying the root and creating it were
 separate acquisitions because grove's guard and the library's could not nest.
 
-It is also the **only** observer of `DEFAULT_ROOT_SLUG`, by way of the
-`01-requirements--plan-k1.md` it expects `pick` to answer. It would pass while the
-lock property was broken if `read_count` were incremented somewhere other than the
-opening it is meant to count — which is why chapter 9 put the counter where it
-did — and it would pass while the *slug* property was broken in the CLI, which is
-the finding above.
+It is also one of this crate's **two** observers of `DEFAULT_ROOT_SLUG`, by way of
+the `01-requirements--plan-k1.md` it expects `pick` to answer; the other is
+`bare_scaffolding_is_anchored_before_the_configured_command_inherits_git_context`
+in `tests/driver_lease.rs`, which reaches the same constant from the far side, by
+running the `grove` binary against a worktree that has no grove in it. This one
+would pass while the lock property was broken if `read_count` were incremented
+somewhere other than the opening it is meant to count — which is why chapter 9 put
+the counter where it did — and **both** pass while the *slug* property is broken in
+the CLI, because the CLI's default is a second literal neither can see. That is the
+gap [*The value chosen twice*](11-a-grove-begins.md#the-value-nothing-holds)
+measures, and the test `default-root-slug-two-spellings-k159` put in `grove-llm`'s
+fixtures is the one that closes it.
 
 <!-- fragment «root-init-tests-one-operation» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1353-1375" parent="root-init-tests" -->
 ````rust
@@ -1485,14 +1546,16 @@ with the two-phase creation that produced its input. What is left of it is
 `RootShape::Taskless`, which is not a repair but a refusal with the fix named in
 it.
 
-**On the way out — the policy.** Two choices, and they are of different quality.
+**On the way out — the policy.** Two choices, and they were of different quality.
 The **shape** grove chose — a grove is a charter *and* one live leaf, or it is
 nothing — is stated in `initialize_grove`, enforced by one store operation and
 observed by two lock-count tests. The **value** grove chose — the slug `plan` — is
-stated twice, in two crates, and the agreement between the two statements is
-observed by nothing. The layer that stayed got the first one right and the second
-one only half right, and the difference between them is a fair summary of what
-this chapter costs to maintain.
+stated twice, in two crates, and the agreement between the two statements was
+observed by nothing until `default-root-slug-two-spellings-k159` gave it a test.
+The layer that stayed got the first one right by construction and the second one
+right only after the book read it, and the difference between *enforced by the
+shape* and *held by one test* is a fair summary of what this chapter costs to
+maintain.
 
 The grove now exists, and it holds one leaf that `pick` will answer. Chapter 12
 takes that leaf, finds it proved bigger than its brief assumed, and turns it into

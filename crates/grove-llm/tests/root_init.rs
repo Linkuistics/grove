@@ -58,6 +58,23 @@ fn read(repo: &Path, rel: &str) -> String {
     fs::read_to_string(repo.join(rel)).unwrap()
 }
 
+/// The one keyed entry of a freshly scaffolded grove, shaped like [`rel_line`]'s
+/// answer so the two scaffolding doors compare directly. The charter is the only
+/// other name a fresh `.grove/` holds, and it is unkeyed.
+fn sole_leaf(worktree: &Path) -> PathBuf {
+    let leaves: Vec<String> = fs::read_dir(worktree.join(".grove"))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| n != "BRIEF.md")
+        .collect();
+    assert_eq!(
+        leaves.len(),
+        1,
+        "a fresh grove holds one leaf, got {leaves:?}"
+    );
+    PathBuf::from(".grove").join(&leaves[0])
+}
+
 // ---------------------------------------------------------------------------
 // happy path
 
@@ -126,6 +143,40 @@ fn root_init_default_slug_is_plan() {
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
         PathBuf::from(".grove/01-requirements--plan-k1.md")
+    );
+}
+
+/// **The two spellings of the default root slug, held to each other.** `"plan"`
+/// is chosen twice and in two crates: `grove-loop`'s `DEFAULT_ROOT_SLUG`, which
+/// the driver's pre-session scaffold reads because it has nobody to ask, and
+/// this binary's `#[arg(default_value)]`, which `root-init` falls back to. Each
+/// literal already had an observer — `root_init_default_slug_is_plan` above pins
+/// clap's, and `grove-loop`'s
+/// `transition_initializes_an_absent_grove_under_one_exclusive_guard` pins the
+/// constant — but until `default-root-slug-two-spellings-k159` their *agreement*
+/// had none, so either could move alone and leave both suites green. This is the
+/// observer of the agreement: both doors are opened and their first leaves
+/// compared, so mutating either spelling reddens it.
+///
+/// It lives here rather than in `grove-loop` because this is the only package
+/// that can see both: the constant through the library, the clap default through
+/// the binary. It reaches the driver's door directly because there is no verb to
+/// drive it through — `transition_to_current` runs before any session exists.
+#[test]
+fn both_scaffolding_doors_name_the_first_leaf_the_same() {
+    let repo = init_repo();
+    let (stdout, _, ok) = run(repo.path(), &["root-init"]);
+    assert!(ok);
+    let by_root_init = rel_line(&stdout, repo.path(), 1);
+
+    let scaffold = TempDir::new().unwrap();
+    grove_loop::driver::transition_to_current(scaffold.path()).unwrap();
+    let by_driver = sole_leaf(scaffold.path());
+
+    assert_eq!(
+        by_root_init, by_driver,
+        "the two default root slugs have drifted: `root-init` scaffolds \
+         {by_root_init:?} and the driver's own scaffold writes {by_driver:?}"
     );
 }
 

@@ -525,8 +525,8 @@ test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 running 3 tests
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/root_init.rs (target/debug/deps/root_init-fe329a700539d05c)
-running 9 tests
-test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+running 10 tests
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
      Running tests/session_kind_guidance.rs (target/debug/deps/session_kind_guidance-809ed4043a6827d3)
 running 12 tests
 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
@@ -550,7 +550,7 @@ in` clauses and the blank lines between blocks are elided; every test binary is
 shown. What the transcript makes visible, and no chapter could, is the shape of
 the evidence: **both unit-test targets run zero tests, and the doc-tests run
 none.** There is no test inside this corpus at all. Every test named in this
-book's last columns is one of the two hundred and twenty-nine integration tests
+book's last columns is one of the two hundred and thirty integration tests
 under `crates/grove-llm/tests/`, or one in another crate the citing page names —
 all of them outside the four roots this book reconstructs, which is what the
 manifest's dev-dependencies were the only trace of, back in *Orientation*, and

@@ -99,7 +99,7 @@ declared in [chapter 11's blocks](11-a-grove-begins.md#one-operation-or-none) an
 read here. `default_root_slug` and `root_shape` have exactly one caller each
 anywhere in the workspace, and both callers are in this chapter's block, at lines
 82 and 87; `grove_name` has two, of which line 81 is one and chapter 11's
-`initialize_grove` is the other. Chapter 11 reproduces and explains all three and
+`root_init` is the other. Chapter 11 reproduces and explains all three and
 points forward. What is owed here is the account of *what the driver's own
 scaffold is for*, which is this chapter's and no other's.
 

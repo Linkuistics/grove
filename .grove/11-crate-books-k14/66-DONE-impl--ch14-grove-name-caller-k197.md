@@ -59,3 +59,44 @@ leaf of its own if a second instance turns up; this leaf fixes the one instance
 it can name.
 
 ## Decisions (running log)
+
+1. **`root_init`, confirmed by reading the enclosing `fn` at each call site.**
+   `grep -n grove_name crates/grove-loop/src/tree_lifecycle.rs` gives exactly the
+   four hits the task file names — 81, 347, 1023 (the definition), 1300 (the
+   test) — and a workspace-wide `grep -rn grove_name crates/` adds only unrelated
+   identifiers that contain the substring (`concurrent_loops_with_the_same_grove_name…`,
+   `every_grove_name_in_the_tree_is_classified`, `grove_names_in`), so the two
+   call sites are the whole population. Line 81 is inside `transition_to_current`
+   (opens at 76); line 347 is inside `root_init` (opens at 341), whose body is
+   `let name = grove_name(vacancy.root()); initialize_grove(vacancy, &name, …)`.
+   `initialize_grove` (381) takes `name: &str` and never calls the function — it
+   is the *consumer* both callers hand the string to, which is exactly the
+   confusion the sentence made. One word changed, `initialize_grove` →
+   `root_init`; the "two" was already right and the "chapter 11's" still is,
+   since `root_init` is reproduced in chapter 11 at line 93.
+
+2. **The rest of the same sentence was re-derived rather than assumed, because
+   the correction has to leave a true enumeration behind.** `default_root_slug`
+   and `root_shape` do each have exactly one caller in the workspace, at
+   `tree_lifecycle.rs` lines 82 and 87, both inside `transition_to_current` and
+   so both in chapter 14's block. "Chapter 11 reproduces and explains all three"
+   holds for the three functions whose callers the sentence enumerates —
+   `default_root_slug` (11 line 139), `root_shape` (431), `grove_name` (528).
+
+3. **Every other occurrence of `grove_name` in the books was read, and none
+   needed changing.** Six pages name it. Chapter 11's *Two callers, one of them
+   chapter 14's* already said "line 347, in `root_init` above, and line 81, in
+   `transition_to_current`" — correct, and now agreed with rather than
+   contradicted. Chapter 11's test note ("`transition_to_current` calls it too"),
+   its mutation row 9, its docblock-repair passage, chapter 13's helpers-divider
+   paragraph, chapter 14's `Opening::Vacancy` bullet and chapter 1's
+   `join(".grove")` passage make no claim about which functions call it.
+
+4. **No source change, so no ledger or fragment moved.** `book-check --repo .
+   --book docs/walkthroughs/grove-loop --final --check all` is green (13 files,
+   10,557 resolved lines), and `bash scripts/check.sh` reports all 8 principal
+   checks passing with 6 books checked and 0 failing.
+
+5. **Not widened.** The book's other caller counts were not swept, per the task
+   file's note; the only counts touched are the ones inside the corrected
+   sentence.

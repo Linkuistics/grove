@@ -286,8 +286,8 @@ fn every_kind_gets_the_same_signalling_contract() {
 ///
 /// `--done` is an ending only a `finish` session takes, decided by what that
 /// session did, and the shipped `grove-finish` skill states the three outcomes
-/// it chooses between. A prompt naming it would hand the flag to the eighteen
-/// kinds it is not an ending for, in the one channel a session cannot skip.
+/// it chooses between. A prompt naming it would hand the flag to the kinds it
+/// is not an ending for, in the one channel a session cannot skip.
 #[test]
 fn no_prompt_states_the_stop_flag() {
     for kind in shipped_kinds() {

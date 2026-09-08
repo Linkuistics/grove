@@ -1,8 +1,8 @@
 // Fixture-driven tests for `grove-llm kind` on the current session-kind tree.
-// `kind` separates one of the closed nineteen kinds from the leaf filename; it
-// never consults historical `**Kind:**` or `**Harness:**` body metadata. It is a
-// diagnostic and tree-interface verb — the loop driver selects and reads its own
-// leaf in-process, so nothing here routes a launch. With no argument it reads
+// `kind` separates a session kind from the leaf filename; it never consults
+// historical `**Kind:**` or `**Harness:**` body metadata. It is a diagnostic and
+// tree-interface verb — the loop driver selects and reads its own leaf
+// in-process, so nothing here routes a launch. With no argument it reads
 // `pick`'s next live leaf; on an empty grove it emits the standard "no live
 // leaves" diagnostic on stderr and exits 0 (mirroring `brief-chain`). Unknown or
 // malformed filename kinds refuse rather than degrading. Each test stands up a

@@ -651,19 +651,21 @@ addition, and `every_kind_gets_the_same_signalling_contract` cannot either,
 because it compares kinds against each other rather than against a fixed text. The
 test that closes that hole is at the composition below.
 
-**One count in the evidence has gone stale, and the campaign that made it stale is
-this one.** `no_prompt_states_the_stop_flag`'s doc comment says a prompt naming
-`--done` would hand the flag to *the eighteen kinds it is not an ending for*.
-Enumerated today, `plugins/grove/skills/` holds twenty-four directories, twenty-three
-of them `grove-<kind>`, so the flag would reach **twenty-two**. Nineteen is the count
-this module's own header records twice — the nineteen-to-ten reference map and the
-nineteen-to-two ending map that `prompt-names-the-kind-k18` deleted — so the comment
-was right when it was written, and the four kinds between then and now are the size
-of the editorial pipeline that has been installed since. The test itself is
-unaffected: it iterates `shipped_kinds()`, which reads the directory, so the
-assertion has been covering twenty-three kinds while its prose said eighteen.
-`stop-flag-kind-count-k173` holds the correction, and the file is `tests/` — evidence,
-not a root — so no ledger and no page moves with it.
+**One count in the evidence went stale, and the campaign that outran it is this
+one.** `no_prompt_states_the_stop_flag`'s doc comment said a prompt naming `--done`
+would hand the flag to *the eighteen kinds it is not an ending for*. Nineteen is the
+count this module's own header records twice — the nineteen-to-ten reference map and
+the nineteen-to-two ending map that `prompt-names-the-kind-k18` deleted — so the
+comment was right when it was written, and the four kinds between then and now are
+the size of the editorial pipeline this book is being authored through: enumerated at
+`stop-flag-kind-count-k173`, `plugins/grove/skills/` holds twenty-four directories,
+twenty-three of them `grove-<kind>`, so the flag would have reached **twenty-two**.
+The test was never affected: it iterates `shipped_kinds()`, which reads the
+directory, so the assertion had been covering twenty-three kinds while its prose said
+eighteen. **The repair deletes the number rather than retyping it** — the comment now
+reads *the kinds it is not an ending for*, which is everything the sentence needed
+and cannot be outrun the next time the plugin grows. The file is `tests/` — evidence,
+not a root — so no ledger and no page moved with it.
 
 <a id="what-one-launch-varies"></a>
 ## Everything one launch varies

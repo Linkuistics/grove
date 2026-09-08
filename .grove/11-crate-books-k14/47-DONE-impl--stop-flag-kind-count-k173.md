@@ -72,3 +72,27 @@ of the shipped kind set*, enumerated from the directory rather than from a
 pattern.
 
 ## Decisions (running log)
+
+1. **The count is deleted, not retyped, at both sites.** The task file offered
+   this as the option worth weighing, and both sentences carry their meaning
+   without a cardinality: `prompt.rs` now reads *the kinds it is not an ending
+   for*, and `kind.rs` now reads *a session kind*. Retyping **twenty-two** would
+   have restored a fact that `no_prompt_states_the_stop_flag` already derives at
+   runtime from `shipped_kinds()`'s directory read — a duplicate with no check
+   keeping the two in step, and stale again the next time `plugins/grove/skills/`
+   grows. Enumerated before the edit: twenty-four directories, twenty-three of
+   them `grove-<kind>`, so the flag would have reached twenty-two.
+2. **`kind.rs` lost *closed* along with the number.** The word asserted a design
+   property `open-kind-k20` reversed and
+   `docs/adr/a-kind-is-an-open-token.md` records; *a session kind* drops both the
+   stale count and the stale premise in one phrase, which is why no replacement
+   adjective was reached for.
+3. **Chapter 19's paragraph now describes the repaired comment** rather than
+   forecasting the repair: the staleness and its cause stay (they are what the
+   page teaches), moved to past tense, and the closing sentences state that the
+   number was deleted and what the comment reads now. `concept-index.md` line
+   577 — *A count in a comment outrun by the pipeline that authored this book* —
+   still names what the paragraph teaches and was left as it stands.
+4. **No ledger moved.** Both files are `tests/`; no fragment in any book declares
+   either as `source`. `book-check --final --check all` is green over all six
+   books, and `scripts/check.sh` passes all eight principal checks.

@@ -27,7 +27,7 @@ mechanism.
 
 **The size, stated once and checkably.** `driver_lease.rs` is 1,383 lines, which
 makes it the **fourth** largest of the thirteen roots, behind `tree_lifecycle.rs`
-at 2,725, `task_tree.rs` at 2,023 and `task_name.rs` at 1,714. Split at its
+at 2,725, `task_tree.rs` at 2,038 and `task_name.rs` at 1,714. Split at its
 `#[cfg(test)]` line it yields this chapter's 819 lines and chapter 17's 564 — and
 819 is the **largest single owned block in the book**, ahead of chapter 13's 808
 and chapter 12's 775. A rank is easy to get wrong here because the root and the

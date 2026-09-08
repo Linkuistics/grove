@@ -5,7 +5,7 @@
 <a id="assembly"></a>
 ## The page that owns no source
 
-This chapter owns none of the crate's 10,542 lines. The fragment graph closed at
+This chapter owns none of the crate's 10,557 lines. The fragment graph closed at
 the end of [chapter 20](20-the-loop.md), where the last of `loop_driver.rs`'s 615
 lines was reproduced and the book's thirty-ninth ownership block turned
 `resolved`; the [source index](source-index.md) records that graph in full and
@@ -419,15 +419,15 @@ and the drafting added to it, because **an early-use row is owed by naming or
 exercising** and the manifest's rows are a floor rather than the set — a rule
 this book established in its own chapter 2 and applied in every chapter after it.
 
-**Owned source.** 445 + 451 + 563 + 700 + 290 + 370 + 322 + 428 + 613 + 518 + 612
-+ 775 + 808 + 530 + 516 + 819 + 564 + 358 + 245 + 615 = 10,542 lines across
-twenty chapters, and 0 for this one. The five parts are 1,714, 2,541, 2,725, 516
+**Owned source.** 445 + 451 + 563 + 700 + 290 + 370 + 322 + 443 + 613 + 518 + 612
++ 775 + 808 + 530 + 516 + 819 + 564 + 358 + 245 + 615 = 10,557 lines across
+twenty chapters, and 0 for this one. The five parts are 1,714, 2,556, 2,725, 516
 and 2,601 lines, with chapter 1's 445 standing outside them. The largest single
 owned block is [chapter 16](16-the-lease.md)'s 819 lines, which is that chapter's
 own enumerated claim; measured per *chapter* rather than per block the range runs
 from those 819 down to [chapter 19](19-the-core.md)'s 245, and the thirty-nine
 blocks themselves run smaller still, down to twenty-two lines. The largest root is
-`tree_lifecycle.rs` at 2,725 lines, split four ways. Thirty-eight per cent of the corpus — 3,984 lines
+`tree_lifecycle.rs` at 2,725 lines, split four ways. Thirty-eight per cent of the corpus — 3,999 lines
 across five roots — is inline `#[cfg(test)] mod tests`, none of it excluded, and
 every line of it is owned and explained by the chapter whose concept it proves.
 
@@ -498,7 +498,7 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/grove-loop --final --check all
-valid: 13 files, 10542 resolved lines, 0 deferred lines, final=true
+valid: 13 files, 10557 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what separates this from every scoped run the twenty drafting
@@ -506,7 +506,7 @@ sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved, and each of this book's first five
 children ended with thousands of lines legitimately deferred; in final mode a
 defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Thirteen files, 10,542 resolved
+page inventory must match the manifest exactly. Thirteen files, 10,557 resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 ```console
@@ -516,7 +516,7 @@ $ bash scripts/check.sh
   book-check docs/walkthroughs/grove-llm
 valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/grove-loop
-valid: 13 files, 10542 resolved lines, 0 deferred lines, final=true
+valid: 13 files, 10557 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
 valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/keyed-launch
@@ -548,7 +548,7 @@ exclusion and its subject to equal the tables in
 `docs/specs/walkthrough-books.md`, the third by attacking a narrowed subject. All of those live in the `grove` crate's
 tests, not this crate's.
 
-The book is complete: thirteen roots, 10,542 lines, twenty-one chapters, two
+The book is complete: thirteen roots, 10,557 lines, twenty-one chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

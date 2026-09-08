@@ -67,7 +67,7 @@ why one page carries both, and it is the reason the chapter can make its rule a
 fact about the code rather than a convention — there is no second path builder to
 disagree with the first.
 
-The chapter owns 370 of `task_tree.rs`'s 2,023 lines, in two blocks: the
+The chapter owns 370 of `task_tree.rs`'s 2,038 lines, in two blocks: the
 production run from `entry_path` to the two small entry readings the walk and the
 resolver need, and the ninety lines the file's own test module opens with. The
 second is the block whose name is `path-composition-tests`, and it carries no
@@ -429,7 +429,8 @@ output.
 requires: a source change shifts every line below it and breaks pages that have
 already proved themselves, so `canonicalisation-sites-k149` reworded the comment
 inside its own line count — seven lines before and seven after, and
-`task_tree.rs` still 2,023 — and carried chapter 5's fragment, this account and
+`task_tree.rs` still at the 2,023 lines it then had — and carried chapter 5's
+fragment, this account and
 the early-use ledger with it. The adjudicating paragraph became this explanation
 rather than a deletion, because the reason a sentence is phrased oddly outlives
 the defect that forced it.
@@ -1242,7 +1243,7 @@ book's carried example is not drawn from them.
 
 `touch`'s constant body is worth one sentence, because it marks the boundary of
 what these tests can prove. **Nothing in this file reads a leaf's body**: there
-is not one `read_to_string` in its 2,023 lines, and `touch` writes the same seven
+is not one `read_to_string` in its 2,038 lines, and `touch` writes the same seven
 bytes into every file it creates. That is the reading surface being a function of
 names, made visible in a fixture. The exception proves it — chapter 8's block
 adds a `touch_body` beside these, for the tests that need a body in order to

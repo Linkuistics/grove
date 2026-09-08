@@ -1364,8 +1364,9 @@ one re-run, and reading the tests cannot answer it — most of them assert
 **The block carries eleven arms that stop or divert control flow.** Each was
 replaced, one at a time, in a copy of the workspace, with a panic carrying a
 sentinel, and the whole of `grove-loop`, `grove-llm` and `grove` was run against
-each — 42 test binaries and 626 tests in all, of which 245 are `grove-loop`'s
-inline module. Ten of the copy's tests fail before any mutation, all of them in
+each — 42 test binaries and 626 tests in all, of which 245 were `grove-loop`'s
+inline module: the workspace as it stood when the mutation ran, one test smaller
+than it is now. Ten of the copy's tests fail before any mutation, all of them in
 `crates/grove-loop/tests/prompt.rs`, which requires the repository it runs in to
 be a jj workspace and the copy is not one; every result below is the difference
 against an unmutated control run of the same copy, so those ten cancel.
@@ -1460,9 +1461,9 @@ looking at a *different* tree from the one the insert planned against. A layer
 that checked against a fresh read would look identical and be a race.
 
 **With this chapter, Part II is complete.** `task_tree.rs` closed at the end of
-chapter 9, all 2,023 lines of it across five chapters; `task_grow.rs` closes
+chapter 9, all 2,038 lines of it across five chapters; `task_grow.rs` closes
 here in one, and the two files together are the 2,541 lines Part II owns. Ten of
-the book's twenty source-owning chapters are now written and 4,700 of its 10,542
+the book's twenty source-owning chapters are now written and 4,715 of its 10,557
 lines are reconstructed — a shade under half — with the remaining 5,842 still
 deferred to their own chapters.
 

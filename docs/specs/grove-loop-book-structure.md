@@ -32,9 +32,10 @@ pages with them, so the authoritative record of the corpus as it now stands is
 [source index](../walkthroughs/grove-loop/source-index.md). The tables here are
 left as written because they are what the chapter cut was decided against, and
 rewriting them would make them false about the decision they record. As of
-`manifest-dependency-clauses-k133` the corpus is 10,542 lines over the same
-thirteen roots, `Cargo.toml` being 68 rather than 59 and chapter 1 owning 445
-rather than 436.
+`unreachable-root-clause-k152` the corpus is 10,557 lines over the same thirteen
+roots, `Cargo.toml` being 68 rather than 59, chapter 1 owning 445 rather than 436,
+`task_tree.rs` standing at 2,038 rather than 2,023, and chapter 8 owning 443
+rather than 428.
 
 **What is different about this corpus.** Thirteen roots and 10,533 lines: 72% of
 the campaign's remaining corpus, and five times the largest book written so far.
@@ -710,8 +711,8 @@ review can check it against the mapping above.
    obligation to attach to. The chapter states the vacancy on the page rather
    than leaving it silent, so a reviewer checking the list against the mapping
    can tell vacuous from omitted. No other Part II chapter is in that position:
-   `task_tree.rs`'s sixty-three tests are nineteen in `pick-tests` (chapter 7),
-   twenty-two in `brief-chain-and-kind-tests` and one in
+   `task_tree.rs`'s sixty-four tests are nineteen in `pick-tests` (chapter 7),
+   twenty-three in `brief-chain-and-kind-tests` and one in
    `pick-with-brief-chain-tests` (chapter 8), and twenty-one in `resolve-tests`
    (chapter 9).
 2. **Supply the argument — `driver_lease.rs` 1–819** (chapter 16). Per mechanism:

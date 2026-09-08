@@ -61,7 +61,7 @@ not have supplied: **path construction**, because the library returns no paths,
 and **refusal precedence**, because an absent root is a condition grove states in
 its own words.
 
-The chapter owns 290 of the file's 2,023 lines, in one block. Six of this file's
+The chapter owns 290 of the file's 2,038 lines, in one block. Six of this file's
 ten blocks carry no `#[test]` at all — the five production blocks and, despite
 its name, `path-composition-tests`, which is the support the source labels *the
 path-taking compositions, which are the tests' alone*; the file's first `#[test]`

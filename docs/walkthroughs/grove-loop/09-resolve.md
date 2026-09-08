@@ -698,10 +698,10 @@ file's order is by convention.
 
 The chapter's second ownership block is lines 1653 to 1996 — 344 lines, 19%
 comment prose, and twenty-one `#[test]` functions. It is the largest test block
-in `task_tree.rs`, ahead of chapter 8's twenty-two tests over 292 lines and
+in `task_tree.rs`, ahead of chapter 8's twenty-three tests over 307 lines and
 chapter 7's nineteen over 255, though it is the least test-heavy of the three by
 proportion: 344 of this chapter's 613 owned lines are tests, against chapter 8's
-319 of 428 and chapter 7's 255 of 322.
+334 of 443 and chapter 7's 255 of 322.
 
 **The source separates it into two labelled sections, and this chapter keeps the
 separation.** Lines 1653 to 1874 are `// ---- resolve`, fifteen tests over the
@@ -719,7 +719,7 @@ in advance. Almost every test here asserts on a *path* — `name_of(&path)` — 
 path is the one thing that several different wrong implementations would agree
 on. Where a test's force actually comes from somewhere else, that is said.
 
-<!-- fragment «resolve-tests» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1653-1996" parent="source-task-tree" -->
+<!-- fragment «resolve-tests» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1668-2011" parent="source-task-tree" -->
 <!-- insert «resolve-tests-fixture» -->
 <!-- insert «resolve-tests-bracket-key» -->
 <!-- insert «resolve-tests-bare-number» -->
@@ -750,7 +750,7 @@ on. Where a test's force actually comes from somewhere else, that is said.
 The section opens on a helper and a fixture rather than on a test, and the doc
 comment on the helper is where the block's design is stated.
 
-<!-- fragment «resolve-tests-fixture» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1653-1691" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-fixture» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1668-1706" parent="resolve-tests" -->
 ````rust
     // ---- resolve ------------------------------------------------------------
 
@@ -824,7 +824,7 @@ outside `task_tree.rs` entirely.
 The first four tests take the key branch through its spellings. The opening one
 sends a bracketed key to the deepest entry the fixture has.
 
-<!-- fragment «resolve-tests-bracket-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1692-1704" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-bracket-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1707-1719" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_by_bracket_key_finds_a_nested_leaf() {
@@ -856,7 +856,7 @@ searched only node directories would pass; the test does not distinguish
 finds a root-level entry, is what closes that reading, and the pair is what
 establishes recursion rather than either alone.
 
-<!-- fragment «resolve-tests-bare-number» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1705-1716" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-bare-number» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1720-1731" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_by_bare_number_finds_a_done_leaf() {
@@ -887,7 +887,7 @@ different things — the first that the *number* branch works, the second that t
 `DONE` infix survives into the answer. A single test carrying two independent
 claims is fine, but it means a failure here does not localise.
 
-<!-- fragment «resolve-tests-pruned» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1717-1745" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-pruned» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1732-1760" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_finds_a_pruned_leaf_by_key() {
@@ -942,7 +942,7 @@ defect — the comment introduces it as *the full `<slug>-k<key>` handle resolve
 too* — but a reader counting handle tests from the section labels alone will
 count six and the true number is seven.
 
-<!-- fragment «resolve-tests-decorative-slug» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1746-1757" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-decorative-slug» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1761-1772" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_bracket_key_ignores_decorative_slug() {
@@ -978,7 +978,7 @@ truly ignored, but the block does not.
 A node is an entry too, and resolving one is where `Located::kind` earns its
 `Option`.
 
-<!-- fragment «resolve-tests-node-by-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1758-1772" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-node-by-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1773-1787" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_key_resolves_a_node_to_its_directory() {
@@ -1011,7 +1011,7 @@ the slug as a kind, say — would pass all three assertions. The claim that a no
 coverage gap in the chapter, and `resolve_handle_of_a_node_resolves_to_its_directory`
 in the second section repeats the same omission.
 
-<!-- fragment «resolve-tests-key-not-found» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1773-1778" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-key-not-found» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1788-1793" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_key_not_found() {
@@ -1030,7 +1030,7 @@ returned `Nothing` for *every* bracketed key would pass this test; the four test
 above are what rule that out. This is the clearest case in the block of a test
 whose force is entirely borrowed from its siblings.
 
-<!-- fragment «resolve-tests-slug-unique» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1779-1790" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-slug-unique» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1794-1805" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_bare_slug_unique_across_dirs() {
@@ -1049,7 +1049,7 @@ whose force is entirely borrowed from its siblings.
 Its twin moves the unique match inside the node directory, so that between them
 the two cover both levels of the fixture.
 
-<!-- fragment «resolve-tests-slug-nested» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1791-1804" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-slug-nested» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1806-1819" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_bare_slug_resolves_a_nested_unique_leaf() {
@@ -1086,7 +1086,7 @@ established only by `resolve_prefers_a_real_slug_over_the_handle_fallback` in th
 second section, which is the one test in the block built out of two slugs that
 overlap.
 
-<!-- fragment «resolve-tests-slug-not-found» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1805-1810" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-slug-not-found» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1820-1825" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_bare_slug_not_found() {
@@ -1110,7 +1110,7 @@ deliberately with three references; this one reaches it by accident.
 One test in the block observes the variant the library has no counterpart for,
 and it is the case the fixture's two `add` leaves were built to produce.
 
-<!-- fragment «resolve-tests-ambiguous» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1811-1832" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-ambiguous» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1826-1847" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_bare_slug_ambiguous_lists_every_match_by_key() {
@@ -1170,7 +1170,7 @@ specific enough to leave no room.
 Two references name things the grammar deliberately cannot reach, and each takes
 a test of its own. The first is the root brief.
 
-<!-- fragment «resolve-tests-root-brief» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1833-1841" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-root-brief» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1848-1856" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_root_brief_is_unreferenceable() {
@@ -1185,7 +1185,7 @@ a test of its own. The first is the root brief.
 <!-- /fragment -->
 The second is `.`, which does reach an answer — just not an entry.
 
-<!-- fragment «resolve-tests-dot» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1842-1851" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-dot» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1857-1866" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_dot_is_the_grove_root_itself() {
@@ -1226,7 +1226,7 @@ snapshot — and a version that walked the tree first and special-cased a miss o
 The section closes on three refusals. The first of them never reaches this
 chapter's code at all.
 
-<!-- fragment «resolve-tests-empty-reference» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1852-1856" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-empty-reference» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1867-1871" parent="resolve-tests" -->
 ````rust
     #[test]
     fn an_empty_reference_names_nothing_and_is_refused_before_the_tree() {
@@ -1248,7 +1248,7 @@ verb surfaces was usually not produced by that verb.
 `Reference::parse` reject whitespace, including a change with no relation to
 resolution.
 
-<!-- fragment «resolve-tests-malformed-bracket» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1857-1863" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-malformed-bracket» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1872-1878" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_malformed_bracket_ref_errors() {
@@ -1274,7 +1274,7 @@ point, an implementation that swapped the two messages would pass unchanged,
 since neither is read. The measurement below is what settles which clauses this
 test actually holds.
 
-<!-- fragment «resolve-tests-absent-root» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1864-1874" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-absent-root» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1879-1889" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_errors_when_grove_root_absent() {
@@ -1316,7 +1316,7 @@ canonical commit and prose handle. The six tests below are the argument that
 `resolve` accepts that spelling, and — more carefully — that it accepts it
 *without* accepting a handle-shaped grammar it never promised.
 
-<!-- fragment «resolve-handle-tests-full-handle» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1875-1891" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-full-handle» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1890-1906" parent="resolve-tests" -->
 ````rust
     // ---- resolve: the full `<slug>-k<key>` handle (task-tree-scheme §5) --------------
 
@@ -1356,7 +1356,7 @@ promises more than its fixture can deliver.
 The next test is the section's argument, and it carries the longest doc comment
 in the block.
 
-<!-- fragment «resolve-handle-tests-terminal-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1892-1940" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-terminal-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1907-1955" parent="resolve-tests" -->
 ````rust
     /// The fallback reads a **terminal key**, not a handle, and nothing before
     /// that key has to be a slug.
@@ -1450,7 +1450,7 @@ rows end in a non-digit, so all three stop at the first clause, and the second �
 digits present but no `-k` marker, which is what `nothing5` would be — is
 exercised by nothing in this block. The trio is one case written three ways.
 
-<!-- fragment «resolve-handle-tests-disambiguates» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1941-1954" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-disambiguates» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1956-1969" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_full_handle_disambiguates_what_a_bare_slug_could_not() {
@@ -1485,7 +1485,7 @@ the first of two `add`s*. What does distinguish them is
 slug does **not** short-circuit — so the handle's answer cannot be the
 short-circuit either. The pair is the argument; neither half is.
 
-<!-- fragment «resolve-handle-tests-node» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1955-1967" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-node» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1970-1982" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_handle_of_a_node_resolves_to_its_directory() {
@@ -1512,7 +1512,7 @@ nothing here or there pins the claim that a node's kind is `None`.
 its key-branch twin, plus one more — since `design` is a unique slug in the
 fixture, an implementation ignoring the `-k1` would pass.
 
-<!-- fragment «resolve-handle-tests-precedence» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1968-1988" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-precedence» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1983-2003" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_prefers_a_real_slug_over_the_handle_fallback() {
@@ -1561,7 +1561,7 @@ implementation that preferred the *longer* match, or the lower position, would
 also pass — but neither is a plausible reading of the code, and this is as close
 to airtight as the block gets.
 
-<!-- fragment «resolve-handle-tests-unmatched» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1989-1996" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-unmatched» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="2004-2011" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_handle_shaped_but_unmatched_is_not_found() {
@@ -1604,7 +1604,9 @@ impossible to say which of `parse_ref`'s three clauses it holds.
 proof that no test reaches it. The other six were replaced one at a time, in a
 copy of the workspace, with a panic carrying a sentinel, and the whole of
 `grove-loop` and `grove-llm` was run against each — 245 inline tests and thirty
-test targets. The result is the failure set attributable to each arm. **Arms 3
+test targets, which is what the crate carried when the mutation ran;
+`unreachable-root-clause-k152` has since added a twenty-third test to chapter 8's
+block, and none of the arms below is one it can reach. The result is the failure set attributable to each arm. **Arms 3
 and 4 were measured a second time**, with `grove` added to the run and every
 failure set diffed against an unmutated control run of the same copy; their rows
 below are that second run's, and the paragraph after the table says why it was
@@ -1732,7 +1734,7 @@ chapters 5 and 6, the walk at 571–637 and kind and briefs at 638–746 in chap
 7 and 8, resolution at 747–1015 here; then the test module's six labelled
 sections and its closing composition — path compositions at 1016–1105, `pick` at
 1106–1360, brief chain and kind at 1361–1652, `resolve` at 1653–1996, and
-`pick + brief-chain together` at 1997–2023. All 2,023 lines of it are now
+`pick + brief-chain together` at 2012–2038. All 2,038 lines of it are now
 reproduced and explained. Four of the crate's thirteen roots are split across
 chapters, and this is the one split the furthest — five ways, against
 `tree_lifecycle.rs`'s four, `task_name.rs`'s three and `driver_lease.rs`'s two —

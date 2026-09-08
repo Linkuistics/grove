@@ -57,7 +57,7 @@ inside it. Two of its steps belong to earlier chapters: `entry.triple()` is the
 library's, and `live_leaf` is chapter 6's — the reading that turns an entry into
 a session kind and a handle, or into `None`.
 
-The chapter owns 322 of `task_tree.rs`'s 2,023 lines, in two blocks. Sixty-seven
+The chapter owns 322 of `task_tree.rs`'s 2,038 lines, in two blocks. Sixty-seven
 are the production run: the `Selection` type and the four functions that produce
 one. The other 255 are the file's `pick` test section, which carries **nineteen**
 of the file's sixty-three `#[test]` functions. That ratio is the chapter's shape,
@@ -350,10 +350,10 @@ of the file's 1,015 production lines; 638 to 1,015 are chapters 8 and 9's.
 The chapter's second ownership block is the file's `pick` test section: 255 lines
 under one section label, carrying nineteen `#[test]` functions — eighteen named
 `pick_*` and one block-opening `select_*`. Two of the file's four blocks that
-hold tests are larger — chapter 8's twenty-two over 292 lines and chapter 9's twenty-one
+hold tests are larger — chapter 8's twenty-three over 307 lines and chapter 9's twenty-one
 over 344 — but of the six chapters that read `task_tree.rs` and `task_grow.rs`,
 this is the most test-heavy by proportion: 255 of its 322 owned lines are tests,
-against chapter 8's 319 of 428 and chapter 9's 344 of 613. The block introduces no fixture of its own — all
+against chapter 8's 334 of 443 and chapter 9's 344 of 613. The block introduces no fixture of its own — all
 nineteen of its `fn`s are the tests — and every tree below but one is built with
 `grove`, `touch` and `mknode`, three of the fixtures chapter 6 read. The
 exception is the symlink test, which reaches past them to `fs::write` and

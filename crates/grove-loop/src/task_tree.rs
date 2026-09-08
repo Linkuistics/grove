@@ -1486,7 +1486,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn brief_chain_errors_when_leaf_outside_grove_root() {
+    fn brief_chain_errors_when_leaf_name_is_not_task_shaped() {
         let (tmp, g) = grove();
         touch(&g, "BRIEF.md");
         let stray = tmp.path().join("stray.md");
@@ -1498,8 +1498,23 @@ pub(crate) mod tests {
         );
     }
 
+    /// The containment clause, which needs a name the grammar admits: the test
+    /// above stops two clauses earlier because `stray.md` is not task-shaped.
     #[test]
-    fn brief_chain_errors_when_given_the_grove_root_itself() {
+    fn brief_chain_errors_when_task_shaped_leaf_is_outside_grove_root() {
+        let (tmp, g) = grove();
+        touch(&g, "BRIEF.md");
+        let outside = tmp.path().join("01-impl--a-k1.md");
+        fs::write(&outside, b"# stub\n").unwrap();
+        let err = brief_chain_at(&g, &outside).unwrap_err();
+        assert!(
+            err.to_string().contains("is not under grove root"),
+            "got {err}"
+        );
+    }
+
+    #[test]
+    fn brief_chain_errors_when_given_the_grove_root_which_is_not_a_file() {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md");
         let err = brief_chain_at(&g, &g).unwrap_err();

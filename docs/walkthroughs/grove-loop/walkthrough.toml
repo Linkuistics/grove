@@ -216,7 +216,7 @@ lines = 1714
 [[root]]
 id    = "source-task-tree"
 path  = "crates/grove-loop/src/task_tree.rs"
-lines = 2023
+lines = 2038
 
 [[root]]
 id    = "source-task-grow"
@@ -375,19 +375,19 @@ lines = "1106-1360"
 id    = "brief-chain-and-kind-tests"
 root  = "source-task-tree"
 owner = "root-to-leaf"
-lines = "1361-1652"
+lines = "1361-1667"
 
 [[block]]
 id    = "resolve-tests"
 root  = "source-task-tree"
 owner = "wider-than-a-key"
-lines = "1653-1996"
+lines = "1668-2011"
 
 [[block]]
 id    = "pick-with-brief-chain-tests"
 root  = "source-task-tree"
 owner = "root-to-leaf"
-lines = "1997-2023"
+lines = "2012-2038"
 
 [[block]]
 id    = "growing-the-tree"

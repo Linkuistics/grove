@@ -1052,7 +1052,7 @@ book's chapters are deliberately inverted.
 **And a larger absence, which shapes everything below.** Of the eleven items this
 chapter owns, the three that perform the ending — `finish_commit`,
 `delete_and_commit` and `require_recoverable_grove` — have **no inline tests at
-all**. Not one of the eight below calls any of them, and none of the 245 inline
+all**. Not one of the eight below calls any of them, and none of the 246 inline
 tests in this crate does. Their observers are all out of process, in
 `crates/grove-llm/tests/finish_commit.rs` and `crates/grove-loop/tests/verbs.rs`,
 which shell out to the binary and assert on its stderr. Those directories are the
@@ -1490,7 +1490,7 @@ requires it still be a symlink, which is what rules out a transition that
 "helpfully" replaced the dangling link with a real directory.
 
 **It is also the only `#[cfg(unix)]` in the book's entire corpus.** Thirteen
-roots and 10,542 lines carry exactly one platform-guarded item, and it is this
+roots and 10,557 lines carry exactly one platform-guarded item, and it is this
 test — because a dangling symlink is the one fixture in the crate that cannot be
 built portably. The block's other seven tests are platform-neutral.
 

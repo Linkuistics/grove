@@ -62,10 +62,10 @@ distinguished child — is the library's too. `entry_path` is chapter 6's. The
 figure is drawn with them in it because the shape of this chapter's answer is
 exactly how little is left once they are taken out.
 
-The chapter owns 428 of `task_tree.rs`'s 2,023 lines, in **three** blocks — more
+The chapter owns 443 of `task_tree.rs`'s 2,038 lines, in **three** blocks — more
 than any other chapter of this file. A hundred and nine lines are the production
 run: two verbs against an already-read tree, and the private resolver they share.
-The other 319 are tests, in two blocks the file separates: 292 carrying the
+The other 334 are tests, in two blocks the file separates: 307 carrying the
 `brief-chain` and `kind` sections, and the file's closing 27, which exercise
 `pick` and `brief_chain` against one observation and are this chapter's because
 of the second of those. That last block is the file's last 27 lines, and it is
@@ -400,13 +400,18 @@ the account of the corrected wording are at
 [chapter 6's section](06-paths.md#canonicalise-to-compare). This chapter reads
 the second of the two functions and makes no count of its own.
 
-**Both of the refusals in this fragment are unobserved by the entire workspace**,
-and that is measured rather than inferred: deleting the two `if` blocks — lines
-717 to 729, leaving the canonicalisation and the walk untouched — leaves all 245
-of `grove-loop`'s inline tests green and all twenty-five of `grove-llm`'s test
-targets green. Nothing in the repository asserts *is the grove root, not a leaf*
-or *is not under grove root*. The section on the tests returns to this, because
-two tests are named as though they reach these lines and neither does.
+**One of the two refusals in this fragment is observed and the other is not**,
+and the split is measured rather than inferred. Deleting the containment clause —
+lines 723 to 729 — turns exactly one test red,
+`brief_chain_errors_when_task_shaped_leaf_is_outside_grove_root`, which
+`unreachable-root-clause-k152` added for it after this chapter reported the gap;
+without the clause the argument falls through to the closing `bail!` and is told
+that every level above it must be a node directory, which is the wrong advice for
+a file that is not under the root at all. Deleting the grove-root clause instead —
+lines 717 to 722, leaving the canonicalisation and the walk untouched — leaves all
+246 of `grove-loop`'s inline tests green and all twenty-five of `grove-llm`'s test
+targets green. Nothing in the repository asserts *is the grove root, not a leaf*,
+and the section on the tests says why nothing can.
 
 The last fragment is the walk, and the refusal that closes the function.
 
@@ -457,21 +462,22 @@ passed over and the walk continues; here, work parked under such a name is
 invisible to every verb, and this message is the only place the crate says so to
 whoever went looking for it.
 
-**Five of this function's seven refusals are unobserved by the workspace.** The
+**Four of this function's seven refusals are unobserved by the workspace.** The
 same instrument gives the whole picture: replacing the UTF-8 refusal, the
-grammar arm's forwarded `{error}`, the two root-containment clauses and this
-closing `bail!` with unreachable markers, one mutation at a time, leaves both
-suites green. Only two of the seven are held by a test — the `is_file` clause and
-the *not a current-format Grove leaf* arm — and the next section names the two
-tests that hold them, which are not the two their names suggest.
+grammar arm's forwarded `{error}`, the grove-root clause and this closing `bail!`
+with unreachable markers, one mutation at a time, leaves both suites green. Three
+of the seven are held by a test — the `is_file` clause, the *not a current-format
+Grove leaf* arm and the containment clause — and the next section names the three
+tests that hold them. Two of the three wore, until this book reported it, the name
+of a clause they never reached; the third had to be written.
 
 
-<a id="twenty-two-tests"></a>
-## The twenty-two tests, and what each would still pass under
+<a id="twenty-three-tests"></a>
+## The twenty-three tests, and what each would still pass under
 
 The chapter's second ownership block is the file's `brief-chain` and `kind` test
-sections: 292 lines under two section labels, carrying twenty-two of the file's
-sixty-three `#[test]` functions — ten and twelve. It is the largest of the four
+sections: 307 lines under two section labels, carrying twenty-three of the file's
+sixty-four `#[test]` functions — eleven and twelve. It is the largest of the four
 blocks in this file that hold tests, ahead of chapter 9's twenty-one over 344
 lines and chapter 7's nineteen over 255. The block introduces one fixture of its
 own, `touch_body`, and otherwise builds every tree with `grove`, `touch` and
@@ -479,7 +485,7 @@ own, `touch_body`, and otherwise builds every tree with `grove`, `touch` and
 compositions — all five of them chapter 6's, and the first of them the one whose
 comment says production never wants it.
 
-<!-- fragment «brief-chain-and-kind-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1361-1652" parent="source-task-tree" -->
+<!-- fragment «brief-chain-and-kind-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1361-1667" parent="source-task-tree" -->
 <!-- insert «chain-tests-shape» -->
 <!-- insert «chain-tests-siblings» -->
 <!-- insert «chain-tests-skipping» -->
@@ -498,9 +504,16 @@ comment says production never wants it.
 Each test below is given twice over: the property it establishes, and **what
 would have to be true for it to pass while that property was broken**. This
 block's answer to the second half is unusually blunt, and it is the chapter's
-main result. **Three of the block's four refusal tests refuse somewhere other
-than the clause their names describe**, and that is measured rather than read off
-the names.
+main result. **Three of the four refusal tests the block then held refused
+somewhere other than the clause their names described**, and that was measured
+rather than read off the names. `unreachable-root-clause-k152` acted on it: it
+renamed the two whose names pointed at a clause inside the resolver, left the
+third alone because its name claims a condition rather than a clause, and added a
+fourth test to the `brief-chain` run for the one reachable clause nothing in the
+workspace had ever exercised — so the block now holds five refusal tests, four of
+them here and one in the `kind` run. What no rename could repair is the finding
+this section closes on: a clause no argument reaches, and which therefore no test
+can honestly be named for.
 
 | Group | Tests | The property the group holds |
 |---|---:|---|
@@ -508,7 +521,7 @@ the names.
 | not a sibling's | 1 | the ascent cannot reach a sibling subtree |
 | a level without one | 2 | a missing brief is skipped, at a node and at the root alike |
 | outcome and spelling | 2 | a `DONE` leaf has ancestors; a relative argument is joined onto the root |
-| three refusals | 3 | each is refused, and none by the clause its name suggests |
+| four refusals | 4 | each is refused, and each name now says by what |
 | the filename, not the body | 6 | the kind is the token in the name whatever the body says |
 | the open token | 1 | grove reads a kind it has never heard of |
 | defaulting and absence | 3 | no argument means `pick`'s leaf; no live work means `Ok(None)` |
@@ -753,15 +766,19 @@ discriminates properly: the fixture creates the file under the temporary grove
 and then passes `01-design-k1/01-impl--leaf-k2.md` with no leading directory, so
 an implementation that skipped the join would `is_file`-test a path relative to
 wherever the test binary happened to run and refuse. It is a real test of a real
-clause, and its twin for the other verb appears eight tests later.
+clause, and its twin for the other verb is
+`kind_accepts_a_grove_root_relative_path`, in the `kind` run below. Named rather
+than counted: this sentence once said *eight tests later*, which was already two
+out when it was written and which `unreachable-root-clause-k152` would have moved
+again by inserting a test between the two.
 
-Then the three refusals, and this is where the block's names stop matching its
-behaviour.
+Then the four refusals — the run where the block's names once stopped matching
+its behaviour, and the one `unreachable-root-clause-k152` repaired.
 
-<!-- fragment «chain-tests-refusals» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1488-1522" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-refusals» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1488-1537" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
-    fn brief_chain_errors_when_leaf_outside_grove_root() {
+    fn brief_chain_errors_when_leaf_name_is_not_task_shaped() {
         let (tmp, g) = grove();
         touch(&g, "BRIEF.md");
         let stray = tmp.path().join("stray.md");
@@ -773,8 +790,23 @@ behaviour.
         );
     }
 
+    /// The containment clause, which needs a name the grammar admits: the test
+    /// above stops two clauses earlier because `stray.md` is not task-shaped.
     #[test]
-    fn brief_chain_errors_when_given_the_grove_root_itself() {
+    fn brief_chain_errors_when_task_shaped_leaf_is_outside_grove_root() {
+        let (tmp, g) = grove();
+        touch(&g, "BRIEF.md");
+        let outside = tmp.path().join("01-impl--a-k1.md");
+        fs::write(&outside, b"# stub\n").unwrap();
+        let err = brief_chain_at(&g, &outside).unwrap_err();
+        assert!(
+            err.to_string().contains("is not under grove root"),
+            "got {err}"
+        );
+    }
+
+    #[test]
+    fn brief_chain_errors_when_given_the_grove_root_which_is_not_a_file() {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md");
         let err = brief_chain_at(&g, &g).unwrap_err();
@@ -798,48 +830,86 @@ behaviour.
 ````
 <!-- /fragment -->
 
-These three are the most instructive tests in the chapter, and not for the
-reasons their names give.
+These four are the most instructive tests in the chapter, and two of them are
+renamed and one of them is new.
 
-**`brief_chain_errors_when_leaf_outside_grove_root` does not reach the
-outside-the-root clause.** The fixture writes `stray.md` in the temporary
-directory beside the grove. `stray.md` is not a task-shaped name, so
+**`brief_chain_errors_when_leaf_name_is_not_task_shaped` refuses at the grammar
+arm, which is what its name now says.** The fixture writes `stray.md` in the
+temporary directory beside the grove. `stray.md` is not a task-shaped name, so
 `TaskName::parse` does not yield `Positioned { parts: Leaf }`, and the resolver
 refuses at the grammar arm — which is precisely the message the test asserts on,
 *not a current-format Grove leaf*. Control never reaches the `starts_with` check
 twenty lines below. Measured: changing that arm's message breaks this test;
-deleting the containment clause entirely does not. **To exercise containment you
-would need a task-shaped file outside the root, and nothing in the workspace
-builds one.**
+deleting the containment clause entirely does not. It was called
+`brief_chain_errors_when_leaf_outside_grove_root` until
+`unreachable-root-clause-k152`, and under that name it was the block's most
+misleading test — it was named for the one clause its own fixture guaranteed it
+could not reach.
 
-**`brief_chain_errors_when_given_the_grove_root_itself` does not reach the
-grove-root clause either.** It passes `g`, the root directory, and a directory is
-not a file, so the resolver refuses at the very first clause — *Grove leaf not
-found*, which is again exactly the text asserted. And the clause the test is
-named for is not merely untested: **it cannot fire.** Reaching it requires an
-argument that `is_file` accepted and that canonicalises to the same path as the
-grove root, and chapter 5's opening refuses a root that is not a directory
+**`brief_chain_errors_when_task_shaped_leaf_is_outside_grove_root` is the test
+that name had been promising, and it is new.** To exercise containment you need a
+task-shaped file outside the root, and until k152 nothing in the workspace built
+one. The fixture writes `01-impl--a-k1.md` as a **sibling** of `.grove` rather
+than a child: task-shaped, so it clears the grammar arm the test above stops at;
+a regular file, so it clears `is_file`; and outside the root, so `starts_with`
+refuses it. The negation is what makes it evidence rather than decoration —
+delete lines 723 to 729 and this is the only test in either suite that goes red,
+and what it then reports is the closing `bail!`'s advice about node directories,
+which is the wrong advice for a path that is not under the root at all.
+
+**`brief_chain_errors_when_given_the_grove_root_which_is_not_a_file` refuses at
+the very first clause, and its name now says which.** It passes `g`, the root
+directory, and a directory is not a file, so the resolver refuses at `is_file` —
+*Grove leaf not found*, which is again exactly the text asserted. Its old name
+was `brief_chain_errors_when_given_the_grove_root_itself`, and the clause **that**
+name pointed at is not merely untested: **no argument reaches it.** Reaching it
+requires a path that `is_file` accepted and that canonicalises to the same path as
+the grove root, and chapter 5's opening refuses a root that is not a directory
 (`task_tree.rs` line 276, *grove root not found*). A regular file and a directory
-cannot canonicalise to one path, so `target == root_real` is unreachable while
-the tree is open. It is defensive code with a test named after it and no way in.
+are not one inode, so no argument an operator can supply satisfies both.
+
+**What that argument leaves out is the gap between the two readings, and it is
+the reason the clause was kept.** Line 687 and line 711 are two *by-name*
+resolutions of the same path — `is_file` and `canonicalize` — twenty-four lines
+apart, and neither holds a descriptor, so nothing pins what the name denotes
+between them. Rebind it in that window and both facts hold in turn: measured
+directly, a regular file that `is_file` accepts and that is replaced by a symbolic
+link to the grove root before line 711 canonicalises to `root_real` exactly, on a
+filename the grammar already admitted and which never changed. So the clause is
+unreachable by argument and reachable by rebinding, which is a different finding
+from dead code — it is the guard a deliberate second resolution owes. Delete it
+and that path passes the containment check, since a path starts with itself,
+matches no walked entry, and collects the closing `bail!`'s advice about node
+directories, which is wrong for it. `unreachable-root-clause-k152` kept the clause
+on that ground and on a cheaper one — six lines whose deletion re-ledgers 69
+fragment ranges and seven ownership blocks of a frozen corpus — and moved the
+repair to the name, which is where the defect always was.
 
 **`brief_chain_errors_when_grove_root_absent` does not reach the resolver at
-all.** The composition opens the tree first, and an absent root is refused there,
-in chapter 5's words. Like chapter 7's last test, what this is really evidence
-for is which of chapter 5's four openings `brief_chain_at` composed: `read`,
-which refuses, rather than `read_or_vacant`, which treats absence as an answer.
+all**, and is the one refusal test k152 left alone: its name claims an absent
+root rather than a clause, and an absent root is exactly what it exercises. The
+composition opens the tree first, and an absent root is refused there, in chapter
+5's words. Like chapter 7's last test, what this is really evidence for is which
+of chapter 5's four openings `brief_chain_at` composed: `read`, which refuses,
+rather than `read_or_vacant`, which treats absence as an answer.
 
-**What all three would pass under:** any implementation that refuses these three
+**What all four would pass under:** any implementation that refuses these four
 arguments for any reason whatever, since each asserts on a substring of a rendered
-message and none asserts where the refusal came from. Taken with the mutation
-result in the previous section — five of the resolver's seven refusals unobserved
-across both suites — the block's coverage of refusal is one clause and one
-grammar arm, wearing the names of four.
+message and none asserts where the refusal came from. That is the limit the
+renaming does not lift. A name is a claim about provenance and the assertion
+beneath it checks no such thing, so two of these names were wrong for exactly as
+long as nobody mutated the clauses to find out — and the new one is trustworthy
+because of the mutation reported above it, not because of what it is called.
+
+Taken with the mutation result in the previous section — four of the resolver's
+seven refusals unobserved across both suites — the block's coverage of refusal is
+two clauses and one grammar arm, and the fourth name has nothing beneath it to
+hold.
 
 The `kind` section opens with its label and the fixture that makes its central
 claim testable.
 
-<!-- fragment «kind-tests-label-and-fixture» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1523-1532" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-label-and-fixture» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1538-1547" parent="brief-chain-and-kind-tests" -->
 ````rust
     // ---- kind ---------------------------------------------------------------
 
@@ -862,7 +932,7 @@ chapter's blocks define; the rest are chapter 6's.
 
 The first two tests are a smoke test and the claim.
 
-<!-- fragment «kind-tests-two-leaves» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1533-1546" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-two-leaves» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1548-1561" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_reads_an_impl_leaf() {
@@ -896,7 +966,7 @@ and it is the whole difference between a test and an example.
 The third is the section's most interesting test, and its doc comment records why
 it was rewritten.
 
-<!-- fragment «kind-tests-open-token» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1547-1574" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-open-token» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1562-1589" parent="brief-chain-and-kind-tests" -->
 ````rust
     /// The verb reads whatever token the filename carries, including tokens no
     /// methodology declares and none this repo has ever configured.
@@ -960,7 +1030,7 @@ to vocabulary, closed as to shape.** grove will carry `spike-2` and will refuse
 The remaining nine tests split into one more disagreement, a defaulting pair, a
 relative path, four more bodies, and a refusal.
 
-<!-- fragment «kind-tests-legacy-label» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1575-1581" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-legacy-label» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1590-1596" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_ignores_a_legacy_work_label_in_the_body() {
@@ -977,7 +1047,7 @@ methodology retired. It discriminates against a body-reading implementation
 exactly as far as its predecessor does and no further; what it adds is a record
 of which legacy strings were actually met in real task files.
 
-<!-- fragment «kind-tests-default-and-empty» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1582-1599" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-default-and-empty» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1597-1614" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_no_arg_defaults_to_picks_next_leaf() {
@@ -1017,7 +1087,7 @@ comment names the consequence — the CLI renders the *no live leaves* diagnosti
 and this is the same signal chapter 7 read out of `pick`. It is the shape the
 loop needs in order to distinguish a finished grove from a broken one.
 
-<!-- fragment «kind-tests-relative-path» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1600-1609" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-relative-path» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1615-1624" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_accepts_a_grove_root_relative_path() {
@@ -1039,7 +1109,7 @@ grove root finds it. Both verbs share one resolver, so the pair tests one clause
 twice — which is defensible, since the two verbs are separately callable and the
 sharing is an implementation fact rather than a contract.
 
-<!-- fragment «kind-tests-body-ignored» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1610-1641" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-body-ignored» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1625-1656" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_ignores_trailing_commentary_on_a_legacy_kind_line() {
@@ -1107,7 +1177,7 @@ it. That is the residue of the `kind` section, and it is the same shape as the
 residue chapter 7 recorded for its own refusals: a property stated in a doc
 comment and held by nothing.
 
-<!-- fragment «kind-tests-absent-root» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1642-1652" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-absent-root» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1657-1667" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_errors_when_grove_root_absent() {
@@ -1138,7 +1208,7 @@ chapter's rather than chapter 7's because the thing it exercises second is
 `brief_chain`, and it is the only place in the file where two verbs are put in
 front of one tree.
 
-<!-- fragment «pick-with-brief-chain-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1997-2023" parent="source-task-tree" -->
+<!-- fragment «pick-with-brief-chain-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="2012-2038" parent="source-task-tree" -->
 ````rust
     // ---- pick + brief-chain together ----------------------------------------
 
@@ -1246,12 +1316,18 @@ collecting end of the same rule is that a leaf contributes no brief of its own,
 so the deepest brief in a chain always belongs to the leaf's containing node.
 
 **What the twenty-three tests do not hold** is this chapter's largest residue,
-and all of it is measured. Five of the resolver's seven refusals are unobserved by
-both suites; one of those five — the grove-root clause — cannot fire at all while
-the tree is open, and has a test named after it that refuses two clauses earlier.
-Two more refusal tests assert on messages produced somewhere other than where
-their names point. No test asserts that a leaf's body is never read, though that
-is the `kind` section's whole subject. And the block named for the two verbs
+and all of it is measured. Four of the resolver's seven refusals are unobserved by
+both suites, and one of those four — the grove-root clause — is reachable by no
+argument at all, so no test can be written for it;
+`unreachable-root-clause-k152` chose to keep it and say why rather than delete it,
+having measured that the window between the function's two by-name readings of
+the path is what the clause actually guards.
+The refusal names that pointed at the wrong clause were the repairable half of
+this residue and k152 repaired them, at the cost of the one measurement in this
+chapter that its own renaming changed: the block's fourth refusal test is new, and
+the containment clause it exercises has moved from the unobserved column to the
+observed one. No test asserts that a leaf's body is never read, though that is the
+`kind` section's whole subject. And the block named for the two verbs
 together composes them under two observations, which is the one thing both doc
 comments say production must not do.
 

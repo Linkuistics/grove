@@ -173,12 +173,19 @@ from a different place entirely: `#[arg(default_value = "plan")]`, in
 So the value is chosen twice, in two crates, as two literals that happen to
 match — and when this chapter was drafted **nothing held them to each other**.
 That was not a reading of the code; it was a measurement. Changing the constant to
-`"mutant"` in a copy of the workspace reddened exactly one test of 558, and it was
+`"mutant"` in a copy of the workspace reddened exactly one test of the 558 the
+suite then held, and it was
 `transition_initializes_an_absent_grove_under_one_exclusive_guard` in this
 chapter's own block, which asserts the picked leaf is `01-requirements--plan-k1.md`.
 `root_init_default_slug_is_plan`, which drives the binary, stayed green throughout,
 because it is pinned to the clap literal. Each spelling had an observer; their
 agreement had none.
+
+**That reading is superseded, and the re-run is a few paragraphs below.** The
+suite has since grown to 560, and the *exactly one* above was taken without
+relinking the mutant into the `grove` binary — so it is a lower bound rather than
+a count. Read it as the finding it was for at the time, which is that the two
+spellings had no shared observer, and take the numbers from the re-run.
 
 **What k159 added is an observer of the agreement**, and the shape of it is worth
 a reader's attention because it is the cheapest thing that could have worked.
@@ -203,7 +210,11 @@ first reading while it is here.** The harness is this chapter's, described under
 [*What the refusals are worth,
 measured*](11-a-grove-begins.md#what-the-refusals-are-worth-measured), with three
 differences stated rather than smoothed. The copy carries the plugin marketplace,
-so ten `prompt.rs` tests fail before any mutation instead of eleven. The two
+so `the_namespace_is_the_shipped_plugin_entrys_declared_name` passes and the
+control is ten rather than eleven — the same ten `prompt.rs` failures the section
+below reports, without the eleventh that copy adds. Neither mutation touches that
+test, so both counts hold against either control, and both were re-taken against
+the eleven to check that they do. The two
 crates' suite has grown to 560, 559 of them before k159 added its own. And **the
 constant's mutant must be relinked into the `grove` binary before the suite runs**
 — `cargo build -p grove --bins` after the edit, not before it — because
@@ -671,7 +682,7 @@ here. That is chapter 4's canonicity guarantee being spent rather than restated.
 **Neither of the two promises in that comment is pinned by anything.** Idempotence
 against an already-suffixed title, and *never clobbers a custom title*, both run
 through the single `return Ok(())` on line 1065, and panicking on that branch
-leaves the 558-test run no worse than its control. The measurement is below, and chapter 12 — the consumer — is
+leaves the 560-test run no worse than its control. The measurement is below, and chapter 12 — the consumer — is
 where it is worth acting on.
 
 <a id="the-support-the-next-two-chapters-use"></a>
@@ -1371,7 +1382,7 @@ ever parted.* The first sentence is true. The second describes this test's
 assertions, which are on the **filename** and the **body** — so if the prediction
 and the allocation parted, this test would indeed fail, but it would fail on the
 name, and `allocated`'s refusal would never be read. Panicking on `allocated`'s
-error arm in a copy of the workspace leaves the 558-test run no worse than its
+error arm in a copy of the workspace leaves the 560-test run no worse than its
 control: **nothing in this crate or in `grove-llm` ever makes the prediction
 disagree**, so the guard the
 comment credits is unexercised on this path. The test pins the agreement; it does
@@ -1500,18 +1511,31 @@ fallback arm with a **panic** — not a reworded message, because a test asserti
 bare `is_err()` survives any wording — in a copy of the workspace, run the whole
 of `grove-loop` and `grove-llm`, and diff the per-test results against an
 unmutated control run of the same copy. The copy is neither a jj repository nor a
-checkout of the plugin marketplace, so **eleven of its 558 tests fail before any
+checkout of the plugin marketplace, so **eleven of its 560 tests fail before any
 mutation** — ten in `crates/grove-loop/tests/prompt.rs` with `NotAWorkspace`, and
 one, `the_namespace_is_the_shipped_plugin_entrys_declared_name`, on a manifest the
 copy does not carry —; a mutant that reads as clean
 against zero would be meaningless, and every row below is a difference against
-that control.
+that control. What makes that a control rather than a count is the **set**: two
+copies can agree on eleven and disagree about which eleven, so each mutant is
+read as the `comm` difference against those names.
+
+**And the mutant has to be relinked into the `grove` binary before the suite
+runs** — `cargo build -p grove --bins` after the edit, not before it. Skip it and
+cargo happily runs a `grove` built from unmutated source, every out-of-process
+observer in `crates/grove-loop/tests/driver_lease.rs` and
+`crates/grove-llm/tests/removed_surface.rs` stays green, and the table reads as a
+suite with fewer observers than it has. The step is stated again where [this
+chapter re-runs k159's own
+mutations](11-a-grove-begins.md#the-value-nothing-holds), because that is where
+its cost was first paid; the table below is the re-run that step buys, and row 6 is
+where it shows.
 
 **Two of the ten arms make the reading a lie if you skip a check.** A mutant that
 fails to compile prints no per-test lines at all and reads exactly like a clean
-result, so each run below was confirmed to have executed all 558. And a panic at
+result, so each run below was confirmed to have executed all 560. And a panic at
 the *call site* measures reachability rather than observation: panicking
-unconditionally on entry to `root_init` reddens 41 tests and says nothing about
+unconditionally on entry to `root_init` reddens 43 tests and says nothing about
 whether its refusal is held.
 
 | # | Arm | Line | Observed by |
@@ -1521,14 +1545,28 @@ whether its refusal is held.
 | 3 | `bail!` the store reported nothing created | 396 | **nothing** |
 | 4 | `bail!` the store reported a non-charter first | 399 | **nothing** |
 | 5 | `allocated` — the key prediction disagreed | 405 | **nothing** |
-| 6 | `RootShape::ATree` | 457 | `transition_leaves_a_current_grove_unchanged_and_ready_for_pick`, `one_process_creating_and_reading_a_grove_never_waits_on_itself` |
+| 6 | `RootShape::ATree` | 457 | `transition_leaves_a_current_grove_unchanged_and_ready_for_pick`, `one_process_creating_and_reading_a_grove_never_waits_on_itself` — and eight more that reach it without observing it (below) |
 | 7 | `RootShape::Taskless` | 484 | `a_taskless_root_is_refused_with_advice_rather_than_completed` |
 | 8 | `RootShape::Unrecognised` | 487 | `transition_refuses_a_root_holding_no_grove_entry_at_all` |
 | 9 | `grove_name` — the `"grove"` fallback | 1028 | **nothing** |
 | 10 | `append_brief_suffix_in_file` — the conservative return | 1065 | **nothing** |
 
 Rows 2, 6, 7 and 8 are the control that makes the other six readable: each reddens
-a small, attributable set, so the instrument demonstrably fails when it should.
+an attributable set, so the instrument demonstrably fails when it should.
+
+**Row 6 is the one that reddens more than its observers, and the difference is
+the same one the entry probe makes.** Panicking on line 457 turns **ten** tests
+red, not two. Five are in `crates/grove-loop/tests/driver_lease.rs` and three in
+`crates/grove-llm/tests/removed_surface.rs`, and every one of the eight drives
+the loop against a worktree that *already holds* a grove — so
+`transition_to_current` classifies it `ATree` before any launch happens, and each
+dies in its fixture rather than in an assertion. That is the shape chapter 19
+reads in `prompt.rs`'s ten: a test refused entry to what it came to check says
+nothing about the arm it died on. The two named in the table are the two that
+assert on what the arm *returns* — `AlreadyCurrent`, and that a current grove is
+left unchanged and ready for `pick` — so the arm is **reached ten ways and
+observed two**. Neither file is a root of any book, so none of the eight belongs
+to a chapter's block; both are `tests/`, which this book takes as evidence.
 
 **Six of ten arms are held by nothing, and they split cleanly — but not the way
 chapter 10's did.** Rows 3, 4 and 5 are the class chapter 10 named: *the
@@ -1548,7 +1586,9 @@ keeping it, reporting an honest filesystem failure and unwinding — so unlike r
 three arms beside it stay unreachable because each one asserts the store lied.
 
 **Four arms are observed, by five tests, and three of the five are this
-chapter's.** Row 2's single observer is at 1430, here. Row 6 has two —
+chapter's.** Five, not thirteen: the eight above reach row 6 without asserting
+anything about it, and an arm's observers are the tests that would notice it
+returning something else. Row 2's single observer is at 1430, here. Row 6 has two —
 `one_process_creating_and_reading_a_grove_never_waits_on_itself` at line 1385,
 inside this chapter's own block, and
 `transition_leaves_a_current_grove_unchanged_and_ready_for_pick` at 1564, inside

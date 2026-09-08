@@ -456,11 +456,14 @@ wrong and how to fix it, rather than machinery that guesses.
 
 **`Unrecognised` is this chapter's alone, and it is the only arm of this
 function that is.** Chapter 11 established the split by mutation and this chapter
-re-ran it; the table is in *What the refusals are worth* below. In short: replacing the `Taskless` arm with a silent panic reddens one
-test, and it is in chapter 11's block; replacing `Unrecognised` reddens one test,
-and it is in this chapter's; replacing `ATree` reddens two, one on each side of
-the boundary. The evidence for this one function is split across two chapters of
-the book, which is what the file's inversion costs.
+re-ran it; the table is in *What the refusals are worth* below. In short:
+replacing the `Taskless` arm with a silent panic reddens one test, and it is in
+chapter 11's block; replacing `Unrecognised` reddens one test, and it is in this
+chapter's; replacing `ATree` reddens ten, of which exactly two observe the arm —
+one on each side of the boundary — while the other eight are out-of-process
+fixtures that reach it and assert nothing about it. The evidence for this one
+function is split across two chapters of the book, which is what the file's
+inversion costs.
 
 **A record describes this function as a four-row table, and the code has five
 distinguishable answers.** `docs/ARCHITECTURE.md`'s *Lifecycle and resumption*
@@ -1503,34 +1506,48 @@ built portably. The block's other seven tests are platform-neutral.
 This chapter's production carries fifteen refusal and fallback arms, and reading
 them says nothing about whether any test would notice if one stopped working. So
 the arms were measured rather than read. The procedure is the one this part of
-the book has used throughout: copy the workspace to a scratch directory, build
-the `grove` binary first so `CARGO_BIN_EXE_grove` is set, run
+the book has used throughout: copy the workspace to a scratch directory, run
 `cargo test --no-fail-fast -p grove-loop -p grove-llm` to get a control, then
-replace one arm at a time with a panic that **says nothing** and read each mutant
-as the difference against that control.
+replace one arm at a time with a panic that **says nothing**, relink the `grove`
+binary, and read each mutant as the difference against that control.
 
-Three details of that procedure are what make the readings mean anything, and
+Four details of that procedure are what make the readings mean anything, and
 each was established the hard way by an earlier chapter of this part.
 
-- **The control is not zero.** The scratch copy is not a jj repository, so eleven
-  tests — all of `crates/grove-loop/tests/prompt.rs` — fail before any mutation.
-  558 tests run in all, and a mutant is the `comm` difference against those
-  eleven.
+- **The control is not zero.** Eleven tests — all of
+  `crates/grove-loop/tests/prompt.rs` — fail before any mutation, and for two
+  causes rather than one: ten because the scratch copy is not a jj repository,
+  and `the_namespace_is_the_shipped_plugin_entrys_declared_name` because the
+  copy carries no `.claude-plugin/marketplace.json`. 560 tests run in all, and a
+  mutant is the `comm` difference against those eleven — read over failure names
+  **qualified by the binary they ran in**, because the suite's 560 tests carry
+  559 distinct bare names and the one duplicate is arm 12's.
 - **The panic must carry no message.** `bail!(…)` → `panic!(…)` preserves the
-  format string, and every observer of the three teardown functions is an
-  out-of-process test asserting on *stderr substrings* — which cannot tell a
-  panic from a refusal when both print the same words and exit non-zero. Each
-  mutation below replaces the **whole macro call** with `panic!("MUTANT")`.
+  format string, and six of the seven observers of the three teardown functions
+  are out-of-process tests asserting on *stderr substrings* — which cannot tell
+  a panic from a refusal when both print the same words and exit non-zero. Each
+  mutation below replaces the **whole macro call** with `panic!("MUTANT")`. What
+  the message-preserving panic would have shown instead is measured under the
+  table rather than asserted.
+- **The mutant must be relinked into the `grove` binary**, with
+  `cargo build -p grove --bins` **after** the edit rather than before it.
+  `cargo test` on `grove-loop` and `grove-llm` never rebuilds the `grove`
+  package, and `testing/support.rs`'s `workspace_binary` reuses
+  `target/debug/grove` whenever the file merely exists — so without that step
+  every observer that drives the driver binary stays green, and the number read
+  off the run is a lower bound rather than a measurement. Two of the rows below
+  moved when the step was taken.
 - **A mutant that does not compile reads exactly like a clean one**, since it
-  prints no per-test lines at all. Every mutant below ran 558 tests, matching the
-  control, which is what rules that out.
+  prints no per-test lines at all. All fifteen were put through
+  `cargo check -p grove-loop --tests` before the study began, and every mutant
+  below then ran 560 tests, matching the control — which rules it out twice.
 
 Fifteen arms, fifteen mutants, one control.
 
 | # | Arm | Newly failing | Where the observer lives |
 |---|---|---:|---|
-| 1 | `transition_to_current` — `Opening::Vacancy` scaffolds | 1 | `transition_initializes_an_absent_grove_under_one_exclusive_guard` (1,335 — **ch. 11**) |
-| 2 | `transition_to_current` — `RootShape::ATree` | 2 | `one_process_creating_and_reading_a_grove_never_waits_on_itself` (1,385 — **ch. 11**); `transition_leaves_a_current_grove_unchanged_and_ready_for_pick` (1,564 — ch. 14) |
+| 1 | `transition_to_current` — `Opening::Vacancy` scaffolds | 3 | `transition_initializes_an_absent_grove_under_one_exclusive_guard` (1,335 — **ch. 11**); `both_scaffolding_doors_name_the_first_leaf_the_same` (`grove-llm/tests/root_init.rs`); `bare_scaffolding_is_anchored_before_the_configured_command_inherits_git_context` (`grove-loop/tests/driver_lease.rs`) |
+| 2 | `transition_to_current` — `RootShape::ATree` | 10 reached, **2 observing** | `one_process_creating_and_reading_a_grove_never_waits_on_itself` (1,385 — **ch. 11**); `transition_leaves_a_current_grove_unchanged_and_ready_for_pick` (1,564 — ch. 14); the other eight reach the arm and observe nothing of it — see below |
 | 3 | `transition_to_current` — `RootShape::Taskless` | 1 | `a_taskless_root_is_refused_with_advice_rather_than_completed` (1,447 — **ch. 11**) |
 | 4 | `transition_to_current` — `RootShape::Unrecognised` | 1 | `transition_refuses_a_root_holding_no_grove_entry_at_all` (1,621 — ch. 14) |
 | 5 | `materialize_finish` — sentinel created without a key | **0** | — |
@@ -1545,29 +1562,83 @@ Fifteen arms, fifteen mutants, one control.
 | 14 | `delete_and_commit` — the commit failed | **0** | — |
 | 15 | `require_recoverable_grove` — jj tracks nothing under the root | 1 | `finish_commit_refuses_an_untracked_task_tree_naming_how_to_track_it` (same file) |
 
-**Nine arms are held and six are not**, and three things in that table matter
+**Nine arms are held and six are not**, and four things in that table matter
 more than the ratio.
 
 **First: the evidence for this chapter's own transition is split across the
 chapter boundary, and this is where the file's inversion is finally paid for.**
-Four of the eight arms with observers belong to `transition_to_current`, and of
-the five tests holding them, **three sit in chapter 11's block and two in this
-one**. `Taskless` is pinned only from chapter 11; `Unrecognised` only from here;
-`ATree` from both sides; and the `Vacancy` arm — the arm that creates a grove,
-which is as much this chapter's production as anything on the page — is held
-**only** from chapter 11. Neither chapter can state this function's coverage
-from its own block. Chapter 11 carries the table for the arms it can see and this
-one carries the arms it can; the whole picture exists only across the two.
+Four of the nine arms with observers belong to `transition_to_current`, and
+seven tests hold those four. Five of the seven sit in the two chapters' inline
+blocks — **three in chapter 11's and two in this one** — and the remaining two
+are integration tests under `tests/`, which this book treats as evidence rather
+than as roots and which therefore belong to no chapter's block at all.
+`Taskless` is pinned only from chapter 11; `Unrecognised` only from here; `ATree`
+from both sides; and the `Vacancy` arm — the arm that creates a grove, which is
+as much this chapter's production as anything on the page — is held from chapter
+11's block and from two tests in neither block, and never from this one. Neither
+chapter can state this function's coverage from its own block. Chapter 11 carries
+the table for the arms it can see and this one carries the arms it can; the whole
+picture exists only across the two — and, for the `Vacancy` arm, not even then.
 
-**Second: every observer of the ending is out of process.** Arms 7, 9, 11, 12 and
-15 are the five held arms of `finish_commit`, `delete_and_commit` and
-`require_recoverable_grove`, and not one of their observers is an inline test.
-They live in `crates/grove-llm/tests/finish_commit.rs`, which runs the binary and
-reads its stderr. That is why the message-preserving panic is not a mutation
-here: a `bail!` turned into a `panic!` with the same format string prints the same
-sentence and exits non-zero, and every one of these five tests would have stayed
-green — recording the arms as unheld. They are held, and the silent panic is what
-shows it.
+**Second: almost every observer of the ending is out of process, and the
+exception is the interesting one.** Arms 7, 9, 11, 12 and 15 are the five held
+arms of `finish_commit`, `delete_and_commit` and `require_recoverable_grove`,
+and not one of their observers is an inline test. Seven tests hold the five
+arms; six live in `crates/grove-llm/tests/finish_commit.rs`, which runs the
+binary and reads its stderr. That is why the message-preserving panic is not a
+mutation for those six: a `bail!` turned into a `panic!` with the same format
+string prints the same sentence and exits non-zero, so the test cannot tell them
+apart. Measured rather than argued — the five arms were re-run a second time
+with `panic!` carrying each `bail!`'s own format string and arguments — arms 7,
+9, 11 and 15 redden **nothing** at all, exactly as the paragraph claims. They
+are held, and the silent panic is what shows it.
+
+The seventh observer is arm 12's second copy of
+`finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf`, in
+**`crates/grove-loop/tests/verbs.rs`**, and it calls `verbs::finish_commit`
+*in process* — so a panic reddens it whatever words the panic carries, and the
+message-preserving run confirms it. That run reddens one more:
+`a_refused_handle_is_quoted_as_the_operator_wrote_it` fails on the missing
+`other-k007`, because the operator's own spelling is not in this arm's message
+at all. It is added a layer up, by `cli.rs`'s
+`.with_context(|| format!("`grove-llm finish-commit {finish_handle}`"))`, and a
+panic unwinds straight past that context. So of arm 12's three observers, one is
+in process, one asserts on a wrapper this file does not write, and only
+`finish_commit.rs`'s own copy is the stderr-reading kind the bullet above
+describes.
+
+**Third: two rows carry more reddened tests than observers, and the gap is the
+same one chapter 11 reports.** Row 2's ten are this book's clearest case. Two of
+them assert on what the `ATree` arm returns — `AlreadyCurrent`, and a grove left
+unchanged and ready for `pick`. The other eight are out-of-process fixtures in
+`crates/grove-loop/tests/driver_lease.rs` and
+`crates/grove-llm/tests/removed_surface.rs` that drive the loop against a
+worktree which *already holds* a grove: the arm classifies it before any launch,
+and each dies in its own fixture rather than in an assertion about what the arm
+answered. They reach the arm; they observe nothing of it. Chapter 11 measured
+this same mutation from the other side of the file inversion and reported it in
+exactly these terms, and it is the distinction this page already draws for a
+panic at the head of a function — *a panic at the call site measures reachability
+rather than observation*. Naming ten observers would say the arm is pinned ten
+ways when eight of the ten would redden on a panic anywhere in the driver's
+pre-launch path; naming two would restate a number an unrelinked run produced.
+
+Row 1 is the opposite case, and its three are three genuine observers reached two
+different ways. `both_scaffolding_doors_name_the_first_leaf_the_same` calls
+`transition_to_current` *in process* against a bare temporary directory and
+compares the leaf the arm scaffolds against `root-init`'s — a test no harness
+could have missed, and one that simply did not exist when this chapter's first
+table was taken; `default-root-slug-two-spellings-k159` added it, which
+[chapter 15](15-the-verbs.md) reads from the verb's side.
+`bare_scaffolding_is_anchored_before_the_configured_command_inherits_git_context`
+runs the driver against a worktree with **no** `.grove/` at all — its own fixture
+comment says the transition "has a mutation to anchor: creating the grove" — and
+asserts the scaffolded first leaf lands in the intended tree and that the foreign
+one gets nothing. That is this arm's product, so it observes; it was invisible to
+the earlier run only because the mutant was never relinked. So the two rows that
+moved moved for two different reasons: one gained a test, the other gained a
+harness.
+
 
 <a id="the-six-that-hold-nothing"></a>
 ### The six unheld arms are three different things
@@ -1610,17 +1681,23 @@ no longer live* — needs nothing but a tree whose leaves are all terminal and
 which holds no finish leaf. That is one `touch` and one `leaf_retire` away from
 the fixtures already in this file. Its neighbours in the same function are each
 held by a test in `finish_commit.rs`: the absent root, the non-directory root,
-the live work, the mismatched handle and the untracked tree. **The asymmetry is
-the finding, not the absence** — five of `finish_commit`'s six operator-facing
-refusals have a test, the sixth is reached by the same fixture shape as the
-others, and nothing explains the difference. A missing test is worth stating that
-way rather than as a bare gap, because *this line is untested* is true of a great
-deal of defensive code and *this one line of six is untested for no reason* is
-not.
+the live work and the mismatched handle. **The asymmetry is the finding, not the
+absence** — `finish_commit` carries five operator-facing refusals, four of them
+have a test, the fifth is reached by the same fixture shape as the others, and
+nothing explains the difference. (The function's sixth `bail`-shaped arm, arm 8,
+is untested too, but it belongs to the environment-failure group above rather
+than to this comparison, and the untracked-tree refusal that holds arm 15 is
+`require_recoverable_grove`'s rather than this function's.) A missing test is
+worth stating that way rather than as a bare gap, because *this line is untested*
+is true of a great deal of defensive code and *this one line of five is untested
+for no reason* is not.
 
-None of the newly-failing sets above names a `driver_lease.rs` or `prompt.rs`
-test, so none of these readings is a wedged-producer timeout wearing the costume
-of an observer, and none needed a re-run on that ground.
+Two of the newly-failing sets above name `driver_lease.rs` tests — arms 1 and
+2 — so both mutants were run twice, and the two pairs of failure sets are
+identical name for name. `ps` showed no orphaned `configured-command.sh`
+children either side, and neither run came near the 120-second producer timeout
+that makes a wedge look like an observer. No other reading names a
+`driver_lease.rs` or `prompt.rs` test at all.
 
 
 <a id="what-could-not-move"></a>

@@ -265,14 +265,14 @@ impl SessionConfig {
 /// at the searched path is a candidate that then fails closed on read, not an
 /// absence that silently resolves to the personal file.
 ///
-/// **Only `NotFound` is absence.** Any other error means this candidate's state
-/// could not be established, and the two things a caller would otherwise do with
-/// it are both wrong: at the worktree root it would move on and read the
-/// repository root, inverting the search precedence requirement 6 fixes, and at
-/// the repository root it would fall through to the very personal file the delta
-/// exists to move work away from. An unresolvable candidate is therefore the
-/// same refusal an unreadable delta already is, reported against the path whose
-/// state is unknown.
+/// **Only `NotFound` is absence** (`docs/adr/untracked-configuration-delta.md`).
+/// Any other error means this candidate's state could not be established, and
+/// the two things a caller would otherwise do with it are both wrong: at the
+/// worktree root it would move on and read the repository root, inverting the
+/// search precedence that record fixes, and at the repository root it would fall
+/// through to the very personal file the delta exists to move work away from. An
+/// unresolvable candidate is therefore the same refusal an unreadable delta
+/// already is, reported against the path whose state is unknown.
 fn find_delta(roots: &DeltaRoots<'_>) -> Result<Option<PathBuf>> {
     for candidate in SessionConfig::delta_candidates(roots) {
         match fs::symlink_metadata(&candidate) {
@@ -327,12 +327,12 @@ fn refuse_a_tracked_delta(path: &Path) -> Result<()> {
 /// Is the delta at `path` **tracked** by the workspace it sits in?
 ///
 /// The one read-only question grove asks the version control system outside the
-/// finish path, and the enforcement behind [the untracked configuration
-/// delta](../docs/adr/untracked-configuration-delta.md): a delta names a program
-/// to execute, so a repository that could ship one would choose what Grove
-/// spawns in any checkout of it. Documentation cannot establish that boundary
-/// and neither can an ignore rule — a file already committed stays tracked when
-/// an ignore line is added.
+/// finish path, and the enforcement behind the untracked configuration delta
+/// (`docs/adr/untracked-configuration-delta.md`): a delta names a program to
+/// execute, so a repository that could ship one would choose what Grove spawns
+/// in any checkout of it. Documentation cannot establish that boundary and
+/// neither can an ignore rule — a file already committed stays tracked when an
+/// ignore line is added.
 ///
 /// Anchored to the candidate's **own** directory rather than to the leased
 /// worktree, because the two searched roots may live in different workspaces (a

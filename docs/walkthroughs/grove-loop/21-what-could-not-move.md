@@ -448,31 +448,33 @@ every line of it is owned and explained by the chapter whose concept it proves.
 neither still is: each has been corrected at source, in one commit with the
 paragraph that judged it. `session_config.rs`'s *the loop re-reads the
 configuration once per iteration*, which `loop_driver.rs` refutes twice inside
-this same corpus, went at `template-source-read-count-k86`, so chapters 18 and 20
-now explain a comment that counts both of its reads rather than adjudicating one
-that counts neither. `lib.rs`'s claim about which crates take
-`version.workspace = true` went at `every-member-version-comment-k84`, so chapter
-1 now explains the quantifier the comment carries rather than adjudicating one it
-does not. Many more were found while drafting — stale enumerations, a
-miscounted helper list naming a function that never existed, four comments
-addressing a module by a name this workspace does not have, five unresolved
-intra-doc links, a parenthesised citation naming no anchor at all — and each was
-adjudicated beside its fragment, because the corpus was frozen while this book
-was written and a book may not edit what it is proving. Where a page judged a source change worth making, a leaf
-carries it; where it did not, the bytes stand as written and the page says so.
-Four of that second group have since landed, two of them chapter 1's, one
-chapters 5, 6 and 8's, and one spread across chapters 1, 7, 8 and 19.
+this same corpus, went at `template-source-read-count-k86`, so chapters 18 and
+20 now explain a comment that counts both of its reads rather than adjudicating
+one that counts neither. `lib.rs`'s claim about which crates take
+`version.workspace = true` went at `every-member-version-comment-k84`, so
+chapter 1 now explains the quantifier the comment carries rather than
+adjudicating one it does not. Many more were found while drafting — stale
+enumerations, a miscounted helper list naming a function that never existed,
+four comments addressing a module by a name this workspace does not have, five
+unresolved intra-doc links, a citation to a requirement number no document in
+this repository carries, a parenthesised citation naming no anchor at all — and
+each was adjudicated beside its fragment, because the corpus was frozen while
+this book was written and a book may not edit what it is proving. Where a page
+judged a source change worth making, a leaf carries it; where it did not, the
+bytes stand as written and the page says so. Five of that second group have
+since landed: two of them chapter 1's, one chapters 5, 6 and 8's, one spread
+across chapters 1, 7, 8 and 19, and one chapter 18's.
 `unresolved-doc-links-k151` is the fourth: all five broken intra-doc links were
-repaired in one commit with the four pages that reproduce them. Chapters 7, 8 and
-19 now explain the corrected spelling rather than adjudicating the broken one;
-chapter 1 carries the fifth line's new bytes and explains nothing, because it
-never adjudicated that link and owes no paragraph for one it did not judge. The
-five did not share a cause, and the leaf landed two kinds of repair rather than
-one. Four were unlinked: three named `task_tree.rs`'s own `#[cfg(test)]`
+repaired in one commit with the four pages that reproduce them. Chapters 7, 8
+and 19 now explain the corrected spelling rather than adjudicating the broken
+one; chapter 1 carries the fifth line's new bytes and explains nothing, because
+it never adjudicated that link and owes no paragraph for one it did not judge.
+The five did not share a cause, and the leaf landed two kinds of repair rather
+than one. Four were unlinked: three named `task_tree.rs`'s own `#[cfg(test)]`
 compositions, which `cargo doc` compiles away — the blind spot
-[chapter 17](17-the-epoch.md#three-per-cent-and-a-blind-instrument) measures from
-the inside — so no path could have resolved them, and the fourth named a module
-`prompt-names-the-kind-k18` had deleted. Only the fifth took a path:
+[chapter 17](17-the-epoch.md#three-per-cent-and-a-blind-instrument) measures
+from the inside — so no path could have resolved them, and the fourth named a
+module `prompt-names-the-kind-k18` had deleted. Only the fifth took a path:
 `Resolution` is public inside a private module and reaches the API as
 `verbs::Resolution`, so the re-export is the only spelling that resolves.
 `Cargo.toml`'s clauses locating `libc` in `task_tree` alone and `keyed-launch`
@@ -485,16 +487,26 @@ an enumeration of seven production sites. And `task_tree.rs`'s header claim that
 canonicalisation appears once was found at [chapter 6](06-paths.md)'s drafting,
 reproduced by [chapter 5](05-opening.md) and restated by
 [chapter 8](08-kind-and-briefs.md), and corrected at
-`canonicalisation-sites-k149`. Chapter 1 now explains corrected wording in every
-place it once judged a standing claim, and adjudicates none.
-The structure brief's *Known in advance* counts five claims in total, against the
-two this paragraph knew before drafting began, and none of the five now stands in
-the corpus. The fifth is chapter 6's *canonicalisation appears once*, which this
-book adjudicated and left standing because no leaf had yet corrected it;
-`canonicalisation-sites-k149` did, and it joined the list on the same terms as
-the other four. That list counts only claims a leaf has corrected at source, so
-the ones this book judged and left standing are recorded on their own pages and
-are not in it, wherever they fall.
+`canonicalisation-sites-k149`. Last, [chapter 18](18-which-files.md)'s two
+broken addresses in `session_config.rs` — a citation to a *requirement 6* that
+no document in this repository has, and a Markdown link to
+`../docs/adr/untracked-configuration-delta.md` resolving from neither the
+rendered page nor the source tree — were corrected at
+`requirement-six-citation-k189`, both onto the same decision record and both
+inside that root's frozen 358 lines, so the chapter now explains two repaired
+citations rather than adjudicating two broken ones. Neither was found by an
+instrument: the first string was unique in the repository, the second sat in the
+one class nothing here reads, and both surfaced from enumerating the block's
+citations by hand while the chapter was drafted. Chapter 1 now explains
+corrected wording in every place it once judged a standing claim, and
+adjudicates none. The structure brief's *Known in advance* counts five claims in
+total, against the two this paragraph knew before drafting began, and none of
+the five now stands in the corpus. The fifth is chapter 6's *canonicalisation
+appears once*, which this book adjudicated and left standing because no leaf had
+yet corrected it; `canonicalisation-sites-k149` did, and it joined the list on
+the same terms as the other four. That list counts only claims a leaf has
+corrected at source, so the ones this book judged and left standing are recorded
+on their own pages and are not in it, wherever they fall.
 
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces and neither is part of the reading order. The source index

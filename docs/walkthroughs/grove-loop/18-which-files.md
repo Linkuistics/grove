@@ -92,10 +92,17 @@ either, and neither was any of the five unresolved intra-doc links this book
 adjudicated elsewhere — `unresolved-doc-links-k151` has since repaired all five,
 so that class no longer appears anywhere in the count.
 
-**One thing `cargo doc` still cannot see, and this root has an instance.** It
-checks *intra-doc* links — the `` [`Foo`] `` form — and says nothing whatever
-about a Markdown link with an explicit URL target. There is one of those in this
-block, and it is broken. The last section of this chapter reads it.
+**One thing `cargo doc` still cannot see, and this root carried an instance.**
+It checks *intra-doc* links — the `` [`Foo`] `` form — and says nothing whatever
+about a Markdown link with an explicit URL target. There was one of those in this
+block and it was broken; `requirement-six-citation-k189` has since replaced it
+with the backticked path the rest of the file cites by, so the two Markdown links
+left in the 358 lines are both the intra-doc form — `` [configuration
+delta](`DELTA_FILE_NAME`) ``, at line 9 and again at line 71 — and the instrument
+does reach both. The `delta_is_tracked` section below reads the one that was
+broken, and it is worth reading for the blind spot rather than for the defect:
+what the clean run above means is bounded by the class of link the instrument
+inspects, and this root happened to hold the other class.
 
 **The evidence is twenty tests, and the brief pins four of them.**
 `crates/grove-loop/tests/session_config.rs` is 713 lines and twenty `#[test]`
@@ -804,14 +811,14 @@ and refuses to guess.
 /// at the searched path is a candidate that then fails closed on read, not an
 /// absence that silently resolves to the personal file.
 ///
-/// **Only `NotFound` is absence.** Any other error means this candidate's state
-/// could not be established, and the two things a caller would otherwise do with
-/// it are both wrong: at the worktree root it would move on and read the
-/// repository root, inverting the search precedence requirement 6 fixes, and at
-/// the repository root it would fall through to the very personal file the delta
-/// exists to move work away from. An unresolvable candidate is therefore the
-/// same refusal an unreadable delta already is, reported against the path whose
-/// state is unknown.
+/// **Only `NotFound` is absence** (`docs/adr/untracked-configuration-delta.md`).
+/// Any other error means this candidate's state could not be established, and
+/// the two things a caller would otherwise do with it are both wrong: at the
+/// worktree root it would move on and read the repository root, inverting the
+/// search precedence that record fixes, and at the repository root it would fall
+/// through to the very personal file the delta exists to move work away from. An
+/// unresolvable candidate is therefore the same refusal an unreadable delta
+/// already is, reported against the path whose state is unknown.
 fn find_delta(roots: &DeltaRoots<'_>) -> Result<Option<PathBuf>> {
     for candidate in SessionConfig::delta_candidates(roots) {
         match fs::symlink_metadata(&candidate) {
@@ -853,22 +860,31 @@ different reason and still satisfy it — what makes the test conclusive is the
 delta deliberately placed at the second root, which a passing load would have
 had to return.
 
-**One adjudication is owed here, and it is a citation rather than a behaviour.**
-The comment says the wrong move at the worktree root would invert *the search
-precedence requirement 6 fixes*. **There is no requirement 6.** The string is
-unique in the whole repository, and the document the phrase points at,
-`docs/specs/module-decomposition.md`, numbers its **decisions** 1 to 11 and gives
-its four requirements names rather than numbers. Read as *decision* 6 it still
-does not fit: that decision moves the completeness quantifier and states that an
-overlay overrides and never supplies, and it says nothing about which of two
-roots is searched first — at the revision this comment was written as much as
-today. What does fix the search precedence, and states this very absence rule in
-almost these words, is the decision record `untracked-configuration-delta`, which
-this same file cites correctly three times elsewhere. **The rule the sentence
-describes is right; only its address is wrong**, which is the same shape as the
-stale module path chapter 6 adjudicated and is handled the same way — on the page,
-not by a fix. `requirement-six-citation-k189` holds the fix, and will land it
-within this file's frozen line count so no range above moves.
+**One adjudication was owed here, and it was a citation rather than a
+behaviour.** While this book was drafted the comment said the wrong move at the
+worktree root would invert *the search precedence requirement 6 fixes*. **There
+was no requirement 6.** The string was unique in the whole repository, and the
+document the phrase pointed at, `docs/specs/module-decomposition.md`, numbers its
+**decisions** 1 to 11 and gives its four requirements names rather than numbers.
+Read as *decision* 6 it did not fit either: that decision moves the completeness
+quantifier and states that an overlay overrides and never supplies, and it says
+nothing about which of two roots is searched first — at the revision the comment
+was written as much as today.
+
+**The rule the sentence described was right; only its address was wrong**, which
+is the same shape as the stale module path chapter 6 adjudicated. What does fix
+the search precedence, and states this very absence rule in almost these words —
+*only a candidate Grove positively establishes to be absent lets the search move
+on* — is `docs/adr/untracked-configuration-delta.md`, which this same file cites
+correctly three times elsewhere. `requirement-six-citation-k189` landed the fix
+the fragment above now shows, and the shape of the repair is worth reading off
+the bytes: the record's path did not go where `requirement 6` had been. It went
+onto the paragraph's own topic sentence, as a parenthesised backticked path in
+the file's own convention, which leaves *that record* as the antecedent the later
+clause now has. The paragraph had to be reflowed rather than patched, because it
+came out forty-four characters longer than it was and still had to land on
+exactly the eight lines it already occupied — a ninth would have moved every
+fragment range below it in this chapter.
 
 <a id="the-refusal-and-its-remedy"></a>
 ## The refusal, and a remedy nothing holds
@@ -958,12 +974,12 @@ The last item, and the boundary the module header opened on.
 /// Is the delta at `path` **tracked** by the workspace it sits in?
 ///
 /// The one read-only question grove asks the version control system outside the
-/// finish path, and the enforcement behind [the untracked configuration
-/// delta](../docs/adr/untracked-configuration-delta.md): a delta names a program
-/// to execute, so a repository that could ship one would choose what Grove
-/// spawns in any checkout of it. Documentation cannot establish that boundary
-/// and neither can an ignore rule — a file already committed stays tracked when
-/// an ignore line is added.
+/// finish path, and the enforcement behind the untracked configuration delta
+/// (`docs/adr/untracked-configuration-delta.md`): a delta names a program to
+/// execute, so a repository that could ship one would choose what Grove spawns
+/// in any checkout of it. Documentation cannot establish that boundary and
+/// neither can an ignore rule — a file already committed stays tracked when an
+/// ignore line is added.
 ///
 /// Anchored to the candidate's **own** directory rather than to the leased
 /// worktree, because the two searched roots may live in different workspaces (a
@@ -1027,25 +1043,31 @@ establishes is therefore *the load failed while asking about trackedness rather
 than resolving to the personal file*, which is the property that matters; what it
 does not establish is *the probe was unanswerable*, which is what its name says.
 
-**And one more citation to adjudicate, of the same class as `requirement 6`.**
-This doc comment cites the untracked-configuration-delta record as a Markdown
-link to `../docs/adr/untracked-configuration-delta.md`. Every other citation in
-this block — six of them — is a backticked path in prose, which is the file's own
-convention and is stable. This one is a link, and it resolves from nowhere:
-rustdoc emits the target verbatim, so from the rendered page at
-`grove_loop/session_config/fn.delta_is_tracked.html` it points inside the
+**And one more citation was repaired here, of the same class as
+`requirement 6`.** While this book was drafted this doc comment cited the
+untracked-configuration-delta record as a Markdown link to
+`../docs/adr/untracked-configuration-delta.md`. Every other document citation in
+the file — six of them then, and seven now that `requirement 6`'s replacement has
+joined them — is a backticked path in prose, which is the file's own convention
+and is stable. That one was a link, and it resolved from nowhere: rustdoc emits
+the target verbatim, so from the rendered page at
+`grove_loop/session_config/fn.delta_is_tracked.html` it pointed inside the
 generated documentation tree, where no `docs/adr/` exists; and read as a path
 relative to the source file it would be `crates/grove-loop/docs/adr/`, which does
-not exist either. **`cargo doc` reports nothing**, because it checks intra-doc
-links and never an explicit URL target — which is why this is a different blind
+not exist either. **`cargo doc` reported nothing**, because it checks intra-doc
+links and never an explicit URL target — which is why this was a different blind
 spot from the five unresolved intra-doc links the crate warned about while this
-book was drafted, and why the clean run this chapter opened with is not evidence
-about this line. `unresolved-doc-links-k151` repaired those five; this address
-was untouched by it, because no `cargo doc` run has ever seen it. The
-record it names is real and says what the comment says it says; the address is
-the only broken part. `requirement-six-citation-k189` holds this fix beside the
-`requirement 6` one — both are addresses in this file, and both land inside its
-frozen line count.
+book was drafted, and why the clean run this chapter opened with was not evidence
+about this line. `unresolved-doc-links-k151` repaired those five and left this
+address untouched, because no `cargo doc` run had ever seen it.
+
+The record it names is real and says what the comment says it says, so
+`requirement-six-citation-k189` changed nothing but the form: the link became the
+parenthesised backticked path the fragment above now shows, and the paragraph
+reflowed onto the seven lines it already occupied. Nothing found this one either
+— no instrument in this repository reads an explicit URL in a doc comment, and it
+surfaced only because writing this section meant enumerating every citation in
+the file by hand.
 
 <a id="what-could-not-move-here"></a>
 ## What could not move

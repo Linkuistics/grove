@@ -13,11 +13,12 @@ directly. Everything below is what remains once launch policy leaves the binary
 recorded as the decisions, the constraints and the measurements behind each.
 The description of what the system does at its entry point, how its two command
 surfaces are shaped and which module holds what is the
-[system overview](walkthroughs/overview/README.md)'s, and each stripped section
-below opens with a pointer to the page that carries it. The description of the
-remaining crates' internals stays here, marked, until each crate's own
-walkthrough makes it redundant. There are no transactions: the version control
-system owns them.
+[system overview](walkthroughs/overview/README.md)'s; the description of each
+crate's internals is that crate's own walkthrough's. Both left this document as
+those books landed, and a stripped section opens with a pointer to the page that
+carries what it lost. The description that remains is marked, and each mark says
+why it could not go. There are no transactions: the version control system owns
+them.
 
 ## Documentation ownership
 
@@ -304,97 +305,40 @@ tree](adr/one-live-driver-per-working-tree.md).
 <a id="task-tree-scheme"></a>
 ## Task-tree data model
 
-<!-- residue marks. A `residue(<book>)` comment precedes a descriptive passage
-     that stays in this document only until the named walkthrough book covers
-     it; `architecture-residue-k75` deletes each once its book has landed.
-     `residue(none)` names a passage no planned crate book covers, because it
-     describes the methodology plugin rather than a crate. Where a passage is
-     mixed, the mark says which clauses it covers and which stay. A book that
-     has already landed (`jj-workspace`) makes its passages deletable now. -->
+The grammar itself, the two species, the identity split between position and
+key, and the modules that own each half are the [`grove-loop`
+walkthrough](walkthroughs/grove-loop/README.md)'s. What stays here is the
+reasoning behind them.
 
-<!-- residue(grove-loop): the tree grammar and its diagram -->
-The task tree is the state:
+**A name has exactly one reading, and the `--` separator is what buys it.** That
+used to rest on a non-prefix invariant over a closed label set; `open-kind-k20`
+removed the set, and the separator between kind and slug is what made removing it
+safe ([`a-kind-is-an-open-token`](adr/a-kind-is-an-open-token.md)). Kind is
+routing metadata rather than identity.
 
-```text
-.grove/
-  BRIEF.md
-  NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md
-  NN-<slug>-k<key>/
-    BRIEF.md                 # a node's charter
-    NN-...                   # children use the same grammar
-```
+**A malformed name stops reads and mutations at a node directory's name too**,
+and the asymmetric loss is why the rule reaches that far: a skipped leaf costs
+one task, a skipped node costs its whole live subtree while picking reports the
+grove finished.
 
-<!-- residue(grove-loop): what a node is, and how a missing `BRIEF.md` is read -->
-There is **one node species**. A node means work proved bigger than one session,
-so it carries a charter; no constructor emits a charterless node, and both
-composition shapes are flat siblings. The reader nevertheless tolerates a
-missing `BRIEF.md` — a hand-authored lapse, or a node left by the deleted chain
-constructor — by skipping that level of the brief chain silently. Tolerance is
-not a second species: a node close still checks its `Done when` and promotes
-what survives, and a charter that is merely absent is a gap to fill rather than
-a signal to skip that rollup.
+**One classification serves every tree verb.** Selection, resolution, growth, key
+allocation and pruning read the same snapshot's answer about what a sibling is,
+without which a subtree the reader refuses could stay invisible to key
+allocation, lowering the visible maximum key so the next `leaf-add` re-issues a
+live one.
 
-<!-- residue(grove-loop): positions, keys, handles and the terminal infixes -->
-`NN` is a gapless, per-directory position and may change when inserting work.
-`k<key>` is a permanent, globally unique identity and survives moves,
-decomposition, and completion; `<slug>-k<key>` is the stable handle. A node is a
-directory; a leaf is Markdown. `DONE` and `ABANDONED` are terminal filename
-infixes, so picking and rendering need not parse file contents.
+**The filenames are the format.** There is no format witness and no format
+metadata inside the tree, so a tree whose names this grammar does not spell is
+refused by name rather than classified and converted; Grove does not migrate an
+older layout. Task bodies carry no launch metadata at all — only the
+`**Reviews:**` and `**Integrates:**` composition relationships below.
 
-<!-- residue(grove-loop): the kind token and the `--` separator; the `open-kind-k20` record stays -->
-`<session-kind>` is any well-formed token, separated from the slug by `--` after
-the optional outcome infix. The **separator** is what makes a name unambiguous:
-the middle splits at the *first* `--`, and neither token may contain one, so a
-shorter kind plus a slug can never render the same bytes as a longer kind plus a
-different slug. That used to rest on a non-prefix invariant over a closed label
-set; `open-kind-k20` removed the set, and the separator is what made removing it
-safe ([`a-kind-is-an-open-token`](adr/a-kind-is-an-open-token.md)). Node directory
-names stay kind-free, and kind is routing metadata rather than identity.
-
-<!-- residue(grove-loop): which names are malformed and which foreign; the ground for reaching directory names stays -->
-Every positioned, keyed name is task-shaped, and its `.md` suffix declares which
-species it is — present a leaf, absent a node directory. Such a name must parse
-completely as that species and name an entry that *is* that species on disk. A
-leaf with a missing or ill-formed kind, a node directory wearing a `DONE` or
-`ABANDONED` infix, a directory at a leaf's name, and a file or symlink at a
-node's name are all malformed trees that stop reads and mutations. Entries
-outside the grammar remain foreign and ignored at either species; `BRIEF.md`,
-carrying neither position nor key, stays outside the rule because a charterless
-node is legal everywhere. The rule reaches directory names because the loss is
-larger there: a skipped leaf costs one task, a skipped node costs its whole live
-subtree while picking reports the grove finished.
-
-<!-- residue(grove-loop): one classification shared by every verb; the ground for sharing it stays -->
-`task_name`'s verdict owns the species half for every tree verb, because the
-library classifies a listing once and every verb reads the same snapshot — so
-selection, resolution, growth, key allocation, and pruning share one answer about
-what a sibling is, without which a subtree the reader refuses could stay
-invisible to key allocation, lowering the visible maximum key so the next
-`leaf-add` re-issues a live one.
-
-<!-- residue(grove-loop): refusal by name; the no-migration decision and the no-launch-metadata constraint stay -->
-There is no format witness and no format metadata inside the tree: **the
-filenames are the format**. A tree whose names this grammar does not spell is
-refused by name — `TaskNameError` carries what is on disk and the shape it should
-have had — rather than classified and converted; Grove does not migrate an older
-layout. Task bodies carry no launch metadata at all — only the `**Reviews:**` and
-`**Integrates:**` composition relationships below.
-
-<!-- residue(grove-loop): which module owns which half of the tree; the `name-ownership-k14` record stays -->
-`task_name` parses identities **and renders them** — including the handle
-`<slug>-k<key>`, the position-free identity that crosses every module boundary.
-`Handle` is a type there, and in production code the grammar is written in
-exactly one function (`Handle::render`, which both arms of `TaskName`'s
-rendering end in) and taken apart in exactly one other (`peel_key`, which
-`Handle::parse`, `terminal_key` and the filename parser all go through). So the
-handle and the filename cannot say different things (`name-ownership-k14`).
-Tests spell the grammar independently on purpose, since a test reusing the
-renderer would assert nothing. `task_tree` walks and resolves them and owns the
-read and write seams onto the library, `task_grow` creates leaves and composition
-shapes, `tree_lifecycle` applies terminal outcomes and owns the grove-only
-lifecycle. Every entry that moves,
-moves inside an `ordinal-fs-tree` operation, so no module performs a VCS-aware
-move — see [the withdrawn tree algebra](#withdrawn-tree-algebra) below.
+**The handle and the filename cannot say different things**, because the grammar
+is written in exactly one production function and taken apart in exactly one
+other (`name-ownership-k14`). Tests spell it independently on purpose, since a
+test reusing the renderer would assert nothing. Every entry that moves, moves
+inside an `ordinal-fs-tree` operation, so no module performs a VCS-aware move —
+see [the withdrawn tree algebra](#withdrawn-tree-algebra) below.
 
 <a id="withdrawn-tree-algebra"></a>
 ### The withdrawn tree algebra
@@ -434,54 +378,40 @@ what was removed is load-bearing** — tidying the withdrawn modules out of the
 decision records and the changelog breaks the check rather than passing it, which
 is the intended direction.
 
-<!-- residue(grove-loop): the walk and the finish-reservation rule; the reserved-not-blocking argument stays -->
-Picking is a stateless depth-first pre-order walk over numeric sibling
-positions. It returns the first live leaf and skips terminal entries. The one
-eligibility rule beyond terminal filtering is the driver-owned `finish` leaf:
-while any non-finish leaf is live the walk skips finish, which becomes eligible
-only as the sole remaining work. Finish is therefore **reserved, not blocking**,
-and both halves matter. `leaf-insert` sequences work ahead of it, and ordinary
-`leaf-add` may also *append* work behind it — the case that bites, since the
-finish leaf keeps the earlier position and nothing but the skip rule stops
-teardown being proposed while live work sits after it. More than one live finish
-leaf is malformed and stops selection rather than letting eligibility depend on
-encounter order.
-`grove-llm pick` applies the same rule, so its diagnostic answer can never
-disagree with the driver. Grove encodes no dependencies, priorities, or
-scheduler outside this order.
-
 ### Authoritative selection and mandate
 
-<!-- residue(grove-loop): the one pick and what it serves; `crates/grove-llm/tests/composition_guidance.rs` pins *no second tree read* here -->
-The driver performs exactly one authoritative pick per iteration, after any
-required lifecycle mutation. One guarded read copies the selected leaf's path,
-stable handle, and filename kind, and the read guard is released before the
-second configuration load and the spawn — so the mandated session can take an
-exclusive tree guard while the driver still owns the loop. That single value
-serves readiness, the launch diagnostic line, template selection, and the
-mandate, with no second tree read. It is a fact, not a routing forecast, and it
-is not recomputed immediately before spawn.
+**Finish is reserved, not blocking**, and both halves matter. Selection skips
+the driver-owned `finish` leaf while any non-finish leaf is live, so
+`leaf-insert` sequences work ahead of it — and ordinary `leaf-add` may also
+*append* work behind it, which is the case that bites, since the finish leaf
+keeps the earlier position and nothing but the skip rule stops teardown being
+proposed while live work sits after it. Grove encodes no dependencies,
+priorities, or scheduler outside sibling order.
 
-<!-- residue(grove-loop): the core's three parts -->
-`${prompt}` carries the **guaranteed core** and nothing else: an instruction to
-load this kind's `grove-<kind>` skill, given in both the bare and the
-plugin-namespaced spelling of that one target; then the three facts Grove
-resolved at runtime — the stable handle as an explicit mandate, the [version
-control](#symmetric-vcs-rule) Grove resolved for the working tree, and Grove's
-own published release version; then Grove's signalling contract, which states the
-mechanism the session's last action drives and leaves *which* ending a kind takes
-to that kind's skill. The order is the session's own timeline, and the
-methodology itself arrives as an installed plugin rather than in argv.
+<!-- residue marks. `architecture-residue-k75` deleted every passage a landed
+     walkthrough book had made redundant. What the surviving marks record is why
+     a descriptive passage was **not** deleted: `residue(none)` means no crate
+     book covers it, because it describes the methodology plugin rather than a
+     crate; `residue(pinned)` means a book does cover it, but
+     `crates/grove-llm/tests/composition_guidance.rs` holds the wording on this
+     document, and re-pointing that assertion elsewhere would drop a surface
+     from a check rather than move it. -->
 
-<!-- residue(grove-loop, none): what the core reads is the loop's; what Bootstrap does with it is the methodology's; the `prompt-names-the-kind-k18` record stays -->
-The core reads nothing: all three parts are driver prose, so composition cannot
-fail and there is no per-kind content decision left in the binary. That is
-`prompt-names-the-kind-k18`'s deletion — a nineteen-to-ten reference map, a
-nineteen-to-two ending map, and the skill-directory list — and it is what
-leaves Grove interpreting a kind nowhere: it renders the kind's own label into a
-skill name and stops. No
-hidden leaf environment variable accompanies it. At Bootstrap the
-session resolves the handle with `grove-llm resolve`, rejects a missing,
+<!-- residue(none): the Bootstrap sequence is the methodology's, not a crate's -->
+**One pick is authoritative, and it is a fact rather than a routing forecast.**
+The driver performs exactly one per iteration, and that single value serves
+readiness, the launch diagnostic line, template selection, and the mandate, with
+no second tree read; it is not recomputed immediately before spawn. Its read
+guard is released before the spawn, so the mandated session can take an exclusive
+tree guard while the driver still owns the loop. What the prompt then carries,
+and how the driver composes it, is the [`grove-loop`
+walkthrough](walkthroughs/grove-loop/README.md)'s.
+
+`prompt-names-the-kind-k18` deleted a nineteen-to-ten reference map, a
+nineteen-to-two ending map, and the skill-directory list, and that is what leaves
+Grove interpreting a kind nowhere: it renders the kind's own label into a skill
+name and stops. No hidden leaf environment variable accompanies it. At Bootstrap
+the session resolves the handle with `grove-llm resolve`, rejects a missing,
 ambiguous, terminal, or non-leaf result, reads the glossary, cited decision
 records, brief chain, and task, and executes it without calling `grove-llm
 pick`. A leaf inserted during the launch window therefore does not preempt a
@@ -707,10 +637,12 @@ methodology ships. The table below is the methodology's current set of twenty-th
 not the binary's; adding another is authoring a skill and declaring a template
 for it, never editing this repository's Rust.
 
-<!-- residue(grove-loop): the two kind tokens grove writes itself -->
-Grove spells exactly two kind tokens, and only where it writes the leaf itself
-with no session to delegate to: `requirements`, for the leaf `root-init` lays
-down, and `finish`, for the teardown sentinel.
+**Grove spells a kind token only where it writes the leaf itself**, with no
+session to delegate to, and only for a leaf it can recognise afterwards: the
+grow and terminal verbs refuse the driver-reserved `finish` as a kind or
+operand, and that refusal is the licence for naming the token at all. Which
+tokens those are is the [`grove-loop`
+walkthrough](walkthroughs/grove-loop/README.md)'s.
 
 <!-- residue(none): the methodology's current set of kinds, in two tables and the paragraphs around them; the open-token decision above and the editorial-pipeline measurement record stay -->
 
@@ -739,12 +671,6 @@ Each editorial stage is itself a producer that reads the whole document and
 it and buys it no `review-`/`integrate-review-` pair. Which stages exist was
 measured rather than asserted
 ([`the-editorial-pipeline-is-four-kinds`](adr/the-editorial-pipeline-is-four-kinds.md)).
-
-<!-- residue(grove-loop): the finish reservation -->
-`finish` is driver-reserved: only the lifecycle creates a finish leaf, and the
-grow and terminal verbs refuse it as a kind or operand. That refusal is grove
-recognising a leaf it wrote itself, which is the licence for naming the token at
-all.
 
 <!-- residue(none): what reviews and integrations are, and which kinds are HITL -->
 Reviews are fresh-context adversarial reads that produce findings rather than
@@ -780,7 +706,7 @@ an earlier stage owns is sent back as forward tree growth: a contiguous run of
 re-run leaves from the owning stage through `proof`
 ([`a-feedback-edge-is-forward-tree-growth`](adr/a-feedback-edge-is-forward-tree-growth.md)).
 
-<!-- residue(grove-loop): `resolve` on a chained stem and the grow verbs' refusal; `composition_guidance.rs` pins *pick-style*, *exit zero* and the refusal sentence here -->
+<!-- residue(pinned): `resolve` on a chained stem and the grow verbs' refusal are the `grove-loop` book's, but *pick-style*, *exit zero* and the refusal sentence are pinned on this document -->
 Every step carries that stem as its **whole slug**, so a shape's leaves differ
 only by kind and key. The kind field is the canonical statement of a step's role
 and the slug names the artifact; a step marker in the slug would restate the kind
@@ -858,44 +784,30 @@ driver routes a scheduled review solely by its filename kind.
 <a id="tree-access-lock"></a>
 ### Tree access lock
 
-<!-- residue(grove-loop): the lock's scope and holders; the `collapse-tree-access-k13` and `bulk-marks-are-not-atomic` records stay, and `composition_guidance.rs` pins *Tree access lock* and *FINISHING-* on this document -->
-Every steady-state task-tree reader holds a shared **Tree access lock** on an
-open descriptor for the *working-tree root*; every mutator holds it exclusively
-through validation, rollback, or success output. **It is the store's lock, and
-since `collapse-tree-access-k13` it is the only one** — Grove kept a second layer
-of its own for as long as there were things the library could not do to a tree it
-had to reach in order to read, and there are none left. One exception is
-deliberate and recorded: a **bulk** mark holds one guard per entry it marks,
-because a library mutation consumes its guard — see
+**The Tree access lock is the store's own, and since `collapse-tree-access-k13`
+it is the only one** — Grove kept a second layer of its own for as long as there
+were things the library could not do to a tree it had to reach in order to read,
+and there are none left. One exception is deliberate and recorded: a **bulk** mark holds one
+guard per entry it marks, because a library mutation consumes its guard — see
 [`bulk-marks-are-not-atomic`](adr/bulk-marks-are-not-atomic.md) and *One guard is
-one mutation* below. The working-tree root is used
-rather than `.grove/` because it is the one thing that exists before root
-initialization and survives finish deletion, so a single seam covers creation,
-ordinary mutation, and teardown. A contended caller prints one waiting
-diagnostic and then waits.
+one mutation* below. The lock is taken on the *working-tree root* rather than on
+`.grove/` because that is the one thing that exists before root initialization
+and survives finish deletion, so a single seam covers creation, ordinary
+mutation, and teardown.
 
-<!-- residue(grove-loop): what the lock does and does not promise; the `delete-finish-transaction-k8` record stays -->
-The lock serializes live processes and adds no crash atomicity, and **nothing in
-Grove adds any**. The one operation that used to need more — the finish teardown
-— carried an in-tree `FINISHING-*` witness that every other command refused
-while it existed. Both are gone: Jujutsu snapshots the working copy before every
-command and its operation log is the transaction record, so an interrupted
-teardown is restored with `jj undo` rather than by a Grove-authored recovery
-(`delete-finish-transaction-k8`). The contract this lock offers is
-process-interruption consistency between cooperating Grove processes, not
-power-loss durability and not crash atomicity.
+**Nothing in Grove adds crash atomicity.** The one operation that used to need
+more — the finish teardown — carried an in-tree `FINISHING-*` witness that every
+other command refused while it existed. Both are gone: Jujutsu snapshots the
+working copy before every command and its operation log is the transaction
+record, so an interrupted teardown is restored with `jj undo` rather than by a
+Grove-authored recovery (`delete-finish-transaction-k8`).
 
-<!-- residue(grove-loop): `leaf-add`'s all-or-nothing on error; `composition_guidance.rs` pins *all-or-nothing on a reported error*, *Process death mid-run is not recovered* and *process-interruption recovery* here -->
-A multi-leaf add needs neither, and the promise it makes is correspondingly
-narrower. `leaf-add` given a list of kinds is all-or-nothing **on a reported
-error** within one exclusive lock, and since `growing-k33` that is the library's doing rather than
-Grove's: `append_many` plans the whole run from one snapshot — so the ordinals
-are contiguous and the keys consecutive by construction — checks the plan against
-that snapshot before a byte is written, and unwinds its own effects when the
-filesystem refuses part way. Grove's own reconstruction of the same guarantee —
-an up-front destination sweep, an `O_EXCL` claim per leaf, a per-run rollback
-list — went with the verb, and nothing of it is left: the lifecycle verbs that
-used to allocate under Grove's own guard allocate under the store's.
+<!-- residue(pinned): *all-or-nothing on a reported error*, *Process death mid-run is not recovered* and *process-interruption recovery* are pinned on this document -->
+`leaf-add` given a list of kinds is all-or-nothing **on a reported error** within
+one exclusive lock, and since `growing-k33` that is the library's doing rather
+than Grove's: Grove's own reconstruction of the same guarantee — an up-front
+destination sweep, an `O_EXCL` claim per leaf, a per-run rollback list — went
+with the verb, and nothing of it is left.
 
 That guarantee covers the error return path and nothing else. **Process death
 mid-run is not recovered**: the interpreter unwinds only when control returns
@@ -906,19 +818,17 @@ is a delete and a commit, and what puts a half-finished one back is the operatio
 log. The residue of a partial add is a hand-editable file in a directory tree,
 and recovering it is deleting it.
 
-<!-- residue(grove-loop): this subsection's mechanism paragraphs — the contention probe and `task_tree::restate`; the deadlock record and the two consumer-side obligations stay -->
 #### One lock, and it is the library's
 
-`reading-k31` moved `pick`, `select`, `brief-chain`, `kind` and `resolve` onto
-`ordinal-fs-tree`'s own guard (`crates/grove-loop/src/task_tree.rs`), and for a while Grove kept a
-second guard beside it. The library takes the same lock on the same directory
-for the same reason — the containing directory outlives the root — but it takes
-it on **its own** descriptor, and `flock` is attached to an open file description
-rather than to a process. So the two guards did not share a lock, and a verb
-holding Grove's that called into the library's reader would block on itself
-forever. The rule that followed was per verb, not per module: a verb used one
-guard or the other, never both at once, which is why the migrate stage moved
-whole verb groups at a time.
+`reading-k31` moved the read verbs onto `ordinal-fs-tree`'s own guard, and for a
+while Grove kept a second guard beside it. The library takes the same lock on the
+same directory for the same reason — the containing directory outlives the root —
+but it takes it on **its own** descriptor, and `flock` is attached to an open
+file description rather than to a process. So the two guards did not share a
+lock, and a verb holding Grove's that called into the library's reader would
+block on itself forever. The rule that followed was per verb, not per module: a
+verb used one guard or the other, never both at once, which is why the migrate
+stage moved whole verb groups at a time.
 
 **`collapse-tree-access-k13` deleted the second layer**, and the deadlock with
 it. It survived that long for three recorded reasons — the tree Grove had to
@@ -929,10 +839,10 @@ left no legacy shape to recognise, and `delete-finish-transaction-k8` left no
 transaction. The one thing Grove's guard covered that the library could not —
 creating the root, which needs the root to not exist yet — is
 `Vacancy::initialize`'s, taken under the exclusive lock the vacancy already
-holds. Grove now takes exactly one `flock` of its own anywhere in its source:
-the non-blocking contention probe below, which is released in the same
-expression. `crates/grove-llm/tests/tree_lock.rs` holds both halves by
-enumerating every package's `src/`.
+holds. Grove now takes exactly one `flock` of its own anywhere in its source —
+the non-blocking contention probe below — and
+`crates/grove-llm/tests/tree_lock.rs` holds that by enumerating every package's
+`src/`.
 
 **The one-at-a-time rule outlived the second layer, because two descriptions are
 enough to express it.** A caller holding a `TreeWrite` whose guard is still
@@ -952,32 +862,28 @@ inherits both.
 in the library's interface by design — no try-variant, no timeout, `read` and
 `write` simply block — so nothing in it can say *someone else is holding this*.
 Grove has always said so, and losing it in a refactor that promises to change no
-behaviour would be a real regression, so `task_tree::announce_contention` probes
-the same directory in the same mode non-blockingly, prints the one diagnostic,
-releases, and lets the library block. It is a diagnostic and never a decision:
-between the probe's release and the library's acquisition a contender can
-arrive, and the cost of that window is a missing message and nothing else.
+behaviour would be a real regression, so grove buys the message back with a
+non-blocking probe of its own. It is a diagnostic and never a decision: between
+that probe's release and the library's acquisition a contender can arrive, and
+the cost of that window is a missing message and nothing else.
 
 **Refusal precedence is grove's; the halt is the library's.** The library halts
 the whole tree on a name grove's grammar refuses, wherever it sits — that is the
 decision, and it is taken under the lock. But the library can only say *this
 filename is wrong*, and a root that is absent, or holds something that is not a
-tree, is a condition grove states in its own words. So `task_tree::restate`
-re-states a *failed* read in the order grove owes its operator — something at the
-root that is not a tree, then an absent root, then the library's own message —
-and chooses only the wording. The first clause is ordered ahead of the second
-deliberately: `is_dir` reads a dangling symbolic link at the root as *absent*,
-and the library's `RootIsNotATree` already says what is there and that a tree is
-a directory, which is more than grove's *not found* would.
+tree, is a condition grove states in its own words. So grove re-states a *failed*
+read in the order it owes its operator and chooses only the wording. Something at
+the root that is not a tree is ordered ahead of an absent root deliberately:
+`is_dir` reads a dangling symbolic link at the root as *absent*, and the
+library's `RootIsNotATree` already says what is there and that a tree is a
+directory, which is more than grove's *not found* would.
 
-<!-- residue(grove-loop): what `leaf-prune` on a node does and `task_tree::addressable_key`'s refusal; the `marking-k32` record and the ADR stay -->
 #### One guard is one mutation, and a bulk mark is many
 
 `marking-k32` moved `leaf-retire` and `leaf-prune` onto the library's `rewrite`,
 which is the first mutation Grove performs through it. A mutating method
-**consumes** its `WriteGuard`, so `leaf-prune` on a node — which marks every live
-leaf in a subtree — is *N* rewrites under *N* guards where it was one critical
-section returning one `PruneResult`. Grove accepts that
+**consumes** its `WriteGuard`, so a bulk mark is *N* rewrites under *N* guards
+where it was one critical section. Grove accepts that
 ([`bulk-marks-are-not-atomic`](adr/bulk-marks-are-not-atomic.md)) rather than
 asking a checked library for a batched rewrite, and two properties are what make
 it affordable:
@@ -1001,23 +907,20 @@ resolve the argument to an entry and call **by key**, and that is sound only
 while keys are unique tree-wide. The library states uniqueness as the domain's
 obligation and cannot enforce it; a hand edit or a failed rollback can put two
 entries under one key, and `by_key` then answers with whichever the walk reaches
-first — an order neither model establishes. So `task_tree::addressable_key`
-refuses a key that names more than one entry, before any operation is called.
-Without it, `leaf-retire` aimed at one twin rewrote the other onto its own name,
-changed nothing, and reported success. Every flipped verb goes through it, and
+first — an order neither model establishes. So Grove refuses a key that names
+more than one entry, before any operation is called. Without that refusal,
+`leaf-retire` aimed at one twin rewrote the other onto its own name, changed
+nothing, and reported success. Every flipped verb goes through it, and
 every verb the migrate stage has yet to move should: the hazard belongs to
 *resolve a path, then call by key*, which is the shape of all of them.
 
-<!-- residue(grove-loop): the lint's second opening and how hits are returned; the `lint-lock-scope-k32` record stays -->
 #### A verb that reports on the tree it changed needs a second opening
 
-`growing-k33` moved `leaf-add` and `leaf-insert` onto `append`,
-`append_many` and `insert`, and one of them has an epilogue: `leaf-insert` lints
-stray position-prefixed cross-references left stale by the renumber it just made.
-The lint reads the tree the **shift left** — a shifted node took its whole
-subtree's paths with it — and the mutation consumed the guard that could have
-shown it, so the verb opens the tree again. That is a second observation,
-deliberately, and it announces its own wait like any other.
+`leaf-insert` lints stray position-prefixed cross-references left stale by the
+renumber it just made. It has to read the tree the **shift left**, and the
+mutation consumed the guard that could have shown it, so the verb opens the tree
+again. That is a second observation, deliberately, and it announces its own wait
+like any other.
 
 **That second opening is shared, and it is gone before anything is printed.**
 Both halves are `lint-lock-scope-k32`'s, and the leaf's subject was the exclusive
@@ -1034,11 +937,10 @@ And the hits are **returned rather than written**. The old shape took a caller's
 sink and `writeln!`d each hit into it under the lock — and a `writeln!` to a pipe
 whose reader has stopped draining blocks, so a harness that captured a session's
 stderr and stopped reading could wedge every grove process on the worktree behind
-the tree's exclusive lock. `verbs::stale_cross_refs` hands back a `Vec<String>`
-and drops its guard with the scan, so the printing happens with no lock held and
-there is no sink inside the critical section to stall in. `grove-llm`'s
-`report_insert` does that printing, and drops a failed write rather than
-returning it: the insert has already landed, and a lint that cannot print must
+the tree's exclusive lock. The scan now hands its hits back and drops its guard
+with them, so the printing happens with no lock held and there is no sink inside
+the critical section to stall in — and a failed write is dropped rather than
+returned, because the insert has already landed and a lint that cannot print must
 not turn a reported mutation into a failure.
 
 What this gives up is the claim the old test made — that a hit was *printed*
@@ -1054,15 +956,12 @@ and a foreign `.md` a hand edit dropped into `.grove/` is no longer scanned.
 Grove writes no such file, and the alternative is a second, wider notion of
 *what is in the tree* than the reader has.
 
-<!-- residue(grove-loop): key prediction and its check; the rejected alternative stays -->
 #### The library allocates the key; the consumer's content embeds it
 
-Grove's leaf body opens with the position-free handle `# <slug>-k<key>`, and
-`NewEntry` takes its bytes **before** the library composes the name that carries
-the key. A content-carrying domain therefore cannot render its content from the
-answer, and has to predict the allocation: `task_tree::next_key` is `max + 1`
-over the same snapshot the operation plans from, which is the library's own rule
-mirrored on the consumer's side.
+Grove's leaf body opens with the position-free handle `# <slug>-k<key>`, and the
+library takes those bytes **before** it composes the name that carries the key. A
+content-carrying domain therefore cannot render its content from the answer, and
+has to predict the allocation.
 
 The alternative was to create with `NewEntry::empty` and write the body
 afterwards, from the key the report carries. It was rejected because the guard is
@@ -1072,16 +971,14 @@ whose three bodies do not, which is the all-or-nothing property the composite
 verb exists for. Predicting keeps the content atomic with the creation, and pays
 for it with one check.
 
-It is a prediction and it is checked. Every grow verb compares it against the key
-the library reports and refuses to claim success on a disagreement, because the
-silent failure is a leaf whose first line contradicts its own filename —
-permanently, and invisibly. The prediction reads the same snapshot under the same
-guard, so it can only be wrong if the library's allocation rule changes, which is
-exactly what the check exists to catch. An exhausted keyspace predicts nothing
-and hands the library no bytes: `Refusal::KeysExhausted` is the library's to
-state, a refusal writes nothing, and the unrenderable content is never reached.
+It is a prediction and it is checked, because the silent failure is a leaf whose
+first line contradicts its own filename — permanently, and invisibly. The
+prediction reads the same snapshot under the same guard, so it can only be wrong
+if the library's allocation rule changes, which is exactly what the check exists
+to catch. An exhausted keyspace predicts nothing and hands the library no bytes:
+`Refusal::KeysExhausted` is the library's to state, a refusal writes nothing, and
+the unrenderable content is never reached.
 
-<!-- residue(grove-loop): the two calls of `root-init`, `root_shape`'s classification and `finish-commit`'s symlink gate; the `lifecycle-k35`, `open-shape-k25` and `collapse-tree-access-k13` records stay -->
 #### The grove's own creation is one store operation
 
 `lifecycle-k35` moved `root-init`, `materialize-finish`, `transition-to-current`
@@ -1103,27 +1000,20 @@ the seam.** An exclusive opening of a root that holds no tree is a
 `Vacancy::initialize` creates the root, its distinguished child and a first run
 of entries under it — the three effects that used to need two guards, in one
 operation that takes the root back down if any of it fails. So `root-init` and
-the driver's own scaffold are each one call:
+the driver's own scaffold are each one call.
 
-1. `grove_loop::write` (`task_tree::write_or_vacancy` beneath it) — a tree here
-   is `root-init`'s refusal to clobber and the transition's *already current*; a
-   vacancy is the lock to create under.
-2. `TreeVacancy::initialize` — the root, the `BRIEF.md` and the first
-   `requirements` leaf, together.
-
-Since `loop-crate-verbs-k21` the refusal to clobber is not a check at all:
-`verbs::root_init` takes the `Vacancy`, so there is no way to call it against a
-live grove — the arm the opening answers with is the whole of the decision, and a
-caller holding a `TreeWrite` cannot reach the verb.
+Since `loop-crate-verbs-k21` the refusal to clobber is not a check at all: the
+verb takes the `Vacancy`, so there is no way to call it against a live grove —
+the arm the opening answers with is the whole of the decision, and a caller
+already holding the tree cannot reach the verb.
 
 **A taskless root is now an anomaly to name rather than one to repair.** Grove
 produced the shape, so Grove completed it; nothing Grove does produces it any
 more, and entries are marked and never removed
 ([`entries-are-never-removed`](adr/entries-are-never-removed.md)), so a root with
-a charter and no task is something else's doing. `tree_lifecycle::root_shape`
-classifies it `Taskless` and the transition stops with a sentence naming `jj
-undo` — [principle 2](#principles), and roughly twenty-five auto-repair
-functions' last survivor gone with it.
+a charter and no task is something else's doing. The transition stops on it with
+a sentence naming `jj undo`, and with the repair that stop replaced went the last
+survivor of roughly twenty-five auto-repair functions.
 
 That classification used to be a byte-exact match against the deterministic
 fresh-tree content, gated on a missing `.grove/FORMAT` witness. It had to be,
@@ -1131,12 +1021,12 @@ because a witnessless root was *also* how a legacy tree presented and the two go
 opposite treatment. Migration is gone (`delete-migration-k6`), and the
 discrimination it needed went with it.
 
-`root_shape` reads the root's own listing as well as the snapshot, and that is
-not a second reader. Whether the tree holds a keyed entry is the snapshot's
-answer. *Which* foreign names a taskless root is holding is not available from
-one: the store skips a name the domain disclaims and reports nothing about it, so
-naming them in a refusal means listing the directory — under the store's own
-lock, which is the whole difference from the arrangement this replaced.
+**Reading the root's own listing as well as the snapshot is not a second
+reader.** Whether the tree holds a keyed entry is the snapshot's answer. *Which*
+foreign names a taskless root is holding is not available from one: the store
+skips a name the domain disclaims and reports nothing about it, so naming them in
+a refusal means listing the directory — under the store's own lock, which is the
+whole difference from the arrangement this replaced.
 
 `finish-commit` is the fourth verb, and what it stopped needing is the more
 interesting half. It used to run a preflight of its own — `preflight_root`, which
@@ -1149,41 +1039,29 @@ is no second condition for a second wording to disagree with: a stray
 answer `delete-migration-k6` reached for a stray `.grove/FORMAT`, and
 `crates/grove-llm/tests/session_kind_tree.rs` asserts it rather than assuming it.
 
-What survives the preflight's deletion is the one check the guard cannot make.
-The verb classifies `.grove` itself, unfollowed, *before* opening the tree,
-because a symbolic link to a directory elsewhere is a root the library would
-follow and read, and a teardown may not delete a directory elsewhere as if it
-were its own. Past that gate the guard is the authority, and the removal is the
-store's: `WriteGuard::delete` consumes the guard — so the lock is held right up to
-the unlink and released with nothing left to guard — refuses a linked root on its
-own account, and reports the paths that went, which is what lets the session name
-them in the commit message it writes by hand.
+What survives the preflight's deletion is the one check the guard cannot make: a
+symbolic link to a directory elsewhere is a root the library would follow and
+read, and **a teardown may not delete a directory elsewhere as if it were its
+own**. Past that gate the guard is the authority and the removal is the store's,
+which is what lets the session name the paths that went in the commit message it
+writes by hand.
 
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>
 <a id="fresh-grove-start-contract"></a>
 ## Lifecycle and resumption
 
-<!-- residue(grove-loop): the transition table -->
 Bare `grove` is the sole start/continue/finish entry. Each iteration performs at
 most one lifecycle transition, and full configuration validation precedes every
 one of them, so a missing or malformed `config.kdl` — or an invalid or tracked
-`.grove.kdl` delta — leaves the working tree byte-identical:
+`.grove.kdl` delta — leaves the working tree byte-identical. Which state maps to
+which transition is the [`grove-loop`
+walkthrough](walkthroughs/grove-loop/README.md)'s.
 
-| Observed state | Transition |
-|---|---|
-| No `.grove/` | Create the root brief and `01-requirements--plan-k1.md`. |
-| A root short of a whole grove | Refuse, naming what is missing (`delete-migration-k6`; there is no migration). |
-| Live leaves | None. |
-| No live leaf | Append, or reuse, the driver-owned finish leaf. |
-
-<!-- residue(grove-loop): the one-store-operation scaffold; the ground that a brief-only tree reads as finished stays -->
 A fresh grove creates a first *leaf*, not just a brief, because `pick` skips
 briefs: a brief-only tree would report "no live leaves" and be indistinguishable
-from a finished one. The charter, the leaf and the root itself are one store
-operation under one lock, so there is no window between deciding a tree is absent
-and creating it, and no partial scaffold to recognise. Creation is working-tree
-only; the first session's focused commit folds in the scaffold.
+from a finished one. Creation is working-tree only; the first session's focused
+commit folds in the scaffold.
 
 Task-root absence is the complete fresh-tree discriminator. Grove consults no VCS
 history, abandoned signal channel, or unlocked lease bytes to decide that a
@@ -1191,21 +1069,15 @@ missing tree used to be a finished one: a teardown commit proves that Grove
 deleted an earlier tree but not whether the present invocation means "recover
 that" or "start another".
 
-<!-- residue(grove-loop, keyed-launch): the watch and the escalation, and what the driver does without a signal; the sandbox ground and the does-not-infer-`done` decision stay -->
-The loop launches one foreground session at a time and watches it: poll the
-child alongside the completion-signal file, and once the file appears apply
-grace → SIGTERM → kill-grace → SIGKILL. **The launch, the watch and the kill are
-`crates/keyed-launch`'s** — grove chooses the control directory, the variable
-name, the scrub list and the two graces, and reads a meaning out of the token
-that comes back; nothing else about the child is its business. That kill is the
-*launcher's* job because it is the session's parent, outside whatever sandbox
-the session runs under; an in-agent self-kill is silently denied by sandboxes
-such as Codex's Seatbelt. The
-session commits its artifact and terminal task-tree mutation before signalling
-`relaunch` or `done`. If it exits without a signal the driver stops instead of
-guessing, reporting the child's exit status and elapsed time — and does not
-infer `done` even if that child successfully committed teardown. The filesystem
-and VCS already say what completed, and a later `grove` continues from there.
+**Ending a session is the launcher's job**, because the launcher is the session's
+parent, outside whatever sandbox the session runs under; an in-agent self-kill is
+silently denied by sandboxes such as Codex's Seatbelt.
+
+The session commits its artifact and terminal task-tree mutation before
+signalling. **A session that exits without signalling stops the loop**, and the
+driver does not infer `done` even if that child successfully committed teardown:
+the filesystem and VCS already say what completed, and a later `grove` continues
+from there.
 
 <a id="legacy-migration"></a>
 <a id="no-migration"></a>
@@ -1218,15 +1090,12 @@ no migrate command, no automatic conversion inside bare `grove`, and no format
 witness to classify a tree by. Recovery machinery is not written where a sentence
 and a human will do.
 
-<!-- residue(grove-loop): `root_shape` on a withdrawn layout; the no-migration decision above it stays -->
 One shape needs saying because it is not a name the grammar refuses. The layouts
-Grove wrote before this grammar — the original `NNN-slug/` + `done/` tree and the
-v1 flat dotted-decimal tree — are positioned but *unkeyed*, so every one of their
-names is `Foreign` and invisible to the reader rather than refused by it. A root
-holding nothing but such names would read as an empty grove and take the driver's
-finish sentinel. So the lifecycle transition treats *a root with no Grove entry
-at all* as the anomaly and stops on it, naming the entries it disclaimed and the
-grammar it does read (`tree_lifecycle::root_shape`). That is one classification
+Grove wrote before this grammar are positioned but *unkeyed*, so every one of
+their names is foreign and invisible to the reader rather than refused by it, and
+a root holding nothing but such names would read as an empty grove and take the
+driver's finish sentinel. So the lifecycle transition treats *a root with no
+Grove entry at all* as the anomaly and stops on it. That is one classification
 over the listing, not a per-layout matcher: what went with migration
 (`delete-migration-k6`) was the recognition of *which* withdrawn layout this is,
 which the operator does not need in order to act.
@@ -1243,17 +1112,13 @@ the CLI has two explicit authority boundaries:
   confirmation before the agent marks it `ABANDONED`.
 - Deleting the completed `.grove/` tree is the one routine finish confirmation.
 
-<!-- residue(grove-loop): the finish flow as the driver and `finish-commit` perform it; the two authority boundaries above, the attestation limit and the no-merge constraint stay -->
-Finishing happens inside a real, resumable session. When the tree has no live
-leaf the driver appends `NN-finish--finish-k<key>.md` at the root and launches the
-`finish` target; declining or exiting writes no signal and leaves that same leaf
-for a later `grove`. On confirmation the session promotes durable information,
-runs `grove-llm finish-commit <finish-handle>`, and signals `done` last. No
-commit is made *for* the finish leaf and it is never retired — its addition and
-deletion cancel in the focused finish commit. `finish-commit` cannot attest that
-a human spoke through an opaque command; it is the deterministic last-moment
-tree and VCS guard, not a substitute for that HITL contract. Grove deliberately
-does not merge branches/bookmarks or remove working trees.
+**Finishing happens inside a real, resumable session**: declining or exiting
+writes no signal and leaves the finish leaf for a later `grove`. No commit is
+made *for* that leaf and it is never retired — its addition and deletion cancel
+in the focused finish commit. `finish-commit` cannot attest that a human spoke
+through an opaque command; it is the deterministic last-moment tree and VCS
+guard, not a substitute for that HITL contract. Grove deliberately does not merge
+branches/bookmarks or remove working trees.
 
 ### Finish teardown
 
@@ -1266,76 +1131,47 @@ is gone (`delete-finish-transaction-k8`), because the version control system
 already owns every guarantee it hand-built: Jujutsu snapshots the working copy
 before every command, and its operation log is the transaction record.
 
-<!-- residue(grove-loop): the four teardown steps and the two undo commands; the no-transaction decision and the jj 0.44.0 measurement stay -->
-What `finish-commit` still does is what only Grove can say, and it happens under
-one exclusive tree lock held across the whole teardown:
+Two preconditions of the teardown are grove's own, and both are refusals rather
+than repairs. **Ordinary work that appeared after the session started refuses the
+teardown** instead of being swept into it: the live leaf must be a `finish` leaf,
+and its handle must be the one the caller named. And **an untracked task tree is
+refused rather than deleted** — the operation log can only restore what it
+tracks, so requiring a recoverable tree promises nothing and repairs nothing, but
+keeps a deletion out of a state nothing could undo.
 
-1. **Classify the task root before opening it.** `.grove` is stat'd
-   *unfollowed*, so a symlink to a directory elsewhere is refused rather than
-   deleted. An absent root is a plain refusal naming `jj op log` and `jj undo`;
-   it is no longer routed to a proof that a previous attempt succeeded, because
-   there is no longer an attempt that can die halfway.
-2. **Revalidate the tree facts.** The live leaf must be a `finish` leaf, and its
-   handle must be the one the caller named — so ordinary work that appeared
-   after the session started refuses the teardown instead of being swept into
-   it.
-3. **Require a recoverable tree.** One read-only `jj file list root:.grove`. The
-   operation log can only restore what it tracks, so an untracked task tree is
-   refused with the command that tracks it rather than deleted into a state
-   nothing could undo. This is a precondition, not a surviving piece of the
-   transaction: it promises nothing and repairs nothing.
-4. **Delete `.grove/`, then commit it.** The removal is the store's —
-   `WriteGuard::delete`, which consumes the guard, follows no link and reports
-   the paths that went — and then
-   `jj commit -m "<handle>: remove completed grove task tree" root:.grove`. The
-   fileset scope is what keeps unrelated working-copy changes uncommitted — jj
-   snapshots everything and commits only those paths.
-
-Each of the two mutating steps names the operation-log command that undoes it if
-it is the one that failed: `jj restore .grove` for a deletion that stopped part
-way, since no jj command has run since the last snapshot, and `jj undo` for a
-commit that did not land. **No Grove-authored recovery runs**, and none exists to
-run. That behaviour was measured before it was relied on (jj 0.44.0, colocated):
-`rm -rf .grove/` with no jj command run, then `jj restore .grove`, returned every
-file; a partial deletion then `jj undo` reported *"Added 2 files"*, exactly the
-missing ones.
+**No Grove-authored recovery runs**, and none exists to run: each mutating step
+names the operation-log command that undoes it instead. That behaviour was
+measured before it was relied on (jj 0.44.0, colocated): `rm -rf .grove/` with no
+jj command run, then `jj restore .grove`, returned every file; a partial deletion
+then `jj undo` reported *"Added 2 files"*, exactly the missing ones.
 
 <a id="user-owned-worktrees"></a>
 <a id="symmetric-vcs-rule"></a>
 <a id="version-control-seam"></a>
 ## Version-control seam
 
-<!-- residue(jj-workspace): what the crate resolves, refuses and answers; the domain-freedom argument stays -->
-**The seam is a crate, and grove is not in it.** `crates/jj-workspace` resolves
-a workspace, refuses a working tree that is not one, hands a consumer a
-namespaced control directory, answers what is tracked, and takes a path-scoped
-commit — and it has never heard of grove, `.grove/`, a leaf or a lease
-(`docs/specs/module-decomposition.md`, decision 8). Its domain-freedom is
+**The seam is a crate, and grove is not in it.** `crates/jj-workspace` has never
+heard of grove, `.grove/`, a leaf or a lease
+(`docs/specs/module-decomposition.md`, decision 8), and its domain-freedom is
 enforced at a method rather than asserted in a sentence: `control_dir` takes the
 *consumer's* namespace, because *where a lease file may live* cannot be stated
 without naming whose lease it is. Grove supplies the one word `grove` and
-nothing else about itself.
+nothing else about itself. What the crate resolves, refuses and answers is the
+[`jj-workspace` walkthrough](walkthroughs/jj-workspace/README.md)'s.
 
-<!-- residue(jj-workspace): the walk and the colocated case; the jj-only-lane decision stays -->
-Resolution walks upward from the current directory looking for one thing: a
-`.jj/` directory. **jj is the only lane** — a tree without one is refused before
-any mutation, with `jj git init --colocate` named as the remedy
-([*jj is the only lane*](adr/jj-is-the-only-lane.md)). That one gate states the
-precondition, and nothing downstream branches on which version control owns the
-tree. A `.git` beside a `.jj` is a colocated repository and is jj's business:
-Grove never reads it, never spawns `git`, and makes no promise about the
-colocated index.
+**jj is the only lane** — a tree without a `.jj/` is refused before any mutation,
+with `jj git init --colocate` named as the remedy ([*jj is the only
+lane*](adr/jj-is-the-only-lane.md)). That one gate states the precondition, and
+nothing downstream branches on which version control owns the tree. A colocated
+repository is jj's business: Grove never reads it, never spawns `git`, and makes
+no promise about the colocated index.
 
-<!-- residue(jj-workspace, grove-loop): the scrub inside the seam, and the loop's complementary list -->
-**Every child that speaks to the version control system is spawned inside the
-crate**, which removes `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR` and
-`GIT_INDEX_FILE` from each one. Choosing the right repository is the seam's
-guarantee, so no call site can be written without it. Grove's own
-`loop_driver::LOOP_CONTROL_ENV` is the complementary half and stays grove's: it
-names the session-ending authority `GROVE_*` carries, which `jj` does not read.
-The configured session's spawn receives that list as `keyed_launch::Launch`'s
-`scrub` field, so the one spawn allowed to *grant* the channel cannot be written
-without first removing whatever it inherited.
+**Choosing the right repository is the seam's guarantee**, so every child that
+speaks to the version control system is spawned inside the crate and no call site
+can be written without the `GIT_*` scrub it applies. Grove's own session-ending
+authority is the complementary half and stays grove's: it names what `GROVE_*`
+carries, which `jj` does not read, and the one spawn allowed to *grant* that
+channel cannot be written without first removing whatever it inherited.
 
 **Moves are not commits.** Every entry a flipped verb moves is renamed by
 `ordinal-fs-tree`, which does `rename(2)`, detects no repository and requires no
@@ -1344,25 +1180,20 @@ marked `DONE` shows up as one rename and the commit records it as one — nothin
 needs staging in between. See
 [`grove-does-not-stage-its-own-renames`](adr/grove-does-not-stage-its-own-renames.md).
 
-<!-- residue(grove-loop): the stated VCS in `${prompt}`; the ground against harness detection stays -->
-Grove resolves that marker before a session exists and **states** the result in
-`${prompt}`, which is why sessions do not probe: every launch is told that its
-working tree is jj-enabled and which workspace root Grove resolved for it.
-*Not to re-derive the answer* is the skill's to say, not the prompt's — the core
-carries a launch-varying **value**, and every normative consequence of a value
-stays in the methodology. The driver already owns this fact; only the session was
-working it out again, and working it out badly. A harness banner computed from
-`.git` alone reads a native Jujutsu workspace as no repository at all
+**Sessions do not probe for the version control system, because Grove states it
+in the launch.** *Not to re-derive the answer* is the skill's to say, not the prompt's — the launch carries a
+launch-varying **value**, and every normative consequence of a value stays in the
+methodology. The driver already owns this fact; only the session was working it
+out again, and working it out badly. A harness banner computed from `.git` alone
+reads a native Jujutsu workspace as no repository at all
 ([claude-code#41435](https://github.com/anthropics/claude-code/issues/41435)),
 and detection carried as skill instructions is skippable, so a session that never
 loaded them commits with Git in a Jujutsu tree and bypasses the operation log.
-The line carries identity and root only. Which commands a session uses stays in
-the methodology's Commit step, so there is one source of truth rather than two.
+Which commands a session uses stays in the methodology's Commit step, so there is
+one source of truth rather than two.
 
-<!-- residue(jj-workspace): the path-scoped commit -->
-The finish commit is fileset-scoped so unrelated user work survives: Grove
-commits a `.grove/` fileset and nothing else, leaving unrelated working-copy
-changes in the successor commit.
+The finish commit is fileset-scoped so unrelated user work survives, leaving
+unrelated working-copy changes in the successor commit.
 
 The user owns topology. Grove reads no branch or bookmark, creates no working
 tree, and performs no integration or teardown. The working-tree basename is

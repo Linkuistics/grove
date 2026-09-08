@@ -270,8 +270,9 @@ consumer names, and no call site passes one where the other is expected.
   What it describes is **how the module boundaries work**, which is a spec's own
   grain and not `docs/ARCHITECTURE.md`'s: the architecture records the
   decisions, constraints and measurements behind the runtime a reader is
-  operating — its description of what that runtime does is moving into the
-  walkthrough books, the system overview first — an ADR records one decision
+  operating — its description of what that runtime does moved into the
+  walkthrough books, the system overview first and each crate's internals with
+  that crate's own book — an ADR records one decision
   and its trade-off, and neither states the five interfaces as a set a consumer
   builds against. Four
   artifacts link into it, and its decisions are cited *by number* from source

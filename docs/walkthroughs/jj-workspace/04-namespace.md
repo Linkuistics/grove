@@ -368,8 +368,10 @@ does not contain.
 <a id="the-reservation"></a>
 ## The reservation, and the four clauses it promises
 
-`control_dir` is one of five methods on `Workspace`, and it sits between the two
-accessors [*The gate*](02-the-gate.md#the-value-and-the-gate) owns and the
+`control_dir` is one of `Workspace`'s four operations
+([*Orientation*](01-orientation.md#public-surface) counts the surface), and it
+sits between the two accessors
+[*The gate*](02-the-gate.md#the-value-and-the-gate) owns and the
 scope-and-commit operations the next chapter owns. Nineteen lines of its
 twenty-seven are comment, and each paragraph of that comment answers a different
 question a reader would otherwise have to ask the tests.

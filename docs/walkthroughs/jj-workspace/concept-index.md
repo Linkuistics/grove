@@ -78,7 +78,7 @@
 - [Reason strings written for the condition](06-refusal.md#scopes-three)
 - [Lossy to show a name, never to address a file](06-refusal.md#scopes-three)
 - [A remedy the filesystem carries out](06-refusal.md#scopes-three)
-- [The one arm with no remedy paragraph](06-refusal.md#the-seams-three)
+- [The two arms with no remedy paragraph](06-refusal.md#the-seams-three)
 - [The one hard-coded URL, and the decay it already suffered](06-refusal.md#the-seams-three)
 - [The refusal about state rather than about a command](06-refusal.md#the-commit-that-did-not-land)
 - [Naming a repair without running it](06-refusal.md#the-commit-that-did-not-land)

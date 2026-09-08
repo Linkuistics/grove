@@ -17,7 +17,9 @@ it is never link-checked in any book.
   prose is this repository's house style — so the excluded case is the *common*
   case, not an edge one.
 - Two live examples, both in a book that passes `--final --check all`:
-  `docs/walkthroughs/jj-workspace/06-refusal.md:216` and `:445`. Both are
+  `docs/walkthroughs/jj-workspace/06-refusal.md:230` and `:463` — cited at `:216`
+  and `:445` when this leaf was cut, and moved down by
+  `jj-workspace-method-counts-k184`, which rewrote prose above both. Both are
   same-page `#anchor` links with wrapped labels. They are unchecked, and — see
   below — the resolver would reject them if it saw them.
 - **A second, separable defect the first one hides.** `resolve_local`

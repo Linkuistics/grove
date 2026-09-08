@@ -6,9 +6,9 @@
 ## A crate defined by what it declines
 
 `jj-workspace` resolves a Jujutsu workspace, refuses a working tree that is not
-one, and takes a path-scoped commit. That is the whole crate: four operations, a
-value, and one error type, over roughly seven hundred and fifty lines with no
-dependencies.
+one, and takes a path-scoped commit. That is the whole crate: four operations,
+two values, and one error type, over roughly seven hundred and fifty lines with
+no dependencies.
 
 The first of those refusals is this chapter's, and it is declared rather than
 argued: **no dependencies**. `std` owns what was subtracted — it spawns the child
@@ -335,12 +335,23 @@ is a stop, so there is nothing for a consumer to branch on. *Refusal* owns it.
 commit id, because a change id still names the work after a rewrite. *Scope and
 commit* owns it.
 
-There are four operations, all reached through a `Workspace`, plus two accessors
-that answer from fields already held. `resolve` walks up from a path to the
+There are four operations, all of them `Workspace`'s, plus two accessors that
+answer from fields already held. `resolve` walks up from a path to the
 closest ancestor holding `.jj/` and is the only constructor. `control_dir` takes
 a namespace and returns a directory reserved for it. `is_tracked` asks whether
 the workspace holds a path. `commit` takes a path-scoped commit and returns a
 `Commit`. `root` and `main_repo` are getters.
+
+**Four operations plus two accessors is six public functions, and that is the
+count every later chapter uses.** The book counts a function into `Workspace`'s
+surface when it is `pub`, and it counts it once: `resolve` is an associated
+function rather than a method — it takes no `&self`, because constructing the
+proof is what it is for — and the other five are methods. `impl Workspace` also
+holds two private helpers, `fileset` and `relative`, which *Scope and commit*
+reads and which are never part of this count; they are the crate's own working,
+not its offer. So *four operations*, *two accessors*, *six functions* and *five
+methods* are four true statements about one set, and a chapter that means one of
+them says which.
 
 A namespace, in this crate's vocabulary, is one plain directory name the consumer
 supplies. The directory it names is inside the workspace, untracked, never shared

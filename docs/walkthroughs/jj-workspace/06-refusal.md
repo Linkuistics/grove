@@ -18,11 +18,25 @@ jj offers and stops there. The distinction is checkable on any line of the file.
 *Make the tree jj-enabled and rerun: `jj git init --colocate`* is a statement
 about jj's offer, and it is true whoever is calling. *Abort the session and
 report to the operator* would be a statement about one consumer's policy, and the
-crate has no way to know whether it is true. The first shape — a statement that is
-true whoever is calling — is in this file eleven times. The second shape is in it
-zero times. One of the eleven is the instance that most nearly tests the rule:
-`PathNotText` ends on *rename it*, a remedy that belongs to the filesystem, and it
-is there because jj has nothing to offer about a path it will not track.
+crate has no way to know whether it is true.
+
+**The test is caller-independence, and the whole chapter is held to that
+reading.** The second shape is in this file **zero times**, across eleven kinds —
+and that is the strong claim rather than a trivial one, because every one of the
+eleven is a place where *abort the session and report to the operator* would have
+fitted the sentence and been easier to write.
+
+*Every message names a jj command* is a different claim, and this chapter does
+not make it. Two arms end on no second paragraph at all, `CommandFailed` and
+`OutputNotText`. Of the nine that do, only two name a jj command —
+`NotAWorkspace` and `CommitNotRecorded`, which between them are where all four of
+the file's jj commands live — and the other seven point at the filesystem, at the
+environment, or at this crate's own vocabulary. Whose the remedy is varies, and
+the case analysis below takes each in turn. That none of them is the *consumer's*
+does not vary, and that is the refusal. `PathNotText` is the instance that most
+nearly tests the rule: it ends on *rename it*, a remedy that belongs to the
+filesystem, and it is there because jj has nothing to offer about a path it will
+not track.
 
 That is a narrower claim than *the crate is polite about errors*, and it is the
 one this chapter has to defend, because the file does contain remedies. Two of
@@ -32,8 +46,12 @@ is the same for every caller, offered rather than performed: **the crate runs no
 recovery of its own**, and the one refusal that could plausibly have run one says
 so in its own last line.
 
-Most of the file's non-comment bytes are that user-facing text, sitting inside
-string literals. The fragment graph therefore puts the messages on the page
+All of that user-facing text sits inside string literals in one place: the
+`impl fmt::Display`, eleven `write!` calls over a hundred and one lines, which is
+the largest item in the file and more than a third of it. One clause of one
+message is composed elsewhere — `validated_namespace` in `lib.rs` supplies
+`Namespace`'s *reason* — and the case analysis reads it where it is used. The
+fragment graph therefore puts the messages on the page
 verbatim without the prose having to quote them, and what the prose owes is the
 part a message cannot state about itself: why the type is opaque, what a consumer
 gets in place of matchable variants, and which alternative was rejected at each
@@ -266,9 +284,12 @@ consumer this crate has renders the chain or never prints at all, which is what
 <a id="the-opaque-type"></a>
 ## One opaque value over a private case analysis
 
-The whole file is one ownership block, and it is the only block in the book that
-is an entire source root. Its parts are declared here and read in the sections
-that follow, in the order the file writes them.
+The whole file is one ownership block. Three of the book's eleven blocks are an
+entire source root — the manifest's forty-four lines and the subprocess seam's
+eighty-one are the other two — and this is much the largest of them, because
+`lib.rs` is the only root the book has to split across owners. Its parts are
+declared here and read in the sections that follow, in the order the file writes
+them.
 
 <!-- fragment «refusal-source» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="1-268" parent="source-refusal" -->
 <!-- insert «refusal-module-thesis» -->
@@ -326,8 +347,9 @@ the limit checkable — the crate has no consumer to speak for, so it never says
 what the caller should do; it says what jj offers. Every message later in the file
 can be held against that sentence, and this chapter holds all eleven against it.
 
-The type itself is sixteen lines, thirteen of which argue for the three that
-declare it. A newtype over a private enum is the smallest construction in Rust
+The type itself is sixteen lines: thirteen of doc comment arguing for the two
+that declare it — `#[derive(Debug)]` and `pub struct Refusal(Kind);` — and a
+blank. A newtype over a private enum is the smallest construction in Rust
 that publishes a value while publishing nothing about its shape, and the comment
 says what that buys rather than what it is — and then, in its second paragraph,
 what the consumer must do with the two things it gets.
@@ -444,8 +466,12 @@ here and argued in place below:
 The fourth column is read again under [*What `source()` gives a consumer in place
 of variants*](#the-cause-chain), where its four causes and seven absences are one
 exhaustive `match` written out rather than defaulted. The fifth is where this
-chapter's thesis is checkable row by row: every entry in it is a statement about
-jj's offer, and none is a statement about a consumer's policy.
+chapter's thesis is checkable row by row, under the reading
+[the chapter opened on](06-refusal.md#no-remedy-of-its-own): **no entry in it is
+a statement about a consumer's policy.** Two rows are `none`, and the nine that
+are not point variously at jj, at the filesystem, at the environment and at this
+crate's own vocabulary — so the column is not uniform, and it does not have to
+be. It has to contain nothing the crate could not know, and it does not.
 
 <a id="the-gates-two"></a>
 ## The gate's two, and a remedy stated unconditionally
@@ -637,11 +663,11 @@ caller composes, the other takes an `io::Error` the filesystem composed.
 <!-- /fragment -->
 
 `impl Into<String>` rather than `&str` is worth one sentence, because it is the
-only generic parameter in the file. It accepts a `&'static str` for the four fixed
-reasons without allocating at the call site and a `String` for a composed one
-without a second copy, and `not_scoped` takes it for the same reason. The crate
-composes none today; the parameter costs nothing and keeps that from being an API
-change.
+only generic parameter the file takes — here and on `not_scoped`, for the same
+reason, and nowhere else among the eleven constructors. It accepts a
+`&'static str` for the fixed reasons at all six of those call sites without
+allocating, and a `String` for a composed one without a second copy. The crate composes none
+today; the parameter costs nothing and keeps that from being an API change.
 
 The two arms differ in where their remedy comes from, and that is the whole of
 what this section adds to chapter 4.
@@ -928,8 +954,9 @@ drift and nothing will report the next one: the remedy is a string literal, whic
 is the concession chapter 7 makes for this whole file.
 
 **`CommandFailed`'s arm has no remedy paragraph, and that is the correct shape.**
-It is the only arm that renders on one line, and everything after the colon is
-jj's. The crate does not know why jj declined — the same variant carries a
+Its format string carries no blank line and no remedy after it — one of only two
+in the file that do not, `OutputNotText`'s below being the other — and everything
+after the colon is jj's. The crate does not know why jj declined — the same variant carries a
 snapshot failure, a conflicted revision and a syntax error in a fileset — so any
 sentence it appended would be a guess. The blank-line-and-remedy shape of every
 other arm is absent exactly where the crate has nothing to add, which is more
@@ -945,9 +972,9 @@ and neither message is asserted on anywhere.
 <a id="the-commit-that-did-not-land"></a>
 ## The one refusal about state
 
-Ten of the eleven kinds say something about a command: it could not run, it was
-refused, its argument was wrong. The eleventh says something about the tree the
-caller is standing in.
+Ten of the eleven kinds say something about the call: the precondition it failed,
+the argument it was given, or — in three of them — the command it ran. The
+eleventh says something about the tree the caller is standing in.
 
 <!-- fragment «refusal-kind-commit» owner="no-remedy-of-its-own" source="crates/jj-workspace/src/refusal.rs" lines="61-64" parent="refusal-source" -->
 ````rust
@@ -1032,8 +1059,9 @@ in the same order for grove as a whole, which is what a consumer's operator read
 when a session's commit does not land.
 
 The last line, *Nothing here runs a recovery of its own*, is this chapter's thesis
-as one sentence, and it is the only line in the file that disclaims an action
-rather than describing one. It is there because this is the arm where a reader is
+as one sentence: it disclaims an action rather than describing one, which the
+gate's *Nothing was created or changed.* also does, at the other arm where a
+reader is liable to assume the crate did something. It is there because this is the arm where a reader is
 most likely to assume otherwise: a crate that knows the exact repair, has the
 workspace root in hand and already spawns jj could plainly run `jj undo` itself.
 It does not, because undoing is a decision about the caller's work — the operation
@@ -1163,9 +1191,9 @@ reaching the same line from opposite directions.
 <a id="what-this-chapter-settled"></a>
 ## What this chapter settled
 
-Two hundred and sixty-eight lines, of which ninety-eight are either a comment or
-a line of message text — well over a third of the file is prose a person reads
-rather than machinery. The type is one field wide and publishes nothing: eleven
+Two hundred and sixty-eight lines, of which ninety-nine are either a comment or
+a line of message text — over a third of the file is prose a person reads rather
+than machinery. The type is one field wide and publishes nothing: eleven
 kinds behind a newtype, every one of them a stop, so a consumer branches on none
 of them and loses nothing by it. The alternative is in this repository and is the right choice
 there — `ordinal_fs_tree::Refusal` is a public enum whose variants grove names,
@@ -1184,13 +1212,12 @@ in these four arms because each of their remedies is true without the diagnosis 
 which is a property of the messages rather than a general rule, and the reason
 the decision is recorded above the `impl` rather than assumed.
 
-The remedies are jj's throughout, and the two that are command listings state both
-members of a pair rather than probing to choose one. The gate names
+No remedy in the file is a consumer's, and the two that are command listings state
+both members of a jj pair rather than probing to choose one. The gate names
 `jj git init --colocate` and `jj git init` because guessing which applies can
 guess wrong and the pair costs two lines. `CommitNotRecorded` names `jj undo` and
-`jj op log` for the same reason, and then disclaims running either — the one line
-in the file that says what the crate will not do, placed in the one arm where a
-reader would most reasonably expect it to act.
+`jj op log` for the same reason, and then disclaims running either — placed in the
+one arm where a reader would most reasonably expect the crate to act.
 
 And the empty dependency table survived the file that was most likely to break it.
 Four `use` lines, all `std`, a hundred-line `Display` written by hand rather than

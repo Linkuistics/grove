@@ -271,11 +271,17 @@ helps. jj supplies it: `jj git init`, `jj git init --colocate`, `jj undo` and
 `jj op log` are jj's commands and they do what the messages say. Chapter 6's
 distinction is the sharp one here — every remedy in the file is a statement true
 whoever is calling, and none is a statement about a consumer's policy, which the
-crate has no way to know. That shape appears eleven times and its opposite zero
-times. Ten of the eleven speak for jj; the eleventh, `PathNotText`, speaks for the
-filesystem, because jj has nothing to offer about a path it will not track — and
-that is the one row where the needed guarantee is met by something other than the
-tool underneath.
+crate has no way to know. Its opposite appears zero times, across all eleven
+kinds. But the guarantee this row claims from jj is narrower than that: **only
+two of the eleven messages name a jj command** — `NotAWorkspace` and
+`CommitNotRecorded`, which are where all four of the commands above come from.
+The other nine point at the filesystem, at the environment, or at this crate's
+own vocabulary, or name no remedy at all
+([*Refusal*](06-refusal.md#no-remedy-of-its-own) takes them one at a time). So
+the row is met by the tool underneath only where the tool underneath has
+something to offer, and `PathNotText` — *rename it*, because jj will not track
+such a path — is the case that shows that boundary rather than an exception to
+it.
 
 The checkability clause passes weakest here. The remedies are string literals, so
 nothing goes red if a jj command is renamed, and the file has already supplied the

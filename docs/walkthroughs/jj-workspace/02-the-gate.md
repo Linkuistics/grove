@@ -187,7 +187,7 @@ all:
 
 | Ending | `.jj/` found | `.jj/repo` | jj spawned | Result |
 |---|---|---|---|---|
-| the tree as it is | at `/work/atlas`, four ancestors up | a directory | no | `Workspace { root: "/work/atlas", main_repo: "/work/atlas" }` |
+| the tree as it is | at `/work/atlas`, the fourth directory tried | a directory | no | `Workspace { root: "/work/atlas", main_repo: "/work/atlas" }` |
 | no `.jj/` anywhere | nowhere, up to `/` | — | no | `Refusal::not_a_workspace("/work/atlas/crates/gateway/src")` |
 | a secondary workspace | at `/work/atlas-review`, the path itself | a pointer file | once: `jj workspace root --name default --ignore-working-copy` | `Workspace { root: "/work/atlas-review", main_repo: "/work/atlas" }` |
 
@@ -260,8 +260,8 @@ impl Workspace {
 ````
 <!-- /fragment -->
 
-The body is nine lines, and one line of it stands behind each of the three
-claims: the `find` predicate is the filesystem walk, the `ok_or_else` is the
+The whole function is nine lines and its body is seven, and one line of that
+body stands behind each of the three claims: the `find` predicate is the filesystem walk, the `ok_or_else` is the
 refusal that replaces a dispatch, and the `canonical` call is the canonical root.
 The input is a path that may be anywhere inside a workspace or nowhere near one;
 the output is a `Workspace` or the first refusal that stops the sequence.

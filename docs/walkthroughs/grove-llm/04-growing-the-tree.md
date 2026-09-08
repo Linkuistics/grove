@@ -31,9 +31,10 @@ call them. What this chapter needs of the lock is one fact about `flock(2)`,
 stated once: **two open file descriptions on one directory do not share an
 advisory lock.** A process that has the tree open for writing and then opens the
 same directory a second time contends with *itself*, and waits forever. That
-fact is behind the two most argued lines in this chapter — `root-init`'s choice
-of `match`, and `leaf-decompose`'s read of the inherited kind before it opens
-for writing — and it is the whole of what the self-deadlock argument needs.
+fact is behind the three passages this chapter argues hardest — `root-init`'s
+choice of `match`, `leaf-insert`'s `relinquish` before the lint takes its own
+reading opening, and `leaf-decompose`'s read of the inherited kind before it
+opens for writing — and it is the whole of what the self-deadlock argument needs.
 
 The chapter owns eight blocks of `cli.rs`, more than any other, and reads them
 in the order a grow verb meets its work rather than the file's: the two openings
@@ -244,10 +245,16 @@ every source file in the five packages grove ships — each file cut at its inli
 them non-blocking. A release is skipped rather than accepted, because an unlock
 cannot wait and a flag saying so on one would mean nothing. That test does not
 prove a verb never opens the tree twice; what does is structural, and it is the
-second fact — a mutation consumes its guard and releases the lock on return, and
-the one verb that reads through its own opening gives up any guard it still holds
-first. *`leaf-decompose`: two openings, in order* below reads the one grow
-verb that has to open the tree twice and shows the two openings kept sequential.
+second fact. Two of this chapter's four verbs do open the tree twice, and each
+keeps its openings sequential by a different means. `leaf-decompose` takes its
+reading opening *before* it asks for the exclusive one, so there is no guard yet
+to hold across it. `leaf-insert` takes its second opening after the mutation,
+which has consumed its guard and released the lock on return; and
+`verbs::stale_cross_refs` calls `relinquish` before reading regardless, so a
+guard still held there would be given up rather than carried in.
+*`leaf-decompose`: two openings, in order* below reads the one handler in
+`cli.rs` that takes both openings itself — `leaf-insert`'s second is taken a
+layer down, inside `grove-loop` — and shows the two kept sequential.
 
 The composite that reassembles the handler is stated here, and the source index
 names it as one of the root's twenty-two children.

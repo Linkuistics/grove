@@ -286,7 +286,7 @@
 - [A classification declared where its meaning is, used elsewhere](11-a-grove-begins.md#three-shapes-two-refusals)
 - [Why a refused name never reaches the classification at all](11-a-grove-begins.md#three-shapes-two-refusals)
 - [Listing a directory beside the store, and what makes it safe](11-a-grove-begins.md#three-shapes-two-refusals)
-- [Two summaries welded into one paragraph, and no warning](11-a-grove-begins.md#the-bodies-the-store-writes)
+- [Two summaries welded into one paragraph, repaired in the same five lines](11-a-grove-begins.md#the-bodies-the-store-writes)
 - [A retitle that cannot drift, because one renderer wrote both](11-a-grove-begins.md#the-bodies-the-store-writes)
 - [Five of eighteen support helpers, and what the split encodes](11-a-grove-begins.md#five-of-eighteen)
 - [A fixture built to falsify rather than to satisfy](11-a-grove-begins.md#the-support-the-next-two-chapters-use)

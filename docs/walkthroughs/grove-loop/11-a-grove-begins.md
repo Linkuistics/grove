@@ -515,11 +515,11 @@ The first is the one this chapter calls.
 
 <!-- fragment «body-helpers-grove-name» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1013-1037" parent="body-helpers" -->
 ````rust
-/// The grove's name is the worktree directory's basename (user-owned-worktrees
-/// — grove reads no branch, ever). Used as the root brief's `# <name> — brief`
-/// title.
 /// The grove's display name for its own charter: the **worktree** directory's
-/// basename, read off the tree root the store is about to create.
+/// basename, read off the tree root the store is about to create
+/// (user-owned-worktrees — grove reads no branch, ever). Both callers pass it
+/// straight to [`initialize_grove`], which spends it on the root brief's
+/// `# <name> — brief` title.
 ///
 /// It takes the grove root rather than the worktree because that is what a
 /// [`TreeVacancy`] carries, and `<worktree>/.grove` is the only spelling grove
@@ -543,10 +543,11 @@ fn grove_name(grove_root: &Path) -> String {
 ````
 <!-- /fragment -->
 
-**Two callers, one of them chapter 14's.** `grove_name` is called at line 347, in
-`root_init` above, and at line 81, in `transition_to_current`. Both want the same
-string for the same reason — the root brief's `# <name> — brief` title — and the
-argument is the *grove root* rather than the worktree because that is what a
+**Two callers, one of them chapter 14's.** The *both callers* the comment names
+are line 347, in `root_init` above, and line 81, in `transition_to_current`. Both
+want the same string for the same reason — the root brief's `# <name> — brief`
+title, which is what `initialize_grove` spends the argument on — and the argument
+is the *grove root* rather than the worktree because that is what a
 `TreeVacancy` carries. The comment's justification is worth keeping: `<worktree>/.grove`
 is the only spelling grove ever opens, so the parent of the root is the worktree by
 construction, and asking the vacancy is one fewer argument that could disagree with
@@ -557,30 +558,38 @@ path from the thing that holds the lock, never from a second copy of it.
 fires when `parent()` is `None`, or when the parent it returns has no file name of
 its own — neither of which a path a `TreeVacancy` was opened from can present.
 
-**This doc comment carries two summaries welded into one paragraph, and it is
-adjudicated here rather than repeated.** Lines 1013 to 1017 are a single `///`
-run with no blank line inside it: *The grove's name is the worktree directory's
-basename … Used as the root brief's `# <name> — brief` title.* is one summary, and
-*The grove's display name for its own charter: the **worktree** directory's
-basename, read off the tree root the store is about to create.* is a second,
-written later, describing the same function. Markdown joins them, so rustdoc's short
-description — the first paragraph — is a three-sentence run whose third sentence
-re-describes what the first two already said, and the module index prints the whole
-of it. **The defect is the redundancy, not the length**: fifteen of the thirty-one
-items in this module's index carry a multi-sentence summary, so a long one is
-unremarkable here. A summary that says the same thing twice is not.
+**This doc comment carried two summaries welded into one paragraph, and the
+repair is adjudicated here rather than repeated.** Before
+`welded-grove-name-summary-k160`, lines 1013 to 1017 were a single `///` run with
+no blank line inside it: *The grove's name is the worktree directory's basename …
+Used as the root brief's `# <name> — brief` title.* was one summary, and *The
+grove's display name for its own charter: the **worktree** directory's basename,
+read off the tree root the store is about to create.* was a second, written later,
+describing the same function. Markdown joined them, so rustdoc's short description
+— the first paragraph — was a three-sentence run whose third sentence re-described
+what the first two had already said, and the module index printed the whole of it.
+**The defect was the redundancy, not the length**: of the thirty-one items in this
+module's index that carry a summary at all, fifteen run to more than one sentence,
+so a long one is unremarkable here. A summary that says the same thing twice is
+not.
 
-**Nothing in this repository reports it.** `cargo doc --no-deps
---document-private-items -p grove-loop` emits twenty-six warnings across the crate
-and **none at all for this file**, because both paragraphs are attached to the right
-item; there is nothing for the compiler to complain about. The check that finds it
-is counting the paragraphs in the *rendered* docblock — `fn.grove_name.html` has
-two `<p>` elements, and the first is three sentences —
-the two of the older summary, plus the one of the newer. That is the sixth instrument's
-blind spot in a new form: chapter 10 found a `//` module header `cargo doc` cannot
-see at all, and this is a correctly attached doc comment whose *shape* is wrong.
-Neither sentence is false. `welded-grove-name-summary-k160` holds the repair,
-which fits in the same five lines and so moves no later line of a 2,725-line root.
+**The repair spends the same five lines**, which is why nothing below line 1017
+moved in a 2,725-line root. The bytes above are the fold: the later summary's
+framing, the earlier one's parenthetical and its statement of what the name is
+*for*, and — new, and the reason the fold does not simply drop a sentence — the
+fact that both call sites hand the string to the same consumer.
+`fn.grove_name.html` still renders exactly two `<p>` elements, and the first now
+describes the function once.
+
+**Nothing in this repository reported it, and nothing would have.** `cargo doc
+--no-deps --document-private-items -p grove-loop` emits twenty-six warnings across
+the crate and **none at all for this file** — before the repair or after — because
+both paragraphs were attached to the right item; there was nothing for the
+compiler to complain about. The check that finds this class is counting the
+paragraphs in the *rendered* docblock and then reading the first one. That is the
+sixth instrument's blind spot in a new form: chapter 10 found a `//` module header
+`cargo doc` cannot see at all, and this was a correctly attached doc comment whose
+*shape* was wrong. Neither sentence was false.
 
 <!-- fragment «body-helpers-root-brief» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1038-1053" parent="body-helpers" -->
 ````rust

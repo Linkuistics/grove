@@ -1010,11 +1010,11 @@ fn marked_path(report: &Report<TaskName>) -> Result<PathBuf> {
 // ---------------------------------------------------------------------------
 // helpers
 
-/// The grove's name is the worktree directory's basename (user-owned-worktrees
-/// — grove reads no branch, ever). Used as the root brief's `# <name> — brief`
-/// title.
 /// The grove's display name for its own charter: the **worktree** directory's
-/// basename, read off the tree root the store is about to create.
+/// basename, read off the tree root the store is about to create
+/// (user-owned-worktrees — grove reads no branch, ever). Both callers pass it
+/// straight to [`initialize_grove`], which spends it on the root brief's
+/// `# <name> — brief` title.
 ///
 /// It takes the grove root rather than the worktree because that is what a
 /// [`TreeVacancy`] carries, and `<worktree>/.grove` is the only spelling grove

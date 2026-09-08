@@ -69,3 +69,41 @@ this one adds to the standing procedure is that the check is *count the
 paragraphs in the rendered docblock*, which is cheap and which nothing else does.
 
 ## Decisions (running log)
+
+1. **The fold, not the blank line.** The task file offered two shapes for the
+   five lines — fold the older summary's content into the newer one, or spend one
+   of the five on a blank `///`. The fold was chosen: a blank `///` at line 1017
+   would sit immediately above the `///` already at 1018, two separators in a row
+   for one paragraph break, and would leave the older sentence's one load-bearing
+   fact — that the name is what the root brief's title carries — as a second
+   paragraph competing with the *takes the grove root rather than the worktree*
+   paragraph for the reader's attention. The fold keeps that fact in the summary
+   where it belongs.
+2. **The fifth line is a new clause, not padding.** The two summaries' shared
+   content wraps to four lines at this file's width, and the count must stay five
+   exactly. Rather than wrap narrower than the file's convention, the fifth line
+   states where the string goes: *Both callers pass it straight to
+   [`initialize_grove`], which spends it on the root brief's `# <name> — brief`
+   title.* Verified at both call sites — line 81 in `transition_to_current` and
+   line 347 in `root_init` — and at `initialize_grove` line 390, which passes
+   `name` to `root_brief_body`, whose `format!` renders `# {name} — brief`.
+3. **The intra-doc link costs no warning.** `[`initialize_grove`]` resolves
+   (`fn.initialize_grove.html` in the rendered page) and the crate's warning count
+   is unchanged at **twenty-six**, none of them for `tree_lifecycle.rs`. Note the
+   task file's *thirty* is stale; the book's *twenty-six* is what this run
+   measured, before and after.
+4. **The rendered check, re-run.** `fn.grove_name.html` has exactly two `<p>`
+   elements; the first is the folded summary and the second is the unchanged
+   *takes the grove root* paragraph. The file is still 2,725 lines.
+5. **The count claim in chapter 11 was re-derived rather than carried over.** The
+   page said *fifteen of the thirty-one items in this module's index carry a
+   multi-sentence summary*. The module index has **thirty-three** items, of which
+   **thirty-one** carry a summary at all, and **fifteen** of those run to more
+   than one sentence. The ratio survives; the wording was tightened to say which
+   thirty-one.
+6. **A defect in chapter 14 was externalised, not fixed here.**
+   `14-finishing.md` names `grove_name`'s second caller as chapter 11's
+   `initialize_grove`; the call site is line 347, inside `root_init`, and
+   `initialize_grove` never calls `grove_name`. Cut as
+   `ch14-grove-name-caller-k197` rather than widened into, per this leaf's own
+   *do not widen* note.

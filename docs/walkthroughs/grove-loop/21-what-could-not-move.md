@@ -423,10 +423,10 @@ reports any defer at all in final mode, so *every reservation has become an
 insertion* is something the validator refuses to let be false rather than
 something this page asserts.
 
-**Early use.** Fifty rows, every one `explained`. Thirteen of them have their
+**Early use.** Fifty-two rows, every one `explained`. Thirteen of them have their
 first use at [*The cast*](01-orientation.md#the-cast), where `lib.rs`'s export
 list names types belonging to twelve later chapters before any of them has said
-what one is; the other thirty-seven are the price of concept order over file
+what one is; the other thirty-nine are the price of concept order over file
 order inside the later parts. The structure brief fixed a smaller set in advance
 and the drafting added to it, because **an early-use row is owed by naming or
 exercising** and the manifest's rows are a floor rather than the set — a rule

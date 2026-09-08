@@ -110,7 +110,10 @@ of the file's own evidence. The instrument reads the 492 lines in between.
 
 So the clean run has to be earned rather than assumed. `cargo doc --no-deps
 --document-private-items -p grove-loop` reports twenty-six warnings over the crate
-and names this file in **none** of them: all eight of its intra-doc links resolve.
+and names this file in **none** of them. Eight of its comment lines carry a
+bracketed `` [`…`] `` token, but the first of them is line 24, inside the plain
+`//` header the instrument does not parse at all, so it is not an intra-doc link
+— it is prose that looks like one. The other seven are, and all seven resolve.
 Three controls establish what that silence covers, and each was watched to fail:
 
 | Control | Where the broken link was planted | Crate warnings |

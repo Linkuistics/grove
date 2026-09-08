@@ -333,6 +333,22 @@ fn check_links(
             }
             continue;
         }
+        // An empty anchor is rejected, like any other unresolvable destination —
+        // but "escapes the repository scope" describes a `../..` climb, and says
+        // nothing to an author who wrote a trailing `#`. Now that an empty *path*
+        // is legal, the two failures are easy to confuse, so this one names its
+        // own remedy.
+        if link.destination.ends_with('#') {
+            diagnostics.push(markdown_diagnostic(
+                "M201",
+                format!(
+                    "link `{}` names an empty anchor; drop the trailing `#`, or name the explicit anchor it should reach",
+                    link.destination
+                ),
+                location,
+            ));
+            continue;
+        }
         let Some((target, anchor)) = resolve_local(&location.path, &link.destination) else {
             diagnostics.push(markdown_diagnostic(
                 "M201",
@@ -683,8 +699,38 @@ fn scan_links(markdown: &str, opaque_ranges: &[Range<usize>]) -> Vec<MarkdownLin
             continue;
         };
         let separator = label_start + relative_separator;
-        if markdown[index..separator].contains('\n') {
+        // `find` above scans raw bytes, so it reaches into fenced code and code
+        // spans the parser already marked opaque. Only the cursor was checked
+        // against those ranges; a separator inside one must not pair either, or
+        // a stray bracket in the prose above a fence captures a link inside it.
+        if opaque_ranges.iter().any(|range| range.contains(&separator)) {
             index = label_start;
+            continue;
+        }
+        // A label may be hard-wrapped — that is this repository's house style,
+        // and excluding every wrapped label made the common case the invisible
+        // one. What the guard is actually for is the pairing hazard: a `[` left
+        // open in one paragraph finding a `](` in the next. A blank line is
+        // exactly where that stops being possible, because a link's label is
+        // inline content and CommonMark 0.31.2 §4.8 has it that "paragraphs can
+        // contain multiple lines, but no blank lines"
+        // (https://spec.commonmark.org/0.31.2/#paragraphs). Confirmed against a
+        // live CommonMark implementation rather than inferred: cmark-gfm, via
+        // GitHub's /markdown API, renders `[label\nwrapped](url)` as one anchor
+        // and leaves `[ bracket\n\nlater](url)` as two paragraphs of plain text.
+        if crosses_blank_line(&markdown[index..separator]) {
+            index = label_start;
+            continue;
+        }
+        // Brackets pair innermost-first. Scanning from the *outermost* `[` to
+        // the *first* `](` was containable while a label could not cross a line;
+        // once it can, one unmatched `[` in prose — `[[Glossary term]]`, a bare
+        // `[1]`, a bracket opening a block quote — swallows every line up to the
+        // next real link and reports that link's destination against the stray
+        // bracket's line. Restarting at the innermost bracket is what CommonMark
+        // does and what keeps the genuine link visible at its own location.
+        if let Some(inner) = last_unescaped_bracket(markdown, label_start, separator) {
+            index = inner;
             continue;
         }
         let destination_start = separator + 2;
@@ -723,6 +769,45 @@ fn scan_links(markdown: &str, opaque_ranges: &[Range<usize>]) -> Vec<MarkdownLin
         index = close.map_or(destination_end, |value| value + 1);
     }
     links
+}
+
+/// Whether a span from an opening bracket to its `](` crosses a paragraph
+/// break. Only the interior lines can be one: the first element is the tail of
+/// the line the bracket opened on and the last runs up to the separator, so
+/// neither is a whole line and a label closing at column 1 is not a break.
+fn crosses_blank_line(span: &str) -> bool {
+    let mut lines = span.split('\n').peekable();
+    lines.next();
+    while let Some(line) = lines.next() {
+        if lines.peek().is_some() && blank_line(line) {
+            return true;
+        }
+    }
+    false
+}
+
+/// CommonMark's blank line: "a line containing no characters, or a line
+/// containing only spaces (U+0020) or tabs (U+0009)"
+/// (https://spec.commonmark.org/0.31.2/#blank-line). Deliberately **not**
+/// `str::trim`, which strips every Unicode `White_Space` character — a line
+/// holding only a non-breaking space is not blank, and treating it as one drops
+/// a real link without a word. The carriage return is allowed because the split
+/// above is on `\n` alone, so a CRLF blank line arrives here as a lone `\r`.
+fn blank_line(line: &str) -> bool {
+    line.bytes()
+        .all(|byte| matches!(byte, b' ' | b'\t' | b'\r'))
+}
+
+/// The last unescaped `[` strictly inside a candidate label, which is the
+/// bracket CommonMark would have paired with the separator.
+fn last_unescaped_bracket(markdown: &str, label_start: usize, separator: usize) -> Option<usize> {
+    markdown[label_start..separator]
+        .bytes()
+        .enumerate()
+        .rev()
+        .map(|(offset, byte)| (label_start + offset, byte))
+        .find(|(index, byte)| *byte == b'[' && !is_escaped(markdown.as_bytes(), *index))
+        .map(|(index, _)| index)
 }
 
 fn is_escaped(bytes: &[u8], index: usize) -> bool {
@@ -842,18 +927,24 @@ pub(crate) fn resolve_local<'a>(
     if path.starts_with('/') || path.contains(':') || anchor == Some("") {
         return None;
     }
+    // An empty path is a bare `#anchor`: a link into the page that carries it.
+    // Popping the filename and returning the *directory* — which is in none of
+    // the file maps — failed any such link the scanner could see, as `resolves
+    // to missing repository file`. Which was none of the ones in the books,
+    // because a wrapped label hid them all; the two defects concealed each other.
+    if path.is_empty() {
+        return Some((source.to_owned(), anchor));
+    }
     let mut components: Vec<&str> = source.split('/').collect();
     components.pop();
-    if !path.is_empty() {
-        for component in path.split('/') {
-            match component {
-                "" => return None,
-                "." => {}
-                ".." => {
-                    components.pop()?;
-                }
-                value => components.push(value),
+    for component in path.split('/') {
+        match component {
+            "" => return None,
+            "." => {}
+            ".." => {
+                components.pop()?;
             }
+            value => components.push(value),
         }
     }
     Some((components.join("/"), anchor))

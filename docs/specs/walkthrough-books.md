@@ -930,10 +930,26 @@ the pilot — asserted by nothing.
 Outside code fences and inline code, local Markdown links use the simple form
 `[descriptive label](relative/path)` with an optional `#explicit-anchor`.
 Markdown heading destinations require the explicit anchor; file-only links do
-not. Nested labels, link titles, and escaped destinations are outside the
-accepted book subset. Labels `here`, `this`, and `more` are rejected as
-non-descriptive. `http`, `https`, and `mailto` destinations are syntax-checked
-but never fetched.
+not. The path may be **empty**: `[descriptive label](#explicit-anchor)` is a
+link into the page that carries it, resolving to that page rather than to its
+directory. Both that and naming the page's own filename are permitted and
+neither is preferred — but they are not checked identically, and the difference
+is the filename form's: the repository-wide sweep
+`every_repository_markdown_reference_resolves` discards bare fragments as
+resolving within the rendering page, so only `book-check` verifies them. A
+trailing `#` with no anchor is rejected. A label may be **hard-wrapped** across
+lines — this repository's prose is wrapped, so a contract excluding wrapped
+labels would exclude the common case. Two rules keep a wrapped label from
+running away. Brackets pair innermost-first, as CommonMark pairs them, so an
+unmatched `[` in prose cannot capture a later link; and a label may not span a
+blank line, CommonMark's own (a line of nothing, spaces or tabs — §4.8), which
+is where a `[` left open in one paragraph stops being able to reach a `](` in
+the next. The blank line is the only block boundary the scanner recognises: it
+does not parse block quotes, list items or headings, and relies on
+innermost-first pairing for those. Nested labels, link titles, and escaped
+destinations are outside the accepted book subset. Labels `here`, `this`, and
+`more` are rejected as non-descriptive. `http`, `https`, and `mailto`
+destinations are syntax-checked but never fetched.
 
 An inline-code span opens with a run of one or more unescaped backticks and
 closes only with an unescaped run of exactly the same length; its bytes are

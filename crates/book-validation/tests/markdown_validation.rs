@@ -433,3 +433,156 @@ fn readme_chapter_links_are_unique_and_in_canonical_order() {
     assert!(codes(&validate_through(&reversed, "name-seam-k12")).contains(&"M103"));
     assert!(codes(&validate_through(&duplicate, "name-seam-k12")).contains(&"M103"));
 }
+
+#[test]
+fn a_hard_wrapped_link_label_is_checked_rather_than_skipped() {
+    let mut snapshot = valid_book();
+    edit(&mut snapshot, "concept-index.md", |text| {
+        format!("{text}[A label wrapped\nacross two lines](missing.md)\n")
+    });
+
+    let report = validate_markdown(&snapshot);
+    assert!(
+        codes(&report).contains(&"M201"),
+        "{:#?}",
+        report.diagnostics
+    );
+}
+
+#[test]
+fn a_hard_wrapped_link_to_a_live_target_is_scanned_and_accepted() {
+    let mut snapshot = valid_book();
+    edit(&mut snapshot, "concept-index.md", |text| {
+        format!("{text}[A label wrapped\nacross two lines](01-orientation.md#tour)\n")
+    });
+
+    // Asserted positively, against the scanner. A validation report that merely
+    // holds no finding is what the *skipped* link produced too, so `valid` alone
+    // cannot tell coverage from silence.
+    let scanned = book_validation::scan_markdown_links(
+        "[A label wrapped\nacross two lines](01-orientation.md#tour)\n",
+    );
+    assert_eq!(scanned.len(), 1, "{scanned:#?}");
+    assert_eq!(scanned[0].destination, "01-orientation.md#tour");
+    assert_eq!(scanned[0].label, "A label wrapped\nacross two lines");
+    assert!(scanned[0].valid_syntax);
+
+    let report = validate_markdown(&snapshot);
+    assert!(report.valid, "{:#?}", report.diagnostics);
+}
+
+#[test]
+fn a_bracket_and_a_separator_in_different_paragraphs_do_not_pair() {
+    let mut snapshot = valid_book();
+    edit(&mut snapshot, "concept-index.md", |text| {
+        format!("{text}An unclosed [ bracket.\n\nA later paragraph](missing.md) closing it.\n")
+    });
+
+    let report = validate_markdown(&snapshot);
+    assert!(report.valid, "{:#?}", report.diagnostics);
+}
+
+#[test]
+fn a_bare_anchor_link_resolves_against_the_page_that_carries_it() {
+    let mut live = valid_book();
+    edit(&mut live, "source-index.md", |text| {
+        format!("{text}[Source roots](#source-roots)\n")
+    });
+    let mut broken = valid_book();
+    edit(&mut broken, "source-index.md", |text| {
+        format!("{text}[Absent section](#absent)\n")
+    });
+
+    let report = validate_markdown(&live);
+    assert!(report.valid, "{:#?}", report.diagnostics);
+
+    // The message matters, not just the code: resolving to the containing
+    // *directory* also produced an `M201`, so a bare code assertion holds
+    // whether or not the anchor is checked against the right file.
+    let broken = validate_markdown(&broken);
+    let message = broken
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "M201")
+        .map(|diagnostic| diagnostic.message.clone())
+        .unwrap_or_default();
+    assert!(
+        message.contains(&format!("{ROOT}source-index.md")),
+        "the finding must name the page that carries the link: {message}"
+    );
+}
+
+#[test]
+fn a_stray_bracket_does_not_swallow_a_later_link_on_another_line() {
+    let mut snapshot = valid_book();
+    edit(&mut snapshot, "concept-index.md", |text| {
+        format!("{text}An unmatched [ bracket in prose, and several lines\nlater a real [Missing file](missing.md) link.\n")
+    });
+
+    let report = validate_markdown(&snapshot);
+    let named: Vec<&str> = report
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.message.as_str())
+        .collect();
+    assert!(
+        named.iter().any(|message| message.contains("missing.md")),
+        "the genuine link must still be reported: {named:#?}"
+    );
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.primary.line == 7),
+        "reported against the link's own line, not the stray bracket's: {:#?}",
+        report.diagnostics
+    );
+}
+
+#[test]
+fn a_separator_inside_a_fence_does_not_pair_with_a_bracket_above_it() {
+    let mut snapshot = valid_book();
+    edit(&mut snapshot, "concept-index.md", |text| {
+        format!("{text}An unmatched [ bracket in prose.\n```text\nfoo](missing.md)\n```\n")
+    });
+
+    let report = validate_markdown(&snapshot);
+    assert!(report.valid, "{:#?}", report.diagnostics);
+}
+
+#[test]
+fn a_line_of_unicode_whitespace_is_not_a_paragraph_break() {
+    let mut snapshot = valid_book();
+    edit(&mut snapshot, "concept-index.md", |text| {
+        format!("{text}[A label wrapped\n\u{a0}\nacross a non-blank line](missing.md)\n")
+    });
+
+    let report = validate_markdown(&snapshot);
+    assert!(
+        codes(&report).contains(&"M201"),
+        "a non-breaking space is not a blank line, so this is still one link: {:#?}",
+        report.diagnostics
+    );
+}
+
+#[test]
+fn an_empty_anchor_is_rejected_with_a_message_naming_the_remedy() {
+    for broken in ["#", "README.md#"] {
+        let mut snapshot = valid_book();
+        edit(&mut snapshot, "concept-index.md", |text| {
+            format!("{text}[Empty anchor]({broken})\n")
+        });
+
+        let report = validate_markdown(&snapshot);
+        let message = report
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code == "M201")
+            .map(|diagnostic| diagnostic.message.clone())
+            .unwrap_or_default();
+        assert!(
+            message.contains("empty anchor") && message.contains("trailing `#`"),
+            "{broken}: {message}"
+        );
+    }
+}

@@ -322,9 +322,11 @@ pub fn brief_chain(tree: &Tree, leaf: &Path) -> Result<Vec<PathBuf>, Error> {
 ````
 <!-- /fragment -->
 
-Two verbs chapter 8 read from the other side. Each is the tree-opening half of a
-`task_tree` function, and each carries the contract that function's comment
-appeals to but does not own: that a named path which is not a leaf is an *error*
+Two verbs chapter 8 read from the other side. Each is the public half of a
+`task_tree` function — taking the already-open `&Tree` a caller hands it, since
+no verb here but `finish_commit` opens a tree — and each carries the contract
+that function's comment appeals to but does not own: that a named path which is
+not a leaf is an *error*
 rather than a `Nothing`, because the caller asserted it was one; and that a
 directory level with no `BRIEF.md` is skipped silently. The
 [guide's account of the tree verbs](../../USAGE.md#usage-tree-verbs) states the

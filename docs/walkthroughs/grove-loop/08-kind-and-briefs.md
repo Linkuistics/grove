@@ -233,8 +233,9 @@ is what the guide shows an operator seeing, and every component after the root i
 a name the snapshot admitted.
 
 The doc comment spells the verb `brief-chain`, hyphenated, because it is naming
-the operator-facing verb rather than this function: `verbs::brief_chain` opens the
-tree, calls this, and hands back the paths, and chapter 15 reads it. The minimum
+the operator-facing verb rather than this function: `verbs::brief_chain` takes an
+already-open `&Tree`, calls this, and hands back the paths, and chapter 15 reads
+it. The minimum
 here is that the *documented* contract the comment appeals to — a level with no
 charter is skipped silently — belongs to that verb and to the guide, and this
 function is where the library's behaviour is claimed to already satisfy it.

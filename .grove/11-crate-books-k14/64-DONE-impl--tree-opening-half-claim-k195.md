@@ -60,3 +60,49 @@ book prose; no fragment, ownership range or line count moves, and the leaf is
 deferred behind nothing.
 
 ## Decisions (running log)
+
+1. **The enumeration found eight surfaces, not six.** Classifying `verbs.rs` by
+   first-argument type and then reading every sentence that assigns a verb an
+   opening role — rather than grepping the phrase — turned up two the task file
+   had not listed, both saying the same false thing in different words:
+   `10-growing.md:338` (*`verbs::leaf_add` is the tree-opening **wrapper** a
+   caller reaches*) and `08-kind-and-briefs.md:236` (*`verbs::brief_chain`
+   **opens the tree**, calls this, and hands back the paths*). A line grep for
+   *tree-opening* finds the first and never the second. The task file's *enumerate
+   rather than sweep* was aimed at hard wrapping; the wider yield was the
+   paraphrase.
+
+2. **The nearby true claims were left alone, and checking them was the point.**
+   `10-growing.md:872` says the verb wrapper beside `leaf_insert` *performs that
+   second opening, and it gives up the write guard first* — that is
+   `verbs::stale_cross_refs`, and it is true: the body calls `tree.relinquish()`
+   and then `task_tree::read(tree.root())` (`verbs.rs:196–210`). So does
+   `15-the-verbs.md:531`'s *`finish_commit` also opens the tree*, and
+   `12-leaf-to-node.md:273`'s claim about `grove-llm`'s own CLI ordering.
+   Correcting by pattern rather than by evidence would have falsified a true
+   sentence about the one verb that really is an exception besides
+   `finish_commit`.
+
+3. **What a `TreeWrite` opening entitles a page to say: nothing about the verb
+   opening anything.** `TreeWrite::guard` hands over the guard `write` opened
+   with, or reopens through `task_tree::write` when that one is spent
+   (`lib.rs:218–232`) — so a *reopen* is real, but it belongs to the `TreeWrite`
+   the caller already opened, not to the verb, and the verb's signature is
+   `&TreeWrite` either way. The wording adopted across all five write-verb rows
+   is therefore the one two of them already used: **the public half — it takes a
+   `TreeWrite` and hands this function the guard**. Uniform across five, and it
+   does not smuggle the reopen in as something the verb does.
+
+4. **The read pair got the wording `unresolved-doc-links-k151` had already
+   settled.** `15-the-verbs.md:325` now reads *the public half of a `task_tree`
+   function — taking the already-open `&Tree` a caller hands it, since no verb
+   here but `finish_commit` opens a tree*, which agrees with the chapter's own
+   line 90 (*unlike every other verb here*) and with the `verbs::kind` early-use
+   row k151 rewrote (*it takes an already-open `&Tree`*). `08-kind-and-briefs.md`
+   now says the same of `brief_chain` as line 140 already said of `kind`.
+
+5. **Verified green.** `book-check --repo . --book docs/walkthroughs/grove-loop
+   --final --check all` → `valid: 13 files, 10557 resolved lines, 0 deferred
+   lines, final=true`; `bash scripts/check.sh` → `check: all 8 principal checks
+   pass`, with all six books green. No source byte changed, so no ledger,
+   ownership range or line count moved.

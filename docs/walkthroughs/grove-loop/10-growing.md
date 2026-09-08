@@ -335,9 +335,9 @@ steps compose one artifact, and says so explicitly: *the steps are flat
 siblings, so nothing here knows they compose one artifact.*
 
 **`leaf-add` is also the public verb, and this is the module-private half of
-it.** `verbs::leaf_add` is the tree-opening wrapper a caller reaches; this
-function takes an already-open guard, a validated `Slug` and the kinds. Chapter
-15 reads the wrapper. The distinction matters twice below: once because a
+it.** `verbs::leaf_add` is the public wrapper a caller reaches; it takes a
+`TreeWrite` the caller already opened and hands this function the guard, along
+with a validated `Slug` and the kinds. Chapter 15 reads the wrapper. The distinction matters twice below: once because a
 refusal the comment calls *unreachable from the verb* is unreachable because of
 what the wrapper's own caller does, and once because a slug that fails
 validation never arrives here at all.

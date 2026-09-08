@@ -1773,19 +1773,31 @@ refusal or fallback arm with a **panic** in a copy of the workspace, run the who
 of `grove-loop` and `grove-llm`, and diff the per-test results against an
 unmutated control run of the same copy.
 
-**The control is 558 tests with 11 failing**, all of `crates/grove-loop/tests/prompt.rs`,
-because the copy is not a jj repository — and `cargo build -p grove --bins` runs
-first, without which `CARGO_BIN_EXE_grove` is unset and six further `grove-llm`
-tests fail on a missing binary rather than on anything about the code. A control
-that is wrong in that direction **hides** observers, because a test already red
-cannot go redder. Every one of the twenty-four runs below executed all 558, which
-is the check that separates a clean result from a mutant that failed to compile
-and printed no per-test lines at all. Two arms mutate a `bail!`'s **whole macro
-call** rather than its message, for the reason chapter 12 measured: a
-message-preserving panic leaves a `grove-llm` test asserting on stderr substrings
-green, and every arm here is replaced by `panic!("MUTANT-…")` outright. No mutant's
-newly-failing set named a `driver_lease.rs` or `prompt.rs` test, so none needed the
-re-run those two files' timeouts otherwise force.
+**The control is 560 tests with 11 failing**, all of
+`crates/grove-loop/tests/prompt.rs`, because the copy is neither a jj repository
+nor a checkout of the plugin marketplace — ten fail on `NotAWorkspace` and the
+eleventh, `the_namespace_is_the_shipped_plugin_entrys_declared_name`, on the
+marketplace manifest the copy does not carry — and `cargo build -p grove --bins`
+runs first, without which `CARGO_BIN_EXE_grove` is unset and six further
+`grove-llm` tests fail on a missing binary rather than on anything about the
+code. A control that is wrong in that direction **hides** observers, because a
+test already red cannot go redder. Every one of the twenty-four runs below
+executed all 560, which is the check that separates a clean result from a mutant
+that failed to compile and printed no per-test lines at all. The twelve arms
+that *are* `bail!`s are mutated **whole macro call** rather than message, for
+the reason chapter 12 measured: a message-preserving panic leaves a `grove-llm`
+test asserting on stderr substrings green, so each becomes a bare
+`panic!("MUTANT")` outright. The other twelve are not `bail!` swaps at all —
+rows 9 to 15 and 20 to 24 are a dispatch, an early `Ok(())`, a `continue`, a
+recursion, a `push`, a silent skip, a `.with_context`, a `reopen_write`, two
+`.context`s and two branches of the residue helper — and each needs a panic
+reachable **only along its own arm**, or it measures reachability instead of
+observation. Row 11's `continue` and row 14's silent skip take the panic inside
+the branch rather than at the head of the loop; rows 15 and 24 hang their
+context off an `Option`, so the `?` has to go with it and a mutant that will not
+compile reads exactly like a clean result. No mutant's newly-failing set named a
+`driver_lease.rs` or `prompt.rs` test, so none needed the re-run those two
+files' timeouts otherwise force.
 
 **Twenty-four arms, in line order.**
 
@@ -1799,43 +1811,72 @@ re-run those two files' timeouts otherwise force.
 | 6 | `bail!` the driver-reserved `finish` kind — **retire** | 758 | `every_agent_side_mutation_refuses_the_driver_reserved_finish_kind` |
 | 7 | `bail!` the argument is the grove root — **prune** | 810 | `prune_refuses_the_grove_root`; `prune_refuses_the_grove_root_given_as_a_relative_dot_path` |
 | 8 | `bail!` a charter brief | 842 | `prune_leaf_refuses_a_node_brief`; `prune_leaf_refuses_the_root_brief` |
-| 9 | dispatch a node to `plan_subtree` | 846 | fourteen tests |
+| 9 | dispatch a node to `plan_subtree` | 846 | fourteen tests, enumerated below |
 | 10 | a node with no contents returns `Ok(())` | 861 | **nothing** |
-| 11 | `continue` past the node's own `BRIEF.md` | 866 | fourteen tests |
+| 11 | `continue` past the node's own `BRIEF.md` | 866 | the same fourteen |
 | 12 | recurse into a child node | 869 | `prune_node_recurses_into_a_grandchild_node`; `a_prune_that_stops_partway_names_what_it_already_marked` |
-| 13 | collect a `DONE` child into `left_done` | 877 | five tests |
+| 13 | collect a `DONE` child into `left_done` | 877 | five of the fourteen |
 | 14 | skip an `ABANDONED` child silently | 883 | `prune_node_is_atomic_bails_clean_on_a_leaf_it_cannot_address` |
 | 15 | `.with_context` the entry carries no ordinal or key | 904 | **nothing** |
 | 16 | `bail!` a node directory passed as a leaf | 911 | **nothing** |
 | 17 | `bail!` a retired (`DONE`) leaf | 917 | `prune_leaf_refuses_an_already_done_leaf` |
 | 18 | `bail!` an already-`ABANDONED` leaf | 918 | `prune_leaf_refuses_an_already_abandoned_leaf` |
 | 19 | `bail!` the driver-reserved `finish` kind — **prune** | 922 | `every_agent_side_mutation_refuses_the_driver_reserved_finish_kind` |
-| 20 | `reopen_write` for the second and later marks | 953 | eight tests |
+| 20 | `reopen_write` for the second and later marks | 953 | eight of the fourteen |
 | 21 | `.context(stopped_partway(…))` on a failed mark | 969 | `a_prune_that_stops_partway_names_what_it_already_marked` |
 | 22 | the *marked nothing* branch of `stopped_partway` | 980 | **nothing** |
 | 23 | the singular *leaf* branch of `stopped_partway` | 991 | `a_prune_that_stops_partway_names_what_it_already_marked` |
 | 24 | `.context` the library reported no rename | 1007 | **nothing** |
 
-Rows 9, 11, 13 and 20 are the positive control that makes the rest readable: each
-reddens a large, coherent set — every node prune in the workspace — so the
-instrument demonstrably fires when the code it removes is load-bearing. Eighteen of
-the twenty-four arms are observed and **six are not**, and the six do not form one
-class.
+**The four counted cells are one set.** Rows 9 and 11 redden the *same* fourteen
+tests, name for name, and rows 13 and 20 are subsets of that same fourteen —
+which is what makes them a positive control rather than four separate
+measurements. The fourteen, numbered so the two subsets can be read off them:
+
+1. `a_prune_that_stops_partway_names_what_it_already_marked`
+2. `leaf_prune_in_a_colocated_tree_leaves_the_git_index_alone`
+3. `leaf_prune_marks_a_whole_subtree_abandoned_in_a_jj_native_tree`
+4. `leaf_prune_marks_every_live_leaf_and_names_the_done_ones_it_left`
+5. `prune_of_a_node_reminds_once_for_the_whole_bulk_mark`
+6. `prune_that_marks_nothing_stays_quiet`
+7. `pruning_a_node_marks_every_leaf_the_same_way`
+8. `prune_node_is_atomic_bails_clean_on_a_leaf_it_cannot_address`
+9. `prune_node_leaves_done_leaves_untouched`
+10. `prune_node_marks_a_subtree_mixing_tracked_and_untracked_leaves`
+11. `prune_node_marks_every_live_leaf_in_the_subtree`
+12. `prune_node_recurses_into_a_grandchild_node`
+13. `prune_node_with_nothing_live_marks_nothing`
+14. `pruning_a_node_takes_one_guard_per_mark`
+
+Row 13's five are **4, 6, 9, 13 and 14**; row 20's eight are **1, 2, 3, 5, 7,
+10, 11 and 14**. Both are subsets, so the four counted cells reach **fourteen**
+distinct tests between them rather than the forty-one their sizes add up to —
+which is a fact about the sets and not about their sizes, and one no reader
+could have checked while the cells said only *fourteen tests*.
+
+Rows 9, 11, 13 and 20 are therefore the positive control that makes the rest
+readable: rows 9 and 11 take out the node walk itself and redden all fourteen,
+and rows 13 and 20 redden the coherent subsets their arms serve — so the
+instrument demonstrably fires when the code it removes is load-bearing, and it
+fires proportionately. Eighteen of the twenty-four arms are observed and **six
+are not**, and the six do not form one class.
 
 **Every inline observer of this block is in this block.** All eighteen distinct
-`tree_lifecycle::tests::` names above sit between lines 2235 and 2725, so no other
-chapter's test section reaches an arm of this one. That is not true of the
-converse: fourteen of this chapter's thirty-two tests observe no arm here at all,
-because they establish what the verbs *do* rather than what they refuse. Two of
-the fourteen are refusal tests all the same — `retire_refuses_a_foreign_file` and
-`prune_leaf_refuses_a_foreign_file` — and they observe nothing here because the
-refusal they assert on is not this block's: a foreign name never becomes an
-`Entry`, so `task_tree::target` refuses before either verb's own classification is
-reached, and that function is chapter 6's.
+`tree_lifecycle::tests::` names above sit between lines 2235 and 2725, so no
+other chapter's test section reaches an arm of this one. That is not true of the
+converse: fourteen of this chapter's thirty-two inline tests observe no arm here
+at all, because they establish what the verbs *do* rather than what they refuse.
+Two of those fourteen are refusal tests all the same —
+`retire_refuses_a_foreign_file` and `prune_leaf_refuses_a_foreign_file` — and
+they observe nothing here because the refusal they assert on is not this
+block's: a foreign name never becomes an `Entry`, so `task_tree::target` refuses
+before either verb's own classification is reached, and that function is chapter
+6's.
 
-**Four arms are held only from outside the crate**, which is worth naming because
-`cargo test -p grove-loop` alone would report them unobserved. Rows 6 and 19 — the
-`finish` reservation on *both* marks — are held by one test,
+**Four arms are held only from outside this module**, and two of the four from
+outside the crate — which is the boundary worth naming, because it is the second
+pair that `cargo test -p grove-loop` alone reports unobserved. Rows 6 and 19 —
+the `finish` reservation on *both* marks — are held by one test,
 `every_agent_side_mutation_refuses_the_driver_reserved_finish_kind`
 (`crates/grove-llm/tests/session_kind_tree.rs`), which is a sweep over every
 agent-side mutation rather than a test about either verb. Rows 21 and 23 — the
@@ -1843,7 +1884,11 @@ whole of the residue message — are held by one test,
 `a_prune_that_stops_partway_names_what_it_already_marked`
 (`crates/grove-loop/tests/verbs.rs`), which induces a mid-run failure with a
 read-only directory at the **second** position so the first mark lands and the
-second cannot.
+second cannot. That second file is an integration test of *this* package, so
+`cargo test -p grove-loop` does run it and does see rows 21 and 23; it is rows 6
+and 19, held from `grove-llm`, that the package-scoped command reports as held
+by nothing. Re-running each of the four mutants under `-p grove-loop` alone is
+what establishes that, and it is the kind of claim only a second run can settle.
 
 <a id="the-six-that-hold-nothing"></a>
 ### The six, and why they are three different things
@@ -1901,8 +1946,9 @@ the operator is standing in. So `grove-llm leaf-retire .`, typed inside `.grove/
 resolves to `Target::Root` and meets line 712 and nothing else. It is exactly the
 spelling `prune_refuses_the_grove_root_given_as_a_relative_dot_path` exists to
 cover on the other verb. What
-the mutation establishes is that removing the line leaves all 558 tests green, so
-the refusal an operator would meet is held by no test at all. **The asymmetry, not
+the mutation establishes is that replacing the refusal with a panic **reddens
+nothing** against the 560-test control — not one test changes colour — so the
+refusal an operator would meet is held by no test at all. **The asymmetry, not
 the absence, is the finding**: the same argument on the same shape of tree is
 covered twice for one verb and not once for the other, and nothing in the block
 explains the difference.

@@ -138,9 +138,15 @@ five, all in `crates/grove-loop/src/task_tree.rs` — **and all five are in this
 chapter's block**: the import at line 46, the two guard aliases at lines 58 and
 102, and the two acquisitions at lines 86 and 183. The count is the control, so a
 rename that hid the call sites fails the test rather than passing it clean. The
-second scans production for `libc::flock` calls carrying neither `LOCK_NB` nor
-`LOCK_UN`, and its own control is that it matched at least two — a mis-scoped
-scan reports a clean tree for the wrong reason.
+second cuts each file at its inline `mod tests`, skips the releases, and reports
+any remaining `libc::flock` acquisition that does not carry `LOCK_NB`. Its
+control is that it reached an acquisition in at least **two files** — grove's
+two lockers being two files, and a bare count of matches unable to tell one of
+them being hidden from the other having grown a lock. It could not tell before
+`lock-scan-blind-to-contention-probe-k190`: the cut was taken at each file's
+first `#[cfg(test)]`, which in this file is the test-only `READ_COUNT`
+thread-local at line 60, so the probe below was never read and the lease's four
+matches cleared the old floor alone.
 
 The second passage is the one an early-use row is anchored on, and it is the
 chapter's answer to *what did not move* on the way in.
@@ -763,13 +769,14 @@ open for the whole call, and it is discharged by ownership: `handle` owns the
 descriptor and outlives both `flock`s. The second clause — that `flock` touches
 nothing else — is what makes the first sufficient.
 
-**Both `flock` calls carry a flag the source scan looks for.** Line 249 passes
-`mode | libc::LOCK_NB` and line 250 passes `libc::LOCK_UN`, which is precisely
-the pair `no_production_lock_grove_takes_for_itself_ever_blocks` accepts. That
-test's claim is not *this probe is correct*; it is that **no** `flock` grove
-takes in production waits, so the deleted layer cannot grow back silently — its
-symptom would be a hang rather than a failure, which is the kind of regression a
-test has to catch before a human does.
+**Both `flock` calls carry a flag the source scan reads, and it reads them
+differently.** Line 249 passes `mode | libc::LOCK_NB`, which is the acquisition
+`no_production_lock_grove_takes_for_itself_ever_blocks` requires; line 250
+passes `libc::LOCK_UN`, which leaves that scan as a release rather than
+satisfying it. That test's claim is not *this probe is correct*; it is that
+**no** `flock` grove takes in production waits, so the deleted layer cannot grow
+back silently — its symptom would be a hang rather than a failure, which is the
+kind of regression a test has to catch before a human does.
 
 **Silence on every failure is `restate`'s division of labour applied one step
 earlier.** The library decides and grove only chooses wording, so a probe that

@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs::{self, File};
 use std::os::fd::AsRawFd;
 use std::os::unix::fs::symlink;
@@ -301,37 +302,47 @@ fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
 ///
 /// Enumerated, like its neighbour above: every `.rs` file grove ships is
 /// scanned, so a module that grows a guard of its own is checked whether or not
-/// anyone thought to look. Unit tests are cut at their `#[cfg(test)]` boundary —
-/// a fixture that *deliberately* blocks to provoke contention is not production
-/// waiting on itself.
+/// anyone thought to look. Unit tests are cut at their inline `mod tests` — a
+/// fixture that *deliberately* blocks to provoke contention is not production
+/// waiting on itself — and the control below counts the **files** an
+/// acquisition was reached in rather than the acquisitions, because the two
+/// lockers are two files and a count alone cannot tell one of them being hidden
+/// from the other one having grown a lock.
 #[test]
 fn no_production_lock_grove_takes_for_itself_ever_blocks() {
     let mut blocking: Vec<String> = Vec::new();
-    let mut checked = 0_usize;
+    let mut lockers: BTreeSet<String> = BTreeSet::new();
     for (relative, body) in support::grove_sources() {
         // A whole file of tests, named as one. Nothing in it is production.
         if relative.ends_with("tests.rs") {
             continue;
         }
-        let production = body
-            .split_once("#[cfg(test)]")
-            .map_or(body.as_str(), |(before, _)| before);
-        for (number, line) in production.lines().enumerate() {
+        for (number, line) in production_half(&body).lines().enumerate() {
             if line.trim_start().starts_with("//") || !line.contains("libc::flock") {
                 continue;
             }
-            checked += 1;
-            if !line.contains("LOCK_NB") && !line.contains("LOCK_UN") {
+            // A release is not an acquisition and cannot wait: `LOCK_UN` returns
+            // whether or not anyone is queued behind it, so `LOCK_NB` beside it
+            // would mean nothing. It leaves the scan here rather than satisfying
+            // the predicate below for a reason that predicate does not mean.
+            if line.contains("LOCK_UN") {
+                continue;
+            }
+            lockers.insert(relative.clone());
+            if !line.contains("LOCK_NB") {
                 blocking.push(format!("{relative}:{}: {}", number + 1, line.trim()));
             }
         }
     }
 
     assert!(
-        checked >= 2,
-        "the scan matched {checked} `flock` calls, and Grove has at least the \
-         lease's and the contention probe's — a mis-scoped scan reports a clean \
-         tree for the wrong reason"
+        lockers.len() >= 2,
+        "the scan reached `flock` acquisitions in {} file(s) — {} — and Grove has \
+         two lockers, the driver lease and `task_tree`'s contention probe. Fewer \
+         means a mis-scoped cut hid one of them, which reports a clean tree for \
+         the wrong reason",
+        lockers.len(),
+        lockers.iter().cloned().collect::<Vec<_>>().join(", ")
     );
     assert!(
         blocking.is_empty(),
@@ -341,4 +352,42 @@ fn no_production_lock_grove_takes_for_itself_ever_blocks() {
          deleted and what a hang rather than a failure looks like:\n{}",
         blocking.join("\n")
     );
+}
+
+/// Everything above a file's inline test module — the half that is production.
+///
+/// Anchored on the module and not on the file's first `#[cfg(test)]`, because
+/// those are routinely not the same line: the attribute attaches to any item, so
+/// a test-only helper, constant or `thread_local!` declared near the top of a
+/// file sits far above the `mod tests` that ends it.
+/// `crates/grove-loop/src/task_tree.rs` is the case that motivated this —
+/// a test-only `READ_COUNT` thread-local is attributed at line 60 of 2,038, and
+/// cutting there left the contention probe's own `flock` calls at lines 249 and
+/// 250 unread, so the scan above reported a clean tree having never looked at
+/// one of the two lockers its header names. A truncated read looks exactly like
+/// a clean one, which is why the caller's control counts files rather than
+/// matches.
+///
+/// A file with no inline test module is production throughout. That is the
+/// widening direction: a shape not anticipated here is over-scanned rather than
+/// skipped, and an over-scan is a false failure a human sees rather than a
+/// silence they do not.
+fn production_half(body: &str) -> &str {
+    const ATTRIBUTE: &str = "#[cfg(test)]";
+    for (offset, _) in body.match_indices(ATTRIBUTE) {
+        let attributed = body[offset + ATTRIBUTE.len()..].trim_start();
+        // `mod tests`, `pub mod tests` and `pub(crate) mod tests` are all in the
+        // tree, and both `{` and `;` follow — `task_grow.rs` puts its module in
+        // its own file.
+        let declaration = attributed.strip_prefix("pub").map_or(attributed, |rest| {
+            let rest = rest.trim_start();
+            rest.strip_prefix('(')
+                .and_then(|inner| inner.split_once(')'))
+                .map_or(rest, |(_, tail)| tail.trim_start())
+        });
+        if declaration.starts_with("mod tests") {
+            return &body[..offset];
+        }
+    }
+    body
 }

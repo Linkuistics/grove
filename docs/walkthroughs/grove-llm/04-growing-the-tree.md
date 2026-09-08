@@ -238,12 +238,15 @@ because the property that rules it out is stated rather than provoked, and it is
 two facts. The store's own lock is blocking, and it is the one place waiting
 belongs; grove takes no blocking lock of its own, which
 `no_production_lock_grove_takes_for_itself_ever_blocks` in
-`crates/grove-llm/tests/tree_lock.rs` holds by scanning the five packages grove
-ships for a `libc::flock` call and requiring each non-blocking. That test does
-not prove a verb never opens the tree twice; what does is structural, and it is
-the second fact — a mutation consumes its guard and releases the lock on return,
-and the one verb that reads through its own opening gives up any guard it still
-holds first. *`leaf-decompose`: two openings, in order* below reads the one grow
+`crates/grove-llm/tests/tree_lock.rs` holds by scanning the production half of
+every source file in the five packages grove ships — each file cut at its inline
+`mod tests` — for `libc::flock` calls, and requiring every *acquisition* among
+them non-blocking. A release is skipped rather than accepted, because an unlock
+cannot wait and a flag saying so on one would mean nothing. That test does not
+prove a verb never opens the tree twice; what does is structural, and it is the
+second fact — a mutation consumes its guard and releases the lock on return, and
+the one verb that reads through its own opening gives up any guard it still holds
+first. *`leaf-decompose`: two openings, in order* below reads the one grow
 verb that has to open the tree twice and shows the two openings kept sequential.
 
 The composite that reassembles the handler is stated here, and the source index

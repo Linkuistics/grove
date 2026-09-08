@@ -12,7 +12,7 @@
 //! Since `loop-crate-driver-k22` it is also the **driver**: the one-driver-per
 //! -working-tree lease, the prompt composition, the launch configuration grove
 //! reads, and [`run`] — the loop itself. What is left outside is one binary per
-//! audience, each three functions long.
+//! audience, each a command-line surface over what is in here.
 //!
 //! # Opening mirrors the store's, one level up
 //!

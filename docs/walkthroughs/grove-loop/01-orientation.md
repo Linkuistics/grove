@@ -329,10 +329,10 @@ twelve is checked against the fourteen functions `verbs` declares.
 <!-- /fragment -->
 
 The second fragment is the crate's one structural oddity, and it is where the
-book divides. Since `loop-crate-driver-k22` the crate
-is also the driver: the lease that keeps one driver per working tree, the prompt
-it composes, the launch configuration it reads, and `run` itself. What is left
-outside is one binary per audience, each three functions long, and those binaries
+book divides. Since `loop-crate-driver-k22` the crate is also the driver: the
+lease that keeps one driver per working tree, the prompt it composes, the launch
+configuration it reads, and `run` itself. What is left outside is one binary per
+audience, each a command-line surface over what is in here, and those binaries
 are the overview's book and the `grove-llm` book rather than this one. Chapters
 16 to 20 are this paragraph; chapters 2 to 15 are the rest of the crate.
 
@@ -342,7 +342,7 @@ are the overview's book and the `grove-llm` book rather than this one. Chapters
 //! Since `loop-crate-driver-k22` it is also the **driver**: the one-driver-per
 //! -working-tree lease, the prompt composition, the launch configuration grove
 //! reads, and [`run`] — the loop itself. What is left outside is one binary per
-//! audience, each three functions long.
+//! audience, each a command-line surface over what is in here.
 ````
 <!-- /fragment -->
 

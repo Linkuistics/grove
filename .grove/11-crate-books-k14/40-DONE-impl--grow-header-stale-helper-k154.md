@@ -88,3 +88,33 @@ swept `task_name.rs`; the remaining modules are swept by the chapters that read
 them, and each cuts its own leaf.
 
 ## Decisions (running log)
+
+1. **The two headings were reordered rather than the paragraphs moved.**
+   *What went, and stayed gone* now stands first with the appender's collision
+   machinery and the deleted `leaf-add-pair` beneath it, and the helper heading
+   follows with its own paragraph. Both repairs fit the frozen 25-line window
+   (lines 25–49), so `task_grow.rs` is still exactly 518 lines and no fragment
+   range, ownership range or manifest `lines` value moved.
+2. **The heading now credits `tree_lifecycle`, not `leaf-decompose`.** The
+   task file's *Context* had the callers right but the attribution still too
+   narrow in the other direction: `refuse_finish_kind` is reached by `root_init`
+   (346) as well as `leaf_decompose` (560), `new_leaf` by `initialize_grove`
+   (388) as well as `leaf_decompose` (573), and `allocated` by
+   `materialize_finish` (132) and `initialize_grove` (405). So `leaf_decompose`
+   reaches two, and only the `root-init` path reaches all three. Naming one verb
+   in the heading could not be made true; naming the module can.
+3. **Three claims carried from this file's *Context* into the page were false on
+   re-derivation, and were corrected before the page was written.** (a) The
+   creating commit's first version carried seven `pub(crate)` functions but not
+   *these* seven — it had `surface_cross_refs` where `stale_cross_refs` now
+   stands. (b) `task_template_body`'s outside mentions are two, not one: the
+   intra-doc link at `tree_lifecycle.rs:1052` and a doc comment in
+   `crates/grove-llm/tests/removed_surface.rs:881`; "only" holds within
+   `grove-loop` and not across the workspace. (c) The rustdoc contrast is
+   **twenty-six** warnings across the crate, not thirty — the figure moved when
+   `unresolved-doc-links-k151` landed, and twenty-six is what chapters 11, 15 and
+   16 already state. `task_grow.rs` still draws zero.
+4. **`lease-stale-reader-name-k169` was annotated, not rewritten.** It cites
+   `task_grow.rs`'s `leaf_slug` as the analogy for *a name that never existed*;
+   one parenthetical now says the instance is repaired and the analogy is to the
+   defect class.

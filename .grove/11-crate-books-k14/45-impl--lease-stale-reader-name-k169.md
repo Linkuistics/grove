@@ -15,7 +15,10 @@ reproduces the changed bytes.
   one.* `grep -rn 'probe_lease_holder' .` hits that comment and nothing else,
   against a control `probe_live_lease` that hits five sites in the same trees.
 - **The behaviour is correct and only the address is wrong** — chapter 6's
-  `llm_cli` shape rather than `task_grow.rs`'s `leaf_slug`. The reader is
+  `llm_cli` shape rather than `task_grow.rs`'s `leaf_slug` (repaired at
+  `grow-header-stale-helper-k154`, so that name is now only in chapter 10's
+  record of it; the analogy is to the defect class, not to a live instance).
+  The reader is
   `probe_live_lease_with_post_unlock_hook` (line 641), whose line 654 does
   `parse_process_record(&read_record(&mut lease_file, "driver lease record")?)?`,
   and an emptied file fails that parse at *missing worktree-device field* — a

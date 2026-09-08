@@ -156,21 +156,12 @@ reading it is what closes the early-use row chapter 6 opened. The lint is the
 only thing in this chapter that needs a *second* observation of the tree, and
 the reason is at the other end of the file too.
 
-The second half of the header is the other direction: what moved out, and what
-was deleted outright.
+The second half of the header turns the other way: what moved out, what was
+deleted outright, and then the one thing that went nowhere.
 
 <!-- fragment «grow-header-what-went» owner="what-the-library-cannot-see" source="crates/grove-loop/src/task_grow.rs" lines="25-49" parent="growing-the-tree" -->
 ````rust
 // # What went, and stayed gone
-//
-// # Three helpers here are `pub(crate)`, and `leaf-decompose` is why
-//
-// `new_leaf`, `leaf_slug` and `refuse_finish_kind` are shared with
-// `tree_lifecycle`'s `leaf_decompose`, whose `promote` optionally creates a first
-// child in the same unit — so it composes a new leaf exactly as the grow verbs
-// do, key prediction and all. One constructor rather than two is the point: a
-// second spelling of *what a new grove leaf is* would let the two drift on the
-// template, the slug grammar or the `finish` reservation.
 //
 // The whole of the path-walking appender's collision machinery — the up-front
 // destination sweep, the `O_EXCL` claim, the per-run rollback, the injected
@@ -186,63 +177,80 @@ was deleted outright.
 // combine-research`, spelled by the methodology that owns those tokens. Deleting
 // the verb and telling the skill to call `leaf-add` three times was rejected: it
 // puts back the live-prefix hazard the atomic run exists to exclude.
+//
+// # Three helpers here are `pub(crate)`, and `tree_lifecycle` is why
+//
+// `new_leaf`, `refuse_finish_kind` and `allocated` are shared with
+// `tree_lifecycle`. `leaf_decompose` reaches the first two: its `promote`
+// optionally creates a first child in the same unit, so it composes a new leaf
+// exactly as the grow verbs do. `root-init` reaches all three. One constructor
+// rather than two is the point — a second spelling of *what a new grove leaf is*
+// would let the two drift on the template, the slug grammar or the `finish` reservation.
 ````
 <!-- /fragment -->
 
-**The passage is mis-nested, and no instrument in this repository can see it.**
-*What went, and stayed gone* is a heading with no body: the two paragraphs that
-belong under it — the appender's collision machinery, and the deleted pair verb
-— sit below the next heading instead, so a reader working down the file meets
-them as though they were reasons three helpers are `pub(crate)`. This is the
-same class of defect as the welded doc comment in `task_name.rs` that
-`kit-fixture-and-peel-doc-k140` repaired, and it is invisible to the instrument
-that caught that one: lines 1 to 49 are plain `//` comments rather than `//!`
-inner doc comments, so rustdoc renders none of them and `cargo doc --no-deps
---document-private-items` has nothing to be wrong about. Run over this file it
-reports **no warning at all** — no unresolved intra-doc link and no misattached
-docblock — which is a true result about doc comments and says nothing about the
-forty-nine lines above the first one.
+**Two headings, and the second is a boundary rather than a continuation.**
+*What went, and stayed gone* takes the two departures — the appender's collision
+machinery, which `append_many` made unnecessary, and `leaf-add-pair`, which was
+folded into `leaf-add` — and *three helpers here are `pub(crate)`, and
+`tree_lifecycle` is why* takes the one thing that went nowhere. Everything above the second
+heading is an absence; everything below it is a visibility widened on purpose,
+and the split is what makes the second half readable as a single claim.
 
-**A claim inside the mis-nested passage is also false, and it is false in a way
-this page can settle from its own bytes.** The heading says *three helpers here
-are `pub(crate)`, and `leaf-decompose` is why*, and names them `new_leaf`,
-`leaf_slug` and `refuse_finish_kind`. **There is no `leaf_slug`.** This chapter
-reproduces every one of the file's seven `pub(crate)` functions — `leaf_add`,
-`leaf_insert`, `stale_cross_refs`, `new_leaf`, `allocated`, `refuse_finish_kind`
-and `task_template_body` — and a reader can check the list against the fragments
-below without leaving the page. Nor is it a name the file has outlived: the
-commit that created this file wrote this comment with it, and that first version
-carried seven `pub(crate)` functions too, none of them called `leaf_slug`.
+**That claim is checkable from this chapter alone, and worth checking.** This
+chapter reproduces every one of the file's seven `pub(crate)` functions —
+`leaf_add`, `leaf_insert`, `stale_cross_refs`, `new_leaf`, `allocated`,
+`refuse_finish_kind` and `task_template_body` — so a reader can hold the header's
+list of three against the whole set without leaving the page. Three of the seven
+are the ones `tree_lifecycle` calls. Of the remaining four, three are the verb
+surface `verbs.rs` reaches, and the last is `task_template_body`, which has no
+caller outside this file at all. Its only mention elsewhere in `grove-loop` is
+the intra-doc link in `append_brief_suffix_in_file`'s doc comment, naming it as
+the other half of a grammar that could once have drifted. The workspace's only
+other mention of it is a doc comment in `grove-llm`'s `removed_surface.rs`, which
+cites it as an item that is not a module.
 
-**The count is right and one of the three names is not.** Three of those seven
-are called from `tree_lifecycle` — `refuse_finish_kind`, `new_leaf` and
-`allocated` — which is exactly the shape the heading describes, so the sentence
-reads as though `allocated` were meant. But the attribution is narrower than the
-heading claims either way: `leaf_decompose` reaches only **two** of the three.
-It calls `refuse_finish_kind` and `new_leaf`, and then checks its own promotion
-with a helper of its own rather than with `allocated` — a second reading of the
-same report, in chapter 12's block. `allocated`'s own doc comment, at the other
-end of this file, names its other caller and it is not `leaf_decompose`. So the
-file's strongest argument here — *one constructor rather than two is the point* —
-is true of the new-leaf constructor and is not true of the check that
-constructor's key prediction earns.
+**And the attribution stops one short of the list.** `leaf_decompose` reaches
+`refuse_finish_kind` and `new_leaf` and no further: it checks its own promotion
+with `promoted`, a private helper that reads the same report a second time, in
+chapter 12's block rather than this one. `allocated`'s two callers are
+`materialize_finish` and `initialize_grove`, and its own doc comment, forty lines
+from the end of this file, names the second. Only the `root-init` path reaches
+all three — `root_init` refuses a `finish` kind itself and hands the rest to
+`initialize_grove` — which is why the heading credits the module and not a verb
+inside it. The argument the paragraph ends on, *one constructor rather than two*,
+is exactly as wide as `new_leaf` and `refuse_finish_kind`, and the third helper
+rides along because it is the check that constructor's key prediction earns.
 
-**Neither defect is corrected here, and one leaf holds both.** The corpus is
-frozen: this file is a single ownership block of 518 lines, and a comment repair
-that changed the count would move every fragment range on this page.
-`grow-header-stale-helper-k154` carries the source change — the name, the
-attribution and the mis-nesting — inside the same 518 lines, together with the
-rewrite this section then owes.
+**Both of those sentences were wrong when this chapter first read them, and no
+instrument in this repository could say so.** The heading pair was inverted —
+*what went, and stayed gone* stood with no body, its two paragraphs sitting under
+the helper heading as though they were reasons for a `pub(crate)` — and the
+helper list named `leaf_slug`, a function this workspace has never contained: the
+commit that created the file wrote the comment with it, over a first version that
+already carried seven `pub(crate)` functions and no eighth — six of today's, plus
+`surface_cross_refs` where `stale_cross_refs` now stands, and none of them a
+`leaf_slug`. `grow-header-stale-helper-k154` repaired both inside the file's 518
+lines, so no ownership range, manifest `lines` value or fragment range on this
+page moved. Why neither defect was caught
+earlier is the durable part: lines 1 to 49 are plain `//` comments rather than
+`//!` inner doc comments, so rustdoc renders none of them and `cargo doc
+--no-deps --document-private-items -p grove-loop` reports **no warning for this
+file at all**, out of the twenty-six it emits across the crate. That is a true
+result about this file's doc comments and says nothing whatever about the
+forty-nine lines standing above the first one. Chapters 15 and 16 meet the same
+silence over `//` headers of their own, and chapter 11 meets its opposite: a
+correctly attached doc comment whose *shape* is wrong, which `cargo doc` also
+passes.
 
-**The rest of the passage is a deletion, and it is the one place the book meets
-the pair verb.** `leaf-add-pair` held three kind tokens as a constant — the
-three the methodology spells for a research pair — and a crate that knows a kind
-is a token has no business knowing which tokens exist. Folding it into
-`leaf-add` as an ordered list of kinds kept what the verb was *for*, because the
-property that mattered was never the three names: it was that the three land as
-one unit. The paragraph closes by rejecting the cheaper move, calling `leaf-add`
-three times from the skill, and the reason it gives is the subject of the next
-section.
+**The deletion in the first half is the one place the book meets the pair verb.**
+`leaf-add-pair` held three kind tokens as a constant — the three the methodology
+spells for a research pair — and a crate that knows a kind is a token has no
+business knowing which tokens exist. Folding it into `leaf-add` as an ordered
+list of kinds kept what the verb was *for*, because the property that mattered
+was never the three names: it was that the three land as one unit. That paragraph
+closes by rejecting the cheaper move, calling `leaf-add` three times from the
+skill, and the reason it gives is the subject of the next section.
 
 <a id="a-list-is-not-n-calls"></a>
 ## `leaf-add`, and why a list of kinds is one call

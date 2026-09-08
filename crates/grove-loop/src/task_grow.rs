@@ -24,15 +24,6 @@
 //
 // # What went, and stayed gone
 //
-// # Three helpers here are `pub(crate)`, and `leaf-decompose` is why
-//
-// `new_leaf`, `leaf_slug` and `refuse_finish_kind` are shared with
-// `tree_lifecycle`'s `leaf_decompose`, whose `promote` optionally creates a first
-// child in the same unit — so it composes a new leaf exactly as the grow verbs
-// do, key prediction and all. One constructor rather than two is the point: a
-// second spelling of *what a new grove leaf is* would let the two drift on the
-// template, the slug grammar or the `finish` reservation.
-//
 // The whole of the path-walking appender's collision machinery — the up-front
 // destination sweep, the `O_EXCL` claim, the per-run rollback, the injected
 // post-claim failure — because `append_many` *is* the atomic run: one snapshot answers
@@ -47,6 +38,15 @@
 // combine-research`, spelled by the methodology that owns those tokens. Deleting
 // the verb and telling the skill to call `leaf-add` three times was rejected: it
 // puts back the live-prefix hazard the atomic run exists to exclude.
+//
+// # Three helpers here are `pub(crate)`, and `tree_lifecycle` is why
+//
+// `new_leaf`, `refuse_finish_kind` and `allocated` are shared with
+// `tree_lifecycle`. `leaf_decompose` reaches the first two: its `promote`
+// optionally creates a first child in the same unit, so it composes a new leaf
+// exactly as the grow verbs do. `root-init` reaches all three. One constructor
+// rather than two is the point — a second spelling of *what a new grove leaf is*
+// would let the two drift on the template, the slug grammar or the `finish` reservation.
 
 use std::path::{Path, PathBuf};
 

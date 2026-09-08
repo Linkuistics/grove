@@ -86,7 +86,7 @@ is that foreign names are absent while any malformed, reserved, non-UTF-8, or
 non-component owned name halts construction; here it processes the complete
 `s` example before a guard can return.
 
-<!-- fragment «read-tree-discovery» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-81" parent="read-filesystem-source" -->
+<!-- fragment «read-tree-discovery» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-82" parent="read-filesystem-source" -->
 ````rust
 //! Turning a directory tree into a [`Snapshot`].
 //!
@@ -194,7 +194,7 @@ links, establishing a total order and retaining the observed filesystem species
 for the consumer's parser. On the example root it supplies the four direct
 names and marks only `02-linear-algebra-i2` as a directory.
 
-<!-- fragment «read-directory-listing» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="82-155" parent="read-filesystem-source" -->
+<!-- fragment «read-directory-listing» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="83-155" parent="read-filesystem-source" -->
 ````rust
 /// A directory that could not be listed, before either caller has decided what
 /// that means.

@@ -235,9 +235,9 @@
 | `filesystem-read-deref` | `read-path` | `source-filesystem-module` | `literal` | `read-path-k14` | `813-820` | `source-filesystem-module` | `—` |
 | `filesystem-write-deref` | `filesystem-interpreter` | `source-filesystem-module` | `literal` | `filesystem-interpreter-k16` | `821-827` | `source-filesystem-module` | `—` |
 | `source-filesystem-read` | `source-index` | `source-filesystem-read` | `root` | `—` | `1-407` | `—` | `read-filesystem-source` |
-| `read-tree-discovery` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `1-81` | `read-filesystem-source` | `—` |
+| `read-tree-discovery` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `1-82` | `read-filesystem-source` | `—` |
 | `read-filesystem-source` | `read-path` | `source-filesystem-read` | `composite` | `read-path-k14` | `1-407` | `source-filesystem-read` | `read-tree-discovery`, `read-directory-listing`, `read-lock-location` |
-| `read-directory-listing` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `82-155` | `read-filesystem-source` | `—` |
+| `read-directory-listing` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `83-155` | `read-filesystem-source` | `—` |
 | `read-lock-location` | `read-path` | `source-filesystem-read` | `literal` | `read-path-k14` | `156-407` | `read-filesystem-source` | `—` |
 | `source-filesystem-apply` | `source-index` | `source-filesystem-apply` | `root` | `—` | `1-488` | `—` | `filesystem-interpreter-source` |
 | `apply-contract` | `filesystem-interpreter` | `source-filesystem-apply` | `literal` | `filesystem-interpreter-k16` | `1-49` | `filesystem-interpreter-source` | `—` |

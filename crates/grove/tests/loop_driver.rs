@@ -20,7 +20,7 @@ mod support;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Child, Command, ExitStatus, Output, Stdio};
 use std::sync::{mpsc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -153,8 +153,149 @@ fn grove_driver(worktree: &Path, home: &Path) -> Command {
     command
 }
 
+/// A driver process whose streams are captured to **files** rather than pipes,
+/// and which takes the session it launched down with it when it is killed.
+///
+/// Two hazards live in the obvious `Stdio::piped()` spawn, and both of them
+/// present as a wedged suite rather than a failed assertion
+/// (driver-test-timeout-path-unbounded-k194):
+///
+/// - **The pipe outlives the driver.** The configured session inherits the
+///   driver's stderr, and `Child::output` and `Child::wait_with_output` read to
+///   EOF — which arrives only when *every* writer has closed. So a branch that
+///   kills the driver in order to *report* what it said blocks in `read()`
+///   forever instead, because the session it left behind still holds the write
+///   end. A file has no writers to wait for, so the collection below is bounded
+///   by the driver's own lifetime and nothing else, and it still picks up what
+///   a surviving grandchild wrote.
+/// - **The session outlives the run.** `Child::kill` signals the driver alone,
+///   and `keyed-launch` puts every session in a process group of its own
+///   (`run.rs`, `command.process_group(0)`), so a SIGKILLed driver leaves its
+///   `configured-command.sh` running and reparented to pid 1. Those accumulate,
+///   and idle orphans are load — which is what pushes these fixtures past their
+///   deadlines in the first place.
+///
+/// The idiom is not new here: `tests/driver_lease.rs` captures its driver to a
+/// file for the neighbouring reason recorded at
+/// `driver-lease-readiness-flake-k145`, which is also why nulling the streams is
+/// not the answer — a driver that stopped before its session started has only
+/// that account to offer.
+struct DriverProcess {
+    child: Child,
+    stdout: PathBuf,
+    stderr: PathBuf,
+    /// Held for its lifetime, not read: dropping it removes the capture files.
+    _capture: TempDir,
+}
+
+impl DriverProcess {
+    fn spawn(worktree: &Path, home: &Path) -> Self {
+        let capture = TempDir::new().unwrap();
+        let stdout = capture.path().join("stdout");
+        let stderr = capture.path().join("stderr");
+        let child = grove_driver(worktree, home)
+            .stdout(Stdio::from(fs::File::create(&stdout).unwrap()))
+            .stderr(Stdio::from(fs::File::create(&stderr).unwrap()))
+            .spawn()
+            .unwrap();
+        Self {
+            child,
+            stdout,
+            stderr,
+            _capture: capture,
+        }
+    }
+
+    fn id(&self) -> libc::pid_t {
+        self.child.id() as libc::pid_t
+    }
+
+    fn try_wait(&mut self) -> Option<ExitStatus> {
+        self.child.try_wait().unwrap()
+    }
+
+    /// The file the driver's own diagnostics are accumulating in — readable
+    /// *while it runs*, which a pipe could not offer without a drain thread.
+    fn diagnostics(&self) -> &Path {
+        &self.stderr
+    }
+
+    fn wait_for_ready(&mut self, marker: &Path) {
+        let diagnostics = self.stderr.clone();
+        support::wait_for_ready(marker, &mut self.child, Some(&diagnostics));
+    }
+
+    /// SIGKILL the driver **and** the process group of every session it
+    /// launched, then reap it.
+    ///
+    /// The children are read *before* the signal lands. A dead parent's children
+    /// are reparented to pid 1 immediately, and that erases the only link back
+    /// to them — which is how the orphans this type exists to stop got loose.
+    fn kill(&mut self) {
+        let sessions = children_of(self.id());
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+        for (pid, group) in sessions {
+            // SAFETY: `kill(2)` on a process this driver spawned. The negative
+            // pid reaches the whole group — the tools the session itself
+            // launched — and is sent only when the child really is that group's
+            // leader, so a pid that happens to match an unrelated group id
+            // cannot be mistaken for one. Nothing reaps the session between the
+            // `ps` above and here, so the pid cannot have been recycled under
+            // us in the window.
+            unsafe {
+                if group == pid {
+                    libc::kill(-group, libc::SIGKILL);
+                }
+                libc::kill(pid, libc::SIGKILL);
+            }
+        }
+    }
+
+    /// Block until the driver exits, then collect what it wrote.
+    fn finish(&mut self) -> Output {
+        let status = self.child.wait().unwrap();
+        Output {
+            status,
+            stdout: fs::read(&self.stdout).unwrap_or_default(),
+            stderr: fs::read(&self.stderr).unwrap_or_default(),
+        }
+    }
+}
+
+impl Drop for DriverProcess {
+    /// A test that panics before it finishes must not leave the driver — or the
+    /// session behind it — running.
+    fn drop(&mut self) {
+        if self.child.try_wait().unwrap_or(None).is_none() {
+            self.kill();
+        }
+    }
+}
+
+/// The direct children of `parent`, each paired with its process-group id.
+///
+/// Through `ps` because there is no portable process-table read in `std`, and
+/// this runs only on a teardown path where one extra process is free.
+fn children_of(parent: libc::pid_t) -> Vec<(libc::pid_t, libc::pid_t)> {
+    let table = Command::new("ps")
+        .args(["-eo", "pid=,ppid=,pgid="])
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&table.stdout)
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.split_whitespace();
+            let pid = fields.next()?.parse().ok()?;
+            let ppid: libc::pid_t = fields.next()?.parse().ok()?;
+            let group = fields.next()?.parse().ok()?;
+            (ppid == parent).then_some((pid, group))
+        })
+        .collect()
+}
+
 fn run_driver(worktree: &Path, home: &Path) -> Output {
-    grove_driver(worktree, home).output().unwrap()
+    DriverProcess::spawn(worktree, home).finish()
 }
 // The session epoch is what admits an agent's `grove-llm` calls, so its window
 // has to be exactly the child's lifetime: active before the spawn (or the very
@@ -260,27 +401,24 @@ fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver()
     // Bounded rather than `run_driver`, because the failure this test exists to
     // catch is a *hang*: a blocking wait would turn it into a stuck suite
     // instead of a named assertion.
-    let mut child = grove_driver(&worktree, &home)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+    let mut driver = DriverProcess::spawn(&worktree, &home);
     let deadline = Instant::now() + Duration::from_secs(30);
     let status = loop {
-        if let Some(status) = child.try_wait().unwrap() {
+        if let Some(status) = driver.try_wait() {
             break status;
         }
         if Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
+            driver.kill();
+            let said = fs::read_to_string(driver.diagnostics()).unwrap_or_default();
             panic!(
                 "the driver never returned: a session-side `grove-llm` mutation blocked on a \
-                 tree-access guard the driver still held across its launch window"
+                 tree-access guard the driver still held across its launch window. It said:\n\
+                 {said}"
             );
         }
         thread::sleep(Duration::from_millis(50));
     };
-    let output = child.wait_with_output().unwrap();
+    let output = driver.finish();
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     assert!(status.success(), "{stderr}");
@@ -593,19 +731,11 @@ fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_inter
     let (victim_home, victim_tree) = setup("victim", "#!/bin/sh\nsleep 1.5\nexit 0\n");
 
     let started = Instant::now();
-    let attacker = grove_driver(&attacker_tree, &attacker_home)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let victim = grove_driver(&victim_tree, &victim_home)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+    let mut attacker = DriverProcess::spawn(&attacker_tree, &attacker_home);
+    let mut victim = DriverProcess::spawn(&victim_tree, &victim_home);
 
-    let attacker_out = attacker.wait_with_output().unwrap();
-    let victim_out = victim.wait_with_output().unwrap();
+    let attacker_out = attacker.finish();
+    let victim_out = victim.finish();
     let elapsed = started.elapsed();
 
     let attacker_stderr = String::from_utf8_lossy(&attacker_out.stderr);
@@ -658,28 +788,23 @@ fn a_sigtermed_driver_stops_and_reaps_its_child() {
     );
     write_complete_config(&home, &configured);
 
-    // Both streams to a file rather than `Stdio::null()`: a driver that stops
-    // before its session ever starts is the failure the wait below has to
-    // report, and nulling threw away the only account of why.
-    let diagnostics = fixture.path().join("driver-output");
-    let log = fs::File::create(&diagnostics).unwrap();
-    let mut child = grove_driver(&worktree, &home)
-        .stdout(Stdio::from(log.try_clone().unwrap()))
-        .stderr(Stdio::from(log))
-        .spawn()
-        .unwrap();
+    // Streams to files rather than `Stdio::null()`, through `DriverProcess`: a
+    // driver that stops before its session ever starts is the failure the wait
+    // below has to report, and nulling threw away the only account of why.
+    let mut driver = DriverProcess::spawn(&worktree, &home);
+    let diagnostics = driver.diagnostics().to_path_buf();
 
     // Wait for the child marker so SIGTERM lands mid-session rather than racing
     // the driver's own startup. Conditioned on the driver's own liveness, not a
     // fixed budget: start-up cost is not fixed, and a driver that has ended can
     // never write the marker (loop-driver-readiness-deadline-k170).
-    support::wait_for_ready(&launched, &mut child, Some(&diagnostics));
+    driver.wait_for_ready(&launched);
 
-    unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
+    unsafe { libc::kill(driver.id(), libc::SIGTERM) };
 
     let deadline = Instant::now() + Duration::from_secs(20);
     let status = loop {
-        if let Some(status) = child.try_wait().unwrap() {
+        if let Some(status) = driver.try_wait() {
             break status;
         }
         assert!(
@@ -757,11 +882,13 @@ fn the_escalation_reaps_the_sessions_descendants() {
     // The cross-check: the same shape of process, in *this* process's group
     // rather than the session's. A probe that reported every pid gone would
     // read identically without it.
-    let mut bystander = Command::new("sh")
-        .arg("-c")
-        .arg("while : ; do sleep 0.05 ; done")
-        .spawn()
-        .unwrap();
+    let mut bystander = Reaped(
+        Command::new("sh")
+            .arg("-c")
+            .arg("while : ; do sleep 0.05 ; done")
+            .spawn()
+            .unwrap(),
+    );
 
     let output = run_driver(&worktree, &home);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -786,17 +913,35 @@ fn the_escalation_reaps_the_sessions_descendants() {
         }
         thread::sleep(Duration::from_millis(50));
     };
+    if !reaped {
+        // The assertion below is about to fail, and a failing assertion must
+        // not also leave the process it is complaining about running: this is
+        // the `sh -c 'while : ; do sleep 0.05 ; done'` shape found reparented to
+        // pid 1 days later (driver-test-timeout-path-unbounded-k194).
+        // SAFETY: `kill(2)` on a pid the fixture reported.
+        unsafe { libc::kill(descendant, libc::SIGKILL) };
+    }
     assert!(
         reaped,
         "a command the session spawned outlived the escalation that killed it"
     );
     assert!(
-        bystander.try_wait().unwrap().is_none(),
+        bystander.0.try_wait().unwrap().is_none(),
         "the escalation reached a process outside the session's own group"
     );
+}
 
-    bystander.kill().unwrap();
-    bystander.wait().unwrap();
+/// A child that is killed and reaped when it goes out of scope, however the
+/// scope ends. A bare `Child` whose teardown is the last two statements of a
+/// test is torn down only when every assertion before it passed
+/// (driver-test-timeout-path-unbounded-k194).
+struct Reaped(Child);
+
+impl Drop for Reaped {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
 }
 
 // A leaf whose filename kind this binary does not know is a tree the driver
@@ -989,30 +1134,28 @@ while :; do sleep 0.1; done
     });
 
     let started = Instant::now();
-    let mut child = grove_driver(&worktree, &home)
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+    let mut driver = DriverProcess::spawn(&worktree, &home);
 
     let setup_deadline = Instant::now() + Duration::from_secs(25);
     while !epoch_held.exists() && Instant::now() < setup_deadline {
-        if child.try_wait().unwrap().is_some() {
+        if driver.try_wait().is_some() {
             break;
         }
         thread::sleep(Duration::from_millis(10));
     }
     if !epoch_held.exists() {
-        if child.try_wait().unwrap().is_none() {
-            child.kill().unwrap();
-        }
-        let output = child.wait_with_output().unwrap();
+        // This is the branch that hung. It killed the driver and then read its
+        // *piped* stderr to EOF — which the session the driver had already
+        // launched was still holding open, so the read never returned
+        // (driver-test-timeout-path-unbounded-k194). The kill still comes
+        // first, so the account is as complete as the driver ever made it; what
+        // changed is that it is read back from a file, where there are no
+        // writers to wait for.
+        driver.kill();
+        let said = fs::read_to_string(driver.diagnostics()).unwrap_or_default();
         let _ = release_tx.send(());
         let _ = lock_thread.join();
-        panic!(
-            "orphan contention fixture did not reach shared epoch admission: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+        panic!("orphan contention fixture did not reach shared epoch admission: {said}");
     }
 
     let contention_observed = Instant::now();
@@ -1021,16 +1164,18 @@ while :; do sleep 0.1; done
     // escalation plus slack — not the timeout alone.
     let stop_deadline = contention_observed + Duration::from_secs(60);
     let stopped_within_bound = loop {
-        if child.try_wait().unwrap().is_some() {
+        if driver.try_wait().is_some() {
             break true;
         }
         if Instant::now() >= stop_deadline {
-            child.kill().unwrap();
+            // Takes the session's process group with it, so the diagnostic this
+            // branch is collecting is not also a leaked `configured-command.sh`.
+            driver.kill();
             break false;
         }
         thread::sleep(Duration::from_millis(25));
     };
-    let output = child.wait_with_output().unwrap();
+    let output = driver.finish();
     let total_elapsed = started.elapsed();
     let contention_elapsed = contention_observed.elapsed();
     let orphan_outlived_killed_parent = !orphan_done.exists();

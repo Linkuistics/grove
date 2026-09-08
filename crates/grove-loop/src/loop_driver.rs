@@ -83,7 +83,7 @@ fn worktree_name(worktree: &Path) -> String {
 /// session, and the environment is inherited by every descendant — so the
 /// authority is ambient unless each spawn scopes it deliberately.
 /// `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` are the retired pre-watcher handles
-/// (driver-side-kill), kept here because a stale, unrelated PID leaking into a
+/// (self-driving-loop), kept here because a stale, unrelated PID leaking into a
 /// nested grove is the same class of mistake one notch quieter — the value is
 /// something a reader could still *act on*. That is the bar for membership.
 ///

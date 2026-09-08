@@ -592,7 +592,7 @@
 - [Two test runs of one name, and why totals cannot confirm a re-run](20-the-loop.md#the-harness-widened)
 - [A membership bar stated for readers rather than for callers](20-the-loop.md#the-third-choice)
 - [A neighbour's guarantee restated narrower than its slogan](20-the-loop.md#the-third-choice)
-- [A parenthesised citation naming no anchor anywhere in the repository](20-the-loop.md#the-third-choice)
+- [A parenthesised citation that named no anchor, isolated by enumeration and since corrected](20-the-loop.md#the-third-choice)
 - [Granting as the exception scrubbing exists to carve out](20-the-loop.md#the-second-choice)
 - [An ending carried as a signal number so a parent is not misled](20-the-loop.md#how-a-loop-ends)
 - [A lease taken by value, so ownership cannot outlive the loop](20-the-loop.md#run)

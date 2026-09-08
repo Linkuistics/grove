@@ -405,7 +405,7 @@ array has three elements rather than one.
 /// session, and the environment is inherited by every descendant — so the
 /// authority is ambient unless each spawn scopes it deliberately.
 /// `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` are the retired pre-watcher handles
-/// (driver-side-kill), kept here because a stale, unrelated PID leaking into a
+/// (self-driving-loop), kept here because a stale, unrelated PID leaking into a
 /// nested grove is the same class of mistake one notch quieter — the value is
 /// something a reader could still *act on*. That is the bar for membership.
 ///
@@ -477,31 +477,44 @@ root returns those two and nothing else: the `stty` at line 492 and the launch a
 line 422. The parenthetical *(There were three)* is the same discipline applied
 backwards, naming the one that left and the leaf that removed it.
 
-**And here is the address that resolves to nothing.** The clause crediting
+**And here is the address that resolved to nothing.** The clause crediting
 `GROVE_HARNESS_PID` and `GROVE_CLAUDE_PID` as *the retired pre-watcher handles*
-cites `(driver-side-kill)`. The file carries **seven** parenthesised citations of
-that shape, and resolving each one in turn is what isolates it: `self-driving-loop`
-at lines 1, 13 and 76 and `user-owned-worktrees` at line 68 are architecture
-anchors that exist; `walk-away-able` at line 31 is a spine constraint that exists;
-`guard-loop-signal-k37` at line 91 is a leaf handle. That leaves line 86's, and it
-is not one of
+now cites `(self-driving-loop)`. Until `loop-driver-kill-anchor-k176` it cited
+`(driver-side-kill)`, a token that named nothing anywhere in this repository. The
+file carries **seven** parenthesised citations of that shape, and resolving each
+one in turn is what isolated it: `self-driving-loop` at lines 1, 13 and 76 and
+`user-owned-worktrees` at line 68 are architecture anchors that exist;
+`walk-away-able` at line 31 is a spine constraint that exists;
+`guard-loop-signal-k37` at line 91 is a leaf handle. That left line 86's, and it
+was not one of
 `docs/ARCHITECTURE.md`'s twenty-four anchors, not a decision-record slug, not an
-id in the conformance rule inventory, and it occurs **exactly once in this
-repository** — in this comment. The positive control is the sibling citation in
-the same file: the same search returns twenty sites for `self-driving-loop`.
+id in the conformance rule inventory, and the whole repository held it in that
+one comment and nowhere else. The positive control was the sibling citation in
+the same file: the same search over the same trees returned the anchor's own line
+in `docs/ARCHITECTURE.md`, this file's other citations of it, and this book — so
+a clean read on the broken token was the tree's answer rather than the
+instrument's.
 
-The claim is true and only the address is wrong, which is the `paths-k142`
-precedent. A reader wanting the argument
-should read the section `self-driving-loop` names, which states the sandbox
-ground the retirement rests on. It is adjudicated here rather than corrected —
-the corpus is frozen and this page reproduces the bytes as they are — and it is the fourth
-*form* of broken citation the book has found, each invisible to a different
-instrument: chapter 18's reference to a numbered requirement that does not exist
-and its Markdown link resolving from neither surface, chapter 19's rule id with
-an invented `skill-` prefix, and this one, a bare parenthesised anchor naming no
-anchor. **Only
+The claim was true and only the address was wrong, which is the `paths-k142`
+shape, so the repair was a retype and not a rewrite. The argument the sentence
+leans on is stated under `self-driving-loop` — *Lifecycle and resumption*, where
+the kill is the launcher's job because it is the session's parent, outside
+whatever sandbox the session runs under, and an in-agent self-kill is silently
+denied by sandboxes such as Codex's Seatbelt. That is the anchor this file
+already cites at its header and again at the top of this very block, which is
+what makes the corrected address checkable against the page rather than merely
+plausible. The substitution is one character longer and the line wraps at eighty
+either way, so the root is still 615 lines, the block still occupies lines 76 to
+115, and no ownership range or fragment range moved; the fragment above
+reproduces the corrected bytes.
+
+It was the fourth *form* of broken citation the book found, each invisible to a
+different instrument: chapter 18's reference to a numbered requirement that does
+not exist and its Markdown link resolving from neither surface, chapter 19's rule
+id with an invented `skill-` prefix, and this one, a bare parenthesised anchor
+naming no anchor. **Only
 enumerating a block's tokens and resolving each one finds this class**; no
-instrument in this repository looks for it, and this one sits in a `///` docblock
+instrument in this repository looks for it, and this one sat in a `///` docblock
 that `cargo doc` reads and says nothing about.
 
 <a id="the-second-choice"></a>

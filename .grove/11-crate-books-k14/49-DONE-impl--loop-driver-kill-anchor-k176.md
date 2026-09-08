@@ -76,3 +76,50 @@ parenthesised citations were enumerated at `the-loop-k168` — lines 1, 13, 31, 
 backticked record and path citations were checked separately and hold.
 
 ## Decisions (running log)
+
+- **`self-driving-loop` confirmed as the target rather than assumed.** Read the
+  section it anchors (`docs/ARCHITECTURE.md`, *Lifecycle and resumption*, lines
+  1162-1208): it states the sandbox ground the sentence leans on — *that kill is
+  the launcher's job because it is the session's parent, outside whatever sandbox
+  the session runs under; an in-agent self-kill is silently denied by sandboxes
+  such as Codex's Seatbelt* — in the anchored section itself, not two sections
+  away, so k157/k158's failure mode does not apply. The only other repository
+  sites naming `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` outside the corpus are
+  two rows of `docs/preservation-baseline.md`, which carries no anchors; there is
+  no better target and no competing one.
+- **The substitution is length-safe, so nothing was rewrapped.** Line 86 went
+  from 79 to 80 characters, matching lines 85, 87 and 90 in the same block, which
+  are 80, 80 and 79. `crates/grove-loop/src/loop_driver.rs` is still 615 lines and
+  the block still occupies 76-115.
+- **The seven parenthesised citations were re-enumerated from the file rather
+  than read from this task file.** Extracting every `(...)` from every comment
+  line gives twenty-one parentheticals; the citation-shaped seven are lines 1, 13,
+  31, 68, 76, 86 and 91, matching `the-loop-k168`. All seven now resolve. Note the
+  narrow pattern `\([a-z0-9-]+\)` finds only four of the seven — it misses line
+  13's `(driver-side watcher — self-driving-loop)` and line 31's `(constraint 6,
+  walk-away-able)` — which is why the enumeration was taken over whole
+  parentheticals and then classified.
+- **`guard-loop-signal-k37` resolves to no leaf in this grove's tree** (`grove-llm
+  resolve` matches key 37 to `grove-loop-book-k37`, a different slug). It is a
+  handle from a completed grove whose `.grove/` was torn down, and it is cited the
+  same way at four other production sites — `crates/grove/tests/env_hygiene.rs:1`,
+  `testing/support.rs:186`, `.cargo/config.toml:1` and this file's line 91. Left
+  as it is: the task file adjudicates it as resolving, and this leaf is explicitly
+  not a sweep of the file's citations.
+- **Chapter 21's landed-leaf tally was left to `landed-leaf-tally-k200`.** This
+  repair moves the parenthesised-citation item from chapter 21's *adjudicated
+  beside its fragment* group into its *have since landed* group, incrementing a
+  count that k200 (position 68 in this node, live) already exists to re-derive and
+  which its own task file records as stale by at least five. Fixing it here would
+  duplicate that leaf and widen this one.
+- **The page's positive-control sentence lost its count.** *The same search
+  returns twenty sites for `self-driving-loop`* was a count of a class this very
+  commit adds two members to; it is restated structurally — the search returns the
+  anchor's own line, this file's other citations, and this book — per
+  `references/execute.md`'s rule against documenting a claim with a count of
+  itself.
+- **The validator was proved with a seen-to-fail control.** Reverting only line
+  408's token in `20-the-loop.md` and re-running `book-check --final --check all`
+  gives `F008 … expected 0x73, actual 0x64 … fragment loop-control-env`; restoring
+  it returns `valid: 13 files, 10557 resolved lines, 0 deferred lines,
+  final=true`.

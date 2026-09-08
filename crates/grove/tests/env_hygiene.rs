@@ -24,10 +24,12 @@ fn repo_root() -> PathBuf {
     support::repo_root()
 }
 
-/// `.cargo/config.toml` force-overrides `GROVE_SIGNAL_FILE` into `target/` for
-/// everything cargo runs. If that entry is ever dropped — or loses `force`, which
-/// is the subtle way to break it, since without `force` an inherited value wins
-/// silently — this fails instead of the developer's session dying.
+/// `.cargo/config.toml` force-clears `GROVE_SIGNAL_FILE` to an empty value for
+/// everything cargo runs — deliberately stronger than redirecting it to an inert
+/// path, since every nonempty value now carries session-epoch authority. If that
+/// entry is ever dropped — or loses `force`, which is the subtle way to break it,
+/// since without `force` an inherited value wins silently — this fails instead of
+/// the developer's session dying.
 #[test]
 fn the_suite_cannot_reach_a_live_loop_signal_file() {
     let raw = std::env::var_os("GROVE_SIGNAL_FILE").unwrap_or_else(|| {

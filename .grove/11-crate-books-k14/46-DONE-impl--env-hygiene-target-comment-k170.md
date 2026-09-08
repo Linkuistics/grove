@@ -46,3 +46,20 @@ the config file says why: a nonempty path is session-epoch authority to
 `grove-llm`, and an inert-looking redirect would still be nonempty.
 
 ## Decisions (running log)
+
+1. **The repaired clause forbids the redirect rather than merely omitting it.**
+   A bare *clears `GROVE_SIGNAL_FILE`* would have been true and would still have
+   left the next reader free to reintroduce an inert path. The docblock now
+   carries the config file's own argument — *deliberately stronger than
+   redirecting it to an inert path, since every nonempty value now carries
+   session-epoch authority* — which is the reason the assertion is written the
+   way it is, stated where someone tempted to change the assertion will read it.
+2. **No downstream surface moves.** The docblock grew from four lines to six, so
+   the check was whether anything cites this file positionally. Nothing does:
+   `crates/grove/tests/` is evidence rather than a book root, no fragment names
+   `env_hygiene.rs` as a source, and the three prose references to it
+   (`driver_lease.rs` line 736, `grove-loop/16-the-lease.md`,
+   `grove-loop/20-the-loop.md`) name tests and behaviour, never line numbers or
+   these bytes. Chapter 16 already describes the guard correctly — *force-clears
+   `GROVE_SIGNAL_FILE` to the empty string* — so the book needed no edit and the
+   comment now agrees with the page that adjudicates it.

@@ -1423,16 +1423,16 @@ mod tests {
 
     /// **A grove that fails to initialize leaves no root at all**, which is what
     /// closed the window the deleted recovery existed for. The store creates the
-    /// root, places the charter and the first leaf, and takes the root back down
-    /// if any of it fails — so the partial shape `root-init` used to leave
-    /// between its two phases is not one grove can produce any more.
+    /// root, places the charter and the first leaf, and takes the root back down if
+    /// any of it fails — so a slug the grammar accepts and the filesystem will not
+    /// reaches past the lock, fails *inside* the store, and still leaves nothing.
     #[test]
     fn a_refused_grove_leaves_no_root_behind() {
         let (_t, wt) = worktree();
-
-        // A slug the grammar refuses, checked before the lock is taken.
-        assert!(root_init_at(&wt, "Bad Slug").is_err());
-
+        // Long enough that the leaf's own filename is what the placement fails on,
+        // and asserted: a slug refused earlier holds nothing about the unwind.
+        let error = root_init_at(&wt, &"a".repeat(300)).unwrap_err().to_string();
+        assert!(error.contains("creating the leaf"), "got {error}");
         assert!(
             !wt.join(".grove").exists(),
             "a refused root-init must leave no root"

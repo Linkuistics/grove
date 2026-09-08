@@ -943,8 +943,8 @@ other end.
 ````
 <!-- /fragment -->
 
-**This helper is where four of the chapter's thirteen tests are actually decided,
-and its doc comment says so out loud for three of them.** *Read the slug, resolve the vacancy, then
+**This helper is where three of the chapter's thirteen tests are actually decided,
+and its doc comment says so out loud for two of them.** *Read the slug, resolve the vacancy, then
 scaffold — **in that order**, which is what the tests below about a refused slug
 are actually asserting.*
 
@@ -955,11 +955,17 @@ reaches `root_init`, never reaches the store, and never creates a directory —
 because nothing had yet asked for one. The comment's justification is that
 refusing without taking an exclusive lock is strictly kinder, which is true and is
 also the reason the assertion those tests make is narrower than their names
-suggest. Three tests push a refused slug through it — the bad-slug test, the reserved-slug
-test, and `a_refused_grove_leaves_no_root_behind` — and a fourth,
-`root_init_refuses_an_existing_grove`, is decided two lines further down, in the
-helper's `Opening::Tree` arm. The next section says what each consequently does
-not hold.
+suggest. Two tests push a refused slug through it — the bad-slug test and the
+reserved-slug test — and a third, `root_init_refuses_an_existing_grove`, is
+decided two lines further down, in the helper's `Opening::Tree` arm. The next
+section says what each consequently does not hold.
+
+**Reading the helper is also what tells these two apart from the test that looks
+like them.** `a_refused_grove_leaves_no_root_behind` ends in the same assertion —
+no `.grove` exists — but is not decided here at all: its slug is one the grammar
+accepts, so it goes past both lines and fails inside the store. What separates it
+is its fixture and its first assertion — not the shape of the test, which is why
+reading the names alone puts it in the wrong group.
 
 <!-- fragment «root-init-tests-writers» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1221-1261" parent="root-init-tests" -->
 ````rust
@@ -1182,6 +1188,10 @@ all, because it is caught as a **reserved** token and the message names the
 grammar's own markers rather than its alphabet. Both refusals are chapter 3's,
 observed through chapter 11's verb.
 
+The test that *does* wind something and then unwind it is a hundred and twelve
+lines further down. What carries it past this helper is the one thing these two
+lack: a slug the grammar accepts.
+
 <!-- fragment «root-init-tests-one-guard» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1334-1352" parent="root-init-tests" -->
 ````rust
     #[test]
@@ -1371,16 +1381,16 @@ not exercise the check.
 ````rust
     /// **A grove that fails to initialize leaves no root at all**, which is what
     /// closed the window the deleted recovery existed for. The store creates the
-    /// root, places the charter and the first leaf, and takes the root back down
-    /// if any of it fails — so the partial shape `root-init` used to leave
-    /// between its two phases is not one grove can produce any more.
+    /// root, places the charter and the first leaf, and takes the root back down if
+    /// any of it fails — so a slug the grammar accepts and the filesystem will not
+    /// reaches past the lock, fails *inside* the store, and still leaves nothing.
     #[test]
     fn a_refused_grove_leaves_no_root_behind() {
         let (_t, wt) = worktree();
-
-        // A slug the grammar refuses, checked before the lock is taken.
-        assert!(root_init_at(&wt, "Bad Slug").is_err());
-
+        // Long enough that the leaf's own filename is what the placement fails on,
+        // and asserted: a slug refused earlier holds nothing about the unwind.
+        let error = root_init_at(&wt, &"a".repeat(300)).unwrap_err().to_string();
+        assert!(error.contains("creating the leaf"), "got {error}");
         assert!(
             !wt.join(".grove").exists(),
             "a refused root-init must leave no root"
@@ -1391,32 +1401,44 @@ not exercise the check.
 <!-- /fragment -->
 
 **`a_refused_grove_leaves_no_root_behind`** is the test the structure brief names
-as the negative of *one store operation*, and this is where the chapter has to be
-careful, because **it is the same test as
-`root_init_rejects_a_bad_slug_without_leaving_a_grove_behind`, a hundred and
-twelve lines earlier in the same section**. Same fixture, same `"Bad Slug"`, same
-two assertions; only the failure message differs.
+as the negative of *one store operation*, and at a glance it holds what
+`root_init_rejects_a_bad_slug_without_leaving_a_grove_behind` holds a hundred and
+twelve lines earlier: the call failed, and no `.grove` exists. Its second
+assertion is indeed that test's second assertion. The **slug** and the **first**
+assertion are where the two part company, and between them they are the whole of
+what this test is.
 
-Its doc comment claims the larger property — *the store creates the root, places
-the charter and the first leaf, and takes the root back down if any of it fails*
-— and its own inline comment concedes the smaller one: *A slug the grammar
-refuses, checked before the lock is taken.* Both sentences are in the test. The
-smaller one is what the assertions hold.
+`"Bad Slug"` is refused by the grammar — for its capital `B`, as the section
+above works out — so `root_init_at` returns from `Slug::new` on line 1211 and
+`write_or_vacancy` on 1213 is never reached. Three hundred `a`s are a slug the
+grammar *accepts*: `refuse_token` checks the reserved set, the ends, the `--`
+separator and the character class, and not one of its checks is a length. So this
+call goes the whole way.
+The vacancy is handed out, `initialize` creates the root and writes `BRIEF.md`
+into it, and then placing `01-requirements--aaa…-k1.md` fails, because that name
+is longer than the longest single name the filesystem will take — 255 bytes on
+the machine this was run on. The store unwinds its own effects and removes the
+root it had made, and the error grove reports says so: *creating the leaf …:
+File name too long (os error 63). Nothing was changed — every effect this
+operation had applied was undone.*
 
-So **the unwinding is asserted by nothing in this crate.** To observe it a test
-would have to make `TreeVacancy::initialize` fail *after* the root directory
-exists, and no fixture here does; the two `bail!`s in `initialize_grove` that could
-report such a failure are, as the next section measures, unreachable from any
-test. This is the same shape chapter 10 met when a cited test turned out to be
-pinned by its helper rather than by its name, and the general lesson is the one
-that chapter drew: **read the fixture and the helper, not the name and the doc
-comment.** The property is still true — it is `initialize`'s contract, in another
-crate, with that crate's own tests behind it — but it is true on the store's word
-here, and the chapter says so rather than letting the pairing in the structure
-brief imply a proof this block does not contain.
-`refused-grove-test-overclaims-k161` holds the decision that follows: earn the
-claim with a test that makes `initialize` fail after the root exists, or narrow
-the comment and reconcile the structure brief with it.
+**That is why the first assertion is on the error's text and not only on its
+existence.** `is_err()` alone cannot tell the two fixtures apart, and a length
+bound added to `Slug` later would quietly turn this test back into a second copy
+of the bad-slug one — still passing, and holding nothing about the unwind.
+Asserting `creating the leaf` pins the *lateness* of the failure, and the
+lateness is the whole of what makes this a test of taking the root back down.
+
+So **the unwinding is asserted here**, and the doc comment's larger property is
+the property the assertions hold. The measurement below is the evidence rather
+than this reading: a panic on `initialize`'s error arm — row 2 — reddens this
+test, and this test is the only observer that arm has. What it reaches is the
+store failing *honestly* — which is the one failure a fixture on this side of the
+boundary can construct, and why the three arms beside it in `initialize_grove` are
+reached by nothing at all. Constructing even this one cost a fixture rather than a
+seam, and had to: `ordinal-fs-tree` carries a fault-injection seam, but `Faults` is
+`pub(crate)` to that crate and the word appears nowhere in `grove-loop`, so an
+operating-system limit on a filename is the only lever there is.
 
 <!-- fragment «root-init-tests-taskless» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1442-1466" parent="root-init-tests" -->
 ````rust
@@ -1495,7 +1517,7 @@ whether its refusal is held.
 | # | Arm | Line | Observed by |
 |---:|---|---:|---|
 | 1 | `refuse_finish_kind` — the driver's reserved kind | 346 | **nothing** |
-| 2 | `initialize` failed — `task_tree::raised` | 391 | **nothing** |
+| 2 | `initialize` failed — `task_tree::raised` | 391 | `a_refused_grove_leaves_no_root_behind` |
 | 3 | `bail!` the store reported nothing created | 396 | **nothing** |
 | 4 | `bail!` the store reported a non-charter first | 399 | **nothing** |
 | 5 | `allocated` — the key prediction disagreed | 405 | **nothing** |
@@ -1505,11 +1527,11 @@ whether its refusal is held.
 | 9 | `grove_name` — the `"grove"` fallback | 1028 | **nothing** |
 | 10 | `append_brief_suffix_in_file` — the conservative return | 1065 | **nothing** |
 
-Rows 6, 7 and 8 are the control that makes the other seven readable: each reddens
+Rows 2, 6, 7 and 8 are the control that makes the other six readable: each reddens
 a small, attributable set, so the instrument demonstrably fails when it should.
 
-**Seven of ten arms are held by nothing, and they split cleanly — but not the way
-chapter 10's did.** Rows 2, 3, 4 and 5 are the class chapter 10 named: *the
+**Six of ten arms are held by nothing, and they split cleanly — but not the way
+chapter 10's did.** Rows 3, 4 and 5 are the class chapter 10 named: *the
 library did something its contract forbids*, which no test over an honest library
 can construct. Row 1 is different — `refuse_finish_kind` is an ordinary
 operator-facing refusal, and it is unobserved for a smaller reason: all five call
@@ -1518,8 +1540,15 @@ sites that reach `root_init`, through `verbs::root_init` or directly, pass
 refusals, and row 10 is the one that matters downstream, because both promises in
 `append_brief_suffix_in_file`'s doc comment run through it.
 
-**Three arms are observed, by four tests, and the four split evenly across two
-chapters.** Row 6 has two observers —
+**Row 2 is the line between those three and the rest, and it is a thin one.**
+`initialize` failing is not the library breaking its contract — it is the library
+keeping it, reporting an honest filesystem failure and unwinding — so unlike rows
+3, 4 and 5 a test *can* construct it, and
+`a_refused_grove_leaves_no_root_behind` does, with a slug too long to place. The
+three arms beside it stay unreachable because each one asserts the store lied.
+
+**Four arms are observed, by five tests, and three of the five are this
+chapter's.** Row 2's single observer is at 1430, here. Row 6 has two —
 `one_process_creating_and_reading_a_grove_never_waits_on_itself` at line 1385,
 inside this chapter's own block, and
 `transition_leaves_a_current_grove_unchanged_and_ready_for_pick` at 1564, inside

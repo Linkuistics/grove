@@ -718,10 +718,14 @@ opaque `Error`.
 The header's citation of `docs/specs/module-decomposition.md`, decision 9, holds
 for what the sentence leans on it for: the loop's shape, *exists? → create or find
 next → determine the command → run → finalise*, is that decision's. The record's
-own code block has since drifted from the signature above it — it names the third
-parameter `&Templates` where the shipped one is `&TemplateSource`, and gives
-`LoopOutcome` two variants where the type above has three. The record is not
-corpus and the book does not correct it; `decision-nine-loop-signature-k177` holds it.
+own code block carries the same signature the fragment above does — the workspace,
+the lease by value, a `&TemplateSource`, and a `LoopOutcome` of three variants —
+and it is explicit about how far that agreement goes: two paragraphs under the
+block say that the block states the surface rather than inventorying it, and that
+one declaration in it is deliberately short of the shipped type. That one is
+`Located`, whose fourth field says in its own doc comment that it is not in that
+record's listing and is deliberately added back — chapter 9 reads it — because a
+listing that absorbed the field would falsify the sentence explaining it.
 
 <a id="the-loop-body"></a>
 ## The loop body, in eight pieces

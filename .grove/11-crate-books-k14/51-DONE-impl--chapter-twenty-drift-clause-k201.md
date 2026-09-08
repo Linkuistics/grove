@@ -63,3 +63,42 @@ grove does not rewrite task-tree files for staleness (constraint 1). Do not
 "fix" it.
 
 ## Decisions (running log)
+
+- **The former drift is not mentioned, and the paragraph does not become a
+  changelog.** The task file left this to the session. A walkthrough of the
+  source owes no history of a specification's repairs, and a sentence saying
+  "the record used to disagree" would be the one clause a future reader has no
+  way to check against anything in front of them.
+- **The replacement says what the agreement is worth, not merely that it
+  exists.** Recording only "the record's block matches" would waste the
+  paragraph's slot; k177 also added two paragraphs bounding how far the block's
+  authority runs — surface, not inventory, and one declaration deliberately
+  short of the shipped type. That bound is the load-bearing fact for this book,
+  because chapter 9 reads `Located`'s fourth field against exactly that
+  omission. The paragraph now points at it.
+- **The first sentence was re-read against the page rather than trusted from the
+  task file's quotation, as the task file required.** `run`'s doc comment (the
+  fragment immediately above, `crates/grove-loop/src/loop_driver.rs` 167–201)
+  opens on the shape *exists? → create or find next → determine the command →
+  run → finalise* and cites decision 9 for it; decision 9's prose carries the
+  same shape. k177 changed `run`'s third parameter, `LoopOutcome`, `Renumber`
+  and two paragraphs — no clause the loop's shape rests on. The sentence stands
+  unedited.
+- **The sweep the notes demanded found no second site.** `decision 9` occurs
+  six times in the book: once here and five times in `19-the-core.md` (lines
+  269, 453, 494, 680, 704), all about `Mandate`'s four fields and `compose` —
+  untouched by k177. `k177` / `decision-nine-loop-signature` occurred only in
+  the removed clause. Every `Templates` hit is in `18-which-files.md` and is
+  `keyed_launch::Templates`, a different type from `grove-loop`'s
+  `TemplateSource` — not the record's parameter. `LoopOutcome` is three variants
+  everywhere it appears (`01-orientation.md` 574/590/592/628,
+  `20-the-loop.md` 602/786/1082/1098, `source-index.md` 684); no page counts two.
+  `Renumber`'s four fields in `10-growing.md` 602–620 already include
+  `from_position` and `to_position`. `09-resolve.md` 195–202 says `outcome` is
+  "the one field the design record did not have" and is "added back against the
+  listing" — still true after k177, which recorded the omission rather than
+  closing it.
+- **Prose only, and the validator says so.**
+  `book-check --repo . --book docs/walkthroughs/grove-loop --final --check all`
+  → `valid: 13 files, 10557 resolved lines, 0 deferred lines, final=true`. No
+  `crates/` file touched; `jj status` shows the one page modified.

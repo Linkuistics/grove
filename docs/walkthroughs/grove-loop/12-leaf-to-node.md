@@ -667,8 +667,8 @@ content and not on its identity. It would also pass if
 `append_brief_suffix_in_file` were not idempotent: this fixture's header has no
 suffix on it, so the *already suffixed* branch of that helper is never taken.
 **That branch is chapter 11's source and is held by nothing**, established by
-mutation there — panicking on its conservative `return Ok(())` leaves all 558
-tests green — and this chapter is where the helper is consumed, so the gap is
+mutation there — panicking on its conservative `return Ok(())` reddens nothing
+across all 560 — and this chapter is where the helper is consumed, so the gap is
 worth stating here rather than only where the code lives. Its doc comment promises
 two things, idempotence and *never clobbers a custom title*, and both promises run
 through the branch nothing reaches.
@@ -1606,12 +1606,14 @@ three library wordings it must not contain. Naming the cases someone thought of
 would be a claim about those cases; enumerating every argument shape that is not a
 live leaf is a claim about the function.
 
-**This test is the only observer of two of the block's arms.** The mutation study
-attributes to it, and to nothing else, the grove-root refusal on line 550 and the
-`finish`-reservation on line 622; it is also a second observer of the four
-`decomposable` refusals that have named tests of their own. That makes it the most
-load-bearing test in the chapter — and it asserts only *absence*, which is worth
-saying: it can tell you no library wording leaked, and it cannot tell you which
+**This test is the only observer of one of the block's arms.** The mutation study
+attributes to it, and to nothing else, the grove-root refusal on line 550; it is
+also a second observer of all five `decomposable` refusals, each of which has a
+named test of its own — including the `finish`-reservation on line 622, which
+`every_agent_side_mutation_refuses_the_driver_reserved_finish_kind` holds from
+outside the crate. That makes it the most load-bearing test in the chapter — and
+it asserts only *absence*, which is worth saying: it can tell you no library
+wording leaked, and it cannot tell you which
 grove refusal fired instead. Six arms reddening one test is what the sweep buys and
 also what it costs.
 
@@ -1633,7 +1635,7 @@ refusal or fallback arm with a **panic** in a copy of the workspace, run the who
 of `grove-loop` and `grove-llm`, and diff the per-test results against an
 unmutated control run of the same copy.
 
-**The control is 558 tests with 11 failing, and getting there needs one step the
+**The control is 560 tests with 11 failing, and getting there needs one step the
 node's harness does not name.** The copy is not a jj repository and does not carry
 the marketplace manifest, so eleven of `crates/grove-loop/tests/prompt.rs`'s tests
 fail before any mutation. But `cargo test -p grove-loop -p grove-llm` alone leaves
@@ -1646,7 +1648,7 @@ direction hides observers rather than inventing them.
 **Three things make a reading a lie, and this chapter hit all three.**
 
 1. **A mutant that fails to compile prints no per-test lines and reads exactly
-   like a clean result.** Every run below was confirmed to have executed all 558.
+   like a clean result.** Every run below was confirmed to have executed all 560.
 2. **A message-preserving panic is not a mutation for an out-of-process
    observer.** `bail!(…)` → `panic!(…)` keeps the format string, so a `grove-llm`
    integration test that shells out and asserts on stderr substrings stays green:
@@ -1690,16 +1692,23 @@ Rows 1, 3 and 6 to 10 are the control that makes the other nine readable: each
 reddens a small, attributable set, so the instrument demonstrably fails when it
 should. Two further arms outside this chapter's block were mutated for
 attribution and are named where they belong — `task_tree::target`, whose failure
-reddens `decompose_refuses_a_foreign_file` alone, and
-`task_tree::addressable_key`, whose failure reddens the twin, destination and
-interrupted-promotion tests and nothing else. Both are chapter 6's.
+*through this verb* reddens `decompose_refuses_a_foreign_file` alone, and
+`task_tree::addressable_key`, whose failure through this verb reddens the twin,
+destination and interrupted-promotion tests and nothing else. Both are chapter
+6's, and *through this verb* is load-bearing: mutated in place rather than at the
+call site, `addressable_key`'s duplicate-key block reddens six — the same three
+plus `insert_refuses_a_target_whose_key_names_two_entries`,
+`retiring_a_leaf_whose_key_names_a_twin_is_refused_rather_than_misaimed` and
+`prune_node_is_atomic_bails_clean_on_a_leaf_it_cannot_address` — and `target`'s
+walk-exhausted arm reddens four. The three named here are what this verb's own
+fixtures hold.
 
-**Ten of sixteen arms are held by nothing, and nine of the ten are one class.**
-Rows 11 to 16 are the class chapters 10 and 11 named: *the library did something
-its contract forbids*, which no test over an honest library can construct. Rows 4
-and 5 are I/O failures on the retitle — the tree was opened once already in the
-same call, so a second opening failing is a filesystem event a test would have to
-simulate. Neither group is a gap a fixture could close.
+**Nine of sixteen arms are held by nothing, and eight of the nine fall into two
+classes.** Rows 11 to 16 are the class chapters 10 and 11 named: *the library did
+something its contract forbids*, which no test over an honest library can
+construct. Rows 4 and 5 are I/O failures on the retitle — the tree was opened
+once already in the same call, so a second opening failing is a filesystem event
+a test would have to simulate. Neither group is a gap a fixture could close.
 
 **Row 2 is the one that is not, and it is an ordinary operator-facing refusal.**
 `refuse_finish_kind` on line 560 guards `--kind finish` — an *override* naming the
@@ -1707,8 +1716,8 @@ driver's reserved kind on a leaf whose own kind is something else. It is not the
 same arm as row 10: row 10 refuses decomposing a `finish` **leaf**, and the
 mutation separates them cleanly, because the classification on line 556 runs first
 and takes the finish-leaf case before line 560 is reached. Removing line 560
-outright leaves all 558 tests green, so nothing in this workspace passes
-`--kind finish` to this verb.
+outright reddens nothing — the suite lands exactly on its 560-test control — so
+nothing in this workspace passes `--kind finish` to this verb.
 
 **And the path is open.** `grove-llm`'s `cmd_leaf_decompose` parses `--kind` into
 a `Kind` and passes it straight through; the check it runs first,

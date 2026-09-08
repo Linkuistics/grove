@@ -1279,8 +1279,8 @@ fn acquire_lease_file_with_hook(
         // destroy a live holder's record before we know whether we can even take
         // the lock — and on the path where the lock attempt then fails, we would
         // have wrecked the record of a lease we do not hold. The reader at
-        // `probe_lease_holder` parses that record, so an emptied file also reads
-        // as a corrupt lease rather than an absent one.
+        // `probe_live_lease_with_post_unlock_hook` parses that record, so an
+        // emptied file also reads as a corrupt lease rather than an absent one.
         //
         // Truncation is deliberately deferred to `write_record`, which does its
         // own `set_len(0)` + rewind *after* the lock is held. Stating the
@@ -1339,24 +1339,26 @@ obligation* read in the only direction that has teeth: bytes carry no ownership,
 but they do carry **identity**, and a liveness probe that finds an emptied file
 cannot tell a corrupt lease from an absent one.
 
-**And that last sentence names a function this workspace does not contain.** The
-comment reads *the reader at `probe_lease_holder` parses that record*. There is
-no `probe_lease_holder` anywhere in this repository: searching for it returns
-this comment and nothing else, while the same search for `probe_live_lease`
-returns five sites in the same trees. The reader the sentence describes is
+**And that last sentence once named a function this workspace does not contain.**
+The comment as this chapter first read it said *the reader at
+`probe_lease_holder` parses that record*, and there was no `probe_lease_holder`
+anywhere in the repository: searching for it returned that comment and nothing
+else, while the same search for `probe_live_lease` returned five sites in the
+same trees. The reader the sentence describes is
 `probe_live_lease_with_post_unlock_hook`, a hundred and eighty lines further
 down, whose lines 655 and 656 do exactly what the sentence claims — `parse_process_record` over
 `read_record` — and whose failure on an emptied file is *missing worktree-device
-field*, a corruption diagnostic rather than an absence. So **the argument is
-sound and only the address is wrong**, which is the same shape chapter 6 met in
+field*, a corruption diagnostic rather than an absence. So **the argument was
+sound and only the address was wrong**, which is the same shape chapter 6 met in
 `task_tree.rs`'s reference to a module named `llm_cli`.
 
 The name was wrong when it was written rather than outrun by a rename: the commit
 that created this file wrote the comment with it, over a version that already
 defined `probe_live_lease` and its hooked twin and no third probe, and the
 pre-move copy of the file carries the identical sentence. `lease-stale-reader-name-k169`
-holds the repair, deferred behind this book because these bytes are now
-reproduced by a finished page; until it lands this paragraph is the record.
+wrote the real reader's name into the block above, and because the longer name
+re-flowed inside the same three comment lines the file is still 1,383 lines — so
+no ownership range, manifest `lines` value or fragment range on this page moved.
 
 **Nothing in this repository could have caught it.** These are plain `//` lines
 inside a function body, and `cargo doc --no-deps --document-private-items` reads

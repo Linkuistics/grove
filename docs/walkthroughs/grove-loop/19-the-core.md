@@ -846,12 +846,12 @@ the block no instrument checks.** The comment attributes the shed clause to
 file, and the rule is there under the id **`stated-vcs-is-definitive`**, owned by
 `grove/SKILL.md` — no id in the file begins with `skill-`. So the claim is true
 twice over: the rule exists, and the spine's own text states it. Only the
-identifier is wrong, by one prefix. This is chapter 16's `probe_lease_holder`
-class met again — a name in a comment resolving to nothing — and it is invisible
-to every instrument this book has used: it is not an intra-doc link, so `cargo
-doc` is silent; it is not a Markdown link, so no link sweep sees it; and it is not
-an `ADR <slug>` citation, so `every_adr_citation_names_a_decision_record` does not
-read it either. It was found by enumerating the block's backticked tokens and
+identifier is wrong, by one prefix. This is the class chapter 16 met in a comment
+naming a reader called `probe_lease_holder` — a name in a comment resolving to
+nothing, and repaired there since — and it is invisible to every instrument this
+book has used: it is not an intra-doc link, so `cargo doc` is silent; it is not a
+Markdown link, so no link sweep sees it; and it is not an `ADR <slug>` citation,
+so `every_adr_citation_names_a_decision_record` does not read it either. It was found by enumerating the block's backticked tokens and
 resolving each one, which is the only procedure that finds this class.
 `prompt-rule-id-prefix-k174` holds the fix, deferred behind this book alongside
 `unresolved-doc-links-k151`, which has since repaired the link at line 28.

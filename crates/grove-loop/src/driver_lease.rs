@@ -455,8 +455,8 @@ fn acquire_lease_file_with_hook(
         // destroy a live holder's record before we know whether we can even take
         // the lock — and on the path where the lock attempt then fails, we would
         // have wrecked the record of a lease we do not hold. The reader at
-        // `probe_lease_holder` parses that record, so an emptied file also reads
-        // as a corrupt lease rather than an absent one.
+        // `probe_live_lease_with_post_unlock_hook` parses that record, so an
+        // emptied file also reads as a corrupt lease rather than an absent one.
         //
         // Truncation is deliberately deferred to `write_record`, which does its
         // own `set_len(0)` + rewind *after* the lock is held. Stating the

@@ -242,9 +242,9 @@ The last block is the one most likely to be misread, and its comment exists to
 close the misreading. `release = false` removes this package from what
 `cargo release` cuts: no tag of its own, no changelog section, no publish. It
 does **not** freeze the version, because the package block above takes
-`version.workspace = true`, so a cut moves this crate with every other member.
-The second paragraph records that publication is an answered question rather than
-an open one, and names where the answer lives.
+`version.workspace = true`, so a cut moves this crate with every other crate the
+release ships. The second paragraph records that publication is an answered
+question rather than an open one, and names where the answer lives.
 
 <!-- fragment «manifest-release» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="54-68" parent="manifest-domain-bound" -->
 ````toml
@@ -252,9 +252,9 @@ an open one, and names where the answer lives.
 # `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures
 # that cut. `release = false` here means no tag, no changelog section and no
 # publish of its own. It does **not** mean a frozen version: this crate takes
-# `version.workspace = true`, so a cut moves it with every other member — one
-# workspace, one release version (`docs/specs/module-decomposition.md`,
-# decision 1).
+# `version.workspace = true`, so a cut moves it with every other crate the
+# release ships — one workspace, one release version
+# (`docs/specs/module-decomposition.md`, decision 1).
 #
 # **This crate is not published on its own, and that is settled**
 # (`docs/RELEASING.md`, *One release, six packages, one tag*): it ships inside

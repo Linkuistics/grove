@@ -143,9 +143,9 @@ worth reading closely because `release = false` looks like a placeholder and is
 not. `cargo release` cuts `crates/grove`, and this line means this crate takes no
 tag, no changelog section and no publish of its own. It does not freeze the
 version: `version.workspace = true` above means a cut moves this crate with every
-other member. The comment states the consequence of deleting the line — it
-corrupts the cut rather than reopening the question — because that is the fact a
-future reader needs and the fact the code cannot show.
+other crate the release ships. The comment states the consequence of deleting the
+line — it corrupts the cut rather than reopening the question — because that is
+the fact a future reader needs and the fact the code cannot show.
 
 <!-- fragment «manifest-release-lane» owner="no-dependencies" source="crates/jj-workspace/Cargo.toml" lines="30-44" parent="manifest-no-dependencies" -->
 ````toml
@@ -153,9 +153,9 @@ future reader needs and the fact the code cannot show.
 # `cargo release` cuts *grove* (`crates/grove`), and `release.toml` configures
 # that cut. `release = false` here means no tag, no changelog section and no
 # publish of its own. It does **not** mean a frozen version: this crate takes
-# `version.workspace = true`, so a cut moves it with every other member — one
-# workspace, one release version (`docs/specs/module-decomposition.md`,
-# decision 1).
+# `version.workspace = true`, so a cut moves it with every other crate the
+# release ships — one workspace, one release version
+# (`docs/specs/module-decomposition.md`, decision 1).
 #
 # **This crate is not published on its own, and that is settled**
 # (`docs/RELEASING.md`, *One release, six packages, one tag*): it ships inside

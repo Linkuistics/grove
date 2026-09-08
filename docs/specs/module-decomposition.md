@@ -523,9 +523,15 @@ pub struct Mandate<'a> {
 }
 pub fn compose(mandate: &Mandate<'_>) -> String;
 
-pub fn run(workspace: &Workspace, lease: DriverLease, templates: &Templates)
+pub fn run(workspace: &Workspace, lease: DriverLease, templates: &TemplateSource)
     -> Result<LoopOutcome, Error>;
-pub enum LoopOutcome { Finished, Stopped }
+
+/// The loop's terminal disposition, so a clean whole-grove finish, a
+/// non-signalled stop, and the driver itself being signalled away are three
+/// answers rather than one. `Interrupted` carries the signal number, because a
+/// caller that mapped it to a clean exit would tell its own parent that a grove
+/// finished.
+pub enum LoopOutcome { Finished, Stopped, Interrupted(i32) }
 
 /// One error for the whole crate. Opaque, `Error + Display`, and under the same
 /// obligation as the runner's: every one names what is wrong and what fixes it.
@@ -568,7 +574,14 @@ pub mod verbs {
     pub fn leaf_insert(tree: &TreeWrite, target: &Reference, slug: &Slug, kind: &Kind)
         -> Result<Inserted, Error>;
     pub struct Inserted { pub path: PathBuf, pub renumbered: Vec<Renumber> }
-    pub struct Renumber { pub from: PathBuf, pub to: PathBuf }
+    pub struct Renumber {
+        pub from: PathBuf,
+        pub to: PathBuf,
+        /// The positions either side of the shift, because what a report of a
+        /// renumber reads as is the ordinals, not the paths.
+        pub from_position: u32,
+        pub to_position: u32,
+    }
 
     /// Turn a leaf into a node, its bytes becoming the node's charter, with one
     /// first child. `kind` overrides the inherited kind rather than defaulting.
@@ -599,6 +612,25 @@ pub mod verbs {
     pub enum Signalled { Wrote(PathBuf), NoLoop }
 }
 ```
+
+**One declaration above is deliberately short of the shipped type, and stays
+short.** `Located` ships a fourth field, `outcome: Outcome` — live, `DONE` or
+`ABANDONED` — so that `resolve` cannot let a retired or abandoned dead end look
+live. It is left out of the listing above on purpose: `crates/grove-loop/src/task_tree.rs`
+carries the field's own justification in the form *not in this record's listing
+of this struct, and deliberately added back*, and a listing that absorbed the
+field would falsify the sentence that explains it. The record states the surface
+this decision settled; the field is the one place the code answers a question the
+decision did not ask, and it is recorded here rather than reconciled away.
+
+**The block is a statement of the surface, not an inventory of it.** Items it
+declares are held to the shipped signature; items it omits are not thereby
+denied. `Reference` ships `root`, `is_root` and `as_str` beside `parse`, and
+`verbs` ships two public functions beside the twelve — `stale_cross_refs`,
+which its own header calls *not a thirteenth verb* because it is the second half
+of `leaf-insert`'s contract, and `signal_channel`, which is public only because
+a caller has to ask which channel it is about to signal *before* `complete`
+writes to it. Neither is a verb, which is why neither is declared here.
 
 The verbs live here rather than with the store because ten of the twelve touch the
 tree and every one is stated in grove's vocabulary — brief chains, kinds,

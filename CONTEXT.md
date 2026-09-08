@@ -218,8 +218,9 @@ the degenerate case of the split, not an exemption from it: the test is that no
 procedure remains, which is true of the numbered spine and the bootstrap order and
 of almost nothing else.
 _Avoid_: mirroring a rule whose condition binds one kind or one family. The driver
-resolved the kind before the session existed and named that kind's [[Kind
-reference file]], so there is nothing to trigger the session into.
+resolved the kind before the session existed and named that kind's [[Kind skill]],
+which names its [[Family reference file]] in turn, so there is nothing to trigger
+the session into.
 _Avoid_: classifying by size, or by how often a rule is needed. Frequency is not
 the test; whether the session could know to *ask* for it is.
 _Avoid_: reading it as a checkable partition. It **was** one: 140 HTML-comment

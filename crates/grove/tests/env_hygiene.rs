@@ -49,18 +49,34 @@ fn the_suite_cannot_reach_a_live_loop_signal_file() {
     );
 }
 
-/// The independent half: the shared scrub list every `EnvGuard::clear_grove_env`
-/// and every subprocess `env_remove` site reads. A test binary run directly
-/// rather than through cargo gets no `.cargo/config.toml` treatment at all, so
-/// this list is the only thing standing between it and the live path.
+/// The independent half: the shared scrub list every subprocess `env_remove`
+/// site reads. A test binary run directly rather than through cargo gets no
+/// `.cargo/config.toml` treatment at all, so this list is the only thing
+/// standing between the fake harness it spawns and the live path.
+///
+/// The list has one consumer now, not two. It also fed a `testing/support.rs`
+/// guard that scrubbed *this* process by `std::env::remove_var`, and
+/// `testing-support-env-guard-soundness-k203` deleted that guard: nothing
+/// constructed it, and nothing may reinstate it, because `remove_var` is
+/// unsound in a process whose other threads read the environment — which every
+/// test binary here is (<https://doc.rust-lang.org/std/env/fn.set_var.html>).
+/// So the subprocess path is the only one there is, and this list is all of it.
+///
+/// That "nothing may" is held by prose here and in `testing/support.rs`'s
+/// header, not by an assertion — weaker than the two guards this file does
+/// assert, and said rather than left to be noticed. Turning it into a
+/// repository-wide scan is `env-mutation-standing-gate-k216` — a separate leaf
+/// because a fifth test in this file is a fifth test in the `-p grove` control
+/// two books publish measured totals from.
 #[test]
 fn the_shared_scrub_list_covers_the_loop_control_channel() {
     let names = support::grove_env_names();
     assert!(
         names.iter().any(|n| n == "GROVE_SIGNAL_FILE"),
         "grove_env_names() must include GROVE_SIGNAL_FILE — it is the single list \
-         both EnvGuard (this process) and every subprocess env_remove call site \
-         read, so dropping it re-opens the kill channel on both paths at once"
+         every subprocess env_remove call site reads, and since the process-mutating \
+         guard was deleted it is the only scrub there is, so dropping it re-opens \
+         the kill channel outright"
     );
 }
 

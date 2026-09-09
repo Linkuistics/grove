@@ -14,7 +14,6 @@ use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
@@ -24,8 +23,6 @@ const HOLDER_READY: &str = "GROVE_TEST_LEASE_HOLDER_READY";
 const HOLDER_PANIC: &str = "GROVE_TEST_LEASE_HOLDER_PANIC";
 const EXEC_READY: &str = "GROVE_TEST_LEASE_EXEC_READY";
 const EXEC_RELEASED: &str = "GROVE_TEST_LEASE_EXEC_RELEASED";
-
-static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 const SESSION_KINDS: &[&str] = &[
     "requirements",
@@ -1030,7 +1027,6 @@ fn a_lease_replaced_under_a_running_driver_refuses_the_next_transition() {
 
 #[test]
 fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
-    let _environment_lock = support::lock_env(&ENV_LOCK);
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
     init_colocated_worktree(&root);
@@ -1122,7 +1118,6 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
 
 #[test]
 fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
-    let _environment_lock = support::lock_env(&ENV_LOCK);
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
     init_colocated_worktree(&root);

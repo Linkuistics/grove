@@ -21,15 +21,10 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Output, Stdio};
-use std::sync::{mpsc, Mutex};
+use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
-
-// A few tests below still mutate process-global state (cwd-independent, but
-// they read the ambient environment to build a scrubbed child env); serialize
-// them so cargo's parallel runner cannot cross wires.
-static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 /// This build's own agent CLI, for fixtures that need to *call* it: they bake
 /// this path into their script rather than relying on `PATH`.
@@ -1006,7 +1001,6 @@ fn an_unrecognised_filename_kind_refuses_to_launch() {
 // Slow by construction (~40s): the fixed invalidation timeout is the subject.
 #[test]
 fn an_orphaned_epoch_guard_stops_before_consuming_the_relaunch_signal() {
-    let _lock = support::lock_env(&ENV_LOCK);
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     let worktree = fixture.path().join("worktree");

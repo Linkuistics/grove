@@ -1,6 +1,6 @@
 // Shared test-only helpers for the integration-test binaries that drive the
-// loop and its verbs: env isolation against process-global variables, the
-// readiness seam, the jj fixtures, and the kind-label walk.
+// loop and its verbs: the scrub list a spawned child's environment is built
+// from, the readiness seam, the jj fixtures, and the kind-label walk.
 //
 // **It lives outside every package on purpose.** `loop-crate-driver-k22` made
 // the repository root a bare workspace, so there is no root package to own a
@@ -15,26 +15,53 @@
 //
 // Each consuming `tests/*.rs` compiles this module into its own separate binary
 // (one per cargo test target), so not every item is used by every consumer.
+//
+// **Nothing here mutates this process's environment, and nothing may.** The
+// three consumers run their tests on threads libtest spawns, so `set_var` and
+// `remove_var` are unsound in every one of them — "the only sound option is to
+// not use `set_var` or `remove_var` at all"
+// (<https://doc.rust-lang.org/std/env/fn.set_var.html>). Env isolation here is
+// therefore isolation of a *child*: build the environment a subprocess should
+// see with `Command::env` and `Command::env_remove`, which write the child's
+// map and leave this process alone. `grove_env_names` is the shared scrub list
+// for that seam, and `crates/grove/tests/env_hygiene.rs` carries the reasoning
+// beside the two guards it already asserts. The worked pattern for a property
+// that can only be *observed* under a given environment is
+// `crates/jj-workspace/tests/environment.rs`, which re-runs its own test binary
+// as the child under an environment built with `Command::env`.
+//
+// Nothing scans for a re-introduction yet: under `edition = "2021"` both are
+// safe fns, so the compiler is silent until the edition-2024 migration makes
+// them `unsafe`
+// (<https://doc.rust-lang.org/edition-guide/rust-2024/newly-unsafe-functions.html>).
+// `env-mutation-standing-gate-k216` is the leaf for closing that.
+//
+// **What the migration has to do to this file: nothing.** Measured at
+// `testing-support-env-guard-soundness-k203` rather than argued — a workspace
+// copy with `[workspace.package] edition` flipped to `2024` passes
+// `cargo check --workspace --all-targets` with one unrelated fix, an RPIT
+// capture in `crates/ordinal-fs-tree` that Rust 2024's lifetime rules widen
+// (`E0515` at `src/plan.rs:219`, discharged by `+ use<'a, N>` on
+// `snapshot.rs`'s `children`). Re-adding one `set_var` and one `remove_var`
+// here turns that green run into seven `E0133`s — the control on the check, and
+// the reason the deletion is what makes the migration free rather than the
+// edition being lenient. None of those `unsafe` blocks could have been
+// discharged: the safety condition is that no other thread reads the
+// environment, and libtest gives no test that guarantee.
+//
+// This is why nothing here hands out an environment lock. One existed for the
+// mutating guard that used to live below and was deleted with it
+// (`testing-support-env-guard-soundness-k203`): with no mutation left there is
+// no window for a concurrent reader to observe, and a mutex serialising tests
+// against a mutation that cannot happen costs wall-clock and buys nothing.
 #![allow(dead_code)]
 
-use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Child;
-use std::sync::{Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
-
-/// Lock a process-env-mutating test's shared `Mutex`, tolerating poison. A
-/// prior test panicking mid-mutation must not cascade-fail every later test
-/// in the binary with an opaque `PoisonError` — [`EnvGuard`]'s `Drop` has
-/// already restored the env by the time the panic unwound past it, so a
-/// poisoned lock still guards a consistent env; only the panicked test's own
-/// assertions should fail.
-pub fn lock_env(lock: &'static Mutex<()>) -> MutexGuard<'static, ()> {
-    lock.lock().unwrap_or_else(|e| e.into_inner())
-}
 
 /// The upper bound on a readiness wait. It exists so a *wedged* producer fails
 /// the suite instead of parking it, and it is deliberately two orders of
@@ -217,10 +244,20 @@ const HARNESS_NAMES: [&str; 3] = ["CLAUDE", "CODEX", "PI"];
 const FAMILY_LABELS: [&str; 2] = ["review", "integrate-review"];
 
 /// Every ambient env var that once steered a launch or its side effects, plus
-/// [`LOOP_CONTROL_ENV`]. Shared by `EnvGuard` (scrubbing this test's own process
-/// env) and any test that instead needs to scrub a *subprocess*'s inherited env
-/// via `Command::env_remove` — a `Command` does not isolate itself from the
-/// parent's ambient env just because some vars are set explicitly.
+/// [`LOOP_CONTROL_ENV`]. Read at the **subprocess** seam and nowhere else: a
+/// test scrubs each of these from a child it is about to spawn with
+/// `Command::env_remove`, because a `Command` does not isolate itself from the
+/// parent's ambient env just because some other vars are set explicitly.
+///
+/// It had a second consumer until `testing-support-env-guard-soundness-k203`:
+/// an `EnvGuard` that scrubbed the *test process's own* environment through
+/// `std::env::remove_var` and restored it on `Drop`. Nothing constructed it,
+/// and nothing may: "in multi-threaded programs on other operating systems,
+/// the only sound option is to not use `set_var` or `remove_var` at all"
+/// (<https://doc.rust-lang.org/std/env/fn.set_var.html>), and every binary this
+/// module compiles into runs its tests on threads libtest spawns. Isolating
+/// *this* process is not on offer, so isolating a child is the whole of what
+/// this list is for — see the module header.
 pub fn grove_env_names() -> Vec<String> {
     let suffixes: Vec<String> = kind_labels()
         .iter()
@@ -240,60 +277,6 @@ pub fn grove_env_names() -> Vec<String> {
     names.extend(REMOVED_LAUNCH_POLICY_ENV.iter().map(|n| n.to_string()));
     names.extend(LOOP_CONTROL_ENV.iter().map(|n| n.to_string()));
     names
-}
-
-/// Save/restore an arbitrary set of env vars across a test via `Drop`, so a
-/// failing `assert!` — which unwinds, it does not abort — cannot leak a
-/// mutated or removed value into a later test sharing the same process.
-#[derive(Default)]
-pub struct EnvGuard {
-    saved: Vec<(String, Option<String>)>,
-}
-
-impl EnvGuard {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    fn remember(&mut self, key: &str) {
-        if !self.saved.iter().any(|(k, _)| k == key) {
-            self.saved.push((key.to_string(), std::env::var(key).ok()));
-        }
-    }
-
-    pub fn set(&mut self, key: &str, value: impl AsRef<OsStr>) -> &mut Self {
-        self.remember(key);
-        std::env::set_var(key, value);
-        self
-    }
-
-    pub fn remove(&mut self, key: &str) -> &mut Self {
-        self.remember(key);
-        std::env::remove_var(key);
-        self
-    }
-
-    /// Scrub every name in [`grove_env_names`] from this process's own
-    /// environment: the removed launch-policy surface, so a developer's
-    /// dogfooded shell cannot change what a fixture observes, plus
-    /// [`LOOP_CONTROL_ENV`], so a nested launch cannot kill their live session.
-    pub fn clear_grove_env(&mut self) -> &mut Self {
-        for name in grove_env_names() {
-            self.remove(&name);
-        }
-        self
-    }
-}
-
-impl Drop for EnvGuard {
-    fn drop(&mut self) {
-        for (key, prior) in self.saved.drain(..) {
-            match prior {
-                Some(v) => std::env::set_var(&key, v),
-                None => std::env::remove_var(&key),
-            }
-        }
-    }
 }
 
 /// Stand up a **jj-native** repository at `path` — the only kind of working

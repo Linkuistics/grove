@@ -128,9 +128,9 @@ to this function, and enumerating everything that reaches
 `tree_lifecycle::root_init` across `crates/` finds five call sites —
 `grove-llm`'s `cmd_root_init`, two integration fixtures, the excluded
 `task_grow/tests.rs`, and this file's own `root_init_at` — every one of which
-passes `Kind::requirements()` as a literal. The flag that would let an operator
-supply `finish` does not exist, which is the same sentence the doc comment opens
-with, read as a coverage fact.
+supplies `Kind::requirements()` and nothing else. The flag that would let an
+operator supply `finish` does not exist, which is the same sentence the doc
+comment opens with, read as a coverage fact.
 
 <!-- fragment «grove-beginning-default-slug» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="351-356" parent="grove-beginning" -->
 ````rust
@@ -1531,12 +1531,14 @@ mutations](11-a-grove-begins.md#the-value-nothing-holds), because that is where
 its cost was first paid; the table below is the re-run that step buys, and row 6 is
 where it shows.
 
-**Two of the ten arms make the reading a lie if you skip a check.** A mutant that
+**Two more ways to misread the run, and both of them are silent.** A mutant that
 fails to compile prints no per-test lines at all and reads exactly like a clean
 result, so each run below was confirmed to have executed all 560. And a panic at
 the *call site* measures reachability rather than observation: panicking
 unconditionally on entry to `root_init` reddens 43 tests and says nothing about
-whether its refusal is held.
+whether its refusal is held. Neither is a property of any particular arm; both
+are traps in the procedure, and they are why the ten rows below can be read at
+all.
 
 | # | Arm | Line | Observed by |
 |---:|---|---:|---|
@@ -1573,10 +1575,24 @@ chapter 10's did.** Rows 3, 4 and 5 are the class chapter 10 named: *the
 library did something its contract forbids*, which no test over an honest library
 can construct. Row 1 is different — `refuse_finish_kind` is an ordinary
 operator-facing refusal, and it is unobserved for a smaller reason: all five call
-sites that reach `root_init`, through `verbs::root_init` or directly, pass
-`Kind::requirements()` as a literal, so the reserved kind cannot reach it. Rows 9 and 10 are unexercised **fallbacks** rather than
-refusals, and row 10 is the one that matters downstream, because both promises in
+sites that reach `root_init`, through `verbs::root_init` or directly, supply
+`Kind::requirements()` and nothing else, so the reserved kind cannot reach it.
+Rows 9 and 10 are unexercised **fallbacks** rather than refusals, and row 10 is
+the one that matters downstream, because both promises in
 `append_brief_suffix_in_file`'s doc comment run through it.
+
+**What the five sites do, exactly.** Four are test code and pass the kind as a
+literal argument: `crates/grove-loop/src/tree_lifecycle.rs:1217` (this file's own
+`root_init_at`), `crates/grove-loop/src/task_grow/tests.rs:1598`,
+`crates/grove-loop/tests/verbs.rs:80` and
+`crates/grove/tests/lifecycle_cutover.rs:1135`. The fifth is the production one —
+`cmd_root_init` at `crates/grove-llm/src/cli.rs:508` — and it passes `&kind`
+against a binding, `let kind = Kind::requirements();` on line 490, so that the
+same value can be handed to `require_declared` before the lock is taken. The
+binding is as conclusive as the literals: nothing between the two lines reassigns
+it, and `root-init` exposes no flag that could put another kind in it. Row 1 is
+unobserved because of the argument every caller supplies, not because of the
+syntax any one of them supplies it in.
 
 **Row 2 is the line between those three and the rest, and it is a thin one.**
 `initialize` failing is not the library breaking its contract — it is the library

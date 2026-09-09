@@ -96,6 +96,26 @@ verifiable: the overview is proved by the validator, the move by the link suites
   `src/lib.rs` (lines 7–8) says *something `grove-loop` or `grove` chose to
   publish*, naming a dependency the manifest's own comment records as removed
   at `loop-crate-driver-k22`; same owner, same rule.
+- **The mutation harness, promoted from `stale-mutation-suite-baseline-k198` at
+  its close.** Any leaf here that takes or re-reads a mutation measurement over
+  `grove-loop` inherits this, because getting it wrong reads as success. The
+  control is **560 tests, 549 passed, 11 failed**, reproduced identically and set
+  for set at the six children of that node which took a run (`k208`–`k213`; the
+  seventh, `k214`, had no arm to mutate). Copy `crates docs testing plugins scripts
+  Cargo.toml Cargo.lock .cargo CHANGELOG.md CONTEXT.md CONTEXT-MAP.md README.md
+  LICENSE release.toml` to a scratch directory plus `CLAUDE.md` and a plain copy
+  of it as `AGENTS.md` — without those two the control is twelve, not eleven.
+  Then `cargo build -p grove --bins`, then `cargo test --no-fail-fast -p
+  grove-loop -p grove-llm`, one `CARGO_TARGET_DIR` shared across control and
+  arms. Four things that each turn a run into a lie: **the relink must follow the
+  edit**, or every out-of-process observer runs an unmutated `grove` and stays
+  green; **match the set, not the count**, since two copies can agree on eleven
+  and disagree about which eleven; **confirm the run reported 560** before
+  reading it, because a mutant that fails to compile prints no per-test lines and
+  reads exactly like a clean result; and **a `bail!` is replaced whole**, with a
+  message-free `panic!`, because the out-of-process observers assert on stderr
+  substrings. `GROVE_SIGNAL_FILE` unset in the measuring shell. The books' own
+  procedure paragraphs (chapters 11–14, 17) are the published form of this.
 - `CONTEXT-MAP.md` argues `grove`, `grove-llm` and `grove-loop` *are* the grove
   context, and that `keyed-launch` and `jj-workspace` are deliberately not
   contexts. Each book has to respect that; `docs/walkthroughs/` was chosen as a

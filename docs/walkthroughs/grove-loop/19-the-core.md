@@ -120,9 +120,11 @@ the block before writing a word.
 Chapters through this book have measured coverage by mutating the crate in a copy
 of the workspace and diffing the failures against an unmutated control of the same
 copy, and **seven of them — chapters 11 to 17 — cite the same environmental
-baseline**: 558 tests, 547 passed, eleven failed before any mutation, in
-`crates/grove-loop/tests/prompt.rs`. That file is this chapter's evidence, so
-this is the chapter that owes the reason.
+baseline**: 560 tests, 549 passed, eleven failed before any mutation, in
+`crates/grove-loop/tests/prompt.rs`. Each of those seven took that control in its
+own copy and states it in its own words rather than citing this page, and no two
+of them disagree about a number. That file is this chapter's evidence, so this is
+the chapter that owes the reason.
 
 The reason is `Mandate`'s third field. The suite scaffolds no fixture tree — its
 own comment says a resolved workspace is *a value the prompt only renders* — and
@@ -152,10 +154,65 @@ matters. A control taken at a flat eleven records the marketplace test as
 which that test reads five times — would then be invisible, its newly-failing set
 empty against a baseline that had already written the test off. A control wrong
 in that direction hides an observer, which is the same failure mode the `cargo
-build -p grove --bins` step exists to prevent at seventeen. Copy
-`.claude-plugin/` with the rest and the baseline is a clean ten, all one cause;
-the other six tests read the shipped plugin, its marketplace entry or the spine,
-compose nothing, and pass wherever the repository is copied whole.
+build -p grove --bins` step exists to prevent at seventeen.
+
+**So the recommendation for the next study is the clean ten**: copy
+`.claude-plugin/` with the rest and the baseline is ten of one cause, with the
+other six tests — which read the shipped plugin, its marketplace entry or the
+spine, compose nothing, and pass wherever the repository is copied whole —
+green alongside everything else. That is advice about how to copy, not a
+description of what chapters 11 to 17 did. Their controls are the eleven, taken
+against the recipe those chapters state, and the eleventh's cause is separated
+here rather than in the copy. Re-deriving them against a ten would change what
+each of those paragraphs is *about* on top of changing its number, which is why
+the eleven stands in all seven and the clean ten stays a recommendation.
+
+**And the recommendation does not retire the discipline it sits beside: a
+control is a set, not a count.** Two copies can agree on eleven and disagree
+about which eleven, so each mutant is read as the difference against those
+*names* — the rule chapters 11 and 13 state, and the one that survives whatever
+the copy contains. Chapter 17 carries the sharpest case of what the count alone
+cannot tell you, where a test that cannot execute a mutated line at all came
+back newly failing under four runs and reads exactly like a newly attributed
+observer; that account belongs there, with the study that met it, and is not
+repeated here.
+
+**Could a check have caught the seven pages going stale together?** No — and the
+reason is worth setting down here, because a neighbouring case *is* checkable and
+a reader is otherwise left wondering why one got a check and the other did not.
+
+The number above is not derived from anything in this repository. It is produced
+by a run in a scratch copy that is deliberately not a jj repository and carries no
+marketplace manifest, and re-deriving it means taking that run — a full build and
+the whole of two crates' suites. Nothing in `scripts/check.sh` reads a number of
+that kind, and nothing could, because there is no artifact holding the answer to
+compare a page against. `ledger-rollup-check-k207` is the contrast that makes
+this legible: an assembly chapter's roll-up over the two ledgers in
+`source-index.md` is also spelled in English prose, but it is derived from a file
+in this repository that `book-check` already parses. A checker there has
+something to compare a sentence against and needs only to be told where in the
+prose to look. Here there is nothing to compare against at all, and a checker
+that took the run itself would be a second measurement rather than a check on the
+first.
+
+The one mechanism that needs no external truth — require every page stating an
+environmental baseline to state the same one — would have been green for the
+whole time the number was wrong, because the seven agreed with each other and
+disagreed only with the suite. A check on agreement rewards copying, and copying
+is how one stale reading reached seven pages. It is not worthless: it would catch
+a *partial* re-derivation, where some pages are corrected and others forgotten,
+which is the likelier next failure. But it cannot see the failure that actually
+happened, so it is a guard on the repair rather than a check on the claim, and
+the honest answer to *is this class mechanically checkable* is no.
+
+What replaces it is structural. Every page that measures now states its own
+control, in its own words, taken in its own copy — so the pages carrying the
+number are an enumerable set rather than a chain of citations to one sentence,
+and a re-derivation has a list to work down. That does not stop them going stale;
+the suite grows and they all will. It makes the staleness locatable, and it puts
+the roll-up that speaks for other pages — this one — last, where the cheap
+substitute for a check is reading the seven pages it speaks for and confirming
+they say what it says they say. That reading is what this section rests on.
 
 <a id="the-block-declared"></a>
 ## The block, declared

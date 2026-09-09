@@ -1190,3 +1190,23 @@ use ("brief chain", "review chain"). Only sense 1 heads a verb name
 (`brief-chain`), and sense 2 no longer names any verb at all: a review chain is
 built with plain `leaf-add` calls, so there is nothing left for a bare "chain" to
 head ambiguously.
+
+**`CONTEXT.md` is two artifacts sharing one file**, and whether they can be
+separated is open. One is a stakeholder-shareable ubiquitous language: what a
+term means now, its scope, a discriminating example. The other is a maintainer's
+record of mechanisms this codebase no longer has — [[Skill delivery]],
+[[Mandate slice]] and the *Root and lifecycle semantics (from the retired formal
+contract)* grouping are entries whose subject is a retired mechanism rather than
+a live one, and the `_Avoid_` lines that name a pre-taxonomy term are the same
+material in miniature. A reader who wants the first reads past the second.
+
+The question is whether the shareable tier can be **projected** out of this file
+rather than maintained twice, since a second copy that drifts is worse than the
+fusion. [`docs/research/specification-capture.md`](docs/research/specification-capture.md)
+carries the current best answer, under *What may the shared glossary projection
+contain?*: three tiers rather than two — current meaning, significant meaning
+change, and churn-and-provenance — with the first two in the stakeholder
+projection and the third linked rather than inline. It rates the outer tiers
+moderate confidence and the middle one low, and leaves *reopen conditions*
+unplaced, so that is a starting position rather than a settled design. This file
+carries no marking today that would let a projection tell the three apart.

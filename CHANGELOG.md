@@ -51,6 +51,47 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`leaf-decompose --help` and `root-init --help` spelled names grove would
+  refuse, and the guard over filename examples could not see it.** Since
+  `grammar-separator-k15` a leaf's kind and slug are separated by `--`, and a
+  name without one has no reading at all rather than two
+  (`docs/adr/task-names-are-canonical.md`) — yet both verbs' help wrote the
+  single-dash form of the name they create. Fourteen occurrences in all: six of
+  `01-<kind>-<first-child-slug>-k<new>.md`, seven of
+  `01-requirements-<slug>-k1.md`, and `references/commit.md`'s `04-impl-extract`,
+  spread over `cli.rs`, `tree_lifecycle.rs`, two test files, two shipped skill
+  reference files, and five lines across four pages of the `grove-llm` and
+  `grove-loop` books that reproduce those source bytes. Line counts did not move,
+  so no fragment range shifted. The four occurrences of `leaf-decompose
+  <leaf-path> <first-child-slug>` name the CLI positional rather than a filename
+  and are unchanged, as are the withdrawn-grammar names recorded in
+  `docs/preservation-baseline.md`, the ADRs and `task_name.rs`'s own fixtures.
+
+  **The reason it survived a rename that touched every entry in the repo's own
+  tree** is the second half of the fix. `session_kind_guidance.rs` puts every
+  *concrete* filename example through `TaskName::parse` — the call the grow verbs
+  make — but routes a **grammar sketch**, anything carrying `<` or `[`, to a
+  hand-rolled shape check that accepted a single dash between kind and slug. That
+  check is a sketch's whole verdict, and no tree ever holds a sketch for anything
+  else to refuse, so the guard exempted precisely the class it existed to judge —
+  the shape `docs/adr/a-closed-partition-is-over-outcomes-not-states.md` names.
+  The shape check now takes the separator it must demand: the canonical `--` for
+  a sketch, the lenient `-` only when explaining a name the parser has already
+  refused, which is what keeps the parser-decides controls able to demonstrate
+  anything. A `MissingSeparator` verdict names the defect instead of reporting
+  the kind missing, and what the sketch path still does *not* judge — the slug
+  validator, the key's digits, the canonical width — is now stated as a limit
+  rather than left to be discovered.
+
+  **The same stale spelling had blinded a second control.** Three of the five
+  names asserted to be "refused by `TaskName::parse` for a reason the shape check
+  cannot see" carried a single dash, and the parser refuses a name on its
+  separator *before* it reaches the slug or the position — so
+  `01-impl-bad_slug-k7.md` earned `MissingSeparator`, not `BadSlug`, and **no
+  assertion in the file reached the production slug validator at all**. Measured
+  both ways: with the validator's character check deleted, the old fixtures pass
+  and the repaired `--` fixtures fail.
+
 - **`grove` / methodology: the pass series ships, so a session can run one.**
   Repeated work over one subject used to arrive undeclared — a session that
   wanted more work to happen cut its own follow-on, and nothing recorded that a

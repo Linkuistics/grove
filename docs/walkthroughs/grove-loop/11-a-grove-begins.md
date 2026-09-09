@@ -79,7 +79,7 @@ the two disagree most.
 ````rust
 /// `root-init [<slug>]`: scaffold a fresh grove under `worktree/.grove` — the root
 /// `BRIEF.md` (the one unkeyed singleton) and a first **requirements** leaf
-/// `01-requirements-<slug>-k1.md`. Returns the absolute paths created:
+/// `01-requirements--<slug>-k1.md`. Returns the absolute paths created:
 /// `BRIEF.md`, then the leaf. Refuses to clobber an existing `.grove/`.
 /// Working-tree only — no commit.
 ///

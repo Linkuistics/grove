@@ -98,7 +98,7 @@ restate them.
 /// `NN-<kind>--<slug>-k<key>.md` into a node directory `NN-<slug>-k<key>/` (**key
 /// preserved**) holding a `BRIEF.md` (seeded from the leaf body, its `# <handle>`
 /// header retitled `# <handle> — brief`) and a first child
-/// `01-<kind>-<first-child-slug>-k<new>.md` grown atomically so the node is never
+/// `01-<kind>--<first-child-slug>-k<new>.md` grown atomically so the node is never
 /// childless. Refuses a brief, a node, and an already-`DONE` leaf. Returns
 /// `(brief_path, first_child_path)`. Working-tree only — no commit.
 ///

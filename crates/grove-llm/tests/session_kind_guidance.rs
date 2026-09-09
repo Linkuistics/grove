@@ -23,19 +23,35 @@
 //!   `resolve` and the grow verbs make — so an example the binary would refuse
 //!   fails whether or not anyone thought to look for it. Only a grammar sketch
 //!   (`NN-<session-kind>--<slug>-k<key>.md`), which no tree could hold, takes an
-//!   explicit placeholder path.
+//!   explicit placeholder path — and that path is a *judgement*, not an
+//!   exemption: it holds a sketch to the canonical `--` between kind and slug,
+//!   because a sketch reaches no parser and nothing downstream would. It did
+//!   not until `decompose-help-separator-k222`, and what it let through was
+//!   `leaf-decompose --help`'s own first-child name.
 //! * The **flags** come from `grove-llm`'s clap model **indexed by verb**, so a
 //!   flag the docs invent — or one the CLI drops, or one documented on a verb
 //!   that does not own it — fails from either side.
 //!
-//! Two limits, stated rather than papered over. A filename whose *slug* begins
+//! Three limits, stated rather than papered over. A filename whose *slug* begins
 //! with a kind word (`01-design--notes-k4.md`) is indistinguishable from a kinded
 //! name by inspection; that ambiguity is in the grammar itself, and nothing
 //! outside the filename resolves it — the format witness that used to went with
-//! migration (`delete-migration-k6`). And the
+//! migration (`delete-migration-k6`). The
 //! flag sweep only judges a line that names a hyphenated `grove-llm` verb, so a
 //! flag discussed in bare prose is out of scope — the check under-covers rather
-//! than lying about coverage.
+//! than lying about coverage. And **a sketch is judged by inspection on four
+//! things and no more**: a position, a kind token, the `--` after it, and a
+//! non-empty slug ending in a non-empty key. The production slug validator, the
+//! key's digits and the canonical position width belong to `TaskName::parse`,
+//! which no sketch reaches — so `NN-<session-kind>--<slug>-k<key>.md.md`,
+//! `5-<session-kind>--<slug>-k<key>.md` and a placeholder slug that would be
+//! refused concretely all read as well-formed here. Widening the sketch path to
+//! cover them means re-implementing the production validators against
+//! placeholders — growing back the hand-rolled oracle `sweep-k37` demoted to an
+//! explainer, in the one place no parser can take over from it. The
+//! separator is in the list because it is the one rule whose violation has no
+//! reading at all (`docs/adr/task-names-are-canonical.md`), and because a sketch
+//! is the only place a violation of it can survive.
 //!
 //! Every sweep carries both controls, because a sweep that cannot fail is worth
 //! nothing: each classifier is shown rejecting the shape it exists to reject and
@@ -311,6 +327,15 @@ enum Example {
     /// hand-rolled classifier could not reach, because it never applied the
     /// production slug validator and ignored the key entirely.
     Malformed,
+    /// A kind and a slug are both present and the `--` between them is not.
+    ///
+    /// **A sketch's verdict, and only a sketch's.** A concrete name spelled this
+    /// way is refused by `TaskName::parse` itself — as
+    /// `TaskNameError::MissingSeparator` — and so reaches this file as
+    /// [`Example::Malformed`] like every other parser rejection; nothing is lost,
+    /// because the parser has already decided. A sketch has no such backstop, so
+    /// this is the verdict that has to name the defect.
+    MissingSeparator,
 }
 
 /// The kind labels plus the placeholders the guidance writes in a grammar
@@ -346,13 +371,21 @@ fn classify_example(name: &str) -> Example {
         }
         // Not a leaf (or not parseable at all): fall through to the shape check
         // purely to name *why*, and report anything it thinks is fine as
-        // malformed, since the parser has already refused it.
-        return match classify_shape(name) {
+        // malformed, since the parser has already refused it. The lenient
+        // separator is deliberate here: this call must be able to read a name
+        // the parser refused as well-formed, or it does not demonstrate that
+        // the parser is what decided.
+        return match classify_shape(name, LENIENT_SEPARATOR) {
             Example::Kinded => Example::Malformed,
             explained => explained,
         };
     }
-    classify_shape(name)
+    // A sketch reaches no parser, so this call is its **whole** verdict and is
+    // held to the canonical separator rather than the lenient one. Sharing the
+    // lenient spelling here is what let
+    // `01-<session-kind>-<first-child-slug>-k<new>.md` — a name grove would
+    // refuse — be asserted as a well-formed sketch (`decompose-help-separator-k222`).
+    classify_shape(name, SEPARATOR)
 }
 
 /// Whether the shipped grammar reads this name as a task **leaf**.
@@ -372,11 +405,24 @@ fn parses_as_leaf(name: &str) -> bool {
     )
 }
 
+/// The kind/slug separator the canonical grammar requires
+/// (`docs/adr/task-names-are-canonical.md`). Pinned to the shipped parser by
+/// [`the_filename_classifier_separates_the_current_grammar_from_its_predecessor`],
+/// which watches `TaskName::parse` refuse the lenient spelling of a name it
+/// otherwise accepts.
+const SEPARATOR: &str = "--";
+
+/// The spelling a *rejected concrete name* is read with. Deliberately weaker
+/// than [`SEPARATOR`]: the parser has already refused such a name, and this
+/// check's only job is then to say what it looks like by inspection.
+const LENIENT_SEPARATOR: &str = "-";
+
 /// The by-inspection shape check: position, then an optional outcome infix, then
-/// a kind, then a non-empty slug ending in a non-empty key. This is the whole
-/// verdict for a grammar sketch, and a diagnostic aid for a rejected concrete
-/// name.
-fn classify_shape(name: &str) -> Example {
+/// a kind, then `separator`, then a non-empty slug ending in a non-empty key.
+/// This is the whole verdict for a grammar sketch — which is judged with
+/// [`SEPARATOR`], because nothing downstream will — and a diagnostic aid for a
+/// rejected concrete name, which is read with [`LENIENT_SEPARATOR`].
+fn classify_shape(name: &str, separator: &str) -> Example {
     // A run of digits and then the `-`, matching what `candidates_in` collects.
     // By inspection a position is *some* number, and the canonical width is the
     // parser's business rather than this check's — which is what lets a lenient
@@ -401,8 +447,20 @@ fn classify_shape(name: &str) -> Example {
     let Some(after_kind) = kind_tokens().iter().find_map(|token| {
         after_outcome
             .strip_prefix(token.as_str())
-            .and_then(|rest| rest.strip_prefix('-'))
+            .and_then(|rest| rest.strip_prefix(separator))
     }) else {
+        // A kind *is* there and the separator is not. Say that, rather than
+        // reporting the kind missing: the two are different defects and only
+        // one of them is the pre-session-kind grammar. (Unreachable while
+        // `separator` is the lenient one, which any kind-then-dash name has
+        // already matched above.)
+        if kind_tokens().iter().any(|token| {
+            after_outcome
+                .strip_prefix(token.as_str())
+                .is_some_and(|rest| rest.starts_with('-'))
+        }) {
+            return Example::MissingSeparator;
+        }
         return Example::MissingKind;
     };
 
@@ -494,8 +552,9 @@ fn every_leaf_filename_example_in_the_methodology_matches_the_shipped_grammar() 
         findings.is_empty(),
         "these filename examples are not names the shipped grammar accepts \
          (MissingKind / KindWithoutSlug: written in the pre-session-kind shape; \
-         Malformed: `TaskName::parse` refuses the position, the slug or the \
-         key):\n  {}",
+         MissingSeparator: a *sketch* whose kind and slug are separated by one \
+         dash rather than `--`; Malformed: `TaskName::parse` refuses the name — \
+         its separator, position, slug or key):\n  {}",
         findings.join("\n  ")
     );
 }
@@ -509,7 +568,7 @@ fn the_candidate_scan_offers_every_position_width_to_the_parser() {
     // tightening is about. All four widths must reach the parser; which of them
     // it then refuses is the parser's business and is asserted above.
     for width in [
-        "5-impl-extract-k7.md",
+        "5-impl--extract-k7.md",
         "05-impl--extract-k7.md",
         "005-impl--extract-k7.md",
         "100-impl--extract-k7.md",
@@ -543,11 +602,21 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
     // rejects, and — since the oracle became `TaskName` — a position spelled
     // outside the canonical width. All read as well-formed by inspection, which
     // is exactly why the parser and not the inspection decides.
+    //
+    // **Every one is spelled with `--`, and that is load-bearing.** Three of
+    // these carried a single dash until `decompose-help-separator-k222`, which
+    // made them a blinded control: `TaskName::parse` refuses a name on its
+    // separator *before* it reaches the slug or the position, so
+    // `01-impl-bad_slug-k7.md` was `MissingSeparator` rather than `BadSlug` and
+    // this array asserted nothing about the slug validator it names — deleting
+    // that validator left the test green. Measured, not assumed: the five now
+    // earn `Foreign`, `BadSlug`, `BadSlug`, `NotCanonical`, `NotCanonical`,
+    // one per reason the comment above claims.
     for refused in [
-        "01-impl-extract-knope.md",
-        "01-impl-bad_slug-k7.md",
-        "01-impl-Extract-k7.md",
-        "5-impl-extract-k7.md",
+        "01-impl--extract-knope.md",
+        "01-impl--bad_slug-k7.md",
+        "01-impl--Extract-k7.md",
+        "5-impl--extract-k7.md",
         "005-impl--extract-k7.md",
     ] {
         assert_eq!(
@@ -556,7 +625,7 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
             "{refused} is refused by TaskName::parse, so the guard must refuse it"
         );
         assert_eq!(
-            classify_shape(refused),
+            classify_shape(refused, LENIENT_SEPARATOR),
             Example::Kinded,
             "{refused} must look well-formed to the shape check — otherwise it \
              does not demonstrate that the parser is what decides"
@@ -595,7 +664,7 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
     for sketch in [
         "NN-<session-kind>--<slug>-k<key>.md",
         "NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md",
-        "01-<session-kind>-<first-child-slug>-k<new>.md",
+        "01-<session-kind>--<first-child-slug>-k<new>.md",
     ] {
         assert!(is_sketch(sketch), "{sketch} must take the sketch path");
         assert_eq!(
@@ -604,11 +673,36 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
             "{sketch} is a well-formed grammar sketch"
         );
     }
-    // A sketch is judged, not waved through.
+    // A sketch is judged, not waved through — and the separator is part of the
+    // judgement. Each of these is the sketch above with its `--` collapsed to a
+    // single `-`, which is the spelling `leaf-decompose --help` shipped until
+    // `decompose-help-separator-k222`: a name grove would refuse, asserted for
+    // as long as the sketch path shared the *lenient* separator with the
+    // diagnostic path.
+    for collapsed in [
+        "NN-<session-kind>-<slug>-k<key>.md",
+        "NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md",
+        "01-<session-kind>-<first-child-slug>-k<new>.md",
+    ] {
+        assert_eq!(
+            classify_example(collapsed),
+            Example::MissingSeparator,
+            "{collapsed} spells the kind/slug boundary with one dash, which has \
+             no reading at all under the canonical grammar"
+        );
+    }
     assert_eq!(
         classify_example("NN-<slug>-k<key>.md"),
         Example::MissingKind
     );
+
+    // And `SEPARATOR` is the *shipped* separator rather than the one this file
+    // remembers: the parser accepts a name spelled with it and refuses the same
+    // name spelled without.
+    assert!(parses_as_leaf(&format!("01-impl{SEPARATOR}extract-k7.md")));
+    assert!(!parses_as_leaf(&format!(
+        "01-impl{LENIENT_SEPARATOR}extract-k7.md"
+    )));
 
     // The collector's own boundaries: a node directory and a bare position
     // reference are not filenames and must not enter the sweep at all.

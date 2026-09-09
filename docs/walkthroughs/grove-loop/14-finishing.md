@@ -164,7 +164,7 @@ their doc comment ends and their body begins.
 //
 //   * `root-init` creates the grove whole — the root, its `BRIEF.md` (the one
 //     unkeyed singleton) and a first **requirements** leaf
-//     `01-requirements-<slug>-k1.md`, a 2-digit per-level position — as one
+//     `01-requirements--<slug>-k1.md`, a 2-digit per-level position — as one
 //     store operation under one lock;
 //   * `leaf-decompose` turns the leaf *file* `NN-<kind>--<slug>-k<key>.md` into a node
 //     *directory* `NN-<slug>-k<key>/` (**key preserved** — the entity that was the

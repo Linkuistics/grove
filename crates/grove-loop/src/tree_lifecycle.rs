@@ -17,7 +17,7 @@
 //
 //   * `root-init` creates the grove whole — the root, its `BRIEF.md` (the one
 //     unkeyed singleton) and a first **requirements** leaf
-//     `01-requirements-<slug>-k1.md`, a 2-digit per-level position — as one
+//     `01-requirements--<slug>-k1.md`, a 2-digit per-level position — as one
 //     store operation under one lock;
 //   * `leaf-decompose` turns the leaf *file* `NN-<kind>--<slug>-k<key>.md` into a node
 //     *directory* `NN-<slug>-k<key>/` (**key preserved** — the entity that was the
@@ -331,7 +331,7 @@ fn require_recoverable_grove(workspace: &Workspace, grove_root: &Path) -> Result
 
 /// `root-init [<slug>]`: scaffold a fresh grove under `worktree/.grove` — the root
 /// `BRIEF.md` (the one unkeyed singleton) and a first **requirements** leaf
-/// `01-requirements-<slug>-k1.md`. Returns the absolute paths created:
+/// `01-requirements--<slug>-k1.md`. Returns the absolute paths created:
 /// `BRIEF.md`, then the leaf. Refuses to clobber an existing `.grove/`.
 /// Working-tree only — no commit.
 ///
@@ -491,7 +491,7 @@ fn root_shape(tree: &task_tree::Guard) -> Result<RootShape> {
 /// `NN-<kind>--<slug>-k<key>.md` into a node directory `NN-<slug>-k<key>/` (**key
 /// preserved**) holding a `BRIEF.md` (seeded from the leaf body, its `# <handle>`
 /// header retitled `# <handle> — brief`) and a first child
-/// `01-<kind>-<first-child-slug>-k<new>.md` grown atomically so the node is never
+/// `01-<kind>--<first-child-slug>-k<new>.md` grown atomically so the node is never
 /// childless. Refuses a brief, a node, and an already-`DONE` leaf. Returns
 /// `(brief_path, first_child_path)`. Working-tree only — no commit.
 ///

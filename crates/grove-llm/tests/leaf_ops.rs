@@ -5,7 +5,7 @@
 //     `NN-<kind>--<slug>-k<key>.md` into a node DIRECTORY `NN-<slug>-k<key>/` (**key
 //     preserved**), moving the leaf body in as the node's `BRIEF.md` (its
 //     `# <slug>-k<key>` header retitled ` — brief`) and atomically growing a
-//     first child `01-<kind>-<first-child-slug>-k<new>.md` so a node is never childless.
+//     first child `01-<kind>--<first-child-slug>-k<new>.md` so a node is never childless.
 //   - `leaf-retire <leaf-path>` adds a `DONE` infix in place
 //     (`NN-<kind>--<slug>-k<key>.md` → `NN-DONE-<kind>--<slug>-k<key>.md`), keeping the retired
 //     leaf in its directory (no `done/` directory); the file body is untouched.

@@ -886,7 +886,7 @@ and none of the three reaches a call.
 ````rust
     /// Scaffold a brand-new grove's tree: create `.grove/`, write the root
     /// `BRIEF.md` charter, and lay down a first **requirements** leaf
-    /// `01-requirements-<slug>-k1.md` (default slug `plan`) — the kind is fixed, since the
+    /// `01-requirements--<slug>-k1.md` (default slug `plan`) — the kind is fixed, since the
     /// bootstrap session's only input is the human's own words. After this,
     /// `grove-llm pick` returns the new
     /// leaf — a fresh grove is no longer indistinguishable from a finished
@@ -1027,7 +1027,7 @@ leaf's kind unless `--kind` overrides it.
     /// `BRIEF.md` (a plain rename on every lane, staging nothing; its
     /// `# <slug>-k<key>` header retitled with ` — brief`) and
     /// atomically growing a first child
-    /// `01-<kind>-<first-child-slug>-k<new>.md` so the
+    /// `01-<kind>--<first-child-slug>-k<new>.md` so the
     /// node is never childless. The first child **inherits the decomposed
     /// leaf's own kind** unless `--kind` overrides it.
     /// Prints the brief's absolute path then the first child's, one per line.

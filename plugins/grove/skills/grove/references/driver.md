@@ -62,7 +62,7 @@ A brand-new grove has a working tree but no `.grove/` yet, and every loop step
 assumes one exists; the driver resolves that chicken-and-egg before an agent
 exists, because a rootless tree has no leaf to select and the grow verbs need a
 root too. It creates `.grove/`, the root `BRIEF.md` stub, a first
-**requirements** leaf `01-requirements-<slug>-k1.md` (default slug `plan`), and
+**requirements** leaf `01-requirements--<slug>-k1.md` (default slug `plan`), and
 the format witness, then selects that leaf and launches it. Creating the first
 *leaf*, not just the brief, is load-bearing: a brief is not a leaf, so a
 brief-only `.grove/` would look like a grove with no live work — a newborn

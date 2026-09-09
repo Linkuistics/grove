@@ -37,7 +37,7 @@ Positions and paths move under renumber and reorder — a `leaf-insert` shifts
 every later sibling, and a `leaf-decompose` turns a leaf's path into a
 directory — but the `<slug>-k<key>` handle is permanent, assigned once and never
 reused. So a commit message naming the work item by its handle stays meaningful
-after restructures, and one naming `04-impl-extract` names a coordinate that may
+after restructures, and one naming `04-impl--extract` names a coordinate that may
 already belong to something else (task-tree-scheme §5). Name each node the
 cascade closed the same way, alongside the leaf's own.
 

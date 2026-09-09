@@ -283,8 +283,11 @@ added sixteen lines to `lib.rs`, twenty-four to `refusal.rs` and eighty-five to
 `refusal.rs` and twenty-eight to `tests/workspace.rs`. Both are source changes
 the corpus-freeze rule in `.grove/BRIEF.md` permits, each landed in one commit
 with every page and ledger row it invalidated. The current figures are 359, 268
-and 752 for the corpus, and 900 across the two test files (*The tests*, below,
-says 755, which was already short of the mark before either leaf). The
+and 752 for the corpus, and 1,012 across the two test files — the corpus is what
+those two leaves left it at, and the tests have moved several times since, most
+recently for the doc comment corrected at `colocated-fixture-control-claim-k204`
+(*The tests*, below, says 755, which was already short of the mark before either
+leaf). The
 authoritative record is the book's own `walkthrough.toml` and
 `source-index.md`, which `book-check --final` proves. This brief is left at the
 numbers it was written with, because it is the input the book was built from

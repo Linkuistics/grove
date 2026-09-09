@@ -29,6 +29,7 @@
 - [One invocation, built and run, with three endings](03-subprocess-seam.md#worked-invocation)
 - [The four repository selectors](03-subprocess-seam.md#the-selectors)
 - [Removed, not set empty](03-subprocess-seam.md#the-selectors)
+- [Controls on the test, aimed at the reader's configuration](03-subprocess-seam.md#the-selectors)
 - [Two entry points over one builder](03-subprocess-seam.md#the-two-entry-points)
 - [Strict on stdout, lossy on stderr](03-subprocess-seam.md#the-two-endings)
 - [Failure to start, and failure to succeed](03-subprocess-seam.md#the-two-endings)

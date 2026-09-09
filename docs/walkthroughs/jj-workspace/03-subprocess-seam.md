@@ -388,10 +388,19 @@ foreign repository — `GIT_INDEX_FILE` to a path inside it that does not exist
 yet — resolves a workspace from inside a different colocated tree, requires the
 answer to be the intended tree and nothing to have been created in the foreign
 one, and then asks `is_tracked` about a file it has just written. The fixture is
-colocated on purpose, and the test says so: in a tree with no `.git` the
-selectors point at nothing and the test would pass whether or not the scrub
-existed. That is a control on the test rather than on the code, and it is what
-makes the green result evidence. It carries a second control for the same reason,
+colocated on purpose, and the test says so — though not in the direction a
+reader reaching for the usual shape of a control would expect. A non-colocated
+fixture would not leave this test passing whether or not the scrub existed; it
+would leave it permanently **red**. The child half asserts that the colocated
+index was exported into the intended repository, and that assertion presupposes
+colocation: with `--colocate` replaced by `--no-colocate` the test fails exactly
+there, on the missing `intended/.git/index` — measured against jj 0.45.1, one
+mutation at a time, with the scrub intact and again with `GIT_INDEX_FILE`
+dropped from the array. So colocation is a control on the test rather than on
+the code, and it is what makes the green result evidence: it is the condition
+under which a green result is available at all, and the vacuity it rules out is
+a test that could never pass rather than one that always would. It carries a
+second control for the same reason,
 pointing `JJ_CONFIG` at a file it writes: the index is written as part of the
 snapshot, `snapshot.auto-track` decides whether that snapshot takes the new file
 at all, and a reader whose own configuration set it to `none()` would watch the
@@ -401,12 +410,32 @@ the child's environment, for the reason
 [*The premise*](03-subprocess-seam.md#the-premise) gives, which is what makes pinning it from the
 parent possible at all.
 
+Both controls are aimed at the reader rather than at jj, and the colocation one
+declares itself less plainly. On jj 0.45.1 colocation is already what a bare
+`jj git init` produces — `jj git init --help`, on the flag: "**This is the
+default**, and this option has no effect, unless the `git.colocate` config is set
+to `false`" ([jj configuration](https://docs.jj-vcs.dev/latest/config/)). So
+`--colocate` changes nothing for most readers and everything for the one whose
+own configuration has turned colocation off, over which it wins:
+`jj git init --config git.colocate=false --colocate` leaves a real `.git` beside
+the `.jj`, and the same command without the flag leaves none. That makes the flag
+the same kind of defence as the pinned `JJ_CONFIG` — against the reader's
+configuration rather than against jj's behaviour — and it is the reason a fixture
+writes out a flag that looks redundant.
+[Chapter 4](04-namespace.md#the-premise) is where colocation as a configuration
+question rather than a flag question is set out, and
+`crates/jj-workspace/tests/workspace.rs` makes the same defence in the other
+direction, forcing `git.colocate=false` so that an ambient config cannot silently
+turn a native fixture colocated.
+
 Two things about its scope are worth stating plainly. The first is that the
 resolution half of it reaches no child at all — both trees are colocated, so
 `.jj/repo` is a directory, [the gate](02-the-gate.md#worked-resolution) returns
 without asking jj anything, and the assertions above the `is_tracked` call would
-hold with this whole array deleted. It is that last call, snapshotting the
-working copy and exporting it to the colocated Git repository, that reaches the
+hold with this whole array deleted — measured, on the colocated fixture, by
+emptying `REPOSITORY_SELECTORS` outright: the child reaches the index assertion
+and fails only there. It is that last call, snapshotting the working copy and
+exporting it to the colocated Git repository, that reaches the
 seam, and the export is what the selectors redirect. The second is that of the
 four names, exactly one is load-bearing in the green result: deleting
 `GIT_INDEX_FILE` from the array turns the test red, and deleting any of the other

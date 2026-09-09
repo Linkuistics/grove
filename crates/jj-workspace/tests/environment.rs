@@ -57,9 +57,19 @@ const REEXEC: &str = "JJ_WORKSPACE_ENVIRONMENT_TEST_CHILD";
 /// is what the sentinel below is for.
 const TEST: &str = "resolution_ignores_repository_selection_and_temporary_directory_environment";
 
-/// A **colocated** repository, so the `GIT_*` selectors below are live rather
-/// than inert: a colocated tree has a real `.git` for them to point somewhere
-/// else, which is what makes the assertion worth making.
+/// A **colocated** repository. Both fixtures are built with this, and colocation
+/// is load-bearing at each end: the foreign tree needs a real `.git` for the
+/// `GIT_*` selectors to point somewhere, and the intended tree needs one for the
+/// exported index the last assertion looks for. A non-colocated fixture does not
+/// leave this test green with the scrub deleted — it leaves it permanently red
+/// at that assertion, which is why colocation is a control on the test.
+///
+/// The flag is written out although colocation is the default on jj 0.45.1
+/// (`jj git init --help`: "this option has no effect, unless the `git.colocate`
+/// config is set to `false`"). It is what stops a reader whose own config sets
+/// that to `false` from getting a fixture with no `.git` at all — the same kind
+/// of control as the pinned `JJ_CONFIG` below, and the mirror of `workspace.rs`'s
+/// `native`, which forces the config the other way for the same reason.
 fn colocated(path: &Path) -> PathBuf {
     fs::create_dir_all(path).unwrap();
     let out = Command::new("jj")

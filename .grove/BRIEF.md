@@ -64,7 +64,9 @@ the rest exist because it cannot be reached without them.
   `specification-capture-k4`'s six questions with citations, naming what
   neither survey found, and stating whether the two-tier hypothesis survives
   the evidence. A result that contradicts the hypothesis is a successful
-  outcome, not a failed one.
+  outcome, not a failed one. **Delivered** at `specification-capture-k6`:
+  `docs/research/specification-capture.md`;
+  see the amended note below for what it found.
 
 ## Decomposition
 
@@ -316,8 +318,22 @@ commissioned against — and it is the arm's **hypothesis, not its premise**. A
 survey commissioned against a hypothesis tends to find it, which is why
 `specification-capture-k6` owes the adversarial move and a stated verdict.
 Evidence that a single notation has worked is a result this grove wants, not a
-result it is set up to miss. Nothing downstream of P4 may cite the two-layer
-form as settled before k6 reports.
+result it is set up to miss.
+
+**k6 has reported, and the categorical form above is refuted — so this note no
+longer states what binds.** EARS and Attempto Controlled English are single
+notations serving both audiences, one with ten years of reported use, and
+neither was in `research-a`'s corpus. What survived is a narrower claim with a
+different mechanism: *where one artifact carries both a machine obligation and a
+human one, only the machine obligation has an automated enforcer, and it
+silently rewrites the other* — an **arbitration** boundary, not a readability or
+an audience one. The second clause is unevidenced: neither survey reports a
+source measuring whether a formal tier improves an LLM's output. Downstream may
+now cite the restated form, must not cite "fails at both", and must not treat
+"good LLM artifacts" as established. The verdict, the disagreements it resolves
+and the evidence for each are in
+`docs/research/specification-capture.md`;
+this paragraph is a pointer and deliberately not a summary of it.
 
 **A test may not assert that a lock is free.** `flock` attaches to the open file
 description and `fork` duplicates every one, so any concurrent `Command::spawn` —

@@ -133,6 +133,24 @@ stood at the graft — a closed record, not part of the versioned sequence above
   `proof` key, or `leaf-decompose … --kind draft` is refused before the tree is
   mutated.
 
+- **`book-validation`: `book-check` compares every literal fence against its own
+  `lines="A-B"` in final mode, not only while a defer remains.** `check_bytes`
+  branched on whether a root still had a `Child::Defer`: with one it checked each
+  literal against the fragment's own declared range, without one — the state every
+  finished book is in, and what `--final` demands — it only concatenated the
+  children and compared that stream against the *root's* range. So the check was
+  strongest while drafting and silent once a book was done, and a line moved from
+  the tail of one fence to the head of the next was invisible whenever the
+  declarations still tiled and the concatenation still reconstructed the root. The
+  per-literal comparison now runs on both paths; the whole-stream comparison is
+  unchanged and is skipped only when the per-fragment pass already reported, so one
+  defect is still one diagnostic. `docs/specs/walkthrough-books.md`'s invariant list
+  had always required this — it is *Final fragment checks* that named only the
+  root comparison, and that paragraph now names both and says why neither implies
+  the other. All six books under `docs/walkthroughs/` were audited with the check
+  live and are clean: 985 fragment directives, 878 of them literal, **zero** whose
+  fence is not its own declared range, so no page or `source-index.md` row moved.
+
 ## v20.1.0
 
 ## v20.0.0

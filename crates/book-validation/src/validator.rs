@@ -759,29 +759,38 @@ fn check_bytes(
         if source_bytes.is_none() {
             continue;
         }
+        // Every literal fragment is compared against its **own** declared range,
+        // on both paths. A partial root (one with a `Child::Defer`) has no
+        // reconstructable stream to compare, so this is the only check it gets;
+        // a complete root gets it as well as the whole-stream comparison below,
+        // because tiling declarations plus a correct concatenation cannot see a
+        // line moved across an internal fragment boundary
+        // (`fragment-range-unchecked-when-final-k206`).
+        let mut fragment_range_failed = false;
+        for fragment in reachable_literals(&root.children, parsed) {
+            let FragmentBody::Literal(actual) = &fragment.body else {
+                continue;
+            };
+            let expected = source_bytes.and_then(|bytes| source_range(bytes, fragment.range));
+            if expected.as_deref() != Some(actual.as_slice()) {
+                diagnostics.push(byte_diagnostic(
+                    parsed,
+                    root,
+                    fragment,
+                    source_bytes.map(Vec::as_slice),
+                    expected.as_deref().unwrap_or_default(),
+                    actual,
+                    fragment.range,
+                ));
+                fragment_range_failed = true;
+                break;
+            }
+        }
         let has_defer = root
             .children
             .iter()
             .any(|child| matches!(child, Child::Defer { .. }));
-        if has_defer {
-            for fragment in reachable_literals(&root.children, parsed) {
-                let FragmentBody::Literal(actual) = &fragment.body else {
-                    continue;
-                };
-                let expected = source_bytes.and_then(|bytes| source_range(bytes, fragment.range));
-                if expected.as_deref() != Some(actual.as_slice()) {
-                    diagnostics.push(byte_diagnostic(
-                        parsed,
-                        root,
-                        fragment,
-                        source_bytes.map(Vec::as_slice),
-                        expected.as_deref().unwrap_or_default(),
-                        actual,
-                        fragment.range,
-                    ));
-                    break;
-                }
-            }
+        if has_defer || fragment_range_failed {
             continue;
         }
         let limit = expected

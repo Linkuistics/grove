@@ -324,3 +324,52 @@ fn a_missing_authoritative_source_is_an_inventory_failure() {
         .iter()
         .any(|diagnostic| diagnostic.code == "F006"));
 }
+
+#[test]
+fn a_fragment_whose_bytes_are_not_its_own_declared_range_is_a_byte_failure() {
+    // The two literals tile `library-crate-surface` (1-2, 3-103) and their
+    // concatenation reconstructs the root exactly, so neither the partition
+    // check nor the whole-stream comparison can see that the internal boundary
+    // sits one line early. Only comparing each fence against its *own* declared
+    // range does.
+    let markdown = format!(
+        concat!(
+            "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-103\" -->\n",
+            "<!-- insert «library-crate-surface» -->\n",
+            "<!-- /source-root -->\n",
+            "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-103\" parent=\"source-library\" -->\n",
+            "<!-- insert «part-1» -->\n",
+            "<!-- insert «part-2» -->\n",
+            "<!-- /fragment -->\n",
+            "<!-- fragment «part-1» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-2\" parent=\"library-crate-surface\" -->\n",
+            "````rust\none\n````\n<!-- /fragment -->\n",
+            "<!-- fragment «part-2» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"3-103\" parent=\"library-crate-surface\" -->\n",
+            "````rust\ntwo\n{}````\n<!-- /fragment -->\n",
+        ),
+        "line\n".repeat(101)
+    );
+
+    let source = format!("one\ntwo\n{}", "line\n".repeat(101));
+    let report = validate(
+        &snapshot(&markdown, &source),
+        Request {
+            scope: support::through("orientation-k11"),
+            check: Check::Fragments,
+        },
+    );
+
+    // The declarations tile and the expansion reconstructs, so the two checks
+    // that were already there stay silent.
+    assert!(!report
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.code == "F007"));
+
+    let finding = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "F008")
+        .expect("a fence that is not its own declared range is a byte failure");
+    assert_eq!(finding.fragment_id.as_deref(), Some("part-1"));
+    assert_eq!(finding.root_id.as_deref(), Some("source-library"));
+}

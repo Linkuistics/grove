@@ -1150,10 +1150,21 @@ successful source coverage. An unresolved insert is an error in every scope.
 
 Final mode requires exactly the manifest's source roots and source paths, no
 extras, every top-level block resolved, no defer directives, one reachable
-definition per ID, gapless non-overlapping coverage, and byte-for-byte equality
-for every recursively expanded root. The final report states the book's root
-count, its corpus line count, zero deferred ranges, and `final=true` — all taken
-from the manifest and the comparison, never from a compiled constant.
+definition per ID, gapless non-overlapping coverage, byte-for-byte equality for
+every recursively expanded root, and byte-for-byte equality between every
+reachable literal fragment's fence and that fragment's **own** declared range.
+
+The last two are not the same requirement, and neither implies the other. A
+line moved from the tail of one fence to the head of the next preserves the
+expanded root exactly, and the declarations still tile, so a root-only
+comparison sees nothing while both fragments' ranges have become false. Since
+those per-fragment ranges are what a reader uses to locate a fence in its source
+root, and what the ledger republishes, they are checked in every scope rather
+than only while a book is still being drafted.
+
+The final report states the book's root count, its corpus line count, zero
+deferred ranges, and `final=true` — all taken from the manifest and the
+comparison, never from a compiled constant.
 
 ### Deterministic diagnostics
 

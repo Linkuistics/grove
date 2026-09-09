@@ -461,10 +461,21 @@ this repository carries, a parenthesised citation naming no anchor at all — an
 each was adjudicated beside its fragment, because the corpus was frozen while
 this book was written and a book may not edit what it is proving. Where a page
 judged a source change worth making, a leaf carries it; where it did not, the
-bytes stand as written and the page says so. Five of that second group have
-since landed: two of them chapter 1's, one chapters 5, 6 and 8's, one spread
-across chapters 1, 7, 8 and 19, and one chapter 18's.
-`unresolved-doc-links-k151` is the fourth: all five broken intra-doc links were
+bytes stand as written and the page says so. **How many of that second group have
+since landed is not counted here**, and the omission is deliberate. They were
+landing before this chapter was written and have gone on landing since, each
+carried by a session with no reason to open this page — so a number on this line
+is false again shortly after it is true. This line
+has carried five of them, one through five in turn, and not one was true on the
+day it was written. What stands in its place is structural and cannot go stale: a
+repair travels in one commit with every page that reproduces the changed bytes,
+which is the freeze rule the whole campaign runs on, so no page in this book
+reproduces a byte a later commit changed without having changed beside it — and
+`book-check` over the whole book is what refuses to let that be false, rather than
+anything asserted here. Which claims have since been corrected is therefore
+something the chapters say one by one, in the paragraphs that once judged them.
+The repairs set out below are examples of the kinds rather than the set of them.
+`unresolved-doc-links-k151` is one: all five broken intra-doc links were
 repaired in one commit with the four pages that reproduce them. Chapters 7, 8
 and 19 now explain the corrected spelling rather than adjudicating the broken
 one; chapter 1 carries the fifth line's new bytes and explains nothing, because

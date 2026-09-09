@@ -438,17 +438,20 @@ all in final mode, so *"every deferral has become an insertion"* is a statement 
 validator refuses to let be false rather than one this page asserts.
 
 <!-- rollup «early-use-rows» -->
-**Early use.** 12 rows, every one `explained`. The structure brief fixed seven
-of them in advance as the minimum ledger: five forced by chapter 1 tracing the
+**Early use.** 12 rows, every one `explained`. The structure brief fixed eight
+of them in advance as the minimum ledger: six forced by chapter 1 tracing the
 carried operation through every layer before any of those layers had been read —
-`Workspace`, `Refusal`, `Commit`, `control_dir` and `is_tracked` — and two forced
-by the narrative order putting the gate ahead of the seam it calls. Five more were
-added under the clause that requires a row before any additional later-owned name
-is introduced: three for the chapters that first name a refusal constructor they do
-not own, one for `main_repo_of`, which chapter 1's trace names two chapters before
-the gate explains it, and one for `Refusal::path_not_text`, which arrived with the
-refusal itself at `lossy-path-rendering-k66`. Each row turned `explained` in its
-owner's slice and in no other.
+`Workspace`, `Refusal`, `Commit`, `control_dir`, `main_repo_of` and `is_tracked`
+— and two forced by the narrative order putting the gate ahead of the seam it
+calls. `main_repo_of` reached that six late: the brief prescribed the chapter 1
+trace that forces it without giving it a row of its own, the developmental edit
+added the row to the manifest and to this ledger, and
+`jj-workspace-brief-early-use-drift-k215` added the matching row to the brief.
+Four more were added under the clause that requires a row before any additional
+later-owned name is introduced: three for the chapters that first name a refusal
+constructor they do not own, and one for `Refusal::path_not_text`, which arrived
+with the refusal itself at `lossy-path-rendering-k66`. Each row turned
+`explained` in its owner's slice and in no other.
 
 <!-- rollup «early-use-rows-declared» -->
 <!-- rollup «early-use-rows» -->

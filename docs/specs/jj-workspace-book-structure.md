@@ -419,15 +419,16 @@ and the observable end are all present.
 
 Two costs are paid here. Orientation traces the carried operation through every
 layer, so every type it names is owned later; and the narrative order puts the
-gate ahead of the subprocess seam it calls. These seven rows are the minimum
+gate ahead of the subprocess seam it calls. These eight rows are the minimum
 ledger. Authors add a row before introducing any additional later-owned name.
 
 | Symbol family | First use | Owner | Minimum local statement |
 |---|---|---|---|
 | `Workspace` | `01-orientation.md#public-surface` | `one-lane` | A resolved workspace is a value whose existence is the proof that the precondition passed; it carries the workspace root and the root of the workspace that holds the repository. |
 | `Refusal` | `01-orientation.md#public-surface` | `no-remedy-of-its-own` | The one error type: an opaque value carrying what is wrong, where, and — where it has one — a remedy that is true whoever is calling, with no matchable variants because every case is a stop. |
-| `Commit` | `01-orientation.md#commit-tour` | `no-transactions` | What a taken commit returns: a change id rather than a commit id, because a change id still names the work after a rewrite. |
-| `control_dir`, *namespace* | `01-orientation.md#commit-tour` | `no-consumer-vocabulary` | A namespace is one plain directory name the consumer supplies; the directory it names is inside the workspace, untracked, never shared, and created if absent. |
+| `Commit` | `01-orientation.md#public-surface` | `no-transactions` | What a taken commit returns: a change id rather than a commit id, because a change id still names the work after a rewrite. |
+| `control_dir` | `01-orientation.md#public-surface` | `no-consumer-vocabulary` | A namespace is one plain directory name the consumer supplies; the directory it names is inside the workspace, untracked, never shared, and created if absent. |
+| `main_repo_of` | `01-orientation.md#commit-tour` | `one-lane` | The step in resolution that decides which workspace holds the repository: `.jj/repo` is a directory in a workspace that holds its own and a pointer file in one that borrows another's, and only the borrowed case is followed. |
 | `is_tracked` | `01-orientation.md#the-six-refusals` | `no-transactions` | The one probe whose answer depends on the working copy, and so the one that lets jj snapshot before answering. |
 | `jj::output`, `jj::produced_output` | `02-the-gate.md#worked-resolution` | `nothing-ambient` | Every jj invocation the crate makes is built at one seam that fixes the working directory, removes the repository selectors, and separates failure to start from failure to succeed. |
 | `Refusal::not_a_workspace`, `Refusal::unresolvable_path` | `02-the-gate.md#worked-resolution` | `no-remedy-of-its-own` | Refusal constructors are crate-internal; the gate's refusal names jj's two initialisation commands and states that nothing was created or changed. |

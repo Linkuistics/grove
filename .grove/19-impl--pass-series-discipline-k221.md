@@ -4,8 +4,9 @@
 
 Ship the pass-series construct into the installed methodology, so a session can
 actually run one. `docs/specs/pass-series.md` is the design and
-`docs/adr/iteration-is-a-node-of-nodes.md` the recorded decision; **neither is
-read by a session**, because a session reads `plugins/grove/skills/`.
+`docs/adr/iteration-reuses-the-existing-species.md` the recorded decision;
+**neither is read by a session**, because a session reads
+`plugins/grove/skills/`.
 
 ## Context
 
@@ -14,15 +15,21 @@ form. The precedent is exact and one node over: `pipeline-kinds-k27` settled
 which editorial kinds exist and `pipeline-skills-k28` shipped them as skills over
 a new family reference file.
 
-**Wait for the review chain.** `loop-construct-k220` reviews the design and may
-cut an integration after it; both sit ahead of this leaf in the walk by
-construction. Do not ship a design a reviewer is still contesting — if this leaf
-is picked while either is live, something has gone wrong with the ordering and
-that is worth saying rather than working around.
+**The review chain has run.** `loop-construct-k220` reviewed the design and
+`loop-construct-k223` integrated its five findings — reworking the ADR set,
+renaming the record, and settling in the spec the question this body used to
+describe as open. Read the spec and the ADR as they now stand; this body's
+account of them below is kept only as the reasoning behind the settled answer.
 
-**The hard question this leaf owns, which the design deliberately left open: does
-this need a new kind, a new reference file, or neither?** Three shapes, and the
-evidence points at the third:
+**The placement question is settled by the design, not by this leaf.**
+`pass-series-discipline` ships it, and does not re-decide it. The spec's
+*Decisions* section now carries the answer — **a condition in the spine's
+register pointing at `references/decompose.md`, plus `BRIEF-FORMAT.md` for the
+four declarations** — with the other two shapes recorded as rejected. That was
+`loop-construct-k223`'s F4 disposition: `SPEC-FORMAT.md` puts "the modules built
+or modified, their interfaces" in a spec's `Decisions`, and leaving the surface
+to `impl` left the agreement-point artifact silent about the thing the
+implementation depends on. The three shapes and why the third wins:
 
 - **A new session kind.** `docs/adr/a-kind-is-an-open-token.md` makes one cheap
   to author — but a kind is a *discipline a session runs under*, and a pass
@@ -54,8 +61,17 @@ condition may not be a yield curve.
 
 - A session that needs to run work again can find out how, by reading the skill
   files alone — with `docs/specs/` and `docs/adr/` unopened.
-- The chosen shape is justified against the three above, in the commit or in an
-  amendment to the ADR, and the two rejected ones are recorded as rejected.
+- `references/decompose.md`'s *Choosing a composition shape* section carries the
+  series as a third shape. Expect its framing to change rather than merely gain a
+  bullet: it currently opens by saying both habitual shapes are flat siblings
+  **because** a node means work that proved bigger than one session, and a series
+  is a node. The spec names this and does not pre-write it.
+- The **one-step** series is covered wherever the shape is described. Its passes
+  are sibling leaves, so it has no shared-slug discriminator and is identifiable
+  only from its brief — the narrow case the ADR's marker trade-off turns on.
+- The escalation at the cap reaches a session as a **write**, not only as a stop:
+  a satisfied exit and a reached cap leave byte-identical trees, so the series
+  brief is where the difference is recorded or it is lost.
 - `CONTEXT.md`'s **Pass series / pass** entry and the shipped text agree; where
   the shipped text is the one a session reads, the glossary points at it rather
   than duplicating it.

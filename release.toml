@@ -99,7 +99,7 @@ pre-release-commit-message = "chore: release v{{version}}"
 
 # Keep the release commit per-crate so `{{version}}` is unambiguous in the
 # commit message. Grove has one released crate — `crates/grove`, the human's
-# binary and the thing the tag names. Every other member takes
+# binary and the thing the tag names. Every other crate the release ships takes
 # `version.workspace = true`, so a cut rewrites one field and moves all six
 # versions together (`docs/specs/module-decomposition.md`, decision 1: one
 # workspace, one release version); what `release = false` buys those members is

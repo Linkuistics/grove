@@ -85,3 +85,73 @@ line, but the reusable finding is that a repository-root file which is not
 `Cargo.toml` is invisible to that scoping. Any future *classify every token of
 phrase P* leaf should enumerate the repository and partition, rather than
 enumerate a directory list.
+
+## Decisions (running log)
+
+1. **`release.toml` takes k188's wording, and its quantifier now agrees with its
+   own "all six".** Line 102 reads *Every other crate the release ships takes
+   `version.workspace = true`* — the same move k188 made in four crate manifests
+   and the form `docs/RELEASING.md` line 38 already carries (*Every crate this
+   release ships takes …*). Six crates ship (`grove` plus five carrying
+   `[package.metadata.release] release = false`) and all six inherit the version,
+   so "moves all six versions together" is now entailed by the clause above it
+   rather than contradicted by it. Re-derived by enumeration, not by grep: the
+   seven `[workspace] members` were read one manifest at a time —
+   `book-validation` alone sets `version = "0.1.0"` and `publish = false` and
+   carries no `release = false` line. The later *those members* is untouched and
+   still names the five, which is what it always meant. Line count unchanged; the
+   rewritten line is 79 columns.
+
+2. **`CHANGELOG.md` line 300 is left standing, uncorrected and unfootnoted — and
+   the reason is that it was true when it shipped, not a policy about amending
+   releases.** The entry sits under `## v20.0.0`. That release was cut at commit
+   `d3c28ad9eac9`, 2026-08-31 14:15:00 +10:00; `crates/book-validation` first
+   appears at `3b4c1a89a848` (`fragment-engine-k26`), 14:33:56 the same day —
+   **eighteen minutes after the cut**. `jj file show -r d3c28ad9eac9 Cargo.toml`
+   lists six members, `book-validation` absent, and the entry is already in
+   `CHANGELOG.md` at that same revision (line 215 there). So at v20.0.0 *every
+   member takes `version.workspace = true` … moves all six together* was true,
+   and six and six agreed: the sentence never contradicted itself, and it is not
+   a defect at all. It became false later, by a workspace gaining a member.
+   Editing it would put a seventh member into the record of a release that had
+   six — which is the failure the file's own header names, *falsifies a release
+   that shipped without the change*, in its other direction.
+
+   **The asymmetry between the two sites is the whole finding.** Both sentences
+   were true when written and both were falsified by the same later event;
+   `release.toml` is live configuration and must describe the workspace as it
+   stands, `CHANGELOG.md` is *the record of what changed and when* (its own
+   header) and must describe the workspace as it stood. Same false predicate,
+   opposite obligations.
+
+3. **`docs/adr/entries-are-never-removed.md` does not bear on this, and the task
+   file's citation of it is a name collision.** That record is about
+   `ordinal-fs-tree` **entries** — key allocation derived from the names on
+   disk — and about grove leaves being retired by a `DONE` mark rather than
+   deleted. It says nothing about changelog entries, and nothing in `CHANGELOG.md`
+   or `docs/RELEASING.md` states a rule for amending a shipped entry. Decision 2
+   therefore rests on the timestamps and on `CHANGELOG.md`'s own *record of what
+   changed and when*, not on that ADR. Noted so the next enumeration does not
+   read the filename and stop there.
+
+4. **Every live token was classified rather than swept, and only one was false.**
+   The sweep was repository-wide and case-insensitive over *every member* /
+   *every other member* / *all members* / *each member* / *every crate* / *all
+   seven*, plus a second pass over the literal `version.workspace`, both with
+   `.grove/`, `target/` and `.jj/` excluded and `docs/walkthroughs/` read
+   separately. Outside this leaf's two sites the live tokens are: `Cargo.toml`
+   line 69, `crates/grove/src/cli.rs` line 12 and `crates/grove-loop/src/lib.rs`
+   line 68, all three carrying k84's corrected *every crate an operator installs*
+   and true; `docs/RELEASING.md` line 38, true and the precedent; `CONTEXT.md`
+   line 139 and `CHANGELOG.md` lines 520 and 3195, about skill-family members and
+   about scoring, unrelated; and the book pages that reproduce the corrected
+   comments. `Cargo.toml` line 111's *hold the clippy baseline at zero, for every
+   member* stays: all seven manifests, `book-validation` included, carry
+   `[lints] workspace = true` — re-derived here, not taken from k188. **No book
+   reproduces `release.toml`**; the four `01-orientation.md` pages that name the
+   file are reproducing crate-manifest comments that mention it. So no ledger, no
+   fragment and no page moved, and the corpus-freeze clause in the `Done when`
+   did not fire.
+
+5. **Verified green.** `bash scripts/check.sh` printed *check: all 8 principal
+   checks pass*, with all six books valid at `final=true` and 0 failing.

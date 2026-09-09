@@ -652,6 +652,47 @@ bare stem, for the reason a [[Review chain]]'s steps do.
 _Avoid_: reading `art` as a licence to add files beside the page. A stage works
 only in the medium the document's own contract admits.
 
+<a id="pass-series"></a>
+### Pass series / pass
+
+Work done **again**: a [[Node directory]] whose children are *pass* nodes, each
+holding that pass's step leaves, and whose `BRIEF.md` declares four things
+**before its first pass is cut** — the step sequence, a checkable exit
+condition, a cap as a number, and what happens at the cap (stop and say so).
+Every entry is the one node species and the one leaf species; **nothing in any
+name marks a series, a pass or a step**, so [[Pick]]'s existing pre-order walk
+visits passes in pass order and `find .grove` shows which ran and where each
+stopped with grove uninstalled. A pass is created the only way grove creates a
+node — the previous pass's last step `leaf-add`s it, and the session that picks
+it decomposes it — because a pass genuinely *is* one unit of work that proved
+bigger than one session. A one-step pass stays a leaf and gets no directory.
+`docs/specs/pass-series.md` is the design; `docs/adr/iteration-is-a-node-of-nodes.md`
+is the shape and the rejected marker.
+_Avoid_: calling it a **loop**. In this repository *loop* is the driver's own
+cycle — one fresh session per task, driven by bare `grove`, with its
+[[Loop control channel]] and its [[Driver lease]] — and a second reading of one
+word inside the ubiquitous language is a defect.
+_Avoid_: a marker token in a name — an infix, a `-loop` slug suffix, a second
+distinguished child. All three re-open a grammar that has one reading, and none
+of them has a reader: there is no render verb, [[Pick]] needs nothing, and a
+discriminator nothing parses is state (constraint 1).
+_Avoid_: a `pass-2` slug. The kind says which step and the **position** says
+which pass, both already parsed; a pass number in the slug is a second copy that
+disagrees with the first insert. Every pass node and step leaf under a series
+carries the series' bare stem, for the reason an [[Editorial chain]]'s stages do.
+_Avoid_: an exit rule read off **findings per pass**. `docs/review-yield.md`
+could not separate flat from falling across nine chains, and no review there came
+back empty — so *stop when a pass finds nothing* would have fired zero times in
+nine opportunities. An exit condition is a fact about the subject, never a trend
+in what passes report.
+_Avoid_: reading the cap as a bound on the **work**. It bounds the series. When
+this grove's four book nodes closed, 36 further leaves were allocated under their
+parent: exit relocated the correction traffic rather than ending it.
+_Avoid_: confusing a pass with a **correction run**. A pass is a repetition the
+series declared in advance; a correction run is one the finding session decided,
+it stays inside the pass node, and it is [[Editorial chain]]'s forward-growth
+rule rather than a new pass.
+
 <a id="hitl"></a>
 ### HITL / AFK
 

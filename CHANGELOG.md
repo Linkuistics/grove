@@ -51,6 +51,33 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`release.toml` / `docs/RELEASING.md`: the cut was refusing to run, and both
+  files explained why in terms that were false.** `cargo release <level>` had
+  been failing with `error: inconsistent `consolidate-commits` setting` before
+  it selected a package or wrote anything. cargo-release 1.1.2 forces
+  `consolidate-commits = true` on every package it resolves a `shared-version`
+  group for; the six crates the release ships all take `version.workspace =
+  true` and form one such group, so `release.toml`'s `consolidate-commits =
+  false` reached exactly one member — `crates/book-validation`, the authoring
+  tool behind `docs/walkthroughs/`, which carries a `version = "0.1.0"` of its
+  own — and the disagreement it created is what the cut refused over. The value
+  is now `true`, which is the only value the group can hold. The comment that
+  called `false` load-bearing for `{{version}}` rendering in the release commit
+  message was wrong twice over: it never reached the released crate, and the
+  message renders at `true`.
+
+  **`crates/book-validation` gained the `[package.metadata.release] release =
+  false` that `docs/RELEASING.md` said it did not need**, and that claim is
+  replaced by the measurement that falsified it. `publish = false` stops `cargo
+  publish` and nothing else, so without the line the crate is a released package
+  like any other: the cut bumps it `0.1.0` → `0.2.0` and runs
+  `pre-release-replacements` a second time against the one `CHANGELOG.md`,
+  writing a `## v0.2.0` heading into grove's changelog beside the real one — the
+  corruption `docs/RELEASING.md` already described for a *shipped* member
+  missing the line, reached by the one member the page exempted. `cargo release
+  config --manifest-path crates/<name>/Cargo.toml` prints the resolved value per
+  package, which is how the split was found rather than reasoned about.
+
 - **`leaf-decompose --help` and `root-init --help` spelled names grove would
   refuse, and the guard over filename examples could not see it.** Since
   `grammar-separator-k15` a leaf's kind and slug are separated by `--`, and a

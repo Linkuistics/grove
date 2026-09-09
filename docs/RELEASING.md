@@ -42,12 +42,29 @@ release version, one changelog, one tag
 *released*: it is the human's binary and the thing the tag names. The other five
 carry `[package.metadata.release] release = false`.
 
-The workspace has a seventh member the cut does not touch.
+The workspace has a seventh member the cut does not ship.
 `crates/book-validation` is the authoring tool behind `docs/walkthroughs/`, not
 part of the shipped system; it sets `publish = false` and carries a
-`version = "0.1.0"` of its own rather than inheriting, so it neither moves with a
-cut nor needs a `release = false` line. Read every claim on this page as a claim
-about the six, not about workspace membership.
+`version = "0.1.0"` of its own rather than inheriting. Read every claim on this
+page as a claim about the six, not about workspace membership.
+
+**It does need a `release = false` line, and until v20.2.0 it did not have one.**
+This page used to say the opposite — that carrying its own version was enough to
+keep it out of a cut — and that was measured false while cutting v20.2.0.
+`publish = false` stops `cargo publish` and nothing else: left without the line,
+the crate is a released package like any other, so a cut bumps it `0.1.0` →
+`0.2.0`, tags against it, and runs `pre-release-replacements` a second time
+against the one `CHANGELOG.md`, writing a `## v0.2.0` heading into grove's
+changelog beside the real one. Its own version being unrelated to grove's is what
+makes that heading absurd rather than merely duplicated.
+
+Its exclusion is also what makes the cut *run at all*. cargo-release forces
+`consolidate-commits = true` on every package in a `shared-version` group, which
+the six inheriting crates form and `book-validation` — carrying its own version —
+does not; a `release.toml` asking for `false` therefore reached only that one
+crate, and the cut refused with `error: inconsistent `consolidate-commits`
+setting` rather than releasing anything. `release.toml` records the measurement
+and the command that prints the resolved value per package.
 
 **That line is the answer to a question, not a deferral of one.** `release =
 false` means no tag, no changelog section and no publish of its own — it does

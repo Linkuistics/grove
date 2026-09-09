@@ -97,20 +97,29 @@ tag-message = "Release v{{version}}"
 # Single consistent commit message shape across releases.
 pre-release-commit-message = "chore: release v{{version}}"
 
-# Keep the release commit per-crate so `{{version}}` is unambiguous in the
-# commit message. Grove has one released crate — `crates/grove`, the human's
-# binary and the thing the tag names. Every other crate the release ships takes
-# `version.workspace = true`, so a cut rewrites one field and moves all six
-# versions together (`docs/specs/module-decomposition.md`, decision 1: one
-# workspace, one release version); what `release = false` buys those members is
-# no tag, no changelog section and no publish of their own, not a frozen version.
+# **This value is not a choice, and the setting is not what excludes a member
+# from the cut.** cargo-release 1.1.2 forces `consolidate-commits = true` on
+# every package it resolves a `shared-version` group for, and the six crates the
+# release ships all take `version.workspace = true` — so they are one such group
+# and this key cannot move them. Writing `false` here does not make the cut
+# per-crate; it makes the cut *refuse*, with `error: inconsistent
+# `consolidate-commits` setting`, because the one member outside the group
+# (`crates/book-validation`, which carries a `version` of its own) is then the
+# only package that honours it. `cargo release config --manifest-path
+# crates/<name>/Cargo.toml` prints the resolved value per package and shows the
+# split directly; that is how this was measured rather than reasoned.
 #
-# That line is settled rather than provisional, and removing it from a member is
-# not a way of reopening the question — it makes the cut release two packages,
-# run `pre-release-replacements` twice against the one `CHANGELOG.md`, and
-# attempt one tag name twice. Measured on cargo-release 1.1.2 in a throwaway
-# fixture; `docs/RELEASING.md`, *One release, six packages, one tag*, carries it.
-consolidate-commits = false
+# The earlier text here claimed `false` was what kept `{{version}}` rendering in
+# `pre-release-commit-message`. It never reached the released crate to do that,
+# and the message renders correctly at `true` — v20.2.0 was cut this way.
+#
+# What actually keeps a member out of the cut is `[package.metadata.release]
+# release = false` in its own manifest, which every member except `crates/grove`
+# now carries. `publish = false` is not a substitute: it stops `cargo publish`
+# and nothing else. With `book-validation` left without the line, a cut bumps it
+# `0.1.0` → `0.2.0` and runs `pre-release-replacements` twice against the one
+# `CHANGELOG.md`, writing a `## v0.2.0` heading into grove's changelog.
+consolidate-commits = true
 
 # Close `CHANGELOG.md`'s standing `## Unreleased` heading as part of the cut, and
 # re-seed an empty one. Sessions log their changes under that heading as they make

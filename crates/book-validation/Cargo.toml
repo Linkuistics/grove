@@ -5,6 +5,9 @@ edition = "2021"
 rust-version = "1.85"
 publish = false
 
+[package.metadata.release]
+release = false
+
 [lints]
 workspace = true
 

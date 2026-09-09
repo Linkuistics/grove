@@ -328,8 +328,9 @@ carries the workspace root and the root of the workspace that holds the
 repository. *The gate* owns it.
 
 `Refusal` is the one error type. It is an opaque value carrying what is wrong,
-where, and the jj command that fixes it, with no matchable variants — every case
-is a stop, so there is nothing for a consumer to branch on. *Refusal* owns it.
+where, and — where it has one — a remedy that is true whoever is calling, with
+no matchable variants: every case is a stop, so there is nothing for a consumer
+to branch on. *Refusal* owns it.
 
 `Commit` is what a taken commit returns. It carries a change id rather than a
 commit id, because a change id still names the work after a rewrite. *Scope and
@@ -467,7 +468,7 @@ each chapter opens on the refusal in its row, and the last chapter assembles the
 | 3 | Nothing ambient chooses the repository | `current_dir`, with the selectors removed | The subprocess seam |
 | 4 | No vocabulary for its consumer | the consumer, which supplies the namespace | The namespace it will not name |
 | 5 | No transactions, and no history added by a read | jj's snapshot and its operation log | Scope and commit |
-| 6 | No remedy of its own to offer | jj, whose repair the refusal quotes | Refusal |
+| 6 | No remedy of its own to offer | sometimes jj, elsewhere the filesystem, the environment or this crate's own rules — never the caller | Refusal |
 
 Refusal 5 has an exception, and it is the one place in the crate where a claim is
 supported by a measurement rather than by an argument. `is_tracked` is the single

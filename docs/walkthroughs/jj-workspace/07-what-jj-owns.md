@@ -26,7 +26,7 @@ hole.
 | 3 | Ambient repository selection | The child process's working directory, with jj's four Git selectors removed | One property proved once at one seam, instead of a hygiene checklist repeated at every call site |
 | 4 | A vocabulary for its consumer | The consumer, which passes its namespace in as an ordinary string | One crate that serves any consumer, and a boundary the reader can watch `"grove"` cross rather than being told about |
 | 5 | Transactions, and history added by a read | jj's snapshot and its operation log | 155 lines where six mechanisms would have been, and a change id that still names the work after a rewrite |
-| 6 | Any remedy of its own | jj, whose repair the message quotes and does not run | Messages that are true whoever is calling, because none of them is a statement about one consumer's policy |
+| 6 | Any remedy of its own | whoever the repair belongs to — jj in two of the eleven messages, and the filesystem, the environment or this crate's own vocabulary in seven more, and no one in the last two | Messages that are true whoever is calling, because none of them is a statement about one consumer's policy |
 
 Two things about the table are worth saying before the test is applied to it.
 
@@ -116,7 +116,7 @@ asserted.
 | 3 | The repository is chosen by the directory, not by what the calling process inherited | jj's documented selection rule, with four Git variables removed | Yes, *given* the four names are the four that matter | Partly — the mechanism is proved by a test; the completeness of the list is not | Justified, on the same unchecked list as row 4 |
 | 4 | The reserved directory is not one Jujutsu owns | A three-element array in this crate | Yes if the array is right | **No** — the array is a copy of jj's contents, and on jj 0.44.0 it was one name short of a colocated workspace's until a human noticed | **Abdication, by the second clause** |
 | 5 | The work is durably recorded, and recoverable if the wrong thing lands | jj's snapshot and operation log | Yes, and it is the one row settled by a measurement rather than an argument | Yes for the delegation; **no** at the interface into it | Justified, with a hole at the call |
-| 6 | A stop that says what is wrong and names a repair that exists | jj's `undo`, `op log` and `git init` commands | Yes — the named repairs are jj's, and they do repair | Weakly: the remedies are static strings, and one URL in them has already moved | Justified, and the weakest check of the five |
+| 6 | A stop that says what is wrong and names a repair that exists | jj's `undo`, `op log` and `git init` commands in two of the eleven messages, and elsewhere the filesystem, the environment, this crate's own rules, or nothing at all | Yes where a repair is named — the four jj commands are jj's and they do repair — but narrower than the row reads, and row 6 below states how much | Weakly: the remedies are static strings, and one URL in them has already moved | Justified, and the weakest check of the five |
 
 ### 1 · Every dependency
 

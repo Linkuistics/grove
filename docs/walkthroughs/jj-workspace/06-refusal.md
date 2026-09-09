@@ -13,8 +13,9 @@ implementations — the largest single ownership block in the book, and the last
 one it has.
 
 The sixth refusal is what the file declines to say. **The crate has no consumer
-to speak for**, so it never tells a caller what to do about a stop; it names what
-jj offers and stops there. The distinction is checkable on any line of the file.
+to speak for**, so it never tells a caller what to do about a stop; it names
+whatever remedy exists and stops there. The distinction is checkable on any
+line of the file.
 *Make the tree jj-enabled and rerun: `jj git init --colocate`* is a statement
 about jj's offer, and it is true whoever is calling. *Abort the session and
 report to the operator* would be a statement about one consumer's policy, and the
@@ -40,11 +41,13 @@ not track.
 
 That is a narrower claim than *the crate is polite about errors*, and it is the
 one this chapter has to defend, because the file does contain remedies. Two of
-them are two-line command listings, and one of those two is the most-read output
-this crate produces. The defence is that each remedy is a jj command whose effect
-is the same for every caller, offered rather than performed: **the crate runs no
-recovery of its own**, and the one refusal that could plausibly have run one says
-so in its own last line.
+them are two-line command listings, and one of those two is the most-read
+output this crate produces. The defence is that a remedy is offered rather than
+performed, and that no remedy's correctness depends on who is calling: **the
+crate runs no recovery of its own**, and the one refusal that could plausibly
+have run one says so in its own last line. The two command listings are jj's,
+and their effect is the same for every caller; the seven remedies that are not
+commands are held to the same test and meet it.
 
 All of that user-facing text sits inside string literals in one place: the
 `impl fmt::Display`, eleven `write!` calls over a hundred and one lines, which is
@@ -341,11 +344,29 @@ taking this crate was meant to stop.
 ````
 <!-- /fragment -->
 
-The last paragraph is the boundary, stated as a limit rather than as a courtesy:
-*The remedies named here are jj's.* The sentence after it is the one that makes
-the limit checkable — the crate has no consumer to speak for, so it never says
-what the caller should do; it says what jj offers. Every message later in the file
-can be held against that sentence, and this chapter holds all eleven against it.
+The last paragraph is the boundary, stated as a limit rather than as a courtesy
+— and it is the one sentence in the file this book does not take at its word.
+*The remedies named here are jj's* is true of two of the eleven kinds and false
+of seven more, and describes nothing at all in the last two, `CommandFailed`
+and `OutputNotText`, which name no remedy to be jj's or anyone's. The
+overstatement is already there in the second paragraph's *the command that
+fixes it*, which those same two never reach. The case analysis below shows that
+one arm at a time; it is not a reading this chapter imposes on the file from
+outside.
+
+What survives measurement is the sentence between them: *this crate has no
+consumer to speak for, so it never says what the caller should do about the
+refusal*. That is the negative half, and only the negative half — the tail of
+the very same sentence, *it says what jj offers*, is the first overclaim
+restated and fares no better. So every message later in the file is held
+against that negative half, and this chapter holds all eleven against it.
+
+**The comment stays as the file has it, and the correction is stated here
+instead.** A page that quietly improved its subject would be unusable beside
+the source it reproduces, and a reader with the file open would have no way to
+tell which sentences the book had edited. The disagreement belongs in the
+book's own voice, at the one place a reader meets the sentence — which is this
+one.
 
 The type itself is sixteen lines: thirteen of doc comment arguing for the two
 that declare it — `#[derive(Debug)]` and `pub struct Refusal(Kind);` — and a
@@ -1201,10 +1222,11 @@ because its refusals distinguish cases a caller could act on rather than stops.
 
 What a consumer gets instead was measured rather than described. `Display` gives
 the message, and the messages are structured the same way throughout: what is
-wrong, where, a blank line, and what jj offers — with the remedy paragraph absent
-in exactly the two arms that have nothing to add, `CommandFailed`, whose remedy is
-jj's own stderr, and `OutputNotText`, which has none. `Error::source` gives a chain that is
-one link deep at its deepest, and the worked example walked it to `None`. The two
+wrong, where, a blank line, and a remedy that is true whoever is calling — with
+the remedy paragraph absent in exactly the two arms that have nothing to add,
+`CommandFailed`, whose remedy is jj's own stderr, and `OutputNotText`, which
+has none. `Error::source` gives a chain that is one link deep at its deepest,
+and the worked example walked it to `None`. The two
 do not overlap: a message states its refusal's own layer and never restates the
 cause `source()` carries, so the four kinds that have one state it once, in the
 chain. What that costs is a `{}`-only consumer's diagnosis, and it is affordable

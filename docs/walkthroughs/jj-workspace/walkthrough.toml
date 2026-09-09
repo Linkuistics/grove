@@ -180,7 +180,7 @@ statement = "A resolved workspace is a value whose existence is the proof that t
 symbols   = "`Refusal`"
 first-use = "01-orientation.md#public-surface"
 owner     = "no-remedy-of-its-own"
-statement = "The one error type: an opaque value carrying what is wrong, where, and the jj command that fixes it, with no matchable variants because every case is a stop."
+statement = "The one error type: an opaque value carrying what is wrong, where, and — where it has one — a remedy that is true whoever is calling, with no matchable variants because every case is a stop."
 
 [[early-use]]
 symbols   = "`control_dir`"

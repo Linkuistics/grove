@@ -60,6 +60,15 @@ it"; `Cargo.toml` carries a fourth ("**No dependencies, and that is the
 deliverable rather than an accident**"); `jj.rs` carries two more; and
 `refusal.rs` carries the last ("The remedies named here are **jj's**").
 
+**Row 6 does not repeat that comment's wording, and the book does not take it
+at its word.** The module comment overstates its own file: only two of
+`refusal.rs`'s eleven kinds name a jj command, so *the remedies are jj's* is
+where the sixth thesis was recovered from rather than what it claims. What
+holds across all eleven is the negative — no remedy it names is a statement
+about one consumer's policy — and that is what row 6, the early-use statement for
+`Refusal` below, and chapter 6 all say
+(`refusal-remedies-are-jjs-overclaim-k202`).
+
 | # | The refusal | Who owns it instead | Chapter |
 |---:|---|---|---|
 | 1 | No dependencies | `std` spawns a process and reads a directory | 1 |
@@ -67,7 +76,7 @@ deliverable rather than an accident**"); `jj.rs` carries two more; and
 | 3 | Nothing ambient chooses the repository | `current_dir`, with the selectors removed | 3 |
 | 4 | No vocabulary for its consumer | the consumer, which supplies the namespace | 4 |
 | 5 | No transactions, and no history added by a read | jj's snapshot and its operation log | 5 |
-| 6 | No remedy of its own to offer | jj, whose repair the refusal quotes | 6 |
+| 6 | No remedy of its own to offer | sometimes jj, elsewhere the filesystem, the environment or this crate's own rules — never the caller | 6 |
 
 [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md) argues that `jj-workspace` is
 deliberately **not** a bounded context, because every term in it is Jujutsu's and
@@ -231,11 +240,12 @@ from the commit itself.
 ### 6 · Refusal — it speaks for jj, and never for you
 
 Thesis: **the crate has no consumer to speak for**, so it never says what the
-caller should do; it says what jj offers. Own `refusal.rs` entire. Explain why
-the type is opaque — every case is a stop, so there is nothing to branch on —
-and what `Display` and `Error::source` give a consumer in place of matchable
-variants. Explain why the error is the crate's own type and leaks no error crate,
-closing the loop with chapter 1's empty dependency table.
+caller should do; no remedy it names is a statement about one consumer's
+policy. Own `refusal.rs` entire. Explain why the type is opaque — every case is
+a stop, so there is nothing to branch on — and what `Display` and
+`Error::source` give a consumer in place of matchable variants. Explain why the
+error is the crate's own type and leaks no error crate, closing the loop with
+chapter 1's empty dependency table.
 
 Walk the ten kinds at the sites that create them rather than as a catalogue, and
 give the two that carry remedies their full weight: the gate's refusal, whose
@@ -412,7 +422,7 @@ ledger. Authors add a row before introducing any additional later-owned name.
 | Symbol family | First use | Owner | Minimum local statement |
 |---|---|---|---|
 | `Workspace` | `01-orientation.md#public-surface` | `one-lane` | A resolved workspace is a value whose existence is the proof that the precondition passed; it carries the workspace root and the root of the workspace that holds the repository. |
-| `Refusal` | `01-orientation.md#public-surface` | `no-remedy-of-its-own` | The one error type: an opaque value carrying what is wrong, where, and the jj command that fixes it, with no matchable variants because every case is a stop. |
+| `Refusal` | `01-orientation.md#public-surface` | `no-remedy-of-its-own` | The one error type: an opaque value carrying what is wrong, where, and — where it has one — a remedy that is true whoever is calling, with no matchable variants because every case is a stop. |
 | `Commit` | `01-orientation.md#commit-tour` | `no-transactions` | What a taken commit returns: a change id rather than a commit id, because a change id still names the work after a rewrite. |
 | `control_dir`, *namespace* | `01-orientation.md#commit-tour` | `no-consumer-vocabulary` | A namespace is one plain directory name the consumer supplies; the directory it names is inside the workspace, untracked, never shared, and created if absent. |
 | `is_tracked` | `01-orientation.md#the-six-refusals` | `no-transactions` | The one probe whose answer depends on the working copy, and so the one that lets jj snapshot before answering. |

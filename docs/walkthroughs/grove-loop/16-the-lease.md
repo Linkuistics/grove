@@ -1963,7 +1963,7 @@ force-clears the variable, `ambient_signal_path` can only ever return `None`
 under the test suite, and every arm below it is therefore unreachable *under the
 harness* rather than untested. That is a guard, not a gap, and chapter 15
 established it by measurement over the identical pattern in `verbs.rs`: deleting
-the corresponding fallback changed nothing — 558 tests, 547 passed, 11 failed,
+the corresponding fallback changed nothing — 560 tests, 549 passed, 11 failed,
 identical to the control — while deleting the emptiness filter turned exactly
 three tests red at the same total, which is what makes the first zero a reading
 rather than a blind instrument.

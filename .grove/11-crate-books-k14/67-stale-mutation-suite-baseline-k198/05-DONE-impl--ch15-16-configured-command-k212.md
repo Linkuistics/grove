@@ -108,3 +108,98 @@ why cargo force-clears it. The scratch copy carries `.cargo/`, so the guard
 travels with it; the shell should not carry the value in.
 
 ## Decisions (running log)
+
+**All three cited lines still name their cited arms.** Located before anything
+was run, as the node brief requires: `crates/grove-loop/src/verbs.rs:336` is the
+`or_else` fallback, `:338` the `.filter(|value| !value.is_empty())`, and
+`crates/grove-loop/src/complete.rs:81` the `.trim()` inside `interpret`. Three
+arms, three lines, no drift — so a count that moves is the harness or a new test.
+
+**The control reproduces exactly, for the fifth time.** The node brief's copy
+recipe, then `cargo build -p grove --bins`, then `cargo test --no-fail-fast -p
+grove-loop -p grove-llm` on a shared `CARGO_TARGET_DIR`, with `GROVE_SIGNAL_FILE`
+unset in the measuring shell: **560 tests, 549 passed, 11 failed**, the eleven
+matching the brief's set name for name. The run's own stderr splits the cause
+exactly as the task file predicted — **ten** on `Refusal(NotAWorkspace { … })`
+and `the_namespace_is_the_shipped_plugin_entrys_declared_name` on the marketplace
+manifest being `NotFound`. The 560 test lines carry **559** distinct bare names,
+reproducing `ch13-outcomes-k210`'s measurement.
+
+**Binary qualification was set up before the first reading.** Every mutant is
+`comm -13 control mutant` over failure names of the form `<test target>@<test
+name>`. It changed no reading here — the one duplicated bare name in the suite,
+`finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf`, appears in no
+set — exactly as the task file predicted; the harness cost nothing and a merged
+name would have read like a moved cell.
+
+**All three mutants pre-checked with `cargo check -p grove-loop --tests` before
+the study, all three compiled clean, and all three runs reported 560.** The
+relink step was taken after each edit, per the task file; no newly-failing set
+named a `driver_lease.rs` or `prompt.rs` test, so no re-run was owed, and `ps`
+showed no orphaned `configured-command.sh` children.
+
+| mutant | site | page says | re-measured |
+|---|---|---|---|
+| `or_else` fallback deleted | `verbs.rs:336` | **0** | **nothing** |
+| emptiness filter deleted | `verbs.rs:338` | 3 | **same three** |
+| `.trim()` removed | `complete.rs:81` | **0** | **nothing** |
+
+**All three readings reproduce; only the control's numbers moved.** The
+positive control reddened its three named tests member for member —
+`an_empty_signal_environment_is_no_loop_context` and
+`no_channel_at_all_is_answered_rather_than_refused` (`grove-llm/tests/complete.rs`)
+and `the_channel_can_be_asked_for_before_it_is_written`
+(`grove-loop/tests/verbs.rs`) — and nothing else, at the same 560 total. So the
+two zeros are readings rather than a blind instrument, on this copy and not
+merely on the one the pages were written against.
+
+**Every zero's argument still describes the code.** `.cargo/config.toml:33`
+carries `GROVE_SIGNAL_FILE = { value = "", force = true }`, so the `or_else` arm
+can only yield `None` under cargo. `Channel::read`
+(`crates/keyed-launch/src/channel.rs:116`) still does `content.trim_end()`, so a
+token reaches `interpret` with no trailing whitespace. And nothing in the
+workspace writes a token with **leading** whitespace: `keyed_launch::signal`
+(`channel.rs:213`) writes `format!("{token}\n")`, and every fixture that writes
+one by hand uses a bare `printf 'done\n'` or `printf 'relaunch\n'`. Both zeros
+are guards, not gaps, and both arguments hold unamended.
+
+**Four citations repaired, and one of them carried a second defect.** All four
+now state **560 tests, 549 passed** — `15-the-verbs.md` at 805, 822 and 1221, and
+`16-the-lease.md` at 1966. Line 805 also gave *one* cause for eleven failures
+(*a copy that is not a jj repository*); it now names both, in chapter 13's terms
+— ten on the jj cause and the eleventh on the missing
+`.claude-plugin/marketplace.json` — which is the last of the eight chapters to
+carry the split (`joint-justifications-split`).
+
+**No `all N green` shape exists on either page.** The task file's *Done when*
+anticipated two; searched for and absent — that shape is chapters 12–14's, and
+these two pages state the control as a triple every time. Nothing to renumber
+against the eleven, and nothing to reword.
+
+**Chapter 16 needed only its number.** Its line 1966 restates chapter 15's two
+readings as *the corresponding fallback changed nothing … while deleting the
+emptiness filter turned exactly three tests red at the same total*. Both the
+shape and the three survive the re-derivation unchanged, and the sentence
+attributes no cause to the eleven, so there was no single-cause claim to split
+here. Only the triple moved.
+
+**Two adjacent count claims checked and both hold**
+(`uniqueness-and-count-claims-need-enumeration`). `15-the-verbs.md`'s *Seven
+tests in `crates/grove-llm/tests/complete.rs` pin this file* — the file carries
+exactly seven `#[test]` attributes. `16-the-lease.md`'s *exactly one `std::env`
+expression, at line 731 … the three others at 854, 855 and 870 are inside the
+test module* — `driver_lease.rs` carries four `std::env` expressions at exactly
+those lines. Neither rests on a `558`, and neither needed repair.
+
+**No source defect surfaced, so no defect leaf is owed**, and the corpus freeze
+held: no file under `crates/` was changed in this leaf.
+
+**Both gates are green.** `book-check --repo . --book docs/walkthroughs/grove-loop
+--final --check all` reports *valid: 13 files, 10557 resolved lines, 0 deferred
+lines, final=true*, and `bash scripts/check.sh` exits 0 with *all 8 principal
+checks pass* over six books, 0 failing — no worse than before, since this leaf
+changed no source and no fragment range.
+
+**Chapter 17's leaf is cut** — `--kind impl`, slug `ch17-the-epoch`, per the node
+brief's decomposition — and its Context carries what this study learned that it
+cannot re-derive cheaply.

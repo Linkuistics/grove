@@ -802,9 +802,11 @@ the filter rather than of the environment.
 **And the `or_else` itself is observed by nothing, for a reason worth stating.**
 Replacing the whole body with `signal_file.map(Path::to_path_buf)` — deleting the
 environment fallback outright — leaves the suite exactly as an unmutated control
-run of the same workspace copy found it: 558 tests, 547 passed, 11 failed, the
-eleven being `crates/grove-loop/tests/prompt.rs` in a copy that is not a jj
-repository. Not one test newly fails. That zero is not a gap in the suite but a
+run of the same workspace copy found it: 560 tests, 549 passed, 11 failed, the
+eleven all in `crates/grove-loop/tests/prompt.rs` and failing for two causes
+rather than one — ten because the copy is not a jj repository, and
+`the_namespace_is_the_shipped_plugin_entrys_declared_name` because it carries no
+`.claude-plugin/marketplace.json`. Not one test newly fails. That zero is not a gap in the suite but a
 consequence of the guard above it: cargo force-clears the variable, so under
 `cargo test` the `or_else` branch can only ever yield `None`, and no in-process
 test can reach the arm without mutating an environment the crate is careful never
@@ -817,7 +819,7 @@ difference, so it was checked against a mutation that should be observed:
 deleting the emptiness filter instead turns exactly three tests red —
 `an_empty_signal_environment_is_no_loop_context`,
 `no_channel_at_all_is_answered_rather_than_refused` and
-`the_channel_can_be_asked_for_before_it_is_written` — at the same 558-test total,
+`the_channel_can_be_asked_for_before_it_is_written` — at the same 560-test total,
 so nothing failed to compile.
 
 <!-- fragment «verbs-signalled» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="342-351" parent="the-twelve-verbs" -->
@@ -1216,7 +1218,7 @@ take the two arms above; `relaunch_signal_is_read_back_as_relaunch` and
 whitespace is gone; the only thing the trim still does is tolerate *leading*
 whitespace, and nothing in this workspace writes a token with any — `signal`
 writes a bare literal. Removing it and re-running the same suite gives the
-control's numbers unchanged: 558 tests, 547 passed, the same 11 `prompt.rs`
+control's numbers unchanged: 560 tests, 549 passed, the same 11 `prompt.rs`
 failures, nothing newly red. It is defence against a producer that does not exist,
 which is a fair thing for a wire format to carry and not a fair thing to call
 tested.

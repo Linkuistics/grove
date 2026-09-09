@@ -1744,7 +1744,7 @@ concerns has now been read against the tests that establish it.
 Chapter 10 leaves the reading surface entirely. `task_grow.rs` is 518 lines of
 growing the tree — `leaf-add` and `leaf-insert` — and it is the one chapter in
 this book whose proof lies wholly outside its own pages: `src/task_grow/tests.rs`
-is the book's single declared corpus exclusion, 1,680 lines of evidence cited by
+is the book's single declared corpus exclusion, 1,784 lines of evidence cited by
 name and never reproduced. Two of this chapter's own refusals are pinned there,
 which is a preview of the problem chapter 10 has to state rather than solve.
 

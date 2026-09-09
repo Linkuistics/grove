@@ -26,7 +26,7 @@ include = [
 [[corpus.exclude]]
 path   = "crates/grove-loop/src/task_grow/tests.rs"
 class  = "inline-test-module"
-reason = "inline test module for task_grow: 1,680 lines of evidence, cited by name in chapter 10 and not reproduced"
+reason = "inline test module for task_grow: 1,784 lines of evidence, cited by name in chapter 10 and not reproduced"
 
 [[page]]
 file  = "README.md"

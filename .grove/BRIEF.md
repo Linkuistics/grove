@@ -232,6 +232,24 @@ Three arms, ordered so the documentation is never blocked on unbuilt machinery.
   `tree_lifecycle.rs`. Widening the resolver to enumerate architecture anchors
   and resolve them from both surfaces is on the critical path of the
   relocation, and `walkthroughs-k3` owns placing it there.
+- **The mutation harness over `grove-loop`, promoted from `crate-books-k14` at
+  its close** (it reached that node from `stale-mutation-suite-baseline-k198`).
+  Any leaf that takes or re-reads a mutation measurement over `grove-loop`
+  inherits it, because getting it wrong reads as success. The control is **560
+  tests, 549 passed, 11 failed**, reproduced set for set at six children of that
+  node. Copy `crates docs testing plugins scripts Cargo.toml Cargo.lock .cargo
+  CHANGELOG.md CONTEXT.md CONTEXT-MAP.md README.md LICENSE release.toml` to a
+  scratch directory plus `CLAUDE.md` and a plain copy of it as `AGENTS.md` —
+  without those two the control is twelve, not eleven. Then `cargo build -p grove
+  --bins`, then `cargo test --no-fail-fast -p grove-loop -p grove-llm`, one
+  `CARGO_TARGET_DIR` across control and arms, `GROVE_SIGNAL_FILE` unset. Four
+  things each turn a run into a lie: **the relink must follow the edit**, or every
+  out-of-process observer runs an unmutated `grove`; **match the set, not the
+  count**; **confirm the run reported 560** before reading it, since a mutant that
+  fails to compile prints no per-test lines and reads exactly like a clean result;
+  and **a `bail!` is replaced whole** with a message-free `panic!`, because the
+  out-of-process observers assert on stderr substrings. The books' own procedure
+  paragraphs (`grove-loop` chapters 11–14 and 17) are the published form.
 
 ## On the horizon
 
@@ -300,3 +318,17 @@ survey commissioned against a hypothesis tends to find it, which is why
 Evidence that a single notation has worked is a result this grove wants, not a
 result it is set up to miss. Nothing downstream of P4 may cite the two-layer
 form as settled before k6 reports.
+
+**A test may not assert that a lock is free.** `flock` attaches to the open file
+description and `fork` duplicates every one, so any concurrent `Command::spawn` —
+the `jj` these fixtures run constantly — copies a live guard into a child that
+holds the lock until `exec` closes it under `O_CLOEXEC`. A probe therefore sees a
+holder that no longer exists and that nothing can point at. Measured at
+`flaky-surface-snapshot-lock-test-k219`: 0 spurious `EWOULDBLOCK` in 20,000
+probes with nothing spawning, 189 with four spawning threads, 445 with eight —
+which had been showing as one unexplained red in roughly thirty full runs of the
+`grove-loop` binary. Ask instead how many descriptors *this process* holds on the
+directory, which a forked child's copy cannot perturb and which is the stronger
+claim, and give the scan a control that has been watched to fail. The reasoning
+lives beside `descriptors_held_on` in `crates/grove-loop/src/task_grow/tests.rs`,
+and chapter 17 of the `grove-loop` book carries it for readers.

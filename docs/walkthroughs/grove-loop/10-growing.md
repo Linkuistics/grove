@@ -66,7 +66,7 @@ and that grove refused to report success without looking.
 
 **This chapter's proof lies entirely outside its own pages, and it is the only
 chapter in this book of which that is true.** The file
-`crates/grove-loop/src/task_grow/tests.rs` is 1,680 lines and 62 tests, and it
+`crates/grove-loop/src/task_grow/tests.rs` is 1,784 lines and 62 tests, and it
 is the book's single declared corpus exclusion: its tests are cited here by name
 and are never reproduced. Every other chapter that makes a claim about what a
 test establishes can put the test on the page beside it. This one cannot, and
@@ -1277,7 +1277,7 @@ mod tests;
 <a id="proof-outside-these-pages"></a>
 ## The proof is outside these pages, and what that costs
 
-Those two lines are in the corpus; the 1,680 they name are not.
+Those two lines are in the corpus; the 1,784 they name are not.
 `src/task_grow/tests.rs` is the book's single declared corpus exclusion — the
 one row `docs/specs/walkthrough-books.md`'s exception inventory carries for this
 book — so every other chapter's evidence sits on its own page and this chapter's

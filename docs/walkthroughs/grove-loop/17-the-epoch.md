@@ -1047,9 +1047,11 @@ came back newly failing under four of the eleven mutant runs behind this table �
 three distinct mutations, two of which had left it green on their own first run.
 A single run would have credited it to whichever rung it happened to land on.
 
-Three things say it observes nothing. It fails on its own last assertion,
-`exclusive_lock_is_free(worktree.path())`, which is about its own worktree and
-not about a refusal. It cannot have executed a mutated line at all:
+Three things say it observes nothing. It fails on its own last assertion —
+`exclusive_lock_is_free(worktree.path())` when this table was taken, and a
+descriptor count since, for the reason the end of this section gives — which is
+about its own worktree and not about a refusal. It cannot have executed a
+mutated line at all:
 `admit_session` has exactly one production caller, and that caller takes the
 ambient path `cargo` force-clears to empty, so no in-process test outside this
 module's own block reaches any rung. And run alone under the mutant it passes,
@@ -1061,8 +1063,20 @@ every mutation that has broken it also turned a test in the same binary red. The
 obvious candidate is a sibling's re-exec'd subprocess outliving the probe — the
 fork sensitivity two of the eighteen tests are already run in a subprocess to
 contain — but one of the three broke it in a run that emitted no such block at
-all, so the mechanism is not settled here. What is settled is that it observes
-no rung.
+all, so the mechanism was not settled here. What is settled here is that it
+observes no rung.
+
+**The mechanism has been settled since, and the run that emitted no block is
+what names it.** `flock` attaches to the open file description and `fork`
+duplicates every one of them, so it is not a re-exec'd grove that matters but
+*any* spawn — the `jj` these fixtures run constantly — copying the guard into a
+child that holds the lock until `exec` closes it under `O_CLOEXEC`. Against a
+private directory locked and released in a loop, an exclusive probe came back
+`EWOULDBLOCK` 0 times in 20,000 with nothing else spawning, 189 with four
+spawning threads and 445 with eight. Both assertions of this shape ask
+`descriptors_held_on` how many descriptors *this process* holds instead, which a
+forked child's copy cannot perturb and which is the stronger question anyway,
+since a lock needs a descriptor to live on.
 
 The general form is worth keeping. A cross-test flake reads exactly like a newly
 attributed observer, and a second full run is the expensive way to tell them

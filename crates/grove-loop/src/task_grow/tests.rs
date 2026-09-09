@@ -1441,8 +1441,24 @@ fn surface_scans_one_snapshot_under_a_shared_lock() {
     // caller printing these hits into a sink that has stopped draining blocks
     // its own process and no other. Under the exclusive printing version that
     // block held the tree, and every grove on the worktree wedged behind it.
-    assert!(
-        exclusive_lock_is_free(worktree),
+    //
+    // Asked of this process's descriptors rather than of the lock, for the
+    // reason `descriptors_held_on` carries.
+    //
+    // The control is its own, and it is here rather than borrowed from the
+    // probe three assertions up: that probe is a different instrument, and a
+    // scan bounded too low reads as a clean tree on every directory there is.
+    // A descriptor this test can point at must be counted first.
+    let sentinel = std::fs::File::open(worktree).unwrap();
+    assert_eq!(
+        descriptors_held_on(worktree),
+        1,
+        "the scan must see a descriptor this test is holding open"
+    );
+    drop(sentinel);
+    assert_eq!(
+        descriptors_held_on(worktree),
+        0,
         "nothing is held once the scan returns, so a stalled sink wedges nobody"
     );
 }
@@ -1453,11 +1469,21 @@ fn surface_scans_one_snapshot_under_a_shared_lock() {
 /// Two descriptions on one directory do not share an `flock` even within one
 /// process, which is what makes this a usable probe from inside a test that
 /// holds a guard of its own.
+///
+/// **Sound in the negative direction only**, which is the only direction it is
+/// used in — see [`descriptors_held_on`] for the direction that was removed and
+/// why.
 fn exclusive_lock_is_free(directory: &Path) -> bool {
     probe(directory, libc::LOCK_EX)
 }
 
 /// The same for a shared lock: true while nothing holds the tree exclusively.
+///
+/// **Sound in both directions here**, unlike its exclusive twin, and it is worth
+/// saying why rather than leaving the asymmetry to be discovered: it can only
+/// come back false if something holds the worktree *exclusively*, and no test
+/// that probes it ever takes an exclusive lock on its own worktree — so there is
+/// no exclusive guard for a forked child to inherit a copy of.
 fn shared_lock_is_free(directory: &Path) -> bool {
     probe(directory, libc::LOCK_SH)
 }
@@ -1471,6 +1497,68 @@ fn probe(directory: &Path, mode: i32) -> bool {
     }
     taken
 }
+
+/// How many descriptors **this process** holds on `directory`.
+///
+/// **Why the lock probe cannot answer *nobody holds it*, measured at
+/// `flaky-surface-snapshot-lock-test-k219`.** `flock` attaches to the open file
+/// description, and `fork` duplicates every description a process has open. So
+/// a sibling test that spawns `jj` — most of the fixtures in this module do —
+/// copies *this* test's tree guard into the child, and the child keeps the lock
+/// alive until `exec` closes it under `O_CLOEXEC`. During that window the guard
+/// this test dropped is still held, by nothing this test can see: `lsof` run
+/// milliseconds later finds no holder at all.
+///
+/// It is rare and it is real. With a private directory locked and immediately
+/// released in a loop, a `LOCK_EX | LOCK_NB` probe came back `EWOULDBLOCK` 0
+/// times in 20,000 with no other thread spawning, 189 times with four spawning
+/// threads and 445 with eight. In the suite it showed as one red in roughly
+/// thirty full runs of this binary, always at an assertion in this direction.
+///
+/// So *the lock is free* is not a claim a process can make about an instant,
+/// while *this process holds no descriptor on the directory* is — a forked
+/// child's copy is invisible here, which is exactly the confounder. It is also
+/// the stronger claim, since a lock needs a descriptor to live on.
+///
+/// **The scan is bounded, and the bound is controlled rather than trusted.**
+/// Every caller asserts a non-zero count on the same directory earlier in the
+/// same test, so a descriptor numbered past the bound turns the test red
+/// instead of reading as a clean tree.
+// The two casts below are redundant on exactly one of the two platforms this
+// workspace builds for and load-bearing on the other: `dev_t` is `i32` on macOS
+// and `u64` on Linux, `ino_t` is `u64` on both. Writing them out keeps one
+// spelling that compiles either way.
+#[allow(clippy::unnecessary_cast)]
+fn descriptors_held_on(directory: &Path) -> usize {
+    use std::os::unix::fs::MetadataExt;
+
+    let Ok(target) = std::fs::metadata(directory) else {
+        return 0;
+    };
+    (0..DESCRIPTOR_SCAN_BOUND)
+        .filter(|descriptor| {
+            let mut status = std::mem::MaybeUninit::<libc::stat>::uninit();
+            // SAFETY: `fstat` writes only through the pointer it is given, and
+            // reports `EBADF` for a descriptor this process does not hold
+            // rather than touching anything.
+            if unsafe { libc::fstat(*descriptor, status.as_mut_ptr()) } != 0 {
+                return false;
+            }
+            let status = unsafe { status.assume_init() };
+            status.st_dev as u64 == target.dev() && status.st_ino as u64 == target.ino()
+        })
+        .count()
+}
+
+/// The highest descriptor number [`descriptors_held_on`] looks at.
+///
+/// A constant rather than `getdtablesize`, which on this workspace's
+/// development machine reports the soft `RLIMIT_NOFILE` — unlimited — and would
+/// turn each scan into millions of `fstat` calls. A test binary running
+/// thirty-two threads over `TempDir` fixtures stays three orders of magnitude
+/// below this; the per-caller control is what makes the number safe rather than
+/// the argument that it is generous.
+const DESCRIPTOR_SCAN_BOUND: i32 = 4096;
 
 // ---- the reachability table, transcribed ------------------------------------
 //
@@ -1673,8 +1761,24 @@ fn leaf_insert_lints_cross_references_under_a_shared_opening_of_its_own() {
         2,
         "the insert, then the lint's own opening over the tree it left"
     );
-    assert!(
-        exclusive_lock_is_free(worktree.path()),
+    // The control for the scan below, and it is here rather than implied: a
+    // descriptor this test can point at must be counted, or a zero further down
+    // says nothing about the tree.
+    let sentinel = std::fs::File::open(worktree.path()).unwrap();
+    assert_eq!(
+        descriptors_held_on(worktree.path()),
+        1,
+        "the scan must see a descriptor this test is holding open"
+    );
+    drop(sentinel);
+
+    // Asked of this process's descriptors and not of the lock: a sibling test
+    // that spawns `jj` while this one holds the tree leaves the guard alive in
+    // a forked child until it execs, so *the lock is free* is not a claim that
+    // survives a loaded suite. [`descriptors_held_on`] carries the measurement.
+    assert_eq!(
+        descriptors_held_on(worktree.path()),
+        0,
         "and that opening is gone by the time the hits are in hand"
     );
 }

@@ -145,7 +145,7 @@ reaches `libc` in two further places, and counting them would change the answer
 twice over: `driver_lease`'s own test module, which chapter 17 owns, reaches it
 on six more lines — four locking, two asserting a descriptor is close-on-exec —
 and `task_grow`'s inline tests run a lock probe of their own, which makes them a
-**fourth module** and puts the widest reading of the clause in the 1,680 lines
+**fourth module** and puts the widest reading of the clause in the 1,784 lines
 this book's corpus excludes.
 
 `keyed-launch` gained a **distinction**, and that is the more interesting half.

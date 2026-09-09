@@ -5,6 +5,7 @@
 <a id="assembly"></a>
 ## Six subtractions, assembled
 
+<!-- rollup «owned-lines-total» -->
 This chapter owns no production source. The four roots and 752 lines are already
 reconstructed by the fragment graph the six chapters before it built, and the
 [source index](source-index.md) records that graph in full. What is left is the

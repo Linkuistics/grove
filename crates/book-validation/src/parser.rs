@@ -389,6 +389,37 @@ fn parse_file(manifest: &Manifest, path: &str, bytes: &[u8], parsed: &mut Parsed
             index += 1;
             continue;
         }
+        if active.is_none() && line.contains("<!-- rollup") {
+            // The line is not a whole-line directive — that shape was taken
+            // above — so the only other accepted one is a run at the end of a
+            // line that carries content of its own. Anything else on a line
+            // holding the reserved prefix is malformed, exactly as it would be
+            // at the start of one; without this arm a mistyped trailing
+            // directive would be prose, and cover would be lost in silence.
+            match parse_trailing_rollups(line) {
+                Some((width, directives)) => {
+                    let paragraph = offsets[index]..offsets[index] + width;
+                    for (quantity, argument) in directives {
+                        document.rollups.push(RollupDirective {
+                            quantity,
+                            argument,
+                            paragraph: paragraph.clone(),
+                            location: here.clone(),
+                        });
+                    }
+                }
+                None => parsed.diagnostics.push(Diagnostic::new(
+                    "P001",
+                    "parse",
+                    "malformed reserved directive",
+                    here,
+                    None,
+                    None,
+                )),
+            }
+            index += 1;
+            continue;
+        }
         if reserved_prefix(line) {
             parsed.diagnostics.push(Diagnostic::new(
                 "P001",
@@ -523,6 +554,44 @@ fn parse_rollup(line: &str) -> Option<(String, Option<String>)> {
         }
     };
     Some((quantity.to_owned(), argument))
+}
+
+/// One parsed `rollup` directive: the quantity it names, and the `of="…"`
+/// argument the four quantities that take one carry.
+type Rollup = (String, Option<String>);
+
+/// One or more `rollup` directives at the end of a line that carries content of
+/// its own. They mark **that line**, which is the only way a figure inside a
+/// list item, a heading or any other single-line construct is reached: a
+/// directive run cannot sit above one without ending the list or separating the
+/// heading from its own text, while an HTML comment at the end of the line is
+/// inline content and renders as nothing at all. An HTML block opens only on a
+/// line that *begins* with `<!--` (CommonMark 0.31.2, *HTML blocks*, start
+/// condition 2 — https://spec.commonmark.org/0.31.2/#html-blocks), so a comment
+/// after a list marker or a heading's text never becomes one.
+///
+/// The byte length that comes back is the marked content, measured from the
+/// start of the line with the run and the space before it cut away. A remainder
+/// that is itself a directive is not content, so `None` — and the caller makes
+/// that the same parse error a malformed whole-line directive is.
+fn parse_trailing_rollups(line: &str) -> Option<(usize, Vec<Rollup>)> {
+    let mut content = line.trim_end();
+    let mut directives = Vec::new();
+    while let Some(open) = content.rfind("<!-- rollup «") {
+        let Some(directive) = parse_rollup(&content[open..]) else {
+            break;
+        };
+        directives.push(directive);
+        content = content[..open].trim_end();
+    }
+    // Nothing of the reserved prefix may survive in the marked text: a
+    // malformed directive standing before a well-formed one would otherwise be
+    // marked *as content*, which is silence where `P001` is owed.
+    if directives.is_empty() || content.is_empty() || content.contains("<!-- rollup") {
+        return None;
+    }
+    directives.reverse();
+    Some((content.len(), directives))
 }
 
 fn parse_insert(line: &str) -> Option<String> {

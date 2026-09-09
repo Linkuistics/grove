@@ -5,6 +5,7 @@
 <a id="assembly"></a>
 ## The call, and what is behind it
 
+<!-- rollup «owned-lines-total» -->
 This chapter owns no production source. The three roots and 204 lines are
 already reconstructed by the fragment graph the four chapters before it built,
 and the [source index](source-index.md) records that graph in full. What is

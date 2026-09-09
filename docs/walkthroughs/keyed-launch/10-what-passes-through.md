@@ -5,6 +5,7 @@
 <a id="assembly"></a>
 ## Nine openings, one question
 
+<!-- rollup «owned-lines-total» -->
 This chapter owns no production source. The nine roots and 2,073 lines are
 already reconstructed by the fragment graph the nine chapters before it built,
 and the [source index](source-index.md) records that graph in full. What is left

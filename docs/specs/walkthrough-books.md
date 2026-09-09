@@ -893,6 +893,19 @@ the run, and every directive in the run marks that one paragraph. A directive is
 quantity that takes one. A line beginning `<!-- rollup` that does not match
 either form is `P001`, like every other reserved directive.
 
+A roll-up also stands where no run can precede it. A `concept-index.md` row is a
+list item, and an HTML comment on its own line between two items ends the list
+where the page renders. So **one or more `rollup` directives at the end of a line
+that carries content of its own mark that line**, and the checked text is the
+line with the run cut away. An HTML comment at the end of a line is inline
+content and renders as nothing, so the page is unchanged. The mark reaches that
+line and no further — it is not a way to mark a list, and a figure in the item
+above or below does not satisfy it, which is the whole reason the trailing form
+exists rather than a run above the list: a lookup surface is one contiguous block
+of several hundred rows, and a mark on all of it would be satisfied by the figure
+standing anywhere in it. A line holding `<!-- rollup` in neither shape is `P001`,
+exactly as one that begins with it is.
+
 For each directive the validator derives the quantity's value, renders it in the
 ledgers' own digit form — thousands grouped with a comma — and requires it to
 occur in the marked paragraph as a figure: not inside a longer number, an
@@ -945,6 +958,28 @@ Three narrower limits follow from checking by occurrence:
 - a digit in a marked paragraph is not thereby checked. A frozen historical
   figure may sit in a marked paragraph — `jj-workspace`'s *the 698 the root brief
   froze* does — and the mark says only that the declared quantities are held.
+
+**Two constructs still take no mark, and one class is deliberately left to the
+author.** The books were enumerated for this at `concept-index-rollups-k217`:
+every declared quantity derived from each book's manifest and early-use ledger,
+then matched against every page of every book, in digits and spelled in words.
+
+- **A table row takes no trailing directive**, because content after a row's
+  final `|` is another cell. `jj-workspace`'s assembly table says *no branch on
+  which VCS owns the tree anywhere in 752 lines*; the same chapter's
+  `**Owned source.**` paragraph holds that figure under a mark.
+- **A chapter title states its figures as words**, and the ledgers' digit form is
+  not a title's register — `grove-llm`'s *Six families, three orders, seven
+  chapters*, `overview`'s *Three mechanisms, five chapters*, `grove-loop`'s
+  *Twenty chapters, three questions*. A concept-index row that quotes a title
+  inherits this. What stands in their place is the assembly chapter's own marked
+  paragraphs, which state `chapters` and `source-owning-chapters` in digits.
+- **An ordinal is outside the mechanism by construction**, by the matching rule
+  above, so `keyed-launch`'s *The tenth owned-source row that exists to be
+  zero* cannot be marked and is not a defect.
+- **A roll-up restated in ordinary prose is the author's**, as this section
+  already says. Every book's `README.md` and most of its chapters restate a
+  corpus total; a directive is available at each of them and required at none.
 
 Making a marked paragraph exhaustive — every figure in it either derived or
 declared inert — was rejected. It would force every narrative number in the
@@ -1312,7 +1347,7 @@ Stable diagnostic classes:
 | `F008` | Literal bytes or expanded root differ from source; first source byte offset, 1-based source line, expected/actual byte or EOF, emitting fragment, owner, and root-to-fragment path. |
 | `F009` | Ledger or fragment-index row disagrees with the manifest or the directives; both values and locations. |
 | `F010` | Fragment definition appears outside its owner's assigned chapter; actual and required page. |
-| `F011` | Roll-up directive names no derived quantity, marks no paragraph, carries a wrong `of=` argument, or marks a paragraph that does not state the derived figure; also a mandatory ledger-account paragraph with no directive. Quantity, derived value, and location. |
+| `F011` | Roll-up directive names no derived quantity, marks nothing, carries a wrong `of=` argument, or marks text that does not state the derived figure; also a mandatory ledger-account paragraph with no directive. Quantity, derived value, and location. |
 | `M101` | Page/inventory shape, including a directory entry the manifest does not declare. |
 | `M102` | Heading/anchor shape. |
 | `M103` | Navigation. |

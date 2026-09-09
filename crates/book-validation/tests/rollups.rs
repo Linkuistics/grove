@@ -229,3 +229,95 @@ fn an_unmarked_ledger_account_in_the_closed_ledgers_section_is_reported() {
         "{found:#?}"
     );
 }
+
+/// A list item cannot be marked from above — a directive between two items ends
+/// the list where the page renders — so the run goes at the end of the item's
+/// own line and marks that line.
+#[test]
+fn a_trailing_directive_marks_the_line_it_sits_on() {
+    let list = format!(
+        "- [A row about something else](README.md)\n\
+         - [The ledger carries {} roots](README.md) <!-- rollup «source-roots» -->\n\
+         - [A row after it](README.md)\n",
+        roots()
+    );
+    assert!(findings(&with_paragraph(&list)).is_empty());
+
+    // Green alone proves nothing here: an unrecognised trailing directive is
+    // prose, and prose is silent. The same list with the figure moved off the
+    // marked line has to go red.
+    let wrong = list.replace(
+        &format!("carries {} roots", roots()),
+        &format!("carries {} roots", roots() + 1),
+    );
+    assert_eq!(findings(&with_paragraph(&wrong)).len(), 1);
+}
+
+/// The mark reaches its own line and no further. Neither neighbour in the list
+/// satisfies it, which is what makes the trailing form worth having: the
+/// alternative — a run above the whole list — would be satisfied by the figure
+/// standing anywhere in a lookup surface of several hundred rows.
+#[test]
+fn a_trailing_directive_does_not_reach_the_neighbouring_lines() {
+    let list = format!(
+        "- [The ledger carries {} roots](README.md)\n\
+         - [A row with no figure](README.md) <!-- rollup «source-roots» -->\n\
+         - [The ledger carries {} roots, again](README.md)\n",
+        roots(),
+        roots()
+    );
+    let message = one_finding(&with_paragraph(&list));
+    assert!(message.contains("`source-roots`"), "{message}");
+    assert!(
+        message.contains(&format!("derives {}", roots())),
+        "{message}"
+    );
+}
+
+/// A run of them marks the one line, the same way a run above a paragraph marks
+/// the one paragraph.
+#[test]
+fn a_run_of_trailing_directives_marks_the_one_line() {
+    let item = format!(
+        "- [{} roots and {} chapters](README.md) \
+         <!-- rollup «source-roots» --> <!-- rollup «chapters» -->\n",
+        roots(),
+        support::manifest().chapter_count()
+    );
+    assert!(findings(&with_paragraph(&item)).is_empty());
+
+    let wrong = item.replace(
+        &format!("{} chapters", support::manifest().chapter_count()),
+        "several chapters",
+    );
+    let message = one_finding(&with_paragraph(&wrong));
+    assert!(message.contains("`chapters`"), "{message}");
+}
+
+/// The guard the trailing form needs. `reserved_prefix` only ever looked at the
+/// start of a line, so without this a mistyped trailing directive would be
+/// prose: the figure it was meant to hold would go unchecked and nothing would
+/// say so.
+#[test]
+fn a_malformed_trailing_directive_is_a_parse_error() {
+    for line in [
+        "- [A row](README.md) <!-- rollup «source-roots» of=bare -->",
+        "- [A row](README.md) <!-- rollup «» -->",
+        "- [A row](README.md) <!-- rollup source-roots -->",
+        // A malformed directive standing before a well-formed one. Without the
+        // guard the run parses, the good one marks the line, and the bad one is
+        // marked as content.
+        "- [A row](README.md) <!-- rollup «source-roots» of=bare --> <!-- rollup «chapters» -->",
+    ] {
+        let snapshot = with_paragraph(&format!("{line}\n"));
+        let report = report(&snapshot);
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "P001"),
+            "{line}: {:#?}",
+            report.diagnostics
+        );
+    }
+}

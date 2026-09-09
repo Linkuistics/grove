@@ -971,7 +971,7 @@ fn check_rollups(
             if !states_number(&paragraph, &value) {
                 diagnostics.push(f011(
                     format!(
-                        "roll-up `{}` derives {value}, which the paragraph below does not state",
+                        "roll-up `{}` derives {value}, which the text it marks does not state",
                         rollup.quantity
                     ),
                     rollup.location.clone(),

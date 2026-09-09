@@ -332,8 +332,8 @@
 - [Counting the grammars a value is read in](10-what-passes-through.md#taking-the-test-away)
 - [What your rules would have to know to be correct](10-what-passes-through.md#taking-the-test-away)
 - [Two arms closed at load, and one closed by a type](10-what-passes-through.md#taking-the-test-away)
-- [Twenty blocks over nine roots, and the three splits that explain the count](10-what-passes-through.md#the-closed-ledgers)
-- [Ten early-use rows, nine required by the manifest and one added](10-what-passes-through.md#the-closed-ledgers)
+- [20 blocks over 9 roots, and the three splits that explain the count](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «ownership-blocks» --> <!-- rollup «source-roots» -->
+- [10 early-use rows, 9 required by the manifest and one added](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «early-use-rows» --> <!-- rollup «early-use-rows-declared» -->
 - [The tenth owned-source row that exists to be zero](10-what-passes-through.md#the-closed-ledgers)
 - [What `--final` proves that a scoped run does not](10-what-passes-through.md#final-verification)
 - [Why every drafting session but the last left the umbrella red](10-what-passes-through.md#final-verification)

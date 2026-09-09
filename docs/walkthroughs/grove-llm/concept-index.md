@@ -149,6 +149,6 @@
 - [What the compiler holds, what order holds, what tests hold](07-what-order-holds.md#three-holders)
 - [Ten instructed verbs against twelve exposed verbs](07-what-order-holds.md#three-holders)
 - [The `grove_loop::verbs` boundary, named and not explained](07-what-order-holds.md#where-the-book-stops)
-- [Twenty-five ownership blocks and fourteen early-use rows, closed](07-what-order-holds.md#the-closed-ledgers)
+- [25 ownership blocks and 14 early-use rows, closed](07-what-order-holds.md#the-closed-ledgers) <!-- rollup «ownership-blocks» --> <!-- rollup «early-use-rows» -->
 - [Six source-comment fixes and five comments deliberately left](07-what-order-holds.md#the-closed-ledgers)
 - [The three final checks and what each proves](07-what-order-holds.md#final-verification)

@@ -100,10 +100,14 @@ survey off it.
 
 ## Choosing a composition shape
 
-When more than one leaf serves *one* artifact, two shapes are the habitual
-answer. Both are **flat siblings** — neither gets a node directory, because a
-node means *this work proved bigger than one session* and a composed shape is
-neither.
+When more than one leaf serves *one* artifact — or one subject has to be worked
+more than once — three shapes are the habitual answer, and each settles first
+whether it gets a node directory. Two of them do not. A review chain and a
+vendor pair are **flat siblings**, because a node means *this work proved bigger
+than one session* and neither shape is that: their steps each fit a session, and
+what they compose is one artifact. A pass series **is** a node, and by that same
+rule rather than despite it — a leaf whose subject has to be worked again is a
+leaf that did not fit one session, so it decomposes like every other one.
 
 **A review chain — `X` → `review-X` → `integrate-review-X` — is earned by a
 load-bearing artifact**: a landed spec, a decomposition others will build on for
@@ -116,7 +120,20 @@ a question load-bearing enough to pay for two corpora.** One survey is one
 vendor's corpus and one vendor's blind spots; one survey is also the default, and
 two is a cost you argue yourself into.
 
-## The two shapes are built in opposite ways
+**A pass series — a node whose children are its *passes* — is earned by work
+that is to be done again over one subject, on a step sequence, a checkable exit
+condition, a cap and a stated consequence at the cap**, all four written down
+before the first pass runs. They live in the series node's `BRIEF.md` and are
+what make it a series rather than a node whose children happen to repeat;
+`BRIEF-FORMAT.md` states what each may say. **Nothing in any name marks a
+series, a pass or a step** — every entry is the one node species and the one leaf
+species — so `pick`'s pre-order walk visits passes in pass order without being
+taught anything, and `find .grove` shows, to a reader who has the sequence from
+the brief, how many passes ran and which step each reached. The sequence, the
+exit and the cap are what no arrangement of names can carry, which is why they
+are declarations and not a shape.
+
+## The chain and the pair are built in opposite ways
 
 **A chain is lazy**, and each step is an ordinary `leaf-add` cut as the **last
 act** of the session before it:
@@ -185,6 +202,83 @@ delta overrides. Grove cannot recover a target from an opaque command string, so
 it records nothing about how the producer ran, compares nothing, and warns about
 nothing. If the axis matters, read the two effective entries before you pay for
 the second leaf.
+
+## A series is built one pass at a time
+
+**The series node and its first pass arrive together, by ordinary
+decomposition.** A leaf whose subject has to be worked again is a leaf bigger
+than one session, so it decomposes:
+
+    grove-llm leaf-decompose <leaf-path> <stem>
+
+That one call turns the leaf into the series node, moves the leaf's body in as
+the series `BRIEF.md` — which is where the declarations go, so write them into
+that body before you decompose, or into the brief straight after — and grows the
+node's first child. That child is **pass 1**. It inherits the decomposed leaf's
+kind unless `--kind` overrides it, so hand it the kind the declared sequence
+starts with.
+
+**Every later pass is cut by the last step of the pass before it**, as an
+ordinary leaf under the series node:
+
+    grove-llm leaf-add <series-node> <stem> --kind <the sequence's first kind>
+
+The session that picks it decomposes it in turn, by the call above, and the body
+it inherits as its `BRIEF.md` is the one the previous pass wrote — the only
+session that knew what this pass has to carry forward. Read the series node's
+live entries first: where a live later sibling already holds the next pass, cut
+nothing. No verb is added for any of this; the node-making verb is the one grove
+already has.
+
+**A pass whose declared sequence is a single kind stays a leaf and gets no
+directory**, because it never outgrows its one session — the node rule holding
+rather than an exception to it. Such a series is a run of sibling leaves under
+the series node and is still a series, since what makes it one is the
+declarations and not the directory depth. Two consequences. Wherever a rule
+below says *the pass node*, read *the series node* for such a series. And
+sibling leaves sharing a stem is also what a chain and a pair look like, so a
+series with no pass directories is identifiable only from its brief — a cost
+that falls on the reader rather than on you.
+
+**A pass's steps are cut lazily, one at a time — but never conditionally.** Each
+step's last act cuts the next, unless a live later sibling beneath the pass
+already holds it. Laziness here is only about *when* the next body is written,
+for the reason this file gives above; the *whether* is not the cutting session's
+to judge, because the sequence was declared before pass 1 and a step skipped on
+judgement is that declaration quietly withdrawn.
+
+**A series' passes and steps take the series' bare stem**, by the rule already
+stated for a composed shape's steps and for the same reason: the kind says which
+step this is, the position says which pass, and both are already parsed. A
+`pass-2` slug sitting at position `03` after any insert is a second copy of a
+parsed field, free to disagree with it.
+
+**Sending work back inside a pass is not a new pass.** A step that meets a defect
+an earlier step of *this* pass owns cuts a **correction run**: new leaves for the
+steps that have to run again, `leaf-add`ed under the pass node in step order,
+because `pick` cannot re-enter a retired leaf and no leaf state means *reopened*.
+A pass is a repetition **the series declared in advance**; a correction run is a
+repetition **the finding session decided**. That is the test that tells them
+apart, and the session applying it holds both halves already: whether the
+repetition was written down before pass 1, and whether this session is the one
+that found the defect. The pair partitions the repetitions *this shape*
+represents and not every repetition a grove sees — a leaf that simply stays
+**live** across several sessions is neither, because nothing was completed and no
+new entry appears at all.
+
+**The exit condition is evaluated by a pass's last step, and exit is the absence
+of a cut.** That step checks the condition; where it holds it cuts no next pass,
+the series is left with no live leaf, and its node closes like any other. Nothing
+is marked — *another pass is needed* is expressed by the next pass existing,
+which is why no fourth leaf outcome is wanted here.
+
+**Reaching the cap escalates rather than exits, and the escalation is a write.**
+A session that would cut pass `cap + 1` cuts nothing, records what happened in
+the series `BRIEF.md` — `BRIEF-FORMAT.md` states what that entry carries — and
+says so. It still finishes its own step in the ordinary way, retiring and
+committing like any other leaf: what stops is the series, not this session. A
+satisfied exit takes precedence, so a condition that holds at the last allowed
+pass is an exit and there is nothing to escalate.
 
 ## Which hop a gap costs
 

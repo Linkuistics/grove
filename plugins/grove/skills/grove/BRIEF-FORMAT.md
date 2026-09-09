@@ -75,6 +75,11 @@ positions) encodes (dependencies, natural sequence). One line per child is enoug
 - Specs covering this area: docs/specs/<slug>.md
 - Test seams this subtree's leaves share: <seam> (see SPEC-FORMAT.md)
 
+## Series                                       (a pass series node only)
+The step sequence, the exit condition, the cap, and what happens at the cap —
+written before the first pass runs. Plus, if a pass reached the cap, which one
+and what it left.
+
 ## On the horizon
 Foreseen work too dim to leaf yet — a question you can already state
 precisely, not one you can already answer (the fog-or-ticket test, in
@@ -84,6 +89,47 @@ references/decompose.md). Once precise, `leaf-add` it — with its `--kind` — 
 Anything a session needs that is not yet an ADR or a glossary entry. On
 retirement, anything still live here is promoted upward (see SKILL.md, "Retire").
 ```
+
+## A series brief declares the repetition
+
+A **pass series** is a node whose children are its *passes* — work that was
+completed and is deliberately done again over one subject
+(`references/decompose.md`). Its brief carries what nothing else in a grove can,
+and it carries it **before the first pass runs**:
+
+1. **The step sequence** — the kinds, in order, that one pass runs.
+2. **The exit condition** — a fact a session can check at the end of a pass.
+3. **The cap** — how many passes, as a number.
+4. **What happens at the cap** — stop and say so, which is the only answer there
+   is. It is written down anyway, so that the session which meets the cap is not
+   the one deciding what a cap means from inside the series.
+
+A node whose children happen to repeat, with none of those four written down, is
+not a series. Writing them down is the whole of the difference: nothing parses a
+brief and nothing checks a declaration against what the passes did, so these are
+discipline this file records rather than a shape the tree enforces.
+
+**The exit condition is a fact about the subject, never a trend in what the
+passes are finding.** A gate that passes, a threshold fixed in advance, a
+checkable state — each is a fact a later session can check and get the same
+answer you would. *Stop once a pass finds little* is not: it reads the series'
+own yield as its stopping rule, so the number that ends the series is chosen by a
+session already inside it, which is what declaring the condition in advance
+exists to prevent.
+
+**The cap bounds the series, not the work.** Exit means *this shape stops here*,
+and the subject may well go on being worked as ordinary leaves somewhere with no
+cap over them. A brief whose cap is written as a claim that the subject will be
+finished has promised something the shape cannot deliver.
+
+**A session that reaches the cap writes what happened here before it stops** —
+which pass reached it, and what was still unfinished. That is context and not a
+log: it says what the series *is* now, stopped at its cap, which is a state the
+tree does not carry. A satisfied exit and a reached cap both cut nothing, so
+without this entry the two leave a **byte-identical** tree, a stalled series is
+indistinguishable from a cleanly exited one, and nothing will detect it. Say it
+in that session's commit message too — a brief is the durable place *in the
+tree*, and `.grove/` itself does not outlive the finish cycle.
 
 ## Briefs inherit
 

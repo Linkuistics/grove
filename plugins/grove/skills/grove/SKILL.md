@@ -87,6 +87,12 @@ the `BRIEF.md` chain root→leaf, and the task file. Nothing else by reflex.
   `references/decompose.md` directs.
 - When cutting an integration step, place it by the rule in
   `references/decompose.md`.
+- When this work is to be done again on a declared sequence with a declared
+  bound, shape it as `references/decompose.md` directs.
+- When you are the last step of a declared pass, close or continue the series as
+  `references/decompose.md` directs.
+- When you meet a defect an earlier step owns, tell a repair from a repetition by
+  the test in `references/decompose.md`.
 - When you foresee work you cannot yet state precisely, follow
   `references/decompose.md`.
 - When a design needs lessons this codebase cannot show, follow

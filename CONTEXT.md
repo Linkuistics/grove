@@ -656,16 +656,15 @@ only in the medium the document's own contract admits.
 ### Pass series / pass
 
 Work completed and then done **again**: a [[Node directory]] whose children are
-its *passes*, and whose `BRIEF.md` declares four things **before its first pass
-is cut** — the step sequence, a checkable exit condition, a cap as a number, and
-what happens at the cap (stop and say so). Every entry is the one node species
-and the one leaf species; **nothing in any name marks a series, a pass or a
-step**, so [[Pick]]'s existing pre-order walk visits passes in pass order and
-`find .grove` shows which ran and where each stopped with grove uninstalled. A
-pass that proves bigger than one session becomes a node the only way grove
-creates one — the previous pass's last step `leaf-add`s it, and the session that
-picks it decomposes it; a **one-step pass stays a leaf**, which is that same rule
-holding rather than an exemption from it.
+its *passes*, and whose `BRIEF.md` declares the repetition — the step sequence,
+a checkable exit condition, a cap as a number, and what happens at the cap —
+before the first pass runs. Every entry is the one node species and the one
+leaf species, so [[Pick]]'s existing pre-order walk visits passes in pass order
+and `find .grove` shows which ran and where each stopped with grove uninstalled.
+The rules a session acts on are the shipped ones and are not restated here:
+`plugins/grove/skills/grove/references/decompose.md` for the shape and how a
+series is built pass by pass, `plugins/grove/skills/grove/BRIEF-FORMAT.md` for
+the declarations and what each may say.
 `docs/specs/pass-series.md` is the design; `docs/adr/iteration-reuses-the-existing-species.md`
 is the shape and the rejected marker.
 _Avoid_: calling it a **loop**. In this repository *loop* is the driver's own

@@ -901,7 +901,7 @@ is on* is where a session meets it.
 **The record naming that rule once did not resolve, and it was the one address in
 the block no instrument checks.** The comment attributes the shed clause to
 `stated-vcs-is-definitive`, and the methodology's rule inventory —
-`plugins/grove/conformance/rules.tsv`, 169 rows whose ids are unique across the
+`plugins/grove/conformance/rules.tsv`, 182 rows whose ids are unique across the
 file — carries exactly that id, owned by `grove/SKILL.md`. As this chapter first
 read it the comment spelled it `skill-stated-vcs-is-definitive`, and no id in the
 inventory begins with `skill-`. So the claim was true twice over — the rule

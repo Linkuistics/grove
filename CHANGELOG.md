@@ -51,6 +51,28 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`grove` / methodology: the pass series ships, so a session can run one.**
+  Repeated work over one subject used to arrive undeclared — a session that
+  wanted more work to happen cut its own follow-on, and nothing recorded that a
+  repetition was intended, how many were expected, or what would end them. The
+  construct now reaches a session where a session actually reads:
+  `references/decompose.md` gains the **pass series** as a third composition
+  shape beside the review chain and the vendor pair — and it is the one that
+  gets a node directory — with how a pass is created, why a one-step pass stays
+  a leaf, how a pass's steps are cut, the slug rule, the test that separates a
+  declared pass from a correction run, and what the exit condition and the cap
+  do; `BRIEF-FORMAT.md` gains the four declarations a series brief carries
+  before its first pass runs, what the exit condition may not be, what the cap
+  does and does not bound, and the entry a session that reaches the cap must
+  write — without it a satisfied exit and a reached cap leave a byte-identical
+  tree, and nothing tells them apart. The spine's condition register gains three
+  triggers into it: shaping a series, closing or continuing one from a pass's
+  last step, and telling a repair from a repetition. **No code moved**: the shape is
+  expressible in the tree exactly as it stands, which is the strongest evidence
+  available that it is the tree's own. `plugins/grove/conformance/rules.tsv`
+  grows to 182 rows. `docs/specs/pass-series.md` is the design and
+  `docs/adr/iteration-reuses-the-existing-species.md` the recorded shape.
+
 - **An assembly chapter's ledger roll-ups are now checked, and every book's are
   marked.** A closing chapter owns no source root, so `book-check` expands no
   fragment on it and every sentence is an unchecked claim — which is how

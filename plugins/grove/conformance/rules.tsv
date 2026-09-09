@@ -4,7 +4,7 @@
 # which was the design this file began as an assertion over. **That spec went
 # with `content/` at `delete-provisioning-k19`**, so this file is no longer a
 # copy of an inventory — it is the inventory, and a row changes here alone.
-# One row per rule a session could violate; 169 rows.
+# One row per rule a session could violate; 182 rows.
 #
 # Five tab-separated columns:
 #
@@ -60,6 +60,10 @@ brief-is-process-scaffolding	grove/BRIEF-FORMAT.md	B	on(writing a brief) @ grove
 briefs-inherit	grove/BRIEF-FORMAT.md	B	on(writing a brief) @ grove/references/decompose.md	
 every-node-carries-a-brief	grove/BRIEF-FORMAT.md	B	on(cutting a node) @ grove/references/decompose.md	
 horizon-note-shape	grove/BRIEF-FORMAT.md	B	on(recording fog) @ grove/references/decompose.md	
+series-brief-declares-four-things	grove/BRIEF-FORMAT.md	B	on(writing a series brief) @ grove/references/decompose.md	A node whose children happen to repeat, with none of those four written down, is not a series
+series-cap-bounds-the-series-not-the-work	grove/BRIEF-FORMAT.md	B	on(writing a series brief) @ grove/references/decompose.md	The cap bounds the series, not the work
+series-cap-escalation-is-recorded-in-the-brief	grove/BRIEF-FORMAT.md	B	on(reaching the cap) @ grove/references/decompose.md	which pass reached it, and what was still unfinished
+series-exit-condition-is-not-a-trend	grove/BRIEF-FORMAT.md	B	on(writing a series brief) @ grove/references/decompose.md	never a trend in what the passes are finding
 challenge-and-sharpen-terms	grove/CONTEXT-FORMAT.md	B	on(a term is used loosely) @ grove/CONTEXT-FORMAT.md	Propose a precise canonical term for a fuzzy one
 context-map-when-multiple	grove/CONTEXT-FORMAT.md	B	on(the repo has a context map) @ grove/CONTEXT-FORMAT.md	
 glossary-is-only-a-glossary	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
@@ -106,6 +110,7 @@ copy-edit-does-not-restructure	grove-copy-edit/SKILL.md	B	static({copy-edit})	a 
 copy-edit-operative-tests	grove-copy-edit/SKILL.md	B	static({copy-edit})	A figure of speech replaced by the mechanism it stood for
 bigger-than-brief-decomposes	grove/references/decompose.md	B*	on(the leaf is bigger than its brief) @ grove/SKILL.md	doing **only the first child** this session
 chain-is-lazy	grove/references/decompose.md	B	on(an artifact may need review) @ grove/references/decompose.md	only if it has findings worth acting on
+correction-run-is-not-a-pass	grove/references/decompose.md	B	on(a defect an earlier step owns) @ grove/SKILL.md	a correction run is a repetition **the finding session decided**
 creating-session-writes-the-body	grove/references/decompose.md	B	on(cutting a step) @ grove/references/decompose.md	The creating session writes the new leaf's body
 diversity-is-the-configs	grove/references/decompose.md	B	on(cutting a review step) @ grove/references/decompose.md	Diversity is the configuration's, not the tree's
 externalize-by-default	grove/references/decompose.md	B*	on(work surfaces that does not serve this goal) @ grove/SKILL.md	the bar is *"fits this session,"* not "I can finish it."
@@ -115,10 +120,18 @@ integration-body-carries-the-handle	grove/references/decompose.md	B+S	on(cutting
 integration-placement	grove/references/decompose.md	B	on(cutting an integration) @ grove/SKILL.md	the first sibling entry after the review whose subtree still holds live work
 name-step-kind-off-the-producer	grove/references/decompose.md	B	on(cutting a step) @ grove/references/decompose.md	Name a chain step's kind off the producer that actually ran
 no-adjacency-exception	grove/references/decompose.md	B+S	on(cutting an integration) @ grove/references/decompose.md	A session that departs anyway owns the drift
+one-step-pass-stays-a-leaf	grove/references/decompose.md	B	on(cutting a pass) @ grove/references/decompose.md	A pass whose declared sequence is a single kind stays a leaf and gets no directory
 pair-is-eager	grove/references/decompose.md	B	on(a question needs two corpora) @ grove/references/decompose.md	it lands in one call or not at all
+pass-is-created-by-decomposition	grove/references/decompose.md	B	on(cutting a pass) @ grove/references/decompose.md	The series node and its first pass arrive together, by ordinary decomposition
+pass-steps-are-cut-lazily	grove/references/decompose.md	B	on(cutting a step of a pass) @ grove/references/decompose.md	cut lazily, one at a time — but never conditionally
+passes-share-the-series-stem	grove/references/decompose.md	B+S	on(cutting a pass) @ grove/references/decompose.md	A series' passes and steps take the series' bare stem
 prior-art-research-is-its-own-leaf	grove/references/decompose.md	B	on(the codebase cannot answer it) @ grove/SKILL.md	a research leaf of its own, cut ahead of the leaf that needs it
 research-brief-names-downstream-questions	grove/references/decompose.md	B	on(cutting a research leaf) @ grove/references/decompose.md	The research leaf's brief names the downstream questions
 review-chain-when-load-bearing	grove/references/decompose.md	B	on(an artifact may need review) @ grove/SKILL.md	artifact size and vendor preference are not the test
+series-carries-no-marker-token	grove/references/decompose.md	B+S	on(cutting a series) @ grove/references/decompose.md	Nothing in any name marks a series, a pass or a step
+series-exit-is-the-absence-of-a-cut	grove/references/decompose.md	B	on(closing a pass) @ grove/SKILL.md	exit is the absence of a cut
+series-is-earned-by-declared-repetition	grove/references/decompose.md	B	on(work is to be done again) @ grove/SKILL.md	on a step sequence, a checkable exit condition, a cap and a stated consequence at the cap
+series-reaching-the-cap-escalates	grove/references/decompose.md	B	on(closing a pass) @ grove/SKILL.md	Reaching the cap escalates rather than exits, and the escalation is a write
 steps-share-the-producers-stem	grove/references/decompose.md	B+S	on(cutting a step) @ grove/references/decompose.md	Give every step of a composed shape the producer's bare stem as its whole slug
 task-and-brief-shape	grove/references/decompose.md	B	on(cutting a leaf or a node) @ grove/references/decompose.md	
 vendor-pair-when-load-bearing	grove/references/decompose.md	B	on(a question may need two surveys) @ grove/SKILL.md	is earned by a question load-bearing enough to pay for two corpora

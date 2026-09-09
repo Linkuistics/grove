@@ -300,16 +300,20 @@ The book's two ledgers are complete, and the closure is mechanical rather than a
 claim this page makes. A third account closes here too, and it is the one the
 validator does not keep.
 
-**Ownership.** Five top-level blocks over three source roots, every one of them
+<!-- rollup «ownership-blocks» -->
+<!-- rollup «source-roots» -->
+<!-- rollup «ownership-blocks-not-owned-by» of="compiler-held" -->
+**Ownership.** 5 top-level blocks over 3 source roots, every one of them
 `resolved`. *Orientation* created the whole ownership table at the start, with
-its own block resolved and the other four reserved by `defer` directives; each
+its own block resolved and the other 4 reserved by `defer` directives; each
 later chapter replaced its own defer with an insert and turned its own row. No
 `defer` directive remains anywhere in the book, and none may: `F003` reports
 any defer at all in final mode, so *every reservation has become an insertion*
 is a statement the validator refuses to let be false rather than one this page
 asserts.
 
-**Early use.** Five rows, every one `explained`, and every one declared in the
+<!-- rollup «early-use-rows» -->
+**Early use.** 5 rows, every one `explained`, and every one declared in the
 manifest as well as in the ledger. The structure brief fixed all five in
 advance, and the order forced no more: each is a `grove-loop` item named by
 *The surface*'s import line, or by *Orientation*'s manifest comment, before
@@ -318,7 +322,9 @@ advance, and the order forced no more: each is a `grove-loop` item named by
 because *Proving a negative* names only `Cli`, which it does not own but which
 was read before it — a forward reference in the ordinary direction.
 
-**Owned source.** 54 + 19 + 47 + 84 = 204 lines across four chapters, and 0 for
+<!-- rollup «owned-lines-sequence» -->
+<!-- rollup «source-owning-chapters» -->
+**Owned source.** 54 + 19 + 47 + 84 = 204 lines across 4 chapters, and 0 for
 this one. The fifth row of that table exists to be zero: a chapter that owns no
 source is the shape the structure brief chose for the assembly, and the total
 is the 204 the root brief froze.
@@ -361,10 +367,11 @@ test, applied back* is the strongest form — a check the compiler performs
 assembly owed
 a reader who has just been taught to ask.
 
+<!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md)
 are the two lookup surfaces, and neither is part of the reading order. The
 source index is the authoritative record of how the fragment graph reconstructs
-each of the three files; the concept index is curated navigation into the
+each of the 3 files; the concept index is curated navigation into the
 arguments, and makes no completeness claim.
 
 <a id="final-verification"></a>
@@ -463,7 +470,10 @@ the manifest's reason for their being here — and every claim in the four
 chapters that names a test names one that runs in this suite, or in the crate
 the evidence table says it runs in.
 
-The book is complete: three roots, 204 lines, five chapters, two lookup
+<!-- rollup «source-roots» -->
+<!-- rollup «owned-lines-total» -->
+<!-- rollup «chapters» -->
+The book is complete: 3 roots, 204 lines, 5 chapters, two lookup
 surfaces, zero deferred ranges. What it argued is that one binary is thin and
 that three different mechanisms hold it so, and what it leaves the reader with
 is the criterion that distinguishes a mechanism from a belief — which check

@@ -51,6 +51,28 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **An assembly chapter's ledger roll-ups are now checked, and every book's are
+  marked.** A closing chapter owns no source root, so `book-check` expands no
+  fragment on it and every sentence is an unchecked claim — which is how
+  `grove-loop`'s chapter 21 carried *Fifty rows … the other thirty-seven* against
+  a ledger holding 52 and 39 for a whole campaign, with all six books green. A
+  new reserved directive marks the paragraph that states a roll-up —
+  `<!-- rollup «early-use-rows» -->`, or `<!-- rollup «early-use-rows-at»
+  of="01-orientation.md#the-cast" -->` for the four quantities that take an
+  argument — and `F011` reports a marked paragraph that does not state the figure
+  the ledgers derive, an unknown quantity, an argument naming no slice or
+  first-use location, and a mandatory ledger-account paragraph nobody marked. The
+  twelve quantities cover the source-root, ownership and owned-source ledgers from
+  `walkthrough.toml`, which `F009` already proves those tables equal, and the
+  early-use ledger from the table itself, because the manifest's rows are a floor
+  rather than the set. A marked figure is written in digits, since the alternative
+  was an English-number renderer that can be wrong in both directions; the
+  converse does not hold, and `docs/specs/walkthrough-books.md`'s *Ledger roll-ups
+  in prose* states that limit with the two others that follow from checking by
+  occurrence. All six books now carry marks — 69 directives over 29 paragraphs,
+  using every one of the twelve quantities — and no roll-up any of them stated was
+  found false.
+
 - **Three comments in `keyed-launch`'s `run` described mechanisms the code does
   not exercise, and the one nobody could check has now been run.** The parent's
   post-spawn `setpgid` was written up as one half of a race against the child's;

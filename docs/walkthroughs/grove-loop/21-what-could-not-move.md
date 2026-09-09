@@ -5,9 +5,11 @@
 <a id="assembly"></a>
 ## The page that owns no source
 
+<!-- rollup «owned-lines-total» -->
+<!-- rollup «ownership-blocks» -->
 This chapter owns none of the crate's 10,557 lines. The fragment graph closed at
 the end of [chapter 20](20-the-loop.md), where the last of `loop_driver.rs`'s 615
-lines was reproduced and the book's thirty-ninth ownership block turned
+lines was reproduced and the last of the book's 39 ownership blocks turned
 `resolved`; the [source index](source-index.md) records that graph in full and
 gives this page a row whose owned-line count is zero. The row exists to be zero.
 
@@ -414,27 +416,36 @@ thirty-one.
 The book's two ledgers are complete, and the first of the two closes mechanically
 rather than by this page's say-so.
 
-**Ownership.** Thirty-nine top-level blocks over thirteen source roots, every one
+<!-- rollup «ownership-blocks» -->
+<!-- rollup «source-roots» -->
+<!-- rollup «ownership-blocks-owned-by» of="allowed-to-mean" -->
+<!-- rollup «ownership-blocks-not-owned-by» of="allowed-to-mean" -->
+**Ownership.** 39 top-level blocks over 13 source roots, every one
 `resolved`. [Chapter 1](01-orientation.md) created the whole table at the start,
-with its own two blocks resolved and the other thirty-seven reserved by `defer`
+with its own 2 blocks resolved and the other 37 reserved by `defer`
 directives; each later chapter replaced its own defers with inserts and turned
 its own rows. No `defer` remains anywhere in the book, and none may — `F003`
 reports any defer at all in final mode, so *every reservation has become an
 insertion* is something the validator refuses to let be false rather than
 something this page asserts.
 
-**Early use.** Fifty-two rows, every one `explained`. Thirteen of them have their
+<!-- rollup «early-use-rows» -->
+<!-- rollup «early-use-rows-at» of="01-orientation.md#the-cast" -->
+<!-- rollup «early-use-rows-not-at» of="01-orientation.md#the-cast" -->
+**Early use.** 52 rows, every one `explained`. 13 of them have their
 first use at [*The cast*](01-orientation.md#the-cast), where `lib.rs`'s export
 list names types belonging to twelve later chapters before any of them has said
-what one is; the other thirty-nine are the price of concept order over file
+what one is; the other 39 are the price of concept order over file
 order inside the later parts. The structure brief fixed a smaller set in advance
 and the drafting added to it, because **an early-use row is owed by naming or
 exercising** and the manifest's rows are a floor rather than the set — a rule
 this book established in its own chapter 2 and applied in every chapter after it.
 
+<!-- rollup «owned-lines-sequence» -->
+<!-- rollup «source-owning-chapters» -->
 **Owned source.** 445 + 451 + 563 + 700 + 290 + 370 + 322 + 443 + 613 + 518 + 612
 + 775 + 808 + 530 + 516 + 819 + 564 + 358 + 245 + 615 = 10,557 lines across
-twenty chapters, and 0 for this one. The five parts are 1,714, 2,556, 2,725, 516
+20 chapters, and 0 for this one. The five parts are 1,714, 2,556, 2,725, 516
 and 2,601 lines, with chapter 1's 445 standing outside them. The largest single
 owned block is [chapter 16](16-the-lease.md)'s 819 lines, which is that chapter's
 own enumerated claim; measured per *chapter* rather than per block the range runs
@@ -519,10 +530,11 @@ the same terms as the other four. That list counts only claims a leaf has
 corrected at source, so the ones this book judged and left standing are recorded
 on their own pages and are not in it, wherever they fall.
 
+<!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces and neither is part of the reading order. The source index
 is the authoritative record of how the fragment graph reconstructs each of the
-thirteen files; the concept index is curated navigation into the arguments and
+13 files; the concept index is curated navigation into the arguments and
 makes no completeness claim.
 
 <a id="final-verification"></a>
@@ -584,7 +596,10 @@ exclusion and its subject to equal the tables in
 `docs/specs/walkthrough-books.md`, the third by attacking a narrowed subject. All of those live in the `grove` crate's
 tests, not this crate's.
 
-The book is complete: thirteen roots, 10,557 lines, twenty-one chapters, two
+<!-- rollup «source-roots» -->
+<!-- rollup «owned-lines-total» -->
+<!-- rollup «chapters» -->
+The book is complete: 13 roots, 10,557 lines, 21 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

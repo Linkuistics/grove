@@ -536,6 +536,8 @@ is permitted:
 <!-- /fragment -->
 <!-- insert «ID» -->
 <!-- defer «ID» owner="SLICE" lines="N-M" -->
+<!-- rollup «QUANTITY» -->
+<!-- rollup «QUANTITY» of="ARGUMENT" -->
 ```
 
 `ID` uses the fragment-ID grammar above for fragment directives and a manifest
@@ -543,9 +545,14 @@ page `id` for `book-page`. `SLICE` is a slice the manifest declares. `PATH` is a
 root path the manifest declares. `N` and `M` are positive canonical decimal
 integers and `N <= M`. The page `order` is the chapter's canonical position.
 
+`QUANTITY` and `ARGUMENT` are checked against the ledgers rather than the
+grammar (*Ledger roll-ups in prose*), so an unknown quantity name is a
+reconciliation finding on a well-formed line and not a parse error.
+
 A line beginning with one of the reserved prefixes `<!-- book-page`,
 `<!-- source-root`, `<!-- fragment`, `<!-- insert`, `<!-- defer`,
-`<!-- /source-root`, or `<!-- /fragment` that is not one exact form is a `P001`
+`<!-- rollup`, `<!-- /source-root`, or `<!-- /fragment` that is not one exact
+form is a `P001`
 malformed-directive finding. An exact directive in a disallowed context is
 `P002`. Other HTML comments are ordinary Markdown and emit no fragment tokens.
 
@@ -858,6 +865,91 @@ The rejected reading is that `[[early-use]]` carries only rows provable at every
 scope. It is simpler, and it makes the manifest a weaker plan than this
 specification claims for it: a first use two chapters ahead would be an
 obligation nothing mechanical holds the book to until the page arrives.
+
+## Ledger roll-ups in prose
+
+A book's assembly chapter owns no source root, so no fragment on it is expanded
+and every sentence it makes is a claim about another page. Some of those
+sentences are not judgements at all: *39 top-level blocks over 13 source roots*,
+*52 rows, every one `explained`*, *445 + … = 10,557 lines* are arithmetic over
+the ledgers this specification already requires. They are called **roll-ups**,
+and left unmarked they go stale the moment a ledger moves — which is what
+happened to `grove-loop`'s chapter 21, whose *Fifty rows … the other thirty-seven*
+survived a whole campaign while every book check stayed green.
+
+A roll-up is located by directive and checked against the ledgers it rolls up.
+
+```markdown
+<!-- rollup «early-use-rows» -->
+<!-- rollup «early-use-rows-at» of="01-orientation.md#the-cast" -->
+**Early use.** 52 rows, every one `explained`. 13 of them have their first use
+at [*The cast*](01-orientation.md#the-cast) …
+```
+
+One or more `rollup` directives sit on their own lines immediately above the
+paragraph they mark; the paragraph is the contiguous nonblank block that follows
+the run, and every directive in the run marks that one paragraph. A directive is
+`<!-- rollup «quantity» -->`, or `<!-- rollup «quantity» of="argument" -->` for a
+quantity that takes one. A line beginning `<!-- rollup` that does not match
+either form is `P001`, like every other reserved directive.
+
+For each directive the validator derives the quantity's value, renders it in the
+ledgers' own digit form — thousands grouped with a comma — and requires it to
+occur in the marked paragraph as a figure: not inside a longer number, an
+ordinal, or a word. The paragraph is matched with its line wrapping normalized,
+so a figure may straddle a line break. The declared quantities are:
+
+| Quantity | `of=` | Value |
+|---|---|---|
+| `source-roots` | — | Rows in the *Source roots* ledger. |
+| `ownership-blocks` | — | Rows in the *Ownership blocks* ledger. |
+| `ownership-blocks-owned-by` | a slice | Ownership rows that slice owns. |
+| `ownership-blocks-not-owned-by` | a slice | Ownership rows every other slice owns. |
+| `early-use-rows` | — | Rows in the *Early uses* ledger. |
+| `early-use-rows-declared` | — | The manifest's `[[early-use]]` rows — the floor, not the ledger. |
+| `early-use-rows-at` | a `page#anchor` | Early-use rows giving that location as their first use. |
+| `early-use-rows-not-at` | a `page#anchor` | Early-use rows giving any other first use. |
+| `chapters` | — | Chapters in the manifest, the assembly chapter included. |
+| `source-owning-chapters` | — | Chapters whose owned-line total is above zero. |
+| `owned-lines-total` | — | The corpus line total the *Owned source totals* row carries. |
+| `owned-lines-sequence` | — | The per-chapter addends and their sum, `a + b + … = t`, over the chapters that own source, in manifest order. |
+
+**Each quantity derives from the authoritative side of the ledger it names.** The
+source-root, ownership and totals quantities read `walkthrough.toml`, because
+`F009` has already proved those three tables equal to it byte for byte. The
+early-use quantities read the ledger table, because the manifest's `[[early-use]]`
+rows are a floor rather than the set (*Early-use ledger*) and a count taken from
+the manifest would be wrong in any book that added a row while drafting.
+
+Marking is mandatory where the condition was found: inside a section anchored
+`the-closed-ledgers`, a paragraph whose bolded lead-in is `**Ownership.**`,
+`**Early use.**` or `**Owned source.**` must carry at least one `rollup`
+directive. Elsewhere marking is the author's, and an unmarked roll-up is
+unchecked. Every failure of any rule in this section is `F011`.
+
+### What roll-up checking does not cover
+
+The mechanism is confined to figures the ledgers derive, and the confinement is
+deliberate rather than provisional. An assembly chapter also states tallies over
+the task tree, attributions of an argument to another chapter, per-part line sums
+and percentages of the corpus that no ledger can settle; a mechanism that
+appeared to check those would be worse than none, because it would license the
+belief that the page is held.
+
+Three narrower limits follow from checking by occurrence:
+
+- a stale figure left standing beside a corrected one still passes, because the
+  paragraph is required to *state* the derived value and not to state it alone;
+- two quantities that derive the same value are satisfied by one occurrence of
+  it; and
+- a digit in a marked paragraph is not thereby checked. A frozen historical
+  figure may sit in a marked paragraph — `jj-workspace`'s *the 698 the root brief
+  froze* does — and the mark says only that the declared quantities are held.
+
+Making a marked paragraph exhaustive — every figure in it either derived or
+declared inert — was rejected. It would force every narrative number in the
+paragraph into a declaration, and those numbers are the part of the page that is
+argument rather than arithmetic.
 
 ## Outbound links: the guide and the glossary
 
@@ -1220,6 +1312,7 @@ Stable diagnostic classes:
 | `F008` | Literal bytes or expanded root differ from source; first source byte offset, 1-based source line, expected/actual byte or EOF, emitting fragment, owner, and root-to-fragment path. |
 | `F009` | Ledger or fragment-index row disagrees with the manifest or the directives; both values and locations. |
 | `F010` | Fragment definition appears outside its owner's assigned chapter; actual and required page. |
+| `F011` | Roll-up directive names no derived quantity, marks no paragraph, carries a wrong `of=` argument, or marks a paragraph that does not state the derived figure; also a mandatory ledger-account paragraph with no directive. Quantity, derived value, and location. |
 | `M101` | Page/inventory shape, including a directory entry the manifest does not declare. |
 | `M102` | Heading/anchor shape. |
 | `M103` | Navigation. |
@@ -1499,6 +1592,11 @@ Assurance is machine-held wherever it can be.
 - **Both discovery checks are seen to fail first.** A discovery check that has
   never been observed red against a book deliberately withheld is
   indistinguishable from a check that finds nothing.
+- **A book's ledger roll-ups are reconciled** (*Ledger roll-ups in prose*), and
+  that rule was seen red from both sides before it was believed: against a
+  mutated figure in a marked paragraph, and against a well-formed early-use row
+  added to a ledger, which every other check accepts and which is exactly the
+  edit that left `grove-loop`'s chapter 21 stale for a campaign.
 
 The first of those landed with `validator-fragments-k22`, which is where the
 corpus rule became per-book data and `scripts/check.sh` grew the discovery loop;

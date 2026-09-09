@@ -331,28 +331,38 @@ documentation, which are in no crate and therefore in no book.
 The book's two ledgers are complete, and for the first of them the closure is
 mechanical rather than a claim this page makes.
 
-**Ownership.** Twenty-five top-level blocks over four source roots, every one of
+<!-- rollup «ownership-blocks» -->
+<!-- rollup «source-roots» -->
+<!-- rollup «ownership-blocks-owned-by» of="one-call-plus-rendering" -->
+<!-- rollup «ownership-blocks-not-owned-by» of="one-call-plus-rendering" -->
+**Ownership.** 25 top-level blocks over 4 source roots, every one of
 them `resolved`. *Orientation* created the whole ownership table at the start,
-with its own four blocks resolved and the other twenty-one reserved by `defer`
+with its own 4 blocks resolved and the other 21 reserved by `defer`
 directives; each later chapter replaced its own defers with inserts and turned
 its own rows. No `defer` directive remains anywhere in the book, and none may:
 `F003` reports any defer at all in final mode, so *every reservation has become
 an insertion* is a statement the validator refuses to let be false rather than
 one this page asserts.
 
-**Early use.** Fourteen rows, every one `explained`, and every one declared in
-the manifest as well as in the ledger. The structure brief fixed all fourteen in
-advance and the order forced no more. Ten have their first use at
+<!-- rollup «early-use-rows» -->
+<!-- rollup «early-use-rows-declared» -->
+<!-- rollup «early-use-rows-at» of="01-orientation.md#the-imports" -->
+<!-- rollup «early-use-rows-not-at» of="01-orientation.md#the-imports" -->
+**Early use.** 14 rows, every one `explained`, and every one declared in
+the manifest as well as in the ledger. The structure brief fixed all 14 in
+advance and the order forced no more. 10 have their first use at
 [*The imports*](01-orientation.md#the-imports), where the import block names
 every `grove-loop` type the binary reaches before any chapter says what it does
-with one; the other four are the handler families, first named at
+with one; the other 4 are the handler families, first named at
 [*Worked example: one verb, three endings*](02-the-grammar.md#worked-dispatch)
 by `run`'s exhaustive `match`, four chapters before the last of them is read.
 Both costs are the price of two decisions the structure brief made — orientation
 owns the import block, and chapter 2 owns `run` — and each row turned
 `explained` in its owning chapter and in no other.
 
-**Owned source.** 107 + 119 + 214 + 376 + 101 + 100 = 1,017 lines across six
+<!-- rollup «owned-lines-sequence» -->
+<!-- rollup «source-owning-chapters» -->
+**Owned source.** 107 + 119 + 214 + 376 + 101 + 100 = 1,017 lines across 6
 chapters, and 0 for this one. The seventh row of that table exists to be zero:
 a chapter that owns no source is the shape the structure brief chose for the
 assembly, and the total is the 1,017 the campaign froze.
@@ -406,10 +416,11 @@ property of the comments. Every page reproduces the bytes as written either
 way; correcting one is a source change, and a source change belongs to a leaf
 that can carry the affected ledgers and pages in one commit.
 
+<!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md)
 are the two lookup surfaces, and neither is part of the reading order. The source
 index is the authoritative record of how the fragment graph reconstructs each of
-the four files; the concept index is curated navigation into the arguments, and
+the 4 files; the concept index is curated navigation into the arguments, and
 makes no completeness claim.
 
 <a id="final-verification"></a>
@@ -556,7 +567,10 @@ all of them outside the four roots this book reconstructs, which is what the
 manifest's dev-dependencies were the only trace of, back in *Orientation*, and
 what the library target exists to make possible.
 
-The book is complete: four roots, 1,017 lines, seven chapters, two lookup
+<!-- rollup «source-roots» -->
+<!-- rollup «owned-lines-total» -->
+<!-- rollup «chapters» -->
+The book is complete: 4 roots, 1,017 lines, 7 chapters, two lookup
 surfaces, zero deferred ranges. What it argued is that a thin command surface
 over a library has exactly one thing left to get right, and that the thing is
 order — three of them, each stated where it happens and each with a different

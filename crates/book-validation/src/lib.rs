@@ -227,6 +227,9 @@ fn default_remedy(code: &str) -> Option<&'static str> {
         "F008" => "restore the literal bytes from the declared source range",
         "F009" => "make the ledger row and directive describe the same value",
         "F010" => "move the fragment definition to its owner's assigned numbered page",
+        "F011" => {
+            "state the derived figure in digits in the marked paragraph, or mark the paragraph"
+        }
         "M101" => "restore the canonical page inventory, identity, and required structure",
         "M102" => "restore the required heading and explicit-anchor structure",
         "M103" => "restore canonical contents and previous/contents/next navigation",

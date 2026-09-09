@@ -17,6 +17,7 @@ pub(crate) struct ParsedDocument {
     pub(crate) path: String,
     pub(crate) text: String,
     pub(crate) page_directives: Vec<PageDirective>,
+    pub(crate) rollups: Vec<RollupDirective>,
     pub(crate) opaque_ranges: Vec<Range<usize>>,
     pub(crate) ordinary_fences: Vec<OrdinaryFence>,
 }
@@ -24,6 +25,19 @@ pub(crate) struct ParsedDocument {
 #[derive(Clone, Debug)]
 pub(crate) struct PageDirective {
     pub(crate) raw: String,
+    pub(crate) location: Location,
+}
+
+/// One `<!-- rollup «quantity» -->` line. The directive carries no value of its
+/// own: it names a quantity the ledgers derive and claims that the paragraph
+/// below states it. `paragraph` is the byte range of that paragraph — the
+/// contiguous nonblank run after the last consecutive rollup directive — and is
+/// empty when no paragraph follows, which the ledger check reports.
+#[derive(Clone, Debug)]
+pub(crate) struct RollupDirective {
+    pub(crate) quantity: String,
+    pub(crate) argument: Option<String>,
+    pub(crate) paragraph: Range<usize>,
     pub(crate) location: Location,
 }
 
@@ -148,6 +162,7 @@ fn parse_file(manifest: &Manifest, path: &str, bytes: &[u8], parsed: &mut Parsed
         path: path.into(),
         text: text.to_owned(),
         page_directives: Vec::new(),
+        rollups: Vec::new(),
         opaque_ranges: Vec::new(),
         ordinary_fences: Vec::new(),
     };
@@ -207,6 +222,40 @@ fn parse_file(manifest: &Manifest, path: &str, bytes: &[u8], parsed: &mut Parsed
             } else {
                 document.page_directives.push(PageDirective {
                     raw: line.into(),
+                    location: here,
+                });
+            }
+            index += 1;
+            continue;
+        }
+
+        if let Some((quantity, argument)) = parse_rollup(line) {
+            if active.is_some() {
+                invalid_context(parsed, here, "rollup directive is inside a construct");
+            } else {
+                // The marked paragraph is shared by every rollup directive in
+                // this run, so each one records the same range: the run ends at
+                // the first line that is not itself a rollup directive, and the
+                // paragraph is the nonblank block starting there.
+                let mut end = index + 1;
+                while lines.get(end).is_some_and(|line| {
+                    parse_rollup(line.strip_suffix('\n').unwrap_or(line)).is_some()
+                }) {
+                    end += 1;
+                }
+                let mut stop = end;
+                while lines.get(stop).is_some_and(|line| !line.trim().is_empty()) {
+                    stop += 1;
+                }
+                let paragraph = if stop > end {
+                    offsets[end]..offsets[stop - 1] + lines[stop - 1].len()
+                } else {
+                    offsets[index]..offsets[index]
+                };
+                document.rollups.push(RollupDirective {
+                    quantity,
+                    argument,
+                    paragraph,
                     location: here,
                 });
             }
@@ -453,6 +502,29 @@ fn parse_fragment(
     ))
 }
 
+/// `<!-- rollup «quantity» -->` or `<!-- rollup «quantity» of="argument" -->`.
+/// The quantity name is validated by the ledger check rather than here, so an
+/// unknown name is a reconciliation finding with the ledger's evidence and not
+/// a parse error about a well-formed line.
+fn parse_rollup(line: &str) -> Option<(String, Option<String>)> {
+    let body = line.strip_prefix("<!-- rollup «")?.strip_suffix(" -->")?;
+    let (quantity, rest) = body.split_once('»')?;
+    if quantity.is_empty() || quantity.contains('«') {
+        return None;
+    }
+    let argument = match rest {
+        "" => None,
+        rest => {
+            let value = rest.strip_prefix(" of=\"")?.strip_suffix('"')?;
+            if value.is_empty() || value.contains('"') {
+                return None;
+            }
+            Some(value.to_owned())
+        }
+    };
+    Some((quantity.to_owned(), argument))
+}
+
 fn parse_insert(line: &str) -> Option<String> {
     let id = line.strip_prefix("<!-- insert «")?.strip_suffix("» -->")?;
     valid_id(id).then(|| id.into())
@@ -548,6 +620,7 @@ fn valid_slice(manifest: &Manifest, slice: &str) -> bool {
 fn reserved_prefix(line: &str) -> bool {
     [
         "<!-- book-page",
+        "<!-- rollup",
         "<!-- source-root",
         "<!-- fragment",
         "<!-- insert",

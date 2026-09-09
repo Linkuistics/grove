@@ -383,17 +383,23 @@ for consumers with different keys.
 The book's two ledgers are complete, and the closure is mechanical rather than a
 claim this chapter makes.
 
-**Ownership.** Twenty top-level blocks over nine source roots, every one
+<!-- rollup «ownership-blocks» -->
+<!-- rollup «source-roots» -->
+<!-- rollup «ownership-blocks-owned-by» of="understands-neither" -->
+<!-- rollup «ownership-blocks-not-owned-by» of="understands-neither" -->
+**Ownership.** 20 top-level blocks over 9 source roots, every one
 `resolved`. The table is the source index's
 [ownership blocks](source-index.md#ownership-blocks), and chapter 1's session
-created all twenty of its rows at the start — that chapter's own three resolved,
-the other seventeen reserved by `defer` directives; each later chapter replaced its own defers with
+created all 20 of its rows at the start — that chapter's own 3 resolved,
+the other 17 reserved by `defer` directives; each later chapter replaced its own defers with
 inserts and turned its own rows. No `defer` directive remains anywhere in the
 book, and none may: `F003` reports any defer at all in final mode, so *every
 deferral has become an insertion* is a statement the validator refuses to let be
 false rather than one this page asserts.
 
-Twenty blocks over nine roots rather than nine is the price of reading the crate
+<!-- rollup «ownership-blocks» -->
+<!-- rollup «source-roots» -->
+20 blocks over 9 roots rather than 9 is the price of reading the crate
 in its own conceptual order. Six roots are owned whole by one chapter; the other
 three split, and each split is the concept order disagreeing with the file's. The
 figure is those three files in file order, and what it carries that a list of
@@ -428,8 +434,11 @@ between chapter 7's launch shape and its spawn. `src/channel.rs`'s single
 boundary is the `#[cfg(test)]` attribute on line 272, the only ownership boundary
 in the book cut at a compilation condition rather than a conceptual one.
 
-**Early use.** Ten rows, every one `explained`. Nine of them are the manifest's
-`[[early-use]]` entries, which are the rows the book may not omit: seven forced
+<!-- rollup «early-use-rows» -->
+<!-- rollup «early-use-rows-declared» -->
+<!-- rollup «early-use-rows-at» of="01-orientation.md#the-cast" -->
+**Early use.** 10 rows, every one `explained`. 9 of them are the manifest's
+`[[early-use]]` entries, which are the rows the book may not omit: 7 forced
 by [chapter 1's cast](01-orientation.md#the-cast) naming nearly every public type
 before its owner explains it, one by
 [chapter 3](03-two-documents.md#both-documents) reaching the two rule checks that
@@ -442,15 +451,18 @@ later-owned name is introduced: chapter 3's parse reaches `source_location`,
 helpers, and carries the minimum statement until that chapter explains them
 together. Each row turned `explained` in its owner's slice and in no other.
 
+<!-- rollup «owned-lines-sequence» -->
+<!-- rollup «source-owning-chapters» -->
 **Owned source.** 196 + 135 + 193 + 246 + 188 + 271 + 328 + 279 + 237 = 2,073
-lines across nine chapters, and 0 for this one. The tenth row of that table exists
+lines across 9 chapters, and 0 for this one. The tenth row of that table exists
 to be zero: a chapter that owns no source is the shape the structure brief chose
 for the assembly, and the total is the same 2,073 the root brief froze.
 
+<!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces, and neither is part of the reading order. The source
 index is the authoritative record of how the fragment graph reconstructs each of
-the nine files; the concept index is curated navigation into the arguments, and
+the 9 files; the concept index is curated navigation into the arguments, and
 makes no completeness claim.
 
 <a id="final-verification"></a>
@@ -549,7 +561,10 @@ counter-cases to the `#` rule, and
 — for nine in all.
 Nothing in the corpus holds them; they hold the corpus.
 
-The book is complete: nine roots, 2,073 lines, ten chapters, two lookup surfaces,
+<!-- rollup «source-roots» -->
+<!-- rollup «owned-lines-total» -->
+<!-- rollup «chapters» -->
+The book is complete: 9 roots, 2,073 lines, 10 chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that nine refusals are one design, and
 what it leaves the reader with is the question — *where does this layer learn what
 the value means?* — together with the one case where this crate's own answer runs

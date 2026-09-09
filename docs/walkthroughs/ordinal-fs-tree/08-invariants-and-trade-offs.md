@@ -217,7 +217,9 @@ rollback requires human inspection.
 <a id="final-verification"></a>
 ## Final verification
 
-The source ledger contains seventeen roots and 8,720 owned source lines. Every
+<!-- rollup «source-roots» -->
+<!-- rollup «owned-lines-total» -->
+The source ledger contains 17 roots and 8,720 owned source lines. Every
 top-level ownership block is `resolved`, every early-use row is `explained`, and
 no `defer` directive remains. Recursive expansion of each source root is checked
 byte for byte against its production file; Markdown validation separately

@@ -125,6 +125,10 @@ pub(crate) fn check(
         );
     }
 
+    let early_rows: Vec<String> = early_tables
+        .as_ref()
+        .map(|table| table.rows.iter().map(|row| row.raw.clone()).collect())
+        .unwrap_or_default();
     if let Some(table) = early_tables {
         check_early_uses(snapshot, &table, scope, diagnostics);
     }
@@ -142,6 +146,7 @@ pub(crate) fn check(
 
     check_root_locations(manifest, &index_path, source_index, parsed, diagnostics);
     check_fragment_locations(manifest, parsed, diagnostics);
+    check_rollups(manifest, &early_rows, parsed, diagnostics);
 }
 
 fn required_table(
@@ -916,4 +921,278 @@ fn line_location(index_path: &str, text: &str, byte: usize) -> Location {
 
 fn f009(message: impl Into<String>, location: Location) -> Diagnostic {
     Diagnostic::new("F009", "inventory", message, location, None, None)
+}
+
+/// The three bolded lead-ins a book uses for the ledger accounts it rolls up in
+/// its assembly chapter. Inside a section anchored `the-closed-ledgers` each of
+/// these paragraphs must be marked, so that deleting a `rollup` directive is a
+/// finding rather than a silent loss of cover.
+const LEDGER_ACCOUNTS: [&str; 3] = ["**Ownership.**", "**Early use.**", "**Owned source.**"];
+
+const CLOSED_LEDGERS_ANCHOR: &str = "<a id=\"the-closed-ledgers\"></a>\n";
+
+fn check_rollups(
+    manifest: &Manifest,
+    early_rows: &[String],
+    parsed: &ParsedBook,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for document in parsed.documents.values() {
+        for rollup in &document.rollups {
+            if rollup.paragraph.is_empty() {
+                diagnostics.push(f011(
+                    format!(
+                        "roll-up `{}` is not followed by a paragraph to check",
+                        rollup.quantity
+                    ),
+                    rollup.location.clone(),
+                ));
+                continue;
+            }
+            let value = match rollup_value(
+                manifest,
+                early_rows,
+                &rollup.quantity,
+                rollup.argument.as_deref(),
+            ) {
+                Ok(value) => value,
+                Err(reason) => {
+                    diagnostics.push(f011(
+                        format!("roll-up `{}` {reason}", rollup.quantity),
+                        rollup.location.clone(),
+                    ));
+                    continue;
+                }
+            };
+            // Prose is hard-wrapped, so a multi-token figure like the
+            // owned-source sequence straddles line breaks. Matching happens on
+            // a whitespace-normalised copy of the paragraph for that reason.
+            let paragraph = unwrapped(&document.text[rollup.paragraph.clone()]);
+            if !states_number(&paragraph, &value) {
+                diagnostics.push(f011(
+                    format!(
+                        "roll-up `{}` derives {value}, which the paragraph below does not state",
+                        rollup.quantity
+                    ),
+                    rollup.location.clone(),
+                ));
+            }
+        }
+        check_mandatory_rollups(document, diagnostics);
+    }
+}
+
+/// Every ledger-account paragraph inside the closed-ledgers section carries at
+/// least one mark. The section runs from its explicit anchor to the next one,
+/// which is the same block structure `M102` requires of every page.
+fn check_mandatory_rollups(
+    document: &crate::parser::ParsedDocument,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let Some(start) = document.text.find(CLOSED_LEDGERS_ANCHOR) else {
+        return;
+    };
+    let body_start = start + CLOSED_LEDGERS_ANCHOR.len();
+    let end = document.text[body_start..]
+        .find("\n<a id=\"")
+        .map_or(document.text.len(), |offset| body_start + offset + 1);
+    let mut offset = body_start;
+    for line in document.text[body_start..end].split_inclusive('\n') {
+        if LEDGER_ACCOUNTS
+            .iter()
+            .any(|lead_in| line.starts_with(lead_in))
+            && !document
+                .rollups
+                .iter()
+                .any(|rollup| rollup.paragraph.contains(&offset))
+        {
+            let lead_in = line
+                .split_once("**")
+                .and_then(|(_, rest)| rest.split_once("**"));
+            diagnostics.push(f011(
+                format!(
+                    "ledger account `{}` in the closed-ledgers section states a roll-up no `rollup` directive marks",
+                    lead_in.map_or("", |(name, _)| name)
+                ),
+                line_location(&document.path, &document.text, offset),
+            ));
+        }
+        offset += line.len();
+    }
+}
+
+/// The derived value of one roll-up quantity, in the ledgers' own digit form.
+///
+/// The first four quantities read the manifest, which `F009` has already proved
+/// the source-root, ownership and totals tables equal byte for byte. The
+/// early-use quantities read the ledger table instead, because the manifest's
+/// `[[early-use]]` rows are a floor rather than the set
+/// (`docs/specs/walkthrough-books.md`, *Early-use ledger*).
+fn rollup_value(
+    manifest: &Manifest,
+    early_rows: &[String],
+    quantity: &str,
+    argument: Option<&str>,
+) -> Result<String, String> {
+    let named = |what: &str| -> Result<&str, String> {
+        argument.ok_or_else(|| format!("requires an `of=\"…\"` {what}"))
+    };
+    let bare = || -> Result<(), String> {
+        match argument {
+            None => Ok(()),
+            Some(_) => Err("takes no `of=\"…\"` argument".to_owned()),
+        }
+    };
+    let first_uses = || -> Vec<String> {
+        early_rows
+            .iter()
+            .filter_map(|row| {
+                let cells = strict_cells(row)?;
+                unquote(cells.get(1)?).map(str::to_owned)
+            })
+            .collect()
+    };
+
+    let count = match quantity {
+        "source-roots" => {
+            bare()?;
+            manifest.roots().len()
+        }
+        "ownership-blocks" => {
+            bare()?;
+            manifest.blocks().len()
+        }
+        "ownership-blocks-owned-by" | "ownership-blocks-not-owned-by" => {
+            let slice = named("slice")?;
+            if manifest.slice_order(slice).is_none() {
+                return Err(format!(
+                    "names `{slice}`, which is not a slice of this book"
+                ));
+            }
+            let owned = manifest
+                .blocks()
+                .iter()
+                .filter(|block| block.owner() == slice)
+                .count();
+            if quantity.contains("not-owned-by") {
+                manifest.blocks().len() - owned
+            } else {
+                owned
+            }
+        }
+        "early-use-rows" => {
+            bare()?;
+            early_rows.len()
+        }
+        "early-use-rows-declared" => {
+            bare()?;
+            manifest.early_uses().len()
+        }
+        "early-use-rows-at" | "early-use-rows-not-at" => {
+            let first_use = named("first-use location")?;
+            let uses = first_uses();
+            let at = uses.iter().filter(|use_| *use_ == first_use).count();
+            if at == 0 {
+                return Err(format!(
+                    "names `{first_use}`, which no early-use row gives as its first use"
+                ));
+            }
+            if quantity.contains("not-at") {
+                uses.len() - at
+            } else {
+                at
+            }
+        }
+        "chapters" => {
+            bare()?;
+            manifest.chapter_count()
+        }
+        "source-owning-chapters" => {
+            bare()?;
+            manifest
+                .chapters()
+                .filter(|page| owned_lines(manifest, page.slice().unwrap_or_default()) > 0)
+                .count()
+        }
+        "owned-lines-total" => {
+            bare()?;
+            manifest.roots().iter().map(SourceRoot::lines).sum()
+        }
+        "owned-lines-sequence" => {
+            bare()?;
+            let addends: Vec<String> = manifest
+                .chapters()
+                .map(|page| owned_lines(manifest, page.slice().unwrap_or_default()))
+                .filter(|owned| *owned > 0)
+                .map(grouped)
+                .collect();
+            if addends.is_empty() {
+                return Err("derives no addends, because no chapter owns source".to_owned());
+            }
+            let total: usize = manifest.roots().iter().map(SourceRoot::lines).sum();
+            return Ok(format!("{} = {}", addends.join(" + "), grouped(total)));
+        }
+        _ => return Err("is not a quantity the ledgers derive".to_owned()),
+    };
+    Ok(grouped(count))
+}
+
+fn owned_lines(manifest: &Manifest, slice: &str) -> usize {
+    manifest
+        .blocks()
+        .iter()
+        .filter(|block| block.owner() == slice)
+        .map(|block| block.last() - block.first() + 1)
+        .sum()
+}
+
+/// Whether `value` occurs in `text` as a figure rather than inside a longer one.
+/// `13` must not be satisfied by `130`, by `2,013`, or by `k13`; the boundary is
+/// therefore any byte that could continue a number or a word.
+fn unwrapped(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<&str>>().join(" ")
+}
+
+fn states_number(text: &str, value: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut from = 0;
+    while let Some(offset) = text[from..].find(value) {
+        let start = from + offset;
+        let end = start + value.len();
+        let before_ok = start == 0 || !continues_figure(bytes, start - 1, Side::Before);
+        let after_ok = end == bytes.len() || !continues_figure(bytes, end, Side::After);
+        if before_ok && after_ok {
+            return true;
+        }
+        from = start + 1;
+    }
+    false
+}
+
+enum Side {
+    Before,
+    After,
+}
+
+/// An alphanumeric always continues the figure. A comma or a full stop continues
+/// one only when a digit sits on its far side, so `1,017,` and `1,017.` ending a
+/// clause are the figure while `21,017` and `1,017.5` are not.
+fn continues_figure(bytes: &[u8], at: usize, side: Side) -> bool {
+    let byte = bytes[at];
+    if byte.is_ascii_alphanumeric() {
+        return true;
+    }
+    if byte != b'.' && byte != b',' {
+        return false;
+    }
+    let far = match side {
+        Side::Before => at.checked_sub(1),
+        Side::After => Some(at + 1),
+    };
+    far.and_then(|index| bytes.get(index))
+        .is_some_and(u8::is_ascii_digit)
+}
+
+fn f011(message: impl Into<String>, location: Location) -> Diagnostic {
+    Diagnostic::new("F011", "inventory", message, location, None, None)
 }

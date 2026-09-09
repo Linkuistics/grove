@@ -425,15 +425,20 @@ The book's two ledgers are complete, and the closure is mechanical rather than a
 claim this chapter makes. A third account closes here too, and it is the one the
 validator does not keep.
 
-**Ownership.** Eleven top-level blocks over four source roots, every one of them
+<!-- rollup «ownership-blocks» -->
+<!-- rollup «source-roots» -->
+<!-- rollup «ownership-blocks-owned-by» of="no-dependencies" -->
+<!-- rollup «ownership-blocks-not-owned-by» of="no-dependencies" -->
+**Ownership.** 11 top-level blocks over 4 source roots, every one of them
 `resolved`. Chapter 1 created the whole ownership table at the start, with its own
-two blocks resolved and the other nine reserved by `defer` directives; each later
+2 blocks resolved and the other 9 reserved by `defer` directives; each later
 chapter replaced its own defers with inserts and turned its own rows. No `defer`
 directive remains anywhere in the book, and none may: `F003` reports any defer at
 all in final mode, so *"every deferral has become an insertion"* is a statement the
 validator refuses to let be false rather than one this page asserts.
 
-**Early use.** Twelve rows, every one `explained`. The structure brief fixed seven
+<!-- rollup «early-use-rows» -->
+**Early use.** 12 rows, every one `explained`. The structure brief fixed seven
 of them in advance as the minimum ledger: five forced by chapter 1 tracing the
 carried operation through every layer before any of those layers had been read —
 `Workspace`, `Refusal`, `Commit`, `control_dir` and `is_tracked` — and two forced
@@ -445,7 +450,9 @@ the gate explains it, and one for `Refusal::path_not_text`, which arrived with t
 refusal itself at `lossy-path-rendering-k66`. Each row turned `explained` in its
 owner's slice and in no other.
 
-The manifest declares eight of the twelve and the book's own ledger carries the
+<!-- rollup «early-use-rows-declared» -->
+<!-- rollup «early-use-rows» -->
+The manifest declares 8 of the 12 and the book's own ledger carries the
 other four. That split was six and five when this chapter was first written, and
 the reason was a defect rather than a preference: a manifest `[[early-use]]` row
 had to have its first-use anchor in a page present in the snapshot, which a scoped
@@ -455,7 +462,9 @@ scoped the anchor check to the proved prefix and moved them into the manifest. T
 four that remain ledger-only are first used in chapters 3, 4 and 5, and nothing now
 stops them being declared either — they are a choice rather than a workaround.
 
-**Owned source.** 98 + 92 + 81 + 58 + 155 + 268 = 752 lines across six chapters,
+<!-- rollup «owned-lines-sequence» -->
+<!-- rollup «source-owning-chapters» -->
+**Owned source.** 98 + 92 + 81 + 58 + 155 + 268 = 752 lines across 6 chapters,
 and 0 for this one. The seventh row of that table exists to be zero: a chapter
 that owns no source is the shape the structure brief chose for the assembly. The
 total is fifty-four lines above the 698 the root brief froze, and the fifty-four
@@ -528,10 +537,11 @@ the ceiling — a check the compiler performs — and every row here
 falls short of it. Saying by how much is what the assembly owed a reader who has
 just been taught to ask.
 
+<!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces, and neither is part of the reading order. The source
 index is the authoritative record of how the fragment graph reconstructs each of
-the four files; the concept index is curated navigation into the arguments, and
+the 4 files; the concept index is curated navigation into the arguments, and
 makes no completeness claim.
 
 <a id="final-verification"></a>
@@ -601,7 +611,10 @@ every claim worth making about it is a claim about a real workspace on disk. It
 is outside the corpus by design — chapter 1 said so — and every claim in the six
 chapters that names a test names one that runs here.
 
-The book is complete: four roots, 752 lines, seven chapters, two lookup surfaces,
+<!-- rollup «source-roots» -->
+<!-- rollup «owned-lines-total» -->
+<!-- rollup «chapters» -->
+The book is complete: 4 roots, 752 lines, 7 chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that six refusals are one design, and what
 it leaves the reader with is the test that tells a subtraction from an abdication
 — including, on the crate's own fourth refusal, the answer nobody drafting it

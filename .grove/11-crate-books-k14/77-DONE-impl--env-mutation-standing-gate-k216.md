@@ -98,3 +98,78 @@ its whole binary and therefore serialised nothing; the other serialised two
 tests against a mutation that no longer existed. A mutex is not a remedy for
 `set_var` in any case — the unsoundness is a data race against *reads* that no
 library advertises, not against other writers.
+
+## Decisions (running log)
+
+- **One `#[test]`, not two.** Both controls live inside
+  `no_first_party_source_mutates_its_own_process_environment`, with the fixture
+  asserted **first** so a matcher that has stopped matching fails at the control
+  rather than passing the scan in silence. A second `#[test]` would have made
+  the file's count 4→6 and falsified the pages differently from the arithmetic
+  this leaf was priced on; it also matches the file's own stated idiom for
+  `both_guards_are_present_and_neither_subsumes_the_other` — a pair asserted from
+  one test so a reviewer sees it stated together.
+- **The matcher is a pure `fn environment_mutation_lines(&str) -> Vec<usize>`.**
+  That is what makes the fixture a control at all: a walk-and-assert written as
+  one body can only be falsified by planting a violation in the tree. Whole-line
+  comments (`//`, `///`, `//!`) are skipped; a trailing comment on a line of code
+  is deliberately not, so the scan errs towards reporting.
+- **Failure message checked by making it fail, red then green.** A live
+  `set_var` and `remove_var` were appended to `testing/support.rs`; the test
+  failed naming `testing/support.rs:507` and `:508` and printed the remedy
+  (`Command::env` / `Command::env_remove`, and re-running the test binary as the
+  child per `crates/jj-workspace/tests/environment.rs`). Reverted; green again.
+  Both halves observed, not inferred.
+- **`edition = "2021"` verified at `Cargo.toml:89`**, not recalled — it is the
+  fact that decides whether this gate is needed at all.
+- **The three `626` figures do not move.** Each is a record of a run that was
+  taken, not an assertion of a present total: `20-the-loop.md:168-174` reports
+  what that chapter's own control run printed, `10-growing.md:1375` says outright
+  that it is "the workspace as it stood when the mutation ran", and
+  `19-the-core.md:147` cites chapter 10's copy. Editing any of them to a number
+  no run produced would invent a measurement.
+- **But `10-growing.md`'s relative clause did move, and the task file did not
+  spot it.** "…one test smaller than it is now" is a comparison against the
+  present, sitting inside a frozen record. Measured rather than derived: `cargo
+  test --locked --no-fail-fast -p grove-loop -p grove-llm -p grove` now reports
+  **629 tests over 42 binaries, 246 of them `grove-loop`'s inline module** — so
+  the record's 626/245 is **three** tests smaller, not one. Two of those three
+  predate this leaf. Corrected to "three tests smaller than it is now"; the
+  626 and the 245 are untouched.
+- **A fourth record the task file did not enumerate:** `20-the-loop.md:1798`'s
+  control of "**277 tests with no failures at all**" is `-p grove-loop --lib`
+  plus `-p grove` over `env_hygiene`, `lifecycle_cutover` and `loop_driver` — so
+  it counts this file. Same class as the 626s: a record of the run each row below
+  it was diffed against, with no relative clause. Not moved.
+- **`20-the-loop.md:154` moved: "`env_hygiene.rs` with four" → "with five".**
+  That list is a current-state argument about what
+  `crates/grove/tests/` holds, not a report of a run.
+- **The overview's `cargo test --locked -p grove` transcript was stale beyond
+  this leaf, so it was regenerated whole rather than patched.**
+  `corpus_exception_inventory.rs` read 5 and runs 3;
+  `reference_navigation.rs` read 12 and runs 13; `env_hygiene.rs` read 4 and
+  now runs 5. Patching only the third line would have left a transcript no run
+  ever produced — the same error class as editing a frozen record — so the whole
+  block is one real run, timings included.
+- **"the sixty-seven integration tests" did *not* move, contrary to the task
+  file's expectation.** The three drifts cancel exactly (−2, +1, +1): the crate
+  totals 69 tests, two of them the unit tests inside the corpus, leaving 67. The
+  count is right for a reason the page does not state, which is why it was
+  re-derived rather than incremented.
+- **The elision note moved with the transcript**: the run elides *two* lines a
+  fixture's `jj` printed (`Working copy (@) now at:` and `Parent commit (@-)`),
+  not one.
+- **`docs/preservation-baseline.md:482,1298` and `docs/candidate-lessons.md:42`
+  are left.** The baseline is explicitly the contract "**before** the modularity
+  refactor, measured rather than described" — a frozen record — and its claim
+  that `env_hygiene.rs` "does **not** assert the spawned-child scrub set" is
+  still true of the file after this leaf.
+- **`05-what-the-call-reaches.md`'s `bash scripts/check.sh` block is left at "3
+  book(s) checked".** It is an elided (`...`) record of the drafting session's
+  run, and the prose beside it already explains that the set grows by discovery
+  rather than from a list, so a reader today getting six is what that paragraph
+  predicts. Same class as the 626s.
+- **No fragment, ledger row or ADR moved.** `testing/` is under no crate and
+  `crates/*/tests/` is evidence rather than corpus, as the task file anticipated;
+  `bash scripts/check.sh` reports all 8 principal checks passing with 6 books
+  green.

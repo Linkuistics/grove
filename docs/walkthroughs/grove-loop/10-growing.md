@@ -1373,11 +1373,12 @@ one re-run, and reading the tests cannot answer it — most of them assert
 replaced, one at a time, in a copy of the workspace, with a panic carrying a
 sentinel, and the whole of `grove-loop`, `grove-llm` and `grove` was run against
 each — 42 test binaries and 626 tests in all, of which 245 were `grove-loop`'s
-inline module: the workspace as it stood when the mutation ran, one test smaller
-than it is now. Ten of the copy's tests fail before any mutation, all of them in
-`crates/grove-loop/tests/prompt.rs`, which requires the repository it runs in to
-be a jj workspace and the copy is not one; every result below is the difference
-against an unmutated control run of the same copy, so those ten cancel.
+inline module: the workspace as it stood when the mutation ran, three tests
+smaller than it is now. Ten of the copy's tests fail before any mutation, all of
+them in `crates/grove-loop/tests/prompt.rs`, which requires the repository it
+runs in to be a jj workspace and the copy is not one; every result below is the
+difference against an unmutated control run of the same copy, so those ten
+cancel.
 
 | # | Line | The arm | Tests that fail when it is replaced |
 |---:|---:|---|---|

@@ -434,23 +434,23 @@ test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 7 tests
 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      Running tests/corpus_exception_inventory.rs (target/debug/deps/corpus_exception_inventory-dd14c2adc7e7076b)
-running 5 tests
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
      Running tests/env_hygiene.rs (target/debug/deps/env_hygiene-6efe5c881b3f3e06)
-running 4 tests
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 5 tests
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
      Running tests/lifecycle_cutover.rs (target/debug/deps/lifecycle_cutover-b3bc33810dbda6c6)
 running 17 tests
-test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.70s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.20s
      Running tests/loop_driver.rs (target/debug/deps/loop_driver-51165283bf2e9c2a)
 running 11 tests
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 39.78s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 39.75s
      Running tests/plugin_fallback.rs (target/debug/deps/plugin_fallback-0b2e5ea0375c12cf)
 running 6 tests
 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
      Running tests/reference_navigation.rs (target/debug/deps/reference_navigation-d433b90b44c9893c)
-running 12 tests
-test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+running 13 tests
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.58s
      Running tests/retire_guidance.rs (target/debug/deps/retire_guidance-61566f37158e9444)
 running 1 test
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
@@ -461,14 +461,13 @@ test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
 The third command runs the crate's own suite, whose tests supply evidence this
 book cites and does not reproduce. The per-test `ok` lines and the blank lines
-between blocks are elided; one line a fixture's `jj` printed while the loop
-tests ran is elided with them. The two unit tests are the closure and convention
+between blocks are elided; the two lines a fixture's `jj` printed while the loop
+tests ran are elided with them. The two unit tests are the closure and convention
 tests *Proving a negative* read, and they are the only tests inside the corpus;
-the sixty-seven
-integration tests under `tests/` are outside it by design — *Orientation* read
-the manifest's reason for their being here — and every claim in the four
-chapters that names a test names one that runs in this suite, or in the crate
-the evidence table says it runs in.
+the sixty-seven integration tests under `tests/` are outside it by design —
+*Orientation* read the manifest's reason for their being here — and every claim
+in the four chapters that names a test names one that runs in this suite, or in
+the crate the evidence table says it runs in.
 
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->

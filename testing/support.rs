@@ -30,11 +30,16 @@
 // `crates/jj-workspace/tests/environment.rs`, which re-runs its own test binary
 // as the child under an environment built with `Command::env`.
 //
-// Nothing scans for a re-introduction yet: under `edition = "2021"` both are
-// safe fns, so the compiler is silent until the edition-2024 migration makes
-// them `unsafe`
+// The compiler does not hold this yet: under `edition = "2021"` both are safe
+// fns, so it is silent until the edition-2024 migration makes them `unsafe`
 // (<https://doc.rust-lang.org/edition-guide/rust-2024/newly-unsafe-functions.html>).
-// `env-mutation-standing-gate-k216` is the leaf for closing that.
+// The suite holds it in the interval —
+// `no_first_party_source_mutates_its_own_process_environment` in
+// `crates/grove/tests/env_hygiene.rs` scans every first-party `.rs` file for
+// either call, outside a whole-line comment, and fails on one. So a
+// re-introduction here is caught by a test today and by the compiler after the
+// migration; the paragraph above is an explanation of a checked rule, not the
+// only thing keeping it.
 //
 // **What the migration has to do to this file: nothing.** Measured at
 // `testing-support-env-guard-soundness-k203` rather than argued — a workspace

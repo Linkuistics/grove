@@ -151,7 +151,7 @@ newly-failing set. The command that recipe carries is `cargo test --no-fail-fast
 
 `loop_driver.rs`'s production half is barely reached from either of those two
 crates. Its observers are in `crates/grove/tests/` — `loop_driver.rs` with eleven
-tests, `lifecycle_cutover.rs` with seventeen, `env_hygiene.rs` with four — and
+tests, `lifecycle_cutover.rs` with seventeen, `env_hygiene.rs` with five — and
 that directory belongs to the `grove` binary crate, which the promoted command
 never builds. Run unchanged, it would have reported a 615-line block held by
 nothing at all.

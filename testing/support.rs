@@ -70,9 +70,30 @@ use std::time::{Duration, Instant};
 
 /// The upper bound on a readiness wait. It exists so a *wedged* producer fails
 /// the suite instead of parking it, and it is deliberately two orders of
-/// magnitude above the cost of a healthy driver start-up: no test outcome
-/// should ever turn on its exact value.
+/// magnitude above the cost of a healthy driver start-up.
+///
+/// **It is a hang backstop and not a slowness budget, and the difference is
+/// what it may claim when it fires.** The clock is the only thing this constant
+/// observes, and a wall-clock reading cannot tell a producer that is blocked
+/// from one that is merely starved — so the failure below reports a second
+/// measurement rather than asserting which it was. It used to assert, and three
+/// separate leaves read *a wedged producer rather than a slow one* as evidence
+/// that the fixtures behind it were doing a hundred seconds of work
+/// (driver-lease-fixture-timing-k85).
+///
+/// **The headroom, measured rather than assumed.** On a 16-core machine the two
+/// fixtures that had reported against this constant cost 1.6s and 3.1s alone
+/// and 6.0s for the whole 23-test binary; twenty-four concurrent copies of that
+/// binary — 552 process-driving fixtures at once — took 60s for the binary with
+/// every readiness wait still completing and this backstop never firing. So
+/// starvation alone does not approach two minutes, and a reading that reaches
+/// here is evidence of a producer that stopped rather than one that slowed.
 const READINESS_HANG_BACKSTOP: Duration = Duration::from_secs(120);
+
+/// How long the expiry below watches a producer's CPU time before reporting it.
+/// Paid once, on a wait that has already failed, so it costs a passing run
+/// nothing and buys the one distinction the clock cannot make.
+const PROGRESS_SAMPLE: Duration = Duration::from_secs(2);
 
 const READINESS_POLL: Duration = Duration::from_millis(10);
 
@@ -96,6 +117,12 @@ const READINESS_POLL: Duration = Duration::from_millis(10);
 /// surfaced as `timed out waiting for <path>` after a few silent seconds. Pass
 /// `diagnostics` — the file the producer's captured streams were redirected
 /// to — and an ended producer is reported with what it said.
+///
+/// **A producer that neither writes nor ends is the third case, and only
+/// [`READINESS_HANG_BACKSTOP`] bounds it.** That bound is a clock, so the
+/// failure it raises reports [`progress_reading`] instead of naming a cause:
+/// blocked and starved are the two ways to reach it, they call for opposite
+/// repairs, and the clock distinguishes neither.
 ///
 /// **The producer is sampled before the file, and that order is the whole
 /// correctness argument.** A producer observed alive may still write between
@@ -140,15 +167,72 @@ pub fn readiness(
         if started.elapsed() >= READINESS_HANG_BACKSTOP {
             return Err(readiness_failure(
                 format!(
-                    "nothing wrote {}: the process behind it is still running after {}s, which is \
-                     a wedged producer rather than a slow one",
+                    "nothing wrote {}: the process behind it is still running after {}s — {}",
                     path.display(),
-                    READINESS_HANG_BACKSTOP.as_secs()
+                    READINESS_HANG_BACKSTOP.as_secs(),
+                    progress_reading(producer.id())
                 ),
                 diagnostics,
             ));
         }
         thread::sleep(READINESS_POLL);
+    }
+}
+
+/// Whether a producer that outlasted [`READINESS_HANG_BACKSTOP`] is still doing
+/// work, in the words the failure carries.
+///
+/// **Two readings of the same clock, because one reading answers nothing.** A
+/// producer starved by an oversubscribed machine and a producer blocked on a
+/// lock, a pipe that will never close, or a `SIGTTIN` stop are indistinguishable
+/// by elapsed wall time and by `try_wait`, which reports a *stopped* process
+/// exactly as it reports a running one — it does not pass `WUNTRACED`. They are
+/// not indistinguishable by CPU: the starved one is still forking, exec'ing and
+/// waiting on a real workload, and the blocked one accrues nothing at all. So
+/// this samples the accrued CPU time twice and reports the pair.
+///
+/// It reports rather than decides. The backstop has already fired by the time
+/// this is called and fires whatever comes back, including nothing — a reading
+/// that cannot be taken must never turn a failed wait into a wait that parks
+/// the suite, which is the failure the backstop exists to prevent.
+///
+/// `ps` rather than a platform call because this runs on macOS and Linux and
+/// the reading is compared, never parsed: two strings from one `ps` on one
+/// machine differ exactly when the counter moved. Its output format is
+/// therefore free to be `MM:SS.ss` or `HH:MM:SS`. Nothing is scrubbed from its
+/// environment because it is asked about a pid and reads no `GROVE_*` variable —
+/// unlike the spawns in `grove_env_names`'s doc, this one cannot be steered by
+/// a developer's ambient configuration into reporting something else.
+fn progress_reading(pid: u32) -> String {
+    let cpu = || {
+        let output = std::process::Command::new("ps")
+            .args(["-o", "time=", "-p", &pid.to_string()])
+            .output()
+            .ok()?;
+        let reading = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        (!reading.is_empty()).then_some(reading)
+    };
+    let Some(before) = cpu() else {
+        return "and its CPU time could not be read, so whether it is blocked or \
+                merely starved is unmeasured here"
+            .to_owned();
+    };
+    thread::sleep(PROGRESS_SAMPLE);
+    match cpu() {
+        Some(after) if after != before => format!(
+            "and it burned CPU over a further {}s ({before} → {after}), so it is being starved \
+             rather than blocked: suspect load on this machine, not the fixture",
+            PROGRESS_SAMPLE.as_secs()
+        ),
+        Some(after) => format!(
+            "and it burned no CPU over a further {}s (still {after}), so it is blocked rather \
+             than slow: look for what it is waiting on, not for a longer deadline",
+            PROGRESS_SAMPLE.as_secs()
+        ),
+        None => format!(
+            "and it stopped being readable after reporting {before} of CPU, so it ended between \
+             the two samples"
+        ),
     }
 }
 

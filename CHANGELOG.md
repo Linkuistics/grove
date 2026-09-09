@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v20.2.0
+
 - **`release.toml` / `docs/RELEASING.md`: the cut was refusing to run, and both
   files explained why in terms that were false.** `cargo release <level>` had
   been failing with `error: inconsistent `consolidate-commits` setting` before

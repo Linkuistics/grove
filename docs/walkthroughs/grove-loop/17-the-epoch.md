@@ -970,13 +970,14 @@ carried entirely by the barrier.
 <a id="the-admission-ladder"></a>
 ## The admission ladder, and which rungs are pinned
 
-The last seven tests all call `admit_session`, and they are best read against
-its shape rather than one at a time. It is a **ladder**: a fixed sequence of
-checks, each with its own refusal, each reached only if every check above it
-passed. Resolve the workspace; find the control directory; take the epoch file's
-shared lock; parse the record; compare the working-tree root; compare its
-identity; require the epoch to be active; require the channel to match; probe
-that the driver is still alive.
+The last seven tests are all about `admit_session` — six call it directly, and
+the seventh drives the liveness probe that sits underneath its last rung — and
+they are best read against its shape rather than one at a time. It is a
+**ladder**: a fixed sequence of checks, each with its own refusal, each reached
+only if every check above it passed. Resolve the workspace; find the control
+directory; take the epoch file's shared lock; parse the record; compare the
+working-tree root; compare its identity; require the epoch to be active; require
+the channel to match; probe that the driver is still alive.
 
 That order is what makes these tests stronger than they look. A test asserting
 on a refusal from far down the ladder has thereby established that every check
@@ -991,20 +992,84 @@ Which rungs are actually held was measured rather than read, in a copy of the
 workspace, by replacing each refusal's **whole macro call** with `panic!("MUTANT")`
 — a message-preserving panic is invisible to the out-of-process `grove-llm` suite,
 which asserts on stderr substrings — and diffing the per-test results against a
-control. The control is 558 tests, 547 passing, with eleven `tests/prompt.rs`
-failures that are environmental: the copy is not a jj repository. Every mutant
-below reported the control's test count, so none of them failed to compile.
+control. The control is 560 tests, 549 passing, with eleven failures in
+`crates/grove-loop/tests/prompt.rs` that are environmental and have two causes
+rather than one: ten because the copy is not a jj repository, and
+`the_namespace_is_the_shipped_plugin_entrys_declared_name` because the copy
+carries no `.claude-plugin/marketplace.json`.
+
+Three things about that run are worth stating, because each of them is a way the
+study could have read cleanly while measuring nothing.
+
+**Each mutant is relinked into the `grove` binary.** `cargo build -p grove
+--bins` runs *after* the edit, not before it: `cargo test -p grove-loop -p
+grove-llm` never rebuilds that package, and `workspace_binary` reuses
+`target/debug/grove` if the file merely exists. Without the step every
+out-of-process observer runs a `grove` built from unmutated source and stays
+green — which would have emptied the channel row below of the two tests that make
+it interesting.
+
+**Failure names are qualified by the binary that ran them.** The 560 test lines
+carry 559 distinct bare names; the one duplicate,
+`finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf`, passes in both
+`grove-llm/tests/finish_commit.rs` and `grove-loop/tests/verbs.rs`, and this is
+the first study in the book whose rows credit out-of-process `grove-llm` tests by
+design.
+
+**A mutant is checked against the control's whole roster, not its total.** Every
+mutant below reported 560, so none failed to compile — but the total is a scalar
+and cannot say *what* went wrong when it disagrees. Two of these eight mutations
+make a fork-sensitive lease test's re-exec'd child panic, and cargo's stdout then
+gains a **nested** block — `running 1 test` … `245 filtered out` — inside the
+parent binary's. Counting all the per-test lines gives 561 and 562, which does
+flag those two; what it does not say is that pairing stdout's blocks against
+stderr's `Running` lines by index has shifted every later binary's label by one,
+so that the newly-failing set names tests in binaries that never ran them.
+Requiring the set of `<binary>@<test>` pairs to be *identical* to the control's,
+with only the verdicts free to move, names that fault instead of merely
+signalling one. All eight rows below were read that way.
 
 | Rung | Refusal | Observed by |
 |---|---|---|
 | working tree differs | `wrong working tree for {op}` | `ambient_context_from_another_worktree_names_both_roots` |
 | identity changed | `working-tree identity changed` | **nothing** |
 | epoch inactive | `session epoch is inactive` | `an_inactive_epoch_is_reported_without_claiming_a_session_is_active`, `an_admitted_old_operation_finishes_before_replacement_invalidates_new_calls` |
-| channel differs | `loop-control path does not match the active epoch` | `a_rotated_epoch_refuses_the_old_signal_path`, and two out-of-process tests |
+| channel differs | `loop-control path does not match the active epoch` | `a_rotated_epoch_refuses_the_old_signal_path`, and two out-of-process tests in `crates/grove-loop/tests/driver_lease.rs`: `a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session` and `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt` |
 | lease record differs | `driver lease record does not match…` | **nothing** |
 | lease unlocked | `driver lease is unlocked` | `a_successful_liveness_probe_releases_the_lease_before_validation`, `an_active_epoch_without_a_live_lease_is_stale` |
 | probe replaced 8× | `replaced during liveness probe 8 times` | **nothing**, and reachable |
 | probe retries exhausted | `liveness probe exhausted its bounded retries` | **nothing**, and unreachable |
+
+One name is missing from that column on purpose, and the reason is worth more
+than the row it would have joined.
+`task_grow::tests::leaf_insert_lints_cross_references_under_a_shared_opening_of_its_own`
+came back newly failing under four of the eleven mutant runs behind this table —
+three distinct mutations, two of which had left it green on their own first run.
+A single run would have credited it to whichever rung it happened to land on.
+
+Three things say it observes nothing. It fails on its own last assertion,
+`exclusive_lock_is_free(worktree.path())`, which is about its own worktree and
+not about a refusal. It cannot have executed a mutated line at all:
+`admit_session` has exactly one production caller, and that caller takes the
+ambient path `cargo` force-clears to empty, so no in-process test outside this
+module's own block reaches any rung. And run alone under the mutant it passes,
+while the two tests credited on that rung fail alone under the same mutant and
+pass alone under the control — which is the same experiment answering in both
+directions. What it is sensitive to is its neighbourhood rather than the
+mutation: the assertion that breaks is a lock probe over its own worktree, and
+every mutation that has broken it also turned a test in the same binary red. The
+obvious candidate is a sibling's re-exec'd subprocess outliving the probe — the
+fork sensitivity two of the eighteen tests are already run in a subprocess to
+contain — but one of the three broke it in a run that emitted no such block at
+all, so the mechanism is not settled here. What is settled is that it observes
+no rung.
+
+The general form is worth keeping. A cross-test flake reads exactly like a newly
+attributed observer, and a second full run is the expensive way to tell them
+apart and an unreliable one: of the three mutations that ever reddened it, two
+changed their answer on a second run and the third repeated the false
+attribution. Running the candidate alone under the mutant is the cheap way, and
+it answers.
 
 Two of the four zeros are the interesting ones, and they are asymmetries
 rather than absences. *Identity changed* sits directly beneath *working tree

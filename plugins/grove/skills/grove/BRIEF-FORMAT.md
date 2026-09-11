@@ -38,9 +38,11 @@ promote upward.
 
 **The node file is mandatory; its body is freeform.** Missing, competing or
 misplaced node files make a level malformed. Tree reads and mutations refuse
-that level by name and give the canonical form. A `_`-prefixed entry belongs to
-this grammar even when malformed. Create the node file with its node; add brief
-sections only when they earn their place (constraints 3 and 4).
+the whole tree read, naming that level and giving the canonical form. A
+`_`-prefixed entry belongs to this grammar even when malformed. The node file
+arrives with its node through `leaf-decompose` or the `root-init` scaffold;
+sessions edit its body, adding brief sections only when they earn their place
+(constraints 3 and 4).
 
 A brief is written by whichever session creates its node — a `planning` task
 cutting the tree, or a leaf of any kind that proved bigger than its brief and

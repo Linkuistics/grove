@@ -8,6 +8,16 @@ compatible driver, through the human restart when the running driver is old.
 
 ## Context
 
+- Routed from review `node-methodology-k20`, F3, by integration
+  `node-methodology-k21`: reconcile CLI help and user-facing refusals with the
+  glossary's distinction between a node file and its brief body. Inspect
+  `crates/grove-llm/src/cli.rs` (`pick`, `leaf-retire`, `leaf-prune`,
+  `leaf-decompose`, `root-init`) and `crates/grove-loop/src/tree_lifecycle.rs`
+  (the cannot-decompose/retire/prune-a-brief diagnostics), then reconcile their
+  consumers and the declared walkthrough fragments/prose in the same code
+  increment. Preserve body uses of "brief" and existing API identifiers;
+  this is user-facing terminology, not an API rename. Verify through the
+  existing test seams and `bash scripts/check.sh` before release preparation.
 - Depends on `node-documentation-k9` and any review/integration it earns.
   This is the last code/release leaf before `grove-migration-k11`.
 - `docs/RELEASING.md` owns the release route: prepare/check, the default

@@ -186,9 +186,11 @@ print_normalised_file() {
 #   grammar     a filename *template* or fragment, not a file: anything carrying
 #               `<`/`>`, and the bare extension or a suffix (`-a.md`).
 #   tree        an artifact in the grove *working tree*, not in the skill set:
-#               a brief, the glossary, a leaf filename.
+#               a node file, the glossary, a leaf filename.
 #   repo        a path into the repository under review (`docs/adr/x.md`).
 #               Whether it resolves is that repository's business.
+#               Concrete tree paths such as `01-k7/_extract.md` also land here;
+#               this assertion checks skill references, not task-tree grammar.
 #
 # A citation inside an HTML comment is provenance — the upstream file an adapted
 # passage came from — and never something a session is told to open, so comments

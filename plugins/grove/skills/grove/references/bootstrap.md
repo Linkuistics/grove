@@ -15,5 +15,9 @@ walks that leaf's **ancestor directories**, from the grove root down to the
 leaf's own directory, and prints one absolute node-file path per line,
 root→leaf: the root `_BRIEF.md`, then each ancestor's `_<slug>.md`.
 **Read the paths returned by `brief-chain`.** It refuses malformed levels
-instead of skipping gaps; follow its named refusal before continuing bootstrap.
+by refusing the whole tree read, naming the affected level and canonical form.
+If any tree verb reports malformed names or levels, report its refusal verbatim
+and stop without signalling completion. The operator repairs the tree before
+restarting; a session does not repair entries by hand or route around the refusal
+through another verb.
 `BRIEF-FORMAT.md` owns the node-file grammar and the brief body's shape.

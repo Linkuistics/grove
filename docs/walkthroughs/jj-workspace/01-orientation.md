@@ -378,7 +378,7 @@ tree inside it:
 │   ├── repo/                                   a directory: this workspace holds its own
 │   └── working_copy/
 ├── .grove/
-│   ├── BRIEF.md
+│   ├── _BRIEF.md
 │   └── 01-DONE-impl--rate-limit-k3.md
 └── crates/
     └── gateway/

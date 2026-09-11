@@ -6,7 +6,7 @@ has driven a grove. grove's own vocabulary is linked to the glossary rather than
 re-taught, and the entry point to the system is the
 [user guide's account of the task tree and its filename grammar](../../USAGE.md#usage-task-tree),
 which states this crate's subject in the terms an operator already uses: a
-directory of numbered files whose names carry a kind, a slug and a permanent key,
+directory of leaf files whose names carry a kind, a slug and a permanent key,
 and whose shape is the only state grove keeps. This reader has run a grove, has
 watched `pick` choose a leaf, and has seen a session's commit name a work item by
 its handle.

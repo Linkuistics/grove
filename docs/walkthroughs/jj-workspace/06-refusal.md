@@ -109,7 +109,7 @@ The values are the same because the point is the ending, not the scenario.
 │   ├── working_copy/
 │   └── grove/                                  reserved in chapter 4
 ├── .grove/
-│   ├── BRIEF.md
+│   ├── _BRIEF.md
 │   └── 01-DONE-impl--rate-limit-k3.md          renamed: the commit is about this
 ├── crates/
 │   └── gateway/

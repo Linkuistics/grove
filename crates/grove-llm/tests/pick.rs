@@ -1,11 +1,8 @@
-// Fixture-driven tests for `grove-llm pick` on the **v2 directory scheme**
-// (task-tree-scheme). The tree is a real directory tree under `.grove/`: a node is a
-// directory `NN-k<key>/` of numbered children, optionally headed by a
-// `_BRIEF.md`; leaves
-// are files `NN-[DONE-]<slug>-k<key>.md`. `pick` is a recursive depth-first
-// pre-order walk returning the first live leaf (not a brief, not `DONE`). Each
-// test stands up a real git repo so `git rev-parse --show-toplevel` resolves to
-// the fixture path.
+// Fixture-driven tests for `grove-llm pick` on Grove's node-file grammar.
+// A node is `NN-k<key>/` with exactly one `_<slug>.md`; the root requires
+// `_BRIEF.md`. Leaves are `NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md`.
+// `pick` walks depth-first pre-order, skipping node files and terminal leaves.
+// Each test uses a real jj repository to exercise the workspace gate.
 
 use assert_cmd::Command;
 use std::fs;

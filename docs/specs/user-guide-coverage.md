@@ -88,7 +88,7 @@ binary itself. Twelve verbs; `help` is clap's own and is covered by the row for
 | L2 | `pick` | none | Worked, as a diagnostic. Depth-first pre-order; empty stdout when nothing is live. |
 | L3 | `brief-chain` | `[LEAF_PATH]` | Worked, as a diagnostic. Defaults to `pick`'s leaf; each level must have exactly one correctly placed node file; a missing or competing file refuses the read. |
 | L4 | `kind` | `[LEAF_PATH]` | Named, as a diagnostic. Defaults to `pick`'s leaf. |
-| L5 | `resolve` | `<REFERENCE>` — `[n]`, `n`, `[n]-slug`, `<slug>-k<key>`, or a bare slug | Worked. Searches live, `DONE` and `ABANDONED` alike; a node resolves to its directory; ambiguity lists the keys; exits zero either way. |
+| L5 | `resolve` | `<REFERENCE>` — `[n]`, `n`, `[n]-slug`, `<slug>-k<key>`, or a bare slug | Worked. Searches live, `DONE` and `ABANDONED` alike; a node resolves to its directory using its node-file slug and directory key; title edits change handles but preserve keys; ambiguity lists the keys; exits zero either way. |
 | L6 | `leaf-add` | `<PARENT>` `<SLUG>`, `--kind <KIND>` (required, repeatable) | Worked. `.` for the root; one leaf per `--kind` in order, as one unit; appends at the end; `finish` is refused; no commit. |
 | L7 | `leaf-insert` | `<TARGET>` `<SLUG>`, `--kind <KIND>` (required, **not** repeatable — one leaf per call) | Worked. Shifts the target and later siblings up one; subtrees and keys ride along; no file contents are rewritten; no commit. |
 | L8 | `leaf-decompose` | `<LEAF_PATH>` `<FIRST_CHILD_SLUG>`, `--kind <KIND>` (optional) | Worked. Leaf becomes a node directory with the key preserved, body becomes `_<slug>.md` inside `NN-k<key>/`, first child inherits the kind unless overridden; no commit. |

@@ -175,7 +175,7 @@ A small workstream might look like this:
 
 ```text
 .grove/
-├── BRIEF.md
+├── _BRIEF.md
 ├── 01-DONE-requirements--plan-k1.md
 ├── 02-DONE-design--auth-k2.md
 ├── 03-review-design--auth-k3.md
@@ -183,8 +183,10 @@ A small workstream might look like this:
 ```
 
 A leaf is one agent-sized task. A directory is a node holding smaller tasks,
-headed by its `BRIEF.md` charter — a leaf that proved bigger than one session.
-The filename carries everything Grove needs:
+named `NN-k<key>/`, with exactly one node file `_<slug>.md`. That file names
+the work in its filename and carries the brief in its body. The root requires
+`_BRIEF.md`. Titles never come from file contents or directory names.
+A leaf filename carries its routing and identity:
 
 ```text
 NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md
@@ -200,13 +202,25 @@ NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md
   The `--` between the kind and the slug is what makes the name unambiguous.
 - `<slug>` is the human-readable name.
 - `k<key>` is the permanent identity. `<slug>-k<key>` is the **stable handle**,
-  the way a work item is named in commit messages; it survives renumbering and
-  slug edits.
+  the way a work item is named in commit messages. A node combines the slug
+  from its node file with the directory key. Handles survive renumbering; a
+  title edit changes the handle, while the permanent key still resolves.
 
 There is no witness file and no format stamp: the filenames *are* the format. A
 tree whose names this grammar does not spell is refused by name, with the
 offending path and the shape it should have had — Grove does not migrate an
 older layout.
+
+Every node file is a regular file. `_BRIEF.md` belongs only at the root;
+`_<slug>.md` belongs only in a positioned node, and `BRIEF` is reserved.
+A missing node file, two competing `_` files, or a malformed digit- or
+underscore-prefixed entry refuses reads and mutations, naming the offending
+level or files and the canonical form. Restore the intended file or move the
+unintended one outside the tree before retrying; reads never repair the tree.
+For a missing node file, first check for an interrupted decomposition: an empty
+node directory and a sibling leaf with the same position and key are two halves
+of one operation. Remove the empty directory to keep the leaf, or move the leaf
+into it as `_<slug>.md`; do not allocate a new key or invent a second brief.
 
 Grove picks the first live leaf in depth-first pre-order. There is no hidden
 scheduler and no dependency inference from prose: ordering in a grove is
@@ -214,17 +228,17 @@ contiguity, at every level. The one exception is the driver-owned `finish` leaf,
 which is skipped while any other work is live.
 
 **Reading the tree by eye.** Because the state is entirely in the names, you can
-answer "what runs next?" without running anything — the first name in
-depth-first order with no outcome infix:
+answer "what runs next?" without running anything — the first leaf filename in
+depth-first order with no outcome infix, excluding node files:
 
 ```console
 $ find .grove -name '*.md' | sort
 .grove/01-DONE-requirements--plan-k1.md
 .grove/02-DONE-design--auth-k2.md
 .grove/03-review-design--auth-k3.md
-.grove/04-ship-k4/01-impl--api-k7.md
-.grove/04-ship-k4/BRIEF.md
-.grove/BRIEF.md
+.grove/04-k4/01-impl--api-k7.md
+.grove/04-k4/_ship.md
+.grove/_BRIEF.md
 ```
 
 `03-review-design--auth-k3.md` is next: it is the first entry carrying neither
@@ -351,7 +365,7 @@ $ grove-llm pick
 ```
 
 `kind` prints just that leaf's kind token, and `brief-chain` prints the
-`BRIEF.md` chain root→leaf, one absolute path per line. Both default to `pick`'s
+node-file chain root→leaf, one absolute path per line. Both default to `pick`'s
 leaf and both take an optional explicit leaf path:
 
 ```console
@@ -359,15 +373,16 @@ $ grove-llm kind
 requirements
 
 $ grove-llm brief-chain
-/home/you/app/.grove/BRIEF.md
+/home/you/app/.grove/_BRIEF.md
 
-$ grove-llm brief-chain 04-ship-k3/01-impl--api-k7.md
-/home/you/app/.grove/BRIEF.md
-/home/you/app/.grove/04-ship-k3/BRIEF.md
+$ grove-llm brief-chain 04-k3/01-impl--api-k7.md
+/home/you/app/.grove/_BRIEF.md
+/home/you/app/.grove/04-k3/_ship.md
 ```
 
-A directory level with no `BRIEF.md` is skipped silently, so a short chain means
-a level had no charter, never that the walk stopped. When nothing is live all
+Every level must hold exactly one correctly placed node file. A missing,
+competing or misplaced file refuses the whole read with exit `1`; no partial
+chain is printed. On a valid tree, when nothing is live all
 three print the same diagnostic on stderr, nothing on stdout, and exit `0`:
 
 ```console
@@ -388,11 +403,12 @@ $ grove-llm resolve auth-k1
 note: referenced task is retired (DONE): /home/you/app/.grove/01-DONE-requirements--auth-k1.md
 ```
 
-A node resolves to its **directory** — append `/BRIEF.md` to read its charter:
+A node resolves to its **directory**. Read its single `_<slug>.md` node file
+for the brief; `resolve ship` finds the node by that filename too:
 
 ```console
 $ grove-llm resolve ship-k3
-/home/you/app/.grove/04-ship-k3
+/home/you/app/.grove/04-k3
 ```
 
 A bare slug that several entries share is ambiguous, and the diagnostic lists
@@ -412,14 +428,14 @@ resolve: no entry matches reference "nosuch"
 
 ### Growing the tree
 
-`root-init` scaffolds a brand-new grove: `.grove/`, the root `BRIEF.md` charter,
+`root-init` scaffolds a brand-new grove: `.grove/`, the root `_BRIEF.md` node file,
 and a first `requirements` leaf whose slug defaults to `plan`. It prints the
 charter's path, then the leaf's. **Bare `grove` does this for you**, so you run
 it by hand only to lay a tree down without launching a session:
 
 ```console
 $ grove-llm root-init auth
-/home/you/app/.grove/BRIEF.md
+/home/you/app/.grove/_BRIEF.md
 /home/you/app/.grove/01-requirements--auth-k1.md
 ```
 
@@ -468,17 +484,17 @@ cross-references to review (verb does not auto-rewrite):
 ```
 
 **Decomposing an oversized leaf** is `leaf-decompose`: the leaf file becomes a
-node directory *with its key preserved*, its body moves in as the node's
-`BRIEF.md`, and a first child is grown atomically so the node is never childless.
+node directory `NN-k<key>/` *with its key preserved*, its body moves in as
+`_<slug>.md`, and a first child is grown atomically so the node is never childless.
 The child inherits the decomposed leaf's kind unless `--kind` overrides it:
 
 ```console
 $ grove-llm leaf-decompose 04-impl--ship-k3.md api
-/home/you/app/.grove/04-ship-k3/BRIEF.md
-/home/you/app/.grove/04-ship-k3/01-impl--api-k7.md
+/home/you/app/.grove/04-k3/_ship.md
+/home/you/app/.grove/04-k3/01-impl--api-k7.md
 ```
 
-`04-impl--ship-k3.md` is now `04-ship-k3/`, still `k3`, so every reference to
+`04-impl--ship-k3.md` is now `04-k3/`, still `k3`, so every reference to
 the handle `ship-k3` still resolves — to the directory.
 
 ### Ending work
@@ -503,8 +519,8 @@ reaches the question stops and asks. Given a node it marks every *live* leaf in
 the subtree, leaving `DONE` ones alone, because that work really was done:
 
 ```console
-$ grove-llm leaf-prune 04-ship-k3
-/home/you/app/.grove/04-ship-k3/01-ABANDONED-impl--api-k7.md
+$ grove-llm leaf-prune 04-k3
+/home/you/app/.grove/04-k3/01-ABANDONED-impl--api-k7.md
 leaf-prune: two steps remain:
   1. commit this session's work, including this rename
   2. run `grove-llm complete` as your last action
@@ -525,7 +541,7 @@ uncheckable; see [Review composition](#usage-review-composition).
 its done-ness *is* the absence of a live leaf anywhere in its subtree, so `pick`
 walks past a fully terminal directory without being told to. What a close costs
 is judgement rather than a rename — the session that retires the last child
-checks the node's `BRIEF.md` `Done when` against what the subtree delivered,
+checks the node-file brief's `Done when` against what the subtree delivered,
 `leaf-add`s any nameable gap, promotes what is still relevant up to the parent
 brief or a decision record, and names the node's handle in its commit message
 alongside the leaf's. You review a close after the fact, in that diff.
@@ -801,7 +817,7 @@ tree untouched for the next iteration:
 
 ```console
 $ grove-llm finish-commit finish-k42
-Error: cannot finish while live work remains: api-k7 (/home/you/app/.grove/04-ship-k3/01-impl--api-k7.md)
+Error: cannot finish while live work remains: api-k7 (/home/you/app/.grove/04-k3/01-impl--api-k7.md)
 ```
 
 **Integration is yours, and it comes after step 2.** Branch or bookmark

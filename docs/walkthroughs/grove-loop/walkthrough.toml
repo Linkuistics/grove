@@ -507,7 +507,7 @@ statement = "The parsed name, its refusal type, the classification a caller read
 symbols   = "`impl Display for TaskName`"
 first-use = "02-the-tokens.md#refusals-inside-the-shape"
 owner     = "canonical-or-nothing"
-statement = "The renderer that writes a parsed name back to its filename bytes, both arms ending in the handle's own renderer. The round-trip test pins each of two names to its own bytes, so the reader needs the rendering direction here."
+statement = "The renderer that writes a parsed name back to its filename bytes. Leaves reuse handle rendering; directories share its key-suffix renderer; node files carry no key. The round-trip test pins each of two names to its own bytes, so the reader needs the rendering direction here."
 
 [[early-use]]
 symbols   = "`TaskName::compose`"

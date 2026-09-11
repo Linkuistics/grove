@@ -296,13 +296,10 @@ the review leaf and selects its complete command from personal configuration.
 
 ## Compatibility
 
-The change is **forward-only, with no migration.** A chain node was only ever an
-ordinary node *directory* whose slug happened to end in `-chain`, and every
-reader handles node directories generically — the token was slug text nothing
-keyed on. Existing trees containing one therefore keep working untouched: the
-node still parses, `pick` still descends it in pre-order, and its children still
-resolve by handle. Its close now goes through the ordinary path, which looks for
-a `Done when` it will not find and reports nothing to promote.
+A node file's slug may end in `-chain`; that text has no special meaning.
+The containing directory is `NN-k<key>/`, with exactly one `_<slug>.md` file.
+`pick` descends it in pre-order and its children resolve by handle. Closing it
+uses the ordinary brief's `Done when` and upward-promotion procedure.
 
 Current-format filenames are required, as everywhere else. A tree whose names
 this grammar does not spell is refused by name rather than converted; there is no

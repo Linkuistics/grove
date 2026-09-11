@@ -8,7 +8,7 @@
 The four verbs a session runs before it changes anything are `pick`,
 `brief-chain`, `kind` and `resolve`, and every one of them can come back with
 nothing: a grove whose every leaf is retired has no next leaf, a reference can
-name no entry or several, and a leaf can sit under no brief at all. The rule
+name no entry or several. A malformed node-file shape instead refuses the read. The rule
 this chapter opens on is what the binary does with that answer — **an absent
 answer is information, not an error.** `pick` on a finished grove prints its
 diagnostic on stderr and exits zero; `resolve` reports a reference that matches

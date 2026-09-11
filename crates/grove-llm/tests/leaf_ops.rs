@@ -1,9 +1,9 @@
 // Fixture-driven tests for `grove-llm leaf-decompose` and `grove-llm
-// leaf-retire` on the current witnessed directory scheme (task-tree-scheme):
+// leaf-retire` on the current node-file grammar (task-tree-scheme):
 //
 //   - `leaf-decompose <leaf-path> <first-child-slug>` converts a live leaf file
 //     `NN-<kind>--<slug>-k<key>.md` into a node DIRECTORY `NN-k<key>/` (**key
-//     preserved**), moving the leaf body in as the node's `_BRIEF.md` (its
+//     preserved**), moving the leaf body in as the node's `_<slug>.md` (its
 //     `# <slug>-k<key>` header retitled ` — brief`) and atomically growing a
 //     first child `01-<kind>--<first-child-slug>-k<new>.md` so a node is never childless.
 //   - `leaf-retire <leaf-path>` adds a `DONE` infix in place
@@ -45,7 +45,7 @@ fn touch(p: &Path, body: &str) {
     fs::write(p, body.as_bytes()).unwrap();
 }
 
-/// Create a node directory holding a `_BRIEF.md`, returning the directory path.
+/// Create a node directory holding a `_<slug>.md`, returning the directory path.
 fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
     let p = dir.join(name);
     fs::create_dir_all(&p).unwrap();
@@ -127,7 +127,7 @@ fn decompose_converts_leaf_into_node_directory_with_first_child() {
     );
 
     // The leaf became a node directory, **key preserved** (k1); the old leaf
-    // file is gone, replaced by the directory + its _BRIEF.md.
+    // file is gone, replaced by the directory + its _<slug>.md.
     assert!(exists(tmp.path(), ".grove/01-k1/_target.md"));
     assert!(!exists(tmp.path(), ".grove/01-planning--target-k1.md"));
     // The first child exists so the node is never childless.
@@ -278,7 +278,7 @@ fn decompose_ignores_an_unknown_legacy_body_harness() {
 fn decompose_rejects_a_brief() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    // A node directory's _BRIEF.md is the brief — decomposing it is nonsensical
+    // A node directory's _<slug>.md is the brief — decomposing it is nonsensical
     // (it is already a node).
     mknode(&grove, "01-k1", "node-k1");
     stage_all(tmp.path());

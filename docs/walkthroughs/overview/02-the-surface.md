@@ -329,7 +329,7 @@ where each is shown running.
 | `leaf-insert` | grow | Inserts a leaf at a sibling's position and renumbers the later siblings. |
 | `leaf-decompose` | grow | Turns a live leaf into a node directory with the leaf's body as its brief and one first child. |
 | `leaf-retire` | retire | Marks a live leaf `DONE` in place. |
-| `leaf-prune` | retire | Marks a leaf or node `ABANDONED` in place, after a human confirms. |
+| `leaf-prune` | retire | Marks live leaves `ABANDONED` in place, including those beneath a named node, after a human confirms. |
 | `finish-commit` | end | Deletes `.grove/` and commits that deletion; the only verb that commits. |
 | `complete` | end | Signals the loop that this session's task is done. |
 

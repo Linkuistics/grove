@@ -440,17 +440,8 @@ fn the_finish_sentinel_does_not_block_an_append() {
     );
 }
 
-/// The release's central compatibility promise, pinned by the one shape that
-/// can regress it silently: **a chain node left by the old constructor**.
-///
-/// Nothing was migrated, and nothing needed to be — a chain node was only ever
-/// an ordinary node *directory* whose slug ended in `-chain`, and every reader
-/// handles node directories generically. But that argument is only as good as
-/// the readers, and after the deletion no source or test fixture contained a
-/// `-chain-k` name at all: the whole current-shape suite would keep passing if
-/// a future change made node parsing, `pick`'s descent, handle resolution or
-/// `brief-chain` assume a charter that this node, uniquely, does not have.
-/// A series uses ordinary nodes and leaves, including conventionally named steps.
+/// Series use ordinary nodes and leaves. Reading the node descends to its
+/// first live leaf, resolves child handles and returns both required node files.
 #[test]
 fn a_chain_node_picks_resolves_and_walks_its_node_files() {
     let t = grove();
@@ -471,14 +462,13 @@ fn a_chain_node_picks_resolves_and_walks_its_node_files() {
     // `pick` descends the node in pre-order and reaches its first live leaf,
     // rather than skipping a directory it cannot charter.
     let (stdout, stderr, ok) = run(t.path(), &["pick"]);
-    assert!(ok, "pick failed on a legacy chain node: {stderr}");
+    assert!(ok, "pick failed on a chain node: {stderr}");
     assert!(
         stdout.trim().ends_with("01-k1/01-design--sync-k2.md"),
-        "pick must descend the unmigrated node, got {stdout:?}"
+        "pick must descend the node, got {stdout:?}"
     );
 
-    // The children resolve by their permanent handles, which the node never
-    // renumbered and no migration rewrote.
+    // The children resolve by their handles.
     for (handle, expected) in [
         ("sync-k2", "01-k1/01-design--sync-k2.md"),
         (
@@ -494,9 +484,7 @@ fn a_chain_node_picks_resolves_and_walks_its_node_files() {
         );
     }
 
-    // `brief-chain` skips the level with no charter silently and yields the root
-    // brief alone — which is exactly what the close of such a node reports:
-    // there is no `Done when` to check and nothing to promote.
+    // `brief-chain` yields the root file followed by the node's own file.
     let (stdout, stderr, ok) = run(
         t.path(),
         &["brief-chain", ".grove/01-k1/01-design--sync-k2.md"],
@@ -510,7 +498,7 @@ fn a_chain_node_picks_resolves_and_walks_its_node_files() {
     );
     assert!(briefs[0].ends_with(".grove/_BRIEF.md"), "got {briefs:?}");
 
-    // And none of it moved anything: no migration ran.
+    // These reads leave all entry names unchanged.
     let mut names: Vec<String> = fs::read_dir(&node)
         .unwrap()
         .filter_map(|e| e.ok())

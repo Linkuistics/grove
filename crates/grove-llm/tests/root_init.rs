@@ -1,18 +1,15 @@
-// Fixture-driven tests for `grove-llm root-init` on the **v2 directory scheme**
-// (task-tree-scheme). Each test stands up a real git repo so `git rev-parse
-// --show-toplevel` resolves to the fixture path, then runs the verb against a
-// worktree that has *no* `.grove/` yet — the fresh-grove case the verb exists to
-// scaffold.
+// Fixture-driven tests for `grove-llm root-init`. Each test uses a real jj
+// repository with no `.grove/`, then checks the required root node file and
+// first leaf created by initialization.
 //
 // The verb's output contract:
 // - stdout: two absolute paths: root `_BRIEF.md`, then the first requirements
 //   leaf.
-// - working-tree change only — makes NO git commit; the scaffold is left
-//   untracked for the first session's commit to fold in.
+// - working-tree change only; the session seals the scaffold in its jj change.
 // - refuses (non-zero exit) if `.grove/` already exists.
 // - rejects an invalid slug before any mkdir, so no stray `.grove/` is left.
 //
-// The load-bearing invariant (root BRIEF brief evidence item 4): after
+// The initialization invariant: after
 // `root-init`, `grove-llm pick` must return the new leaf — NOT report the
 // grove as done. A root brief with no leaves would look finished; the first
 // leaf is what makes a newborn grove distinguishable from a retired one.

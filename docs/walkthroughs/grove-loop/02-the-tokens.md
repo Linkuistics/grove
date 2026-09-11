@@ -231,23 +231,16 @@ them can be executed.
 ````
 <!-- /fragment -->
 
-The claim in the last sentence is structural, and it is worth separating the two
-halves of it. *`Handle::render` is the only `write!` the grammar appears in* and
-*`peel_key` is the only place it is taken apart* are facts about this file that a
-reader can check by searching it. *A filename and a handle saying different
-things is not expressible* is the consequence, and it holds only because both of
-`TaskName`'s positioned rendering arms end in a call to the former. Chapter 3
-owns `Handle` and the test that asserts the consequence rather than reviewing for
-it.
+The renderers share identity spelling at two levels. `Handle::render` writes
+`<slug>-k<key>` for a handle and for the handle-bearing suffix of a leaf name.
+A node directory has no slug: it uses `render_key` for its `-k<key>` suffix,
+which `Handle::render` also uses. A node handle requires the directory and its
+node file together. Chapter 3 reads those constructors and their tests.
 
-Three names in the passage are read in later chapters, and none of the three is
-public. `Handle::render` is a private associated function on chapter 3's
-`Handle`: the renderer, reached by `Handle`'s own `Display` and by both arms of a
-positioned `TaskName`'s. The `KEY_MARK` constant read in the next section has
-exactly three uses in the crate — its own definition, this renderer's `write!`,
-and the `strip_suffix` in `peel_key` — which is the header's claim in a form a
-reader can grep for. The claim is about production code: the inline tests build
-fixture names with `format!`, as any other caller writing a filename would.
+`Handle::render`, `render_key` and `peel_key` are private to the name module.
+The first composes a title with a key; the second spells the key suffix; the
+third peels that suffix apart. The grammar's punctuation has one owner without
+requiring a directory name to repeat its node-file title.
 `peel_key` and `split_shape` are private free functions in chapter 4's block —
 `peel_key` at lines 949 to 956 returns what precedes a terminal `-k<digits>`
 and the digit run, leaving each caller to judge an over-wide key for itself, and
@@ -306,8 +299,8 @@ about the grammar's punctuation.
 
 <!-- fragment «name-brief-and-key-mark» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="19-27" parent="tokens-and-verdicts" -->
 ````rust
-/// The name of a node's distinguished child: the charter every node directory is
-/// headed by.
+/// The root's required node-file name. Positioned nodes instead carry a
+/// `_<slug>.md` file whose filename supplies their title.
 pub const BRIEF: &str = "_BRIEF.md";
 
 /// The permanent key's delimiter — the terminal `-k<digits>` of every positioned
@@ -318,7 +311,7 @@ const KEY_MARK: &str = "-k";
 ````
 <!-- /fragment -->
 
-`BRIEF` is public because the charter's name is a fact other modules act on;
+`BRIEF` is public because the root node-file name is a fact other modules act on;
 `KEY_MARK` is private because nothing outside this file may spell the key
 delimiter. The parenthesis on `KEY_MARK` records a change of spelling rather than
 of meaning: the original scheme wrote the permanent key as `[<key>]`, and square
@@ -668,8 +661,8 @@ refusal's recovery advice and not merely its detection — three of this section
 six tests assert on that rendered text, so the advice is part of what they pin
 rather than commentary beside it. And the `to_string()` calls in the round-trip
 test below are `TaskName`'s `Display`, chapter 4's other renderer: it writes a
-parsed name back to its filename bytes, both arms of its positioned case ending
-in the call to `Handle::render` the module header claimed. All five are read
+parsed name back to its filename bytes. Leaves call `Handle::render`; node
+directories call `render_key`, and node files carry no key. All five are read
 where chapter 4 and chapter 3 reproduce the blocks that define them.
 
 <!-- fragment «shape-refusal-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1299-1495" parent="source-task-name" -->
@@ -979,8 +972,8 @@ since the fixtures differ only in which infix they carry.
 
 **What it establishes.** The one rule that governs a kind governs a slug, on both
 species. The five fixtures cover an uppercase letter, an underscore, an embedded
-separator, an empty token and a reserved word, and the last two are directories —
-where the whole middle is the slug, because a node name carries no kind and no
+separator, an empty token and a reserved word. The last two are node files:
+`_.md` and `_DONE.md`. Their filename supplies a slug without a kind or outcome
 infix. The reported token is the offending word itself in each case, including
 `a--b`, which is what remains after the middle splits at its first separator.
 
@@ -1044,8 +1037,7 @@ Four verdicts, then, and one rule about which of them a task-shaped name may
 reach. What this chapter has not done is read a name apart: `Kind`, `Slug`,
 `Handle` and `Parts` have been named on every page of the header and defined
 nowhere. Chapter 3 defines them, and asserts the property the header claims for
-the handle — that a positioned name's rendering ends in its own handle's
-rendering, so a filename and a handle saying different things is not a bug this
-module can have.
+the handle: leaf names share its rendering, while node handles combine the
+directory's key with the node file's title.
 
 [Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Kind, slug, handle](03-kind-slug-handle.md)

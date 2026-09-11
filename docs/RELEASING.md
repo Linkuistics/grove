@@ -96,7 +96,16 @@ so an added kind does not break every configuration on upgrade — it stops the
 first task of that kind, in the middle of a workstream, and the release note is
 what lets an owner get ahead of it.
 
-Then run the normal checks — all seven, as one command:
+For a tree-grammar release, prepare converted scratch copies and verify them
+with the release candidate before installation. Obtain the human's approval
+for the concrete cutover and confirm that other Grove drivers are stopped.
+Install the matching binary and plugin together, convert the intended live
+trees only under that approved cutover, and verify each with the installed
+reader before restarting its driver. A driver already in memory keeps its
+parser; do not relaunch it after converting its tree. Include both the source
+workspace and any release-created copy of its tracked `.grove/` in verification.
+
+Then run the normal checks as one command:
 
 ```sh
 bash scripts/check.sh

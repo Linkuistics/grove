@@ -154,7 +154,7 @@ fn touch_body(dir: &Path, name: &str, content: &str) -> PathBuf {
     path
 }
 
-/// Create a node directory with its `_BRIEF.md`, returning the directory path.
+/// Create a node directory with its `_<slug>.md`, returning the directory path.
 fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
     let path = dir.join(name);
     fs::create_dir_all(&path).unwrap();
@@ -886,7 +886,7 @@ fn insert_at_occupied_position_shifts_occupant_and_later_siblings_keys_preserved
 #[test]
 fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
     // The headline: inserting ahead of a sibling *node* shifts only that node's
-    // own directory name — its `_BRIEF.md` and every grandchild stay
+    // own directory name — its `_<slug>.md` and every grandchild stay
     // byte-identical, name *and* key, because a shift is one rename of one
     // directory.
     let (_t, g) = jj_grove();

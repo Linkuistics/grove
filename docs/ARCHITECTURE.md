@@ -1241,8 +1241,9 @@ how Grove drives long work *without* becoming brittle, constraining machinery.
    markdown and the format files are guides. A schema over prose buys validation
    of the half that never fails and forbids the improvisation that makes a leaf
    body useful.
-4. **Lazy and optional.** Every artifact — brief, ADR, spec, glossary entry — is
-   created only when it earns its place, never because a step demands it. Lazy
+4. **Lazy and optional.** ADRs, specs and glossary entries are
+   created when they earn their place. Every root and node requires its node
+   file at creation; its brief is developed as the work becomes concrete. Lazy
    means *just-in-time, not few*: a tree that keeps sprouting small, concrete
    leaves is healthy, and rationing leaves to keep it tidy is the failure this
    constraint names.

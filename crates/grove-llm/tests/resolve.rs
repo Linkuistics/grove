@@ -1,22 +1,11 @@
-// Fixture-driven tests for `grove-llm resolve <ref>` on the **v2 directory
-// scheme** (task-tree-scheme). The tree is a real directory tree under `.grove/`: a node
-// is a directory `NN-k<key>/` of numbered children, optionally headed by a
-// `_BRIEF.md`;
-// leaves are files `NN-[DONE-]<slug>-k<key>.md`. `resolve` turns a reference into
-// the current path of the entity it names, searching the whole tree — live
-// leaves, retired (`DONE`) leaves, and node directories alike:
-//
-//   - `[n]` / `n`        → the unique entity whose permanent key is `n`.
-//   - `[n]-slug`         → same; the slug part is decorative.
-//   - bare slug          → 0 ⇒ not found, 1 ⇒ found, >1 ⇒ ambiguous (list keys).
-//   - `<slug>-k<key>`    → the full canonical handle; the terminal `-k<key>` is
-//                          read as the key, the slug decorative.
-//
-// A node resolves to its **directory** path (the dir name carries the key); a
-// leaf resolves to its file path. `NotFound`/`Ambiguous` are pick-style — empty
-// stdout, a diagnostic on stderr, exit zero; only a malformed bracket ref is a
-// non-zero error. Each test stands up a real git repo so
-// `git rev-parse --show-toplevel` resolves to the fixture path.
+// Fixture-driven tests for `grove-llm resolve <ref>` on Grove's node-file grammar.
+// Nodes are `NN-k<key>/` with exactly one `_<slug>.md`; the root requires
+// `_BRIEF.md`. Leaves are `NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md`.
+// Resolution searches live and terminal leaves and node directories alike.
+// `[n]`, `n` and `[n]-slug` address keys; a full handle checks key and title;
+// a bare slug searches leaf and node-file titles and can be ambiguous.
+// Nodes resolve to directories, leaves to files. An absent or ambiguous answer
+// exits zero; malformed references and tree shapes refuse. Tests use jj repos.
 
 use assert_cmd::Command;
 use std::fs;
@@ -115,7 +104,7 @@ fn resolve_by_unique_slug() {
 #[test]
 fn resolve_key_resolves_a_node_to_its_directory() {
     // A node's identity rides in its directory name, so a key reference to a node
-    // resolves to the directory path (append /_BRIEF.md to read its charter).
+    // resolves to the directory path (read its _design.md node file for the brief).
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     let node = mknode(&grove, "01-k1", "design");

@@ -16,8 +16,8 @@ use ordinal_fs_tree::{
     EntryName, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Triple, Verdict,
 };
 
-/// The name of a node's distinguished child: the charter every node directory is
-/// headed by.
+/// The root's required node-file name. Positioned nodes instead carry a
+/// `_<slug>.md` file whose filename supplies their title.
 pub const BRIEF: &str = "_BRIEF.md";
 
 /// The permanent key's delimiter — the terminal `-k<digits>` of every positioned

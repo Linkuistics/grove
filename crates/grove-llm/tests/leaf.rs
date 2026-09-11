@@ -1,5 +1,5 @@
 // Fixture-driven tests for `grove-llm leaf-add` and `grove-llm leaf-insert` on
-// the current witnessed directory scheme (task-tree-scheme). A parent/target is addressed by its
+// the current node-file grammar (task-tree-scheme). A parent/target is addressed by its
 // permanent **key** (`[n]` / `n` / `<slug>-k<key>`) or its **path** — not a
 // dotted id:
 //
@@ -49,7 +49,7 @@ fn touch(p: &Path, body: &str) {
     fs::write(p, body.as_bytes()).unwrap();
 }
 
-/// Create a node directory holding a `_BRIEF.md`, returning the directory path.
+/// Create a node directory holding a `_<slug>.md`, returning the directory path.
 fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
     let p = dir.join(name);
     fs::create_dir_all(&p).unwrap();

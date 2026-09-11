@@ -51,6 +51,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **Grove node files and directories.** Each node directory is `NN-k<key>/`
+  with exactly one `_<slug>.md` node file; the root requires `_BRIEF.md`.
+  The file's name supplies the title and its body supplies the brief. Node
+  handles combine that title with the directory key. Lookup, decomposition,
+  brief chains and all tree reads enforce this grammar, with actionable
+  refusals for missing, competing or misplaced node files. Install the matching
+  Grove binary and `grove` plugin together; the plugin must teach the grammar
+  the binary accepts. The user guide and walkthroughs describe this contract.
+
 - `ordinal-fs-tree`: validate complete read levels and projected final plans
   before exposure or filesystem effects. Domain errors retain their level path;
   independent cardinality rejects competing distinguished names. Conformance
@@ -63,8 +72,7 @@ stood at the graft — a closed record, not part of the versioned sequence above
   `conformance::check` takes explicit name samples as its third argument.
   `SuppliedNameNotDistinguished` replaces `NoDistinguishedChild` for positioned
   destinations. Callers and books use the new API; confinement regressions
-  cover both supplied-name operations. Level-policy invocation by readers and
-  planners is a following increment. Decision:
+  cover both supplied-name operations. Readers and planners invoke the level policy before exposing or changing a tree. Decision:
   `docs/adr/entry-name-is-the-only-seam.md`.
 
 ## v20.2.0

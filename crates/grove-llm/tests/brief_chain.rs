@@ -1,15 +1,9 @@
-// Fixture-driven tests for `grove-llm brief-chain` on the **v2 directory scheme**
-// (task-tree-scheme). The tree is a real directory tree under `.grove/`: a node is a
-// directory `NN-k<key>/` of numbered children, optionally headed by a
-// `_BRIEF.md`; leaves
-// are files `NN-[DONE-]<slug>-k<key>.md`. A leaf's brief chain is collected by
-// **directory ascent**: the `_BRIEF.md` of each of the leaf's ancestor
-// directories, from the grove root down to the leaf's containing directory,
-// root→leaf order. A directory level with no `_BRIEF.md` is skipped silently.
-// Every brief is named `_BRIEF.md`, so the assertions key on the **parent
-// directory name** of each printed path (mirroring the unit tests in
-// src/task_tree.rs). Each test stands up a real jj repo, because every verb
-// resolves its grove root through the jj workspace gate.
+// Fixture-driven tests for `grove-llm brief-chain` on Grove's node-file grammar.
+// Every level requires a node file: `_BRIEF.md` at the root, `_<slug>.md`
+// inside each `NN-k<key>/` directory. Leaves are
+// `NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md`.
+// The chain contains the root and every ancestor node file, root first;
+// missing or competing files refuse the guarded read. Tests use real jj repos.
 
 use assert_cmd::Command;
 use std::fs;

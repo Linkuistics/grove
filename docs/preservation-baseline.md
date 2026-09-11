@@ -26,8 +26,11 @@ approved exception:
   leaf's session kind and its slug are now separated by `--`
   (`NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md`), so every leaf filename
   captured below — and every refusal quoting one — records the spelling of
-  v19.3.0 rather than one that must still hold. Node directory names, the
-  outcome infixes, the terminal `-k<key>` and the handle are all unchanged. The
+  v19.3.0 rather than one that must still hold. The outcome infixes and permanent keys remain part of the current contract.
+  Current nodes are `NN-k<key>/` with exactly one `_<slug>.md` node file, and
+  the root requires `_BRIEF.md`. Directory and brief spellings in the captured
+  transcripts below belong only to the named v19.3.0 measurement; use
+  [`USAGE.md`](USAGE.md#usage-task-tree) for executable current examples. The
   exception is the approved kind this ledger allows for, argued in
   [`task-names-are-canonical`](adr/task-names-are-canonical.md) and
   [`docs/specs/module-decomposition.md`](specs/module-decomposition.md)

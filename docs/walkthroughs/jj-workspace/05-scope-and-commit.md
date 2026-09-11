@@ -86,7 +86,7 @@ has just renamed and one unrelated edit in the working copy that must stay there
 │   ├── working_copy/
 │   └── grove/                                  reserved in the previous chapter
 ├── .grove/
-│   ├── BRIEF.md
+│   ├── _BRIEF.md
 │   └── 01-DONE-impl--rate-limit-k3.md          renamed: the commit is about this
 └── crates/
     └── gateway/

@@ -88,7 +88,7 @@ leaves are as the retirement left them.
 ├── 01-DONE-impl--rate-limit-k3.md
 ├── 02-review-impl--rate-limit-k4.md
 └── 03-k5/
-    ├── _BRIEF.md
+    ├── _cache.md
     ├── 01-DONE-impl--warm-k6.md
     ├── 02-impl--evict-k7.md
     └── 03-impl--ttl-k8.md

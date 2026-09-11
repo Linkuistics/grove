@@ -92,7 +92,7 @@ the plugin carries a fifth, and no word is owned twice:
 | `ordinal-fs-tree` | *entry*, *leaf*, *node*, *ordinal*, *key*, *distinguished child*, *snapshot*, *guard*, *refusal*, *sought*, *promote* | [`docs/ordinal-fs-tree/CONTEXT.md`](./docs/ordinal-fs-tree/CONTEXT.md) |
 | `keyed-launch` | *key*, *template*, *slot*, *argv*, *launch*, *channel*, *token*, *escalation*, *overlay* | none — its words are its own interface's, and none of them collides |
 | `jj-workspace` | *workspace*, *main repo*, *control directory*, *namespace*, *tracked*, *commit*, *change id* | none — the words are Jujutsu's, with Jujutsu's meanings |
-| `grove-loop`, with `grove` and `grove-llm` over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
+| `grove-loop`, with `grove` and `grove-llm` over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
 | the `grove` plugin | **Spine skill**, **Kind skill**, **Composed loaded path**, **Condition** / **procedure**, **Loop-step reference file** | [`CONTEXT.md`](./CONTEXT.md) for the terms, [`plugins/CONTEXT.md`](./plugins/CONTEXT.md) for packaging and delivery |
 
 The two middle rows are the ones that had to be *bought*: `keyed-launch` avoids

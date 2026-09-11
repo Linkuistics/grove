@@ -479,7 +479,7 @@ fn classify_shape(name: &str, separator: &str) -> Example {
 
 /// Every candidate leaf filename on one line: a position prefix through a
 /// terminating `.md`. Anything without `.md` is not a filename — that is what
-/// keeps a node directory (`NN-<slug>-k<key>/`) and a bare position reference
+/// keeps a node directory (`NN-k<key>/`) and a bare position reference
 /// (`01-…`) out of the sweep instead of needing an exception each.
 ///
 /// **A position prefix here is any run of digits before the `-`, and the width

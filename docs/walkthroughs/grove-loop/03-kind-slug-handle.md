@@ -617,13 +617,11 @@ directories and handles, which leaf rendering also reuses.
 ````
 <!-- /fragment -->
 
-`render` is the single `write!` the header claimed, and its signature is why the
-claim holds rather than merely being policy. It takes a slug and a key rather
-than `&self`, so chapter 4's `Display for TaskName` can end both of its positioned
-arms in a call to it — at lines 573 and 655 — without building a `Handle` it does
-not need. A `Handle` value is not the point; one `write!` is. Both accessors are
-`const fn`, which costs nothing here and is the same treatment `Parts` gives its
-three below.
+`render` accepts a slug and key rather than `&self`, so leaf-name rendering
+can reuse it without constructing a `Handle`. It writes the slug and delegates
+the key suffix to `render_key`, which node-directory rendering also calls.
+The two accessors are `const fn`; neither reconstructs identity from a path or
+reads a brief body.
 
 <!-- fragment «name-handle-display» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="439-444" parent="kind-slug-and-handle" -->
 ````rust

@@ -675,12 +675,9 @@ than omission or a fabricated path, preventing an implementation from making
 only the root mandatory while silently omitting positioned-node briefs.
 
 
-**Neither test observes the silence.** Both assert on the returned vector, and a
-silent skip and a skip that logged a warning to stderr are indistinguishable to
-them. The word *silently* in the verb's contract is held by no test in this
-crate, and the operator-facing half of it — that a short chain means a level had
-no charter and never that the walk stopped — is stated in the guide rather than
-asserted anywhere.
+These are refusal tests: a missing root file and a missing positioned-node
+file both prevent a chain from being returned. The guarded opening validates
+the whole tree before this collection can run.
 
 The next pair tests two independent properties and is grouped only by source
 order.

@@ -81,7 +81,7 @@ file. It holds eleven items: two verbs, one public result type, one private plan
 enum, and seven private helpers. The first three items are `leaf-retire`, and
 they are the whole of it.
 
-<!-- fragment «outcomes-in-place» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="696-1012" parent="source-tree-lifecycle" -->
+<!-- fragment «outcomes-in-place» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="699-1015" parent="source-tree-lifecycle" -->
 <!-- insert «outcomes-retire-contract» -->
 <!-- insert «outcomes-retire-body» -->
 <!-- insert «outcomes-retire-parts» -->
@@ -100,7 +100,7 @@ they are the whole of it.
 The doc comment states the contract and then states what the mark *is*, and the
 second half is the load-bearing one.
 
-<!-- fragment «outcomes-retire-contract» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="696-706" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-retire-contract» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="699-709" parent="outcomes-in-place" -->
 ````rust
 /// `leaf-retire <leaf-path>`: rename a live leaf `NN-<kind>--<slug>-k<key>.md` →
 /// `NN-DONE-<kind>--<slug>-k<key>.md` in place, keeping its position and key. The
@@ -128,7 +128,7 @@ reached for a version-control-aware move, and a leaf grown this session has
 nothing recorded for such a move to find — which is the defect the untracked-leaf
 tests further down this page were written for.
 
-<!-- fragment «outcomes-retire-body» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="707-727" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-retire-body» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="710-730" parent="outcomes-in-place" -->
 ````rust
 pub(crate) fn leaf_retire(tree: Guard, leaf_path: &Path) -> Result<PathBuf> {
     // The classification, then the guard: `rewrite` consumes the guard, so the
@@ -166,7 +166,7 @@ What is *not* here is any check that the entry may be marked. That is the next
 item's whole job, and the split is deliberate: the verb reads as one refusal
 gate, one operation, one answer.
 
-<!-- fragment «outcomes-retire-parts» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="728-764" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-retire-parts» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="731-767" parent="outcomes-in-place" -->
 ````rust
 /// The key to rewrite and the `DONE` parts to give it, or Grove's own refusal.
 ///
@@ -259,7 +259,7 @@ The remaining eight items are `leaf-prune`, and they are eight rather than three
 because the verb has an arity `leaf-retire` does not: given a node, it marks every
 live leaf beneath it. The public result type is where that shows first.
 
-<!-- fragment «outcomes-prune-result» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="765-775" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-prune-result» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="768-778" parent="outcomes-in-place" -->
 ````rust
 /// The outcome of a [`leaf_prune`] call: every leaf newly marked `ABANDONED`
 /// (its new path), and every already-`DONE` leaf found in scope and left
@@ -298,7 +298,7 @@ is a reasonable place for it — retiring is a claim about one session's work an
 abandoning is a decision about a line of work — but a reader following the
 citation for the argument will not find one.
 
-<!-- fragment «outcomes-prune-contract» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="776-805" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-prune-contract» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="779-808" parent="outcomes-in-place" -->
 ````rust
 /// `leaf-prune <path>`: mark abandoned work `ABANDONED` in place (pruning).
 /// `path` is a live leaf file **or** a node directory (absolute, or relative to
@@ -363,7 +363,7 @@ sits on the caller, which is the LLM driving the session. The code contains no
 enforcement of it, and the comment is explicit that this is by design rather than
 by omission.
 
-<!-- fragment «outcomes-prune-body» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="806-821" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-prune-body» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="809-824" parent="outcomes-in-place" -->
 ````rust
 pub(crate) fn leaf_prune(tree: Guard, path: &Path) -> Result<PruneResult> {
     let root = tree.root().to_path_buf();
@@ -403,7 +403,7 @@ guard's snapshot, and the guard has to be moved into `apply_prune` afterwards.
 Four private items do the work, and the split between them is the all-or-nothing
 promise.
 
-<!-- fragment «outcomes-planned» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="822-828" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-planned» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="825-831" parent="outcomes-in-place" -->
 ````rust
 /// One step of a planned prune: an entry to rewrite, or an already-`DONE` leaf
 /// to report and leave alone.
@@ -420,7 +420,7 @@ of the marking: an entry to rewrite, or an already-`DONE` leaf to report. Nothin
 in it can fail, because everything that could fail was decided before the value
 was built.
 
-<!-- fragment «outcomes-plan-prune» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="829-851" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-plan-prune» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="832-854" parent="outcomes-in-place" -->
 ````rust
 /// Plan — and validate — the whole prune against one snapshot, mutating nothing.
 ///
@@ -461,7 +461,7 @@ The function itself dispatches on species, and its one refusal is brief-ness —
 node's own `BRIEF.md` handed in directly, which is neither a leaf to mark nor a
 node to walk.
 
-<!-- fragment «outcomes-plan-subtree» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="852-888" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-plan-subtree» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="855-891" parent="outcomes-in-place" -->
 ````rust
 /// Every live leaf under a node, in the library's own per-level order, with each
 /// already-`DONE` leaf collected untouched and each already-`ABANDONED` one
@@ -526,7 +526,7 @@ integration test's read-only-directory fixture land on the *second* mark, and on
 because it is the order `prune_node_marks_every_live_leaf_in_the_subtree` asserts
 as a `vec![…]` rather than as a set.
 
-<!-- fragment «outcomes-plan-leaf» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="889-929" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-plan-leaf» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="892-932" parent="outcomes-in-place" -->
 ````rust
 /// One leaf's step, refused here if it cannot be marked at all.
 ///
@@ -608,7 +608,7 @@ the rewrite is what keeps a bulk mark all-or-nothing across entries the library
 only ever sees one at a time*. The check could have sat beside each `rewrite`, and
 then the fourth leaf of six would have failed after three had already moved.
 
-<!-- fragment «outcomes-apply-prune» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="930-976" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-apply-prune» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="933-979" parent="outcomes-in-place" -->
 ````rust
 /// Apply a validated plan, one rewrite per guard.
 ///
@@ -687,7 +687,7 @@ record and the context added on line 969 are one decision, not two, and removing
 the second would quietly invalidate the first. The comment names the principle it
 is applying: *an error that only reports detection is unfinished*.
 
-<!-- fragment «outcomes-stopped-partway» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="977-996" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-stopped-partway» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="980-999" parent="outcomes-in-place" -->
 ````rust
 /// What a stopped `leaf-prune` has already done, and what to do about it.
 fn stopped_partway(result: &PruneResult) -> String {
@@ -720,7 +720,7 @@ makes the repair work (*a mark is the state and an already-abandoned leaf is
 skipped*), and gives the exact command to re-run. The pluralisation on line 991 is
 the small tell that the second branch expects to be read by a person.
 
-<!-- fragment «outcomes-marked-path» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="997-1012" parent="outcomes-in-place" -->
+<!-- fragment «outcomes-marked-path» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1000-1015" parent="outcomes-in-place" -->
 ````rust
 /// Where a mark left the entry, out of the library's own report.
 ///
@@ -761,7 +761,7 @@ functions it heads two pages earlier in the book.
 <a id="the-tests-and-what-each-would-pass-under"></a>
 ## What the thirty-two tests establish, and what each would pass under
 
-The chapter's second ownership block is lines 2235 to 2725 — 491 lines, and the
+The chapter's second ownership block is lines 2235 to 2732 — 491 lines, and the
 third largest inline-test block in the book behind chapter 12's 569 and chapter
 17's 564. It carries **thirty-two** `#[test]` functions in four labelled sections
 and no helpers of its own: ten in *leaf-retire*, three in *lifecycle over
@@ -798,7 +798,7 @@ holds no tree. What it adds is `grow_leaf`, and that one item is what makes the
 untracked-leaf section possible: it grows a leaf through the real verb and leaves
 it uncommitted, which is the state a mid-session grove is actually in.
 
-<!-- fragment «retire-and-prune-tests» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2235-2725" parent="source-tree-lifecycle" -->
+<!-- fragment «retire-and-prune-tests» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2242-2732" parent="source-tree-lifecycle" -->
 <!-- insert «retire-tests-opening» -->
 <!-- insert «retire-tests-body-untouched» -->
 <!-- insert «retire-tests-nested» -->
@@ -827,7 +827,7 @@ it uncommitted, which is the state a mid-session grove is actually in.
 The first section is ten tests over `leaf-retire`, and it opens on the two the
 structure brief names as the chapter's pair.
 
-<!-- fragment «retire-tests-opening» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2235-2252" parent="retire-and-prune-tests" -->
+<!-- fragment «retire-tests-opening» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2242-2259" parent="retire-and-prune-tests" -->
 ````rust
     // ---- leaf-retire --------------------------------------------------------
 
@@ -866,7 +866,7 @@ happened to match* are the same observation here. Nothing in this block separate
 them — the separation is `addressable_key`'s, and the twin test below is where it
 shows.
 
-<!-- fragment «retire-tests-body-untouched» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2253-2262" parent="retire-and-prune-tests" -->
+<!-- fragment «retire-tests-body-untouched» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2260-2269" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn retire_does_not_rewrite_the_header_or_body() {
@@ -894,7 +894,7 @@ it never looks at one — it reads the body at whatever path the verb returned. 
 two tests are complementary in exactly that way, and each is weak precisely where
 the other is strong.
 
-<!-- fragment «retire-tests-nested» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2263-2274" parent="retire-and-prune-tests" -->
+<!-- fragment «retire-tests-nested» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2270-2281" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn retire_works_on_a_nested_leaf() {
@@ -920,7 +920,7 @@ It would pass while the property was broken if the verb had marked the *right*
 leaf for the wrong reason — the tree holds one leaf, so *found it by path* and
 *found the only markable entry* are indistinguishable here.
 
-<!-- fragment «retire-tests-refusals» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2275-2331" parent="retire-and-prune-tests" -->
+<!-- fragment «retire-tests-refusals» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2282-2338" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn retire_refuses_a_node_directory() {
@@ -1015,7 +1015,7 @@ mutation rather than by reading.
   refusal comes from `task_tree::target`, which is chapter 6's. `contains("leaf")`
   is what the assertion can say without reaching into another chapter's wording.
 
-<!-- fragment «retire-tests-absolute» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2332-2341" parent="retire-and-prune-tests" -->
+<!-- fragment «retire-tests-absolute» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2339-2348" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn retire_accepts_an_absolute_path() {
@@ -1042,7 +1042,7 @@ section covers by using them exclusively.
 The second section is three tests, one per lifecycle verb, and it is the only one
 in the block whose label names a *bug* rather than a verb.
 
-<!-- fragment «untracked-tests-opening» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2342-2367" parent="retire-and-prune-tests" -->
+<!-- fragment «untracked-tests-opening» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2349-2374" parent="retire-and-prune-tests" -->
 ````rust
     // ---- lifecycle over untracked leaves (issue #3's root cause) -------------
     //
@@ -1097,7 +1097,7 @@ comment on line 2358 says *no commit_all* rather than leaving the absence silent
 the assertion depends on something not happening, and a reader cannot see that
 from the code alone.
 
-<!-- fragment «untracked-tests-decompose-and-prune» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2368-2394" parent="retire-and-prune-tests" -->
+<!-- fragment «untracked-tests-decompose-and-prune» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2375-2401" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn decompose_an_untracked_leaf_added_this_session() {
@@ -1151,7 +1151,7 @@ populated wrongly, which it does not assert; the leaf-section test below does.
 The third section is nine tests over `leaf-prune` given a leaf, and read against
 the first section it is very nearly the same list — which is the point.
 
-<!-- fragment «prune-leaf-tests-opening» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2395-2414" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-leaf-tests-opening» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2402-2421" parent="retire-and-prune-tests" -->
 ````rust
     // ---- leaf-prune (pruning) ------------------------------------------
 
@@ -1189,7 +1189,7 @@ composed rather than preserved key is indistinguishable here — and additionall
 the walk never running. `prune_node_leaves_done_leaves_untouched` is what makes
 `left_done` a field that can be non-empty at all.
 
-<!-- fragment «prune-leaf-tests-body-and-nested» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2415-2440" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-leaf-tests-body-and-nested» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2422-2447" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn prune_leaf_does_not_rewrite_the_header_or_body() {
@@ -1229,7 +1229,7 @@ body-preservation property that held on the short path could fail on the long on
 Each would pass while broken in its twin's way: the body test reads no filename,
 the nested test reads no content.
 
-<!-- fragment «prune-leaf-tests-refusals» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2441-2485" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-leaf-tests-refusals» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2448-2492" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn prune_leaf_refuses_a_node_brief() {
@@ -1305,7 +1305,7 @@ stated as a missing test.
 - **`prune_leaf_refuses_a_foreign_file`** — chapter 6's refusal again, same as its
   retire twin.
 
-<!-- fragment «prune-leaf-tests-absolute» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2486-2495" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-leaf-tests-absolute» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2493-2502" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn prune_leaf_accepts_an_absolute_path() {
@@ -1330,7 +1330,7 @@ a different word. Everything after this is the arity.
 The last section is ten tests over `leaf-prune` given a node, and it is where the
 chapter's cost stops being described and starts being asserted.
 
-<!-- fragment «prune-node-tests-opening» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2496-2514" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-node-tests-opening» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2503-2521" parent="retire-and-prune-tests" -->
 ````rust
     // ---- leaf-prune on a node: bulk arity (pruning) -------------------
 
@@ -1367,7 +1367,7 @@ separates *marks the children* from *marks the subtree*. It would also pass if t
 node's own `BRIEF.md` were being silently mishandled rather than skipped — nothing
 here asserts the brief survived.
 
-<!-- fragment «prune-node-tests-done-untouched» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2515-2533" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-node-tests-done-untouched» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2522-2540" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn prune_node_leaves_done_leaves_untouched() {
@@ -1405,7 +1405,7 @@ fail. Without that line the test would pass while the property was broken, becau
 `left_done` is a value the function constructs and could construct honestly while
 doing the wrong thing beside it.
 
-<!-- fragment «prune-node-tests-grandchild» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2534-2551" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-node-tests-grandchild» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2541-2558" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn prune_node_recurses_into_a_grandchild_node() {
@@ -1440,7 +1440,7 @@ than unbounded; the fixture is exactly two levels, and nothing in the block test
 deeper. That is a real gap in the block rather than a criticism of the test: the
 recursion is structural and a third level would exercise the same line.
 
-<!-- fragment «prune-node-tests-mixed-tracking» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2552-2581" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-node-tests-mixed-tracking» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2559-2588" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn prune_node_marks_a_subtree_mixing_tracked_and_untracked_leaves() {
@@ -1489,7 +1489,7 @@ property was broken if the untracked leaf were marked but the *result* omitted i
 — `result.marked.len() == 3` guards that, and the two assertions together are what
 make the test about both the disk and the answer.
 
-<!-- fragment «prune-node-tests-atomic» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2582-2635" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-node-tests-atomic» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2589-2642" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn prune_node_is_atomic_bails_clean_on_a_leaf_it_cannot_address() {
@@ -1579,7 +1579,7 @@ It would pass while the property was broken if the refusal happened *before* the
 walk for an unrelated reason — the fixture's tree is unusual enough that a verb
 refusing all hand-edited trees outright would satisfy every line of it.
 
-<!-- fragment «prune-node-tests-twin» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2636-2662" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-node-tests-twin» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2643-2669" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn retiring_a_leaf_whose_key_names_a_twin_is_refused_rather_than_misaimed() {
@@ -1629,7 +1629,7 @@ detection at a different layer — but there is only one twin scan in the worksp
 which is what the closing section says makes the whole `DestinationOccupied` row
 rest on one line of grove's code.
 
-<!-- fragment «prune-node-tests-guard-count» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2663-2692" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-node-tests-guard-count» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2670-2699" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn pruning_a_node_takes_one_guard_per_mark() {
@@ -1693,7 +1693,7 @@ moving is a signal in both directions. A later leaf that restored one critical
 section would move it down; one that added a re-read nobody meant to add would
 move it up.
 
-<!-- fragment «prune-node-tests-nothing-live» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2693-2704" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-node-tests-nothing-live» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2700-2711" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn prune_node_with_nothing_live_marks_nothing() {
@@ -1721,7 +1721,7 @@ all-terminal subtree is a **success** rather than a refusal. That is the
 re-runnability argument's base case: the second run of a completed prune must
 succeed and do nothing, and this is the tree the second run sees.
 
-<!-- fragment «prune-node-tests-root-refusals» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2705-2725" parent="retire-and-prune-tests" -->
+<!-- fragment «prune-node-tests-root-refusals» owner="marked-in-place" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2712-2732" parent="retire-and-prune-tests" -->
 ````rust
     #[test]
     fn prune_refuses_the_grove_root() {

@@ -58,11 +58,11 @@ fn duplicate_evidence_names_every_later_occurrence_in_order() {
 #[test]
 fn byte_mismatch_has_complete_source_and_path_evidence() {
     let markdown = concat!(
-        "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-103\" -->\n",
+        "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-104\" -->\n",
         "<!-- insert «library-crate-surface» -->\n",
         "<!-- /source-root -->\n",
-        "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-103\" parent=\"source-library\" -->\n",
-        "````rust\nwrong\n",
+        "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-104\" parent=\"source-library\" -->\n",
+        "````rust\nwrong\nline\n",
         "line\nline\nline\nline\nline\nline\nline\nline\nline\nline\n",
         "line\nline\nline\nline\nline\nline\nline\nline\nline\nline\n",
         "line\nline\nline\nline\nline\nline\nline\nline\nline\nline\n",
@@ -74,7 +74,7 @@ fn byte_mismatch_has_complete_source_and_path_evidence() {
         "line\nline\nline\nline\nline\nline\nline\nline\nline\nline\n",
         "line\nline\nline\nline\nline\nline\nline\nline\nline\nline\nline\n````\n<!-- /fragment -->\n",
     );
-    let source = format!("right\n{}", "line\n".repeat(102));
+    let source = format!("right\n{}", "line\n".repeat(103));
     let report = orientation(markdown, &source);
     let mismatch = report
         .diagnostics
@@ -221,12 +221,12 @@ fn cycle_and_reachability_findings_carry_graph_evidence() {
 
 #[test]
 fn an_invalid_root_suppresses_only_its_byte_cascade() {
-    let library_source = "line\n".repeat(103);
+    let library_source = "line\n".repeat(104);
     let report_source = "report\n".repeat(186);
     let markdown = concat!(
-        "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-103\" -->\n",
+        "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-104\" -->\n",
         "<!-- insert «bad-gap» -->\n<!-- /source-root -->\n",
-        "<!-- fragment «bad-gap» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"2-103\" parent=\"source-library\" -->\n",
+        "<!-- fragment «bad-gap» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"2-104\" parent=\"source-library\" -->\n",
         "````rust\nwrong\n````\n<!-- /fragment -->\n",
         "<!-- source-root «source-report» source=\"crates/ordinal-fs-tree/src/report.rs\" lines=\"1-186\" -->\n",
         "<!-- insert «mutation-report-source» -->\n<!-- /source-root -->\n",

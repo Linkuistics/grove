@@ -80,7 +80,7 @@ The chapter's first ownership block is `tree_lifecycle.rs` lines 490 to 695 — 
 lines, the file's third production concern. It is three items: the verb, the
 classification it runs first, and the check it runs last.
 
-<!-- fragment «decompose-production» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="490-695" parent="source-tree-lifecycle" -->
+<!-- fragment «decompose-production» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="493-698" parent="source-tree-lifecycle" -->
 <!-- insert «decompose-verb-contract» -->
 <!-- insert «decompose-verb-body» -->
 <!-- insert «decompose-decomposable» -->
@@ -92,7 +92,7 @@ The doc comment is the longest in the file and it is an argument rather than a
 description, so this chapter's job over it is to connect its parts and not to
 restate them.
 
-<!-- fragment «decompose-verb-contract» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="490-531" parent="decompose-production" -->
+<!-- fragment «decompose-verb-contract» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="493-534" parent="decompose-production" -->
 ````rust
 /// `leaf-decompose <leaf-path> <first-child-slug>`: convert a live leaf file
 /// `NN-<kind>--<slug>-k<key>.md` into a node directory `NN-<slug>-k<key>/` (**key
@@ -176,7 +176,7 @@ with, and the node's in the brief header this verb retitles afterwards. A key th
 disagreed would not be a wrong return value; it would be a file whose name
 contradicts its own first line, permanently.
 
-<!-- fragment «decompose-verb-body» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="532-590" parent="decompose-production" -->
+<!-- fragment «decompose-verb-body» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="535-593" parent="decompose-production" -->
 ````rust
 pub(crate) fn leaf_decompose(
     tree: Guard,
@@ -221,7 +221,7 @@ pub(crate) fn leaf_decompose(
     let node_parts = Parts::node(slug.clone());
     let child = task_grow::new_leaf(child_key, Outcome::Live, kind, child_slug);
     let report = tree
-        .promote(key, node_parts, Some(child))
+        .promote(key, node_parts, TaskName::Brief, Some(child))
         .map_err(task_tree::raised)?;
     let (brief_path, child_path) = promoted(&report, key, child_key)?;
 
@@ -295,7 +295,7 @@ stale `llm_cli` address: a comment that outlived what it described, and one no
 instrument reports, because `//` is invisible to `cargo doc`. Adjudicating it
 here is what produced `stale-slug-precondition-comment-k162`, and the comment
 above is what that leaf wrote: four lines replacing four, so the file stayed at
-2,725 lines and no fragment range, ownership range or manifest count in this book
+2,732 lines and no fragment range, ownership range or manifest count in this book
 had to move.
 
 <a id="every-clause-the-library-cannot-see"></a>
@@ -305,7 +305,7 @@ had to move.
 `docs/ARCHITECTURE.md#library-refusals` for this verb: *classify the resolved
 entry before calling*.
 
-<!-- fragment «decompose-decomposable» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="591-628" parent="decompose-production" -->
+<!-- fragment «decompose-decomposable» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="594-631" parent="decompose-production" -->
 ````rust
 /// The decomposed leaf's own kind and slug, or Grove's refusal that this entry
 /// is not a live leaf.
@@ -386,7 +386,7 @@ below.
 `promoted` runs after the operation has already landed. Nothing it finds can be
 recovered from, and its doc comment says so in as many words.
 
-<!-- fragment «decompose-promoted-claims» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="629-644" parent="decompose-production" -->
+<!-- fragment «decompose-promoted-claims» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="632-647" parent="decompose-production" -->
 ````rust
 /// What a promotion left behind: the node's brief, and the first child — each
 /// checked against what Grove promised itself.
@@ -422,7 +422,7 @@ two. The on-disk half is asserted by
 `02-build-k3` off the parent directory's name — a string carrying the ordinal and
 the key at once, so one assertion pins both.
 
-<!-- fragment «decompose-promoted-body» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="645-695" parent="decompose-production" -->
+<!-- fragment «decompose-promoted-body» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="648-698" parent="decompose-production" -->
 ````rust
 fn promoted(
     report: &Report<TaskName>,
@@ -515,7 +515,7 @@ property it establishes **and what would have to be true for it to pass while th
 property was broken**. The second half is the part a reviewer can check and the
 test cannot state.
 
-<!-- fragment «decompose-tests» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1666-2234" parent="source-tree-lifecycle" -->
+<!-- fragment «decompose-tests» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1669-2241" parent="source-tree-lifecycle" -->
 <!-- insert «decompose-tests-opening» -->
 <!-- insert «decompose-tests-brief-and-child» -->
 <!-- insert «decompose-tests-kind» -->
@@ -549,7 +549,7 @@ And the reason this section needs `jj_grove` where chapter 11's tests mostly nee
 a bare directory is the whole difference between the two chapters: this verb
 renames entries.
 
-<!-- fragment «decompose-tests-opening» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1666-1695" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-opening» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1669-1698" parent="decompose-tests" -->
 ````rust
     // ---- leaf-decompose -----------------------------------------------------
 
@@ -602,7 +602,7 @@ is one string, so *key 3 preserved* and *key 3 freshly allocated on a tree whose
 maximum was 2* are the same observation. The prediction that separates them is
 `promoted`'s, in production, and it is held by nothing (below).
 
-<!-- fragment «decompose-tests-brief-and-child» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1696-1742" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-brief-and-child» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1699-1745" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decompose_seeds_brief_from_leaf_body_and_appends_brief_suffix() {
@@ -686,7 +686,7 @@ end state. The lock count that does observe it is
 `decompose_takes_one_guard_for_the_promotion_and_one_for_the_retitle`, in the seam
 section, and even that counts guards rather than operations.
 
-<!-- fragment «decompose-tests-kind» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1743-1822" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-kind» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1746-1825" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decompose_first_child_header_is_the_handle_and_filename_carries_the_kind() {
@@ -814,7 +814,7 @@ the body, which this fixture rules out by making the two disagree — a fixture
 built to falsify rather than to satisfy, which is the shape chapter 11 named in
 its own support block.
 
-<!-- fragment «decompose-tests-nested» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1823-1849" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-nested» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1826-1852" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decompose_a_nested_leaf_preserves_key_and_grows_a_grandchild() {
@@ -865,7 +865,7 @@ broken under two other rules the fixture cannot separate: *the decomposed leaf's
 own key plus one*, and *the maximum inside the leaf's own container plus one* both
 answer 6 here as well.
 
-<!-- fragment «decompose-tests-refusals» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1850-1923" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-refusals» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1853-1926" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decompose_refuses_a_brief() {
@@ -1005,7 +1005,7 @@ the test's name is the only thing in it that says which function refused. The
 honest form is *this is chapter 6's resolution observed through chapter 12's
 verb*.
 
-<!-- fragment «decompose-tests-slug-and-path» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1924-1970" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-slug-and-path» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1927-1973" parent="decompose-tests" -->
 ````rust
     /// A bad child slug leaves the leaf un-decomposed — and now it cannot even
     /// be spelled.
@@ -1107,7 +1107,7 @@ The block's second labelled section is 264 lines for six tests, and it is the
 densest argument in the chapter. Its subject is not what the verb does but what
 the *library* cannot be made to say through it.
 
-<!-- fragment «decompose-tests-seam-opening» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1971-1978" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-seam-opening» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1974-1981" parent="decompose-tests" -->
 ````rust
     // ---- leaf-decompose: the seam --------------------------------------------
     //
@@ -1136,7 +1136,7 @@ The library's promotion decision refuses six ways, and three of the six —
 `TargetMissing`, `ContentForANode` and `KeysExhausted` — it shares with operations
 that are not promotions, each of those having a second construction site
 elsewhere. `PromoteNotLeaf` and `PromotePartsNotNode` are constructed nowhere else
-in the library at all. Those, with `NoDistinguishedChild`, are the three the sweep
+in the library at all. Those, with `SuppliedNameNotDistinguished`, are the three the sweep
 checks: the ones that exist because a promotion is a promotion. A seventh,
 `DestinationOccupied`, is raised by the planner beneath the decision rather than by
 the decision itself, which is why it takes a test of its own below.
@@ -1147,7 +1147,7 @@ one is checked by reading it and by nothing else. It carries no headings, so the
 particular defect that instrument's blind spot hides — a heading whose body
 renders under the next one — cannot arise here.
 
-<!-- fragment «decompose-tests-one-guard» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1979-2007" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-one-guard» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1982-2010" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decompose_takes_one_guard_for_the_promotion_and_one_for_the_retitle() {
@@ -1213,7 +1213,7 @@ thread-local and blind to who called `open_write`. What it genuinely rules out i
 the retitle riding inside the promotion's guard, which is impossible for a reason
 the type system already gives: `promote` consumes it.
 
-<!-- fragment «decompose-tests-twin» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2008-2038" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-twin» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2011-2041" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decomposing_a_leaf_whose_key_names_a_twin_is_refused_rather_than_misaimed() {
@@ -1268,7 +1268,7 @@ all that mentioned *two entries in this tree carry key 1* — the assertion is o
 that substring — so it is a claim about the message and about the tree's
 unchangedness, not about which function produced either.
 
-<!-- fragment «decompose-tests-destination» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2039-2108" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-destination» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2042-2112" parent="decompose-tests" -->
 ````rust
     #[test]
     fn destination_occupied_is_unreachable_because_the_occupant_duplicates_the_key() {
@@ -1333,6 +1333,7 @@ unchangedness, not about which function produced either.
         match tree.promote(
             ordinal_fs_tree::Key::new(key),
             Parts::node(Slug::new(slug).unwrap()),
+            TaskName::Brief,
             None,
         ) {
             Ok(_) => panic!("the library must refuse this tree"),
@@ -1399,7 +1400,7 @@ can leave behind.** The fixture here creates the node *with* a `BRIEF.md` — an
 ordinary hand edit. The next test creates one *without*. They take different
 branches inside `addressable_key`, and the second is the interrupted promotion.
 
-<!-- fragment «decompose-tests-interrupted» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2109-2151" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-interrupted» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2113-2155" parent="decompose-tests" -->
 ````rust
     #[test]
     fn an_interrupted_promotion_is_diagnosed_as_one_rather_than_as_a_hand_edit() {
@@ -1473,7 +1474,7 @@ is that the key was preserved. Had the promotion allocated the node a new key, t
 two would be two entities sharing an ordinal, and *remove either half* would be
 the wrong advice.
 
-<!-- fragment «decompose-tests-last-key» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2152-2182" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-last-key» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2156-2186" parent="decompose-tests" -->
 ````rust
     #[test]
     fn a_tree_at_the_last_key_refuses_the_promotion_rather_than_wrapping() {
@@ -1528,17 +1529,20 @@ unchanged. The second assertion — the leaf still a file and no node directory
 beside it — is what makes it a claim about a refusal that *writes nothing*, and it
 is the sentence the second part of the what-could-not-move test asks for.
 
-<!-- fragment «decompose-tests-sweep» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2183-2234" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-sweep» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2187-2241" parent="decompose-tests" -->
 ````rust
     #[test]
     fn no_promotion_refusal_reaches_an_operator_from_an_ordinary_argument() {
         // The three refusals `promote` owns, asserted unreachable rather than
-        // described. `NoDistinguishedChild` is discharged by the domain itself
+        // described. `SuppliedNameNotDistinguished` is discharged by the domain itself
         // and needs no fixture; the other two are discharged by every argument
         // that is not a live leaf, and the sweep is what makes that a claim
         // about the *verb* rather than about the cases someone thought of.
         assert!(
-            <TaskName as ordinal_fs_tree::EntryName>::distinguished().is_some(),
+            matches!(
+                TaskName::Brief.view(),
+                ordinal_fs_tree::NameView::Distinguished
+            ),
             "Grove's distinguished child is BRIEF.md, so a promotion always has \
              somewhere to put the leaf's bytes"
         );
@@ -1589,11 +1593,9 @@ is the sentence the second part of the what-could-not-move test asks for.
 block's closing argument and the widest test in it. Three refusals `promote` owns,
 asserted unreachable rather than described.
 
-**Two of the three are discharged without a tree at all.** `NoDistinguishedChild`
-cannot fire because grove's domain *has* a distinguished child, which the first
-assertion reads straight off the `EntryName` implementation chapter 4 owns:
-`TaskName::distinguished()` is `Some`, so a promotion always has somewhere to put
-the leaf's bytes. `PromotePartsNotNode` cannot fire because `leaf-decompose`
+**Two of the three are checked without a tree.**
+`SuppliedNameNotDistinguished` cannot fire for the `TaskName::Brief` value Grove
+passes: the first assertion checks its distinguished view. `PromotePartsNotNode` cannot fire because `leaf-decompose`
 composes `Parts::node` and nothing else, which the second assertion reads off
 `Parts::node(...).species()`. Neither needs a fixture, because neither is a fact
 about a tree.

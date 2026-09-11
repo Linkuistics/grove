@@ -1,9 +1,8 @@
 //! The seam: what a name is, and the one trait a consumer implements.
 //!
-//! The library never parses a name, never formats one, and never learns that a
-//! name is a string. It knows only that a name can be decomposed into an
-//! [`Ordinal`], a [`Key`] and an opaque remainder — and recomposed from them.
-//! Everything in this module is that decomposition and nothing else.
+//! The consumer owns parsing and rendering. A positioned name decomposes into an
+//! [`Ordinal`], a [`Key`] and opaque parts, and is recomposed from them.
+//! Distinguished names remain opaque values with canonical rendering identity.
 //!
 //! The specification is `docs/ordinal-fs-tree/ARCHITECTURE.md`, sections *Names
 //! belong to the consumer* and *The seam: one trait*; the structural model that
@@ -458,25 +457,11 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// holds (`witness_shift_corrupts_identity`).
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self;
 
-    /// The name a node's distinguished child takes, if this domain has one.
-    ///
-    /// A distinguished child carries neither an ordinal nor a key, so it can
-    /// never be produced by [`compose`](EntryName::compose) — this is the only
-    /// way the library can name one. `None` means the domain has no
-    /// distinguished child, and promotion is refused rather than guessed at.
-    ///
-    /// # Obligation: `distinguished()` names the only entry of its species
-    ///
-    /// [`parse`](EntryName::parse) yields [`Species::Distinguished`] for this
-    /// name and for nothing else, and this name's own
-    /// [`triple`](EntryName::triple) is `None`. That is what makes *at most one
-    /// distinguished child per node* true — the filesystem supplies the rest,
-    /// since a directory cannot hold two entries of one name — so it is a
-    /// theorem rather than an invariant anything has to enforce
-    /// (`DistinguishedIsUniquePerNode`, against
-    /// `witness_two_distinguished_children`).
-    fn distinguished() -> Option<Self> {
-        None
+    /// Judge the complete distinguished-name set for a root (`None`) or node.
+    /// The answer must depend only on these names and be independent of order.
+    /// The default accepts every set; declaring this policy does not invoke it.
+    fn validate_distinguished(_node: Option<&Self>, _children: &[Self]) -> Result<(), Self::Err> {
+        Ok(())
     }
 
     /// What this name is: a positioned entry with its triple, or the
@@ -653,7 +638,7 @@ pub trait EntryNameExt: EntryName + sealed::Sealed {
     /// Whether these two names are **one name** — the comparison every
     /// occupancy decision makes.
     ///
-    /// The whole [`NameView`] *and the species*, and the second half is the
+    /// Positioned identity includes [`NameView`] *and the species*. Species is the
     /// part that is not obvious. [`Parts`](EntryName::Parts) is bounded by
     /// `Clone + Eq` and by nothing else, so a domain's equality may be any
     /// lawful equivalence — including one coarser than its own rendering.
@@ -675,12 +660,16 @@ pub trait EntryNameExt: EntryName + sealed::Sealed {
     /// leaf and node spellings coincided would fail the canonicity check in
     /// [`crate::conformance`], which reparses every composed name and compares
     /// the species that comes back.
+    /// Distinguished identity compares canonical renderings; its unit view
+    /// classifies a name but does not identify its filename.
     fn same_name(&self, other: &Self) -> bool {
         match (self.view(), other.view()) {
             (NameView::Positioned(a), NameView::Positioned(b)) => {
                 a == b && Self::positioned_species(a.parts) == Self::positioned_species(b.parts)
             }
-            (NameView::Distinguished, NameView::Distinguished) => true,
+            (NameView::Distinguished, NameView::Distinguished) => {
+                self.to_string() == other.to_string()
+            }
             (NameView::Positioned(_), NameView::Distinguished)
             | (NameView::Distinguished, NameView::Positioned(_)) => false,
         }

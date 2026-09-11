@@ -17,7 +17,8 @@
 
 use crate::plan::{Decision, Effect, Level, Plan, Refusal};
 use crate::{
-    Container, Entry, EntryName, Key, Ordinal, PositionedSpecies, Snapshot, Sought, Species,
+    Container, Entry, EntryName, EntryNameExt, Key, Ordinal, PositionedSpecies, Snapshot, Sought,
+    Species,
 };
 
 /// Which entry an operation is aimed at.
@@ -130,17 +131,10 @@ pub(crate) fn append_many<N: EntryName>(
 ///
 /// # The distinguished child is an ordinary effect
 ///
-/// It has to be, and that it can be is the reason this operation needs no new
-/// trait method. A distinguished child carries no ordinal and no key, so
-/// [`NewEntry`] cannot describe it and [`EntryName::compose`] cannot build one —
-/// but [`EntryName::distinguished`] names it, and the library already places one
-/// that way when a promotion moves a leaf's bytes into a new node. So the same
-/// [`Effect::Create`] does it here, at [`Level::Root`], and
-/// `docs/adr/entry-name-is-the-only-seam.md` is untouched.
-///
-/// Bytes are `Option<Vec<u8>>` and not `Vec<u8>` because *no distinguished
-/// child* and *an empty one* are different trees, and a domain that has one
-/// should still be able to make a root without it.
+/// A distinguished child carries no ordinal, key or positioned parts. Its
+/// name and bytes are supplied together and placed with [`Effect::Create`].
+/// `None` omits the child; `Some((name, Vec::new()))` creates an empty file.
+/// The supplied value must have distinguished species.
 ///
 /// # There is no root effect here
 ///
@@ -152,19 +146,14 @@ pub(crate) fn append_many<N: EntryName>(
 /// [`Vacancy::initialize`]: crate::fs::Vacancy::initialize
 pub(crate) fn initialize<N: EntryName>(
     snapshot: &Snapshot<N>,
-    distinguished: Option<Vec<u8>>,
+    distinguished: Option<(N, Vec<u8>)>,
     entries: Vec<NewEntry<N::Parts>>,
 ) -> Decision<N> {
     let mut effects = Vec::with_capacity(entries.len() + 1);
-    if let Some(content) = distinguished {
-        // The same refusal a promotion gives, for the same reason: this domain
-        // has no distinguished child and these bytes have nowhere to go. Asked
-        // before the entries are looked at, exactly as `promote` asks before it
-        // looks at the parts — the answer is about the *domain*, so complaining
-        // about the rest of a call that could not have worked is less useful.
-        let Some(name) = N::distinguished() else {
-            return Decision::Refuse(Refusal::NoDistinguishedChild { promoting: None });
-        };
+    if let Some((name, content)) = distinguished {
+        if name.species() != Species::Distinguished {
+            return Decision::Refuse(Refusal::SuppliedNameNotDistinguished { promoting: None });
+        }
         effects.push(Effect::Create {
             at: Level::Root,
             name,
@@ -334,13 +323,11 @@ pub(crate) fn promote<N: EntryName>(
     snapshot: &Snapshot<N>,
     key: Key,
     parts: N::Parts,
+    distinguished: N,
     first_child: Option<NewEntry<N::Parts>>,
 ) -> Decision<N> {
-    // The refusals in the model's own order, which is `planPromote`'s: missing,
-    // then not a leaf, then no distinguished child, then parts that are not a
-    // node. The order is observable — a promotion of a *node* in a domain with
-    // no distinguished child has two true refusals and reports the first — so it
-    // is transcribed rather than reinvented.
+    // Target existence and species precede destination-name and node-parts
+    // checks. This ordering keeps the first refusal about the target itself.
     let Sought::Match(leaf) = snapshot.by_key(key) else {
         return Decision::Refuse(Refusal::TargetMissing { key });
     };
@@ -350,15 +337,11 @@ pub(crate) fn promote<N: EntryName>(
             species: leaf.species(),
         });
     }
-    // Asked before the parts are looked at, because the answer is about the
-    // *domain* and not about this call: a domain with no distinguished child can
-    // never promote anything, and saying so is more useful than complaining
-    // about the parts of a call that could not have worked.
-    let Some(distinguished) = N::distinguished() else {
-        return Decision::Refuse(Refusal::NoDistinguishedChild {
+    if distinguished.species() != Species::Distinguished {
+        return Decision::Refuse(Refusal::SuppliedNameNotDistinguished {
             promoting: Some(key),
         });
-    };
+    }
     if N::positioned_species(&parts) != PositionedSpecies::Node {
         return Decision::Refuse(Refusal::PromotePartsNotNode { key });
     }

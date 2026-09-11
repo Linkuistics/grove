@@ -1,4 +1,4 @@
-# distinguished-names-k6
+# distinguished-names-k6 — brief
 
 ## Goal
 
@@ -71,3 +71,40 @@ books landing green first; read/projected-level enforcement and its independent
 conformance samples follow. Verify that first boundary with the existing seams
 and `bash scripts/check.sh` before treating it as independently deliverable.
 Keep Grove's filename behavior consistent at both boundaries.
+
+## Decisions (running log)
+
+1. Execute the reviewed supplied-name boundary first: replace the trait factory
+   with deterministic level validation, accept explicit initialization and
+   promotion names, update all consumers and explicit conformance name samples,
+   and synchronize every touched book. Validate this boundary with the existing
+   Rust seams and `bash scripts/check.sh` before splitting enforcement into a
+   following child. Grove continues to supply `TaskName::Brief` here.
+2. Source discovery uses direct reads because the graph CLI refuses startup
+   while an incompatible active generation owns its coordination lock. No
+   running graph session or installed driver is changed.
+
+3. The existing book-validator tests materialize real source files against a
+   fixed fixture inventory. Source growth/shrinkage therefore requires adapting
+   that inventory, explicit expected counts and mutation fixtures together. The
+   first full check caught this drift; the repaired book-validation suite passes.
+   The production validator itself is unchanged.
+4. The supplied-name boundary spans all API consumers, two books and the
+   validator fixtures. Reader/projected-level enforcement is a second focused
+   increment. Once the full check passes, decompose here and commission a scoped
+   API review before that increment; no in-session reviewer has been used.
+
+## Decomposition
+
+- `supplied-names-k14` delivers explicit distinguished names, canonical identity,
+  caller adaptations and synchronized books as a green API boundary.
+- `supplied-names-k15` reviews that boundary before enforcement consumes it.
+  Any integration is inserted before `valid-levels-k16`.
+- `valid-levels-k16` enforces reads and projected final levels and completes the
+  expected-level conformance samples. It owns the remaining parent criteria and
+  judges whole-artifact review before `node-files-k7`.
+
+The first boundary passed `bash scripts/check.sh` on unchanged tracked inputs.
+`validate_distinguished` is declared but not yet invoked by the reader or
+planner. Grove's filename behavior is unchanged through this split. The parent
+stays live until its full Done when is delivered, including any earned review.

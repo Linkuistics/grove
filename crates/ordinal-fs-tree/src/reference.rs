@@ -484,10 +484,6 @@ impl EntryName for SyllabusName {
         }
     }
 
-    fn distinguished() -> Option<Self> {
-        Some(Self::Overview)
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         match self {
             Self::Overview => NameView::Distinguished,

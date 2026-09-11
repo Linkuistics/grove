@@ -734,6 +734,7 @@ fn a_promotion_whose_move_fails_leaves_the_tree_as_it_was() {
                 snapshot,
                 Key::new(1),
                 Parts::module(Label::new("first").expect("a label")),
+                SyllabusName::Overview,
                 None,
             )
         },
@@ -780,6 +781,7 @@ fn a_promotion_whose_rollback_fails_leaves_a_duplicate_key_and_says_how_to_resol
                 snapshot,
                 Key::new(1),
                 Parts::module(Label::new("first").expect("a label")),
+                SyllabusName::Overview,
                 None,
             )
         },

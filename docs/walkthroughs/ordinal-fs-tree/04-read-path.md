@@ -8,7 +8,7 @@ the consumer classifies each observed name, and the snapshot layer freezes the
 accepted names into deterministic level and walk order. File contents are not
 read. The snapshot contains names, hierarchy, depth, and ordered child lists.
 
-<!-- fragment «read-snapshot-source» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="1-677" parent="source-snapshot" -->
+<!-- fragment «read-snapshot-source» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="1-668" parent="source-snapshot" -->
 <!-- insert «snapshot-storage» -->
 <!-- insert «snapshot-builder» -->
 <!-- insert «snapshot-entry-views» -->
@@ -292,7 +292,7 @@ level, establishing that every public view refers to stable snapshot-owned data
 while the root remains a level that is not an entry. This structure is where
 the accepted syllabus names acquire parents and depths without carrying paths.
 
-<!-- fragment «snapshot-storage» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="1-104" parent="read-snapshot-source" -->
+<!-- fragment «snapshot-storage» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="1-99" parent="read-snapshot-source" -->
 ````rust
 //! The snapshot: a whole tree of names in memory, and the five reading
 //! operations over it.
@@ -348,14 +348,9 @@ struct EntryData<N> {
 
 /// One level: the children of the root, or the children of a node.
 ///
-/// A single ordered list rather than a distinguished child beside a list of
-/// siblings, and the difference is load-bearing. A domain that broke the
-/// obligation *`distinguished()` names the only entry of its species* would
-/// hand this level two distinguished children, and a single `Option` slot would
-/// have to drop one of them — a name silently missing from every traversal,
-/// which is precisely the failure the parse trichotomy exists to prevent. Held
-/// as a list, an extra distinguished child is visible in walk order like
-/// anything else, and the conformance kit is what refuses the domain.
+/// A single ordered list retains every parsed entry. In particular, distinct
+/// distinguished filenames remain distinct entries rather than being collapsed
+/// into one slot. Cardinality belongs to level validation, not representation.
 #[derive(Default)]
 struct Directory {
     /// Every child of this level, already in walk order.
@@ -419,7 +414,7 @@ that provisional arena and outputs a snapshot with every level in total walk
 order. Builder identity prevents cross-builder attachment, and the example uses
 the place returned for `02-linear-algebra-i2` to attach its three children.
 
-<!-- fragment «snapshot-builder» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="105-267" parent="read-snapshot-source" -->
+<!-- fragment «snapshot-builder» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="100-262" parent="read-snapshot-source" -->
 ````rust
 /// Which [`Builder`] a [`Place`] came from.
 ///
@@ -610,7 +605,7 @@ distinguished-chain readings without cloning stored names. Its identity is the
 same index in the same snapshot, and the matrices entry demonstrates both the
 root-first ancestor chain and the two-overview distinguished chain.
 
-<!-- fragment «snapshot-entry-views» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="268-438" parent="read-snapshot-source" -->
+<!-- fragment «snapshot-entry-views» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="263-433" parent="read-snapshot-source" -->
 ````rust
 
 /// One entry in a snapshot.
@@ -810,7 +805,7 @@ iterators, preserving every stored name even when a consumer violates the
 one-distinguished-name obligation. In the example, the module container yields
 its overview before vectors and matrices while the root uses no entry index.
 
-<!-- fragment «snapshot-containers» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="439-540" parent="read-snapshot-source" -->
+<!-- fragment «snapshot-containers» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="434-531" parent="read-snapshot-source" -->
 ````rust
 /// A level of the tree: the root, or a node.
 ///
@@ -894,12 +889,8 @@ impl<'a, N: EntryName> Container<'a, N> {
 
     /// This level's distinguished child, if it has one.
     ///
-    /// *At most one* is a theorem rather than something enforced here: a domain
-    /// holding the obligation *`distinguished()` names the only entry of its
-    /// species* cannot produce a second name of that species, and a directory
-    /// cannot hold two entries of one name. A domain that broke it would put
-    /// two in this level, and this answers with the first in walk order rather
-    /// than hiding either.
+    /// Returns the first distinguished entry in walk order. The stored listing
+    /// retains every entry; this accessor does not establish level cardinality.
     ///
     /// **`Option` and not [`Sought`], deliberately.** This is an accessor: a
     /// level either has a distinguished child or does not, and the absence is a
@@ -933,7 +924,7 @@ matching borrowed view, preserving the same total level order for every query.
 The example walk produces the indented name sequence above, while draft and key
 predicates both select matrices at their documented first match.
 
-<!-- fragment «snapshot-queries» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="541-677" parent="read-snapshot-source" -->
+<!-- fragment «snapshot-queries» owner="read-path-k14" source="crates/ordinal-fs-tree/src/snapshot.rs" lines="532-668" parent="read-snapshot-source" -->
 ````rust
 
 impl<N: EntryName> Snapshot<N> {
@@ -1155,7 +1146,7 @@ available beside the exact snapshot used by its public walk.
 //!     // Still under the exclusive lock: nothing can create the tree between
 //!     // learning it is absent and creating it here.
 //!     Writing::Vacancy(vacancy) => {
-//!         vacancy.initialize(Some(b"the course".to_vec()), Vec::new())?;
+//!         vacancy.initialize(Some((SyllabusName::Overview, b"the course".to_vec())), Vec::new())?;
 //!     }
 //! }
 //! # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
@@ -1376,7 +1367,7 @@ guard into the caller-spelled root or the exact immutable snapshot captured
 under its lock, without copying either, so every returned snapshot borrow stays
 bounded by the guard. The worked walk starts from that `snapshot` result.
 
-<!-- fragment «filesystem-read-guard-api» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="521-534" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-read-guard-api» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="520-533" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> ReadGuard<N> {
     /// The tree root, in the caller's own spelling.
@@ -1400,7 +1391,7 @@ The `Deref` implementation owns the ergonomic forwarding step. It turns
 so direct calls cannot bypass the captured names or their borrow lifetime. This
 is why the example can spell its public query as `guard.walk()`.
 
-<!-- fragment «filesystem-read-deref» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="813-820" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-read-deref» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="812-819" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> core::ops::Deref for ReadGuard<N> {
     type Target = Snapshot<N>;

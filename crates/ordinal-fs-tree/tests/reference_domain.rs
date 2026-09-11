@@ -175,7 +175,7 @@ fn the_key_is_the_terminal_token() {
 /// name rather than that it remembered to return `None`.
 #[test]
 fn the_distinguished_child_carries_no_triple() {
-    let overview = SyllabusName::distinguished().expect("this domain has one");
+    let overview = SyllabusName::Overview;
     assert!(overview.triple().is_none());
     assert_eq!(overview.species(), Species::Distinguished);
     assert_eq!(overview.to_string(), OVERVIEW);

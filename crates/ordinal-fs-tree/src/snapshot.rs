@@ -52,14 +52,9 @@ struct EntryData<N> {
 
 /// One level: the children of the root, or the children of a node.
 ///
-/// A single ordered list rather than a distinguished child beside a list of
-/// siblings, and the difference is load-bearing. A domain that broke the
-/// obligation *`distinguished()` names the only entry of its species* would
-/// hand this level two distinguished children, and a single `Option` slot would
-/// have to drop one of them — a name silently missing from every traversal,
-/// which is precisely the failure the parse trichotomy exists to prevent. Held
-/// as a list, an extra distinguished child is visible in walk order like
-/// anything else, and the conformance kit is what refuses the domain.
+/// A single ordered list retains every parsed entry. In particular, distinct
+/// distinguished filenames remain distinct entries rather than being collapsed
+/// into one slot. Cardinality belongs to level validation, not representation.
 #[derive(Default)]
 struct Directory {
     /// Every child of this level, already in walk order.
@@ -518,12 +513,8 @@ impl<'a, N: EntryName> Container<'a, N> {
 
     /// This level's distinguished child, if it has one.
     ///
-    /// *At most one* is a theorem rather than something enforced here: a domain
-    /// holding the obligation *`distinguished()` names the only entry of its
-    /// species* cannot produce a second name of that species, and a directory
-    /// cannot hold two entries of one name. A domain that broke it would put
-    /// two in this level, and this answers with the first in walk order rather
-    /// than hiding either.
+    /// Returns the first distinguished entry in walk order. The stored listing
+    /// retains every entry; this accessor does not establish level cardinality.
     ///
     /// **`Option` and not [`Sought`], deliberately.** This is an accessor: a
     /// level either has a distinguished child or does not, and the absence is a

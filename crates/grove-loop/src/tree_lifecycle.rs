@@ -387,7 +387,10 @@ fn initialize_grove(
     let key = Some(Key::new(1));
     let leaf = task_grow::new_leaf(key, Outcome::Live, kind.clone(), slug);
     let report = vacancy
-        .initialize(Some(root_brief_body(name).into_bytes()), vec![leaf])
+        .initialize(
+            Some((TaskName::Brief, root_brief_body(name).into_bytes())),
+            vec![leaf],
+        )
         .map_err(task_tree::raised)?;
     // The charter first, then the leaf — `Report::created` is
     // distinguished-child-first, and the two are what `root-init` reports.
@@ -572,7 +575,7 @@ pub(crate) fn leaf_decompose(
     let node_parts = Parts::node(slug.clone());
     let child = task_grow::new_leaf(child_key, Outcome::Live, kind, child_slug);
     let report = tree
-        .promote(key, node_parts, Some(child))
+        .promote(key, node_parts, TaskName::Brief, Some(child))
         .map_err(task_tree::raised)?;
     let (brief_path, child_path) = promoted(&report, key, child_key)?;
 
@@ -2099,6 +2102,7 @@ mod tests {
         match tree.promote(
             ordinal_fs_tree::Key::new(key),
             Parts::node(Slug::new(slug).unwrap()),
+            TaskName::Brief,
             None,
         ) {
             Ok(_) => panic!("the library must refuse this tree"),
@@ -2183,12 +2187,15 @@ mod tests {
     #[test]
     fn no_promotion_refusal_reaches_an_operator_from_an_ordinary_argument() {
         // The three refusals `promote` owns, asserted unreachable rather than
-        // described. `NoDistinguishedChild` is discharged by the domain itself
+        // described. `SuppliedNameNotDistinguished` is discharged by the domain itself
         // and needs no fixture; the other two are discharged by every argument
         // that is not a live leaf, and the sweep is what makes that a claim
         // about the *verb* rather than about the cases someone thought of.
         assert!(
-            <TaskName as ordinal_fs_tree::EntryName>::distinguished().is_some(),
+            matches!(
+                TaskName::Brief.view(),
+                ordinal_fs_tree::NameView::Distinguished
+            ),
             "Grove's distinguished child is BRIEF.md, so a promotion always has \
              somewhere to put the leaf's bytes"
         );

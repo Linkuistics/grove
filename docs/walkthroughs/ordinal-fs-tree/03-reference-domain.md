@@ -11,7 +11,7 @@ The two source roots on this page expand into `src/reference.rs` and
 `src/conformance.rs`. The first defines the syllabus grammar. The second turns
 the seam's semantic assumptions into a reusable test kit.
 
-<!-- fragment «reference-domain-source» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="1-559" parent="source-reference" -->
+<!-- fragment «reference-domain-source» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="1-555" parent="source-reference" -->
 <!-- insert «reference-vocabulary» -->
 <!-- insert «reference-name-and-errors» -->
 <!-- insert «reference-parser» -->
@@ -19,7 +19,7 @@ the seam's semantic assumptions into a reusable test kit.
 <!-- insert «reference-parser-helpers» -->
 <!-- /fragment -->
 
-<!-- fragment «reference-conformance-source» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="1-667" parent="source-conformance" -->
+<!-- fragment «reference-conformance-source» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="1-629" parent="source-conformance" -->
 <!-- insert «conformance-obligations» -->
 <!-- insert «conformance-report» -->
 <!-- insert «conformance-compose-and-canonical» -->
@@ -645,7 +645,7 @@ key and parts read from `02-draft-matrices-i6.md` produces
 `03-draft-matrices-i6.md`: only the ordinal changes. Later mutation chapters use
 this same lesson and module vocabulary without redefining it.
 
-<!-- fragment «reference-seam-methods» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="478-509" parent="reference-domain-source" -->
+<!-- fragment «reference-seam-methods» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="478-505" parent="reference-domain-source" -->
 ````rust
 
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
@@ -654,10 +654,6 @@ this same lesson and module vocabulary without redefining it.
             key,
             parts,
         }
-    }
-
-    fn distinguished() -> Option<Self> {
-        Some(Self::Overview)
     }
 
     fn view(&self) -> NameView<'_, Self::Parts> {
@@ -686,7 +682,7 @@ The helpers centralize species agreement, canonical advice, and ownership-shape
 splitting. `split_shape` deliberately returns an empty middle as an owned shape;
 `parse` then reports the missing label instead of silently disclaiming it.
 
-<!-- fragment «reference-parser-helpers» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="510-559" parent="reference-domain-source" -->
+<!-- fragment «reference-parser-helpers» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/reference.rs" lines="506-555" parent="reference-domain-source" -->
 ````rust
 
 /// `Some(error)` when what the listing found contradicts what the name declares.
@@ -751,7 +747,7 @@ agree across calls. Seven obligations define the usable seam:
 2. Parsing and rendering form a canonical grammar in both directions.
 3. A name is positioned or distinguished, never neither.
 4. A positioned name's species follows only from its parts.
-5. `distinguished()` names the only entry of that species.
+5. Supplied distinguished names round-trip as distinct canonical filenames.
 6. `parse` returns `Malformed` when `Found` contradicts the declared species.
 7. Every rendering is one filesystem path component.
 
@@ -768,7 +764,7 @@ The conformance kit samples the other five. The library also enforces obligation
 locked tree. The other four remain semantic assumptions in production; a
 consumer is expected to test them before using real data.
 
-<!-- fragment «conformance-obligations» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="1-208" parent="reference-conformance-source" -->
+<!-- fragment «conformance-obligations» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="1-206" parent="reference-conformance-source" -->
 ````rust
 //! The conformance kit: hand it sample names and sample triples, and learn
 //! which of the trait's obligations your implementation violates.
@@ -789,6 +785,7 @@ consumer is expected to test them before using real data.
 //! let report = conformance::check::<SyllabusName>(
 //!     &[("01-draft-vectors-i1.md", Found::File), ("README.md", Found::File)],
 //!     &[(Ordinal::new(1), Key::new(1), Parts::lesson(Status::Draft, Label::new("vectors").unwrap()))],
+//!     &[SyllabusName::Overview],
 //! );
 //! report.assert_conforming();
 //! ```
@@ -824,9 +821,8 @@ pub enum Obligation {
     /// Distinct filenames never parse to the same name: `format(parse(f)) == f`,
     /// and every name the consumer can produce parses back to itself.
     TheGrammarIsCanonical,
-    /// `parse` yields species `Distinguished` for `distinguished()` and for
-    /// nothing else, and that name carries no triple.
-    DistinguishedNamesTheOnlyEntryOfItsSpecies,
+    /// Supplied distinguished names round-trip as distinct canonical names.
+    DistinguishedNamesAreCanonical,
     /// A name declaring a species the listing contradicts is `Malformed`, never
     /// `Entry`.
     ParseRefusesWhatFoundContradicts,
@@ -845,7 +841,7 @@ impl Obligation {
     pub const ALL: [Self; 5] = [
         Self::ComposePlacesWhatItIsGiven,
         Self::TheGrammarIsCanonical,
-        Self::DistinguishedNamesTheOnlyEntryOfItsSpecies,
+        Self::DistinguishedNamesAreCanonical,
         Self::ParseRefusesWhatFoundContradicts,
         Self::ANameRendersAsOnePathComponent,
     ];
@@ -856,9 +852,7 @@ impl Obligation {
         match self {
             Self::ComposePlacesWhatItIsGiven => "compose places what it is given",
             Self::TheGrammarIsCanonical => "the grammar is canonical",
-            Self::DistinguishedNamesTheOnlyEntryOfItsSpecies => {
-                "distinguished() names the only entry of its species"
-            }
+            Self::DistinguishedNamesAreCanonical => "distinguished names are canonical",
             Self::ParseRefusesWhatFoundContradicts => "parse refuses what found contradicts",
             Self::ANameRendersAsOnePathComponent => "a name renders as one path component",
         }
@@ -883,8 +877,8 @@ impl Obligation {
                 "two files on disk that are one entry, sharing a key and an ordinal \
                  (witness_two_filenames_name_one_entry)"
             }
-            Self::DistinguishedNamesTheOnlyEntryOfItsSpecies => {
-                "a node holding two distinguished children (witness_two_distinguished_children)"
+            Self::DistinguishedNamesAreCanonical => {
+                "a supplied distinguished value that does not name its canonical file"
             }
             Self::ParseRefusesWhatFoundContradicts => {
                 "a directory wearing a leaf's name, or a distinguished child that is a \
@@ -994,7 +988,7 @@ success means only that every checked obligation was exercised by these samples
 and no counterexample was found. The kit is a test over examples, not a proof
 over the consumer's whole grammar.
 
-<!-- fragment «conformance-report» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="209-313" parent="reference-conformance-source" -->
+<!-- fragment «conformance-report» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="207-311" parent="reference-conformance-source" -->
 ````rust
 
 /// What the kit learned about one obligation.
@@ -1118,7 +1112,7 @@ renders to the original filename, and every composed or distinguished name
 parses back to the same view and species. Comparing only strings would miss a
 parser that preserves its display while changing the key behind it.
 
-<!-- fragment «conformance-compose-and-canonical» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="314-473" parent="reference-conformance-source" -->
+<!-- fragment «conformance-compose-and-canonical» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="312-469" parent="reference-conformance-source" -->
 ````rust
 
 /// Check an [`EntryName`] implementation against the obligations the library
@@ -1137,6 +1131,7 @@ parser that preserves its display while changing the key behind it.
 pub fn check<N: EntryName>(
     listings: &[(&str, Found)],
     triples: &[(crate::Ordinal, crate::Key, N::Parts)],
+    distinguished: &[N],
 ) -> Report {
     let mut report = Report::default();
 
@@ -1198,9 +1193,6 @@ pub fn check<N: EntryName>(
         );
     }
 
-    let distinguished = N::distinguished();
-    let distinguished_name = distinguished.as_ref().map(ToString::to_string);
-
     // --- the grammar is canonical -----------------------------------------
     //
     // Both directions, because *isomorphic* means both: a filename that parses
@@ -1237,7 +1229,7 @@ pub fn check<N: EntryName>(
     // snapshot then reads an ordinal and a key that were never composed. The
     // distinguished spelling goes through the same check, where the thing to
     // come back is the absence of a triple.
-    for name in composed.iter().chain(distinguished.as_ref()) {
+    for name in composed.iter().chain(distinguished.iter()) {
         let rendered = name.to_string();
         match N::parse(&rendered, name.species().requires()) {
             Verdict::Entry(reparsed) => {
@@ -1285,12 +1277,11 @@ pub fn check<N: EntryName>(
 
 The component check renders every name the domain can produce: composed names,
 accepted listings, and the distinguished name. The distinguished uniqueness
-check verifies that `distinguished()` parses as that species and that no other
-sample claims it. The distinguished name is inspected but does not by itself
-count as sample coverage; otherwise an empty caller-supplied set could appear to
-exercise the obligation.
+check verifies supplied values round-trip as distinguished names and compares
+canonical rendering identity pairwise. Distinct filenames may both be lawful
+values; their placement and cardinality are separate level rules.
 
-<!-- fragment «conformance-component-and-distinguished» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="474-572" parent="reference-conformance-source" -->
+<!-- fragment «conformance-component-and-distinguished» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="470-539" parent="reference-conformance-source" -->
 ````rust
     // --- a name renders as one path component ------------------------------
     //
@@ -1301,11 +1292,8 @@ exercise the obligation.
     //
     // Every name the domain can *produce* is a candidate: what it composes, what
     // it parses out of a listing, and its distinguished child.
-    // `distinguished()` is checked like any other name but does not *count* as
-    // coverage, for the reason the found-contradicts check gives: a domain that
-    // supplies its own name would otherwise let a kit handed no samples at all
-    // report this obligation as exercised.
-    let mut rendered_any = !composed.is_empty();
+    // Explicit distinguished samples count as supplied names too.
+    let mut rendered_any = !composed.is_empty() || !distinguished.is_empty();
     let render_check = |name: &N, report: &mut Report| {
         let rendered = name.to_string();
         if let Some(reason) = crate::name::not_one_component(&rendered) {
@@ -1319,7 +1307,7 @@ exercise the obligation.
             );
         }
     };
-    for name in composed.iter().chain(distinguished.as_ref()) {
+    for name in composed.iter().chain(distinguished.iter()) {
         render_check(name, &mut report);
     }
     for (filename, found) in listings {
@@ -1336,58 +1324,32 @@ exercise the obligation.
         );
     }
 
-    // --- distinguished() names the only entry of its species ---------------
-    //
-    // Alloy: `OneDistinguishedName` and `DistLawful`, checked as
-    // `DistinguishedIsUniquePerNode`. That `distinguished()` itself carries no
-    // triple is no longer checkable — `NameView::Distinguished` holds none —
-    // so what is left is the half about every *other* name.
-    if let Some(d) = &distinguished {
+    // Supplied distinguished values must round-trip as that species. Different
+    // renderings are different identities; the unit view is classification only.
+    for d in distinguished {
         let rendered = d.to_string();
-        match N::parse(&rendered, Found::File) {
-            Verdict::Entry(n) if n.species() == Species::Distinguished => {}
-            Verdict::Entry(n) => report.violate(
-                Obligation::DistinguishedNamesTheOnlyEntryOfItsSpecies,
-                format!("`{rendered}` parses as {} rather than as the distinguished child.", n.species()),
-            ),
-            _ => report.violate(
-                Obligation::DistinguishedNamesTheOnlyEntryOfItsSpecies,
-                format!("`{rendered}` is the name distinguished() returns and does not parse as an entry."),
-            ),
+        if d.species() != Species::Distinguished
+            || !matches!(N::parse(&rendered, Found::File), Verdict::Entry(n)
+                if n.species() == Species::Distinguished && n.same_name(d))
+        {
+            report.violate(
+                Obligation::DistinguishedNamesAreCanonical,
+                format!("`{rendered}` is not a canonical distinguished name."),
+            );
         }
-    }
-    for (filename, found) in listings {
-        if let Verdict::Entry(name) = N::parse(filename, *found) {
-            if name.species() == Species::Distinguished {
-                match &distinguished_name {
-                    Some(d) if d == filename => {}
-                    Some(d) => report.violate(
-                        Obligation::DistinguishedNamesTheOnlyEntryOfItsSpecies,
-                        format!(
-                            "`{filename}` parses as a distinguished child, but distinguished() \
-                             returns `{d}`. A node could then hold both."
-                        ),
-                    ),
-                    None => report.violate(
-                        Obligation::DistinguishedNamesTheOnlyEntryOfItsSpecies,
-                        format!(
-                            "`{filename}` parses as a distinguished child in a domain whose \
-                             distinguished() is None."
-                        ),
-                    ),
-                }
+        for other in distinguished {
+            if d.same_name(other) != (rendered == other.to_string()) {
+                report.violate(
+                    Obligation::DistinguishedNamesAreCanonical,
+                    format!("`{rendered}` and `{other}` disagree on rendered identity."),
+                );
             }
         }
     }
-    // Checking `distinguished()` against itself is half the obligation. The other
-    // half — that *no other* name claims that species — needs names to look at,
-    // and a domain whose own distinguished child is the only thing the kit saw
-    // has not been asked the question at all.
-    if !parsed_any_listing && composed.is_empty() {
+    if distinguished.is_empty() {
         report.untested(
-            Obligation::DistinguishedNamesTheOnlyEntryOfItsSpecies,
-            "no supplied sample yielded a name, so nothing showed that no name other \
-             than distinguished() claims that species.",
+            Obligation::DistinguishedNamesAreCanonical,
+            "no distinguished-name samples were supplied.",
         );
     }
 
@@ -1400,7 +1362,7 @@ At least one agreeing case and one `Malformed` contradiction must be observed.
 the domain accepts under another observation: foreign would skip it silently,
 and reserved would deny that it is an entry at all.
 
-<!-- fragment «conformance-found-agreement» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="573-667" parent="reference-conformance-source" -->
+<!-- fragment «conformance-found-agreement» owner="reference-domain-k13" source="crates/ordinal-fs-tree/src/conformance.rs" lines="540-629" parent="reference-conformance-source" -->
 ````rust
     // --- parse refuses what found contradicts ------------------------------
     //
@@ -1421,14 +1383,9 @@ and reserved would deny that it is an entry at all.
     let every_found = [Found::File, Found::Dir, Found::Other];
     let mut candidates: Vec<String> = listings.iter().map(|(f, _)| (*f).to_string()).collect();
     candidates.extend(composed.iter().map(ToString::to_string));
-    // `distinguished()` is checked like any other name but does not *count* as
-    // coverage: a domain that supplies its own name would otherwise let a kit
-    // handed no samples at all report this obligation as exercised, which is
-    // the failure mode the two kinds of finding exist to prevent.
+    // These are explicit caller samples, so they count toward coverage.
+    candidates.extend(distinguished.iter().map(ToString::to_string));
     let supplied = candidates.len();
-    if let Some(d) = &distinguished_name {
-        candidates.push(d.clone());
-    }
     for (index, filename) in candidates.iter().enumerate() {
         let mut recognised = false;
         let mut not_entry: Vec<(Found, &'static str)> = Vec::new();

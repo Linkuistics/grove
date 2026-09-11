@@ -1355,7 +1355,10 @@ fn init(
         .map(|label| NewEntry::empty(Parts::lesson(status, label.clone())))
         .collect();
     let report = vacancy
-        .initialize(overview.map(|text| text.as_bytes().to_vec()), entries)
+        .initialize(
+            overview.map(|text| (SyllabusName::Overview, text.as_bytes().to_vec())),
+            entries,
+        )
         .map_err(|e| Failure::library(&e))?;
     report_out(streams, "init", &report)
 }
@@ -1436,7 +1439,7 @@ fn promote(
     let first =
         first_lesson.map(|label| NewEntry::empty(Parts::lesson(Status::Draft, label.clone())));
     let report = tree
-        .promote(key, Parts::module(label), first)
+        .promote(key, Parts::module(label), SyllabusName::Overview, first)
         .map_err(|e| Failure::library(&e))?;
     report_out(streams, "promote", &report)
 }

@@ -26,7 +26,7 @@ protocol.
 <!-- insert «error-sources» -->
 <!-- /fragment -->
 
-<!-- fragment «filesystem-write-guard-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="535-812" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-guard-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="534-811" parent="source-filesystem-module" -->
 <!-- insert «write-guard-accessors» -->
 <!-- insert «write-guard-append» -->
 <!-- insert «write-guard-insert» -->
@@ -358,7 +358,7 @@ fragment turns shared borrows of the guard into references to those unchanged
 inputs, preserving the invariant that the worked insert plans from the snapshot
 taken after its exclusive lock was acquired.
 
-<!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="535-547" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="534-546" parent="filesystem-write-guard-api" -->
 ````rust
 impl<N: EntryName> WriteGuard<N> {
     /// The tree root, in the caller's own spelling.
@@ -457,7 +457,7 @@ The vacancy API consumes that exclusive capability exactly once. Its plan uses
 the ordinary initialization algebra, while its filesystem wrapper owns the
 extra root create and root unwind that no named effect can represent.
 
-<!-- fragment «filesystem-vacancy-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="389-520" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-vacancy-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="389-519" parent="source-filesystem-module" -->
 ````rust
 
 impl<N: EntryName> Vacancy<N> {
@@ -471,18 +471,18 @@ impl<N: EntryName> Vacancy<N> {
     /// child, and a first run of entries — under the lock this vacancy already
     /// holds.
     ///
-    /// `distinguished` is the bytes of the root's own distinguished child, or
+    /// `distinguished` is the name and bytes of the root's own child, or
     /// `None` for a root without one; the two are different trees, so the
     /// choice is the caller's. `entries` are placed at the root level by exactly
     /// the rule [`append_many`](WriteGuard::append_many) uses, which over an
     /// empty tree means [`Ordinal::FIRST`] onward with keys from 1.
     ///
-    /// # Why the bytes and not a [`NewEntry`]
+    /// # Why a name-and-bytes pair rather than a [`NewEntry`]
     ///
     /// [`NewEntry`] describes a *positioned* entry — parts, from which an
     /// ordinal and a key are composed — and the distinguished child is the one
     /// entry that cannot be described that way: it carries no parts, and its
-    /// name is [`EntryName::distinguished`]. The library already writes one like
+    /// name is supplied directly. The library already writes one like
     /// this when a promotion moves a leaf's bytes into a new node, so the seam
     /// stays exactly one trait and gains no method
     /// (`docs/adr/entry-name-is-the-only-seam.md`).
@@ -500,8 +500,7 @@ impl<N: EntryName> Vacancy<N> {
     ///
     /// # Errors
     ///
-    /// [`Error::Refused`] when bytes were supplied for a distinguished child in
-    /// a domain that has none — [`Refusal::NoDistinguishedChild`], the same
+    /// [`Error::Refused`] when the supplied content name is positioned — [`Refusal::SuppliedNameNotDistinguished`], the same
     /// refusal a promotion gives for the same reason — or when bytes were
     /// supplied for an entry whose parts make a node; [`Error::Failed`] when the
     /// filesystem refused, in which case **this call left nothing behind** —
@@ -517,10 +516,10 @@ impl<N: EntryName> Vacancy<N> {
     /// `claim_vacant` draws for every other operation, and the same neighbour it
     /// draws it against.
     ///
-    /// [`Refusal::NoDistinguishedChild`]: crate::Refusal::NoDistinguishedChild
+    /// [`Refusal::SuppliedNameNotDistinguished`]: crate::Refusal::SuppliedNameNotDistinguished
     pub fn initialize(
         self,
-        distinguished: Option<Vec<u8>>,
+        distinguished: Option<(N, Vec<u8>)>,
         entries: Vec<NewEntry<N::Parts>>,
     ) -> Result<Report<N>, Error<N>> {
         // A vacancy holds no names, so the snapshot the plan is checked against
@@ -606,7 +605,7 @@ distinguished child and positioned entries, but no row for the unnamed root.
 The write guard also dereferences to the snapshot. This is read-only access;
 the methods that alter the tree consume the guard.
 
-<!-- fragment «filesystem-write-deref» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="821-827" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-deref» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="820-826" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> core::ops::Deref for WriteGuard<N> {
     type Target = Snapshot<N>;
@@ -640,7 +639,7 @@ then one `Report` or `Error`; guard consumption keeps one captured snapshot
 behind one decision, while `append_many` supplies the page's multi-entry form
 under a single rollback boundary alongside the worked insert.
 
-<!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="548-586" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="547-585" parent="filesystem-write-guard-api" -->
 ````rust
 
 impl<N: EntryName> WriteGuard<N> {
@@ -688,7 +687,7 @@ The worked insert from the previous page plans its two highest-first moves and
 one create from the captured snapshot, then applies that plan with production
 fault injection disabled.
 
-<!-- fragment «write-guard-insert» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="587-621" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-insert» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="586-620" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`insert`**: add a child at an occupied ordinal, shifting the occupant
     /// and every later sibling up by one.
@@ -731,7 +730,7 @@ fault injection disabled.
 Promotion documents the exceptional intermediate state at the public seam: the
 new node and old leaf coexist between its create and move effects.
 
-<!-- fragment «write-guard-promote» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="622-684" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-promote» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="621-683" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`promote`**: turn the leaf with this key into a node, moving its bytes
     /// verbatim into the new node's distinguished child.
@@ -780,8 +779,7 @@ new node and old leaf coexist between its create and move effects.
     /// # Errors
     ///
     /// [`Error::Refused`] when the key names no entry; when it names something
-    /// that is not a leaf; when this domain has no distinguished child, so the
-    /// leaf's content would have nowhere to go; when `parts` do not imply a
+    /// that is not a leaf; when the supplied destination name is positioned; when `parts` do not imply a
     /// node; or when bytes were supplied for a first child whose parts make a
     /// node. [`Error::Failed`] when the filesystem refused and the tree was left
     /// as it was found; [`Error::FailedPartiallyRolledBack`] when undoing that
@@ -790,9 +788,10 @@ new node and old leaf coexist between its create and move effects.
         self,
         key: Key,
         parts: N::Parts,
+        distinguished: N,
         first_child: Option<NewEntry<N::Parts>>,
     ) -> Result<Report<N>, Error<N>> {
-        let decision = ops::promote(&self.snapshot, key, parts, first_child);
+        let decision = ops::promote(&self.snapshot, key, parts, distinguished, first_child);
         self.run(decision, apply::Faults::none())
     }
 
@@ -803,7 +802,7 @@ Rewrite uses the same interpreter even when its source and destination path are
 equal. The interpreter treats that move as a successful no-op and still records
 the report entry.
 
-<!-- fragment «write-guard-rewrite» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="685-730" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-rewrite» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="684-729" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`rewrite`**: replace the parts of the entry with this key, keeping its
     /// ordinal, its key and its species.
@@ -858,7 +857,7 @@ Deletion is the lifecycle operation on a live guard. It bypasses the algebraic
 plan because it removes foreign entries as well as parsed names, but it remains
 under the guard's exclusive lock.
 
-<!-- fragment «write-guard-delete» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="731-798" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-delete» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="730-797" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`delete`**: remove the tree root and everything beneath it, following
     /// no symbolic link, and report the paths that went.
@@ -937,7 +936,7 @@ and filesystem interpretation. This fragment turns `Decision::Refuse` into
 `Error`, preserving total algebra without exposing a plan and carrying the
 worked insert into its ordered effect trace.
 
-<!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="799-812" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="798-811" parent="filesystem-write-guard-api" -->
 ````rust
     /// Turn a decision into an outcome: refuse, or apply under the lock this
     /// guard holds.

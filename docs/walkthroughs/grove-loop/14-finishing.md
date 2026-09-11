@@ -69,7 +69,7 @@ destroys.
 <a id="the-file-opens-here"></a>
 ## Why the book's last chapter owns the file's first line
 
-`tree_lifecycle.rs` is 2,725 lines, the largest root in the corpus, and it is
+`tree_lifecycle.rs` is 2,732 lines, the largest root in the corpus, and it is
 divided into nine ownership blocks across four chapters. The file is ordered by
 Rust convention — items, then `#[cfg(test)] mod tests` — and the book is ordered
 by concept, so the two orders disagree. They disagree most sharply here.
@@ -1067,7 +1067,7 @@ reproduce them. The measurement section below is where that split does its work.
 <a id="the-three-spellings-pinned"></a>
 ### The sentinel, and the three spellings of its key
 
-<!-- fragment «finish-tests» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1467-1665" parent="source-tree-lifecycle" -->
+<!-- fragment «finish-tests» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1470-1668" parent="source-tree-lifecycle" -->
 <!-- insert «finishing-test-three-spellings» -->
 <!-- insert «finishing-test-last-key» -->
 <!-- insert «finishing-test-last-ordinal» -->
@@ -1080,7 +1080,7 @@ reproduce them. The measurement section below is where that split does its work.
 The first test is the chapter's named pin, and the one the structure brief
 nominates for the rule this page carries.
 
-<!-- fragment «finishing-test-three-spellings» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1467-1495" parent="finish-tests" -->
+<!-- fragment «finishing-test-three-spellings» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1470-1498" parent="finish-tests" -->
 ````rust
     /// The driver's sentinel embeds its own key in its handle, its body and the
     /// `finish-commit` command it tells the session to run — so a key the library
@@ -1141,7 +1141,7 @@ The next two tests take the sentinel to the two exhaustion boundaries the
 library can refuse at — the key space and the ordinal space — and they are not
 equally strong.
 
-<!-- fragment «finishing-test-last-key» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1496-1522" parent="finish-tests" -->
+<!-- fragment «finishing-test-last-key» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1499-1525" parent="finish-tests" -->
 ````rust
     /// **The two refusals this leaf's own table row predicts, transcribed.**
     /// `materialize-finish` is an `append` at the root level, so it reaches
@@ -1194,7 +1194,7 @@ succeed on the tree whose `next_key` returned `None`. This test looks like the
 one that covers the `None` key and is in fact the demonstration that grove's own
 handling of it is dead. The measurement below confirms it.
 
-<!-- fragment «finishing-test-last-ordinal» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1523-1539" parent="finish-tests" -->
+<!-- fragment «finishing-test-last-ordinal» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1526-1542" parent="finish-tests" -->
 ````rust
     #[test]
     fn a_root_level_at_the_last_ordinal_refuses_the_sentinel_rather_than_wrapping() {
@@ -1235,7 +1235,7 @@ intent and not in strength.
 The fourth `materialize_finish` test is the one that pins resumability, and it
 does it with two assertions that have to be read together.
 
-<!-- fragment «finishing-test-reuse» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1540-1562" parent="finish-tests" -->
+<!-- fragment «finishing-test-reuse» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1543-1565" parent="finish-tests" -->
 ````rust
     /// The re-selection and the allocation read one snapshot under one exclusive
     /// guard, so nothing can appear between finding no live work and creating the
@@ -1288,7 +1288,7 @@ narrower half is the half that is checked.
 The block's last four tests exercise `transition_to_current`. Two of them reach
 its `match` and two, as the measurement below shows, never do.
 
-<!-- fragment «finishing-test-already-current» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1563-1581" parent="finish-tests" -->
+<!-- fragment «finishing-test-already-current» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1566-1584" parent="finish-tests" -->
 ````rust
     #[test]
     fn transition_leaves_a_current_grove_unchanged_and_ready_for_pick() {
@@ -1328,7 +1328,7 @@ technique is present in the same block and simply is not used here. The
 *unchanged* in the name is carried by the read count, which is good evidence and
 is not the same claim.
 
-<!-- fragment «finishing-test-malformed-name» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1582-1612" parent="finish-tests" -->
+<!-- fragment «finishing-test-malformed-name» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1585-1615" parent="finish-tests" -->
 ````rust
     /// **A tree grove cannot read is not a tree grove scaffolds over.** A
     /// malformed name is an entry — held badly — and appending a first leaf
@@ -1388,7 +1388,7 @@ The assertion that carries real weight is the second — that
 *scaffolds past* failure the test is named for, and it is the one an
 implementation could plausibly get wrong.
 
-<!-- fragment «finishing-test-no-grove-entries» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1613-1641" parent="finish-tests" -->
+<!-- fragment «finishing-test-no-grove-entries» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1616-1644" parent="finish-tests" -->
 ````rust
     /// **A tree grove cannot spell at all stops with a sentence.** The layouts
     /// grove wrote before the current grammar are positioned but unkeyed, so
@@ -1446,7 +1446,7 @@ this block. Of the four message assertions, three name strings the arm
 interpolates and one names the grammar template it hard-codes; that last one is
 the assertion that would notice the message losing its actionable half.
 
-<!-- fragment «finishing-test-dangling-symlink» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1642-1665" parent="finish-tests" -->
+<!-- fragment «finishing-test-dangling-symlink» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1645-1668" parent="finish-tests" -->
 ````rust
     #[cfg(unix)]
     #[test]
@@ -1495,7 +1495,7 @@ requires it still be a symlink, which is what rules out a transition that
 "helpfully" replaced the dangling link with a real directory.
 
 **It is also the only `#[cfg(unix)]` in the book's entire corpus.** Thirteen
-roots and 10,557 lines carry exactly one platform-guarded item, and it is this
+roots and 10,562 lines carry exactly one platform-guarded item, and it is this
 test — because a dangling symlink is the one fixture in the crate that cannot be
 built portably. The block's other seven tests are platform-neutral.
 

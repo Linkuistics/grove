@@ -536,7 +536,7 @@ cannot cover and a reader should not go looking for.
 | `NoOccupantAtOrdinal` | yes, in all three of its messages — past the end, a gap, and a hole below the first, the last two on a hand-edited level |
 | `PromoteNotLeaf` | yes — `promote` a module |
 | `PromotePartsNotNode` | **no** — `promote` always composes module parts |
-| `NoDistinguishedChild` | **no**, from either side — this domain has an overview, so neither `promote` nor `init --overview` can reach it |
+| `SuppliedNameNotDistinguished` | **no**, from either side — both `promote` and `init --overview` supply `SyllabusName::Overview` explicitly |
 | `RewriteSpeciesChange` | **no** — `relabel` keeps the variant it read, `publish` applies only to a lesson |
 | `DestinationOccupied` | yes, on a tree hand-edited to duplicate a key |
 | `ContentForANode` | **no** — discharged by the verb set; no verb gives a module bytes |

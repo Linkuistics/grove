@@ -197,16 +197,16 @@ fn a_named_later_slice_that_arrives_without_filling_its_hole_is_overdue_not_unre
 fn literal_newline_and_whitespace_drift_is_byte_failure() {
     let markdown = format!(
         concat!(
-            "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-103\" -->\n",
+            "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-104\" -->\n",
             "<!-- insert «library-crate-surface» -->\n",
             "<!-- /source-root -->\n",
-            "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-103\" parent=\"source-library\" -->\n",
+            "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-104\" parent=\"source-library\" -->\n",
             "````rust\nline \n{}````\n<!-- /fragment -->\n",
         ),
-        "line\n".repeat(102)
+        "line\n".repeat(103)
     );
 
-    let source = format!("line\n{}", "line\n".repeat(102));
+    let source = format!("line\n{}", "line\n".repeat(103));
     let snapshot = snapshot(&markdown, &source);
     let request = Request {
         scope: support::through("orientation-k11"),
@@ -327,29 +327,29 @@ fn a_missing_authoritative_source_is_an_inventory_failure() {
 
 #[test]
 fn a_fragment_whose_bytes_are_not_its_own_declared_range_is_a_byte_failure() {
-    // The two literals tile `library-crate-surface` (1-2, 3-103) and their
+    // The two literals tile `library-crate-surface` (1-2, 3-104) and their
     // concatenation reconstructs the root exactly, so neither the partition
     // check nor the whole-stream comparison can see that the internal boundary
     // sits one line early. Only comparing each fence against its *own* declared
     // range does.
     let markdown = format!(
         concat!(
-            "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-103\" -->\n",
+            "<!-- source-root «source-library» source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-104\" -->\n",
             "<!-- insert «library-crate-surface» -->\n",
             "<!-- /source-root -->\n",
-            "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-103\" parent=\"source-library\" -->\n",
+            "<!-- fragment «library-crate-surface» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-104\" parent=\"source-library\" -->\n",
             "<!-- insert «part-1» -->\n",
             "<!-- insert «part-2» -->\n",
             "<!-- /fragment -->\n",
             "<!-- fragment «part-1» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"1-2\" parent=\"library-crate-surface\" -->\n",
             "````rust\none\n````\n<!-- /fragment -->\n",
-            "<!-- fragment «part-2» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"3-103\" parent=\"library-crate-surface\" -->\n",
+            "<!-- fragment «part-2» owner=\"orientation-k11\" source=\"crates/ordinal-fs-tree/src/lib.rs\" lines=\"3-104\" parent=\"library-crate-surface\" -->\n",
             "````rust\ntwo\n{}````\n<!-- /fragment -->\n",
         ),
-        "line\n".repeat(101)
+        "line\n".repeat(102)
     );
 
-    let source = format!("one\ntwo\n{}", "line\n".repeat(101));
+    let source = format!("one\ntwo\n{}", "line\n".repeat(102));
     let report = validate(
         &snapshot(&markdown, &source),
         Request {

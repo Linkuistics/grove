@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 10,557 lines. The fragment graph closed at
+This chapter owns none of the crate's 10,562 lines. The fragment graph closed at
 the end of [chapter 20](20-the-loop.md), where the last of `loop_driver.rs`'s 615
 lines was reproduced and the last of the book's 39 ownership blocks turned
 `resolved`; the [source index](source-index.md) records that graph in full and
@@ -84,7 +84,7 @@ next three sections read them.
 ## On the way in — the names
 
 **The crate owns two grammars, and only one of them is canonical.** The filename
-grammar is `task_name.rs` — 1,714 lines over chapters [2](02-the-tokens.md),
+grammar is `task_name.rs` — 1,712 lines over chapters [2](02-the-tokens.md),
 [3](03-kind-slug-handle.md) and [4](04-the-name.md), all of it spent before the
 book has opened a tree — and it must satisfy
 `format(parse(f)) == f` or one entity occupies two files at one position under
@@ -109,7 +109,7 @@ naming what they do not own.** [11](11-a-grove-begins.md) and
 [17](17-the-epoch.md) say the block owns no grammar at all;
 [19](19-the-core.md) says *almost nothing, and the almost is the interesting
 part*; [20](20-the-loop.md) says *none of the grammar's, and one of its own*.
-That is the return on 1,714 lines rather than a gap in the book. Four of the six
+That is the return on 1,712 lines rather than a gap in the book. Four of the six
 take a `Handle`, a `Kind` or a `Slug` already made and none of them parses a
 filename; the other two, [16](16-the-lease.md) and [17](17-the-epoch.md), do not
 so much as name those types — `driver_lease.rs` contains no `Handle`, `Kind` or
@@ -282,7 +282,7 @@ readers are in four different places.
 The three questions, asked of `grove-loop` rather than of one of its chapters.
 
 **On the way in.** Yes, and once. The layer owns one grammar the library beneath
-it cannot check, it is the filename grammar, and it costs 1,714 lines of which a
+it cannot check, it is the filename grammar, and it costs 1,712 lines of which a
 conformance kit and seven lines at the end of `parse` are the price of canonicity
 specifically. Everything else the layer owns on the way in is a *word* rather
 than a grammar — four of them, all in Part V — and none of those is
@@ -443,15 +443,15 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 445 + 451 + 563 + 700 + 290 + 370 + 322 + 443 + 613 + 518 + 612
-+ 775 + 808 + 530 + 516 + 819 + 564 + 358 + 245 + 615 = 10,557 lines across
-20 chapters, and 0 for this one. The five parts are 1,714, 2,556, 2,725, 516
+**Owned source.** 445 + 451 + 563 + 698 + 290 + 370 + 322 + 443 + 613 + 518 + 615
++ 779 + 808 + 530 + 516 + 819 + 564 + 358 + 245 + 615 = 10,562 lines across
+20 chapters, and 0 for this one. The five parts are 1,712, 2,556, 2,732, 516
 and 2,601 lines, with chapter 1's 445 standing outside them. The largest single
 owned block is [chapter 16](16-the-lease.md)'s 819 lines, which is that chapter's
 own enumerated claim; measured per *chapter* rather than per block the range runs
 from those 819 down to [chapter 19](19-the-core.md)'s 245, and the thirty-nine
 blocks themselves run smaller still, down to twenty-two lines. The largest root is
-`tree_lifecycle.rs` at 2,725 lines, split four ways. Thirty-eight per cent of the corpus — 3,999 lines
+`tree_lifecycle.rs` at 2,732 lines, split four ways. Thirty-eight per cent of the corpus — 3,999 lines
 across five roots — is inline `#[cfg(test)] mod tests`, none of it excluded, and
 every line of it is owned and explained by the chapter whose concept it proves.
 
@@ -554,7 +554,7 @@ sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved, and each of this book's first five
 children ended with thousands of lines legitimately deferred; in final mode a
 defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Thirteen files, 10,557 resolved
+page inventory must match the manifest exactly. Thirteen files, 10,562 resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 ```console
@@ -599,7 +599,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 13 roots, 10,557 lines, 21 chapters, two
+The book is complete: 13 roots, 10,562 lines, 21 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

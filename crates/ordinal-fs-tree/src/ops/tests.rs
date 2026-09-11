@@ -985,7 +985,13 @@ fn a_promotion_keeps_the_leafs_own_ordinal_and_key() {
     let leaf = snapshot
         .by_key(Key::new(1))
         .expect("the orientation lesson");
-    let plan = plan(promote(&snapshot, Key::new(1), topic("orientation"), None));
+    let plan = plan(promote(
+        &snapshot,
+        Key::new(1),
+        topic("orientation"),
+        SyllabusName::Overview,
+        None,
+    ));
 
     assert_eq!(
         landings_by_kind(&plan),
@@ -1024,7 +1030,13 @@ fn a_promotion_passes_through_a_state_where_the_leaf_and_the_node_share_an_ordin
         .by_key(Key::new(1))
         .expect("the orientation lesson");
     let was = leaf.triple().expect("a positioned entry");
-    let plan = plan(promote(&snapshot, Key::new(1), topic("orientation"), None));
+    let plan = plan(promote(
+        &snapshot,
+        Key::new(1),
+        topic("orientation"),
+        SyllabusName::Overview,
+        None,
+    ));
 
     let Effect::Create { at, name, .. } = &plan.effects()[0] else {
         panic!("a promotion creates the node first");
@@ -1064,6 +1076,7 @@ fn a_promotion_can_create_a_first_child_in_the_same_unit() {
         &snapshot,
         Key::new(1),
         topic("orientation"),
+        SyllabusName::Overview,
         Some(NewEntry::new(draft("welcome"), b"welcome\n".to_vec())),
     ));
 
@@ -1097,6 +1110,7 @@ fn a_promotion_allocates_a_key_for_its_child_and_none_for_the_node() {
         &snapshot,
         Key::new(1),
         topic("orientation"),
+        SyllabusName::Overview,
         Some(NewEntry::empty(draft("welcome"))),
     ));
     let keys: Vec<u32> = plan
@@ -1125,7 +1139,13 @@ fn a_promotion_allocates_a_key_for_its_child_and_none_for_the_node() {
 fn a_promotion_deeper_in_the_tree_names_only_the_leaf_and_its_own_level() {
     let snapshot = documents_tree();
     let algebra = snapshot.by_key(Key::new(2)).expect("the module").index();
-    let plan = plan(promote(&snapshot, Key::new(6), topic("matrices"), None));
+    let plan = plan(promote(
+        &snapshot,
+        Key::new(6),
+        topic("matrices"),
+        SyllabusName::Overview,
+        None,
+    ));
 
     assert_eq!(
         landings_by_kind(&plan),
@@ -1150,6 +1170,7 @@ fn promoting_a_key_that_names_nothing_is_refused() {
             &documents_tree(),
             Key::new(99),
             topic("nowhere"),
+            SyllabusName::Overview,
             None
         )),
         Refusal::TargetMissing { key: Key::new(99) }
@@ -1169,6 +1190,7 @@ fn promoting_a_node_is_refused() {
         &documents_tree(),
         Key::new(2),
         topic("linear-algebra"),
+        SyllabusName::Overview,
         None,
     ));
     assert_eq!(
@@ -1213,21 +1235,15 @@ fn a_distinguished_child_cannot_be_named_by_key_at_all() {
     }
 }
 
-/// Discharges `wit_refusedNoDistinguishedChild`, and with it the whole content
-/// of the `no_distinguished` instance: a domain whose `distinguished()` is
-/// `None` cannot promote anything, because the leaf's content would have nowhere
-/// to go.
-///
-/// Refused outright rather than guessed at. The alternatives are discarding the
-/// bytes and inventing a name the domain never declared, and the library will do
-/// neither.
+/// A supplied positioned destination refuses before effects.
 #[test]
-fn promoting_in_a_domain_with_no_distinguished_child_is_refused() {
+fn promoting_with_a_positioned_content_name_is_refused() {
     let snapshot = contentless_tree();
     let decision = promote(
         &snapshot,
         Key::new(1),
         Parts::module(Label::new("orientation").expect("a label")),
+        Contentless::compose(Ordinal::FIRST, Key::new(1), topic("content")),
         None,
     );
     let Decision::Refuse(refused) = decision else {
@@ -1235,12 +1251,12 @@ fn promoting_in_a_domain_with_no_distinguished_child_is_refused() {
     };
     assert_eq!(
         refused,
-        Refusal::NoDistinguishedChild {
+        Refusal::SuppliedNameNotDistinguished {
             promoting: Some(Key::new(1))
         }
     );
     assert!(
-        refused.to_string().contains("nowhere to go"),
+        refused.to_string().contains("supply a distinguished name"),
         "a refusal says why, and what to do: {refused}"
     );
 }
@@ -1254,6 +1270,7 @@ fn promoting_with_parts_that_make_a_leaf_is_refused() {
         &documents_tree(),
         Key::new(1),
         draft("orientation"),
+        SyllabusName::Overview,
         None,
     ));
     assert_eq!(refused, Refusal::PromotePartsNotNode { key: Key::new(1) });
@@ -1289,6 +1306,7 @@ fn the_refusals_are_reported_in_the_models_own_order() {
         &snapshot,
         Key::new(1),
         Parts::module(Label::new("linear-algebra").expect("a label")),
+        Contentless::compose(Ordinal::FIRST, Key::new(1), topic("content")),
         None,
     ) else {
         panic!("a node is not a leaf");
@@ -1315,6 +1333,7 @@ fn bytes_for_a_first_child_that_makes_a_node_are_refused() {
             &documents_tree(),
             Key::new(1),
             topic("orientation"),
+            SyllabusName::Overview,
             Some(NewEntry::new(topic("nested"), b"bytes".to_vec())),
         )),
         Refusal::ContentForANode
@@ -1337,6 +1356,7 @@ fn a_promotion_whose_child_has_no_fresh_key_is_refused_and_one_without_a_child_i
             &snapshot,
             Key::new(u32::MAX),
             topic("the-last-key"),
+            SyllabusName::Overview,
             Some(NewEntry::empty(draft("child"))),
         )),
         Refusal::KeysExhausted
@@ -1345,6 +1365,7 @@ fn a_promotion_whose_child_has_no_fresh_key_is_refused_and_one_without_a_child_i
         &snapshot,
         Key::new(u32::MAX),
         topic("the-last-key"),
+        SyllabusName::Overview,
         None,
     ));
     assert_eq!(

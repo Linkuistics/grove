@@ -27,7 +27,7 @@ mechanism.
 
 **The size, stated once and checkably.** `driver_lease.rs` is 1,383 lines, which
 makes it the **fourth** largest of the thirteen roots, behind `tree_lifecycle.rs`
-at 2,725, `task_tree.rs` at 2,038 and `task_name.rs` at 1,714. Split at its
+at 2,725, `task_tree.rs` at 2,038 and `task_name.rs` at 1,712. Split at its
 `#[cfg(test)]` line it yields this chapter's 819 lines and chapter 17's 564 — and
 819 is the **largest single owned block in the book**, ahead of chapter 13's 808
 and chapter 12's 775. A rank is easy to get wrong here because the root and the
@@ -2129,7 +2129,7 @@ The book's question, asked of the one chapter whose answer is not about meaning.
 the answer rather than a gap in it. Its two file names are constants, its record
 format is `key=value` lines nothing parses but itself, and its one identifier
 with any structure — the 128-bit nonce — is validated for *spelling* and never for
-sense. Compare chapters 2 to 4, where 1,714 lines exist because a name must be
+sense. Compare chapters 2 to 4, where 1,712 lines exist because a name must be
 canonical: `format(parse(f)) == f`, a conformance kit, four verdicts. Here
 canonicity is free, because nothing round-trips through a human and no entity
 occupies two files. What the layer owns on the way in is not a grammar but a

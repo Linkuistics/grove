@@ -55,14 +55,8 @@ fn listing(directory: &Path) -> Vec<String> {
     names
 }
 
-/// A domain with **no distinguished child**: `operations.qnt`'s
-/// `no_distinguished` instance, as a real `EntryName`.
-///
-/// The same domain `promoting_on_disk.rs` declares, and declared again here
-/// rather than shared, because a fixture domain is one file's own scenery in
-/// this crate's tests. It disclaims `OVERVIEW.md`: a domain answering `None` to
-/// `distinguished()` while still parsing some name as `Distinguished` would have
-/// a distinguished child the library cannot name.
+/// A domain that disclaims distinguished names. Refusal tests supply one of
+/// its positioned values as the content destination.
 #[derive(Clone)]
 struct Contentless(SyllabusName);
 
@@ -301,7 +295,7 @@ fn a_vacancy_initializes_into_a_tree_that_reads_back() {
 
     let report = vacancy
         .initialize(
-            Some(b"An introduction.".to_vec()),
+            Some((SyllabusName::Overview, b"An introduction.".to_vec())),
             vec![
                 NewEntry::empty(draft("orientation")),
                 NewEntry::empty(topic("linear-algebra")),
@@ -373,7 +367,7 @@ fn no_distinguished_child_and_an_empty_one_are_different_trees() {
     ordinal_fs_tree::fs::write::<SyllabusName>(&empty)
         .expect("no error")
         .expect_vacancy("nothing is there")
-        .initialize(Some(Vec::new()), Vec::new())
+        .initialize(Some((SyllabusName::Overview, Vec::new())), Vec::new())
         .expect("a root with an empty OVERVIEW");
     assert_eq!(listing(&empty), ["OVERVIEW.md"]);
     assert_eq!(
@@ -388,24 +382,30 @@ fn no_distinguished_child_and_an_empty_one_are_different_trees() {
 /// what tells them apart: a root initialization names no entry, because the root
 /// is not one.
 #[test]
-fn bytes_for_a_distinguished_child_a_domain_does_not_have_are_refused() {
+fn initializing_with_a_positioned_content_name_is_refused() {
     let (_temporary, root) = nowhere();
 
     let error = ordinal_fs_tree::fs::write::<Contentless>(&root)
         .expect("no error")
         .expect_vacancy("nothing is there")
-        .initialize(Some(b"nowhere to go".to_vec()), Vec::new())
+        .initialize(
+            Some((
+                Contentless::compose(Ordinal::FIRST, Key::new(1), draft("content")),
+                b"nowhere to go".to_vec(),
+            )),
+            Vec::new(),
+        )
         .expect_err("this domain has no distinguished child");
 
     assert!(
         matches!(
             error,
-            Error::Refused(Refusal::NoDistinguishedChild { promoting: None })
+            Error::Refused(Refusal::SuppliedNameNotDistinguished { promoting: None })
         ),
         "expected the domain-shaped refusal, got {error:?}"
     );
     assert!(
-        error.to_string().contains("nowhere to go"),
+        error.to_string().contains("supply a distinguished name"),
         "a refusal says why, and what to do: {error}"
     );
     assert!(

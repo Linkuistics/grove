@@ -1,4 +1,4 @@
-//! The conformance kit, and the seven deliberately broken domains that prove it
+//! The conformance kit, with deliberately broken domains that prove it
 //! is not reading clean while broken.
 //!
 //! Each broken domain but the last is one of `structure.als`'s witnesses written
@@ -20,7 +20,7 @@ use ordinal_fs_tree::conformance::{
 };
 use ordinal_fs_tree::reference::{Label, Parts, Status, SyllabusError, SyllabusName};
 use ordinal_fs_tree::{
-    EntryName, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Verdict,
+    EntryName, EntryNameExt, Found, Key, NameView, Ordinal, PositionedSpecies, Species, Verdict,
 };
 
 /// A listing the reference domain should be entirely at home in: both species,
@@ -65,12 +65,13 @@ fn violated(report: &conformance::Report) -> Vec<Obligation> {
 }
 
 /// Discharges every trait obligation Alloy states — `ComposeLawful`,
-/// `ParseIsCanonical`, `RoundTripDisplay`, `OneDistinguishedName`, `DistLawful`
+/// `ParseIsCanonical`, `RoundTripDisplay`, `DistLawful`
 /// and `SpeciesAgreementIsParsed` — for the reference domain, through the kit
 /// that every other domain will use for the same purpose.
 #[test]
 fn the_reference_domain_conforms() {
-    let report = conformance::check::<SyllabusName>(&listings(), &triples());
+    let report =
+        conformance::check::<SyllabusName>(&listings(), &triples(), &[SyllabusName::Overview]);
     report.assert_conforming();
 }
 
@@ -80,7 +81,7 @@ fn the_reference_domain_conforms() {
 /// which reported *found nothing* and *succeeded* with the same bytes.
 #[test]
 fn a_kit_handed_nothing_reports_that_it_checked_nothing() {
-    let report = conformance::check::<SyllabusName>(&[], &[]);
+    let report = conformance::check::<SyllabusName>(&[], &[], &[]);
     assert!(!report.is_conforming(), "an empty run must not pass");
     assert_eq!(report.violations().count(), 0, "nothing was violated");
     assert_eq!(
@@ -94,7 +95,7 @@ fn a_kit_handed_nothing_reports_that_it_checked_nothing() {
 /// `compose` uncalled.
 #[test]
 fn samples_that_reach_only_half_the_seam_say_so() {
-    let report = conformance::check::<SyllabusName>(&listings(), &[]);
+    let report = conformance::check::<SyllabusName>(&listings(), &[], &[SyllabusName::Overview]);
     assert!(!report.is_conforming());
     assert!(report
         .unexercised()
@@ -262,10 +263,6 @@ impl EntryName for Forgetful {
         ))
     }
 
-    fn distinguished() -> Option<Self> {
-        SyllabusName::distinguished().map(Self)
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         self.0.view()
     }
@@ -277,7 +274,11 @@ impl EntryName for Forgetful {
 
 #[test]
 fn a_compose_that_ignores_its_arguments_is_caught() {
-    let report = conformance::check::<Forgetful>(&listings(), &triples());
+    let report = conformance::check::<Forgetful>(
+        &listings(),
+        &triples(),
+        &[Forgetful(SyllabusName::Overview)],
+    );
     assert_eq!(
         violated(&report),
         vec![Obligation::ComposePlacesWhatItIsGiven],
@@ -318,10 +319,6 @@ impl EntryName for Lenient {
         Self(SyllabusName::compose(ordinal, key, parts))
     }
 
-    fn distinguished() -> Option<Self> {
-        SyllabusName::distinguished().map(Self)
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         self.0.view()
     }
@@ -335,7 +332,8 @@ impl EntryName for Lenient {
 fn a_grammar_with_two_spellings_of_one_name_is_caught() {
     let mut names = listings();
     names.push(("5-draft-matrices-i6.md", Found::File));
-    let report = conformance::check::<Lenient>(&names, &triples());
+    let report =
+        conformance::check::<Lenient>(&names, &triples(), &[Lenient(SyllabusName::Overview)]);
     assert_eq!(
         violated(&report),
         vec![Obligation::TheGrammarIsCanonical],
@@ -375,10 +373,6 @@ impl EntryName for Blind {
         Self(SyllabusName::compose(ordinal, key, parts))
     }
 
-    fn distinguished() -> Option<Self> {
-        SyllabusName::distinguished().map(Self)
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         self.0.view()
     }
@@ -390,7 +384,8 @@ impl EntryName for Blind {
 
 #[test]
 fn a_parse_that_ignores_the_listing_is_caught() {
-    let report = conformance::check::<Blind>(&listings(), &triples());
+    let report =
+        conformance::check::<Blind>(&listings(), &triples(), &[Blind(SyllabusName::Overview)]);
     assert_eq!(
         violated(&report),
         vec![Obligation::ParseRefusesWhatFoundContradicts],
@@ -398,15 +393,12 @@ fn a_parse_that_ignores_the_listing_is_caught() {
     );
 }
 
-/// `witness_two_distinguished_children`: a second name of the distinguished
-/// species. *At most one distinguished child per node* is a theorem given that
-/// `distinguished()` names one thing and a directory cannot hold two entries of
-/// one name; drop the first half and a node holds two, each hiding whatever the
-/// other does not.
+/// A domain with two canonical distinguished names. Their coexistence as
+/// values is lawful; cardinality is a separate level obligation.
 #[derive(Clone)]
 enum TwoOverviews {
     Delegated(SyllabusName),
-    /// The defect: a second name this domain calls a distinguished child.
+    /// An independently supplied distinguished name.
     Index,
 }
 
@@ -449,10 +441,6 @@ impl EntryName for TwoOverviews {
         Self::Delegated(SyllabusName::compose(ordinal, key, parts))
     }
 
-    fn distinguished() -> Option<Self> {
-        SyllabusName::distinguished().map(Self::Delegated)
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         match self {
             Self::Delegated(n) => n.view(),
@@ -466,15 +454,18 @@ impl EntryName for TwoOverviews {
 }
 
 #[test]
-fn a_second_distinguished_name_is_caught() {
+fn different_distinguished_names_conform() {
     let mut names = listings();
     names.push(("INDEX.md", Found::File));
-    let report = conformance::check::<TwoOverviews>(&names, &triples());
-    assert_eq!(
-        violated(&report),
-        vec![Obligation::DistinguishedNamesTheOnlyEntryOfItsSpecies],
-        "{report}"
+    let report = conformance::check::<TwoOverviews>(
+        &names,
+        &triples(),
+        &[
+            TwoOverviews::Delegated(SyllabusName::Overview),
+            TwoOverviews::Index,
+        ],
     );
+    report.assert_conforming();
 }
 
 /// `seam-k17`'s third finding: a domain that *detects* the contradiction and
@@ -508,10 +499,6 @@ impl EntryName for Evasive {
         Self(SyllabusName::compose(ordinal, key, parts))
     }
 
-    fn distinguished() -> Option<Self> {
-        SyllabusName::distinguished().map(Self)
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         self.0.view()
     }
@@ -523,7 +510,8 @@ impl EntryName for Evasive {
 
 #[test]
 fn a_species_contradiction_disguised_as_foreign_is_caught() {
-    let report = conformance::check::<Evasive>(&listings(), &triples());
+    let report =
+        conformance::check::<Evasive>(&listings(), &triples(), &[Evasive(SyllabusName::Overview)]);
     assert_eq!(
         violated(&report),
         vec![Obligation::ParseRefusesWhatFoundContradicts],
@@ -592,13 +580,6 @@ impl EntryName for KeyDrift {
         }
     }
 
-    fn distinguished() -> Option<Self> {
-        SyllabusName::distinguished().map(|inner| Self {
-            shown: inner.to_string(),
-            inner,
-        })
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         self.inner.view()
     }
@@ -610,7 +591,14 @@ impl EntryName for KeyDrift {
 
 #[test]
 fn a_parse_that_changes_the_key_behind_an_exact_display_is_caught() {
-    let report = conformance::check::<KeyDrift>(&listings(), &triples());
+    let report = conformance::check::<KeyDrift>(
+        &listings(),
+        &triples(),
+        &[KeyDrift {
+            inner: SyllabusName::Overview,
+            shown: "OVERVIEW.md".to_string(),
+        }],
+    );
     assert_eq!(
         violated(&report),
         vec![Obligation::TheGrammarIsCanonical],
@@ -660,10 +648,6 @@ impl EntryName for Escaping {
         Self(SyllabusName::compose(ordinal, key, parts))
     }
 
-    fn distinguished() -> Option<Self> {
-        SyllabusName::distinguished().map(Self)
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         self.0.view()
     }
@@ -687,11 +671,67 @@ fn escaping_listings() -> Vec<(&'static str, Found)> {
 
 #[test]
 fn a_name_that_renders_as_more_than_one_component_is_caught() {
-    let report = conformance::check::<Escaping>(&escaping_listings(), &triples());
+    let report = conformance::check::<Escaping>(
+        &escaping_listings(),
+        &triples(),
+        &[Escaping(SyllabusName::Overview)],
+    );
     assert_eq!(
         violated(&report),
         vec![Obligation::ANameRendersAsOnePathComponent],
         "every other obligation holds — canonicity included, which is what makes \
          this the escape the algebra cannot see: {report}"
+    );
+}
+
+#[test]
+fn distinguished_identity_compares_rendered_names() {
+    let overview = TwoOverviews::Delegated(SyllabusName::Overview);
+    assert!(!overview.same_name(&TwoOverviews::Index));
+    assert!(TwoOverviews::Index.same_name(&TwoOverviews::Index));
+}
+
+// The supplied name must determine both creation and the content destination.
+// A fixed OVERVIEW destination would fail the INDEX checks below.
+#[test]
+fn supplied_names_initialize_and_promote_on_disk() {
+    use ordinal_fs_tree::NewEntry;
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("syllabus");
+    let parts = Parts::lesson(Status::Draft, Label::new("orientation").unwrap());
+    ordinal_fs_tree::fs::write::<TwoOverviews>(&root)
+        .unwrap()
+        .expect_vacancy("absent root")
+        .initialize(
+            Some((TwoOverviews::Index, b"root".to_vec())),
+            vec![NewEntry::new(parts, b"lesson".to_vec())],
+        )
+        .unwrap();
+    assert_eq!(std::fs::read(root.join("INDEX.md")).unwrap(), b"root");
+    ordinal_fs_tree::fs::write::<TwoOverviews>(&root)
+        .unwrap()
+        .expect_tree("initialized root")
+        .promote(
+            Key::new(1),
+            Parts::module(Label::new("orientation").unwrap()),
+            TwoOverviews::Delegated(SyllabusName::Overview),
+            None,
+        )
+        .unwrap();
+    assert_eq!(
+        std::fs::read(root.join("01-orientation-i1/OVERVIEW.md")).unwrap(),
+        b"lesson"
+    );
+    let tree = ordinal_fs_tree::fs::read::<TwoOverviews>(&root)
+        .unwrap()
+        .expect_tree("valid names");
+    assert_eq!(
+        tree.snapshot()
+            .root()
+            .distinguished()
+            .unwrap()
+            .name()
+            .to_string(),
+        "INDEX.md"
     );
 }

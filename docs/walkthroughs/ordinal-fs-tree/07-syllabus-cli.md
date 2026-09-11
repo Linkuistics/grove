@@ -64,7 +64,7 @@ file under this consumer preserves the invariant that none of those concerns
 becomes a second library seam, and the fragments resolve the insert tour at the
 source boundary.
 
-<!-- fragment «syllabus-cli-source» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1738" parent="source-syllabus-cli" -->
+<!-- fragment «syllabus-cli-source» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1741" parent="source-syllabus-cli" -->
 <!-- insert «cli-command-line» -->
 <!-- insert «cli-parsing-and-failure» -->
 <!-- insert «cli-streams-and-paths» -->
@@ -1143,7 +1143,7 @@ categorized `Failure`, uses same-guard inspection to preserve the rewrite
 species invariant, and provides the worked operation's final
 consumer-to-library handoff in the local `insert` function.
 
-<!-- fragment «cli-mutations» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1314-1498" parent="syllabus-cli-source" -->
+<!-- fragment «cli-mutations» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1314-1501" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // Mutating
@@ -1189,7 +1189,10 @@ fn init(
         .map(|label| NewEntry::empty(Parts::lesson(status, label.clone())))
         .collect();
     let report = vacancy
-        .initialize(overview.map(|text| text.as_bytes().to_vec()), entries)
+        .initialize(
+            overview.map(|text| (SyllabusName::Overview, text.as_bytes().to_vec())),
+            entries,
+        )
         .map_err(|e| Failure::library(&e))?;
     report_out(streams, "init", &report)
 }
@@ -1270,7 +1273,7 @@ fn promote(
     let first =
         first_lesson.map(|label| NewEntry::empty(Parts::lesson(Status::Draft, label.clone())));
     let report = tree
-        .promote(key, Parts::module(label), first)
+        .promote(key, Parts::module(label), SyllabusName::Overview, first)
         .map_err(|e| Failure::library(&e))?;
     report_out(streams, "promote", &report)
 }
@@ -1918,7 +1921,7 @@ documented taxonomy.
 This range is included because those branches cannot be driven portably through
 a real terminal without substituting the writers at the private seam.
 
-<!-- fragment «cli-stream-contract-tests» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1499-1738" parent="syllabus-cli-source" -->
+<!-- fragment «cli-stream-contract-tests» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1502-1741" parent="syllabus-cli-source" -->
 ````rust
 #[cfg(test)]
 mod stream_contract_tests {

@@ -210,7 +210,7 @@ accessors retain `Option`. The crate-level documentation also states why
 whole-tree deletion is outside both formal models: its behavior depends on
 filesystem facts below their abstraction boundary. This fragment is the
 complete crate root and is the source-level map used by every later page.
-<!-- fragment «library-crate-surface» owner="orientation-k11" source="crates/ordinal-fs-tree/src/lib.rs" lines="1-103" parent="source-library" -->
+<!-- fragment «library-crate-surface» owner="orientation-k11" source="crates/ordinal-fs-tree/src/lib.rs" lines="1-104" parent="source-library" -->
 ````rust
 //! An ordered tree of entries stored as a directory tree, where each entry's
 //! position, identity and metadata live in its **filename**.
@@ -279,6 +279,7 @@ complete crate root and is the source-level map used by every later page.
 //!         (Ordinal::new(2), Key::new(2),
 //!          Parts::module(Label::new("linear-algebra").unwrap())),
 //!     ],
+//!     &[SyllabusName::Overview],
 //! );
 //! report.assert_conforming();
 //! ```

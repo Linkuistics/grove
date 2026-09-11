@@ -13,7 +13,7 @@ fn the_frozen_seventeen_file_corpus_expands_byte_for_byte() {
     );
 
     assert_eq!(report.coverage.files, 17);
-    assert_eq!(report.coverage.resolved_lines, 8_720);
+    assert_eq!(report.coverage.resolved_lines, 8_609);
     assert_eq!(report.coverage.deferred_lines, 0);
     assert!(report.valid, "{:#?}", report.diagnostics);
 }
@@ -115,7 +115,7 @@ fn source_growth_beyond_the_frozen_range_is_an_inventory_failure() {
     assert!(report.diagnostics.iter().any(|diagnostic| {
         diagnostic.code == "F006"
             && diagnostic.root_id.as_deref() == Some("source-library")
-            && diagnostic.message.contains("104 lines")
+            && diagnostic.message.contains("105 lines")
     }));
 }
 
@@ -157,8 +157,8 @@ fn orientation_scope_reports_resolved_and_deferred_bytes_separately() {
         report.coverage,
         book_validation::Coverage {
             files: 17,
-            resolved_lines: 208,
-            deferred_lines: 8_512,
+            resolved_lines: 209,
+            deferred_lines: 8_400,
             final_: false,
         }
     );
@@ -173,8 +173,8 @@ fn a_well_formed_defer_absent_from_the_ownership_ledger_is_rejected() {
         .get_mut("docs/walkthroughs/ordinal-fs-tree/source-index.md")
         .unwrap();
     let text = String::from_utf8(source_index.clone()).unwrap().replace(
-        "<!-- defer «name-seam-source» owner=\"name-seam-k12\" lines=\"1-717\" -->",
-        "<!-- defer «never-filled» owner=\"name-seam-k12\" lines=\"1-717\" -->",
+        "<!-- defer «name-seam-source» owner=\"name-seam-k12\" lines=\"1-706\" -->",
+        "<!-- defer «never-filled» owner=\"name-seam-k12\" lines=\"1-706\" -->",
     );
     *source_index = text.into_bytes();
 
@@ -199,7 +199,7 @@ fn a_later_owned_block_cannot_be_defined_early() {
         .get_mut("docs/walkthroughs/ordinal-fs-tree/source-index.md")
         .unwrap();
     let text = String::from_utf8(source_index.clone()).unwrap().replace(
-        "<!-- defer «name-seam-source» owner=\"name-seam-k12\" lines=\"1-717\" -->",
+        "<!-- defer «name-seam-source» owner=\"name-seam-k12\" lines=\"1-706\" -->",
         "<!-- insert «name-seam-source» -->",
     );
     *source_index = text.into_bytes();

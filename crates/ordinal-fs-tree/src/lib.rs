@@ -65,6 +65,7 @@
 //!         (Ordinal::new(2), Key::new(2),
 //!          Parts::module(Label::new("linear-algebra").unwrap())),
 //!     ],
+//!     &[SyllabusName::Overview],
 //! );
 //! report.assert_conforming();
 //! ```

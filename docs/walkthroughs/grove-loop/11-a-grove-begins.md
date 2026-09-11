@@ -65,7 +65,7 @@ That inversion is deliberate and it is stated in the structure brief: the file i
 ordered by Rust convention and the book by concept, and this root is the one where
 the two disagree most.
 
-<!-- fragment «grove-beginning» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="332-489" parent="source-tree-lifecycle" -->
+<!-- fragment «grove-beginning» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="332-492" parent="source-tree-lifecycle" -->
 <!-- insert «grove-beginning-root-init» -->
 <!-- insert «grove-beginning-default-slug» -->
 <!-- insert «grove-beginning-initialize» -->
@@ -256,7 +256,7 @@ Fifty-two lines, of which twenty-four are the doc comment. This is the densest
 argument in the block, and the ratio is the point: the code is a delegation and
 the comment is a history of what the delegation replaced.
 
-<!-- fragment «grove-beginning-initialize» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="357-408" parent="grove-beginning" -->
+<!-- fragment «grove-beginning-initialize» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="357-411" parent="grove-beginning" -->
 ````rust
 /// Create the whole grove — the root, its `BRIEF.md` and the first
 /// **requirements** leaf — as one store operation under the lock the vacancy
@@ -291,7 +291,10 @@ fn initialize_grove(
     let key = Some(Key::new(1));
     let leaf = task_grow::new_leaf(key, Outcome::Live, kind.clone(), slug);
     let report = vacancy
-        .initialize(Some(root_brief_body(name).into_bytes()), vec![leaf])
+        .initialize(
+            Some((TaskName::Brief, root_brief_body(name).into_bytes())),
+            vec![leaf],
+        )
         .map_err(task_tree::raised)?;
     // The charter first, then the leaf — `Report::created` is
     // distinguished-child-first, and the two are what `root-init` reports.
@@ -363,7 +366,7 @@ one call site is `transition_to_current`, at line 87, in chapter 14's block. The
 type is here because it is *about* what a grove is, which is this chapter's
 subject; the decision it feeds is chapter 14's.
 
-<!-- fragment «grove-beginning-root-shape-type» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="409-443" parent="grove-beginning" -->
+<!-- fragment «grove-beginning-root-shape-type» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="412-446" parent="grove-beginning" -->
 ````rust
 /// What an existing `.grove/` is, as far as the lifecycle transition is
 /// concerned. Three shapes, and the classification is the whole of what the
@@ -426,7 +429,7 @@ scaffolding past it would bury the real problem.
 `Unrecognised` carries the names rather than a count, for the reason `Ambiguous`
 carried its matches in chapter 9: the caller is going to print them.
 
-<!-- fragment «grove-beginning-root-shape-fn» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="444-489" parent="grove-beginning" -->
+<!-- fragment «grove-beginning-root-shape-fn» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="447-492" parent="grove-beginning" -->
 ````rust
 /// Classify a root grove has already opened.
 ///
@@ -516,7 +519,7 @@ very bottom of the production half, after everything that calls them. Three
 helpers, and **each has a different consumer**, which is why they sit together at
 the end rather than beside any one verb.
 
-<!-- fragment «body-helpers» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1013-1076" parent="source-tree-lifecycle" -->
+<!-- fragment «body-helpers» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1016-1079" parent="source-tree-lifecycle" -->
 <!-- insert «body-helpers-grove-name» -->
 <!-- insert «body-helpers-root-brief» -->
 <!-- insert «body-helpers-retitle» -->
@@ -524,7 +527,7 @@ the end rather than beside any one verb.
 
 The first is the one this chapter calls.
 
-<!-- fragment «body-helpers-grove-name» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1013-1037" parent="body-helpers" -->
+<!-- fragment «body-helpers-grove-name» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1016-1040" parent="body-helpers" -->
 ````rust
 /// The grove's display name for its own charter: the **worktree** directory's
 /// basename, read off the tree root the store is about to create
@@ -585,7 +588,7 @@ so a long one is unremarkable here. A summary that says the same thing twice is
 not.
 
 **The repair spends the same five lines**, which is why nothing below line 1017
-moved in a 2,725-line root. The bytes above are the fold: the later summary's
+moved in a 2,732-line root. The bytes above are the fold: the later summary's
 framing, the earlier one's parenthetical and its statement of what the name is
 *for*, and — new, and the reason the fold does not simply drop a sentence — the
 fact that both call sites hand the string to the same consumer.
@@ -602,7 +605,7 @@ sixth instrument's blind spot in a new form: chapter 10 found a `//` module head
 `cargo doc` cannot see at all, and this was a correctly attached doc comment whose
 *shape* was wrong. Neither sentence was false.
 
-<!-- fragment «body-helpers-root-brief» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1038-1053" parent="body-helpers" -->
+<!-- fragment «body-helpers-root-brief» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1041-1056" parent="body-helpers" -->
 ````rust
 fn root_brief_body(name: &str) -> String {
     format!(
@@ -635,7 +638,7 @@ distinguished child and the store places it, so grove no longer opens the file
 itself. That is the same deletion `initialize_grove`'s comment described, seen from
 the helper's side: when the seam went, so did grove's need for a file handle here.
 
-<!-- fragment «body-helpers-retitle» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1054-1076" parent="body-helpers" -->
+<!-- fragment «body-helpers-retitle» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1057-1079" parent="body-helpers" -->
 ````rust
 fn append_brief_suffix_in_file(path: &Path, handle: &Handle) -> Result<()> {
     let body =
@@ -700,7 +703,7 @@ The support comes first, and it is worth reading as a design rather than as
 plumbing, because half of it exists to make one distinction: **which fixtures need
 a repository and which do not**.
 
-<!-- fragment «root-init-tests» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1077-1466" parent="source-tree-lifecycle" -->
+<!-- fragment «root-init-tests» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1080-1469" parent="source-tree-lifecycle" -->
 <!-- insert «root-init-tests-open» -->
 <!-- insert «root-init-tests-worktrees» -->
 <!-- insert «root-init-tests-grow-leaf» -->
@@ -719,7 +722,7 @@ a repository and which do not**.
 
 The module opens on a kind and three imports.
 
-<!-- fragment «root-init-tests-open» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1077-1092" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-open» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1080-1095" parent="root-init-tests" -->
 ````rust
 #[cfg(test)]
 mod tests {
@@ -750,7 +753,7 @@ than with `use super::*` at the top, which is where they would be if the block h
 been written at once. It is a harmless accretion and the book notes it only
 because the block is reproduced whole and a reader will see it.
 
-<!-- fragment «root-init-tests-worktrees» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1093-1145" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-worktrees» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1096-1148" parent="root-init-tests" -->
 ````rust
     /// A bare worktree dir with **no** `.grove/` yet — for `root_init`, which
     /// creates the grove itself and needs no repository (it never renames an entry).
@@ -828,7 +831,7 @@ makes the state the one a real session's tree is in.
 not read the developer's own configuration, and asserts on `status.success()` with
 the captured stderr in the message — a failing fixture says what jj said.
 
-<!-- fragment «root-init-tests-grow-leaf» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1146-1167" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-grow-leaf» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1149-1170" parent="root-init-tests" -->
 ````rust
 
     /// Grow a real root-level leaf the way `llm_cli` does — the whole verb,
@@ -877,7 +880,7 @@ give: line 42 of this file, which is chapter 14's block; line 1147 here;
 `task_tree.rs` line 1070, which chapter 6 owns and adjudicated; and one in the
 excluded `task_grow/tests.rs`, which chapter 10 may only cite.
 
-<!-- fragment «root-init-tests-guards» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1168-1199" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-guards» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1171-1202" parent="root-init-tests" -->
 ````rust
     /// The exclusive guard a lifecycle write verb now takes, opened from a grove
     /// root — the tests still name roots, and the verbs no longer open one.
@@ -928,7 +931,7 @@ because `crate::write` answers a vacancy there and a vacancy offers only
 `root-init`. The same guarantee `root_init`'s signature gives, stated from the
 other end.
 
-<!-- fragment «root-init-tests-root-init-at» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1200-1220" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-root-init-at» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1203-1223" parent="root-init-tests" -->
 ````rust
     /// `root-init` as its own CLI drives it: read the slug, resolve the vacancy,
     /// then scaffold — **in that order**, which is what the tests below about a
@@ -978,7 +981,7 @@ accepts, so it goes past both lines and fails inside the store. What separates i
 is its fixture and its first assertion — not the shape of the test, which is why
 reading the names alone puts it in the wrong group.
 
-<!-- fragment «root-init-tests-writers» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1221-1261" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-writers» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1224-1264" parent="root-init-tests" -->
 ````rust
     /// Write a leaf/brief stub with a position-free `# <handle>` header.
     fn touch(dir: &Path, name: &str, header: &str) -> PathBuf {
@@ -1062,7 +1065,7 @@ test cannot state, and in this block it is unusually productive — four of the
 thirteen turn out to pin something narrower than their names say, and all four are
 narrowed by the same helper.
 
-<!-- fragment «root-init-tests-basics» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1262-1308" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-basics» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1265-1311" parent="root-init-tests" -->
 ````rust
     // ---- root-init ----------------------------------------------------------
 
@@ -1144,7 +1147,7 @@ would pass while the property was broken if `grove_name` read the grove root's o
 basename instead of its parent's — no: that would render `# .grove — brief`. It
 would pass if the fallback were wrong, because the fallback never fires here.
 
-<!-- fragment «root-init-tests-refusals» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1309-1333" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-refusals» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1312-1336" parent="root-init-tests" -->
 ````rust
     #[test]
     fn root_init_refuses_an_existing_grove() {
@@ -1203,7 +1206,7 @@ The test that *does* wind something and then unwind it is a hundred and twelve
 lines further down. What carries it past this helper is the one thing these two
 lack: a slug the grammar accepts.
 
-<!-- fragment «root-init-tests-one-guard» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1334-1352" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-one-guard» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1337-1355" parent="root-init-tests" -->
 ````rust
     #[test]
     fn transition_initializes_an_absent_grove_under_one_exclusive_guard() {
@@ -1247,7 +1250,7 @@ gap [*The value chosen twice*](11-a-grove-begins.md#the-value-nothing-holds)
 measures, and the test `default-root-slug-two-spellings-k159` put in `grove-llm`'s
 fixtures is the one that closes it.
 
-<!-- fragment «root-init-tests-one-operation» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1353-1375" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-one-operation» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1356-1378" parent="root-init-tests" -->
 ````rust
     /// **The whole grove is one store operation, and that is the deletion.**
     /// `root-init` used to take a guard of grove's own for the root and its
@@ -1292,7 +1295,7 @@ reproduce. **The test pins the lock count; the atomicity is the store's promise.
 That distinction is the honest form of this chapter's rule, and it is worth
 stating plainly rather than letting the test name carry it.
 
-<!-- fragment «root-init-tests-no-self-wait» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1376-1410" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-no-self-wait» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1379-1413" parent="root-init-tests" -->
 ````rust
 
     /// **Grove no longer waits on itself.** The failure mode the second lock
@@ -1352,7 +1355,7 @@ is chapter 14's variant reached from here: the value proves the second call
 **chapter 11's own block** where a `RootShape` arm is pinned at all — the other is
 the taskless test that closes the section.
 
-<!-- fragment «root-init-tests-prediction» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1411-1423" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-prediction» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1414-1426" parent="root-init-tests" -->
 ````rust
     /// The leaf's `# <slug>-k<key>` handle is rendered before the library
     /// allocates the key, so `root-init` predicts the allocation exactly as every
@@ -1388,7 +1391,7 @@ disagree**, so the guard the
 comment credits is unexercised on this path. The test pins the agreement; it does
 not exercise the check.
 
-<!-- fragment «root-init-tests-refused-grove» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1424-1441" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-refused-grove» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1427-1444" parent="root-init-tests" -->
 ````rust
     /// **A grove that fails to initialize leaves no root at all**, which is what
     /// closed the window the deleted recovery existed for. The store creates the
@@ -1451,7 +1454,7 @@ seam, and had to: `ordinal-fs-tree` carries a fault-injection seam, but `Faults`
 `pub(crate)` to that crate and the word appears nowhere in `grove-loop`, so an
 operating-system limit on a filename is the only lever there is.
 
-<!-- fragment «root-init-tests-taskless» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1442-1466" parent="root-init-tests" -->
+<!-- fragment «root-init-tests-taskless» owner="never-mistaken-for-finished" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1445-1469" parent="root-init-tests" -->
 ````rust
     /// **A root holding its charter and no task is refused, not repaired.**
     /// Grove used to complete it, because grove itself produced it; it does not

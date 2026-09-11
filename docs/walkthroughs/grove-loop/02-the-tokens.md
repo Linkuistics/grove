@@ -30,7 +30,7 @@ whose middle is spelled wrong. Grove keeps the grammar because grove is the only
 layer that can tell those two apart, and it pays for keeping it by having to
 classify rather than merely to parse.
 
-This chapter owns 451 of the file's 1,714 lines in three blocks: the module
+This chapter owns 451 of the file's 1,712 lines in three blocks: the module
 header, the imports, the three constants, `Outcome` and `TokenError`, and
 `refuse_token` — lines 1 to 220 — and the two labelled sections of the file's own
 inline test module that hold this chapter's claims, lines 1,178 to 1,199 and
@@ -659,7 +659,7 @@ file's own labelled section for the classification. It holds two tests, one for
 each of the two verdicts a name can reach without ever being parsed as a
 positioned entry.
 
-<!-- fragment «classification-verdict-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1178-1199" parent="source-task-name" -->
+<!-- fragment «classification-verdict-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1176-1197" parent="source-task-name" -->
 <!-- insert «name-tests-the-charter» -->
 <!-- insert «name-tests-foreign» -->
 <!-- /fragment -->
@@ -667,34 +667,28 @@ positioned entry.
 The first test takes the charter, which is the one name in the grammar that
 carries no position, no key and no parts.
 
-<!-- fragment «name-tests-the-charter» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1178-1185" parent="classification-verdict-tests" -->
+<!-- fragment «name-tests-the-charter» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1176-1183" parent="classification-verdict-tests" -->
 ````rust
     // ---- classification: the four verdicts ---------------------------------
 
     #[test]
     fn the_charter_is_the_distinguished_child() {
         assert_eq!(entry("BRIEF.md", Found::File), TaskName::Brief);
-        assert_eq!(TaskName::distinguished(), Some(TaskName::Brief));
+        assert!(matches!(TaskName::Brief.view(), NameView::Distinguished));
     }
 
 ````
 <!-- /fragment -->
 
-**What it establishes.** `BRIEF.md` reaches `Entry` as the `Brief` variant, and
-the domain's own advertisement of its distinguished child names that same
-variant. Those are two directions of one fact, and the test asserts both.
+**What it establishes.** `BRIEF.md` parses as `Brief`, whose view is
+`Distinguished`. Grove passes this value explicitly when initializing and
+promoting; the library does not manufacture the name.
 
-**What it would still pass under.** The first assertion alone would pass while
-`distinguished()` returned `None` or some other name — and a domain that parses
-`BRIEF.md` correctly but advertises nothing is one where the store never asks for
-a charter, so every node's brief is either read as an ordinary entry or not
-looked for at all. The second assertion is what closes that, and it checks the
-advertised value rather than a parse. Both assertions together would still pass
-while the *store* never consulted `distinguished()` — that direction is the
-library's obligation, not grove's, and it is discharged by the conformance kit
-chapter 4 runs rather than here.
+**What it would still pass under.** A caller could supply the wrong name while
+this parsing test stayed green. The lifecycle tests exercise those callers and
+check the files they create; the conformance kit samples the name laws.
 
-<!-- fragment «name-tests-foreign» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1186-1199" parent="classification-verdict-tests" -->
+<!-- fragment «name-tests-foreign» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1184-1197" parent="classification-verdict-tests" -->
 ````rust
     #[test]
     fn a_name_that_is_not_task_shaped_is_foreign() {
@@ -766,7 +760,7 @@ parsed name back to its filename bytes, both arms of its positioned case ending
 in the call to `Handle::render` the module header claimed. All five are read
 where chapter 4 and chapter 3 reproduce the blocks that define them.
 
-<!-- fragment «shape-refusal-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1313-1521" parent="source-task-name" -->
+<!-- fragment «shape-refusal-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1311-1519" parent="source-task-name" -->
 <!-- insert «name-tests-kind-not-a-token» -->
 <!-- insert «name-tests-missing-separator» -->
 <!-- insert «name-tests-one-reading» -->
@@ -779,7 +773,7 @@ The first of the six takes the session kind, which is the word `open-kind-k20`
 changed most: it was checked against a closed set of nineteen labels and is now
 checked against a shape.
 
-<!-- fragment «name-tests-kind-not-a-token» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1313-1358" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-kind-not-a-token» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1311-1356" parent="shape-refusal-tests" -->
 ````rust
     // ---- refusals inside the shape -----------------------------------------
 
@@ -853,7 +847,7 @@ a fact about the code rather than an assertion in this test — the doc comment
 above it records that this fixture list itself used to contain `01-wrok--a-k1.md`
 and that the name now parses.
 
-<!-- fragment «name-tests-missing-separator» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1359-1395" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-missing-separator» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1357-1393" parent="shape-refusal-tests" -->
 ````rust
     /// **The scenario `grammar-separator-k15` exists to refuse.** A task-shaped
     /// leaf with no `--` is every name the old grammar wrote, so the refusal has
@@ -921,7 +915,7 @@ unpinned is precedence — a `.md`-suffixed name handed to the walk as a directo
 reaches this refusal before the species check runs, and nothing here says which
 of the two a reader should expect.
 
-<!-- fragment «name-tests-one-reading» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1396-1457" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-one-reading» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1394-1455" parent="shape-refusal-tests" -->
 ````rust
     /// The spec's own round-trip scenario, by name: *a multi-word kind beside a
     /// multi-word slug* (`docs/specs/module-decomposition.md`, requirement *a
@@ -1023,7 +1017,7 @@ string, which is the canonicity defect this whole grammar exists to prevent; the
 two `to_string()` assertions either side of it are what close that, and each pins
 its own name to its own bytes.
 
-<!-- fragment «name-tests-node-wearing-outcome» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1458-1481" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-node-wearing-outcome» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1456-1479" parent="shape-refusal-tests" -->
 ````rust
     /// A directory wearing an outcome infix keeps the diagnostic it has today,
     /// wording included: it is one of the better error messages in the codebase
@@ -1068,7 +1062,7 @@ and not the behaviour: the test would pass while nothing in the walk halted on
 the verdict, and while the parse reached `NodeWearsOutcome` for the wrong reason,
 since the fixtures differ only in which infix they carry.
 
-<!-- fragment «name-tests-bad-slug» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1482-1497" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-bad-slug» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1480-1495" parent="shape-refusal-tests" -->
 ````rust
     #[test]
     fn a_slug_the_grammar_cannot_read_back_is_malformed() {
@@ -1107,7 +1101,7 @@ re-checking it. The test would also pass while a leaf's slug and a node's slug
 were validated by two different rules that happened to agree on these five
 fixtures.
 
-<!-- fragment «name-tests-species-mismatch» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1498-1521" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-species-mismatch» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1496-1519" parent="shape-refusal-tests" -->
 ````rust
     /// The species half of the obligation, both ways round. A directory wearing
     /// a leaf's name and a file wearing a node's are each a malformed *tree*,

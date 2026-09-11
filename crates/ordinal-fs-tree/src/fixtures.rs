@@ -36,7 +36,7 @@ pub(crate) fn module(ordinal: u32, key: u32, label: &str) -> SyllabusName {
 
 /// This domain's distinguished child: `OVERVIEW.md`.
 pub(crate) fn overview() -> SyllabusName {
-    SyllabusName::distinguished().expect("this domain has a distinguished child")
+    SyllabusName::Overview
 }
 
 /// A tree holding nothing at all.
@@ -128,13 +128,6 @@ impl EntryName for Sneaky {
         }
     }
 
-    fn distinguished() -> Option<Self> {
-        SyllabusName::distinguished().map(|inner| Self {
-            inner,
-            escapes: false,
-        })
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         self.inner.view()
     }
@@ -144,20 +137,8 @@ impl EntryName for Sneaky {
     }
 }
 
-/// A domain with **no distinguished child**, which is what `operations.qnt`'s
-/// `no_distinguished` instance is.
-///
-/// `HAS_DISTINGUISHED = false` in the model; here it is
-/// [`EntryName::distinguished`] answering `None`, and the consequence is the
-/// same: promotion is refused outright, because the leaf's content would have
-/// nowhere to go.
-///
-/// It disclaims `OVERVIEW.md` rather than merely declining to name it. A domain
-/// that answered `None` here and still parsed some name as `Distinguished` would
-/// have a distinguished child the library cannot name — the obligation
-/// *`distinguished()` names the only entry of its species* read backwards — so
-/// the honest domain has none at all, and `Foreign` is how a consumer says *not
-/// mine*.
+/// A domain that disclaims `OVERVIEW.md` and exposes only positioned names.
+/// Refusal tests supply a positioned value as the content destination.
 #[derive(Clone)]
 pub(crate) struct Contentless(SyllabusName);
 

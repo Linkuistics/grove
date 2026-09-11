@@ -50,7 +50,7 @@
 //!     // Still under the exclusive lock: nothing can create the tree between
 //!     // learning it is absent and creating it here.
 //!     Writing::Vacancy(vacancy) => {
-//!         vacancy.initialize(Some(b"the course".to_vec()), Vec::new())?;
+//!         vacancy.initialize(Some((SyllabusName::Overview, b"the course".to_vec())), Vec::new())?;
 //!     }
 //! }
 //! # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
@@ -398,18 +398,18 @@ impl<N: EntryName> Vacancy<N> {
     /// child, and a first run of entries — under the lock this vacancy already
     /// holds.
     ///
-    /// `distinguished` is the bytes of the root's own distinguished child, or
+    /// `distinguished` is the name and bytes of the root's own child, or
     /// `None` for a root without one; the two are different trees, so the
     /// choice is the caller's. `entries` are placed at the root level by exactly
     /// the rule [`append_many`](WriteGuard::append_many) uses, which over an
     /// empty tree means [`Ordinal::FIRST`] onward with keys from 1.
     ///
-    /// # Why the bytes and not a [`NewEntry`]
+    /// # Why a name-and-bytes pair rather than a [`NewEntry`]
     ///
     /// [`NewEntry`] describes a *positioned* entry — parts, from which an
     /// ordinal and a key are composed — and the distinguished child is the one
     /// entry that cannot be described that way: it carries no parts, and its
-    /// name is [`EntryName::distinguished`]. The library already writes one like
+    /// name is supplied directly. The library already writes one like
     /// this when a promotion moves a leaf's bytes into a new node, so the seam
     /// stays exactly one trait and gains no method
     /// (`docs/adr/entry-name-is-the-only-seam.md`).
@@ -427,8 +427,7 @@ impl<N: EntryName> Vacancy<N> {
     ///
     /// # Errors
     ///
-    /// [`Error::Refused`] when bytes were supplied for a distinguished child in
-    /// a domain that has none — [`Refusal::NoDistinguishedChild`], the same
+    /// [`Error::Refused`] when the supplied content name is positioned — [`Refusal::SuppliedNameNotDistinguished`], the same
     /// refusal a promotion gives for the same reason — or when bytes were
     /// supplied for an entry whose parts make a node; [`Error::Failed`] when the
     /// filesystem refused, in which case **this call left nothing behind** —
@@ -444,10 +443,10 @@ impl<N: EntryName> Vacancy<N> {
     /// `claim_vacant` draws for every other operation, and the same neighbour it
     /// draws it against.
     ///
-    /// [`Refusal::NoDistinguishedChild`]: crate::Refusal::NoDistinguishedChild
+    /// [`Refusal::SuppliedNameNotDistinguished`]: crate::Refusal::SuppliedNameNotDistinguished
     pub fn initialize(
         self,
-        distinguished: Option<Vec<u8>>,
+        distinguished: Option<(N, Vec<u8>)>,
         entries: Vec<NewEntry<N::Parts>>,
     ) -> Result<Report<N>, Error<N>> {
         // A vacancy holds no names, so the snapshot the plan is checked against
@@ -666,8 +665,7 @@ impl<N: EntryName> WriteGuard<N> {
     /// # Errors
     ///
     /// [`Error::Refused`] when the key names no entry; when it names something
-    /// that is not a leaf; when this domain has no distinguished child, so the
-    /// leaf's content would have nowhere to go; when `parts` do not imply a
+    /// that is not a leaf; when the supplied destination name is positioned; when `parts` do not imply a
     /// node; or when bytes were supplied for a first child whose parts make a
     /// node. [`Error::Failed`] when the filesystem refused and the tree was left
     /// as it was found; [`Error::FailedPartiallyRolledBack`] when undoing that
@@ -676,9 +674,10 @@ impl<N: EntryName> WriteGuard<N> {
         self,
         key: Key,
         parts: N::Parts,
+        distinguished: N,
         first_child: Option<NewEntry<N::Parts>>,
     ) -> Result<Report<N>, Error<N>> {
-        let decision = ops::promote(&self.snapshot, key, parts, first_child);
+        let decision = ops::promote(&self.snapshot, key, parts, distinguished, first_child);
         self.run(decision, apply::Faults::none())
     }
 

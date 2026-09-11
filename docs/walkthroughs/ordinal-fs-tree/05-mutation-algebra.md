@@ -13,7 +13,7 @@ deletion is the deliberate exception: it acts on the root and on foreign
 entries that no snapshot names, so it bypasses this name-based plan algebra and
 returns `Removed` paths.
 
-<!-- fragment «mutation-operations-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="1-634" parent="source-operations" -->
+<!-- fragment «mutation-operations-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="1-617" parent="source-operations" -->
 <!-- insert «ops-surface-and-inputs» -->
 <!-- insert «ops-append» -->
 <!-- insert «ops-initialize» -->
@@ -23,7 +23,7 @@ returns `Removed` paths.
 <!-- insert «ops-resolution-and-allocation» -->
 <!-- /fragment -->
 
-<!-- fragment «mutation-plan-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="1-597" parent="source-plan" -->
+<!-- fragment «mutation-plan-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="1-562" parent="source-plan" -->
 <!-- insert «plan-effects» -->
 <!-- insert «plan-guarded» -->
 <!-- insert «plan-decision-and-refusals» -->
@@ -50,7 +50,7 @@ fragment takes parsed names and opaque parts as inputs, establishes key-only
 targeting and parts-derived species, and supplies the values used by the worked
 insert without introducing any filesystem capability.
 
-<!-- fragment «ops-surface-and-inputs» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="1-70" parent="mutation-operations-source" -->
+<!-- fragment «ops-surface-and-inputs» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="1-71" parent="mutation-operations-source" -->
 ````rust
 //! The operations' algebra: one planning function per operation, each a pure
 //! function of a [`Snapshot`].
@@ -71,7 +71,8 @@ insert without introducing any filesystem capability.
 
 use crate::plan::{Decision, Effect, Level, Plan, Refusal};
 use crate::{
-    Container, Entry, EntryName, Key, Ordinal, PositionedSpecies, Snapshot, Sought, Species,
+    Container, Entry, EntryName, EntryNameExt, Key, Ordinal, PositionedSpecies, Snapshot, Sought,
+    Species,
 };
 
 /// Which entry an operation is aimed at.
@@ -320,7 +321,7 @@ turns the worked snapshot and request into the three effects above while
 preserving every shifted key and part and refusing before a plan exists when an
 input condition fails.
 
-<!-- fragment «ops-insert» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="184-290" parent="mutation-operations-source" -->
+<!-- fragment «ops-insert» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="173-279" parent="mutation-operations-source" -->
 ````rust
 
 /// **`insert`**: add a child at an occupied ordinal, shifting the occupant and
@@ -803,7 +804,7 @@ fragment turns one resolved level and a vector of new entries into consecutive
 create effects, preserves pre-existing gaps, and supplies no effects at all for
 the empty-run case used to explain a successful no-op.
 
-<!-- fragment «ops-append» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="71-119" parent="mutation-operations-source" -->
+<!-- fragment «ops-append» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="72-120" parent="mutation-operations-source" -->
 ````rust
 
 /// **`append`**: add a child at the end of a level — the next free ordinal, a
@@ -866,12 +867,11 @@ append-many: the greatest root ordinal and whole-tree key are both zero, so the
 first positioned name receives ordinal 1 and key 1 without a special allocation
 branch.
 
-An optional distinguished-child payload becomes the first `Create` at
-`Level::Root`. It is separate from the positioned run because a distinguished
-child has neither ordinal nor key and is named by `EntryName::distinguished`
-rather than `EntryName::compose`. If the domain supplies no distinguished name,
-bytes intended for it produce `NoDistinguishedChild { promoting: None }` before
-the positioned entries are examined. The root directory itself is not an
+An optional distinguished name-and-bytes pair becomes the first `Create` at
+`Level::Root`. Its name is supplied directly because it has no ordinal, key or
+positioned parts. A supplied positioned value produces
+`SuppliedNameNotDistinguished { promoting: None }` before the positioned run
+is examined. The root directory itself is not an
 entry, so it is neither a plan effect nor a report row; the filesystem lifecycle
 creates it under the vacancy's existing lock.
 
@@ -879,7 +879,7 @@ The initialization planner owns the algebraic half of the root's creation. This
 fragment turns optional root content and the first positioned run into one
 guarded ordered plan while reusing the ordinary creation arithmetic.
 
-<!-- fragment «ops-initialize» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="120-183" parent="mutation-operations-source" -->
+<!-- fragment «ops-initialize» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="121-172" parent="mutation-operations-source" -->
 ````rust
 
 /// **`initialize`**: the first names a tree ever holds — a distinguished child
@@ -894,17 +894,10 @@ guarded ordered plan while reusing the ordinary creation arithmetic.
 ///
 /// # The distinguished child is an ordinary effect
 ///
-/// It has to be, and that it can be is the reason this operation needs no new
-/// trait method. A distinguished child carries no ordinal and no key, so
-/// [`NewEntry`] cannot describe it and [`EntryName::compose`] cannot build one —
-/// but [`EntryName::distinguished`] names it, and the library already places one
-/// that way when a promotion moves a leaf's bytes into a new node. So the same
-/// [`Effect::Create`] does it here, at [`Level::Root`], and
-/// `docs/adr/entry-name-is-the-only-seam.md` is untouched.
-///
-/// Bytes are `Option<Vec<u8>>` and not `Vec<u8>` because *no distinguished
-/// child* and *an empty one* are different trees, and a domain that has one
-/// should still be able to make a root without it.
+/// A distinguished child carries no ordinal, key or positioned parts. Its
+/// name and bytes are supplied together and placed with [`Effect::Create`].
+/// `None` omits the child; `Some((name, Vec::new()))` creates an empty file.
+/// The supplied value must have distinguished species.
 ///
 /// # There is no root effect here
 ///
@@ -916,19 +909,14 @@ guarded ordered plan while reusing the ordinary creation arithmetic.
 /// [`Vacancy::initialize`]: crate::fs::Vacancy::initialize
 pub(crate) fn initialize<N: EntryName>(
     snapshot: &Snapshot<N>,
-    distinguished: Option<Vec<u8>>,
+    distinguished: Option<(N, Vec<u8>)>,
     entries: Vec<NewEntry<N::Parts>>,
 ) -> Decision<N> {
     let mut effects = Vec::with_capacity(entries.len() + 1);
-    if let Some(content) = distinguished {
-        // The same refusal a promotion gives, for the same reason: this domain
-        // has no distinguished child and these bytes have nowhere to go. Asked
-        // before the entries are looked at, exactly as `promote` asks before it
-        // looks at the parts — the answer is about the *domain*, so complaining
-        // about the rest of a call that could not have worked is less useful.
-        let Some(name) = N::distinguished() else {
-            return Decision::Refuse(Refusal::NoDistinguishedChild { promoting: None });
-        };
+    if let Some((name, content)) = distinguished {
+        if name.species() != Species::Distinguished {
+            return Decision::Refuse(Refusal::SuppliedNameNotDistinguished { promoting: None });
+        }
         effects.push(Effect::Create {
             at: Level::Root,
             name,
@@ -975,7 +963,7 @@ identity into create-then-move, optionally adds a first child, preserves the
 promoted key and ordinal, and exposes the unavoidable transient duplication in
 the plan's written order.
 
-<!-- fragment «ops-promote» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="291-437" parent="mutation-operations-source" -->
+<!-- fragment «ops-promote» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="280-420" parent="mutation-operations-source" -->
 ````rust
 
 /// **`promote`**: turn a leaf into a node, with the node's parts supplied by the
@@ -1023,13 +1011,11 @@ pub(crate) fn promote<N: EntryName>(
     snapshot: &Snapshot<N>,
     key: Key,
     parts: N::Parts,
+    distinguished: N,
     first_child: Option<NewEntry<N::Parts>>,
 ) -> Decision<N> {
-    // The refusals in the model's own order, which is `planPromote`'s: missing,
-    // then not a leaf, then no distinguished child, then parts that are not a
-    // node. The order is observable — a promotion of a *node* in a domain with
-    // no distinguished child has two true refusals and reports the first — so it
-    // is transcribed rather than reinvented.
+    // Target existence and species precede destination-name and node-parts
+    // checks. This ordering keeps the first refusal about the target itself.
     let Sought::Match(leaf) = snapshot.by_key(key) else {
         return Decision::Refuse(Refusal::TargetMissing { key });
     };
@@ -1039,15 +1025,11 @@ pub(crate) fn promote<N: EntryName>(
             species: leaf.species(),
         });
     }
-    // Asked before the parts are looked at, because the answer is about the
-    // *domain* and not about this call: a domain with no distinguished child can
-    // never promote anything, and saying so is more useful than complaining
-    // about the parts of a call that could not have worked.
-    let Some(distinguished) = N::distinguished() else {
-        return Decision::Refuse(Refusal::NoDistinguishedChild {
+    if distinguished.species() != Species::Distinguished {
+        return Decision::Refuse(Refusal::SuppliedNameNotDistinguished {
             promoting: Some(key),
         });
-    };
+    }
     if N::positioned_species(&parts) != PositionedSpecies::Node {
         return Decision::Refuse(Refusal::PromotePartsNotNode { key });
     }
@@ -1147,7 +1129,7 @@ attribute changes. This fragment turns a keyed entry and replacement parts into
 one same-level move, preserves ordinal and key by construction, and keeps the
 same-parts request in the successful half of the total decision.
 
-<!-- fragment «ops-rewrite» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="438-517" parent="mutation-operations-source" -->
+<!-- fragment «ops-rewrite» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="421-500" parent="mutation-operations-source" -->
 ````rust
 
 /// **`rewrite`**: replace an entry's parts, keeping its ordinal, its key and its
@@ -1238,7 +1220,7 @@ the whole snapshot as input, preserves the distinction between per-level
 ordinals and tree-wide keys, and keeps every operation on the same resolution
 and allocation rules used by the worked insert.
 
-<!-- fragment «ops-resolution-and-allocation» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="518-634" parent="mutation-operations-source" -->
+<!-- fragment «ops-resolution-and-allocation» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/ops.rs" lines="501-617" parent="mutation-operations-source" -->
 ````rust
 
 /// A run of creations at the end of one level: consecutive ordinals over the
@@ -1378,9 +1360,9 @@ interpreter is called. It therefore changes nothing.
   those states without inventing a lower neighbour.
 - `ContentForANode` comes from every operation path that creates a positioned entry
   when node-implying parts are paired with bytes.
-- `PromoteNotLeaf`, `NoDistinguishedChild`, and `PromotePartsNotNode` are
+- `PromoteNotLeaf`, `SuppliedNameNotDistinguished`, and `PromotePartsNotNode` are
   checked by promotion in that order. Initialization shares
-  `NoDistinguishedChild`; its `promoting` field is `None` because the root is not
+  `SuppliedNameNotDistinguished`; its `promoting` field is `None` because the root is not
   an entry and has no key. Promotion supplies `Some(key)`.
 - `RewriteSpeciesChange` comes from rewrite when replacement parts imply the
   opposite positioned species.
@@ -1397,7 +1379,7 @@ into an explicit value, establishes that refusal is the no-effects branch, and
 keeps exhaustion cases visible even though the unbounded formal model cannot
 pose them.
 
-<!-- fragment «plan-decision-and-refusals» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="230-433" parent="mutation-plan-source" -->
+<!-- fragment «plan-decision-and-refusals» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="230-412" parent="mutation-plan-source" -->
 ````rust
 
 /// What the algebra returns for every input: a plan to apply, or a refusal.
@@ -1520,31 +1502,10 @@ pub enum Refusal {
         /// What it turned out to be.
         species: Species,
     },
-    /// Bytes were supplied for a distinguished child in a domain whose
-    /// [`EntryName::distinguished`] is `None`. `operations.qnt`'s
-    /// `RefusedNoDistinguishedChild`, and the whole content of its
-    /// `no_distinguished` instance.
-    ///
-    /// Refused outright rather than guessed at: the alternatives are discarding
-    /// the bytes silently and inventing a name the domain never declared, and
-    /// neither is one.
-    ///
-    /// # Two operations, one refusal
-    ///
-    /// [`promote`] moves a leaf's content into the new node's distinguished
-    /// child, and [`Vacancy::initialize`] writes a fresh root's. Both are the
-    /// same condition — *this domain has no distinguished child, and these
-    /// bytes have nowhere to go* — so they answer with the same refusal rather
-    /// than with two that would have to be kept in step. What distinguishes
-    /// them is `promoting`, which is the key of the leaf on the one path that
-    /// has a key at all: a root initialization names no entry, because the tree
-    /// root is not one.
-    ///
-    /// [`promote`]: crate::fs::WriteGuard::promote
-    /// [`Vacancy::initialize`]: crate::fs::Vacancy::initialize
-    NoDistinguishedChild {
-        /// The key of the leaf that would have been promoted, or `None` when a
-        /// root initialization asked for one.
+    /// Initialization or promotion received a positioned destination name
+    /// where a distinguished name is required. Refused before effects.
+    SuppliedNameNotDistinguished {
+        /// The promoted leaf's key, or `None` for root initialization.
         promoting: Option<Key>,
     },
     /// The parts `promote` was given do not imply species `Node`.
@@ -1617,7 +1578,7 @@ fragment turns carried keys, species, ordinals, and spans into precise recovery
 text, preserves the distinctions made at each decision site, and gives the
 worked insert's refusal alternatives meaning without requiring filesystem work.
 
-<!-- fragment «plan-refusal-messages» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="434-597" parent="mutation-plan-source" -->
+<!-- fragment «plan-refusal-messages» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="413-562" parent="mutation-plan-source" -->
 ````rust
 
 impl core::fmt::Display for Refusal {
@@ -1703,29 +1664,15 @@ impl core::fmt::Display for Refusal {
                  leaf into a node. A node is already one; name a leaf, or add \
                  children to this node directly."
             ),
-            // One condition, two operations, and the advice differs by which
-            // asked: a promotion has a leaf to name and a fallback that keeps
-            // its content, and an initialization has neither.
-            Self::NoDistinguishedChild { promoting } => {
-                f.write_str(
-                    "this domain has no distinguished child, so the content supplied \
-                     for one has nowhere to go. ",
+            Self::SuppliedNameNotDistinguished { promoting } => {
+                write!(
+                    f,
+                    "the supplied content name is positioned; supply a distinguished name"
                 )?;
-                match promoting {
-                    Some(key) => write!(
-                        f,
-                        "Promotion moves the bytes of the leaf with key {key} verbatim \
-                         into the new node's distinguished child; give the domain one \
-                         by implementing `EntryName::distinguished`, or create the node \
-                         and move the content yourself."
-                    ),
-                    None => f.write_str(
-                        "A root initialization writes those bytes into the new root's \
-                         distinguished child; give the domain one by implementing \
-                         `EntryName::distinguished`, or initialize the tree without a \
-                         distinguished child.",
-                    ),
+                if let Some(key) = promoting {
+                    write!(f, " for promotion of leaf {key}")?;
                 }
+                f.write_str(". No changes were made.")
             }
             Self::PromotePartsNotNode { key } => write!(
                 f,

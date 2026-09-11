@@ -10,10 +10,10 @@ composition mutually consistent.
 
 The complete `src/name.rs` source is the composition below. Its six children
 follow the conceptual order of this page and expand without gaps into lines
-1–717. The page also reproduces `src/sought.rs` as one literal fragment after
+1–706. The page also reproduces `src/sought.rs` as one literal fragment after
 the filename seam, where the search-result vocabulary can be read as a whole.
 
-<!-- fragment «name-seam-source» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-717" parent="source-name" -->
+<!-- fragment «name-seam-source» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-706" parent="source-name" -->
 <!-- insert «name-identifiers» -->
 <!-- insert «name-classification» -->
 <!-- insert «name-representation» -->
@@ -50,14 +50,13 @@ its opaque parts instead of deleting that entry.
 This fragment defines the module boundary and the two numeric types. The
 consumer formats their values, while the algebra compares them and preserves
 the distinction used by every later example on this page.
-<!-- fragment «name-identifiers» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-92" parent="name-seam-source" -->
+<!-- fragment «name-identifiers» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-91" parent="name-seam-source" -->
 ````rust
 //! The seam: what a name is, and the one trait a consumer implements.
 //!
-//! The library never parses a name, never formats one, and never learns that a
-//! name is a string. It knows only that a name can be decomposed into an
-//! [`Ordinal`], a [`Key`] and an opaque remainder — and recomposed from them.
-//! Everything in this module is that decomposition and nothing else.
+//! The consumer owns parsing and rendering. A positioned name decomposes into an
+//! [`Ordinal`], a [`Key`] and opaque parts, and is recomposed from them.
+//! Distinguished names remain opaque values with canonical rendering identity.
 //!
 //! The specification is `docs/ordinal-fs-tree/ARCHITECTURE.md`, sections *Names
 //! belong to the consumer* and *The seam: one trait*; the structural model that
@@ -187,7 +186,7 @@ consumer can construct the domain-specific error that explains recovery.
 This fragment turns an unfollowed filesystem observation into the shape and
 classification values used by `parse`. The consumer supplies the verdict and
 error; the reader uses the variant to admit, skip, or halt without guessing.
-<!-- fragment «name-classification» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="93-247" parent="name-seam-source" -->
+<!-- fragment «name-classification» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="92-246" parent="name-seam-source" -->
 ````rust
 
 /// Which of the three kinds of thing a name names.
@@ -370,7 +369,7 @@ distinguished spelling, when this consumer defines one, produces
 This fragment defines the values passed from the consumer boundary into the
 algebra. Parsing produces a name whose view supplies the triple; later mutation
 code reuses that triple when it composes a shifted or rewritten name.
-<!-- fragment «name-representation» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="248-346" parent="name-seam-source" -->
+<!-- fragment «name-representation» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="247-345" parent="name-seam-source" -->
 ````rust
 
 /// The `(ordinal, key, parts)` a positioned name is isomorphic to.
@@ -490,7 +489,7 @@ The trait establishes seven obligations:
    distinguished name reparses with the same view and species.
 3. A name is positioned or distinguished, never neither or both.
 4. A positioned species depends only on parts, never on ordinal or key.
-5. `distinguished()` names the only spelling that parses as distinguished.
+5. Supplied distinguished names round-trip as distinct canonical filenames.
 6. `parse` returns `Malformed` when the declared species contradicts `Found`.
 7. `Display` renders one nonempty path component other than `.` or `..`.
 
@@ -522,7 +521,7 @@ the parsing and rendering round trips constrain that separate boundary.
 This fragment is present at the seam itself. A consumer implements these inputs
 and transformations; snapshot reads and mutation planning depend on the stated
 round trips, species rule, and one-component rendering contract.
-<!-- fragment «entry-name-trait» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="347-616" parent="name-seam-source" -->
+<!-- fragment «entry-name-trait» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="346-601" parent="name-seam-source" -->
 ````rust
 /// The one trait. All genericity lives here: there are no callbacks, no hooks,
 /// no registration and no configuration objects, and there is no `Domain` type.
@@ -638,25 +637,11 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// holds (`witness_shift_corrupts_identity`).
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self;
 
-    /// The name a node's distinguished child takes, if this domain has one.
-    ///
-    /// A distinguished child carries neither an ordinal nor a key, so it can
-    /// never be produced by [`compose`](EntryName::compose) — this is the only
-    /// way the library can name one. `None` means the domain has no
-    /// distinguished child, and promotion is refused rather than guessed at.
-    ///
-    /// # Obligation: `distinguished()` names the only entry of its species
-    ///
-    /// [`parse`](EntryName::parse) yields [`Species::Distinguished`] for this
-    /// name and for nothing else, and this name's own
-    /// [`triple`](EntryName::triple) is `None`. That is what makes *at most one
-    /// distinguished child per node* true — the filesystem supplies the rest,
-    /// since a directory cannot hold two entries of one name — so it is a
-    /// theorem rather than an invariant anything has to enforce
-    /// (`DistinguishedIsUniquePerNode`, against
-    /// `witness_two_distinguished_children`).
-    fn distinguished() -> Option<Self> {
-        None
+    /// Judge the complete distinguished-name set for a root (`None`) or node.
+    /// The answer must depend only on these names and be independent of order.
+    /// The default accepts every set; declaring this policy does not invoke it.
+    fn validate_distinguished(_node: Option<&Self>, _children: &[Self]) -> Result<(), Self::Err> {
+        Ok(())
     }
 
     /// What this name is: a positioned entry with its triple, or the
@@ -819,7 +804,7 @@ This fragment derives the readings used throughout snapshots, operations,
 plans, and consumers. Sealing keeps the algebra's identity and species rules
 uniform even though the underlying parts and their equality belong to the
 consumer.
-<!-- fragment «entry-name-derived-readings» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="617-691" parent="name-seam-source" -->
+<!-- fragment «entry-name-derived-readings» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="602-680" parent="name-seam-source" -->
 ````rust
 
 mod sealed {
@@ -860,7 +845,7 @@ pub trait EntryNameExt: EntryName + sealed::Sealed {
     /// Whether these two names are **one name** — the comparison every
     /// occupancy decision makes.
     ///
-    /// The whole [`NameView`] *and the species*, and the second half is the
+    /// Positioned identity includes [`NameView`] *and the species*. Species is the
     /// part that is not obvious. [`Parts`](EntryName::Parts) is bounded by
     /// `Clone + Eq` and by nothing else, so a domain's equality may be any
     /// lawful equivalence — including one coarser than its own rendering.
@@ -882,12 +867,16 @@ pub trait EntryNameExt: EntryName + sealed::Sealed {
     /// leaf and node spellings coincided would fail the canonicity check in
     /// [`crate::conformance`], which reparses every composed name and compares
     /// the species that comes back.
+    /// Distinguished identity compares canonical renderings; its unit view
+    /// classifies a name but does not identify its filename.
     fn same_name(&self, other: &Self) -> bool {
         match (self.view(), other.view()) {
             (NameView::Positioned(a), NameView::Positioned(b)) => {
                 a == b && Self::positioned_species(a.parts) == Self::positioned_species(b.parts)
             }
-            (NameView::Distinguished, NameView::Distinguished) => true,
+            (NameView::Distinguished, NameView::Distinguished) => {
+                self.to_string() == other.to_string()
+            }
             (NameView::Positioned(_), NameView::Distinguished)
             | (NameView::Distinguished, NameView::Positioned(_)) => false,
         }
@@ -925,7 +914,7 @@ partial plan needs rollback for this boundary error.
 This fragment implements that shared boundary predicate. The reader and
 interpreter supply rendered names, and the result either certifies one Unix
 filename component or gives the stable reason carried by the error.
-<!-- fragment «name-component-check» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="692-717" parent="name-seam-source" -->
+<!-- fragment «name-component-check» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="681-706" parent="name-seam-source" -->
 ````rust
 /// Why a rendering is not one filename, or `None` when it is one.
 ///

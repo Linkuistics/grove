@@ -348,31 +348,10 @@ pub enum Refusal {
         /// What it turned out to be.
         species: Species,
     },
-    /// Bytes were supplied for a distinguished child in a domain whose
-    /// [`EntryName::distinguished`] is `None`. `operations.qnt`'s
-    /// `RefusedNoDistinguishedChild`, and the whole content of its
-    /// `no_distinguished` instance.
-    ///
-    /// Refused outright rather than guessed at: the alternatives are discarding
-    /// the bytes silently and inventing a name the domain never declared, and
-    /// neither is one.
-    ///
-    /// # Two operations, one refusal
-    ///
-    /// [`promote`] moves a leaf's content into the new node's distinguished
-    /// child, and [`Vacancy::initialize`] writes a fresh root's. Both are the
-    /// same condition — *this domain has no distinguished child, and these
-    /// bytes have nowhere to go* — so they answer with the same refusal rather
-    /// than with two that would have to be kept in step. What distinguishes
-    /// them is `promoting`, which is the key of the leaf on the one path that
-    /// has a key at all: a root initialization names no entry, because the tree
-    /// root is not one.
-    ///
-    /// [`promote`]: crate::fs::WriteGuard::promote
-    /// [`Vacancy::initialize`]: crate::fs::Vacancy::initialize
-    NoDistinguishedChild {
-        /// The key of the leaf that would have been promoted, or `None` when a
-        /// root initialization asked for one.
+    /// Initialization or promotion received a positioned destination name
+    /// where a distinguished name is required. Refused before effects.
+    SuppliedNameNotDistinguished {
+        /// The promoted leaf's key, or `None` for root initialization.
         promoting: Option<Key>,
     },
     /// The parts `promote` was given do not imply species `Node`.
@@ -515,29 +494,15 @@ impl core::fmt::Display for Refusal {
                  leaf into a node. A node is already one; name a leaf, or add \
                  children to this node directly."
             ),
-            // One condition, two operations, and the advice differs by which
-            // asked: a promotion has a leaf to name and a fallback that keeps
-            // its content, and an initialization has neither.
-            Self::NoDistinguishedChild { promoting } => {
-                f.write_str(
-                    "this domain has no distinguished child, so the content supplied \
-                     for one has nowhere to go. ",
+            Self::SuppliedNameNotDistinguished { promoting } => {
+                write!(
+                    f,
+                    "the supplied content name is positioned; supply a distinguished name"
                 )?;
-                match promoting {
-                    Some(key) => write!(
-                        f,
-                        "Promotion moves the bytes of the leaf with key {key} verbatim \
-                         into the new node's distinguished child; give the domain one \
-                         by implementing `EntryName::distinguished`, or create the node \
-                         and move the content yourself."
-                    ),
-                    None => f.write_str(
-                        "A root initialization writes those bytes into the new root's \
-                         distinguished child; give the domain one by implementing \
-                         `EntryName::distinguished`, or initialize the tree without a \
-                         distinguished child.",
-                    ),
+                if let Some(key) = promoting {
+                    write!(f, " for promotion of leaf {key}")?;
                 }
+                f.write_str(". No changes were made.")
             }
             Self::PromotePartsNotNode { key } => write!(
                 f,

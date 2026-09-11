@@ -58,7 +58,7 @@ fn built(root: &Path) {
     };
     vacancy
         .initialize(
-            Some(b"the course".to_vec()),
+            Some((SyllabusName::Overview, b"the course".to_vec())),
             vec![NewEntry::empty(draft("alpha"))],
         )
         .expect("initializing");

@@ -86,7 +86,12 @@ fn a_promoted_leaf_becomes_a_node_holding_its_own_content() {
     let report = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
         .expect_tree("a tree, not a vacancy")
-        .promote(Key::new(1), topic("orientation"), None)
+        .promote(
+            Key::new(1),
+            topic("orientation"),
+            SyllabusName::Overview,
+            None,
+        )
         .expect("a clean run");
 
     assert_eq!(
@@ -140,6 +145,7 @@ fn a_promotion_with_a_first_child_lands_all_three_in_the_plans_order() {
         .promote(
             Key::new(1),
             topic("orientation"),
+            SyllabusName::Overview,
             Some(NewEntry::new(draft("welcome"), b"welcome\n".to_vec())),
         )
         .expect("a clean run");
@@ -183,7 +189,7 @@ fn a_promotion_shifts_nothing() {
     ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
         .expect_tree("a tree, not a vacancy")
-        .promote(Key::new(5), topic("vectors"), None)
+        .promote(Key::new(5), topic("vectors"), SyllabusName::Overview, None)
         .expect("a clean run");
 
     assert_eq!(
@@ -223,7 +229,12 @@ fn promoting_a_node_is_refused_and_changes_nothing() {
     let error = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
         .expect_tree("a tree, not a vacancy")
-        .promote(Key::new(2), topic("linear-algebra"), None)
+        .promote(
+            Key::new(2),
+            topic("linear-algebra"),
+            SyllabusName::Overview,
+            None,
+        )
         .expect_err("a node is already a node");
 
     assert!(matches!(refusal(error), Refusal::PromoteNotLeaf { .. }));
@@ -241,7 +252,12 @@ fn promoting_with_parts_that_make_a_leaf_is_refused_and_changes_nothing() {
     let error = ordinal_fs_tree::fs::write::<SyllabusName>(&root)
         .expect("a well-formed tree")
         .expect_tree("a tree, not a vacancy")
-        .promote(Key::new(1), draft("orientation"), None)
+        .promote(
+            Key::new(1),
+            draft("orientation"),
+            SyllabusName::Overview,
+            None,
+        )
         .expect_err("a leaf's parts do not name a directory")
         .to_string();
 
@@ -252,24 +268,23 @@ fn promoting_with_parts_that_make_a_leaf_is_refused_and_changes_nothing() {
     assert_eq!(walk(&root), before, "a refusal changes nothing");
 }
 
-/// Discharges `wit_refusedNoDistinguishedChild` at the surface — the whole
-/// content of the model's `no_distinguished` instance, in a real domain.
-///
-/// [`Contentless`] disclaims `OVERVIEW.md` rather than merely declining to name
-/// it, so the tree it reads is the same directory with one fewer entry in it.
-/// The refusal is the domain's shape and not this call's: nothing this consumer
-/// can pass would promote anything.
+/// A supplied positioned destination refuses before effects.
 #[test]
-fn promoting_in_a_domain_with_no_distinguished_child_is_refused_and_changes_nothing() {
+fn promoting_with_a_positioned_content_name_is_refused_and_changes_nothing() {
     let (_temporary, root) = documents_tree();
     let before = walk(&root);
     let error = ordinal_fs_tree::fs::write::<Contentless>(&root)
         .expect("a well-formed tree")
         .expect_tree("a tree, not a vacancy")
-        .promote(Key::new(1), topic("orientation"), None)
+        .promote(
+            Key::new(1),
+            topic("orientation"),
+            Contentless::compose(Ordinal::FIRST, Key::new(1), topic("content")),
+            None,
+        )
         .expect_err("the leaf's content would have nowhere to go");
 
-    let Error::Refused(Refusal::NoDistinguishedChild {
+    let Error::Refused(Refusal::SuppliedNameNotDistinguished {
         promoting: Some(key),
     }) = &error
     else {
@@ -277,7 +292,7 @@ fn promoting_in_a_domain_with_no_distinguished_child_is_refused_and_changes_noth
     };
     assert_eq!(*key, Key::new(1));
     assert!(
-        error.to_string().contains("nowhere to go"),
+        error.to_string().contains("supply a distinguished name"),
         "a refusal says why, and what to do: {error}"
     );
     assert_eq!(walk(&root), before, "a refusal changes nothing");
@@ -296,6 +311,7 @@ fn bytes_for_a_first_child_that_makes_a_node_are_refused() {
         .promote(
             Key::new(1),
             topic("orientation"),
+            SyllabusName::Overview,
             Some(NewEntry::new(topic("nested"), b"bytes".to_vec())),
         )
         .expect_err("a directory has nowhere to hold bytes");
@@ -304,13 +320,8 @@ fn bytes_for_a_first_child_that_makes_a_node_are_refused() {
     assert_eq!(walk(&root), before, "a refusal changes nothing");
 }
 
-/// A domain with **no distinguished child**: `operations.qnt`'s
-/// `no_distinguished` instance, as a real `EntryName`.
-///
-/// It disclaims `OVERVIEW.md`. A domain answering `None` here while still
-/// parsing some name as `Distinguished` would have a distinguished child the
-/// library cannot name — the obligation *`distinguished()` names the only entry
-/// of its species*, read backwards — so the honest domain has none at all.
+/// A domain that disclaims distinguished names. Refusal tests supply one of
+/// its positioned values as the content destination.
 #[derive(Clone)]
 struct Contentless(SyllabusName);
 
@@ -443,10 +454,6 @@ impl EntryName for Blind {
         }
     }
 
-    fn distinguished() -> Option<Self> {
-        Some(Self::Overview)
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         match self {
             Self::Overview => NameView::Distinguished,
@@ -541,6 +548,7 @@ fn a_domain_whose_parts_equality_ignores_the_species_conforms_and_can_promote() 
                 LabelOnly(topic("orientation")),
             ),
         ],
+        &[Blind::Overview],
     );
     report.assert_conforming();
 
@@ -548,7 +556,12 @@ fn a_domain_whose_parts_equality_ignores_the_species_conforms_and_can_promote() 
     ordinal_fs_tree::fs::write::<Blind>(&root)
         .expect("a well-formed tree")
         .expect_tree("a tree, not a vacancy")
-        .promote(Key::new(1), LabelOnly(topic("orientation")), None)
+        .promote(
+            Key::new(1),
+            LabelOnly(topic("orientation")),
+            Blind::Overview,
+            None,
+        )
         .expect("a lawful domain does not lose its promotion to its own equality");
 
     let node = root.join("01-orientation-i1");

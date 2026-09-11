@@ -100,10 +100,6 @@ impl EntryName for ParseEscapes {
         Self(SyllabusName::compose(ordinal, key, parts))
     }
 
-    fn distinguished() -> Option<Self> {
-        SyllabusName::distinguished().map(Self)
-    }
-
     fn view(&self) -> NameView<'_, Self::Parts> {
         self.0.view()
     }
@@ -181,10 +177,6 @@ impl EntryName for ComposeEscapes {
 
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
         Self(SyllabusName::compose(ordinal, key, parts))
-    }
-
-    fn distinguished() -> Option<Self> {
-        SyllabusName::distinguished().map(Self)
     }
 
     fn view(&self) -> NameView<'_, Self::Parts> {

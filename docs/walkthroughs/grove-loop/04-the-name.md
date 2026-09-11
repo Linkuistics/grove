@@ -83,7 +83,7 @@ back. Canonicity is the claim that the right-hand column composed with the middl
 one is the identity, and the check at the end of `parse` establishes it by
 performing both rather than by reasoning about the pairs.
 
-The chapter owns 700 of the file's 1,714 lines in three blocks — the name itself
+The chapter owns 700 of the file's 1,712 lines in three blocks — the name itself
 and the seam under it at lines 591 to 1,020, the test support and the conformance
 kit at 1,021 to 1,177, and the grammar and canonicity tests at 1,200 to 1,312.
 With them, all nine of this file's ownership blocks are resolved and
@@ -100,7 +100,7 @@ The composite below is this chapter's production ownership block. It expands, in
 order, to lines 591 through 1,020 of the file, and the fourteen fragments it
 names run from here to the end of *Under the seam*.
 
-<!-- fragment «the-task-name» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="591-1020" parent="source-task-name" -->
+<!-- fragment «the-task-name» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="591-1016" parent="source-task-name" -->
 <!-- insert «name-task-name» -->
 <!-- insert «name-task-name-display» -->
 <!-- insert «name-task-name-error» -->
@@ -689,7 +689,7 @@ validation at all. That is the point of it: every part these methods place was v
 built, and re-checking here would be a second opinion about a question already
 settled.
 
-<!-- fragment «name-entry-name-rest» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="896-927" parent="the-task-name" -->
+<!-- fragment «name-entry-name-rest» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="896-923" parent="the-task-name" -->
 ````rust
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
         Self::Positioned {
@@ -697,10 +697,6 @@ settled.
             key,
             parts,
         }
-    }
-
-    fn distinguished() -> Option<Self> {
-        Some(Self::Brief)
     }
 
     fn view(&self) -> NameView<'_, Self::Parts> {
@@ -769,7 +765,7 @@ Six free functions sit below the impl — `disagreement`, `bad_slug`,
 exactly one of them, `terminal_key`, is public. The first two exist so that a
 refusal is built in one place rather than at each of its raising sites.
 
-<!-- fragment «name-refusal-helpers» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="928-944" parent="the-task-name" -->
+<!-- fragment «name-refusal-helpers» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="924-940" parent="the-task-name" -->
 ````rust
 /// `Some(error)` when what the listing found contradicts what the name declares.
 fn disagreement(declares: Species, found: Found, name: &str) -> Option<TaskNameError> {
@@ -802,7 +798,7 @@ three fields filled the same way from both.
 
 The third is the refusal with nothing to advise.
 
-<!-- fragment «name-uncomputable-canonical» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="945-953" parent="the-task-name" -->
+<!-- fragment «name-uncomputable-canonical» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="941-949" parent="the-task-name" -->
 ````rust
 /// A canonicity refusal whose advice cannot be computed: the numbers did not fit
 /// in 32 bits, so there is no spelling to offer back.
@@ -827,7 +823,7 @@ this* — and pays for it with a field that is sometimes a description.
 
 The fourth is where a stem becomes three pieces.
 
-<!-- fragment «name-split-shape» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="954-976" parent="the-task-name" -->
+<!-- fragment «name-split-shape» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="950-972" parent="the-task-name" -->
 ````rust
 /// Split a stem into `(position digits, middle, key digits)`, or `None` when the
 /// stem is not task-shaped at all.
@@ -882,7 +878,7 @@ it goes through. Each carries its own doc comment, and the blank line at line 99
 is what makes that true — two `///` runs with no gap between them are one comment
 on the item below, whichever function the earlier run describes.
 
-<!-- fragment «name-terminal-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="977-995" parent="the-task-name" -->
+<!-- fragment «name-terminal-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="973-991" parent="the-task-name" -->
 ````rust
 /// The [`Key`] a reference ends in, or `None` when it does not end in one.
 ///
@@ -914,7 +910,7 @@ head that was never going to be a slug. The body is two statements and neither
 validates anything: peel, and then `digits.parse().ok()`, which is one of the
 three judgements the next fragment's comment enumerates.
 
-<!-- fragment «name-peel-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="996-1020" parent="the-task-name" -->
+<!-- fragment «name-peel-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="992-1016" parent="the-task-name" -->
 ````rust
 /// Peel a terminal `-k<digits>` into what precedes it and the digit run, or
 /// `None` when there is none.
@@ -993,7 +989,7 @@ kit: the library's own checker, pointed at grove's grammar. This is the second
 block, 157 lines, and it is where canonicity stops being grove's private
 comparison and becomes an obligation something outside grove can grade.
 
-<!-- fragment «name-test-support-and-kit» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1021-1177" parent="source-task-name" -->
+<!-- fragment «name-test-support-and-kit» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1017-1175" parent="source-task-name" -->
 <!-- insert «name-tests-support» -->
 <!-- insert «name-tests-kit-fixture» -->
 <!-- insert «name-tests-conforms» -->
@@ -1006,7 +1002,7 @@ five were named in chapter 2 before their definitions were read: `verdict`,
 `entry` and `malformed` at its four-verdicts section, `a_kind` and `slug` at its
 refusals section. Each has a row in the early-use ledger for that reason.
 
-<!-- fragment «name-tests-support» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1021-1058" parent="name-test-support-and-kit" -->
+<!-- fragment «name-tests-support» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1017-1054" parent="name-test-support-and-kit" -->
 ````rust
 #[cfg(test)]
 mod tests {
@@ -1071,7 +1067,7 @@ the same when it is handed nothing to check, so it also reports which obligation
 were never **exercised** — and that second finding distinguishes *no samples*
 from *samples*, not *samples* from *samples that pose the question*.
 
-<!-- fragment «name-tests-kit-fixture» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1059-1102" parent="name-test-support-and-kit" -->
+<!-- fragment «name-tests-kit-fixture» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1055-1098" parent="name-test-support-and-kit" -->
 ````rust
     // ---- the conformance kit ------------------------------------------------
 
@@ -1201,17 +1197,18 @@ and not strings.
 
 The kit is then one line.
 
-<!-- fragment «name-tests-conforms» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1103-1113" parent="name-test-support-and-kit" -->
+<!-- fragment «name-tests-conforms» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1099-1110" parent="name-test-support-and-kit" -->
 ````rust
     /// The leaf's own *Done when*: the kit runs green over a fixture covering
     /// every shape a real `.grove/` holds. It discharges the five obligations
     /// the library assumes and cannot check from inside an operation —
     /// `compose` places what it is given, the grammar is canonical,
-    /// `distinguished()` names the only entry of its species, `parse` refuses
+    /// distinguished names are canonical, `parse` refuses
     /// what `found` contradicts, and a name renders as one path component.
     #[test]
     fn the_task_tree_domain_conforms() {
-        conformance::check::<TaskName>(&listings(), &triples()).assert_conforming();
+        conformance::check::<TaskName>(&listings(), &triples(), &[TaskName::Brief])
+            .assert_conforming();
     }
 
 ````
@@ -1221,7 +1218,7 @@ The kit is then one line.
 domain over this fixture, and each was reached. `assert_conforming` fails on a
 violation and on an unexercised obligation alike, so a green run is a claim about
 both. The five are `compose` places what it is given; the grammar is canonical;
-`distinguished()` names the only entry of its species; `parse` refuses what
+distinguished names are canonical; `parse` refuses what
 `found` contradicts; and a name renders as one path component. The doc comment
 calls them the obligations *the library assumes and cannot check from inside an
 operation* — five of the trait's seven, the other two being the ones `NameView`
@@ -1229,13 +1226,10 @@ and `positioned_species` constrain by their return shapes.
 
 **What it would still pass under.** Whatever the fixture does not pose — and
 which obligations those are turns on whether the kit can generate the case for
-itself. It can for two of the five. *Parse refuses what `found` contradicts* is
-generated: the kit offers every sample name under all three `Found` values rather
-than only the one it was paired with, so a fixture of agreeing pairs still asks
-the question, and the kit's own comment gives the reason — a sample only ever
-shown its own truth never asks it. *`distinguished()` names the only entry of its
-species* is reached the same way, by parsing what `distinguished()` returns and
-every listing beside it.
+itself. *Parse refuses what `found` contradicts* is generated: the kit offers
+every sample name under all three `Found` values rather than only the one it was
+paired with. Distinguished-name checks use the explicitly supplied
+`TaskName::Brief` value and verify its canonical round trip.
 
 Canonicity is the one it cannot generate: the kit can only render back names it
 was handed or composed, so its reach here is exactly the fixture's, which is why
@@ -1251,7 +1245,7 @@ state behind `view` or `positioned_species`, and this call does not try to.
 
 The second kit call replaces the triples and keeps the listings.
 
-<!-- fragment «name-tests-kind-shapes» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1114-1158" parent="name-test-support-and-kit" -->
+<!-- fragment «name-tests-kind-shapes» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1111-1156" parent="name-test-support-and-kit" -->
 ````rust
     /// The kit's canonicity check reparses what the domain composes, so a kind
     /// whose token does not survive the round trip is a defect it would catch —
@@ -1295,7 +1289,8 @@ The second kit call replaces the triples and keeps the listings.
                     })
             })
             .collect();
-        conformance::check::<TaskName>(&listings(), &triples).assert_conforming();
+        conformance::check::<TaskName>(&listings(), &triples, &[TaskName::Brief])
+            .assert_conforming();
     }
 
 ````
@@ -1349,7 +1344,7 @@ the fixture.
 
 The last test in the block is the negative the open kind bought.
 
-<!-- fragment «name-tests-undeclared-kind» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1159-1177" parent="name-test-support-and-kit" -->
+<!-- fragment «name-tests-undeclared-kind» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1157-1175" parent="name-test-support-and-kit" -->
 ````rust
     /// The other half of the same claim, and the one that would have been a
     /// *compile* error before: a token no methodology has ever declared parses,
@@ -1400,7 +1395,7 @@ The third block is 113 lines and two labelled sections. The first is four tests
 that walk the carried example's own shapes through `parse` and back out; the
 second is three that hold canonicity itself.
 
-<!-- fragment «grammar-and-canonicity-tests» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1200-1312" parent="source-task-name" -->
+<!-- fragment «grammar-and-canonicity-tests» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1198-1310" parent="source-task-name" -->
 <!-- insert «name-tests-live-leaf» -->
 <!-- insert «name-tests-terminal-marks» -->
 <!-- insert «name-tests-node-directory» -->
@@ -1413,7 +1408,7 @@ second is three that hold canonicity itself.
 The first is the round trip in the smallest form there is: one name, its whole
 parsed value, and its rendering.
 
-<!-- fragment «name-tests-live-leaf» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1200-1215" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-live-leaf» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1198-1213" parent="grammar-and-canonicity-tests" -->
 ````rust
     // ---- the grammar --------------------------------------------------------
 
@@ -1453,7 +1448,7 @@ still says nothing about any name but this one.
 
 The second widens it to the two terminal marks.
 
-<!-- fragment «name-tests-terminal-marks» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1216-1231" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-terminal-marks» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1214-1229" parent="grammar-and-canonicity-tests" -->
 ````rust
     #[test]
     fn both_terminal_marks_parse() {
@@ -1493,7 +1488,7 @@ no non-canonical spelling, so no refusal path is reached.
 
 The third is the other species.
 
-<!-- fragment «name-tests-node-directory» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1232-1243" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-node-directory» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1230-1241" parent="grammar-and-canonicity-tests" -->
 ````rust
     #[test]
     fn a_node_directory_parses() {
@@ -1529,7 +1524,7 @@ meaningful rather than permissive.
 The fourth is the terminality rule from the parsing side, and it is the same
 fixture chapter 3 used from the handle side.
 
-<!-- fragment «name-tests-terminal-key-marker» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1244-1256" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-terminal-key-marker» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1242-1254" parent="grammar-and-canonicity-tests" -->
 ````rust
     /// The key is the *terminal* `-k<digits>`, so a slug that itself ends in one
     /// stays unambiguous.
@@ -1572,7 +1567,7 @@ Three tests, and between them they are the whole of what this crate says about
 canonicity in its own voice. The kit grades the obligation from outside; these
 state what grove refuses, what it accepts, and what it cannot advise about.
 
-<!-- fragment «name-tests-lenient-position» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1257-1289" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-lenient-position» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1255-1287" parent="grammar-and-canonicity-tests" -->
 ````rust
     // ---- question 2: the grammar is canonical -------------------------------
 
@@ -1639,7 +1634,7 @@ and then said something wrong beside it would pass.
 The second is the boundary the format string produces rather than the one anyone
 chose.
 
-<!-- fragment «name-tests-unpadded-past-99» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1290-1298" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-unpadded-past-99» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1288-1296" parent="grammar-and-canonicity-tests" -->
 ````rust
     /// `{:02}` is a minimum width, not an exact one, so the canonical rule is
     /// *zero-padded to at least two digits and no other leading zero*. Three
@@ -1674,7 +1669,7 @@ together.
 
 The third is the refusal with no advice to give.
 
-<!-- fragment «name-tests-unrepresentable» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1299-1312" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-unrepresentable» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1297-1310" parent="grammar-and-canonicity-tests" -->
 ````rust
     /// A number too large to hold is still this domain's name and still
     /// Malformed; what changes is that there is no canonical spelling to offer.

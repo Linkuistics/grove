@@ -210,10 +210,15 @@ classify_reference() {
   case "${token}" in
     # Tree artifacts a session writes or reads under `.grove/` and at the repo
     # root — named by the corpus, never carried by a skill.
-    BRIEF.md | CONTEXT.md | CONTEXT-MAP.md) printf 'tree\n'; return ;;
+    _BRIEF.md | CONTEXT.md | CONTEXT-MAP.md) printf 'tree\n'; return ;;
   esac
+  # A titled node file. Keep format documents in the checked skill class.
+  if [[ "${token}" =~ ^_[a-z0-9]+(-[a-z0-9]+)*\.md$ ]]; then
+    printf 'tree\n'
+    return
+  fi
   # A leaf filename: position, optional outcome infix, kind, slug, key.
-  if [[ "${token}" =~ ^[0-9][0-9]-.*-k[0-9]+\.md$ ]]; then
+  if [[ "${token}" =~ ^[0-9]{2,}-.*-k[0-9]+\.md$ ]]; then
     printf 'tree\n'
     return
   fi

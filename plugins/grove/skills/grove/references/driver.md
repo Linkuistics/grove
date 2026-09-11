@@ -2,9 +2,8 @@
 
 The driver makes **one authoritative pick** per session, in-process, before the
 session exists: the first live leaf in a depth-first **pre-order** walk of
-`.grove/`, visiting each directory's children in per-level position order (the
-`BRIEF.md` charter first — and skipped — then by numeric position) and
-descending node directories in place. Briefs, terminal leaves (`DONE` and
+`.grove/`, visiting each directory's positioned children in numeric order and
+descending node directories in place. Node files, terminal leaves (`DONE` and
 `ABANDONED` alike) and foreign files are skipped, and a driver-owned `finish`
 leaf is passed over while any ordinary work is live, becoming eligible once it
 is the only live leaf. Nothing else modulates the walk — no priority, no
@@ -61,13 +60,11 @@ loop could stand in (constraint 6).
 A brand-new grove has a working tree but no `.grove/` yet, and every loop step
 assumes one exists; the driver resolves that chicken-and-egg before an agent
 exists, because a rootless tree has no leaf to select and the grow verbs need a
-root too. It creates `.grove/`, the root `BRIEF.md` stub, a first
-**requirements** leaf `01-requirements--<slug>-k1.md` (default slug `plan`), and
-the format witness, then selects that leaf and launches it. Creating the first
-*leaf*, not just the brief, is load-bearing: a brief is not a leaf, so a
-brief-only `.grove/` would look like a grove with no live work — a newborn
-indistinguishable from a finished one, mis-triggering the finish cycle
-(fresh-grove-start-contract).
+root too. It creates `.grove/`, the root `_BRIEF.md` stub and a first
+**requirements** leaf `01-requirements--<slug>-k1.md` (default slug `plan`),
+then selects that leaf and launches it. Creating the first leaf is load-bearing:
+a root holding only its node file is taskless and is refused, not selected for
+finishing (fresh-grove-start-contract).
 
 So a session **never scaffolds the tree itself**: it starts at Bootstrap like
 every other one, and its own commit folds the scaffold in as a working-tree
@@ -84,14 +81,9 @@ own basename (`jj workspace root`), `<repo-basename>` from the **main repo**'s
 basename (`jj workspace root --name default`'s basename — the repo a secondary
 workspace belongs to, not the working tree's own path).
 
-## A legacy tree was already migrated, or already refused
+## A tree must satisfy the grammar before driving
 
-If the tree is in the one older format still converted — v2 directories whose
-leaves carry no session kind in their filenames — the first bare `grove`
-**migrates it before driving**, as one recoverable transaction and one focused,
-reviewable commit; migration is idempotent once a tree is current-format, and
-there is **no** transitional dual-format reader (task-tree-scheme). The two
-earlier layouts — the original `NNN-slug/` directories and the v1 flat
-dotted-decimal scheme — are no longer migrated: bare `grove` recognises either,
-refuses, names the entries and changes nothing. Neither conversion is yours to
-perform by hand.
+**Grove performs no migration.** The driver opens only the grammar stated in
+`TASK-FORMAT.md` and `BRIEF-FORMAT.md`. A malformed tree is refused with the
+offending names and canonical form; a read changes nothing. An operator must
+resolve the refusal before restarting the loop.

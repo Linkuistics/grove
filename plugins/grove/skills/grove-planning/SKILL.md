@@ -37,4 +37,4 @@ handoff remains green. A new schema and the only reader that makes it usable do
 not: neither half is a working increment on its own.
 
 Only then cut the current increment into child leaves, writing the ordered leaf
-files and each node's `BRIEF.md` charter (`BRIEF-FORMAT.md`).
+files and each node file's brief (`BRIEF-FORMAT.md`).

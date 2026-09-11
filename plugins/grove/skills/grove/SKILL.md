@@ -63,7 +63,7 @@ alone — but any kind may stop and ask a human, and doing so is always legitima
 ## Bootstrap
 
 Resolve the mandated handle, then read: the glossary, the ADRs the briefs cite,
-the `BRIEF.md` chain root→leaf, and the task file. Nothing else by reflex.
+the brief chain root→leaf, and the task file. Nothing else by reflex.
 
 ## The loop
 

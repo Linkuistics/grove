@@ -77,9 +77,9 @@ trigger; `deferred` is a reorder or an issue; `superseded` differs only in
 A node is **never marked**: its done-ness *is* the absence of a live leaf
 anywhere in its subtree, so a close is work in the parent chain rather than a
 write to the node. **The close asks the human nothing** — it infers done-ness
-rather than deciding it. Every node carries a `BRIEF.md`
-— it is a leaf that proved bigger, and the charter is what those extra sessions
-needed — so every close has the same four steps:
+rather than deciding it. A node represents a leaf that proved bigger, and its
+brief is the context those extra sessions needed. Every close has the same
+four steps:
 
 1. **Check** the node's brief `Done when` against what its subtree delivered.
 2. **`leaf-add`** the missing work if the check fails and you can name the gap —
@@ -96,10 +96,6 @@ needed — so every close has the same four steps:
    (`BRIEF-FORMAT.md`). The human reviews the close after the fact, in the diff.
    The brief and its now-terminal leaves stay exactly where they are (nothing
    moves).
-
-If you meet a node whose charter was never written, do steps 2–4 and skip step
-1: there is no `Done when` to check and nothing to promote. That is a lapse in
-the tree, not a second species — grove writes no brief-less node.
 
 Retirement is also the moment to **reconcile the ADR set** with what the
 finished work established — `ADR-FORMAT.md` carries how a set is reworked and

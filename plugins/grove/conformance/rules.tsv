@@ -58,7 +58,7 @@ brief-content-is-durable	grove/BRIEF-FORMAT.md	B	on(writing a brief) @ grove/ref
 brief-is-never-marked-done	grove/BRIEF-FORMAT.md	B	on(a node closes) @ grove/references/retire.md	
 brief-is-process-scaffolding	grove/BRIEF-FORMAT.md	B	on(writing a brief) @ grove/references/decompose.md	
 briefs-inherit	grove/BRIEF-FORMAT.md	B	on(writing a brief) @ grove/references/decompose.md	
-every-node-carries-a-brief	grove/BRIEF-FORMAT.md	B	on(cutting a node) @ grove/references/decompose.md	
+every-node-carries-a-brief	grove/BRIEF-FORMAT.md	B	on(cutting a node) @ grove/references/decompose.md	The node file is mandatory; its body is freeform
 horizon-note-shape	grove/BRIEF-FORMAT.md	B	on(recording fog) @ grove/references/decompose.md	
 series-brief-declares-four-things	grove/BRIEF-FORMAT.md	B	on(writing a series brief) @ grove/references/decompose.md	A node whose children happen to repeat, with none of those four written down, is not a series
 series-cap-bounds-the-series-not-the-work	grove/BRIEF-FORMAT.md	B	on(writing a series brief) @ grove/references/decompose.md	The cap bounds the series, not the work
@@ -98,7 +98,7 @@ probe-with-concrete-scenarios	grove-requirements/grilling.md	B	on(the grilling t
 art-works-in-the-contracts-medium	grove-art/SKILL.md	B	static({art})	Do not introduce a medium the contract does not name
 figure-carries-the-relation-and-states-its-role	grove-art/SKILL.md	B	static({art})	Every figure states its role
 declined-figure-names-one-of-three-reasons	grove-art/SKILL.md	B	static({art})	a contract's medium is reopened by that record and by nothing else
-brief-chain-tolerates-gaps	grove/references/bootstrap.md	B	on(reading the brief chain) @ grove/references/bootstrap.md	A level with no brief is skipped silently
+brief-chain-refuses-gaps	grove/references/bootstrap.md	B	on(reading the brief chain) @ grove/references/bootstrap.md	It refuses malformed levels
 stale-launch-stops	grove/references/bootstrap.md	B*	on(the handle does not resolve to a live leaf) @ grove/SKILL.md	is a stale or hand-edited launch — not work to redo
 agreement-without-independent-primary-sourcing-is-a-red-flag	grove-combine-research/SKILL.md	B+S	static({combine-research})	
 combine-writes-the-union	grove-combine-research/SKILL.md	B	static({combine-research})	
@@ -140,10 +140,10 @@ wide-refactor-expand-contract	grove/references/decompose.md	B	on(cutting childre
 design-deliverable	grove-design/SKILL.md	B	static({design})	
 design-does-not-cut-impl-leaves	grove-design/SKILL.md	B	static({design})	
 draft-requires-a-structure-brief	grove-draft/SKILL.md	B+S	static({draft})	If this document has no structure brief, stop and say so
-structure-brief-is-three-citable-things	grove-draft/SKILL.md	B	static({draft})	The existence of a `BRIEF.md` is not the test
+structure-brief-is-three-citable-things	grove-draft/SKILL.md	B	static({draft})	The existence of a node file is not the test
 draft-owns-structure-and-technical-truth	grove-draft/SKILL.md	B	static({draft})	every claim about the subject is checked against the subject
 config-edit-lands-next-session	grove/references/driver.md	B	on(the configuration is wrong or edited) @ grove/references/driver.md	
-migration-is-the-drivers	grove/references/driver.md	B	on(the tree looks legacy) @ grove/references/driver.md	Neither conversion is yours to perform by hand
+tree-grammar-is-required	grove/references/driver.md	B	on(opening a tree) @ grove/references/driver.md	Grove performs no migration
 one-configuration	grove/references/driver.md	S	on(how this session was launched matters) @ grove/SKILL.md	**Nothing else routes a session**
 pick-walk-order	grove/references/driver.md	B	on(how this session was launched matters) @ grove/SKILL.md	first live leaf in a depth-first **pre-order** walk
 restart-equals-continuation	grove/references/driver.md	B	on(resuming) @ grove/references/driver.md	**restart ≡ continuation**

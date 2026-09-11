@@ -123,7 +123,7 @@ two is a cost you argue yourself into.
 **A pass series — a node whose children are its *passes* — is earned by work
 that is to be done again over one subject, on a step sequence, a checkable exit
 condition, a cap and a stated consequence at the cap**, all four written down
-before the first pass runs. They live in the series node's `BRIEF.md` and are
+before the first pass runs. They live in the series node's brief and are
 what make it a series rather than a node whose children happen to repeat;
 `BRIEF-FORMAT.md` states what each may say. **Nothing in any name marks a
 series, a pass or a step** — every entry is the one node species and the one leaf
@@ -212,7 +212,7 @@ than one session, so it decomposes:
     grove-llm leaf-decompose <leaf-path> <stem>
 
 That one call turns the leaf into the series node, moves the leaf's body in as
-the series `BRIEF.md` — which is where the declarations go, so write them into
+the series brief — which is where the declarations go, so write them into
 that body before you decompose, or into the brief straight after — and grows the
 node's first child. That child is **pass 1**. It inherits the decomposed leaf's
 kind unless `--kind` overrides it, so hand it the kind the declared sequence
@@ -224,7 +224,7 @@ ordinary leaf under the series node:
     grove-llm leaf-add <series-node> <stem> --kind <the sequence's first kind>
 
 The session that picks it decomposes it in turn, by the call above, and the body
-it inherits as its `BRIEF.md` is the one the previous pass wrote — the only
+it inherits as its brief is the one the previous pass wrote — the only
 session that knew what this pass has to carry forward. Read the series node's
 live entries first: where a live later sibling already holds the next pass, cut
 nothing. No verb is added for any of this; the node-making verb is the one grove
@@ -274,7 +274,7 @@ which is why no fourth leaf outcome is wanted here.
 
 **Reaching the cap escalates rather than exits, and the escalation is a write.**
 A session that would cut pass `cap + 1` cuts nothing, records what happened in
-the series `BRIEF.md` — `BRIEF-FORMAT.md` states what that entry carries — and
+the series brief — `BRIEF-FORMAT.md` states what that entry carries — and
 says so. It still finishes its own step in the ordinary way, retiring and
 committing like any other leaf: what stops is the series, not this session. A
 satisfied exit takes precedence, so a condition that holds at the last allowed

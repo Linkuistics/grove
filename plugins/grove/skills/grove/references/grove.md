@@ -13,7 +13,7 @@ The first three **outlive the grove** (constraint 6): they are ordinary
 team-readable markdown in the repository, and a reader needs neither this skill
 nor `.grove/` to use them. The task tree is the **only ephemeral** one — the
 finish cycle deletes `.grove/` wholesale, so everything under it is destroyed
-with it, `BRIEF.md` charters included. That is what a brief is for: process
+with it, node-file briefs included. That is what a brief is for: process
 context that is meant to die with the process. A finding, a decision, a term or
 an agreed design is not, and lands in one of the other three while the grove is
 still running.
@@ -21,7 +21,7 @@ still running.
 Briefs and the glossary partition on orthogonal axes, so neither substitutes for
 the other: a bounded context is a *domain* partition and the glossary is
 per-bounded-context, while a task-tree node is a *process* partition and carries
-a `BRIEF.md` rather than a glossary of its own.
+a brief rather than a glossary of its own (`BRIEF-FORMAT.md`).
 
 Each of the three durable sets has its own format file, and each is where that
 artifact's rules live: `CONTEXT-FORMAT.md` for the glossary, `ADR-FORMAT.md` for

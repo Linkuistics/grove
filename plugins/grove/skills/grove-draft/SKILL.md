@@ -38,7 +38,7 @@ path**, and that artifact itself states
 - **the ordered section plan** — the sequence, and what each section is for,
 - **what deserves emphasis**, and what the document does not cover.
 
-All three, in the artifact, quotable. **The existence of a `BRIEF.md` is not the
+All three, in the artifact, quotable. **The existence of a node file is not the
 test.** `leaf-decompose` gives every node one automatically and bootstrap reads
 it, so an existence check answers yes for every draft — including exactly the
 no-human-structure case that must stop. If the only candidate is the node's own

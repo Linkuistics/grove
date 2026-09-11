@@ -12,7 +12,8 @@ would either duplicate finished work or invent work no leaf asks for.
 
 `grove-llm brief-chain <resolved-path>` enumerates the ancestor briefs. The verb
 walks that leaf's **ancestor directories**, from the grove root down to the
-leaf's own directory, and prints one absolute `BRIEF.md` path per line,
-root→leaf. **A level with no brief is skipped silently**, so a node whose charter
-has not been written yet still bootstraps — briefs are lazy artifacts and a
-reader must not fail on a missing one.
+leaf's own directory, and prints one absolute node-file path per line,
+root→leaf: the root `_BRIEF.md`, then each ancestor's `_<slug>.md`.
+**Read the paths returned by `brief-chain`.** It refuses malformed levels
+instead of skipping gaps; follow its named refusal before continuing bootstrap.
+`BRIEF-FORMAT.md` owns the node-file grammar and the brief body's shape.

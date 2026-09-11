@@ -38,7 +38,7 @@ second, unvalidated copy of a fact grove already parses and routes on.
 
 ## Handing work forward
 
-A defect a *later* stage's charter owns goes in the document node's `BRIEF.md`,
+A defect a *later* stage's charter owns goes in the document node's brief,
 under a running `## Handed forward` list naming the owning stage and the
 location. Every later stage reads it, because the brief chain is root-to-leaf —
 which the next leaf's body cannot do for a stage two hops away. A stage

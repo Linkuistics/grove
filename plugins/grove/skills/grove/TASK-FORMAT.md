@@ -16,15 +16,16 @@ and all structural:
 
 | field | what it does |
 |---|---|
-| position `NN` | a 2-digit per-level number, its place among its directory's children; orders the `pick` walk |
+| position `NN` | a per-level number using at least two digits and no excess leading zero, its place among its directory's children; orders the `pick` walk |
 | outcome infix | absent while the leaf is live; `DONE` for retired work (`03-DONE-impl--extract-k7.md`) and `ABANDONED` for a path decided against (`03-ABANDONED-impl--extract-k7.md`, `leaf-prune`) — either keeps the leaf out of `pick`, marked in place |
 | session kind | one of the kinds below — the ones this methodology ships a skill for; the key one command template is configured under |
 | slug | a human name for the **artifact**, not for the leaf's role |
-| key `-k<key>` | stable identity, the terminal token, assigned once and never reused |
+| key `-k<key>` | positive decimal with no leading zero; stable identity, the terminal token, assigned once and never reused |
 
-Slug-plus-key is the **work-item handle** `resolve` finds and the counter the next
-`-k<key>` is allocated from. The file itself is freeform markdown — a guide
-follows, not a schema.
+Slug-plus-key is the **work-item handle** `resolve` finds; the next key is
+allocated above the highest key in the tree. A leaf's title comes from its
+filename. A node's title and handle follow `BRIEF-FORMAT.md`. The file itself is
+freeform markdown — a guide follows, not a schema.
 
 **What is convention rather than grammar** is everything a name might imply about
 *another* leaf: the shared stem a composed shape's steps carry, their relative
@@ -38,11 +39,10 @@ convention that *adds* what nothing parses is legible, while one that
 Putting the kind in the name is what lets `pick`, the driver's routing lookup and
 your own eye read a session's discipline out of `find .grove` without opening a
 file. Reading is strict in both directions. Every task-shaped leaf name — live,
-`DONE` or `ABANDONED` — must carry a known kind; a missing or unknown one is
-malformed and stops tree operations, naming the path and the valid set, rather
-than degrading to `impl`. No kind label plus `-` prefixes another, so a name
-always separates unambiguously and round-trips without touching the slug. Foreign
-non-task files in the tree stay ignored.
+`DONE` or `ABANDONED` — must carry a well-formed kind and slug, separated by
+the first `--`. Malformed names stop tree operations, naming the path and the
+canonical form. The separator makes parsing unambiguous even when one kind
+prefixes another. Foreign non-task files in the tree stay ignored.
 
 ## The twenty-three kinds
 

@@ -12,7 +12,7 @@ A spec is written by a `design` task at a **genuine agreement point** and nowher
 else — the point where a human signs off on the design's shape before
 decomposition turns it into `impl` leaves. **Most increments write none**
 (constraint 4): if nobody has to agree to anything before the work is cut up,
-there is no agreement point and the design belongs in the node's `BRIEF.md`.
+there is no agreement point and the design belongs in the node's brief.
 
 ## The set is current-state
 
@@ -27,7 +27,7 @@ the present, the VCS holds the past (constraint 1).
 read this?*
 
 - **Yes** → it is a spec. It outlives the grove that wrote it.
-- **No** → it is a `BRIEF.md`. Work-orders, keep/delete tables, and "the input
+- **No** → it is a brief. Work-orders, keep/delete tables, and "the input
   for the next three leaves" are node briefs, and they die with `.grove/`.
 
 **The grain rule.** An ADR records *one decision and its trade-off*; a spec
@@ -116,7 +116,7 @@ without the plugin**; the `linkuistics:codebase-design` skill deepens what a sea
 in its absence.
 
 When the increment covers code that will be tested but writes **no** spec — the
-common case — record the agreed seams in the node's `BRIEF.md` instead. The brief
+common case — record the agreed seams in the node's brief instead. The brief
 chain is how a node's settled design reaches its child `impl` leaves, and it
 binds them without a new artifact. That the brief dies with `.grove/` is correct:
 once the tests exist at the seam, the tests are the record.

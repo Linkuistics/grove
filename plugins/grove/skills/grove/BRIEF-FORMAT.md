@@ -1,17 +1,30 @@
-<!-- grove reference file — the BRIEF.md shape -->
+<!-- grove reference file — the node-file and brief shape -->
 
 # BRIEF-FORMAT — the node briefing
 
-Every node in a grove is a **directory**, and it carries a
-brief as the `BRIEF.md` inside it — the root node `.grove/` as `.grove/BRIEF.md`,
-every other one as the `BRIEF.md` in its directory `NN-<slug>-k<key>/` (the
-directory the leaf became when it was decomposed, keeping its permanent key). It
-is **process scaffolding** — neither the glossary (`CONTEXT.md`) nor a decision
-log (`docs/adr/`). It exists so that a session executing a leaf can read *three*
+Every node in a grove is a **directory** with exactly one regular **node file**:
+the root has `.grove/_BRIEF.md`; a positioned node is `NN-k<key>/` with
+`_<slug>.md` inside it. The directory carries position and permanent key; the
+node file's name supplies the title. Its body is the **brief**. A node's handle
+combines that filename's slug with the directory's key: `<slug>-k<key>`.
+Titles are always extracted from names, never from headings or other contents.
+`_BRIEF.md` belongs only at the root, and `BRIEF` is reserved, not a slug.
+
+```text
+.grove/
+  _BRIEF.md
+  01-k7/
+    _extract.md
+    01-impl--extract-k8.md
+    02-DONE-review-impl--extract-k9.md
+```
+
+The brief is **process scaffolding** — neither the glossary (`CONTEXT.md`) nor a
+decision log (`docs/adr/`). It exists so that a session executing a leaf can read *three*
 ADRs, not fifty: the brief chain, root→leaf, is the curated path into the
 project's documented decisions.
 
-**There is one node species, and it always has one.** A node is a leaf that
+**There is one node species, and it always has one node file.** A node is a leaf that
 proved bigger than one session, so the charter is exactly the context those extra
 sessions need, and every node grove writes gets one: `leaf-decompose` moves the
 decomposed leaf's own body in as the brief, and `root-init` scaffolds the root's.
@@ -23,11 +36,11 @@ artifact* and has no context anyone could write (flat-lazy-review;
 every node it meets: a `Done when` to check against the subtree and a brief to
 promote upward.
 
-**Nothing is enforced**, and `brief-chain` still skips a level with no brief. A
-brief is a lazy artifact (constraint 4) and briefs are freeform markdown that
-nothing validates (constraint 3), so a reader must not fail on a node whose
-charter has not been written yet — but a node without one is a lapse to fix, not
-a second kind of node.
+**The node file is mandatory; its body is freeform.** Missing, competing or
+misplaced node files make a level malformed. Tree reads and mutations refuse
+that level by name and give the canonical form. A `_`-prefixed entry belongs to
+this grammar even when malformed. Create the node file with its node; add brief
+sections only when they earn their place (constraints 3 and 4).
 
 A brief is written by whichever session creates its node — a `planning` task
 cutting the tree, or a leaf of any kind that proved bigger than its brief and
@@ -51,9 +64,9 @@ both move.
 
 ## Suggested shape
 
-A guide, not a schema (constraint 3). Nothing validates a brief; nothing breaks
-if a section is missing, reordered, or renamed. Include a section only when it
-earns its place (constraint 4).
+A guide to the body, not a schema (constraint 3). Nothing validates its sections;
+nothing breaks if a section is missing, reordered, or renamed. Include a section
+only when it earns its place (constraint 4).
 
 ```markdown
 # <slug>-k<key> — brief        (the root brief is titled `# <grove name> — brief`)

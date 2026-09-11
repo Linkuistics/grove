@@ -90,6 +90,36 @@ expect_dirty() {
 root="$(new_skill_set clean)"
 expect_clean "${root}" "an untouched spine reads clean"
 
+root="$(new_skill_set node-file-references)"
+# shellcheck disable=SC2016  # literal documentation tokens
+printf '\nRead `_BRIEF.md` and `_extract.md`; their shape is in `BRIEF-FORMAT.md`.\n' \
+  >>"${root}/grove/SKILL.md"
+expect_clean "${root}" "root and titled node files are working-tree references"
+
+root="$(new_skill_set leaf-position-reference)"
+# shellcheck disable=SC2016  # literal documentation token
+printf '\nRead `100-impl--extract-k101.md`.\n' >>"${root}/grove/SKILL.md"
+expect_clean "${root}" "leaf positions may use more than two digits"
+
+root="$(new_skill_set missing-brief-format)"
+rm "${root}/grove/BRIEF-FORMAT.md"
+expect_dirty "${root}" "BRIEF-FORMAT.md" \
+  "the brief format remains a checked skill reference"
+
+root="$(new_skill_set missing-node-rule)"
+command grep -v 'The node file is mandatory; its body is freeform' \
+  "${root}/grove/BRIEF-FORMAT.md" >"${root}/brief.tmp"
+mv "${root}/brief.tmp" "${root}/grove/BRIEF-FORMAT.md"
+expect_dirty "${root}" "every-node-carries-a-brief" \
+  "removing the mandatory node-file rule is caught"
+
+root="$(new_skill_set missing-chain-refusal)"
+command grep -v 'It refuses malformed levels' \
+  "${root}/grove/references/bootstrap.md" >"${root}/bootstrap.tmp"
+mv "${root}/bootstrap.tmp" "${root}/grove/references/bootstrap.md"
+expect_dirty "${root}" "brief-chain-refuses-gaps" \
+  "removing the brief-chain refusal instruction is caught"
+
 # -- Assertion 3: a named path that does not exist ---------------------------
 
 root="$(new_skill_set dangling)"

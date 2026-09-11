@@ -55,6 +55,7 @@ pub(super) fn apply<N: EntryName>(
     faults: Faults,
 ) -> Result<Report<N>, Error<N>> {
     names_are_one_component(root, plan)?;
+    super::read::validate_snapshot(root, &plan.projected(snapshot))?;
     let mut run = Run {
         root,
         snapshot,

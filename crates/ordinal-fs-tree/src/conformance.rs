@@ -1,12 +1,12 @@
 //! The conformance kit: hand it sample names and sample triples, and learn
 //! which of the trait's obligations your implementation violates.
 //!
-//! The seven obligations under [`EntryName`] are the **consumer's**, and the
-//! library can check only the last of them from inside an operation — a design
-//! missing any one of the other six admits a tree the library will quietly
-//! corrupt, and it corrupts it silently, in a tree someone is using. This module
-//! is where a domain finds that out instead, from a test, before there is a
-//! tree. The seventh is here too, because meeting it as an
+//! The name laws are the consumer's. This kit samples their behavior and the
+//! deterministic level rule before a domain meets real data. The library also
+//! enforces one-component rendering and validates complete levels on reads and
+//! projected plans. Finite samples cannot prove universal laws or that those
+//! enforcement boundaries actually call the rule; filesystem tests cover that.
+//!
 //! [`Error::NameIsNotOneComponent`] in an operation is worse than meeting it in
 //! a test, even though it is not silent.
 //!
@@ -18,6 +18,13 @@
 //!     &[("01-draft-vectors-i1.md", Found::File), ("README.md", Found::File)],
 //!     &[(Ordinal::new(1), Key::new(1), Parts::lesson(Status::Draft, Label::new("vectors").unwrap()))],
 //!     &[SyllabusName::Overview],
+//!     &[
+//!         conformance::LevelSample { node: None, distinguished: vec![], accepted: true },
+//!         conformance::LevelSample {
+//!             node: Some(<SyllabusName as ordinal_fs_tree::EntryName>::compose(Ordinal::FIRST, Key::new(2), Parts::module(Label::new("topic").unwrap()))),
+//!             distinguished: vec![SyllabusName::Overview], accepted: true,
+//!         },
+//!     ],
 //! );
 //! report.assert_conforming();
 //! ```
@@ -39,7 +46,7 @@ use crate::{EntryName, EntryNameExt, Found, NameView, Species, Verdict};
 
 /// One of the obligations this kit checks.
 ///
-/// Five, not seven. Rust constrains the visible shape of the other two — *a
+/// The sampled name laws and the level rule. Rust constrains two further shapes — *a
 /// name is positioned or distinguished, never neither* and *the species
 /// follows from the parts* — and those constraints are listed in
 /// [`TYPE_SHAPE_CONSTRAINTS`]. Their stability across calls remains a semantic
@@ -55,13 +62,15 @@ pub enum Obligation {
     TheGrammarIsCanonical,
     /// Supplied distinguished names round-trip as distinct canonical names.
     DistinguishedNamesAreCanonical,
+    /// Supplied level expectations hold independently of listing order.
+    LevelValidationMatchesSamples,
     /// A name declaring a species the listing contradicts is `Malformed`, never
     /// `Entry`.
     ParseRefusesWhatFoundContradicts,
     /// Every name the domain renders is exactly one filename: not empty, not
     /// `.` or `..`, and holding no path separator.
     ///
-    /// The one obligation the library also enforces, so a domain that skips
+    /// Enforced at the path boundary too, so a domain that skips
     /// this check meets it as an `Error` rather than as a corrupted tree. It is
     /// checked here anyway, because a test is a cheaper place to meet it than
     /// an operation.
@@ -70,10 +79,11 @@ pub enum Obligation {
 
 impl Obligation {
     /// Every obligation this kit checks.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::ComposePlacesWhatItIsGiven,
         Self::TheGrammarIsCanonical,
         Self::DistinguishedNamesAreCanonical,
+        Self::LevelValidationMatchesSamples,
         Self::ParseRefusesWhatFoundContradicts,
         Self::ANameRendersAsOnePathComponent,
     ];
@@ -85,6 +95,7 @@ impl Obligation {
             Self::ComposePlacesWhatItIsGiven => "compose places what it is given",
             Self::TheGrammarIsCanonical => "the grammar is canonical",
             Self::DistinguishedNamesAreCanonical => "distinguished names are canonical",
+            Self::LevelValidationMatchesSamples => "level validation matches independent samples",
             Self::ParseRefusesWhatFoundContradicts => "parse refuses what found contradicts",
             Self::ANameRendersAsOnePathComponent => "a name renders as one path component",
         }
@@ -92,12 +103,13 @@ impl Obligation {
 
     /// What a tree looks like when this obligation does not hold.
     ///
-    /// Every one of these but the last is a structure
+    /// Several name-law failures are structures
     /// `docs/ordinal-fs-tree/models/structure.als` produces on demand, under the
-    /// named `witness_…` command. The last has no witness and can have none:
+    /// named `witness_…` command. Rendering has no witness and can have none:
     /// both models hold no strings by design, so a rendering that is not a
     /// filename is not a thing either can say — which is why it is the one
-    /// obligation the library enforces instead of assuming.
+    /// name law the library enforces instead of assuming. Level-policy sampling
+    /// complements the separate reader and planner enforcement.
     #[must_use]
     pub const fn what_it_admits(self) -> &'static str {
         match self {
@@ -111,6 +123,9 @@ impl Obligation {
             }
             Self::DistinguishedNamesAreCanonical => {
                 "a supplied distinguished value that does not name its canonical file"
+            }
+            Self::LevelValidationMatchesSamples => {
+                "a missing, competing or misplaced distinguished child accepted by the domain, or a verdict depending on listing order"
             }
             Self::ParseRefusesWhatFoundContradicts => {
                 "a directory wearing a leaf's name, or a distinguished child that is a \
@@ -148,7 +163,7 @@ pub struct TypeShapeConstraint {
 /// The structural constraints this kit does **not** sample because each return
 /// value already has the required Rust shape.
 ///
-/// Reporting them is the point: a consumer reading five checks where the
+/// Reporting them is the point: a consumer reading sampled checks where the
 /// document states seven needs to know that the other two were not forgotten.
 /// This table deliberately does not call either obligation discharged: trait
 /// methods may consult interior or global mutable state, so identical explicit
@@ -310,14 +325,81 @@ impl fmt::Display for Report {
     }
 }
 
+/// An independent expected domain verdict, not the library's cardinality rule.
+/// A permissive domain can accept a competing set that the reader must refuse.
+pub struct LevelSample<N> {
+    /// `None` for the root, otherwise the containing positioned node name.
+    pub node: Option<N>,
+    /// The complete distinguished set to present to the domain.
+    pub distinguished: Vec<N>,
+    /// The fixture author's expected verdict; never computed by the method under test.
+    pub accepted: bool,
+}
+
+/// Repeat each fixture, then sample rotations and their reversals. This is
+/// finite evidence of order independence, not exhaustive permutation coverage
+/// or proof of determinism. Expected verdicts always come from the fixture.
+fn check_levels<N: EntryName>(levels: &[LevelSample<N>], report: &mut Report) {
+    let obligation = Obligation::LevelValidationMatchesSamples;
+    if !levels.iter().any(|sample| sample.node.is_none())
+        || !levels.iter().any(|sample| sample.node.is_some())
+    {
+        report.untested(
+            obligation,
+            "supply independent expected-level samples for both root and node contexts.",
+        );
+    }
+    for (index, sample) in levels.iter().enumerate() {
+        if sample
+            .node
+            .as_ref()
+            .is_some_and(|node| node.species() != Species::Node)
+            || sample
+                .distinguished
+                .iter()
+                .any(|name| name.species() != Species::Distinguished)
+        {
+            report.violate(
+                obligation,
+                format!(
+                    "level sample {index} has a non-node context or a non-distinguished child."
+                ),
+            );
+            continue;
+        }
+        let mut children = sample.distinguished.clone();
+        let mut matches = true;
+        for _ in 0..children.len().max(1) {
+            for _ in 0..2 {
+                // Repeating the same order can expose a stateful implementation.
+                for _ in 0..2 {
+                    matches &= N::validate_distinguished(sample.node.as_ref(), &children).is_ok()
+                        == sample.accepted;
+                }
+                children.reverse();
+            }
+            if !children.is_empty() {
+                children.rotate_left(1);
+            }
+        }
+        if !matches {
+            report.violate(obligation, format!("level sample {index} expected acceptance {}, but at least one repeated or permuted verdict disagreed.", sample.accepted));
+        }
+    }
+}
+
 /// Check an [`EntryName`] implementation against the obligations the library
-/// assumes and cannot enforce.
+/// assumes, together with independent level-policy expectations.
 ///
 /// `listings` are sample directory entries — a filename and what the listing
 /// reports is under it — and should include the domain's own well-formed names,
 /// its distinguished child, at least one foreign name, and any near-miss the
 /// grammar is meant to refuse. `triples` are sample `(ordinal, key, parts)`
-/// values, one per species the domain composes.
+/// values, one per species the domain composes. `distinguished` supplies canonical
+/// name examples. `levels` supplies root/node contexts and expected domain verdicts,
+/// including missing, singleton, competing and misplaced sets. The kit samples
+/// repeated calls, rotations and reversals; it does not prove determinism or
+/// exhaust all permutations, and library cardinality is tested at its own seams.
 ///
 /// The samples do not have to be exhaustive and cannot be: this is a test kit,
 /// not a proof. What it does guarantee is that it says so when they are too
@@ -327,8 +409,10 @@ pub fn check<N: EntryName>(
     listings: &[(&str, Found)],
     triples: &[(crate::Ordinal, crate::Key, N::Parts)],
     distinguished: &[N],
+    levels: &[LevelSample<N>],
 ) -> Report {
     let mut report = Report::default();
+    check_levels(levels, &mut report);
 
     // --- compose places what it is given ----------------------------------
     //

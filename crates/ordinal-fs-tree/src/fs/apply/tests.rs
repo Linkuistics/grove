@@ -34,6 +34,37 @@ fn draft(label: &str) -> Parts {
     )
 }
 
+/// Cardinality preflight is independent of the domain's default acceptance.
+#[test]
+fn competing_projected_names_refuse_before_the_first_effect() {
+    let temporary = TempDir::new().unwrap();
+    let plan = Plan::of(vec![
+        Effect::Create {
+            at: Level::Root,
+            name: SyllabusName::Overview,
+            content: b"first".to_vec(),
+        },
+        Effect::Create {
+            at: Level::Root,
+            name: SyllabusName::Overview,
+            content: b"second".to_vec(),
+        },
+    ]);
+    let error = super::apply(
+        temporary.path(),
+        &crate::Snapshot::empty(),
+        &plan,
+        Faults::none(),
+    )
+    .unwrap_err();
+    let Error::CompetingDistinguished { path, names } = error else {
+        panic!("{error:?}")
+    };
+    assert_eq!(path, temporary.path());
+    assert_eq!(names, ["OVERVIEW.md", "OVERVIEW.md"]);
+    assert!(listing(temporary.path()).is_empty());
+}
+
 /// A tree on disk holding two lessons, each with its own bytes.
 fn two_lessons() -> (TempDir, PathBuf) {
     let temporary = TempDir::new().expect("a temporary directory");

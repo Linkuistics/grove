@@ -1096,16 +1096,47 @@ mod tests {
         ]
     }
 
+    fn level_samples() -> Vec<conformance::LevelSample<TaskName>> {
+        [
+            None,
+            Some(TaskName::compose(
+                Ordinal::FIRST,
+                Key::new(1),
+                Parts::node(slug("topic")),
+            )),
+        ]
+        .into_iter()
+        .flat_map(|node| {
+            [
+                vec![],
+                vec![TaskName::Brief],
+                vec![TaskName::Brief, TaskName::Brief],
+            ]
+            .into_iter()
+            .map(move |distinguished| conformance::LevelSample {
+                node: node.clone(),
+                distinguished,
+                accepted: true,
+            })
+        })
+        .collect()
+    }
+
     /// The leaf's own *Done when*: the kit runs green over a fixture covering
-    /// every shape a real `.grove/` holds. It discharges the five obligations
-    /// the library assumes and cannot check from inside an operation —
+    /// the current `.grove/` shapes. It samples the five name laws and the
+    /// current permissive level policy; finite fixtures are not a proof —
     /// `compose` places what it is given, the grammar is canonical,
     /// distinguished names are canonical, `parse` refuses
     /// what `found` contradicts, and a name renders as one path component.
     #[test]
     fn the_task_tree_domain_conforms() {
-        conformance::check::<TaskName>(&listings(), &triples(), &[TaskName::Brief])
-            .assert_conforming();
+        conformance::check::<TaskName>(
+            &listings(),
+            &triples(),
+            &[TaskName::Brief],
+            &level_samples(),
+        )
+        .assert_conforming();
     }
 
     /// The kit's canonicity check reparses what the domain composes, so a kind
@@ -1150,7 +1181,7 @@ mod tests {
                     })
             })
             .collect();
-        conformance::check::<TaskName>(&listings(), &triples, &[TaskName::Brief])
+        conformance::check::<TaskName>(&listings(), &triples, &[TaskName::Brief], &level_samples())
             .assert_conforming();
     }
 

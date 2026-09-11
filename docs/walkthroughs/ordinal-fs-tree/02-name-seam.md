@@ -13,7 +13,7 @@ follow the conceptual order of this page and expand without gaps into lines
 1–706. The page also reproduces `src/sought.rs` as one literal fragment after
 the filename seam, where the search-result vocabulary can be read as a whole.
 
-<!-- fragment «name-seam-source» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-706" parent="source-name" -->
+<!-- fragment «name-seam-source» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="1-710" parent="source-name" -->
 <!-- insert «name-identifiers» -->
 <!-- insert «name-classification» -->
 <!-- insert «name-representation» -->
@@ -512,6 +512,13 @@ interface. This is an explicit sampling limit: expected-level fixtures can
 exercise acceptance of empty levels, but cannot prove that no distinguished
 value exists anywhere in the domain.
 
+Level validation is a separate deterministic obligation. `validate_distinguished`
+receives the root or containing node name and the complete distinguished set.
+The reader invokes it after parsing a direct listing; the planner invokes the
+same check over final projected levels before effects. Domain errors preserve
+the level path and canonical advice, and a second library check rejects more
+than one child even when the domain permits that set.
+
 Composition is total and infallible. In the orientation insert, the algebra
 reads the triple for `02-published-vectors-i5.md` and composes ordinal 3 with the
 same key and parts. The generic operation never splices a string and cannot
@@ -528,7 +535,7 @@ the parsing and rendering round trips constrain that separate boundary.
 This fragment is present at the seam itself. A consumer implements these inputs
 and transformations; snapshot reads and mutation planning depend on the stated
 round trips, species rule, and one-component rendering contract.
-<!-- fragment «entry-name-trait» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="346-601" parent="name-seam-source" -->
+<!-- fragment «entry-name-trait» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="346-605" parent="name-seam-source" -->
 ````rust
 /// The one trait. All genericity lives here: there are no callbacks, no hooks,
 /// no registration and no configuration objects, and there is no `Domain` type.
@@ -540,7 +547,7 @@ round trips, species rule, and one-component rendering contract.
 /// # What an implementation must guarantee
 ///
 /// Seven obligations. Six of them the library assumes and cannot check at run
-/// time; the seventh it **enforces**, and the asymmetry is stated below rather
+/// time; the seventh it **enforces** at the path boundary, and the asymmetry is stated below rather
 /// than left to be noticed. They are stated because the structural model found
 /// that four were missing, and that a design missing any one of them admits a
 /// tree the library will quietly corrupt. Each is written on the method it
@@ -645,6 +652,10 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self;
 
     /// Judge the complete distinguished-name set for a root (`None`) or node.
+    /// The reader and planner invoke this before exposing a level or applying
+    /// effects, then independently reject more than one distinguished child.
+    /// Verdicts must be deterministic and independent of child order. The kit
+    /// samples this separate level obligation using consumer-supplied expectations.
     /// The answer must depend only on these names and be independent of order.
     /// The default accepts every set; declaring this policy does not invoke it.
     fn validate_distinguished(_node: Option<&Self>, _children: &[Self]) -> Result<(), Self::Err> {
@@ -811,7 +822,7 @@ This fragment derives the readings used throughout snapshots, operations,
 plans, and consumers. Sealing keeps the algebra's identity and species rules
 uniform even though the underlying parts and their equality belong to the
 consumer.
-<!-- fragment «entry-name-derived-readings» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="602-680" parent="name-seam-source" -->
+<!-- fragment «entry-name-derived-readings» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="606-684" parent="name-seam-source" -->
 ````rust
 
 mod sealed {
@@ -921,12 +932,12 @@ partial plan needs rollback for this boundary error.
 This fragment implements that shared boundary predicate. The reader and
 interpreter supply rendered names, and the result either certifies one Unix
 filename component or gives the stable reason carried by the error.
-<!-- fragment «name-component-check» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="681-706" parent="name-seam-source" -->
+<!-- fragment «name-component-check» owner="name-seam-k12" source="crates/ordinal-fs-tree/src/name.rs" lines="685-710" parent="name-seam-source" -->
 ````rust
 /// Why a rendering is not one filename, or `None` when it is one.
 ///
 /// The library's half of the obligation *a name renders as one path component*
-/// — the seventh, and the only one it enforces rather than assumes. A rendering
+/// — the seventh name law. Level validation is enforced separately. A rendering
 /// that passes here is one [`std::path::Path::join`] can only place *inside* the
 /// directory it is joined to.
 ///

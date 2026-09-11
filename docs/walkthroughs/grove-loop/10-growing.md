@@ -1472,7 +1472,7 @@ that checked against a fresh read would look identical and be a race.
 **With this chapter, Part II is complete.** `task_tree.rs` closed at the end of
 chapter 9, all 2,038 lines of it across five chapters; `task_grow.rs` closes
 here in one, and the two files together are the 2,541 lines Part II owns. Ten of
-the book's twenty source-owning chapters are now written and 4,715 of its 10,562
+the book's twenty source-owning chapters are now written and 4,715 of its 10,593
 lines are reconstructed — a shade under half — with the remaining 5,842 still
 deferred to their own chapters.
 

@@ -778,7 +778,7 @@ test. It is the file's own labelled section for the slug, and what it pins is
 that the rule did not change when `open-kind-k20` opened the kind: a slug is
 still the shape it always was, and the kind is now the same shape.
 
-<!-- fragment «slug-rule-tests» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1520-1548" parent="source-task-name" -->
+<!-- fragment «slug-rule-tests» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1551-1579" parent="source-task-name" -->
 ````rust
     // ---- the slug rule ------------------------------------------------------
 
@@ -855,7 +855,7 @@ The second test block is 164 lines and holds six tests. It is where the module
 header's structural claim stops being a claim, and it is the only place in this
 chapter that reaches for a name rather than a part.
 
-<!-- fragment «handle-grammar-tests» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1549-1712" parent="source-task-name" -->
+<!-- fragment «handle-grammar-tests» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1580-1743" parent="source-task-name" -->
 <!-- insert «name-tests-ends-in-handle» -->
 <!-- insert «name-tests-brief-no-handle» -->
 <!-- insert «name-tests-handle-round-trip» -->
@@ -871,7 +871,7 @@ a `TaskName::Positioned` holding all three, with no validation, because every pa
 handed to it was validated when it was built. That is what lets this test assert
 over names it *builds* rather than names it parses.
 
-<!-- fragment «name-tests-ends-in-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1549-1599" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-ends-in-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1580-1630" parent="handle-grammar-tests" -->
 ````rust
     // ---- the handle owns the grammar ----------------------------------------
 
@@ -949,7 +949,7 @@ that has been on disk follows from it. And the one fixture whose slug contains
 the key marker is the node, so a leaf-only failure on that case is outside what
 these four cover.
 
-<!-- fragment «name-tests-brief-no-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1600-1606" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-brief-no-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1631-1637" parent="handle-grammar-tests" -->
 ````rust
     /// The charter is the one name with no key, and therefore no identity of its
     /// own — `of` says so rather than inventing one.
@@ -971,7 +971,7 @@ about `Handle::new`, which is public and will build a handle for any slug and ke
 a caller supplies — the guarantee is that nothing *derives* an identity for the
 charter, not that no such value can exist.
 
-<!-- fragment «name-tests-handle-round-trip» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1607-1626" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-handle-round-trip» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1638-1657" parent="handle-grammar-tests" -->
 ````rust
     /// `parse` is the inverse of the rendering, including across the slug that
     /// contains the key marker.
@@ -1011,7 +1011,7 @@ holds only for strings `render` would have written; the test carries no case whe
 `parse` accepts something and renders it differently, again leaving that to the
 last test in this block.
 
-<!-- fragment «name-tests-same-peel» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1627-1648" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-same-peel» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1658-1679" parent="handle-grammar-tests" -->
 ````rust
     /// A handle and a filename find the key by one rule. Asserted over the pair
     /// rather than over either alone, because the failure this replaces was two
@@ -1054,7 +1054,7 @@ fields. All three filenames are canonical, so no refusal path is exercised. And
 the two routes could share one wrong rule and agree: what this pins is that they
 agree, and what makes the shared rule right is the round-trip fixtures above.
 
-<!-- fragment «name-tests-refused-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1649-1682" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-refused-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1680-1713" parent="handle-grammar-tests" -->
 ````rust
     /// Every refusal names what it was handed and what a handle is, which is the
     /// error model the rest of this design follows.
@@ -1111,7 +1111,7 @@ had refused it for the wrong clause. Nothing here asserts *which* clause of
 the two are indistinguishable to the test even though the code refuses them for
 different reasons.
 
-<!-- fragment «name-tests-lenient-strict» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1683-1712" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-lenient-strict» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1714-1743" parent="handle-grammar-tests" -->
 ````rust
     /// The two ways `parse` departs from the `task_tree::handle_key` it
     /// replaced, pinned because they are the only behaviour this leaf moved.

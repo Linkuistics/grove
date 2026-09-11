@@ -64,7 +64,7 @@ file under this consumer preserves the invariant that none of those concerns
 becomes a second library seam, and the fragments resolve the insert tour at the
 source boundary.
 
-<!-- fragment «syllabus-cli-source» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1741" parent="source-syllabus-cli" -->
+<!-- fragment «syllabus-cli-source» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1-1743" parent="source-syllabus-cli" -->
 <!-- insert «cli-command-line» -->
 <!-- insert «cli-parsing-and-failure» -->
 <!-- insert «cli-streams-and-paths» -->
@@ -780,7 +780,7 @@ fragment turns each typed verb into one helper call, uses exhaustive enum
 matching to route every command exactly once, and carries the worked
 `LessonInsert` into its helper without exposing a plan to the operator.
 
-<!-- fragment «cli-main-dispatch» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1034-1132" parent="syllabus-cli-source" -->
+<!-- fragment «cli-main-dispatch» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1036-1134" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // main
@@ -912,7 +912,7 @@ This fragment turns a locked snapshot into ordered records or one explicit
 missing-target refusal, keeps filters within the library's name seam, and
 supplies the read half of the same consumer exercised by the insert example.
 
-<!-- fragment «cli-reading» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1133-1313" parent="syllabus-cli-source" -->
+<!-- fragment «cli-reading» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1135-1315" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // Opening: a tree, or the advice that there is none
@@ -1143,7 +1143,7 @@ categorized `Failure`, uses same-guard inspection to preserve the rewrite
 species invariant, and provides the worked operation's final
 consumer-to-library handoff in the local `insert` function.
 
-<!-- fragment «cli-mutations» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1314-1501" parent="syllabus-cli-source" -->
+<!-- fragment «cli-mutations» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1316-1503" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // Mutating
@@ -1374,7 +1374,7 @@ strings into domain or library values or an operator-facing `Failure`, preserves
 the library's distinctions without rewording them, and determines the worked
 insert's pre-dispatch and error exits.
 
-<!-- fragment «cli-parsing-and-failure» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="571-729" parent="syllabus-cli-source" -->
+<!-- fragment «cli-parsing-and-failure» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="571-731" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // Argument parsing: the four things argv carries
@@ -1506,6 +1506,8 @@ fn exit_code(error: &Error<SyllabusName>) -> u8 {
         // A human fixes a filename; no retry helps.
         Error::Malformed { .. }
         | Error::Reserved { .. }
+        | Error::InvalidLevel { .. }
+        | Error::CompetingDistinguished { .. }
         | Error::NonUtf8Name { .. }
         | Error::NameIsNotOneComponent { .. } => 5,
         // The single most valuable distinction the library offers, and a generic
@@ -1581,7 +1583,7 @@ algebraic entries. This fragment turns snapshots and reports into stable records
 or optional advice, uses validated name components to preserve tree confinement,
 and produces the stdout and stderr values observed in the worked insert.
 
-<!-- fragment «cli-streams-and-paths» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="730-988" parent="syllabus-cli-source" -->
+<!-- fragment «cli-streams-and-paths» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="732-990" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // The two streams
@@ -1858,7 +1860,7 @@ ordered trace, relies on exclusive destination claims for unambiguous
 correlation, and lets `lesson-insert` print key 7 while still showing both
 highest-first shifts.
 
-<!-- fragment «cli-mutation-output» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="989-1033" parent="syllabus-cli-source" -->
+<!-- fragment «cli-mutation-output» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="991-1035" parent="syllabus-cli-source" -->
 ````rust
 // ---------------------------------------------------------------------------
 // What a mutation prints
@@ -1921,7 +1923,7 @@ documented taxonomy.
 This range is included because those branches cannot be driven portably through
 a real terminal without substituting the writers at the private seam.
 
-<!-- fragment «cli-stream-contract-tests» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1502-1741" parent="syllabus-cli-source" -->
+<!-- fragment «cli-stream-contract-tests» owner="syllabus-cli-k17" source="crates/ordinal-fs-tree/bin/syllabus.rs" lines="1504-1743" parent="syllabus-cli-source" -->
 ````rust
 #[cfg(test)]
 mod stream_contract_tests {

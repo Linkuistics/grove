@@ -23,7 +23,7 @@ returns `Removed` paths.
 <!-- insert «ops-resolution-and-allocation» -->
 <!-- /fragment -->
 
-<!-- fragment «mutation-plan-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="1-562" parent="source-plan" -->
+<!-- fragment «mutation-plan-source» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="1-616" parent="source-plan" -->
 <!-- insert «plan-effects» -->
 <!-- insert «plan-guarded» -->
 <!-- insert «plan-decision-and-refusals» -->
@@ -141,7 +141,7 @@ and composed names into two primitive forward effects, establishes their written
 order as data, and gives the worked insert a representation whose destinations
 can be checked before any effect runs.
 
-<!-- fragment «plan-effects» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="1-118" parent="mutation-plan-source" -->
+<!-- fragment «plan-effects» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="1-129" parent="mutation-plan-source" -->
 ````rust
 //! What the algebra decides, and the machinery every mutation is built out of.
 //!
@@ -199,6 +199,17 @@ pub(crate) enum Level {
     /// has run — so the level the second effect acts in is named by the effect
     /// that will create it.
     Created(usize),
+}
+
+impl Level {
+    /// Dense projection slot; created identities cannot alias snapshot entries.
+    fn slot(self, snapshot_len: usize) -> usize {
+        match self {
+            Self::Root => 0,
+            Self::Entry(index) => index + 1,
+            Self::Created(index) => snapshot_len + index + 1,
+        }
+    }
 }
 
 /// One primitive filesystem action.
@@ -442,6 +453,14 @@ destinations claimed by earlier effects. A move excludes its own source entry,
 which permits a rewrite onto its current name. A `Level::Created` begins empty,
 but earlier effects in the same plan may already have claimed names inside it.
 
+`Plan::projected` separately folds final names and parent identities through
+all effects. Snapshot entries and created effects have distinct identity slots,
+so moves preserve a node's children while changing its name. Indexed child lists
+rebuild the final snapshot without repeatedly scanning the whole tree per level.
+The filesystem preflight validates every projected root/node level, including
+new bare nodes, promotion children, rewritten parts and shifted ordinals.
+Intermediate promotion states are never subjected to the final-level rule.
+
 For this pristine insert, every destination is already distinct from every
 other snapshot name because each positioned name includes its key and parts as
 well as its ordinal. A snapshot-only check would therefore accept this
@@ -458,7 +477,7 @@ fragment folds the worked insert in interpreter order, establishes that every
 destination is free in the state where it will be used, and converts a conflict
 into a refusal before the filesystem layer receives an effect.
 
-<!-- fragment «plan-guarded» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="119-229" parent="mutation-plan-source" -->
+<!-- fragment «plan-guarded» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="130-283" parent="mutation-plan-source" -->
 ````rust
 
 /// An ordered list of primitive effects, checked against itself before anything
@@ -483,6 +502,49 @@ impl<N: EntryName> Plan<N> {
     /// The effects, in the order the interpreter must apply them.
     pub(crate) fn effects(&self) -> &[Effect<N>] {
         &self.effects
+    }
+
+    /// Fold names and parent identities through the effects, then rebuild the
+    /// final tree. Intermediate promotion states are deliberately not validated.
+    /// Snapshot indices and effect indices are distinct identity spaces: a moved
+    /// node keeps its children even when its name (or an ancestor's name) changes.
+    pub(crate) fn projected(&self, snapshot: &Snapshot<N>) -> Snapshot<N> {
+        let mut entries: Vec<_> = (0..snapshot.len())
+            .map(|index| {
+                let entry = snapshot.at(index);
+                let parent = entry
+                    .container()
+                    .entry()
+                    .map_or(Level::Root, |e| Level::Entry(e.index()));
+                (Level::Entry(index), parent, entry.name().clone())
+            })
+            .collect();
+        for (index, effect) in self.effects.iter().enumerate() {
+            match effect {
+                Effect::Create { at, name, .. } => {
+                    entries.push((Level::Created(index), *at, name.clone()))
+                }
+                Effect::MoveTo { entry, to, name } => {
+                    entries[*entry].1 = *to;
+                    entries[*entry].2 = name.clone();
+                }
+            }
+        }
+        let mut children = vec![Vec::new(); snapshot.len() + self.effects.len() + 1];
+        for (index, (_, parent, _)) in entries.iter().enumerate() {
+            children[parent.slot(snapshot.len())].push(index);
+        }
+        let mut builder = crate::snapshot::Builder::new();
+        let mut pending = vec![(Level::Root, builder.root())];
+        while let Some((level, place)) = pending.pop() {
+            for index in &children[level.slot(snapshot.len())] {
+                let (identity, _, name) = &entries[*index];
+                if let Some(below) = builder.add(place, name.clone()) {
+                    pending.push((*identity, below));
+                }
+            }
+        }
+        builder.finish()
     }
 
     /// The decision this plan is, once it has been checked against the snapshot
@@ -1379,7 +1441,7 @@ into an explicit value, establishes that refusal is the no-effects branch, and
 keeps exhaustion cases visible even though the unbounded formal model cannot
 pose them.
 
-<!-- fragment «plan-decision-and-refusals» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="230-412" parent="mutation-plan-source" -->
+<!-- fragment «plan-decision-and-refusals» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="284-466" parent="mutation-plan-source" -->
 ````rust
 
 /// What the algebra returns for every input: a plan to apply, or a refusal.
@@ -1578,7 +1640,7 @@ fragment turns carried keys, species, ordinals, and spans into precise recovery
 text, preserves the distinctions made at each decision site, and gives the
 worked insert's refusal alternatives meaning without requiring filesystem work.
 
-<!-- fragment «plan-refusal-messages» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="413-562" parent="mutation-plan-source" -->
+<!-- fragment «plan-refusal-messages» owner="mutation-algebra-k15" source="crates/ordinal-fs-tree/src/plan.rs" lines="467-616" parent="mutation-plan-source" -->
 ````rust
 
 impl core::fmt::Display for Refusal {

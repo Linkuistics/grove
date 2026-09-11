@@ -457,12 +457,11 @@ impl<N: EntryName> Vacancy<N> {
             Decision::Refuse(refusal) => return Err(Error::Refused(refusal)),
             Decision::Proceed(plan) => plan,
         };
-        // Both checks that can refuse a plan before it runs, run before the root
-        // is created: the algebra's, above, and the seventh obligation's, here.
-        // Otherwise a domain that renders a name badly would leave behind an
-        // empty root directory while reporting an error whose whole promise is
-        // that nothing changed.
+        // Every preflight precedes root creation: algebra, path confinement and
+        // projected level validation. A refused initialization must not leave
+        // even an empty root behind.
         apply::names_are_one_component(&self.root, &plan)?;
+        read::validate_snapshot(&self.root, &plan.projected(&snapshot))?;
         // The root is not an effect — it has no name for one to place — so this
         // is the one create the interpreter does not do. It is still under the
         // lock: the lock is on the directory *containing* the root, which is

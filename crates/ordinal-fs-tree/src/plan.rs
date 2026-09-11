@@ -56,6 +56,17 @@ pub(crate) enum Level {
     Created(usize),
 }
 
+impl Level {
+    /// Dense projection slot; created identities cannot alias snapshot entries.
+    fn slot(self, snapshot_len: usize) -> usize {
+        match self {
+            Self::Root => 0,
+            Self::Entry(index) => index + 1,
+            Self::Created(index) => snapshot_len + index + 1,
+        }
+    }
+}
+
 /// One primitive filesystem action.
 ///
 /// There is no *remove* here, deliberately; see this module's header.
@@ -139,6 +150,49 @@ impl<N: EntryName> Plan<N> {
     /// The effects, in the order the interpreter must apply them.
     pub(crate) fn effects(&self) -> &[Effect<N>] {
         &self.effects
+    }
+
+    /// Fold names and parent identities through the effects, then rebuild the
+    /// final tree. Intermediate promotion states are deliberately not validated.
+    /// Snapshot indices and effect indices are distinct identity spaces: a moved
+    /// node keeps its children even when its name (or an ancestor's name) changes.
+    pub(crate) fn projected(&self, snapshot: &Snapshot<N>) -> Snapshot<N> {
+        let mut entries: Vec<_> = (0..snapshot.len())
+            .map(|index| {
+                let entry = snapshot.at(index);
+                let parent = entry
+                    .container()
+                    .entry()
+                    .map_or(Level::Root, |e| Level::Entry(e.index()));
+                (Level::Entry(index), parent, entry.name().clone())
+            })
+            .collect();
+        for (index, effect) in self.effects.iter().enumerate() {
+            match effect {
+                Effect::Create { at, name, .. } => {
+                    entries.push((Level::Created(index), *at, name.clone()))
+                }
+                Effect::MoveTo { entry, to, name } => {
+                    entries[*entry].1 = *to;
+                    entries[*entry].2 = name.clone();
+                }
+            }
+        }
+        let mut children = vec![Vec::new(); snapshot.len() + self.effects.len() + 1];
+        for (index, (_, parent, _)) in entries.iter().enumerate() {
+            children[parent.slot(snapshot.len())].push(index);
+        }
+        let mut builder = crate::snapshot::Builder::new();
+        let mut pending = vec![(Level::Root, builder.root())];
+        while let Some((level, place)) = pending.pop() {
+            for index in &children[level.slot(snapshot.len())] {
+                let (identity, _, name) = &entries[*index];
+                if let Some(below) = builder.add(place, name.clone()) {
+                    pending.push((*identity, below));
+                }
+            }
+        }
+        builder.finish()
     }
 
     /// The decision this plan is, once it has been checked against the snapshot

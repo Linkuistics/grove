@@ -70,7 +70,7 @@ fn owned_source_totals_disagreeing_with_the_manifest_are_rejected() {
     let mut snapshot = support::corpus(true);
     edit_source_index(&mut snapshot, |text| {
         text.replace(
-            "| `orientation-k11` | `01-orientation.md` | 209 |\n",
+            "| `orientation-k11` | `01-orientation.md` | 216 |\n",
             "| `orientation-k11` | `01-orientation.md` | 210 |\n",
         )
     });
@@ -160,8 +160,8 @@ fn malformed_source_root_row_is_rejected() {
     let mut snapshot = support::corpus(true);
     edit_source_index(&mut snapshot, |text| {
         text.replacen(
-            "| `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 104 |",
-            "|`source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 104 |",
+            "| `source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 111 |",
+            "|`source-library` | `crates/ordinal-fs-tree/src/lib.rs` | 111 |",
             1,
         )
     });
@@ -175,7 +175,7 @@ fn reordered_source_root_rows_are_rejected() {
     edit_source_index(&mut snapshot, |text| {
         let first = "| `source-crate-manifest` | `crates/ordinal-fs-tree/Cargo.toml` | 112 |\n";
         let second =
-            "| `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,741 |\n";
+            "| `source-syllabus-cli` | `crates/ordinal-fs-tree/bin/syllabus.rs` | 1,743 |\n";
         text.replacen(&format!("{first}{second}"), &format!("{second}{first}"), 1)
     });
 
@@ -186,7 +186,7 @@ fn reordered_source_root_rows_are_rejected() {
 fn duplicated_ownership_row_is_rejected() {
     let mut snapshot = support::corpus(true);
     edit_source_index(&mut snapshot, |text| {
-        let row = "| `library-crate-surface` | `source-library` | `orientation-k11` | `1-104` | 104 | `resolved` |\n";
+        let row = "| `library-crate-surface` | `source-library` | `orientation-k11` | `1-111` | 111 | `resolved` |\n";
         text.replacen(row, &format!("{row}{row}"), 1)
     });
 
@@ -198,8 +198,8 @@ fn ownership_state_must_match_the_directive_authority() {
     let mut snapshot = support::corpus(false);
     edit_source_index(&mut snapshot, |text| {
         text.replacen(
-            "| `name-seam-source` | `source-name` | `name-seam-k12` | `1-706` | 706 | `deferred` |",
-            "| `name-seam-source` | `source-name` | `name-seam-k12` | `1-706` | 706 | `resolved` |",
+            "| `name-seam-source` | `source-name` | `name-seam-k12` | `1-710` | 710 | `deferred` |",
+            "| `name-seam-source` | `source-name` | `name-seam-k12` | `1-710` | 710 | `resolved` |",
             1,
         )
     });
@@ -224,8 +224,8 @@ fn fragment_index_relationships_must_match_directives() {
     let mut snapshot = support::corpus(true);
     edit_source_index(&mut snapshot, |text| {
         text.replacen(
-            "| `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-104` | `source-library` | `—` |",
-            "| `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-104` | `source-name` | `—` |",
+            "| `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-111` | `source-library` | `—` |",
+            "| `library-crate-surface` | `orientation` | `source-library` | `literal` | `orientation-k11` | `1-111` | `source-name` | `—` |",
             1,
         )
     });

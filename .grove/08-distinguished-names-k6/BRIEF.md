@@ -112,3 +112,9 @@ stays live until its full Done when is delivered, including any earned review.
 The integration at `supplied-names-k17` settles the refusal mapping and the
 empty distinguished-sample limit. Read its decisions 3 and 4 before completing
 `valid-levels-k16`; the architecture and name-seam book carry those contracts.
+
+The enforcement boundary at `valid-levels-k16` adds reader and projected-plan
+validation, path-bearing domain/cardinality errors, independent level fixtures
+and synchronized books. The full repository check passes. `valid-levels-k18`
+reviews projection identity and enforcement coverage before `node-files-k7`;
+this parent stays live until that review and any earned integration settle.

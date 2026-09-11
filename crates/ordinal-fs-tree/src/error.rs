@@ -1,9 +1,9 @@
 //! What the library says when it cannot proceed.
 //!
-//! Two of these carry the **consumer's own** error value, because the
+//! Malformed names, reserved names and invalid levels carry the **consumer's own** error value, because the
 //! architecture document requires a refusal to say what to *do* about the
 //! problem and only the domain knows that: the library halts the whole tree on a
-//! `Malformed` or a `Reserved` name wherever it sits, and an error saying only
+//! `Malformed` or a `Reserved` name, or an invalid level, wherever it sits, and an error saying only
 //! *something is wrong* leaves whoever hit it with a frozen tree and no next
 //! step.
 //!
@@ -18,7 +18,7 @@ use crate::{EntryName, Refusal};
 /// Why an operation could not proceed.
 ///
 /// Generic over the name type so that a consumer can match on its **own** error
-/// rather than on a string: `Malformed` and `Reserved` carry
+/// rather than on a string: `Malformed`, `Reserved` and `InvalidLevel` carry
 /// [`EntryName::Err`] verbatim, and it is reachable through
 /// [`std::error::Error::source`] as well.
 pub enum Error<N: EntryName> {
@@ -51,6 +51,20 @@ pub enum Error<N: EntryName> {
         path: PathBuf,
         /// The consumer's own error, carrying the recovery advice.
         source: N::Err,
+    },
+    /// The domain rejected a complete root or node level, before exposure or effects.
+    InvalidLevel {
+        /// The containing directory, including a projected destination when planning.
+        path: PathBuf,
+        /// The domain's grammar error, preserved verbatim.
+        source: N::Err,
+    },
+    /// The domain accepted competing names, but the library permits at most one.
+    CompetingDistinguished {
+        /// The containing directory.
+        path: PathBuf,
+        /// Every competing canonical rendering.
+        names: Vec<String>,
     },
     /// The algebra refused: a stated outcome in which the operation changed
     /// nothing.
@@ -281,6 +295,16 @@ impl<N: EntryName> fmt::Debug for Error<N> {
                 .field("source", source)
                 .finish(),
             Self::Refused(refusal) => f.debug_tuple("Refused").field(refusal).finish(),
+            Self::InvalidLevel { path, source } => f
+                .debug_struct("InvalidLevel")
+                .field("path", path)
+                .field("source", source)
+                .finish(),
+            Self::CompetingDistinguished { path, names } => f
+                .debug_struct("CompetingDistinguished")
+                .field("path", path)
+                .field("names", names)
+                .finish(),
             Self::Failed {
                 path,
                 doing,
@@ -372,6 +396,14 @@ impl<N: EntryName> fmt::Display for Error<N> {
             // domain's is: a second sentence in front of it pushes the
             // actionable half off the end of a terminal line.
             Self::Refused(refusal) => fmt::Display::fmt(refusal, f),
+            Self::InvalidLevel { path, source } => {
+                write!(f, "invalid level {}: {source}", path.display())
+            }
+            Self::CompetingDistinguished { path, names } => write!(
+                f,
+                "level {} has competing distinguished children: {}. Keep at most one; nothing was changed.",
+                path.display(), names.join(", ")
+            ),
             Self::Failed {
                 path,
                 doing,
@@ -491,7 +523,9 @@ impl<N: EntryName> std::error::Error for Error<N> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io { source, .. } => Some(source),
-            Self::Malformed { source, .. } | Self::Reserved { source, .. } => Some(source),
+            Self::Malformed { source, .. }
+            | Self::Reserved { source, .. }
+            | Self::InvalidLevel { source, .. } => Some(source),
             // The failing *effect*, not the failing unwind: `source` is a chain
             // of causes and the effect is what caused the unwind to be needed.
             // The unwind's own error is in the `Display`, where a consumer
@@ -500,6 +534,7 @@ impl<N: EntryName> std::error::Error for Error<N> {
             | Self::FailedPartiallyRolledBack { source, .. }
             | Self::RemovalStopped { source, .. } => Some(source),
             Self::Refused(_)
+            | Self::CompetingDistinguished { .. }
             | Self::RootIsNotSpelledDirectly { .. }
             | Self::NonUtf8Name { .. }
             | Self::NameIsNotOneComponent { .. }

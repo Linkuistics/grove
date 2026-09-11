@@ -77,7 +77,7 @@ termination or a writer that ignores the lock can expose them.
 | key non-reissue | a newly allocated key was not committed previously | promotion creates a new filesystem object with an existing key because the promoted entity retains its identity; this is preservation, not allocation |
 | ordinal distinctness | positioned children of one level have distinct ordinals | promotion temporarily places the old leaf and new node at the same ordinal; failed rollback can leave that state behind |
 | density by induction | a level built densely from empty stays dense | density is not established for hand-edited trees; append uses `max + 1`, and no operation fills an existing gap |
-| distinguished shape | a distinguished child is a regular file and is unique by its one domain-provided name | a contradictory directory is malformed and halts the snapshot rather than hiding a subtree |
+| distinguished shape | a distinguished child is a regular file; every level satisfies its domain policy and has at most one such child | complete read listings and projected final levels run the same domain-first/cardinality-second check before exposure or effects |
 | recognised-name visibility | every reached recognised name parses completely or halts the operation | a foreign directory is disclaimed and skipped together with its descendants; a non-UTF-8 name cannot be offered to the consumer and therefore halts in the library |
 | species agreement | a leaf name denotes a regular file, a node name denotes a directory, and a distinguished name denotes a regular file | `EntryName::parse` receives the observed filesystem species and must refuse contradictions |
 | subtree preservation under insert | shifting changes only affected siblings' ordinals; keys, parts, bytes, and descendants stay unchanged | the plan proves that no descendant effect exists; the filesystem guarantee that a directory rename carries its subtree is below the model boundary |
@@ -219,7 +219,7 @@ rollback requires human inspection.
 
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
-The source ledger contains 17 roots and 8,609 owned source lines. Every
+The source ledger contains 17 roots and 8,845 owned source lines. Every
 top-level ownership block is `resolved`, every early-use row is `explained`, and
 no `defer` directive remains. Recursive expansion of each source root is checked
 byte for byte against its production file; Markdown validation separately

@@ -51,6 +51,28 @@ fn triples() -> Vec<(Ordinal, Key, Parts)> {
     ]
 }
 
+fn accepting_levels<N: EntryName<Parts = Parts>>(own: N) -> Vec<conformance::LevelSample<N>> {
+    [
+        None,
+        Some(N::compose(
+            Ordinal::FIRST,
+            Key::new(1),
+            Parts::module(Label::new("topic").unwrap()),
+        )),
+    ]
+    .into_iter()
+    .flat_map(|node| {
+        [vec![], vec![own.clone()], vec![own.clone(), own.clone()]]
+            .into_iter()
+            .map(move |distinguished| conformance::LevelSample {
+                node: node.clone(),
+                distinguished,
+                accepted: true,
+            })
+    })
+    .collect()
+}
+
 fn violated(report: &conformance::Report) -> Vec<Obligation> {
     let mut found: Vec<Obligation> = report
         .violations()
@@ -70,8 +92,12 @@ fn violated(report: &conformance::Report) -> Vec<Obligation> {
 /// that every other domain will use for the same purpose.
 #[test]
 fn the_reference_domain_conforms() {
-    let report =
-        conformance::check::<SyllabusName>(&listings(), &triples(), &[SyllabusName::Overview]);
+    let report = conformance::check::<SyllabusName>(
+        &listings(),
+        &triples(),
+        &[SyllabusName::Overview],
+        &accepting_levels(SyllabusName::Overview),
+    );
     report.assert_conforming();
 }
 
@@ -81,7 +107,7 @@ fn the_reference_domain_conforms() {
 /// which reported *found nothing* and *succeeded* with the same bytes.
 #[test]
 fn a_kit_handed_nothing_reports_that_it_checked_nothing() {
-    let report = conformance::check::<SyllabusName>(&[], &[], &[]);
+    let report = conformance::check::<SyllabusName>(&[], &[], &[], &[]);
     assert!(!report.is_conforming(), "an empty run must not pass");
     assert_eq!(report.violations().count(), 0, "nothing was violated");
     assert_eq!(
@@ -95,7 +121,12 @@ fn a_kit_handed_nothing_reports_that_it_checked_nothing() {
 /// `compose` uncalled.
 #[test]
 fn samples_that_reach_only_half_the_seam_say_so() {
-    let report = conformance::check::<SyllabusName>(&listings(), &[], &[SyllabusName::Overview]);
+    let report = conformance::check::<SyllabusName>(
+        &listings(),
+        &[],
+        &[SyllabusName::Overview],
+        &accepting_levels(SyllabusName::Overview),
+    );
     assert!(!report.is_conforming());
     assert!(report
         .unexercised()
@@ -112,8 +143,8 @@ fn the_type_shape_constraints_and_their_semantic_limit_are_published() {
     assert_eq!(TYPE_SHAPE_CONSTRAINTS.len(), 2);
     assert_eq!(
         Obligation::ALL.len() + TYPE_SHAPE_CONSTRAINTS.len(),
-        7,
-        "the architecture document states seven obligations"
+        8,
+        "the name obligations plus deterministic level validation"
     );
     let constrained: Vec<&str> = TYPE_SHAPE_CONSTRAINTS
         .iter()
@@ -278,6 +309,7 @@ fn a_compose_that_ignores_its_arguments_is_caught() {
         &listings(),
         &triples(),
         &[Forgetful(SyllabusName::Overview)],
+        &[],
     );
     assert_eq!(
         violated(&report),
@@ -333,7 +365,7 @@ fn a_grammar_with_two_spellings_of_one_name_is_caught() {
     let mut names = listings();
     names.push(("5-draft-matrices-i6.md", Found::File));
     let report =
-        conformance::check::<Lenient>(&names, &triples(), &[Lenient(SyllabusName::Overview)]);
+        conformance::check::<Lenient>(&names, &triples(), &[Lenient(SyllabusName::Overview)], &[]);
     assert_eq!(
         violated(&report),
         vec![Obligation::TheGrammarIsCanonical],
@@ -384,8 +416,12 @@ impl EntryName for Blind {
 
 #[test]
 fn a_parse_that_ignores_the_listing_is_caught() {
-    let report =
-        conformance::check::<Blind>(&listings(), &triples(), &[Blind(SyllabusName::Overview)]);
+    let report = conformance::check::<Blind>(
+        &listings(),
+        &triples(),
+        &[Blind(SyllabusName::Overview)],
+        &[],
+    );
     assert_eq!(
         violated(&report),
         vec![Obligation::ParseRefusesWhatFoundContradicts],
@@ -464,6 +500,7 @@ fn different_distinguished_names_conform() {
             TwoOverviews::Delegated(SyllabusName::Overview),
             TwoOverviews::Index,
         ],
+        &accepting_levels(TwoOverviews::Index),
     );
     report.assert_conforming();
 }
@@ -510,8 +547,12 @@ impl EntryName for Evasive {
 
 #[test]
 fn a_species_contradiction_disguised_as_foreign_is_caught() {
-    let report =
-        conformance::check::<Evasive>(&listings(), &triples(), &[Evasive(SyllabusName::Overview)]);
+    let report = conformance::check::<Evasive>(
+        &listings(),
+        &triples(),
+        &[Evasive(SyllabusName::Overview)],
+        &[],
+    );
     assert_eq!(
         violated(&report),
         vec![Obligation::ParseRefusesWhatFoundContradicts],
@@ -598,6 +639,7 @@ fn a_parse_that_changes_the_key_behind_an_exact_display_is_caught() {
             inner: SyllabusName::Overview,
             shown: "OVERVIEW.md".to_string(),
         }],
+        &[],
     );
     assert_eq!(
         violated(&report),
@@ -675,6 +717,7 @@ fn a_name_that_renders_as_more_than_one_component_is_caught() {
         &escaping_listings(),
         &triples(),
         &[Escaping(SyllabusName::Overview)],
+        &[],
     );
     assert_eq!(
         violated(&report),

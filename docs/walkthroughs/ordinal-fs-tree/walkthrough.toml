@@ -123,27 +123,27 @@ lines = 112
 [[root]]
 id    = "source-syllabus-cli"
 path  = "crates/ordinal-fs-tree/bin/syllabus.rs"
-lines = 1741
+lines = 1743
 
 [[root]]
 id    = "source-library"
 path  = "crates/ordinal-fs-tree/src/lib.rs"
-lines = 104
+lines = 111
 
 [[root]]
 id    = "source-conformance"
 path  = "crates/ordinal-fs-tree/src/conformance.rs"
-lines = 629
+lines = 713
 
 [[root]]
 id    = "source-error"
 path  = "crates/ordinal-fs-tree/src/error.rs"
-lines = 510
+lines = 545
 
 [[root]]
 id    = "source-name"
 path  = "crates/ordinal-fs-tree/src/name.rs"
-lines = 706
+lines = 710
 
 [[root]]
 id    = "source-operations"
@@ -153,7 +153,7 @@ lines = 617
 [[root]]
 id    = "source-plan"
 path  = "crates/ordinal-fs-tree/src/plan.rs"
-lines = 562
+lines = 616
 
 [[root]]
 id    = "source-reference"
@@ -178,17 +178,17 @@ lines = 132
 [[root]]
 id    = "source-filesystem-module"
 path  = "crates/ordinal-fs-tree/src/fs/mod.rs"
-lines = 826
+lines = 825
 
 [[root]]
 id    = "source-filesystem-read"
 path  = "crates/ordinal-fs-tree/src/fs/read.rs"
-lines = 407
+lines = 457
 
 [[root]]
 id    = "source-filesystem-apply"
 path  = "crates/ordinal-fs-tree/src/fs/apply.rs"
-lines = 488
+lines = 489
 
 [[root]]
 id    = "source-filesystem-remove"
@@ -234,31 +234,31 @@ lines = "66-112"
 id    = "syllabus-cli-source"
 root  = "source-syllabus-cli"
 owner = "syllabus-cli-k17"
-lines = "1-1741"
+lines = "1-1743"
 
 [[block]]
 id    = "library-crate-surface"
 root  = "source-library"
 owner = "orientation-k11"
-lines = "1-104"
+lines = "1-111"
 
 [[block]]
 id    = "reference-conformance-source"
 root  = "source-conformance"
 owner = "reference-domain-k13"
-lines = "1-629"
+lines = "1-713"
 
 [[block]]
 id    = "filesystem-error-source"
 root  = "source-error"
 owner = "filesystem-interpreter-k16"
-lines = "1-510"
+lines = "1-545"
 
 [[block]]
 id    = "name-seam-source"
 root  = "source-name"
 owner = "name-seam-k12"
-lines = "1-706"
+lines = "1-710"
 
 [[block]]
 id    = "mutation-operations-source"
@@ -270,7 +270,7 @@ lines = "1-617"
 id    = "mutation-plan-source"
 root  = "source-plan"
 owner = "mutation-algebra-k15"
-lines = "1-562"
+lines = "1-616"
 
 [[block]]
 id    = "reference-domain-source"
@@ -348,43 +348,43 @@ lines = "305-388"
 id    = "filesystem-vacancy-api"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "389-519"
+lines = "389-518"
 
 [[block]]
 id    = "filesystem-read-guard-api"
 root  = "source-filesystem-module"
 owner = "read-path-k14"
-lines = "520-533"
+lines = "519-532"
 
 [[block]]
 id    = "filesystem-write-guard-api"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "534-811"
+lines = "533-810"
 
 [[block]]
 id    = "filesystem-read-deref"
 root  = "source-filesystem-module"
 owner = "read-path-k14"
-lines = "812-819"
+lines = "811-818"
 
 [[block]]
 id    = "filesystem-write-deref"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "820-826"
+lines = "819-825"
 
 [[block]]
 id    = "read-filesystem-source"
 root  = "source-filesystem-read"
 owner = "read-path-k14"
-lines = "1-407"
+lines = "1-457"
 
 [[block]]
 id    = "filesystem-interpreter-source"
 root  = "source-filesystem-apply"
 owner = "filesystem-interpreter-k16"
-lines = "1-488"
+lines = "1-489"
 
 [[block]]
 id    = "filesystem-removal-source"

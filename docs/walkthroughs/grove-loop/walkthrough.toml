@@ -211,7 +211,7 @@ lines = 377
 [[root]]
 id    = "source-task-name"
 path  = "crates/grove-loop/src/task_name.rs"
-lines = 1712
+lines = 1743
 
 [[root]]
 id    = "source-task-tree"
@@ -297,37 +297,37 @@ lines = "591-1016"
 id    = "name-test-support-and-kit"
 root  = "source-task-name"
 owner = "canonical-or-nothing"
-lines = "1017-1175"
+lines = "1017-1206"
 
 [[block]]
 id    = "classification-verdict-tests"
 root  = "source-task-name"
 owner = "four-verdicts"
-lines = "1176-1197"
+lines = "1207-1228"
 
 [[block]]
 id    = "grammar-and-canonicity-tests"
 root  = "source-task-name"
 owner = "canonical-or-nothing"
-lines = "1198-1310"
+lines = "1229-1341"
 
 [[block]]
 id    = "shape-refusal-tests"
 root  = "source-task-name"
 owner = "four-verdicts"
-lines = "1311-1519"
+lines = "1342-1550"
 
 [[block]]
 id    = "slug-rule-tests"
 root  = "source-task-name"
 owner = "the-handle-not-the-position"
-lines = "1520-1548"
+lines = "1551-1579"
 
 [[block]]
 id    = "handle-grammar-tests"
 root  = "source-task-name"
 owner = "the-handle-not-the-position"
-lines = "1549-1712"
+lines = "1580-1743"
 
 [[block]]
 id    = "tree-opening"

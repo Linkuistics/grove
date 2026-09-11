@@ -549,6 +549,22 @@ fn a_domain_whose_parts_equality_ignores_the_species_conforms_and_can_promote() 
             ),
         ],
         &[Blind::Overview],
+        &[
+            ordinal_fs_tree::conformance::LevelSample {
+                node: None,
+                distinguished: vec![Blind::Overview],
+                accepted: true,
+            },
+            ordinal_fs_tree::conformance::LevelSample {
+                node: Some(Blind::compose(
+                    Ordinal::FIRST,
+                    Key::new(1),
+                    LabelOnly(topic("topic")),
+                )),
+                distinguished: vec![],
+                accepted: true,
+            },
+        ],
     );
     report.assert_conforming();
 

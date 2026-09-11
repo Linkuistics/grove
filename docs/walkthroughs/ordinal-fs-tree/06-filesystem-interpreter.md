@@ -18,7 +18,7 @@ there is no journal or restart recovery. The advisory lock hides those
 intermediate states only from processes that use this library's locking
 protocol.
 
-<!-- fragment «filesystem-error-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="1-510" parent="source-error" -->
+<!-- fragment «filesystem-error-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="1-545" parent="source-error" -->
 <!-- insert «error-boundary» -->
 <!-- insert «error-taxonomy» -->
 <!-- insert «error-debug» -->
@@ -26,7 +26,7 @@ protocol.
 <!-- insert «error-sources» -->
 <!-- /fragment -->
 
-<!-- fragment «filesystem-write-guard-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="534-811" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-guard-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="533-810" parent="source-filesystem-module" -->
 <!-- insert «write-guard-accessors» -->
 <!-- insert «write-guard-append» -->
 <!-- insert «write-guard-insert» -->
@@ -36,7 +36,7 @@ protocol.
 <!-- insert «write-guard-dispatch» -->
 <!-- /fragment -->
 
-<!-- fragment «filesystem-interpreter-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="1-488" parent="source-filesystem-apply" -->
+<!-- fragment «filesystem-interpreter-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="1-489" parent="source-filesystem-apply" -->
 <!-- insert «apply-contract» -->
 <!-- insert «apply-plan» -->
 <!-- insert «apply-run-state» -->
@@ -358,7 +358,7 @@ fragment turns shared borrows of the guard into references to those unchanged
 inputs, preserving the invariant that the worked insert plans from the snapshot
 taken after its exclusive lock was acquired.
 
-<!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="534-546" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="533-545" parent="filesystem-write-guard-api" -->
 ````rust
 impl<N: EntryName> WriteGuard<N> {
     /// The tree root, in the caller's own spelling.
@@ -457,7 +457,7 @@ The vacancy API consumes that exclusive capability exactly once. Its plan uses
 the ordinary initialization algebra, while its filesystem wrapper owns the
 extra root create and root unwind that no named effect can represent.
 
-<!-- fragment «filesystem-vacancy-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="389-519" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-vacancy-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="389-518" parent="source-filesystem-module" -->
 ````rust
 
 impl<N: EntryName> Vacancy<N> {
@@ -530,12 +530,11 @@ impl<N: EntryName> Vacancy<N> {
             Decision::Refuse(refusal) => return Err(Error::Refused(refusal)),
             Decision::Proceed(plan) => plan,
         };
-        // Both checks that can refuse a plan before it runs, run before the root
-        // is created: the algebra's, above, and the seventh obligation's, here.
-        // Otherwise a domain that renders a name badly would leave behind an
-        // empty root directory while reporting an error whose whole promise is
-        // that nothing changed.
+        // Every preflight precedes root creation: algebra, path confinement and
+        // projected level validation. A refused initialization must not leave
+        // even an empty root behind.
         apply::names_are_one_component(&self.root, &plan)?;
+        read::validate_snapshot(&self.root, &plan.projected(&snapshot))?;
         // The root is not an effect — it has no name for one to place — so this
         // is the one create the interpreter does not do. It is still under the
         // lock: the lock is on the directory *containing* the root, which is
@@ -605,7 +604,7 @@ distinguished child and positioned entries, but no row for the unnamed root.
 The write guard also dereferences to the snapshot. This is read-only access;
 the methods that alter the tree consume the guard.
 
-<!-- fragment «filesystem-write-deref» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="820-826" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-deref» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="819-825" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> core::ops::Deref for WriteGuard<N> {
     type Target = Snapshot<N>;
@@ -629,8 +628,8 @@ or an earlier effect. A refusal crosses the filesystem boundary as
 `Error::Refused` without invoking the interpreter. A proceeding, guarded plan
 reaches `apply` while `self` still owns the exclusive lock. Dropping the
 consumed guard releases the lock after `run` returns. This sequential plan
-guard is distinct from `apply`'s later pre-effect check that every rendered name
-is one path component. `delete` is the sixth live-tree mutation, but it does not
+guard is distinct from `apply`'s preflight of path components and projected
+final levels. `delete` is the sixth live-tree mutation, but it does not
 enter this dispatch because it has no algebraic plan.
 
 `WriteGuard` owns the public append dispatch. This fragment turns a consumed
@@ -639,7 +638,7 @@ then one `Report` or `Error`; guard consumption keeps one captured snapshot
 behind one decision, while `append_many` supplies the page's multi-entry form
 under a single rollback boundary alongside the worked insert.
 
-<!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="547-585" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="546-584" parent="filesystem-write-guard-api" -->
 ````rust
 
 impl<N: EntryName> WriteGuard<N> {
@@ -687,7 +686,7 @@ The worked insert from the previous page plans its two highest-first moves and
 one create from the captured snapshot, then applies that plan with production
 fault injection disabled.
 
-<!-- fragment «write-guard-insert» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="586-620" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-insert» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="585-619" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`insert`**: add a child at an occupied ordinal, shifting the occupant
     /// and every later sibling up by one.
@@ -730,7 +729,7 @@ fault injection disabled.
 Promotion documents the exceptional intermediate state at the public seam: the
 new node and old leaf coexist between its create and move effects.
 
-<!-- fragment «write-guard-promote» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="621-683" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-promote» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="620-682" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`promote`**: turn the leaf with this key into a node, moving its bytes
     /// verbatim into the new node's distinguished child.
@@ -802,7 +801,7 @@ Rewrite uses the same interpreter even when its source and destination path are
 equal. The interpreter treats that move as a successful no-op and still records
 the report entry.
 
-<!-- fragment «write-guard-rewrite» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="684-729" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-rewrite» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="683-728" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`rewrite`**: replace the parts of the entry with this key, keeping its
     /// ordinal, its key and its species.
@@ -857,7 +856,7 @@ Deletion is the lifecycle operation on a live guard. It bypasses the algebraic
 plan because it removes foreign entries as well as parsed names, but it remains
 under the guard's exclusive lock.
 
-<!-- fragment «write-guard-delete» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="730-797" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-delete» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="729-796" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`delete`**: remove the tree root and everything beneath it, following
     /// no symbolic link, and report the paths that went.
@@ -936,7 +935,7 @@ and filesystem interpretation. This fragment turns `Decision::Refuse` into
 `Error`, preserving total algebra without exposing a plan and carrying the
 worked insert into its ordered effect trace.
 
-<!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="798-811" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="797-810" parent="filesystem-write-guard-api" -->
 ````rust
     /// Turn a decision into an outcome: refuse, or apply under the lock this
     /// guard holds.
@@ -970,7 +969,10 @@ moves, and produces `Error::Failed` over the restored starting tree.
 path component. Snapshot names passed the equivalent check during reading; this
 second pass covers names newly composed by the algebra. It completes before
 any effect runs, so a bad plan name returns `NameIsNotOneComponent` without
-requiring rollback.
+requiring rollback. It next checks every level in `Plan::projected` through the
+same domain-first/cardinality-second rule as the reader. Invalid final levels
+also refuse without effects. Initialization performs both preflights before
+creating the root directory, so even a required-name refusal leaves no root.
 
 The interpreter then creates one `Run`. Its `landed` vector maps
 `Level::Created(effect_index)` to the path produced by that earlier effect.
@@ -1040,13 +1042,13 @@ use crate::{EntryName, EntryNameExt, Error, Snapshot, Species};
 
 `apply` is the interpreter's entry point for the worked insert. It receives the
 caller-spelled root, the locked snapshot, and the algebra's guarded plan; it
-first refuses any rendering that is not one path component, then turns the
+first checks component renderings and every projected final level, then turns the
 ordered effects into either the accumulated `Report` or an `Error` produced by
 unwind. The preflight loop preserves the no-partial-application invariant for a
 bad rendered name, while the effect loop preserves plan order for the two moves
 and final create.
 
-<!-- fragment «apply-plan» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="50-105" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-plan» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="50-106" parent="filesystem-interpreter-source" -->
 ````rust
 /// Apply a plan under the exclusive lock, or leave the tree as it was found.
 pub(super) fn apply<N: EntryName>(
@@ -1056,6 +1058,7 @@ pub(super) fn apply<N: EntryName>(
     faults: Faults,
 ) -> Result<Report<N>, Error<N>> {
     names_are_one_component(root, plan)?;
+    super::read::validate_snapshot(root, &plan.projected(snapshot))?;
     let mut run = Run {
         root,
         snapshot,
@@ -1114,7 +1117,7 @@ steps. Those collections turn the plan and snapshot into forward progress that
 can be unwound in reverse without consulting a changed directory, which is the
 state needed for both the page's successful insert and its failure trace.
 
-<!-- fragment «apply-run-state» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="106-123" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-run-state» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="107-124" parent="filesystem-interpreter-source" -->
 ````rust
 /// One application of one plan.
 struct Run<'a, N> {
@@ -1199,7 +1202,7 @@ A move whose current path equals its destination is the rewrite no-op. It
 claims nothing and registers no undo because no filesystem change occurred,
 but it updates the run's current-path table and the public report.
 
-<!-- fragment «apply-effect-step» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="124-228" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-effect-step» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="125-229" parent="filesystem-interpreter-source" -->
 ````rust
 impl<N: EntryName> Run<'_, N> {
     /// Apply one effect, recording how to undo it the moment its destination is
@@ -1314,7 +1317,7 @@ paths, `moved` supplies the most recent path of a moved entry, and `landed`
 supplies paths for levels created earlier in the plan. This is how promotion's
 second effect can address the directory created by its first.
 
-<!-- fragment «apply-unwind-and-paths» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="229-288" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-unwind-and-paths» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="230-289" parent="filesystem-interpreter-source" -->
 ````rust
 
     /// Undo what landed, in reverse, and say which of the two failures this was.
@@ -1411,7 +1414,7 @@ tree is therefore present. The error identifies the create destination and
 forward action that failed, and its message states that every landed effect was
 undone.
 
-<!-- fragment «apply-undo» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="289-348" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-undo» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="290-349" parent="filesystem-interpreter-source" -->
 ````rust
 /// How to undo one effect that landed.
 ///
@@ -1480,7 +1483,7 @@ The vacancy check is used both before a forward rename and before a restoring
 rename. A failed restore therefore becomes a distinct partial-rollback outcome
 instead of overwriting a path that appeared during the run.
 
-<!-- fragment «apply-destination-claim» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="349-382" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-destination-claim» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="350-383" parent="filesystem-interpreter-source" -->
 ````rust
 /// Refuse a destination that is occupied by anything at all, deciding it
 /// **without following links**.
@@ -1548,7 +1551,7 @@ consumer must not retry blindly because key lookup on the damaged tree is
 ambiguous and a later plan can be refused by a destination the wreckage already
 occupies. One half must be removed before another mutation is attempted.
 
-<!-- fragment «apply-fault-seam» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="383-488" parent="filesystem-interpreter-source" -->
+<!-- fragment «apply-fault-seam» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/apply.rs" lines="384-489" parent="filesystem-interpreter-source" -->
 ````rust
 /// One effect, or one undo, that did not happen.
 struct Failure {
@@ -2033,6 +2036,9 @@ filesystem mutation.
 `Error` separates outcomes by where they arise and by what the consumer may
 infer about tree state:
 
+- `InvalidLevel` preserves the domain error and containing-level path;
+  `CompetingDistinguished` reports every competing name when the domain accepts
+  more than one. Reads expose no snapshot, and mutations run no effects.
 - `Refused` is a total algebraic decision. No effect ran.
 - `Malformed`, `Reserved`, `NonUtf8Name`, and
   `NameIsNotOneComponent` reject names at the read or render boundary.
@@ -2069,10 +2075,10 @@ require.
 ````rust
 //! What the library says when it cannot proceed.
 //!
-//! Two of these carry the **consumer's own** error value, because the
+//! Malformed names, reserved names and invalid levels carry the **consumer's own** error value, because the
 //! architecture document requires a refusal to say what to *do* about the
 //! problem and only the domain knows that: the library halts the whole tree on a
-//! `Malformed` or a `Reserved` name wherever it sits, and an error saying only
+//! `Malformed` or a `Reserved` name, or an invalid level, wherever it sits, and an error saying only
 //! *something is wrong* leaves whoever hit it with a frozen tree and no next
 //! step.
 //!
@@ -2087,7 +2093,7 @@ use crate::{EntryName, Refusal};
 /// Why an operation could not proceed.
 ///
 /// Generic over the name type so that a consumer can match on its **own** error
-/// rather than on a string: `Malformed` and `Reserved` carry
+/// rather than on a string: `Malformed`, `Reserved` and `InvalidLevel` carry
 /// [`EntryName::Err`] verbatim, and it is reachable through
 /// [`std::error::Error::source`] as well.
 ````
@@ -2102,7 +2108,7 @@ separation preserves the invariant that a cleanly rolled-back worked failure is
 distinguishable from a partially rolled-back tree, while keeping domain-owned
 advice in `N::Err`.
 
-<!-- fragment «error-taxonomy» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="24-259" parent="filesystem-error-source" -->
+<!-- fragment «error-taxonomy» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="24-273" parent="filesystem-error-source" -->
 ````rust
 pub enum Error<N: EntryName> {
     /// The filesystem refused. `doing` is the step, in the imperative, for a
@@ -2134,6 +2140,20 @@ pub enum Error<N: EntryName> {
         path: PathBuf,
         /// The consumer's own error, carrying the recovery advice.
         source: N::Err,
+    },
+    /// The domain rejected a complete root or node level, before exposure or effects.
+    InvalidLevel {
+        /// The containing directory, including a projected destination when planning.
+        path: PathBuf,
+        /// The domain's grammar error, preserved verbatim.
+        source: N::Err,
+    },
+    /// The domain accepted competing names, but the library permits at most one.
+    CompetingDistinguished {
+        /// The containing directory.
+        path: PathBuf,
+        /// Every competing canonical rendering.
+        names: Vec<String>,
     },
     /// The algebra refused: a stated outcome in which the operation changed
     /// nothing.
@@ -2349,7 +2369,7 @@ borrowed `Error<N>` into variant-specific debug fields without imposing
 failure's path, action, and causes inspectable and completing that representation
 for the taxonomy.
 
-<!-- fragment «error-debug» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="260-354" parent="filesystem-error-source" -->
+<!-- fragment «error-debug» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="274-378" parent="filesystem-error-source" -->
 ````rust
 impl<N: EntryName> fmt::Debug for Error<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -2375,6 +2395,16 @@ impl<N: EntryName> fmt::Debug for Error<N> {
                 .field("source", source)
                 .finish(),
             Self::Refused(refusal) => f.debug_tuple("Refused").field(refusal).finish(),
+            Self::InvalidLevel { path, source } => f
+                .debug_struct("InvalidLevel")
+                .field("path", path)
+                .field("source", source)
+                .finish(),
+            Self::CompetingDistinguished { path, names } => f
+                .debug_struct("CompetingDistinguished")
+                .field("path", path)
+                .field("names", names)
+                .finish(),
             Self::Failed {
                 path,
                 doing,
@@ -2455,7 +2485,7 @@ render their own advice. `Failed` states that nothing changed;
 describes interrupted-promotion repair. Name and root errors state the action
 needed before another attempt.
 
-<!-- fragment «error-display» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="355-489" parent="filesystem-error-source" -->
+<!-- fragment «error-display» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="379-521" parent="filesystem-error-source" -->
 ````rust
 impl<N: EntryName> fmt::Display for Error<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -2477,6 +2507,14 @@ impl<N: EntryName> fmt::Display for Error<N> {
             // domain's is: a second sentence in front of it pushes the
             // actionable half off the end of a terminal line.
             Self::Refused(refusal) => fmt::Display::fmt(refusal, f),
+            Self::InvalidLevel { path, source } => {
+                write!(f, "invalid level {}: {source}", path.display())
+            }
+            Self::CompetingDistinguished { path, names } => write!(
+                f,
+                "level {} has competing distinguished children: {}. Keep at most one; nothing was changed.",
+                path.display(), names.join(", ")
+            ),
             Self::Failed {
                 path,
                 doing,
@@ -2599,13 +2637,15 @@ The standard error source is the forward cause. A partial rollback retains the
 unwind cause in its fields and display text, while `source()` returns the
 forward failure that caused unwind to begin.
 
-<!-- fragment «error-sources» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="490-510" parent="filesystem-error-source" -->
+<!-- fragment «error-sources» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/error.rs" lines="522-545" parent="filesystem-error-source" -->
 ````rust
 impl<N: EntryName> std::error::Error for Error<N> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io { source, .. } => Some(source),
-            Self::Malformed { source, .. } | Self::Reserved { source, .. } => Some(source),
+            Self::Malformed { source, .. }
+            | Self::Reserved { source, .. }
+            | Self::InvalidLevel { source, .. } => Some(source),
             // The failing *effect*, not the failing unwind: `source` is a chain
             // of causes and the effect is what caused the unwind to be needed.
             // The unwind's own error is in the `Display`, where a consumer
@@ -2614,6 +2654,7 @@ impl<N: EntryName> std::error::Error for Error<N> {
             | Self::FailedPartiallyRolledBack { source, .. }
             | Self::RemovalStopped { source, .. } => Some(source),
             Self::Refused(_)
+            | Self::CompetingDistinguished { .. }
             | Self::RootIsNotSpelledDirectly { .. }
             | Self::NonUtf8Name { .. }
             | Self::NameIsNotOneComponent { .. }

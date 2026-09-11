@@ -1844,7 +1844,7 @@ running at the same moment. Then it compares descriptor identity against path
 identity and retries the whole attempt on a mismatch (668–686). Only then does it
 judge: a record that does not match the admitted epoch is a refusal (688), a lock
 that *was* free is *driver lease is unlocked* (691), and contention with a
-matching record is the single `Ok(())` in the function (698).
+matching record is the single `Ok(())` in the function (729).
 
 The ordering of those last three is the argument. Identity is checked before the
 record, and the record before the lock verdict, so a probe that raced a

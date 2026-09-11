@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 10,562 lines. The fragment graph closed at
+This chapter owns none of the crate's 10,593 lines. The fragment graph closed at
 the end of [chapter 20](20-the-loop.md), where the last of `loop_driver.rs`'s 615
 lines was reproduced and the last of the book's 39 ownership blocks turned
 `resolved`; the [source index](source-index.md) records that graph in full and
@@ -443,8 +443,8 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 445 + 451 + 563 + 698 + 290 + 370 + 322 + 443 + 613 + 518 + 615
-+ 779 + 808 + 530 + 516 + 819 + 564 + 358 + 245 + 615 = 10,562 lines across
+**Owned source.** 445 + 451 + 563 + 729 + 290 + 370 + 322 + 443 + 613 + 518 + 615
++ 779 + 808 + 530 + 516 + 819 + 564 + 358 + 245 + 615 = 10,593 lines across
 20 chapters, and 0 for this one. The five parts are 1,712, 2,556, 2,732, 516
 and 2,601 lines, with chapter 1's 445 standing outside them. The largest single
 owned block is [chapter 16](16-the-lease.md)'s 819 lines, which is that chapter's
@@ -554,7 +554,7 @@ sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved, and each of this book's first five
 children ended with thousands of lines legitimately deferred; in final mode a
 defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Thirteen files, 10,562 resolved
+page inventory must match the manifest exactly. Thirteen files, 10,593 resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 ```console
@@ -599,7 +599,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 13 roots, 10,562 lines, 21 chapters, two
+The book is complete: 13 roots, 10,593 lines, 21 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

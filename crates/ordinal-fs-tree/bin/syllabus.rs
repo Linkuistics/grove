@@ -698,6 +698,8 @@ fn exit_code(error: &Error<SyllabusName>) -> u8 {
         // A human fixes a filename; no retry helps.
         Error::Malformed { .. }
         | Error::Reserved { .. }
+        | Error::InvalidLevel { .. }
+        | Error::CompetingDistinguished { .. }
         | Error::NonUtf8Name { .. }
         | Error::NameIsNotOneComponent { .. } => 5,
         // The single most valuable distinction the library offers, and a generic

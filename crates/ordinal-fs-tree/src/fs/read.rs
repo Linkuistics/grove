@@ -17,7 +17,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use crate::snapshot::{Builder, Snapshot};
-use crate::{EntryName, Error, Found, Verdict};
+use crate::{EntryName, EntryNameExt, Error, Found, Species, Verdict};
 
 /// Read a whole tree, or halt.
 pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N>> {
@@ -25,9 +25,10 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
     // An explicit worklist rather than recursion: the depth of a tree on disk
     // is the user's to choose, and a stack overflow is not a refusal any
     // consumer can handle.
-    let mut pending = vec![(root.to_path_buf(), builder.root())];
-    while let Some((directory, place)) = pending.pop() {
+    let mut pending = vec![(root.to_path_buf(), builder.root(), None)];
+    while let Some((directory, place, node)) = pending.pop() {
         let mut descend = Vec::new();
+        let mut distinguished = Vec::new();
         for (name, found) in listing(&directory).map_err(Unlistable::into_io)? {
             let path = directory.join(&name);
             let Some(name) = name.to_str() else {
@@ -63,12 +64,16 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
                             reason,
                         });
                     }
-                    if let Some(below) = builder.add(place, parsed) {
-                        descend.push((path, below));
+                    if parsed.species() == Species::Distinguished {
+                        distinguished.push(parsed.clone());
+                    }
+                    if let Some(below) = builder.add(place, parsed.clone()) {
+                        descend.push((path, below, Some(parsed)));
                     }
                 }
             }
         }
+        validate_level(&directory, node.as_ref(), &distinguished)?;
         // Sorted order is the order the *listing* was read in; pushing the
         // subdirectories in reverse makes the stack pop them in that order, so
         // which of two broken names halts the tree does not depend on where the
@@ -78,6 +83,51 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
         }
     }
     Ok(builder.finish())
+}
+
+/// The shared reader/planner boundary: domain diagnostics precede cardinality.
+pub(super) fn validate_level<N: EntryName>(
+    path: &Path,
+    node: Option<&N>,
+    distinguished: &[N],
+) -> Result<(), Error<N>> {
+    N::validate_distinguished(node, distinguished).map_err(|source| Error::InvalidLevel {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    if distinguished.len() > 1 {
+        return Err(Error::CompetingDistinguished {
+            path: path.to_path_buf(),
+            names: distinguished.iter().map(ToString::to_string).collect(),
+        });
+    }
+    Ok(())
+}
+
+/// Check every final level using projected names, including shifted ancestors.
+pub(super) fn validate_snapshot<N: EntryName>(
+    root: &Path,
+    tree: &Snapshot<N>,
+) -> Result<(), Error<N>> {
+    let mut pending = vec![(root.to_path_buf(), tree.root())];
+    while let Some((path, level)) = pending.pop() {
+        let distinguished = level
+            .children()
+            .filter(|child| child.species() == Species::Distinguished)
+            .map(|child| child.name().clone())
+            .collect::<Vec<_>>();
+        validate_level(
+            &path,
+            level.entry().map(|entry| entry.name()),
+            &distinguished,
+        )?;
+        for child in level.children() {
+            if let Some(contents) = child.contents() {
+                pending.push((path.join(child.name().to_string()), contents));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// A directory that could not be listed, before either caller has decided what

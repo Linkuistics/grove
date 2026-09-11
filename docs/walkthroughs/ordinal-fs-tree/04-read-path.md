@@ -16,7 +16,7 @@ read. The snapshot contains names, hierarchy, depth, and ordered child lists.
 <!-- insert «snapshot-queries» -->
 <!-- /fragment -->
 
-<!-- fragment «read-filesystem-source» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-407" parent="source-filesystem-read" -->
+<!-- fragment «read-filesystem-source» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-457" parent="source-filesystem-read" -->
 <!-- insert «read-tree-discovery» -->
 <!-- insert «read-directory-listing» -->
 <!-- insert «read-lock-location» -->
@@ -83,10 +83,15 @@ The filesystem reader owns this first transition. It takes the caller's root
 path and produces a finished `Snapshot` by classifying every reachable,
 unfollowed directory entry through the consumer seam. Its whole-tree invariant
 is that foreign names are absent while any malformed, reserved, non-UTF-8, or
-non-component owned name halts construction; here it processes the complete
-`s` example before a guard can return.
+non-component owned name halts construction. After parsing a direct listing,
+`validate_level` passes every distinguished name to the domain, then rejects
+competing names independently. `InvalidLevel` retains the domain error and
+level path; `CompetingDistinguished` lists every competing rendering. The same
+routine checks projected snapshots. Here the reader processes the complete
+`s` example before a guard can return: an early search match cannot hide a
+malformed later subtree under either guard mode.
 
-<!-- fragment «read-tree-discovery» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-82" parent="read-filesystem-source" -->
+<!-- fragment «read-tree-discovery» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="1-132" parent="read-filesystem-source" -->
 ````rust
 //! Turning a directory tree into a [`Snapshot`].
 //!
@@ -107,7 +112,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use crate::snapshot::{Builder, Snapshot};
-use crate::{EntryName, Error, Found, Verdict};
+use crate::{EntryName, EntryNameExt, Error, Found, Species, Verdict};
 
 /// Read a whole tree, or halt.
 pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N>> {
@@ -115,9 +120,10 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
     // An explicit worklist rather than recursion: the depth of a tree on disk
     // is the user's to choose, and a stack overflow is not a refusal any
     // consumer can handle.
-    let mut pending = vec![(root.to_path_buf(), builder.root())];
-    while let Some((directory, place)) = pending.pop() {
+    let mut pending = vec![(root.to_path_buf(), builder.root(), None)];
+    while let Some((directory, place, node)) = pending.pop() {
         let mut descend = Vec::new();
+        let mut distinguished = Vec::new();
         for (name, found) in listing(&directory).map_err(Unlistable::into_io)? {
             let path = directory.join(&name);
             let Some(name) = name.to_str() else {
@@ -153,12 +159,16 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
                             reason,
                         });
                     }
-                    if let Some(below) = builder.add(place, parsed) {
-                        descend.push((path, below));
+                    if parsed.species() == Species::Distinguished {
+                        distinguished.push(parsed.clone());
+                    }
+                    if let Some(below) = builder.add(place, parsed.clone()) {
+                        descend.push((path, below, Some(parsed)));
                     }
                 }
             }
         }
+        validate_level(&directory, node.as_ref(), &distinguished)?;
         // Sorted order is the order the *listing* was read in; pushing the
         // subdirectories in reverse makes the stack pop them in that order, so
         // which of two broken names halts the tree does not depend on where the
@@ -168,6 +178,51 @@ pub(super) fn snapshot<N: EntryName>(root: &Path) -> Result<Snapshot<N>, Error<N
         }
     }
     Ok(builder.finish())
+}
+
+/// The shared reader/planner boundary: domain diagnostics precede cardinality.
+pub(super) fn validate_level<N: EntryName>(
+    path: &Path,
+    node: Option<&N>,
+    distinguished: &[N],
+) -> Result<(), Error<N>> {
+    N::validate_distinguished(node, distinguished).map_err(|source| Error::InvalidLevel {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    if distinguished.len() > 1 {
+        return Err(Error::CompetingDistinguished {
+            path: path.to_path_buf(),
+            names: distinguished.iter().map(ToString::to_string).collect(),
+        });
+    }
+    Ok(())
+}
+
+/// Check every final level using projected names, including shifted ancestors.
+pub(super) fn validate_snapshot<N: EntryName>(
+    root: &Path,
+    tree: &Snapshot<N>,
+) -> Result<(), Error<N>> {
+    let mut pending = vec![(root.to_path_buf(), tree.root())];
+    while let Some((path, level)) = pending.pop() {
+        let distinguished = level
+            .children()
+            .filter(|child| child.species() == Species::Distinguished)
+            .map(|child| child.name().clone())
+            .collect::<Vec<_>>();
+        validate_level(
+            &path,
+            level.entry().map(|entry| entry.name()),
+            &distinguished,
+        )?;
+        for child in level.children() {
+            if let Some(contents) = child.contents() {
+                pending.push((path.join(child.name().to_string()), contents));
+            }
+        }
+    }
+    Ok(())
 }
 
 ````
@@ -194,7 +249,7 @@ links, establishing a total order and retaining the observed filesystem species
 for the consumer's parser. On the example root it supplies the four direct
 names and marks only `02-linear-algebra-i2` as a directory.
 
-<!-- fragment «read-directory-listing» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="83-155" parent="read-filesystem-source" -->
+<!-- fragment «read-directory-listing» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="133-205" parent="read-filesystem-source" -->
 ````rust
 /// A directory that could not be listed, before either caller has decided what
 /// that means.
@@ -1367,7 +1422,7 @@ guard into the caller-spelled root or the exact immutable snapshot captured
 under its lock, without copying either, so every returned snapshot borrow stays
 bounded by the guard. The worked walk starts from that `snapshot` result.
 
-<!-- fragment «filesystem-read-guard-api» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="520-533" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-read-guard-api» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="519-532" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> ReadGuard<N> {
     /// The tree root, in the caller's own spelling.
@@ -1391,7 +1446,7 @@ The `Deref` implementation owns the ergonomic forwarding step. It turns
 so direct calls cannot bypass the captured names or their borrow lifetime. This
 is why the example can spell its public query as `guard.walk()`.
 
-<!-- fragment «filesystem-read-deref» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="812-819" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-read-deref» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="811-818" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> core::ops::Deref for ReadGuard<N> {
     type Target = Snapshot<N>;
@@ -1421,7 +1476,7 @@ dangling final symlink and a root with no distinct containing directory are
 refused. For the `s` example, this produces `s/..` without canonicalizing the
 root later returned by the guard.
 
-<!-- fragment «read-lock-location» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="156-407" parent="read-filesystem-source" -->
+<!-- fragment «read-lock-location» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/read.rs" lines="206-457" parent="read-filesystem-source" -->
 ````rust
 /// What is at the tree root: a tree, nothing at all, or something a tree cannot
 /// be.

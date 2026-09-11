@@ -10,7 +10,7 @@
 |---|---|---|
 | `source-crate-manifest` | `crates/grove-loop/Cargo.toml` | 68 |
 | `source-library-root` | `crates/grove-loop/src/lib.rs` | 377 |
-| `source-task-name` | `crates/grove-loop/src/task_name.rs` | 1,712 |
+| `source-task-name` | `crates/grove-loop/src/task_name.rs` | 1,743 |
 | `source-task-tree` | `crates/grove-loop/src/task_tree.rs` | 2,038 |
 | `source-task-grow` | `crates/grove-loop/src/task_grow.rs` | 518 |
 | `source-tree-lifecycle` | `crates/grove-loop/src/tree_lifecycle.rs` | 2,732 |
@@ -28,7 +28,7 @@
 <!-- source-root «source-library-root» source="crates/grove-loop/src/lib.rs" lines="1-377" -->
 <!-- insert «library-root» -->
 <!-- /source-root -->
-<!-- source-root «source-task-name» source="crates/grove-loop/src/task_name.rs" lines="1-1712" -->
+<!-- source-root «source-task-name» source="crates/grove-loop/src/task_name.rs" lines="1-1743" -->
 <!-- insert «tokens-and-verdicts» -->
 <!-- insert «kind-slug-and-handle» -->
 <!-- insert «the-task-name» -->
@@ -98,12 +98,12 @@
 | `tokens-and-verdicts` | `source-task-name` | `four-verdicts` | `1-220` | 220 | `resolved` |
 | `kind-slug-and-handle` | `source-task-name` | `the-handle-not-the-position` | `221-590` | 370 | `resolved` |
 | `the-task-name` | `source-task-name` | `canonical-or-nothing` | `591-1016` | 426 | `resolved` |
-| `name-test-support-and-kit` | `source-task-name` | `canonical-or-nothing` | `1017-1175` | 159 | `resolved` |
-| `classification-verdict-tests` | `source-task-name` | `four-verdicts` | `1176-1197` | 22 | `resolved` |
-| `grammar-and-canonicity-tests` | `source-task-name` | `canonical-or-nothing` | `1198-1310` | 113 | `resolved` |
-| `shape-refusal-tests` | `source-task-name` | `four-verdicts` | `1311-1519` | 209 | `resolved` |
-| `slug-rule-tests` | `source-task-name` | `the-handle-not-the-position` | `1520-1548` | 29 | `resolved` |
-| `handle-grammar-tests` | `source-task-name` | `the-handle-not-the-position` | `1549-1712` | 164 | `resolved` |
+| `name-test-support-and-kit` | `source-task-name` | `canonical-or-nothing` | `1017-1206` | 190 | `resolved` |
+| `classification-verdict-tests` | `source-task-name` | `four-verdicts` | `1207-1228` | 22 | `resolved` |
+| `grammar-and-canonicity-tests` | `source-task-name` | `canonical-or-nothing` | `1229-1341` | 113 | `resolved` |
+| `shape-refusal-tests` | `source-task-name` | `four-verdicts` | `1342-1550` | 209 | `resolved` |
+| `slug-rule-tests` | `source-task-name` | `the-handle-not-the-position` | `1551-1579` | 29 | `resolved` |
+| `handle-grammar-tests` | `source-task-name` | `the-handle-not-the-position` | `1580-1743` | 164 | `resolved` |
 | `tree-opening` | `source-task-tree` | `one-spelling-of-grove` | `1-290` | 290 | `resolved` |
 | `paths-and-addressing` | `source-task-tree` | `paths-are-built-here` | `291-570` | 280 | `resolved` |
 | `walk-selection` | `source-task-tree` | `first-live-leaf` | `571-637` | 67 | `resolved` |
@@ -167,7 +167,7 @@
 | `library-root-selection` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `329-332` | `library-root` | `—` |
 | `library-root-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `333-351` | `library-root` | `—` |
 | `library-root-error-traits` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `352-377` | `library-root` | `—` |
-| `source-task-name` | `source-index` | `source-task-name` | `root` | `—` | `1-1712` | `—` | `tokens-and-verdicts`, `kind-slug-and-handle`, `the-task-name`, `name-test-support-and-kit`, `classification-verdict-tests`, `grammar-and-canonicity-tests`, `shape-refusal-tests`, `slug-rule-tests`, `handle-grammar-tests` |
+| `source-task-name` | `source-index` | `source-task-name` | `root` | `—` | `1-1743` | `—` | `tokens-and-verdicts`, `kind-slug-and-handle`, `the-task-name`, `name-test-support-and-kit`, `classification-verdict-tests`, `grammar-and-canonicity-tests`, `shape-refusal-tests`, `slug-rule-tests`, `handle-grammar-tests` |
 | `name-the-only-grammar` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1-12` | `tokens-and-verdicts` | `—` |
 | `tokens-and-verdicts` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1-220` | `source-task-name` | `name-the-only-grammar`, `name-three-on-disk-shapes`, `name-canonicity-departure`, `name-no-caller-hands-a-path`, `name-classification-loses-data`, `name-both-words-one-rule`, `name-handle-is-this-grammar`, `name-handle-terminal-substring`, `name-imports`, `name-brief-and-key-mark`, `name-separator`, `name-outcome`, `name-outcome-infix-and-strip`, `name-token-error`, `name-token-error-traits`, `name-refuse-token` |
 | `name-three-on-disk-shapes` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `13-21` | `tokens-and-verdicts` | `—` |
@@ -218,37 +218,37 @@
 | `name-terminal-key` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `973-991` | `the-task-name` | `—` |
 | `name-peel-key` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `992-1016` | `the-task-name` | `—` |
 | `name-tests-support` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1017-1054` | `name-test-support-and-kit` | `—` |
-| `name-test-support-and-kit` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `1017-1175` | `source-task-name` | `name-tests-support`, `name-tests-kit-fixture`, `name-tests-conforms`, `name-tests-kind-shapes`, `name-tests-undeclared-kind` |
+| `name-test-support-and-kit` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `1017-1206` | `source-task-name` | `name-tests-support`, `name-tests-kit-fixture`, `name-tests-conforms`, `name-tests-kind-shapes`, `name-tests-undeclared-kind` |
 | `name-tests-kit-fixture` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1055-1098` | `name-test-support-and-kit` | `—` |
-| `name-tests-conforms` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1099-1110` | `name-test-support-and-kit` | `—` |
-| `name-tests-kind-shapes` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1111-1156` | `name-test-support-and-kit` | `—` |
-| `name-tests-undeclared-kind` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1157-1175` | `name-test-support-and-kit` | `—` |
-| `name-tests-the-charter` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1176-1183` | `classification-verdict-tests` | `—` |
-| `classification-verdict-tests` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1176-1197` | `source-task-name` | `name-tests-the-charter`, `name-tests-foreign` |
-| `name-tests-foreign` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1184-1197` | `classification-verdict-tests` | `—` |
-| `name-tests-live-leaf` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1198-1213` | `grammar-and-canonicity-tests` | `—` |
-| `grammar-and-canonicity-tests` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `1198-1310` | `source-task-name` | `name-tests-live-leaf`, `name-tests-terminal-marks`, `name-tests-node-directory`, `name-tests-terminal-key-marker`, `name-tests-lenient-position`, `name-tests-unpadded-past-99`, `name-tests-unrepresentable` |
-| `name-tests-terminal-marks` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1214-1229` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-node-directory` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1230-1241` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-terminal-key-marker` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1242-1254` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-lenient-position` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1255-1287` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-unpadded-past-99` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1288-1296` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-unrepresentable` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1297-1310` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-kind-not-a-token` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1311-1356` | `shape-refusal-tests` | `—` |
-| `shape-refusal-tests` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1311-1519` | `source-task-name` | `name-tests-kind-not-a-token`, `name-tests-missing-separator`, `name-tests-one-reading`, `name-tests-node-wearing-outcome`, `name-tests-bad-slug`, `name-tests-species-mismatch` |
-| `name-tests-missing-separator` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1357-1393` | `shape-refusal-tests` | `—` |
-| `name-tests-one-reading` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1394-1455` | `shape-refusal-tests` | `—` |
-| `name-tests-node-wearing-outcome` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1456-1479` | `shape-refusal-tests` | `—` |
-| `name-tests-bad-slug` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1480-1495` | `shape-refusal-tests` | `—` |
-| `name-tests-species-mismatch` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1496-1519` | `shape-refusal-tests` | `—` |
-| `slug-rule-tests` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1520-1548` | `source-task-name` | `—` |
-| `name-tests-ends-in-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1549-1599` | `handle-grammar-tests` | `—` |
-| `handle-grammar-tests` | `kind-slug-handle` | `source-task-name` | `composite` | `the-handle-not-the-position` | `1549-1712` | `source-task-name` | `name-tests-ends-in-handle`, `name-tests-brief-no-handle`, `name-tests-handle-round-trip`, `name-tests-same-peel`, `name-tests-refused-handle`, `name-tests-lenient-strict` |
-| `name-tests-brief-no-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1600-1606` | `handle-grammar-tests` | `—` |
-| `name-tests-handle-round-trip` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1607-1626` | `handle-grammar-tests` | `—` |
-| `name-tests-same-peel` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1627-1648` | `handle-grammar-tests` | `—` |
-| `name-tests-refused-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1649-1682` | `handle-grammar-tests` | `—` |
-| `name-tests-lenient-strict` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1683-1712` | `handle-grammar-tests` | `—` |
+| `name-tests-conforms` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1099-1141` | `name-test-support-and-kit` | `—` |
+| `name-tests-kind-shapes` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1142-1187` | `name-test-support-and-kit` | `—` |
+| `name-tests-undeclared-kind` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1188-1206` | `name-test-support-and-kit` | `—` |
+| `name-tests-the-charter` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1207-1214` | `classification-verdict-tests` | `—` |
+| `classification-verdict-tests` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1207-1228` | `source-task-name` | `name-tests-the-charter`, `name-tests-foreign` |
+| `name-tests-foreign` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1215-1228` | `classification-verdict-tests` | `—` |
+| `name-tests-live-leaf` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1229-1244` | `grammar-and-canonicity-tests` | `—` |
+| `grammar-and-canonicity-tests` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `1229-1341` | `source-task-name` | `name-tests-live-leaf`, `name-tests-terminal-marks`, `name-tests-node-directory`, `name-tests-terminal-key-marker`, `name-tests-lenient-position`, `name-tests-unpadded-past-99`, `name-tests-unrepresentable` |
+| `name-tests-terminal-marks` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1245-1260` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-node-directory` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1261-1272` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-terminal-key-marker` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1273-1285` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-lenient-position` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1286-1318` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-unpadded-past-99` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1319-1327` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-unrepresentable` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1328-1341` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-kind-not-a-token` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1342-1387` | `shape-refusal-tests` | `—` |
+| `shape-refusal-tests` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1342-1550` | `source-task-name` | `name-tests-kind-not-a-token`, `name-tests-missing-separator`, `name-tests-one-reading`, `name-tests-node-wearing-outcome`, `name-tests-bad-slug`, `name-tests-species-mismatch` |
+| `name-tests-missing-separator` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1388-1424` | `shape-refusal-tests` | `—` |
+| `name-tests-one-reading` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1425-1486` | `shape-refusal-tests` | `—` |
+| `name-tests-node-wearing-outcome` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1487-1510` | `shape-refusal-tests` | `—` |
+| `name-tests-bad-slug` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1511-1526` | `shape-refusal-tests` | `—` |
+| `name-tests-species-mismatch` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1527-1550` | `shape-refusal-tests` | `—` |
+| `slug-rule-tests` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1551-1579` | `source-task-name` | `—` |
+| `name-tests-ends-in-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1580-1630` | `handle-grammar-tests` | `—` |
+| `handle-grammar-tests` | `kind-slug-handle` | `source-task-name` | `composite` | `the-handle-not-the-position` | `1580-1743` | `source-task-name` | `name-tests-ends-in-handle`, `name-tests-brief-no-handle`, `name-tests-handle-round-trip`, `name-tests-same-peel`, `name-tests-refused-handle`, `name-tests-lenient-strict` |
+| `name-tests-brief-no-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1631-1637` | `handle-grammar-tests` | `—` |
+| `name-tests-handle-round-trip` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1638-1657` | `handle-grammar-tests` | `—` |
+| `name-tests-same-peel` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1658-1679` | `handle-grammar-tests` | `—` |
+| `name-tests-refused-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1680-1713` | `handle-grammar-tests` | `—` |
+| `name-tests-lenient-strict` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1714-1743` | `handle-grammar-tests` | `—` |
 | `source-task-tree` | `source-index` | `source-task-tree` | `root` | `—` | `1-2038` | `—` | `tree-opening`, `paths-and-addressing`, `walk-selection`, `kind-and-brief-chain`, `resolution`, `path-composition-tests`, `pick-tests`, `brief-chain-and-kind-tests`, `resolve-tests`, `pick-with-brief-chain-tests` |
 | `tree-header-who-owns-the-walk` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `1-13` | `tree-opening` | `—` |
 | `tree-opening` | `opening` | `source-task-tree` | `composite` | `one-spelling-of-grove` | `1-290` | `source-task-tree` | `tree-header-who-owns-the-walk`, `tree-header-paths-here`, `tree-header-no-canonicalising`, `tree-header-refusal-precedence`, `tree-imports`, `tree-alias-and-read-count`, `tree-vacant-and-read-or-vacant`, `tree-guard-opening-vacancy`, `tree-read`, `tree-write`, `tree-write-or-vacancy`, `tree-reopen-write`, `tree-open-write`, `tree-absent-tree`, `tree-raised`, `tree-announce-contention`, `tree-restate` |
@@ -726,7 +726,7 @@
 ## Owned source totals
 
 Every line of the thirteen source roots is credited once, to the slice whose
-page owns it; the table shows how the 10,562 lines divide across the twenty-one
+page owns it; the table shows how the 10,593 lines divide across the twenty-one
 chapters, and its total is what a completed book must account for. Nine roots are
 owned whole by one chapter; the four that split — `src/task_name.rs` three ways,
 `src/task_tree.rs` five, `src/tree_lifecycle.rs` four and `src/driver_lease.rs`
@@ -737,7 +737,7 @@ two — are why the ownership table above has thirty-nine rows rather than thirt
 | `allowed-to-mean` | `01-orientation.md` | 445 |
 | `four-verdicts` | `02-the-tokens.md` | 451 |
 | `the-handle-not-the-position` | `03-kind-slug-handle.md` | 563 |
-| `canonical-or-nothing` | `04-the-name.md` | 698 |
+| `canonical-or-nothing` | `04-the-name.md` | 729 |
 | `one-spelling-of-grove` | `05-opening.md` | 290 |
 | `paths-are-built-here` | `06-paths.md` | 370 |
 | `first-live-leaf` | `07-the-walk.md` | 322 |
@@ -755,4 +755,4 @@ two — are why the ownership table above has thirty-nine rows rather than thirt
 | `too-late-to-say-later` | `19-the-core.md` | 245 |
 | `four-things-a-runner-cannot-choose` | `20-the-loop.md` | 615 |
 | `assembly` | `21-what-could-not-move.md` | 0 |
-| **Total** | 13 source roots | **10,562** |
+| **Total** | 13 source roots | **10,593** |

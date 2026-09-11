@@ -51,6 +51,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `ordinal-fs-tree`: validate complete read levels and projected final plans
+  before exposure or filesystem effects. Domain errors retain their level path;
+  independent cardinality rejects competing distinguished names. Conformance
+  now accepts explicit root/node level fixtures and samples order independence.
+
 - **`ordinal-fs-tree`: caller-supplied distinguished names.** `EntryName` replaces
   `distinguished()` with `validate_distinguished`; `Vacancy::initialize` accepts
   an optional name-and-bytes pair and `WriteGuard::promote` takes its destination

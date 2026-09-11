@@ -47,7 +47,7 @@
 //! # Getting started as a consumer
 //!
 //! Implement [`EntryName`] for your own name type, then check it against the
-//! obligations the library assumes and cannot enforce:
+//! name laws and independent level-policy expectations:
 //!
 //! ```
 //! # use ordinal_fs_tree::{conformance, reference::SyllabusName, Found, Ordinal, Key};
@@ -66,6 +66,13 @@
 //!          Parts::module(Label::new("linear-algebra").unwrap())),
 //!     ],
 //!     &[SyllabusName::Overview],
+//!     &[
+//!         conformance::LevelSample { node: None, distinguished: vec![], accepted: true },
+//!         conformance::LevelSample {
+//!             node: Some(<SyllabusName as ordinal_fs_tree::EntryName>::compose(Ordinal::FIRST, Key::new(2), Parts::module(Label::new("topic").unwrap()))),
+//!             distinguished: vec![SyllabusName::Overview], accepted: true,
+//!         },
+//!     ],
 //! );
 //! report.assert_conforming();
 //! ```

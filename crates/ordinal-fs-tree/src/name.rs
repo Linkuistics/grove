@@ -353,7 +353,7 @@ impl<P: Eq> Eq for NameView<'_, P> {}
 /// # What an implementation must guarantee
 ///
 /// Seven obligations. Six of them the library assumes and cannot check at run
-/// time; the seventh it **enforces**, and the asymmetry is stated below rather
+/// time; the seventh it **enforces** at the path boundary, and the asymmetry is stated below rather
 /// than left to be noticed. They are stated because the structural model found
 /// that four were missing, and that a design missing any one of them admits a
 /// tree the library will quietly corrupt. Each is written on the method it
@@ -458,6 +458,10 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self;
 
     /// Judge the complete distinguished-name set for a root (`None`) or node.
+    /// The reader and planner invoke this before exposing a level or applying
+    /// effects, then independently reject more than one distinguished child.
+    /// Verdicts must be deterministic and independent of child order. The kit
+    /// samples this separate level obligation using consumer-supplied expectations.
     /// The answer must depend only on these names and be independent of order.
     /// The default accepts every set; declaring this policy does not invoke it.
     fn validate_distinguished(_node: Option<&Self>, _children: &[Self]) -> Result<(), Self::Err> {
@@ -681,7 +685,7 @@ impl<N: EntryName> EntryNameExt for N {}
 /// Why a rendering is not one filename, or `None` when it is one.
 ///
 /// The library's half of the obligation *a name renders as one path component*
-/// — the seventh, and the only one it enforces rather than assumes. A rendering
+/// — the seventh name law. Level validation is enforced separately. A rendering
 /// that passes here is one [`std::path::Path::join`] can only place *inside* the
 /// directory it is joined to.
 ///

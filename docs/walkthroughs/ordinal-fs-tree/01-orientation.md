@@ -210,7 +210,7 @@ accessors retain `Option`. The crate-level documentation also states why
 whole-tree deletion is outside both formal models: its behavior depends on
 filesystem facts below their abstraction boundary. This fragment is the
 complete crate root and is the source-level map used by every later page.
-<!-- fragment «library-crate-surface» owner="orientation-k11" source="crates/ordinal-fs-tree/src/lib.rs" lines="1-104" parent="source-library" -->
+<!-- fragment «library-crate-surface» owner="orientation-k11" source="crates/ordinal-fs-tree/src/lib.rs" lines="1-111" parent="source-library" -->
 ````rust
 //! An ordered tree of entries stored as a directory tree, where each entry's
 //! position, identity and metadata live in its **filename**.
@@ -261,7 +261,7 @@ complete crate root and is the source-level map used by every later page.
 //! # Getting started as a consumer
 //!
 //! Implement [`EntryName`] for your own name type, then check it against the
-//! obligations the library assumes and cannot enforce:
+//! name laws and independent level-policy expectations:
 //!
 //! ```
 //! # use ordinal_fs_tree::{conformance, reference::SyllabusName, Found, Ordinal, Key};
@@ -280,6 +280,13 @@ complete crate root and is the source-level map used by every later page.
 //!          Parts::module(Label::new("linear-algebra").unwrap())),
 //!     ],
 //!     &[SyllabusName::Overview],
+//!     &[
+//!         conformance::LevelSample { node: None, distinguished: vec![], accepted: true },
+//!         conformance::LevelSample {
+//!             node: Some(<SyllabusName as ordinal_fs_tree::EntryName>::compose(Ordinal::FIRST, Key::new(2), Parts::module(Label::new("topic").unwrap()))),
+//!             distinguished: vec![SyllabusName::Overview], accepted: true,
+//!         },
+//!     ],
 //! );
 //! report.assert_conforming();
 //! ```

@@ -4,7 +4,7 @@
 //! Most are the same fixtures asserting the same outcomes: what a verb does to a
 //! tree is what this stage promises not to change. Three groups could not come
 //! across unchanged, and each is a finding rather than an adjustment —
-//! `.grove/07-grove-flip-k28/BRIEF.md` records them:
+//! `.grove/07-k28/_grove-flip.md` records them:
 //!
 //!   * the **repository assertion** inverted, because the shift is now
 //!     `rename(2)` on every lane (`docs/adr/grove-does-not-stage-its-own-renames.md`);
@@ -93,6 +93,7 @@ fn grove() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join(".grove");
     fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("_BRIEF.md"), "root brief").unwrap();
     (tmp, root)
 }
 
@@ -110,6 +111,7 @@ fn jj_grove() -> (TempDir, PathBuf) {
     );
     let root = repo.join(".grove");
     fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("_BRIEF.md"), "root brief").unwrap();
     (tmp, root)
 }
 
@@ -152,11 +154,15 @@ fn touch_body(dir: &Path, name: &str, content: &str) -> PathBuf {
     path
 }
 
-/// Create a node directory with its `BRIEF.md`, returning the directory path.
+/// Create a node directory with its `_BRIEF.md`, returning the directory path.
 fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
     let path = dir.join(name);
     fs::create_dir_all(&path).unwrap();
-    fs::write(path.join("BRIEF.md"), format!("# {handle} — brief\n")).unwrap();
+    fs::write(
+        path.join(format!("_{}.md", handle.rsplit_once("-k").unwrap().0)),
+        format!("# {handle} — brief\n"),
+    )
+    .unwrap();
     path
 }
 
@@ -211,7 +217,7 @@ fn committed(root: &Path) -> Vec<String> {
 #[test]
 fn add_root_level_child_gets_position_01_and_first_key() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let got = add_one(&g, ".", "survey", "impl").unwrap();
     assert_eq!(name_of(&got), "01-impl--survey-k1.md");
 }
@@ -219,7 +225,7 @@ fn add_root_level_child_gets_position_01_and_first_key() {
 #[test]
 fn add_appends_gapless_after_existing_root_children() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
     touch(&g, "02-impl--b-k2.md", "b-k2");
     let got = add_one(&g, ".", "c", "impl").unwrap();
@@ -229,19 +235,19 @@ fn add_appends_gapless_after_existing_root_children() {
 #[test]
 fn add_child_under_a_node_appends_after_existing_children() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    let node = mknode(&g, "02-build-k2", "build-k2");
+    touch(&g, "_BRIEF.md", "root — brief");
+    let node = mknode(&g, "02-k2", "build-k2");
     touch(&node, "01-impl--x-k3.md", "x-k3");
     let got = add_one(&g, at(&node), "y", "impl").unwrap();
     assert_eq!(name_of(&got), "02-impl--y-k4.md");
-    assert_eq!(name_of(got.parent().unwrap()), "02-build-k2");
+    assert_eq!(name_of(got.parent().unwrap()), "02-k2");
 }
 
 #[test]
 fn add_first_child_under_a_childless_node() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    let node = mknode(&g, "02-build-k2", "build-k2");
+    touch(&g, "_BRIEF.md", "root — brief");
+    let node = mknode(&g, "02-k2", "build-k2");
     let got = add_one(&g, at(&node), "first", "impl").unwrap();
     assert_eq!(name_of(&got), "01-impl--first-k3.md");
 }
@@ -253,12 +259,12 @@ fn add_addresses_its_parent_by_key_handle_and_slug_alike() {
     // reach the same node.
     for parent in ["2", "[2]", "[2]-build", "build-k2", "build"] {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md", "root — brief");
-        mknode(&g, "02-build-k2", "build-k2");
+        touch(&g, "_BRIEF.md", "root — brief");
+        mknode(&g, "02-k2", "build-k2");
         let got = add_one(&g, parent, "y", "impl").unwrap();
         assert_eq!(
             name_of(got.parent().unwrap()),
-            "02-build-k2",
+            "02-k2",
             "{parent:?} must name the node"
         );
     }
@@ -269,15 +275,15 @@ fn add_refuses_an_ambiguous_parent_slug_and_lists_the_keys() {
     // The one outcome grove's reference grammar has and a key does not, so the
     // library has no counterpart for it and grove must say it itself.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    mknode(&g, "01-build-k1", "build-k1");
-    mknode(&g, "02-build-k2", "build-k2");
+    touch(&g, "_BRIEF.md", "root — brief");
+    mknode(&g, "01-k1", "build-k1");
+    mknode(&g, "02-k2", "build-k2");
     let err = add_one(&g, "build", "y", "impl").unwrap_err().to_string();
     assert!(err.contains("ambiguous"), "got {err}");
     assert!(err.contains("[1]") && err.contains("[2]"), "got {err}");
     assert_eq!(
         list(&g),
-        vec!["01-build-k1", "02-build-k2", "BRIEF.md"],
+        vec!["01-k1", "02-k2", "_BRIEF.md"],
         "nothing was created"
     );
 }
@@ -287,10 +293,10 @@ fn add_assigns_fresh_key_as_max_over_whole_tree_plus_one() {
     // Keys are global, not per-node: the new key is max(key) + 1 across the
     // whole tree, including a deeper subtree's higher key.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    let design = mknode(&g, "01-design-k1", "design-k1");
+    touch(&g, "_BRIEF.md", "root — brief");
+    let design = mknode(&g, "01-k1", "design-k1");
     touch(&design, "01-impl--deep-k7.md", "deep-k7"); // a high key in another subtree
-    let build = mknode(&g, "02-build-k2", "build-k2");
+    let build = mknode(&g, "02-k2", "build-k2");
     let got = add_one(&g, at(&build), "y", "impl").unwrap();
     assert_eq!(name_of(&got), "01-impl--y-k8.md");
 }
@@ -299,8 +305,8 @@ fn add_assigns_fresh_key_as_max_over_whole_tree_plus_one() {
 fn add_counts_done_children_so_a_retired_slot_is_never_reused() {
     // A `DONE` child still occupies its position — the next child is 02, not 01.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    let node = mknode(&g, "02-build-k2", "build-k2");
+    touch(&g, "_BRIEF.md", "root — brief");
+    let node = mknode(&g, "02-k2", "build-k2");
     touch(&node, "01-DONE-impl--x-k3.md", "x-k3");
     let got = add_one(&g, at(&node), "y", "impl").unwrap();
     assert_eq!(name_of(&got), "02-impl--y-k4.md");
@@ -309,8 +315,8 @@ fn add_counts_done_children_so_a_retired_slot_is_never_reused() {
 #[test]
 fn add_counts_abandoned_children_so_a_pruned_slot_is_never_reused() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    let node = mknode(&g, "02-build-k2", "build-k2");
+    touch(&g, "_BRIEF.md", "root — brief");
+    let node = mknode(&g, "02-k2", "build-k2");
     touch(&node, "01-ABANDONED-impl--x-k3.md", "x-k3");
     let got = add_one(&g, at(&node), "y", "impl").unwrap();
     assert_eq!(name_of(&got), "02-impl--y-k4.md");
@@ -319,8 +325,8 @@ fn add_counts_abandoned_children_so_a_pruned_slot_is_never_reused() {
 #[test]
 fn add_counts_node_dir_siblings_when_numbering() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    mknode(&g, "01-design-k1", "design-k1");
+    touch(&g, "_BRIEF.md", "root — brief");
+    mknode(&g, "01-k1", "design-k1");
     let got = add_one(&g, ".", "build", "impl").unwrap();
     assert_eq!(name_of(&got), "02-impl--build-k2.md");
 }
@@ -333,7 +339,7 @@ fn add_preserves_a_gap_a_hand_edit_left_rather_than_filling_it() {
     // and this pins that the two agree — a fill would collide the moment the
     // missing ordinal came back.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
     touch(&g, "05-impl--b-k2.md", "b-k2");
     let got = add_one(&g, ".", "c", "impl").unwrap();
@@ -343,7 +349,7 @@ fn add_preserves_a_gap_a_hand_edit_left_rather_than_filling_it() {
 #[test]
 fn add_writes_kind_in_filename_and_not_in_body() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let got = add_one(&g, ".", "survey", "impl").unwrap();
     let text = body(&got);
     assert!(
@@ -367,8 +373,8 @@ fn every_grow_verb_writes_a_handle_that_matches_its_own_filename() {
     use ordinal_fs_tree::{EntryName, Found, Verdict};
 
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    let node = mknode(&g, "01-design-k1", "design-k1");
+    touch(&g, "_BRIEF.md", "root — brief");
+    let node = mknode(&g, "01-k1", "design-k1");
     touch(&node, "01-impl--deep-k9.md", "deep-k9");
     touch(&g, "02-impl--a-k2.md", "a-k2");
 
@@ -387,7 +393,7 @@ fn every_grow_verb_writes_a_handle_that_matches_its_own_filename() {
                 continue; // the charter, and the format witness
             };
             assert!(
-                body(&path).starts_with(&format!("# {}-k{}\n", parts.slug(), key.get())),
+                body(&path).starts_with(&format!("# {}-k{}\n", parts.slug().unwrap(), key.get())),
                 "the handle in {name} must carry the key its filename does: {:?}",
                 body(&path).lines().next()
             );
@@ -403,7 +409,7 @@ fn every_grow_verb_writes_a_handle_that_matches_its_own_filename() {
 #[test]
 fn add_planning_kind_writes_planning_filename() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let got = add_one(&g, ".", "design", "planning").unwrap();
     assert_eq!(name_of(&got), "01-planning--design-k1.md");
     assert!(!body(&got).contains("**Kind:**"));
@@ -416,8 +422,8 @@ fn add_refuses_a_parent_that_names_nothing_in_the_tree() {
     // reported by the appender; it is a reference that matched neither namespace,
     // reported before any operation is planned (clause 1).
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    let missing = g.join("09-nope-k9");
+    touch(&g, "_BRIEF.md", "root — brief");
+    let missing = g.join("09-k9");
     let err = add_one(&g, at(&missing), "y", "impl")
         .unwrap_err()
         .to_string();
@@ -431,7 +437,7 @@ fn add_errors_when_parent_is_a_leaf_file_not_a_node() {
     // reading the library's own predicate off the snapshot: a node is an entry
     // whose contents are `Some`.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let leaf = touch(&g, "02-impl--build-k2.md", "build-k2");
     let err = add_one(&g, at(&leaf), "y", "impl").unwrap_err().to_string();
     assert!(err.contains("parent is not a node directory"), "got {err}");
@@ -440,10 +446,10 @@ fn add_errors_when_parent_is_a_leaf_file_not_a_node() {
 #[test]
 fn add_errors_when_the_parent_is_the_charter_brief() {
     // The reason grove must keep its own check in front of `TargetNotNode`: a
-    // `BRIEF.md` is an entry with no key at all, so it could not be handed to
+    // `_BRIEF.md` is an entry with no key at all, so it could not be handed to
     // the library as a target however the refusal were worded.
     let (_t, g) = grove();
-    let brief = touch(&g, "BRIEF.md", "root — brief");
+    let brief = touch(&g, "_BRIEF.md", "root — brief");
     let err = add_one(&g, at(&brief), "y", "impl")
         .unwrap_err()
         .to_string();
@@ -459,7 +465,7 @@ fn a_review_chain_is_cut_one_flat_sibling_at_a_time() {
     // directory, no constructor, and nothing that knows the three compose one
     // artifact.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
 
     let producer = add_one(&g, ".", "sync", "design").unwrap();
     let review = add_one(&g, ".", "sync", "review-design").unwrap();
@@ -480,7 +486,7 @@ fn a_review_chain_is_cut_one_flat_sibling_at_a_time() {
             "01-design--sync-k1.md",
             "02-review-design--sync-k2.md",
             "03-integrate-review-design--sync-k3.md",
-            "BRIEF.md",
+            "_BRIEF.md",
         ],
         "and nothing else — no node directory was created for them"
     );
@@ -494,7 +500,7 @@ fn a_review_step_cut_after_unrelated_work_still_appends_at_the_end() {
     // producer — grove validates no cross-leaf grammar and contiguity was always
     // a convention.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     add_one(&g, ".", "sync", "design").unwrap();
     add_one(&g, ".", "unrelated", "impl").unwrap();
 
@@ -511,7 +517,7 @@ fn an_integration_cut_with_insert_lands_beside_the_review_it_integrates() {
     // *mechanics* of obeying it, because the alternative (`leaf-add`, which
     // would put the integration at 04) is equally well-formed.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     add_one(&g, ".", "sync", "design").unwrap();
     add_one(&g, ".", "sync", "review-design").unwrap();
     let unrelated = add_one(&g, ".", "unrelated", "impl").unwrap();
@@ -536,7 +542,7 @@ fn an_integration_cut_with_insert_lands_beside_the_review_it_integrates() {
             "02-review-design--sync-k2.md",
             "03-integrate-review-design--sync-k4.md",
             "04-impl--unrelated-k3.md",
-            "BRIEF.md",
+            "_BRIEF.md",
         ],
         "and the unrelated leaf shifts down, keeping its own key"
     );
@@ -554,7 +560,7 @@ fn add_refuses_a_parent_that_is_not_a_grove_entry_at_all() {
     // that names no entry of the tree, which is what is actually wrong with it —
     // the grammar disclaims the name, so no walk ever reaches it.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let bare = g.join("notes");
     fs::create_dir_all(&bare).unwrap();
     let err = add_one(&g, at(&bare), "y", "impl").unwrap_err().to_string();
@@ -567,7 +573,7 @@ fn add_refuses_a_parent_that_is_not_a_grove_entry_at_all() {
 #[test]
 fn add_errors_on_invalid_slug() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     assert!(add_one(&g, ".", "BRIEF", "impl").is_err());
     assert!(add_one(&g, ".", "Bad Slug", "impl").is_err());
 }
@@ -589,10 +595,10 @@ fn add_errors_when_grove_root_absent() {
 #[test]
 fn add_rejects_finish() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let err = add_one(&g, ".", "x", "finish").unwrap_err().to_string();
     assert!(err.contains("driver-reserved"), "got {err}");
-    assert_eq!(list(&g), vec!["BRIEF.md"], "nothing was created");
+    assert_eq!(list(&g), vec!["_BRIEF.md"], "nothing was created");
 }
 
 /// The driver's own kind is refused whatever the tree holds — here, before the
@@ -606,14 +612,14 @@ fn add_rejects_finish() {
 #[test]
 fn insert_rejects_finish() {
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
     commit_all(&g);
     let err = leaf_insert(guard(&g), "1", &a_slug("x"), &a_kind("finish"))
         .unwrap_err()
         .to_string();
     assert!(err.contains("driver-reserved"), "got {err}");
-    assert_eq!(list(&g), vec!["01-impl--a-k1.md", "BRIEF.md"]);
+    assert_eq!(list(&g), vec!["01-impl--a-k1.md", "_BRIEF.md"]);
 }
 
 // ---- leaf-add-pair ----------------------------------------------------------
@@ -633,7 +639,7 @@ fn insert_rejects_finish() {
 #[test]
 fn pair_emits_three_flat_siblings_with_the_fixed_research_kinds() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let paths = add_pair(&g, ".", "sync-survey").unwrap();
     assert_eq!(
         names_of(&paths),
@@ -658,7 +664,7 @@ fn pair_emits_three_flat_siblings_with_the_fixed_research_kinds() {
             "01-research-a--sync-survey-k1.md",
             "02-research-b--sync-survey-k2.md",
             "03-combine-research--sync-survey-k3.md",
-            "BRIEF.md",
+            "_BRIEF.md",
         ],
         "the run created its three leaves and nothing else"
     );
@@ -667,9 +673,9 @@ fn pair_emits_three_flat_siblings_with_the_fixed_research_kinds() {
 #[test]
 fn pair_appends_after_existing_siblings_and_under_a_node() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
-    let node = mknode(&g, "02-build-k2", "build-k2");
+    let node = mknode(&g, "02-k2", "build-k2");
     touch(&node, "01-impl--x-k3.md", "x-k3");
     let paths = add_pair(&g, at(&node), "api").unwrap();
     assert_eq!(
@@ -681,15 +687,15 @@ fn pair_appends_after_existing_siblings_and_under_a_node() {
         ],
         "the steps continue the parent's positions; the keys continue the whole tree"
     );
-    assert_eq!(name_of(paths[0].parent().unwrap()), "02-build-k2");
+    assert_eq!(name_of(paths[0].parent().unwrap()), "02-k2");
 }
 
 #[test]
 fn pair_rejects_a_malformed_stem_in_its_own_right() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     assert!(add_pair(&g, ".", "foo-").is_err());
-    assert_eq!(list(&g), vec!["BRIEF.md"], "nothing was created");
+    assert_eq!(list(&g), vec!["_BRIEF.md"], "nothing was created");
 }
 
 // ---- one call, one mutation -------------------------------------------------
@@ -702,7 +708,7 @@ fn a_run_that_cannot_read_its_parent_level_creates_nothing_at_all() {
     // wording is now the domain grammar's own `SpeciesMismatch`, which is
     // `refusals-k30`'s *write no second wording* arriving as a message assertion.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     fs::create_dir(g.join("01-research-a--survey-k1.md")).unwrap();
 
     let err = add_pair(&g, ".", "survey").unwrap_err().to_string();
@@ -713,7 +719,7 @@ fn a_run_that_cannot_read_its_parent_level_creates_nothing_at_all() {
     );
     assert_eq!(
         list(&g),
-        vec!["01-research-a--survey-k1.md", "BRIEF.md"],
+        vec!["01-research-a--survey-k1.md", "_BRIEF.md"],
         "only the squatter and the brief — no half-built pair left behind"
     );
 }
@@ -729,7 +735,7 @@ fn an_unwritable_third_destination_refuses_the_whole_run() {
     // sweep existed to keep the operator out of. The observable outcome is what
     // the test is for and it is unchanged: not one of the three survives.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     // `NN-research-a-<stem>-k<key>.md` is stem+20 at a single-digit key;
     // `NN-combine-research-<stem>-k<key>.md` is stem+26. At 235 the run plans
     // two 255-byte names and one 261-byte name: the first two fit, the third
@@ -740,7 +746,7 @@ fn an_unwritable_third_destination_refuses_the_whole_run() {
 
     assert_eq!(
         list(&g),
-        vec!["BRIEF.md"],
+        vec!["_BRIEF.md"],
         "not even the two leaves whose names would have fit"
     );
 }
@@ -752,7 +758,7 @@ fn a_run_that_cannot_get_three_fresh_keys_creates_nothing_at_all() {
     // the same snapshot, before any effect is built, so it is still true that
     // nothing lands. The message is the library's, printed unchanged.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--old-k4294967294.md", "old-k4294967294");
 
     let err = add_pair(&g, ".", "survey").unwrap_err().to_string();
@@ -763,7 +769,7 @@ fn a_run_that_cannot_get_three_fresh_keys_creates_nothing_at_all() {
     );
     assert_eq!(
         list(&g),
-        vec!["01-impl--old-k4294967294.md", "BRIEF.md"],
+        vec!["01-impl--old-k4294967294.md", "_BRIEF.md"],
         "not even the first leaf"
     );
 }
@@ -773,14 +779,14 @@ fn a_level_at_the_last_ordinal_refuses_rather_than_wrapping() {
     // The ordinal's own exhaustion, which grove's appender never checked at all:
     // `next_child_position` added one to a `u32` unguarded. The library refuses.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "4294967295-impl--last-k1.md", "last-k1");
 
     assert!(add_one(&g, ".", "next", "impl").is_err());
 
     assert_eq!(
         list(&g),
-        vec!["4294967295-impl--last-k1.md", "BRIEF.md"],
+        vec!["4294967295-impl--last-k1.md", "_BRIEF.md"],
         "nothing was created"
     );
 }
@@ -790,7 +796,7 @@ fn a_failed_run_leaves_the_next_call_a_clean_slate() {
     // Why all-or-nothing is worth having: a retry after a failure must produce
     // the shape, not a second copy of it under new positions and keys.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let squatter = g.join("01-research-a--survey-k1.md");
     fs::create_dir(&squatter).unwrap();
     assert!(add_pair(&g, ".", "survey").is_err());
@@ -817,7 +823,7 @@ fn a_failed_run_leaves_the_next_call_a_clean_slate() {
 #[test]
 fn a_refused_run_does_not_consume_positions_or_keys() {
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     assert!(add_pair(&g, ".", "foo-").is_err());
     let got = add_one(&g, ".", "plain", "impl").unwrap();
     assert_eq!(name_of(&got), "01-impl--plain-k1.md");
@@ -829,7 +835,7 @@ fn a_shape_is_byte_identical_to_the_same_leaves_cut_by_hand() {
     // shape a human can cut and annotate. The verb's only contribution is that
     // the three land or none does.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let generated = add_pair(&g, ".", "survey").unwrap();
     let generated_bodies: Vec<String> = generated.iter().map(|path| body(path)).collect();
     for path in &generated {
@@ -852,7 +858,7 @@ fn a_shape_is_byte_identical_to_the_same_leaves_cut_by_hand() {
 #[test]
 fn insert_at_occupied_position_shifts_occupant_and_later_siblings_keys_preserved() {
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
     touch(&g, "02-impl--b-k2.md", "b-k2");
     touch(&g, "03-impl--c-k3.md", "c-k3");
@@ -872,7 +878,7 @@ fn insert_at_occupied_position_shifts_occupant_and_later_siblings_keys_preserved
             "02-impl--new-k4.md",
             "03-impl--b-k2.md",
             "04-impl--c-k3.md",
-            "BRIEF.md",
+            "_BRIEF.md",
         ]
     );
 }
@@ -880,35 +886,35 @@ fn insert_at_occupied_position_shifts_occupant_and_later_siblings_keys_preserved
 #[test]
 fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
     // The headline: inserting ahead of a sibling *node* shifts only that node's
-    // own directory name — its `BRIEF.md` and every grandchild stay
+    // own directory name — its `_BRIEF.md` and every grandchild stay
     // byte-identical, name *and* key, because a shift is one rename of one
     // directory.
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    let mid = mknode(&g, "02-mid-k3", "mid-k3");
+    touch(&g, "_BRIEF.md", "root — brief");
+    let mid = mknode(&g, "02-k3", "mid-k3");
     let grandchild = touch_body(
         &mid,
         "01-impl--x-k4.md",
         "# x-k4\n\n**Kind:** impl\n\n## Goal\nstuff\n",
     );
     let grandchild_before = body(&grandchild);
-    let brief_before = body(&mid.join("BRIEF.md"));
+    let brief_before = body(&mid.join("_mid.md"));
     commit_all(&g);
     let inserted = leaf_insert(
         guard(&g),
-        at(&g.join("02-mid-k3")),
+        at(&g.join("02-k3")),
         &a_slug("new"),
         &a_kind("impl"),
     )
     .unwrap();
     assert_eq!(name_of(&inserted.path), "02-impl--new-k5.md");
-    let shifted = g.join("03-mid-k3");
-    assert!(shifted.is_dir(), "node dir shifted to 03-mid-k3");
-    assert!(!g.join("02-mid-k3").exists(), "old node dir name gone");
+    let shifted = g.join("03-k3");
+    assert!(shifted.is_dir(), "node dir shifted to 03-k3");
+    assert!(!g.join("02-k3").exists(), "old node dir name gone");
     assert_eq!(
-        body(&shifted.join("BRIEF.md")),
+        body(&shifted.join("_mid.md")),
         brief_before,
-        "the moved node's BRIEF.md is byte-identical"
+        "the moved node's _BRIEF.md is byte-identical"
     );
     assert_eq!(
         body(&shifted.join("01-impl--x-k4.md")),
@@ -927,7 +933,7 @@ fn insert_cascades_a_sibling_node_subtree_riding_along_byte_identical() {
 #[test]
 fn insert_writes_position_free_header_for_the_new_leaf() {
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
     commit_all(&g);
     let inserted = leaf_insert(
@@ -951,12 +957,12 @@ fn insert_does_not_rewrite_any_existing_file_contents() {
     // — the brief, a leaf, a node's charter and a grandchild — because the
     // claim is about all of them and not about the one that moved.
     let (_t, g) = jj_grove();
-    let root_brief = touch_body(&g, "BRIEF.md", "# root — brief\n\nsee 02-impl--b-k2\n");
+    let root_brief = touch_body(&g, "_BRIEF.md", "# root — brief\n\nsee 02-impl--b-k2\n");
     let a = touch_body(&g, "01-impl--a-k1.md", "# a-k1\n\nfirst\n");
     let b = touch_body(&g, "02-impl--b-k2.md", "# b-k2\n\nbody text\n");
-    let node = mknode(&g, "03-mid-k3", "mid-k3");
+    let node = mknode(&g, "03-k3", "mid-k3");
     let child = touch_body(&node, "01-impl--x-k4.md", "# x-k4\n\ndeep\n");
-    let before: Vec<String> = [&root_brief, &a, &b, &node.join("BRIEF.md"), &child]
+    let before: Vec<String> = [&root_brief, &a, &b, &node.join("_mid.md"), &child]
         .iter()
         .map(|path| body(path))
         .collect();
@@ -965,11 +971,11 @@ fn insert_does_not_rewrite_any_existing_file_contents() {
     leaf_insert(guard(&g), at(&b), &a_slug("new"), &a_kind("impl")).unwrap();
 
     let after: Vec<String> = [
-        &g.join("BRIEF.md"),
+        &g.join("_BRIEF.md"),
         &g.join("01-impl--a-k1.md"),
         &g.join("03-impl--b-k2.md"),
-        &g.join("04-mid-k3").join("BRIEF.md"),
-        &g.join("04-mid-k3").join("01-impl--x-k4.md"),
+        &g.join("04-k3").join("_mid.md"),
+        &g.join("04-k3").join("01-impl--x-k4.md"),
     ]
     .iter()
     .map(|path| body(path))
@@ -985,7 +991,7 @@ fn insert_collision_free_for_a_dense_run_of_siblings() {
     // Stress the highest-first ordering: insert at the head of five siblings; a
     // wrong order would pass through a state carrying a duplicate ordinal.
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     for i in 1..=5 {
         touch(
             &g,
@@ -1003,7 +1009,7 @@ fn insert_collision_free_for_a_dense_run_of_siblings() {
     .unwrap();
     assert_eq!(name_of(&inserted.path), "01-impl--head-k6.md");
     assert_eq!(inserted.renumbered.len(), 5);
-    let leaves: Vec<String> = list(&g).into_iter().filter(|n| n != "BRIEF.md").collect();
+    let leaves: Vec<String> = list(&g).into_iter().filter(|n| n != "_BRIEF.md").collect();
     assert_eq!(
         leaves,
         vec![
@@ -1026,7 +1032,7 @@ fn insert_shifts_highest_ordinal_first_and_reports_the_log_ascending() {
     // level — and `Report::renamed` is in that order. The log an operator reads
     // is the level's own, ascending, so the summary reads like the directory.
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
     touch(&g, "02-impl--b-k2.md", "b-k2");
     touch(&g, "03-impl--c-k3.md", "c-k3");
@@ -1055,8 +1061,8 @@ fn insert_shifts_highest_ordinal_first_and_reports_the_log_ascending() {
 #[test]
 fn insert_inside_a_nested_node_shifts_only_that_levels_siblings() {
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
-    let design = mknode(&g, "01-design-k1", "design-k1");
+    touch(&g, "_BRIEF.md", "root — brief");
+    let design = mknode(&g, "01-k1", "design-k1");
     touch(&design, "01-impl--a-k2.md", "a-k2");
     touch(&design, "02-impl--b-k3.md", "b-k3");
     commit_all(&g);
@@ -1068,7 +1074,7 @@ fn insert_inside_a_nested_node_shifts_only_that_levels_siblings() {
     )
     .unwrap();
     assert_eq!(name_of(&inserted.path), "01-impl--first-k4.md");
-    assert_eq!(name_of(inserted.path.parent().unwrap()), "01-design-k1");
+    assert_eq!(name_of(inserted.path.parent().unwrap()), "01-k1");
     let children = list(&design);
     assert!(children.contains(&"01-impl--first-k4.md".to_string()));
     assert!(children.contains(&"02-impl--a-k2.md".to_string()));
@@ -1080,7 +1086,7 @@ fn insert_inside_a_nested_node_shifts_only_that_levels_siblings() {
 fn insert_addresses_its_target_by_key_handle_and_slug_alike() {
     for target in ["2", "[2]", "[2]-b", "b-k2", "b"] {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "01-impl--a-k1.md", "a-k1");
         touch(&g, "02-impl--b-k2.md", "b-k2");
         let inserted = leaf_insert(guard(&g), target, &a_slug("new"), &a_kind("impl")).unwrap();
@@ -1099,7 +1105,7 @@ fn insert_refuses_a_target_whose_key_names_two_entries() {
     // entry the operator named* is not a thing the tree can answer for — which
     // for this verb decides which slot the insert takes.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
     touch(&g, "02-impl--b-k1.md", "b-k1");
 
@@ -1110,7 +1116,7 @@ fn insert_refuses_a_target_whose_key_names_two_entries() {
     assert!(err.contains("carry key 1"), "got {err}");
     assert_eq!(
         list(&g),
-        vec!["01-impl--a-k1.md", "02-impl--b-k1.md", "BRIEF.md"],
+        vec!["01-impl--a-k1.md", "02-impl--b-k1.md", "_BRIEF.md"],
         "nothing moved"
     );
 }
@@ -1130,11 +1136,11 @@ fn insert_cannot_be_reached_with_an_invalid_slug() {
 #[test]
 fn insert_errors_when_target_is_a_brief() {
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     commit_all(&g);
     let err = leaf_insert(
         guard(&g),
-        at(&g.join("BRIEF.md")),
+        at(&g.join("_BRIEF.md")),
         &a_slug("x"),
         &a_kind("impl"),
     )
@@ -1148,7 +1154,7 @@ fn insert_errors_when_the_target_is_the_grove_root() {
     // own refusal: the library's `insert` would have been handed an ordinal it
     // could not have derived.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let err = leaf_insert(guard(&g), ".", &a_slug("x"), &a_kind("impl"))
         .unwrap_err()
         .to_string();
@@ -1158,7 +1164,7 @@ fn insert_errors_when_the_target_is_the_grove_root() {
 #[test]
 fn insert_errors_when_target_missing() {
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     commit_all(&g);
     assert!(leaf_insert(
         guard(&g),
@@ -1196,7 +1202,7 @@ fn insert_ahead_of_an_untracked_sibling_added_this_session() {
     // Issue #3 verbatim: `leaf-add` then `leaf-insert` ahead of it, with no
     // commit in between.
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     let release = add_one(&g, ".", "release", "impl").unwrap();
     assert_eq!(name_of(&release), "01-impl--release-k1.md");
 
@@ -1220,7 +1226,7 @@ fn insert_ahead_of_an_untracked_sibling_added_this_session() {
 #[test]
 fn insert_renumbers_a_mix_of_committed_and_uncommitted_siblings() {
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
     touch(&g, "02-impl--b-k2.md", "b-k2");
     commit_all(&g); // a and b are committed
@@ -1256,7 +1262,7 @@ fn insert_records_nothing_in_the_committed_revision() {
     // still holds the old name, and the enclosing task's own commit is what
     // folds the shift in.
     let (_t, g) = jj_grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
     commit_all(&g);
 
@@ -1318,7 +1324,7 @@ fn surface_empty_renumbers_emits_nothing() {
     touch_body(
         &g,
         "01-impl--a-k1.md",
-        "# a-k1\n\nrefers to 02-mid-k3 somewhere\n",
+        "# a-k1\n\nrefers to 02-k3 somewhere\n",
     );
     assert_eq!(surfaced(&g, &[]), "");
 }
@@ -1329,11 +1335,11 @@ fn surface_reports_a_stale_position_prefixed_reference_in_a_body() {
     touch_body(
         &g,
         "01-impl--a-k1.md",
-        "# a-k1\n\nthe design lives at 02-mid-k3/01-impl--x-k4.md\n",
+        "# a-k1\n\nthe design lives at 02-k3/01-impl--x-k4.md\n",
     );
-    let out = surfaced(&g, &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")]);
+    let out = surfaced(&g, &[renum(&g, 2, 3, "02-k3", "03-k3")]);
     assert!(out.contains("01-impl--a-k1.md"), "names the file: {out:?}");
-    assert!(out.contains("02-mid-k3"), "shows the stale name: {out:?}");
+    assert!(out.contains("02-k3"), "shows the stale name: {out:?}");
     assert!(
         out.contains(":3:"),
         "1-based line number of the body ref: {out:?}"
@@ -1349,29 +1355,18 @@ fn surface_does_not_flag_the_stable_slug_key_handle() {
         "01-impl--a-k1.md",
         "# a-k1\n\nsee mid-k3 for the design\n",
     );
-    assert_eq!(
-        surfaced(&g, &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")]),
-        ""
-    );
+    assert_eq!(surfaced(&g, &[renum(&g, 2, 3, "02-k3", "03-k3")]), "");
 }
 
 #[test]
 fn surface_reports_hits_recursively_across_nested_files() {
     let (_t, g) = grove();
-    touch_body(
-        &g,
-        "BRIEF.md",
-        "# root — brief\n\nthe plan is at 02-mid-k3\n",
-    );
-    let design = mknode(&g, "01-design-k1", "design-k1");
-    touch_body(
-        &design,
-        "01-impl--a-k2.md",
-        "# a-k2\n\nalso 02-mid-k3 here\n",
-    );
-    let out = surfaced(&g, &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")]);
+    touch_body(&g, "_BRIEF.md", "# root — brief\n\nthe plan is at 02-k3\n");
+    let design = mknode(&g, "01-k1", "design-k1");
+    touch_body(&design, "01-impl--a-k2.md", "# a-k2\n\nalso 02-k3 here\n");
+    let out = surfaced(&g, &[renum(&g, 2, 3, "02-k3", "03-k3")]);
     assert!(
-        out.contains("BRIEF.md") && out.contains("02-mid-k3"),
+        out.contains("_BRIEF.md") && out.contains("02-k3"),
         "{out:?}"
     );
     assert!(
@@ -1389,15 +1384,11 @@ fn surface_scans_the_tree_and_not_the_directory() {
     // scanned. Grove writes no such file, and the alternative is a second,
     // wider notion of *what is in the tree* than the reader has.
     let (_t, g) = grove();
-    touch_body(
-        &g,
-        "BRIEF.md",
-        "# root — brief\n\nthe plan is at 02-mid-k3\n",
-    );
-    touch_body(&g, "NOTES.md", "# notes\n\nalso 02-mid-k3 here\n");
-    let out = surfaced(&g, &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")]);
+    touch_body(&g, "_BRIEF.md", "# root — brief\n\nthe plan is at 02-k3\n");
+    touch_body(&g, "NOTES.md", "# notes\n\nalso 02-k3 here\n");
+    let out = surfaced(&g, &[renum(&g, 2, 3, "02-k3", "03-k3")]);
     assert!(
-        out.contains("BRIEF.md"),
+        out.contains("_BRIEF.md"),
         "the charter is in the tree: {out:?}"
     );
     assert!(!out.contains("NOTES.md"), "a foreign file is not: {out:?}");
@@ -1415,11 +1406,7 @@ fn surface_scans_one_snapshot_under_a_shared_lock() {
     // comes from one consistent snapshot, while `pick`, `kind` and
     // `brief-chain` run alongside it.
     let (_t, g) = grove();
-    touch_body(
-        &g,
-        "BRIEF.md",
-        "# root — brief\n\nthe plan is at 02-mid-k3\n",
-    );
+    touch_body(&g, "_BRIEF.md", "# root — brief\n\nthe plan is at 02-k3\n");
     let tree = shared(&g);
     let worktree = g.parent().unwrap();
 
@@ -1432,9 +1419,9 @@ fn surface_scans_one_snapshot_under_a_shared_lock() {
         "another reader must not be — that is the whole of what shared buys"
     );
 
-    let hits = stale_cross_refs(tree, &[renum(&g, 2, 3, "02-mid-k3", "03-mid-k3")]);
+    let hits = stale_cross_refs(tree, &[renum(&g, 2, 3, "02-k3", "03-k3")]);
     assert!(
-        hits.iter().any(|hit| hit.contains("BRIEF.md")),
+        hits.iter().any(|hit| hit.contains("_BRIEF.md")),
         "the fixture must produce a hit: {hits:?}"
     );
     // And the hazard the old shape had: the scan consumes its guard, so a
@@ -1584,19 +1571,19 @@ fn target_not_node_is_unreachable_because_clause_two_makes_it_so() {
     // **The row said *yes* and named its own contradiction in the next clause:
     // *Grove keeps its own check in front of it*.** Both are true of the design
     // and only one can be true of an operator, and it is grove's message they
-    // see. That is not an accident to be tidied away either: a `BRIEF.md` is an
+    // see. That is not an accident to be tidied away either: a `_BRIEF.md` is an
     // entry carrying no key at all, so it cannot be handed to the library as a
     // target however the refusal is worded — grove *must* classify, and once it
     // has, the library's species refusal sits behind a check grove needed
     // anyway. Every parent argument that is an entry and not a node, then.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--a-k1.md", "a-k1");
-    let node = mknode(&g, "02-build-k2", "build-k2");
+    let node = mknode(&g, "02-k2", "build-k2");
     touch(&node, "01-DONE-impl--x-k3.md", "x-k3");
 
     for parent in [
-        at(&g.join("BRIEF.md")),
+        at(&g.join("_BRIEF.md")),
         at(&g.join("01-impl--a-k1.md")),
         "1",
         at(&node.join("01-DONE-impl--x-k3.md")),
@@ -1645,7 +1632,7 @@ fn destination_occupied_is_unreachable_from_a_shift_however_the_tree_was_edited(
     // ordinals — with the insert aimed at an unrelated third entry, so grove's
     // duplicate-key guard passes and the shift is what has to survive.
     let (_t, g) = grove();
-    touch(&g, "BRIEF.md", "root — brief");
+    touch(&g, "_BRIEF.md", "root — brief");
     touch(&g, "01-impl--target-k9.md", "target-k9");
     touch(&g, "02-impl--twin-k5.md", "twin-k5");
     touch(&g, "03-impl--twin-k5.md", "twin-k5");
@@ -1660,7 +1647,7 @@ fn destination_occupied_is_unreachable_from_a_shift_however_the_tree_was_edited(
             "02-impl--target-k9.md",
             "03-impl--twin-k5.md",
             "04-impl--twin-k5.md",
-            "BRIEF.md",
+            "_BRIEF.md",
         ],
         "the duplicated pair shifted past each other without a collision"
     );
@@ -1743,7 +1730,7 @@ fn leaf_insert_lints_cross_references_under_a_shared_opening_of_its_own() {
     // return, and holding it cost every other reader on the worktree a
     // whole-tree content scan.
     let (worktree, grove_root) = grove_with_node();
-    let brief = grove_root.join("01-plan-k1").join("BRIEF.md");
+    let brief = grove_root.join("01-k1").join("_plan.md");
     let body = fs::read_to_string(&brief).unwrap() + "stale path: 01-impl--first-k2\n";
     fs::write(&brief, body).unwrap();
     task_tree::reset_read_count();
@@ -1753,7 +1740,7 @@ fn leaf_insert_lints_cross_references_under_a_shared_opening_of_its_own() {
     let hits = stale_cross_refs(shared(&grove_root), &inserted.renumbered);
 
     assert!(
-        hits.iter().any(|hit| hit.contains("BRIEF.md:")),
+        hits.iter().any(|hit| hit.contains("_plan.md:")),
         "fixture must exercise a cross-reference hit: {hits:?}"
     );
     assert_eq!(

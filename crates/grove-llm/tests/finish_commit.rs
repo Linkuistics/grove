@@ -132,7 +132,7 @@ fn seed_terminal_grove(repository: &Path) {
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("NOTES.md"), "notes\n").unwrap();
-    fs::write(grove.join("BRIEF.md"), "# finish-test — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# finish-test — brief\n").unwrap();
     fs::write(
         grove.join("01-DONE-impl--finished-k1.md"),
         "# finished-k1\n",
@@ -327,37 +327,20 @@ fn finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf() {
     assert_eq!(tree_snapshot(&grove), before);
 }
 
-/// A lenient key spelling names the leaf it means, and the **permanent record
-/// still names it canonically**.
-///
-/// `Handle::parse` does not require the key's canonical spelling — a handle is a
-/// reference an operator types, not a name on disk — so `finish-k0002` is the
-/// live `finish-k2` and the teardown proceeds, where the string comparison this
-/// replaced refused it. What must not follow is the raw text reaching the commit
-/// message: a task commit names its work item by a handle, and `finish-k0002` is
-/// a handle no name in this tree ever wore (`CONTEXT.md`, *Work-item handle*).
-/// Both halves are asserted here because only the second is a defect, and a test
-/// that pinned the acceptance alone would have passed while the record lied.
+/// A noncanonical handle must not delete the tree or create a teardown commit.
 #[test]
-fn a_lenient_key_spelling_is_accepted_and_committed_canonically() {
+fn a_noncanonical_key_spelling_refuses_without_mutation() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("repository");
     init_repo(&repository);
     seed_terminal_grove(&repository);
-
+    let before = tree_snapshot(&repository.join(".grove"));
+    let parent = parent_description(&repository);
     let output = grove_llm(&repository, &["finish-commit", "finish-k0002"]);
-
-    assert!(
-        output.status.success(),
-        "a lenient key spelling was refused: {}",
-        stderr(&output)
-    );
-    assert!(!repository.join(".grove").exists(), "the tree survived");
-    assert_eq!(
-        parent_description(&repository),
-        "finish-k2: remove completed grove task tree",
-        "the teardown commit named a handle no leaf ever wore"
-    );
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("finish-k0002"));
+    assert_eq!(tree_snapshot(&repository.join(".grove")), before);
+    assert_eq!(parent_description(&repository), parent);
 }
 
 /// A refusal quotes **what the operator typed**, not a re-rendering of it.
@@ -382,7 +365,7 @@ fn a_refused_handle_is_quoted_as_the_operator_wrote_it() {
     );
     let error = stderr(&output);
     assert!(error.contains("other-k007"), "{error}");
-    assert!(error.contains("finish-k2"), "{error}");
+    assert!(error.contains("positive decimal"), "{error}");
     assert_eq!(tree_snapshot(&grove), before);
 }
 
@@ -397,7 +380,7 @@ fn finish_commit_refuses_a_symlinked_task_root_before_deleting_anything() {
     init_repo(&repository);
     let elsewhere = fixture.path().join("elsewhere");
     fs::create_dir_all(&elsewhere).unwrap();
-    fs::write(elsewhere.join("BRIEF.md"), "# elsewhere — brief\n").unwrap();
+    fs::write(elsewhere.join("_BRIEF.md"), "# elsewhere — brief\n").unwrap();
     fs::write(elsewhere.join("02-finish--finish-k2.md"), "# finish-k2\n").unwrap();
     std::os::unix::fs::symlink(&elsewhere, repository.join(".grove")).unwrap();
 
@@ -410,7 +393,7 @@ fn finish_commit_refuses_a_symlinked_task_root_before_deleting_anything() {
         stderr(&output)
     );
     assert!(
-        elsewhere.join("BRIEF.md").exists(),
+        elsewhere.join("_BRIEF.md").exists(),
         "the target was deleted"
     );
 }
@@ -428,7 +411,7 @@ fn finish_commit_refuses_an_untracked_task_tree_naming_how_to_track_it() {
     run("jj", &repository, &["commit", "-m", "ignore the grove"]);
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# untracked — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# untracked — brief\n").unwrap();
     fs::write(grove.join("01-finish--finish-k1.md"), "# finish-k1\n").unwrap();
     let before = tree_snapshot(&grove);
 
@@ -474,7 +457,7 @@ fn finish_commit_refuses_a_working_tree_that_is_not_jj_enabled() {
     let repository = fixture.path().join("repository");
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# no-vcs — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# no-vcs — brief\n").unwrap();
     fs::write(grove.join("01-finish--finish-k1.md"), "# finish-k1\n").unwrap();
     let before = tree_snapshot(&grove);
 

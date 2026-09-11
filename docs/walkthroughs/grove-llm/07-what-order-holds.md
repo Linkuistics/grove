@@ -6,7 +6,7 @@
 ## Twelve verbs, one table
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The four roots and 1,017 lines are
+This chapter owns no production source. The four roots and 1,015 lines are
 already reconstructed by the fragment graph the six chapters before it built,
 and the [source index](source-index.md) records that graph in full. The
 remaining work is what no single chapter could state, because each read one
@@ -38,15 +38,15 @@ nine times its size.
 |---|---|---|---|---|---|---|
 | `root-init` | `Slug`; the kind is fixed at `requirements` and read from no argument | exclusive, and only over a **vacancy** — a live grove is refused by the shape, not by a check | `require_declared`, for the `requirements` leaf it mints | the charter's path, then the first leaf's | nothing; *grove root already exists* is a refusal, not an answer | `root_init_creates_root_brief_and_first_requirements_leaf`, `root_init_refuses_when_grove_already_exists`, `root_init_asks_about_the_requirements_leaf_it_mints` |
 | `pick` | none | shared | — | the next live leaf's path | the *no live leaves* line, when there is none | `picks_first_live_leaf_in_numeric_order`, `fully_retired_grove_prints_diagnostic_and_exits_zero`; the `ABANDONED` skip is measured, with no test in this crate |
-| `brief-chain` | none; the optional path is normalised, not parsed | shared | — | one absolute `BRIEF.md` path per line, root to leaf | the same *no live leaves* line, in the no-argument form | `leaf_two_levels_deep_returns_root_and_ancestor_node_briefs`, `missing_intermediate_brief_is_skipped_silently`, `missing_root_brief_yields_empty_chain`; the diagnostic is established by the handler alone |
+| `brief-chain` | none; the optional path is normalised, not parsed | shared | — | one absolute node-file path per line, root first | the same *no live leaves* line, in the no-argument form | `leaf_two_levels_deep_returns_root_and_ancestor_node_briefs`, `missing_intermediate_node_file_refuses`, `missing_root_node_file_refuses`; the diagnostic is established by the handler alone |
 | `kind` | none; the optional path is normalised | shared | — | the kind label, one lowercase token | the same line again | `every_shipped_kind_round_trips_through_the_verb`, `empty_grove_prints_no_live_leaves_on_stderr_and_exits_zero` |
 | `resolve` | `Reference` | shared | — | the entry's path, or the grove root for `.` | the retired or abandoned note, the not-found line, or the ambiguity listing | `resolve_by_key_bracketed_and_bare`, `resolve_not_found_exits_zero_with_diagnostic`, `resolve_ambiguous_slug_lists_keys_on_stderr`, `resolve_dot_prints_the_grove_root`; six tests in `resolve_rendering.rs` establish the rendering directly through `render_resolution` |
 | `leaf-add` | `Kind` per `--kind`, then `Slug`, then `Reference` | exclusive | `require_declared`, over every kind of the run | each leaf's path in position order, printed after the run landed | nothing | `a_kind_list_lands_three_flat_siblings_at_consecutive_positions_and_keys`, `a_failed_run_prints_no_path_at_all`, `leaf_add_refuses_a_kind_no_template_resolves_for_and_mutates_nothing` |
 | `leaf-insert` | `Kind`, then `Slug`, then `Reference` | exclusive | `require_declared`, over the one kind | the new leaf's path | the renumber summary and then the cross-reference lint — or, with no sibling to renumber, *no siblings to renumber* alone and neither | `insert_at_start_shifts_root_siblings_up_by_one`, `insert_cascades_a_node_subtree_with_position_free_headers`, `leaf_insert_asks_the_same_question` |
-| `leaf-decompose` | `Kind` when `--kind` is given, then `Slug`; the leaf path is normalised | the exclusive one; and, when `--kind` is absent, a shared opening for the inherited kind first, released before it | `require_declared`, over the kind the first child will carry — skipped when no kind can be read, so the verb's own refusal stands | the node's `BRIEF.md`, then the first child's path | nothing | `decompose_with_no_kind_flag_gives_the_first_child_the_parent_leafs_kind`, `leaf_decompose_asks_about_the_kind_its_first_child_will_carry`, `a_verbs_own_refusal_is_not_replaced_by_a_configuration_complaint` |
+| `leaf-decompose` | `Kind` when `--kind` is given, then `Slug`; the leaf path is normalised | the exclusive one; and, when `--kind` is absent, a shared opening for the inherited kind first, released before it | `require_declared`, over the kind the first child will carry — skipped when no kind can be read, so the verb's own refusal stands | the node's `_<slug>.md`, then the first child's path | nothing | `decompose_with_no_kind_flag_gives_the_first_child_the_parent_leafs_kind`, `leaf_decompose_asks_about_the_kind_its_first_child_will_carry`, `a_verbs_own_refusal_is_not_replaced_by_a_configuration_complaint` |
 | `leaf-retire` | none; the path is normalised | exclusive | — it writes no kind | the renamed path | the two steps that remain | `retire_adds_done_infix_in_place`, `retire_names_the_remaining_steps_on_stderr`, `retiring_a_reviewed_producer_changes_only_its_own_filename` |
 | `leaf-prune` | none; the path is normalised | exclusive | — it writes no kind | every marked path, one per line | *nothing live to mark* when it marked none, the untouched `DONE` leaves when there were any — the two are independent — and the two steps last when something was marked | `pruning_a_node_marks_every_leaf_the_same_way`, `prune_of_a_node_reminds_once_for_the_whole_bulk_mark`, `prune_that_marks_nothing_stays_quiet` |
-| `finish-commit` | `Handle`, leniently on the key | none in the handler; the call takes the exclusive opening and holds it through the deletion | — | nothing | `finish-commit <handle>: committed as <change id>` | `a_lenient_key_spelling_is_accepted_and_committed_canonically`, `finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf`, `native_jj_finish_commit_records_only_the_teardown`; the stderr line is established by source alone, with no test in this crate |
+| `finish-commit` | `Handle`, with a canonical positive key | none in the handler; the call takes the exclusive opening and holds it through the deletion | — | nothing | `finish-commit <handle>: committed as <change id>` | `a_noncanonical_key_spelling_refuses_without_mutation`, `finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf`, `native_jj_finish_commit_records_only_the_teardown`; the stderr line is established by source alone, with no test in this crate |
 | `complete` | none; a path and a flag, taken as clap gives them | none — the one verb that opens no tree and resolves no working tree of its own | `require_signal_path`, against the epoch `run` admitted, before the channel is written | nothing | *signalled*, and which of the two things the loop will do; or the no-channel line | `relaunch_signal_is_read_back_as_relaunch`, `done_signal_is_read_back_as_done`, `no_channel_at_all_is_answered_rather_than_refused`, and `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt` (`crates/grove-loop/tests/driver_lease.rs`) for the order |
 
 Five things the table says that no chapter could, because each is a statement
@@ -196,13 +196,11 @@ refusal carries its remedy* is what makes the refusal worth reading. `absent` is
 the one wording behind the fourth row's first case, and it carries
 `grove-llm root-init` in its second line for exactly that reason.
 
-One absent answer is in none of the five rows, and it is the one that shows the
-partition is by *class* rather than by stream. A leaf with no brief above it
-gives `brief-chain` an empty chain: nothing on stdout, nothing on stderr, exit
-`0`, which *Reading the tree* records as the only case where both streams stay
-empty. It is an absent answer that writes no line at all, because a chain of no
-paths is already the whole of the report — and the exit status, which is the half
-a caller acts on, says the same thing there as in the second row.
+
+Missing node files are refusals, including a missing root file. The guarded
+opening returns an error before `brief-chain` can print an incomplete result.
+An empty live-work selection remains a normal answer on a valid tree.
+
 
 The fifth row is clap's and not this module's, and it is in the table because a
 caller cannot tell from the stream alone that it is: a usage error and a refusal
@@ -363,10 +361,10 @@ owns the import block, and chapter 2 owns `run` — and each row turned
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 107 + 119 + 214 + 376 + 101 + 100 = 1,017 lines across 6
+**Owned source.** 107 + 119 + 215 + 376 + 101 + 97 = 1,015 lines across 6
 chapters, and 0 for this one. The seventh row of that table exists to be zero:
 a chapter that owns no source is the shape the structure brief chose for the
-assembly, and the total is the 1,017 the campaign froze.
+assembly, and the total is the 1,015 the campaign froze.
 
 **The corpus's own claims.** No chapter corrected a comment it found wanting:
 as these seven chapters were drafted, each was reproduced as written and
@@ -440,7 +438,7 @@ valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 1,017 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 1,015 resolved and 0 deferred is the whole corpus
 reconstructed.
 
 ```console
@@ -571,7 +569,7 @@ what the library target exists to make possible.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 4 roots, 1,017 lines, 7 chapters, two lookup
+The book is complete: 4 roots, 1,015 lines, 7 chapters, two lookup
 surfaces, zero deferred ranges. What it argued is that a thin command surface
 over a library has exactly one thing left to get right, and that the thing is
 order — three of them, each stated where it happens and each with a different

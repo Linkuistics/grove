@@ -37,19 +37,19 @@ stops existing.
 
 ```text
 <worktree>/.grove/
-├── BRIEF.md
+├── _BRIEF.md
 ├── 01-DONE-requirements--plan-k1.md      every leaf terminal
-└── 02-build-k3/
-    ├── BRIEF.md
+└── 02-k3/
+    ├── _build.md
     └── 01-DONE-impl--step-k4.md
 
 materialize_finish(guard)          no live work under an exclusive guard
 
 <worktree>/.grove/
-├── BRIEF.md
+├── _BRIEF.md
 ├── 01-DONE-requirements--plan-k1.md
-├── 02-build-k3/
-│   ├── BRIEF.md
+├── 02-k3/
+│   ├── _build.md
 │   └── 01-DONE-impl--step-k4.md
 └── 03-finish--finish-k5.md        the one leaf that leaf-add may not write
                                    "# finish-k5", and inside it:
@@ -75,9 +75,9 @@ Rust convention — items, then `#[cfg(test)] mod tests` — and the book is ord
 by concept, so the two orders disagree. They disagree most sharply here.
 
 **The file opens on finishing and the book closes on it.** This chapter owns
-`tree_lifecycle.rs` lines 1 to 331 — the module header, the imports, and every
+`tree_lifecycle.rs` lines 1 to 326 — the module header, the imports, and every
 item of the finish lifecycle — which is the file's *first* block and the largest
-of its five production blocks. It also owns lines 1,467 to 1,665, the eight
+of its five production blocks. It also owns lines 1,500 to 1,694 the eight
 inline tests that exercise the transition and the sentinel. 530 lines in all,
 and the chapter that reads them is the twentieth of the book's twenty
 source-owning pages.
@@ -106,7 +106,7 @@ scaffold is for*, which is this chapter's and no other's.
 **And this chapter's tests are split from its production across a chapter
 boundary.** Every test helper the eight tests below call — `worktree`,
 `guard_at`, `root_init_at`, `touch`, `body`, `name_of`, `list`, `a_kind` — is
-defined in chapter 11's support block at lines 1,077 to 1,466. So is
+defined in chapter 11's support block at lines 1,084 to 1,499. So is
 `leaf_retire`, which two of them call to reach a tree with no live work; that is
 [chapter 13's verb](13-outcomes.md#two-verbs-one-mark). This page reads none of
 them and depends on all of them.
@@ -118,7 +118,7 @@ them and depends on all of them.
 The file's first forty-three lines are its module header, and they are the
 crate's clearest statement of what the domain-free libraries left behind.
 
-<!-- fragment «finish-transition» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1-331" parent="source-tree-lifecycle" -->
+<!-- fragment «finish-transition» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1-326" parent="source-tree-lifecycle" -->
 <!-- insert «finishing-module-header» -->
 <!-- insert «finishing-imports» -->
 <!-- insert «finishing-default-slug» -->
@@ -162,13 +162,13 @@ their doc comment ends and their body begins.
 // place; prune marks abandonment in place, pruning) and changes the
 // *mechanics* to the filesystem's shape:
 //
-//   * `root-init` creates the grove whole — the root, its `BRIEF.md` (the one
+//   * `root-init` creates the grove whole — the root, its `_BRIEF.md` (the one
 //     unkeyed singleton) and a first **requirements** leaf
 //     `01-requirements--<slug>-k1.md`, a 2-digit per-level position — as one
 //     store operation under one lock;
 //   * `leaf-decompose` turns the leaf *file* `NN-<kind>--<slug>-k<key>.md` into a node
-//     *directory* `NN-<slug>-k<key>/` (**key preserved** — the entity that was the
-//     leaf becomes the node), renaming the leaf body in as the node's `BRIEF.md`
+//     *directory* `NN-k<key>/` (**key preserved** — the entity that was the
+//     leaf becomes the node), renaming the leaf body in as the node's `_<slug>.md`
 //     and growing a first child atomically so a node is never childless;
 //   * `leaf-retire` adds a `DONE` infix in place (`NN-<kind>--<slug>-k<key>.md` →
 //     `NN-DONE-<kind>--<slug>-k<key>.md`), keeping the retired leaf in its directory at its
@@ -216,9 +216,9 @@ dispatches*. There is no `llm_cli` anywhere in this workspace and there is no
 behaviour the sentence claims is correct and only the address is stale** — the
 verbs really are the ones that binary dispatches — which is why this is a clause
 on the page and not a leaf. The same spelling survives in four comments across
-the crate; chapter 6 adjudicated the one at `task_tree.rs` line 1,070 and
+the crate; chapter 6 adjudicated the one at `task_tree.rs` line 1,077 and
 [chapter 11](11-a-grove-begins.md#what-the-tests-establish) the one at line
-1,147 of this file, on the same ground.
+1,175 of this file, on the same ground.
 
 **The second is a citation, and it is the more interesting of the two.** Line 8
 tags the lifecycle verbs `(task-tree-scheme)`, and line 12 says the module
@@ -318,7 +318,7 @@ illustrative.
 
 Two things about it are worth a reader's care, and both are recorded rather than
 argued here. The wrapper `default_root_slug` that validates it into a `Slug` is
-[chapter 11's](11-a-grove-begins.md#the-value-nothing-holds), at line 351 of this
+[chapter 11's](11-a-grove-begins.md#the-value-nothing-holds), at line 346 of this
 file and so 295 lines below the constant; its doc comment used to open *The slug
 `root-init` uses when nobody supplied one* — which `root_init` does not, taking a
 validated `Slug` from its caller — and now names the one caller
@@ -404,7 +404,7 @@ pub(crate) fn transition_to_current(worktree: &Path) -> Result<CurrentTransition
             RootShape::ATree => Ok(CurrentTransition::AlreadyCurrent),
             RootShape::Taskless => bail!(
                 "the task tree in {} holds no task, only its charter. Grove creates a grove \
-                 whole — the root, its `BRIEF.md` and a first leaf in one operation — so this \
+                 whole — the root, its `_BRIEF.md` and a first leaf in one operation — so this \
                  is a tree something emptied rather than one Grove left half-built, and Grove \
                  does not repair a tree in place: put it back with `jj undo`, or move {} aside \
                  and let `grove` scaffold a fresh one",
@@ -821,7 +821,7 @@ remedy is jj's, which is the division this whole section keeps.
 case falling through to the opening below; the three before it are the three
 things that are wrong before a lock is worth taking.
 
-<!-- fragment «finishing-commit-revalidate» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="227-259" parent="finish-transition" -->
+<!-- fragment «finishing-commit-revalidate» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="227-254" parent="finish-transition" -->
 ````rust
     let tree = task_tree::write(&grove_root)?;
     let selection = task_tree::select_in_write(&tree)?
@@ -833,14 +833,9 @@ things that are wrong before a lock is worth taking.
             selection.path.display()
         );
     }
-    // **The refusal quotes what the operator asked for; everything downstream
-    // uses the tree's own handle.** `Handle::parse` — which the caller ran to
-    // get here — is deliberately lenient on the key's spelling, so
-    // `finish-k0001` is the live `finish-k1` and compares equal, which is right:
-    // the operator meant that leaf. But the teardown commit is a permanent
-    // record and must name the work item by the handle a name on disk actually
-    // wore (`CONTEXT.md`, *Work-item handle*), so `selection.handle` is what
-    // goes past this point.
+    // Compare the requested canonical handle with the live finish leaf.
+    // The teardown commit uses the handle read from this guarded selection,
+    // keeping its permanent record tied to the actual work-item identity.
     if &selection.handle != finish {
         bail!(
             "requested finish handle {finish} does not match the live finish leaf {}",
@@ -873,16 +868,12 @@ untouched for the next iteration. That is the whole of the *no ordinary work
 slipped in* guarantee, and it is possible only because the check and the deletion
 happen under one guard.
 
-**The third check's comment is a distinction worth the eight lines it takes.**
-`Handle::parse` is deliberately lenient about a key's spelling, so an operator
-who types `finish-k0001` is understood to mean the live `finish-k1`, and the two
-compare equal. That leniency is right at the front door: the operator meant that
-leaf. But the teardown **commit message** is a permanent record, and a permanent
-record must name the work item by the handle a name on disk actually wore. So the
-refusal quotes `finish` — what the operator asked for — and everything downstream
-of this point uses `selection.handle`, the tree's own. Two handles that compare
-equal are not two spellings of one string, and the code is explicit about which
-of them survives into history.
+
+The requested finish handle is compared with the selected live finish
+leaf's handle. Handle parsing requires a canonical positive key; a spelling
+such as `finish-k0001` refuses before deletion. The committed description uses
+`selection.handle`, the identity read from the guarded tree.
+
 
 The closing comment covers a question a careful reader will have about the lock.
 The exclusive guard is held across the teardown, so nothing observes `.grove/`
@@ -896,7 +887,7 @@ is created and through its deletion, so root initialization, finish allocation
 and deletion all share one invariant. This chapter is the only place in the book
 where the *through its deletion* half of that sentence is exercised.
 
-<!-- fragment «finishing-delete-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="260-264" parent="finish-transition" -->
+<!-- fragment «finishing-delete-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="255-259" parent="finish-transition" -->
 ````rust
 /// Delete `.grove/` and commit the deletion. Two steps, and each names the
 /// operation-log command that puts the tree back if it is the one that failed.
@@ -908,7 +899,7 @@ where the *through its deletion* half of that sentence is exercised.
 The body is the two steps the contract promised, and three comments inside it
 carry more argument than the code does.
 
-<!-- fragment «finishing-delete-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="265-307" parent="finish-transition" -->
+<!-- fragment «finishing-delete-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="260-302" parent="finish-transition" -->
 ````rust
 fn delete_and_commit(workspace: &Workspace, tree: Guard, finish_handle: &Handle) -> Result<Commit> {
     let grove_root = tree.root().to_path_buf();
@@ -983,7 +974,7 @@ copy*, so the advice is to get it back, fix what made the commit fail, and rerun
 Each message names the operation-log command for its own failure, which is what
 the contract above promises.
 
-<!-- fragment «finishing-recoverable-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="308-317" parent="finish-transition" -->
+<!-- fragment «finishing-recoverable-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="303-312" parent="finish-transition" -->
 ````rust
 /// The one precondition deletion has: jj can only put back what it tracks.
 ///
@@ -1000,7 +991,7 @@ the contract above promises.
 The function itself is four lines: ask the seam whether jj tracks anything under
 the root, return if it does, and otherwise refuse.
 
-<!-- fragment «finishing-recoverable-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="318-331" parent="finish-transition" -->
+<!-- fragment «finishing-recoverable-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="313-326" parent="finish-transition" -->
 ````rust
 fn require_recoverable_grove(workspace: &Workspace, grove_root: &Path) -> Result<()> {
     if workspace.is_tracked(grove_root)? {
@@ -1041,14 +1032,14 @@ code that runs before a grove stops existing.**
 <a id="what-the-eight-tests-establish"></a>
 ## What the eight tests establish, and what each would pass under
 
-The chapter's second block is `tree_lifecycle.rs` lines 1,467 to 1,665 — 199
+The chapter's second block is `tree_lifecycle.rs` lines 1,500 to 1,694 — 199
 lines holding eight tests, at 17% comment prose against 15% across the file's
 test module. Four exercise `materialize_finish` and four `transition_to_current`,
 and every helper they call belongs to chapter 11's support block above them.
 
 **A boundary worth stating before the tests are read.** These eight are not all
 the inline tests of the two functions above. Three more `transition_to_current`
-tests sit at lines 1,335, 1,385 and 1,447 — inside `root-init-tests`, which is
+tests sit at lines 1,368 1,385 and 1,447 — inside `root-init-tests`, which is
 chapter 11's block — and they hold arms of this chapter's production. A test
 belongs to the block its line number falls in, not to the verb it exercises, and
 this file is where that is easiest to get wrong, because its concerns and the
@@ -1067,7 +1058,7 @@ reproduce them. The measurement section below is where that split does its work.
 <a id="the-three-spellings-pinned"></a>
 ### The sentinel, and the three spellings of its key
 
-<!-- fragment «finish-tests» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1470-1668" parent="source-tree-lifecycle" -->
+<!-- fragment «finish-tests» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1503-1697" parent="source-tree-lifecycle" -->
 <!-- insert «finishing-test-three-spellings» -->
 <!-- insert «finishing-test-last-key» -->
 <!-- insert «finishing-test-last-ordinal» -->
@@ -1080,7 +1071,7 @@ reproduce them. The measurement section below is where that split does its work.
 The first test is the chapter's named pin, and the one the structure brief
 nominates for the rule this page carries.
 
-<!-- fragment «finishing-test-three-spellings» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1470-1498" parent="finish-tests" -->
+<!-- fragment «finishing-test-three-spellings» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1503-1531" parent="finish-tests" -->
 ````rust
     /// The driver's sentinel embeds its own key in its handle, its body and the
     /// `finish-commit` command it tells the session to run — so a key the library
@@ -1141,7 +1132,7 @@ The next two tests take the sentinel to the two exhaustion boundaries the
 library can refuse at — the key space and the ordinal space — and they are not
 equally strong.
 
-<!-- fragment «finishing-test-last-key» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1499-1525" parent="finish-tests" -->
+<!-- fragment «finishing-test-last-key» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1532-1558" parent="finish-tests" -->
 ````rust
     /// **The two refusals this leaf's own table row predicts, transcribed.**
     /// `materialize-finish` is an `append` at the root level, so it reaches
@@ -1153,7 +1144,7 @@ equally strong.
         let (_t, wt) = worktree();
         let grove_root = wt.join(".grove");
         fs::create_dir(&grove_root).unwrap();
-        touch(&grove_root, "BRIEF.md", "my-grove — brief");
+        touch(&grove_root, "_BRIEF.md", "my-grove — brief");
         touch(
             &grove_root,
             "01-DONE-impl--old-k4294967295.md",
@@ -1194,14 +1185,14 @@ succeed on the tree whose `next_key` returned `None`. This test looks like the
 one that covers the `None` key and is in fact the demonstration that grove's own
 handling of it is dead. The measurement below confirms it.
 
-<!-- fragment «finishing-test-last-ordinal» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1526-1542" parent="finish-tests" -->
+<!-- fragment «finishing-test-last-ordinal» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1559-1575" parent="finish-tests" -->
 ````rust
     #[test]
     fn a_root_level_at_the_last_ordinal_refuses_the_sentinel_rather_than_wrapping() {
         let (_t, wt) = worktree();
         let grove_root = wt.join(".grove");
         fs::create_dir(&grove_root).unwrap();
-        touch(&grove_root, "BRIEF.md", "my-grove — brief");
+        touch(&grove_root, "_BRIEF.md", "my-grove — brief");
         touch(&grove_root, "4294967295-DONE-impl--last-k1.md", "last-k1");
 
         assert!(materialize_finish(guard_at(&wt)).is_err());
@@ -1235,7 +1226,7 @@ intent and not in strength.
 The fourth `materialize_finish` test is the one that pins resumability, and it
 does it with two assertions that have to be read together.
 
-<!-- fragment «finishing-test-reuse» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1543-1565" parent="finish-tests" -->
+<!-- fragment «finishing-test-reuse» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1576-1598" parent="finish-tests" -->
 ````rust
     /// The re-selection and the allocation read one snapshot under one exclusive
     /// guard, so nothing can appear between finding no live work and creating the
@@ -1288,14 +1279,14 @@ narrower half is the half that is checked.
 The block's last four tests exercise `transition_to_current`. Two of them reach
 its `match` and two, as the measurement below shows, never do.
 
-<!-- fragment «finishing-test-already-current» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1566-1584" parent="finish-tests" -->
+<!-- fragment «finishing-test-already-current» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1599-1617" parent="finish-tests" -->
 ````rust
     #[test]
     fn transition_leaves_a_current_grove_unchanged_and_ready_for_pick() {
         let (_temporary, worktree) = worktree();
         let grove_root = worktree.join(".grove");
         fs::create_dir(&grove_root).unwrap();
-        touch(&grove_root, "BRIEF.md", "my-grove — brief");
+        touch(&grove_root, "_BRIEF.md", "my-grove — brief");
         let leaf = touch(&grove_root, "01-impl--task-k1.md", "task-k1");
         crate::task_tree::reset_read_count();
 
@@ -1328,7 +1319,7 @@ technique is present in the same block and simply is not used here. The
 *unchanged* in the name is carried by the read count, which is good evidence and
 is not the same claim.
 
-<!-- fragment «finishing-test-malformed-name» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1585-1615" parent="finish-tests" -->
+<!-- fragment «finishing-test-malformed-name» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1618-1648" parent="finish-tests" -->
 ````rust
     /// **A tree grove cannot read is not a tree grove scaffolds over.** A
     /// malformed name is an entry — held badly — and appending a first leaf
@@ -1346,7 +1337,7 @@ is not the same claim.
         let (_temporary, worktree) = worktree();
         let grove_root = worktree.join(".grove");
         fs::create_dir(&grove_root).unwrap();
-        touch(&grove_root, "BRIEF.md", "my-grove — brief");
+        touch(&grove_root, "_BRIEF.md", "my-grove — brief");
         touch(&grove_root, "01-task-k1.md", "task-k1");
 
         let error = transition_to_current(&worktree).unwrap_err();
@@ -1388,30 +1379,26 @@ The assertion that carries real weight is the second — that
 *scaffolds past* failure the test is named for, and it is the one an
 implementation could plausibly get wrong.
 
-<!-- fragment «finishing-test-no-grove-entries» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1616-1644" parent="finish-tests" -->
+<!-- fragment «finishing-test-no-grove-entries» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1649-1673" parent="finish-tests" -->
 ````rust
-    /// **A tree grove cannot spell at all stops with a sentence.** The layouts
-    /// grove wrote before the current grammar are positioned but unkeyed, so
-    /// every one of their names is `Foreign` — invisible to the reader rather
-    /// than refused by it. Left at that, an old tree would read as an empty
-    /// grove and the driver would materialize a finish sentinel into it. So the
-    /// listing having no Grove entry at all is itself the anomaly, and it is
-    /// named rather than repaired (principle 2; migration is gone).
+    /// A valid root node file plus foreign material is Unrecognised when no
+    /// positioned work exists. It is refused without changing that material.
     #[test]
     fn transition_refuses_a_root_holding_no_grove_entry_at_all() {
         let (_temporary, worktree) = worktree();
         let grove_root = worktree.join(".grove");
         fs::create_dir(&grove_root).unwrap();
-        touch(&grove_root, "030-ship.md", "030-ship");
-        fs::create_dir(grove_root.join("020-spec")).unwrap();
+        touch(&grove_root, "_BRIEF.md", "root brief");
+        touch(&grove_root, "notes.md", "notes");
+        fs::create_dir(grove_root.join("notes")).unwrap();
         let before = list(&grove_root);
 
         let error = transition_to_current(&worktree).unwrap_err();
 
         let message = format!("{error:#}");
         assert!(message.contains("holds no Grove entries"), "{message}");
-        assert!(message.contains("020-spec"), "{message}");
-        assert!(message.contains("030-ship.md"), "{message}");
+        assert!(message.contains("notes"), "{message}");
+        assert!(message.contains("notes.md"), "{message}");
         assert!(
             message.contains("NN-<kind>--<slug>-k<key>"),
             "the refusal must say what a name should look like: {message}"
@@ -1446,7 +1433,7 @@ this block. Of the four message assertions, three name strings the arm
 interpolates and one names the grammar template it hard-codes; that last one is
 the assertion that would notice the message losing its actionable half.
 
-<!-- fragment «finishing-test-dangling-symlink» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1645-1668" parent="finish-tests" -->
+<!-- fragment «finishing-test-dangling-symlink» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1674-1697" parent="finish-tests" -->
 ````rust
     #[cfg(unix)]
     #[test]
@@ -1494,10 +1481,11 @@ second assertion is the load-bearing one: it re-`symlink_metadata`s the path and
 requires it still be a symlink, which is what rules out a transition that
 "helpfully" replaced the dangling link with a real directory.
 
-**It is also the only `#[cfg(unix)]` in the book's entire corpus.** Thirteen
-roots and 10,593 lines carry exactly one platform-guarded item, and it is this
-test — because a dangling symlink is the one fixture in the crate that cannot be
-built portably. The block's other seven tests are platform-neutral.
+
+This test uses `#[cfg(unix)]` because its dangling-symlink fixture is
+platform-specific. The node-file black-box tests also exercise symlink refusal
+on supported platforms.
+
 
 
 <a id="what-the-refusals-are-worth"></a>

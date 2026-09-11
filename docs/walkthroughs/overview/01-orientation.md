@@ -343,7 +343,7 @@ and the human's configuration maps the `impl` kind to a command:
 /work/atlas/
 ├── .jj/
 ├── .grove/
-│   ├── BRIEF.md
+│   ├── _BRIEF.md
 │   └── 01-impl--rate-limit-k3.md          live: no DONE or ABANDONED infix
 └── crates/
     └── gateway/

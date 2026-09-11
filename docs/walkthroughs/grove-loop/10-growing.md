@@ -40,7 +40,7 @@ prediction. Everything before this point in the example only read.
 
 ```text
 .grove/                                  the grove as root-init left it
-├── BRIEF.md                             the charter — no ordinal, no key
+├── _BRIEF.md                             the charter — no ordinal, no key
 └── 01-requirements--plan-k1.md          ordinal 01, key 1
 
 leaf-add . survey --kind impl
@@ -578,7 +578,7 @@ is not.** The grove root is refused with advice rather than a diagnosis — *use
 `leaf-add .` to append at the root* — because inserting at the root's slot is
 not a mistake about syntax but a request for the other verb. The charter brief
 is refused on `triple()` returning `None`, which is the grammar's own way of
-saying *this name carries no ordinal and no key*: `BRIEF.md` is an entry the
+saying *this name carries no ordinal and no key*: `_BRIEF.md` is an entry the
 library will happily hand back and an entity grove has no slot for.
 
 **`addressable_key` is here for a reason the verb's own return value hides.**
@@ -736,7 +736,7 @@ argument is almost entirely about a lock.
 /// means there is nothing to do.
 ///
 /// **It scans the tree, where it used to scan the directory.** The bodies are
-/// every leaf and every `BRIEF.md` the snapshot holds, which is what grove has
+/// every leaf and node file the snapshot holds, which is what grove has
 /// under the guard and exactly the set the reader admits. A foreign `.md` file
 /// dropped inside `.grove/` by hand is no longer scanned; grove writes none, and
 /// the alternative is a second, wider notion of *what is in the tree* than every
@@ -775,7 +775,7 @@ deliberately *not* surfaced — it did not move — and every hit is something a
 operator should look at rather than something a tool should silently rewrite.
 
 **It scans the tree, where it used to scan the directory**, and the difference
-is what counts as *in the tree*. The bodies are every leaf and every `BRIEF.md`
+is what counts as *in the tree*. The bodies are every leaf and every node file
 the snapshot holds, which is what grove has under the guard and exactly the set
 the reader admits; a foreign `.md` file dropped into `.grove/` by hand is no
 longer scanned. The comment states the alternative and rejects it — a second,
@@ -826,8 +826,8 @@ pub(crate) fn stale_cross_refs(tree: Tree, renumbered: &[Renumber]) -> Vec<Strin
     // the paths inside a shifted node moved with it, so the tree this scans is
     // the one the shift *left*.
     // The stale tokens are the *old* position-prefixed names the renumber moved
-    // (`02-mid-k3`), with any `.md` extension dropped so a path reference
-    // `02-mid-k3/01-impl--x-k4.md` matches the directory token. The `-k<digits>`
+    // (`02-k3`), with any `.md` extension dropped so a path reference
+    // `02-k3/01-impl--x-k4.md` matches the directory token. The `-k<digits>`
     // tail makes these specific enough to scan as plain substrings.
     let stale: Vec<String> = renumbered
         .iter()
@@ -876,15 +876,15 @@ introduced. Chapter 15 reads the wrapper.
 
 **The stale tokens are the old names with `.md` dropped, and the reason is a
 directory reference.** A leaf reference in a body may be written as a path —
-`02-mid-k3/01-impl--x-k4.md` — in which the moved entry appears as the bare
-directory token `02-mid-k3`. Stripping the extension makes one token match both
+`02-k3/01-impl--x-k4.md` — in which the moved entry appears as the bare
+directory token `02-k3`. Stripping the extension makes one token match both
 spellings. What makes the tokens safe to scan as plain substrings rather than as
 a parsed grammar is the `-k<digits>` tail, and the comment says so: a
 position-prefixed name ending in a key is specific enough that a substring hit
 is a real hit.
 
 **The scan admits exactly what the reader admits.** `Species::Leaf` and
-`Species::Distinguished` are every task file and every `BRIEF.md` and nothing
+`Species::Distinguished` are every task file and every node file and nothing
 else, and `task_tree::entry_path` — chapter 6's one place a path is built —
 turns each into an absolute path. The sort is on paths, so the hits come out in
 path order rather than in walk order, which is what an operator scanning a list
@@ -927,7 +927,7 @@ fn parent_node(tree: &Guard, parent: &str) -> Result<Target> {
             if entry.contents().is_none() {
                 bail!(
                     "parent is not a node directory (need a directory named \
-                     NN-<slug>-k<key>): {}",
+                     NN-k<key>): {}",
                     task_tree::entry_path(root, entry).display()
                 );
             }
@@ -1469,12 +1469,11 @@ end the borrow, and why `stale_cross_refs` has to say out loud that it is
 looking at a *different* tree from the one the insert planned against. A layer
 that checked against a fresh read would look identical and be a race.
 
-**With this chapter, Part II is complete.** `task_tree.rs` closed at the end of
-chapter 9, all 2,038 lines of it across five chapters; `task_grow.rs` closes
-here in one, and the two files together are the 2,541 lines Part II owns. Ten of
-the book's twenty source-owning chapters are now written and 4,715 of its 10,593
-lines are reconstructed — a shade under half — with the remaining 5,842 still
-deferred to their own chapters.
+
+Part II’s source roots, `task_tree.rs` and `task_grow.rs`, are reconstructed
+across chapters 5 through 10. The source index records their current ranges
+and each chapter’s ownership; the final check verifies complete reconstruction.
+
 
 Chapter 11 opens Part III, and the change is bigger than another file.
 `tree_lifecycle.rs` is 2,732 lines — the largest root in the crate — and its

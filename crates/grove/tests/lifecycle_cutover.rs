@@ -163,7 +163,7 @@ fn bare_grove_launches_the_selected_filename_kind_with_one_mandate_argument() {
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# cutover — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# cutover — brief\n").unwrap();
     fs::write(
         grove.join("01-impl--selected-work-k7.md"),
         "# selected-work-k7\n",
@@ -279,7 +279,7 @@ fn a_secondary_workspace_expands_scalars_through_literal_env_word_zero() {
 
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# secondary — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# secondary — brief\n").unwrap();
     fs::write(grove.join("01-impl--scalars-k7.md"), "# scalars-k7\n").unwrap();
 
     let argv_log = fixture.path().join("scalar-argv.log");
@@ -342,7 +342,7 @@ fn assert_bare_grove_launches_a_session_in_a_jj_worktree(colocate: bool) {
 
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# native-jj — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# native-jj — brief\n").unwrap();
     fs::write(
         grove.join("01-impl--task-k1.md"),
         "# task-k1\n\n## Goal\nLaunch.\n",
@@ -423,7 +423,7 @@ fn invalid_config_leaves_current_empty_and_partial_trees_byte_identical() {
         init_worktree(&worktree);
         let grove = worktree.join(".grove");
         fs::create_dir_all(&grove).unwrap();
-        fs::write(grove.join("BRIEF.md"), format!("# {state} — brief\n")).unwrap();
+        fs::write(grove.join("_BRIEF.md"), format!("# {state} — brief\n")).unwrap();
         match state {
             "current" => {
                 fs::write(grove.join("01-impl--task-k1.md"), "# task-k1\n").unwrap();
@@ -472,7 +472,7 @@ fn an_unwritable_control_directory_fails_before_configuration_or_tree_access() {
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# unwritable — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# unwritable — brief\n").unwrap();
     fs::write(grove.join("01-task-k1.md"), "# task-k1\n\n**Kind:** impl\n").unwrap();
     let before = tree_snapshot(&grove);
 
@@ -594,7 +594,7 @@ fn relaunch_reloads_config_and_uses_the_new_filename_kind() {
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# reload — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# reload — brief\n").unwrap();
     fs::write(grove.join("01-impl--first-k1.md"), "# first-k1\n").unwrap();
 
     let log = fixture.path().join("reload.log");
@@ -663,7 +663,7 @@ fn insertion_during_launch_does_not_change_the_session_mandate() {
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# insertion — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# insertion — brief\n").unwrap();
     fs::write(grove.join("02-impl--selected-k7.md"), "# selected-k7\n").unwrap();
 
     let prompt_log = fixture.path().join("insert.log");
@@ -705,7 +705,7 @@ fn spawn_failure_names_the_kind_executable_and_config_without_retiring_the_leaf(
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# failure — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# failure — brief\n").unwrap();
     let leaf = grove.join("01-impl--still-live-k9.md");
     fs::write(&leaf, "# still-live-k9\n").unwrap();
     let missing = fixture.path().join("missing configured executable");
@@ -765,7 +765,7 @@ fn nonsignalled_nonzero_exit_reports_status_elapsed_and_launch_identity() {
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# nonzero — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# nonzero — brief\n").unwrap();
     fs::write(grove.join("01-design--crashing-k4.md"), "# crashing-k4\n").unwrap();
     let fake = fixture.path().join("exit-23.sh");
     write_executable(&fake, "#!/bin/sh\nexit 23\n");
@@ -840,7 +840,7 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
                     "done/010-groundwork.md",
                     "# 010-groundwork\n\n**Kind:** impl\n\n## Goal\nDone.\n",
                 ),
-                ("020-spec/BRIEF.md", "# 020-spec — brief\n"),
+                ("020-spec/_BRIEF.md", "# 020-spec — brief\n"),
                 (
                     "020-spec/010-draft.md",
                     "# 010-draft\n\n**Kind:** design\n\n## Goal\nDraft.\n",
@@ -856,7 +856,7 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
                     "1-[1]-groundwork.DONE.md",
                     "# 1-[1]-groundwork\n\n**Kind:** impl\n\n## Goal\nDone.\n",
                 ),
-                ("2-[2]-spec.BRIEF.md", "# 2-[2]-spec — brief\n"),
+                ("2-[2]-spec._BRIEF.md", "# 2-[2]-spec — brief\n"),
                 (
                     "2.1-[3]-draft.md",
                     "# 2.1-[3]-draft\n\n**Kind:** design\n\n## Goal\nDraft.\n",
@@ -906,16 +906,13 @@ fn a_withdrawn_layout_is_refused_without_touching_the_tree() {
             "bare grove must stop on a {name} tree; stderr was {stderr}"
         );
         assert!(
-            stderr.contains("holds no Grove entries")
-                && stderr.contains("NN-<kind>--<slug>-k<key>"),
+            stderr.contains("malformed Grove") && stderr.contains("NN-k<key>"),
             "the refusal must name the grammar grove reads: {stderr}"
         );
-        for entry in entries {
-            assert!(
-                stderr.contains(entry),
-                "the refusal must name {entry:?}: {stderr}"
-            );
-        }
+        assert!(
+            entries.iter().any(|entry| stderr.contains(entry)),
+            "the refusal must name an offending entry: {stderr}"
+        );
         assert!(
             !launched.exists(),
             "no session may be launched over a tree Grove refused to read"
@@ -952,7 +949,7 @@ fn a_finish_leaf_is_not_written_when_no_finish_template_resolves() {
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# no-finish-template — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# no-finish-template — brief\n").unwrap();
     fs::write(
         grove.join("01-DONE-impl--finished-k1.md"),
         "# finished-k1\n",
@@ -984,7 +981,7 @@ fn empty_current_tree_allocates_and_launches_one_resumable_finish_leaf() {
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# empty-current — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# empty-current — brief\n").unwrap();
     fs::write(
         grove.join("01-DONE-impl--finished-k1.md"),
         "# finished-k1\n",

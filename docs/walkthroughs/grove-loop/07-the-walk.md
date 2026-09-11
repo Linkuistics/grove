@@ -29,12 +29,12 @@ reads.
 
 ```text
 .grove/                              the tree as root-init left it
-├── BRIEF.md                         the distinguished child — walked first
+├── _BRIEF.md                         the distinguished child — walked first
 └── 01-requirements--plan-k1.md      the one keyed entry
 
 snapshot.walk()                      the library's order, not grove's
   │
-  ├─ BRIEF.md          live_leaf → entry.triple() is None       ⇒ not a candidate
+  ├─ _BRIEF.md          live_leaf → entry.triple() is None       ⇒ not a candidate
   └─ 01-requirements…  live_leaf → Parts::Leaf { outcome: Live,
                                      kind: requirements, slug: plan }
                                                                 ⇒ (requirements, plan-k1)
@@ -57,21 +57,18 @@ inside it. Two of its steps belong to earlier chapters: `entry.triple()` is the
 library's, and `live_leaf` is chapter 6's — the reading that turns an entry into
 a session kind and a handle, or into `None`.
 
-The chapter owns 322 of `task_tree.rs`'s 2,038 lines, in two blocks. Sixty-seven
-are the production run: the `Selection` type and the four functions that produce
-one. The other 255 are the file's `pick` test section, which carries **nineteen**
-of the file's sixty-three `#[test]` functions. That ratio is the chapter's shape,
-and the reason for it is that the rule above is almost entirely a claim about
-which trees produce which answers — a claim only a fixture can hold.
+This chapter owns 319 lines of `task_tree.rs` in 2 blocks.
+The source index records their current ranges; the fragments below reconstruct
+every owned byte.
 
 <a id="what-a-launch-needs"></a>
 ## What a launch needs, copied once
 
 The chapter's first ownership block is the production run. It expands, in order,
-to lines 571 through 637 of the file, and the five fragments it names run to the
+to lines 519 through 585 of the file, and the five fragments it names run to the
 end of the next section.
 
-<!-- fragment «walk-selection» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="571-637" parent="source-task-tree" -->
+<!-- fragment «walk-selection» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="519-585" parent="source-task-tree" -->
 <!-- insert «walk-selection-type» -->
 <!-- insert «walk-pick-in» -->
 <!-- insert «walk-select-in» -->
@@ -85,7 +82,7 @@ in the crate's cast at low resolution — the leaf a session was launched to wor
 its path, its identity and its kind — and this is the definition that closes that
 row.
 
-<!-- fragment «walk-selection-type» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="571-579" parent="walk-selection" -->
+<!-- fragment «walk-selection-type» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="519-527" parent="walk-selection" -->
 ````rust
 /// Everything a launch needs about one selected leaf, copied while a single
 /// shared guard is held. Callers never reopen or reparse the tree before launch.
@@ -124,7 +121,7 @@ re-exports the type at the crate root, which is the `Selection` chapter 1 met.
 
 `pick` is this type with two fields dropped, and the file says so in one line.
 
-<!-- fragment «walk-pick-in» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="580-585" parent="walk-selection" -->
+<!-- fragment «walk-pick-in» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="528-533" parent="walk-selection" -->
 ````rust
 /// `pick` against a tree already read. Used by every verb that needs a leaf
 /// and its brief chain from the *same* observation.
@@ -162,7 +159,7 @@ this reason.
 takes an already-open `&Tree` as well, so *against a tree already read* would
 distinguish it from nothing. It is the composition
 [chapter 6](06-paths.md#compositions-that-are-the-tests-alone) read at line
-1,039 — `read(grove_root)?` and then `pick_in(&tree)` — and this comment is the
+995 — `read(grove_root)?` and then `pick_in(&tree)` — and this comment is the
 whole of the difference between the two. Written `[`pick`]` it emitted
 *unresolved link to `pick`*, and **no spelling of it could have done otherwise**:
 that composition sits in this file's `#[cfg(test)]` module, and `cargo doc`
@@ -175,13 +172,13 @@ the end of any path. So the repair was to unlink, which puts the production side
 in step with the file's own practice. The three compositions, reproduced in
 chapter 6, each name themselves with a code span — `` `pick` ``, `` `select` ``,
 `` `kind [<leaf>]` `` — and the one place `task_tree.rs` writes `` [`pick`] `` as
-a link and gets away with it is `kind`'s own comment at line 1,051, inside that
+a link and gets away with it is `kind`'s own comment at line 1,007 inside that
 same test module, where it resolves.
 
 The shared-guard entry point carries the chapter's second rule in its own doc
 comment.
 
-<!-- fragment «walk-select-in» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="586-595" parent="walk-selection" -->
+<!-- fragment «walk-select-in» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="534-543" parent="walk-selection" -->
 ````rust
 /// `select` against a tree already read.
 ///
@@ -225,7 +222,7 @@ Both come off one guard, and that is the whole of what `select_in` contributes.
 The exclusive twin is the same call against a different guard, and its comment
 says why that is not a second selection.
 
-<!-- fragment «walk-select-in-write» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="596-605" parent="walk-selection" -->
+<!-- fragment «walk-select-in-write» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="544-553" parent="walk-selection" -->
 ````rust
 /// [`select_in`] against a tree held **exclusively**.
 ///
@@ -259,7 +256,7 @@ fields of the selection to refuse a finish while live work remains.
 
 The private function both entry points call is the chapter's only real algorithm.
 
-<!-- fragment «walk-selected» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="606-637" parent="walk-selection" -->
+<!-- fragment «walk-selected» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="554-585" parent="walk-selection" -->
 ````rust
 fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selection>> {
     let mut live = Vec::new();
@@ -359,7 +356,7 @@ nineteen of its `fn`s are the tests — and every tree below but one is built wi
 exception is the symlink test, which reaches past them to `fs::write` and
 `std::os::unix::fs::symlink` because no fixture makes the object it needs.
 
-<!-- fragment «pick-tests» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1106-1360" parent="source-task-tree" -->
+<!-- fragment «pick-tests» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1064-1315" parent="source-task-tree" -->
 <!-- insert «walk-tests-select-one-observation» -->
 <!-- insert «walk-tests-order» -->
 <!-- insert «walk-tests-terminal-leaves» -->
@@ -404,7 +401,7 @@ nineteen observe a returned path or the absence of one; three observe the text o
 a refusal; this one is the only test in the block that observes a leaf's handle
 and kind at all.
 
-<!-- fragment «walk-tests-select-one-observation» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1106-1130" parent="pick-tests" -->
+<!-- fragment «walk-tests-select-one-observation» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1064-1088" parent="pick-tests" -->
 ````rust
     // ---- pick ---------------------------------------------------------------
 
@@ -451,7 +448,7 @@ is borrowed from a fact established elsewhere in the crate, which is why chapter
 5 followed the counter forward rather than treating it as local bookkeeping.
 
 `reset_read_count()` and `read_count()` are the counter's two accessors, defined
-at lines 1,006 to 1,014 inside chapter 9's ownership block: the first sets the
+at lines 962 to 970 inside chapter 9's ownership block: the first sets the
 thread-local count to zero, the second returns it. The reset is called after the
 fixture and before the call under test rather than at the top of the test,
 because other tests on the same thread have already moved the counter, and
@@ -461,7 +458,7 @@ the only assertion in `task_tree.rs` that reads either accessor.
 The two ordering tests come next, and only the second of them discriminates
 anything.
 
-<!-- fragment «walk-tests-order» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1131-1156" parent="pick-tests" -->
+<!-- fragment «walk-tests-order» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1089-1114" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_returns_first_live_leaf_in_per_level_order() {
@@ -531,7 +528,7 @@ the first while never touching the second.
 Terminal leaves come next, and the pair has a reading that a substring would
 satisfy.
 
-<!-- fragment «walk-tests-terminal-leaves» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1157-1176" parent="pick-tests" -->
+<!-- fragment «walk-tests-terminal-leaves» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1115-1134" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_skips_done_leaves() {
@@ -592,15 +589,15 @@ it lands.
 Descent is next, and it is the one clause of the library's walk order that is
 visible from grove's side at all.
 
-<!-- fragment «walk-tests-descent» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1177-1200" parent="pick-tests" -->
+<!-- fragment «walk-tests-descent» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1135-1158" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_descends_a_node_in_preorder() {
         // A node at an earlier position is fully explored before a later sibling
         // leaf: the node's first live child wins.
         let (_t, g) = grove();
-        let node = mknode(&g, "01-design-k1");
-        touch(&node, "BRIEF.md");
+        let node = mknode(&g, "01-k1", "design");
+        touch(&node, "_design.md");
         touch(&node, "01-impl--child-k2.md");
         touch(&g, "02-impl--later-k3.md");
         let got = pick(&g).unwrap().unwrap();
@@ -610,9 +607,9 @@ visible from grove's side at all.
     #[test]
     fn pick_skips_briefs_and_returns_the_child_leaf() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let node = mknode(&g, "01-node-k1");
-        touch(&node, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let node = mknode(&g, "01-k1", "node");
+        touch(&node, "_node.md");
         touch(&node, "01-impl--child-k2.md");
         let got = pick(&g).unwrap().unwrap();
         assert_eq!(name_of(&got), "01-impl--child-k2.md");
@@ -646,31 +643,30 @@ the store's own tests.
 **`pick_skips_briefs_and_returns_the_child_leaf` establishes that a charter is
 never a candidate**, at the root level and inside a node — the fixture places one
 of each. The mechanism is that the library walks the distinguished child *first*,
-so `BRIEF.md` is the very first entry `selected` sees at each level and is
+so `_BRIEF.md` is the very first entry `selected` sees at each level and is
 rejected before any leaf is examined: `entry.triple()` answers `None` for the
 distinguished child, and `live_leaf`'s `?` turns that into `None`.
 
-**What it would pass under with the property broken:** an implementation that
-special-cased the literal filename `BRIEF.md`. Nothing here distinguishes
-*rejected because it is the distinguished child* from *rejected because of its
-name*, and the distinction is real, because it is the store that decides which
-name is distinguished. Grove supplies `TaskName::Brief` explicitly when it
-initializes a root (chapter 11) or promotes a leaf (chapter 12).
-A test that pinned the mechanism rather than the outcome
-would have to vary the distinguished name, which nothing in this crate can do.
+
+A test using only the root marker cannot distinguish a distinguished-name
+check from a hard-coded `_BRIEF.md` check. The node-file integration fixture
+varies the titled file and verifies that it does not become a separate resolve
+candidate or acquire a kind. Initialization supplies `TaskName::Brief`, while
+promotion supplies `TaskName::NodeFile`.
+
 
 Three fall-through tests follow, and together they close the reading the descent
 pair left open.
 
-<!-- fragment «walk-tests-fall-through» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1201-1239" parent="pick-tests" -->
+<!-- fragment «walk-tests-fall-through» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1159-1197" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_falls_through_an_all_done_node_to_a_later_live_leaf() {
         // A node whose subtree is entirely retired yields no live leaf, so pick
         // moves on to the next sibling.
         let (_t, g) = grove();
-        let node = mknode(&g, "01-done-node-k1");
-        touch(&node, "BRIEF.md");
+        let node = mknode(&g, "01-k1", "done-node");
+        touch(&node, "_done-node.md");
         touch(&node, "01-DONE-impl--child-k2.md");
         touch(&g, "02-impl--live-k3.md");
         let got = pick(&g).unwrap().unwrap();
@@ -683,8 +679,8 @@ pair left open.
         // grove's two terminal leaf states (DONE, ABANDONED) behave identically
         // for the walk (pruning).
         let (_t, g) = grove();
-        let node = mknode(&g, "01-dead-node-k1");
-        touch(&node, "BRIEF.md");
+        let node = mknode(&g, "01-k1", "dead-node");
+        touch(&node, "_dead-node.md");
         touch(&node, "01-ABANDONED-impl--child-k2.md");
         touch(&g, "02-impl--live-k3.md");
         let got = pick(&g).unwrap().unwrap();
@@ -694,10 +690,10 @@ pair left open.
     #[test]
     fn pick_descends_nested_nodes() {
         let (_t, g) = grove();
-        let n1 = mknode(&g, "01-outer-k1");
-        touch(&n1, "BRIEF.md");
-        let n2 = mknode(&n1, "01-inner-k2");
-        touch(&n2, "BRIEF.md");
+        let n1 = mknode(&g, "01-k1", "outer");
+        touch(&n1, "_outer.md");
+        let n2 = mknode(&n1, "01-k2", "inner");
+        touch(&n2, "_inner.md");
         touch(&n2, "01-impl--deep-k3.md");
         let got = pick(&g).unwrap().unwrap();
         assert_eq!(name_of(&got), "01-impl--deep-k3.md");
@@ -723,24 +719,25 @@ enters a node, two show it comes back out.
 one level deep.** The fixture nests a node inside a node, and the answer is the
 leaf two levels down.
 
-**What it would pass under with the property broken:** an implementation that
-descended exactly twice. There is no three-deep fixture anywhere in this file, so
-*depth 2* and *unbounded depth* are indistinguishable from grove's tests; the
-unbounded claim rests on the library's own `walk`, which recurses, and on the
-store's tests rather than on these. It also passes under the global-name-sort
-reading, since its leaf is the only leaf in the tree.
+
+A test using only the root marker cannot distinguish a distinguished-name
+check from a hard-coded `_BRIEF.md` check. The node-file integration fixture
+varies the titled file and verifies that it does not become a separate resolve
+candidate or acquire a kind. Initialization supplies `TaskName::Brief`, while
+promotion supplies `TaskName::NodeFile`.
+
 
 The `None` cases come next, and what they hold is that an empty answer is an
 answer.
 
-<!-- fragment «walk-tests-none» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1240-1269" parent="pick-tests" -->
+<!-- fragment «walk-tests-none» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1198-1227" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_none_when_only_briefs_and_done_leaves() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let node = mknode(&g, "01-node-k1");
-        touch(&node, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let node = mknode(&g, "01-k1", "node");
+        touch(&node, "_node.md");
         touch(&node, "01-DONE-impl--child-k2.md");
         assert_eq!(pick(&g).unwrap(), None);
     }
@@ -750,10 +747,10 @@ answer.
         // A grove whose only remaining leaves are abandoned reports "no live
         // leaves" — correct: the work is settled, however it settled.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         touch(&g, "01-ABANDONED-impl--a-k1.md");
-        let node = mknode(&g, "02-node-k2");
-        touch(&node, "BRIEF.md");
+        let node = mknode(&g, "02-k2", "node");
+        touch(&node, "_node.md");
         touch(&node, "01-DONE-impl--b-k3.md");
         touch(&node, "02-ABANDONED-impl--c-k4.md");
         assert_eq!(pick(&g).unwrap(), None);
@@ -792,7 +789,7 @@ settled. Abandoning is not failing, and grove has no third answer for it.
 Foreign names are next, and this pair tests a leniency grove does not itself
 implement.
 
-<!-- fragment «walk-tests-foreign» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1270-1287" parent="pick-tests" -->
+<!-- fragment «walk-tests-foreign» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1228-1245" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_lenient_on_foreign_files() {
@@ -844,7 +841,7 @@ The contrast with the next two tests is the chapter's cleanest line. A name grov
 disclaims is skipped and costs nothing; a name grove *claims* and finds at the
 wrong species halts everything.
 
-<!-- fragment «walk-tests-species-mismatch» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1288-1319" parent="pick-tests" -->
+<!-- fragment «walk-tests-species-mismatch» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1246-1274" parent="pick-tests" -->
 ````rust
     /// Both species mismatches at a **task-shaped** name are malformed, not
     /// foreign — and a later live leaf must not paper over them. The old answer
@@ -857,15 +854,12 @@ wrong species halts everything.
     fn pick_refuses_a_species_mismatch_at_a_task_shaped_name() {
         for (make, name, expected) in [
             (
-                &mknode as &dyn Fn(&Path, &str) -> PathBuf,
+                &(|dir: &Path, name: &str| mknode(dir, name, "topic"))
+                    as &dyn Fn(&Path, &str) -> PathBuf,
                 "01-impl--trap-k1.md",
                 "names a leaf",
             ),
-            (
-                &|d: &Path, n: &str| touch(d, n),
-                "01-trap-k1",
-                "names a node",
-            ),
+            (&|d: &Path, n: &str| touch(d, n), "01-k1", "names a node"),
         ] {
             let (_t, g) = grove();
             make(&g, name);
@@ -886,7 +880,7 @@ the argument rather than a description.** The property is that a task-*shaped*
 name whose species contradicts what the listing found under it is malformed
 rather than foreign, and that a later live leaf does not paper over it. Both
 cases are exercised: a *directory* named `01-impl--trap-k1.md`, which declares a
-leaf, and a *file* named `01-trap-k1`, which declares a node. Each refusal names
+leaf, and a *file* named `01-k1`, which declares a node. Each refusal names
 the offending entry and says which species the name declares — chapter 4 read the
 `Display` arm that writes *names a leaf, which must be a regular file, but the
 listing found a directory*, and its closing clause is this test's reason: a walk
@@ -926,7 +920,7 @@ coercion is there for the table, not for the call.
 
 The symlink test is the same rule reaching a case nobody wrote it for.
 
-<!-- fragment «walk-tests-symlink» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1320-1337" parent="pick-tests" -->
+<!-- fragment «walk-tests-symlink» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1275-1292" parent="pick-tests" -->
 ````rust
     /// The species rule reaches symlinks for free, and closing that is the point
     /// rather than a side effect: `DirEntry::file_type` does not follow links, so a
@@ -969,14 +963,14 @@ assertion.
 The last two tests are a pair by position rather than by subject, and each closes
 one edge of the walk.
 
-<!-- fragment «walk-tests-legacy-and-absent-root» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1338-1360" parent="pick-tests" -->
+<!-- fragment «walk-tests-legacy-and-absent-root» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1293-1315" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_ignores_a_legacy_done_directory() {
         // A stray `done/` directory (or any foreign dir) is not a node and holds
         // no live leaf reachable by the walk.
         let (_t, g) = grove();
-        let legacy = mknode(&g, "done");
+        let legacy = mknode(&g, "done", "foreign");
         touch(&legacy, "09-impl--old-k9.md");
         touch(&g, "01-impl--a-k1.md");
         let got = pick(&g).unwrap().unwrap();

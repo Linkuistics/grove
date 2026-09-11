@@ -42,7 +42,7 @@ entity has four names.
 
 ```text
 .grove/                                the tree as root-init left it
-├── BRIEF.md                           carries no key and no slug — unreferenceable
+├── _BRIEF.md                           carries no key and no slug — unreferenceable
 └── 01-requirements--plan-k1.md        position 01, kind requirements, slug plan, key 1
 
 resolve(tree, "plan-k1")   the handle the tree prints, read by its terminal key
@@ -91,12 +91,12 @@ which four `resolve` itself takes.
 ## An answer the library cannot return
 
 The chapter's first ownership block is the last of `task_tree.rs`'s five
-production concerns, at lines 747 to 1015 — 269 lines, 40% of them comment
+production concerns, at lines 689 to 971 — 269 lines, 40% of them comment
 prose. It opens on the two types the grammar answers in, and they are declared
 before anything that produces them, which is the order the concern is best read
 in: the outcome first, then the walk that reaches it.
 
-<!-- fragment «resolution» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="747-1015" parent="source-task-tree" -->
+<!-- fragment «resolution» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="689-971" parent="source-task-tree" -->
 <!-- insert «resolution-outcome» -->
 <!-- insert «resolution-located» -->
 <!-- insert «resolution-located-fn» -->
@@ -114,7 +114,7 @@ in: the outcome first, then the walk that reaches it.
 `Resolution` is a three-way answer, and the interesting thing about it is what
 is **not** in it.
 
-<!-- fragment «resolution-outcome» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="747-765" parent="resolution" -->
+<!-- fragment «resolution-outcome» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="689-707" parent="resolution" -->
 ````rust
 /// What a reference resolved to.
 ///
@@ -156,7 +156,7 @@ vector rather than a count, because a count would not let the caller act.
 The entry that a match resolves to is described once, and every field of it
 answers a question a caller was otherwise going to answer wrongly.
 
-<!-- fragment «resolution-located» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="766-787" parent="resolution" -->
+<!-- fragment «resolution-located» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="708-729" parent="resolution" -->
 ````rust
 /// One entry a reference matched.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -203,20 +203,26 @@ required.
 The construction is a single function, and it is the only place in the block
 that can fail for a reason that is not the caller's fault.
 
-<!-- fragment «resolution-located-fn» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="788-804" parent="resolution" -->
+<!-- fragment «resolution-located-fn» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="730-752" parent="resolution" -->
 ````rust
 /// Everything a resolved reference says about one entry.
+/// Compose identity using only names from the same snapshot.
+fn entry_handle(entry: Entry<'_, TaskName>) -> Option<Handle> {
+    Handle::of_leaf(entry.name()).or_else(|| {
+        let file = entry.contents()?.distinguished()?;
+        Handle::of_node(entry.name(), file.name())
+    })
+}
+
 fn located(root: &Path, entry: Entry<'_, TaskName>) -> Result<Located> {
-    let triple = entry
-        .triple()
-        .context("a resolved reference matched the root brief, which carries no identity")?;
-    let (kind, slug) = match &triple.parts {
-        Parts::Leaf { kind, slug, .. } => (Some(kind.clone()), slug.clone()),
-        Parts::Node { slug } => (None, slug.clone()),
+    let handle = entry_handle(entry).context("a resolved entry has no work-item handle")?;
+    let kind = match entry.triple().map(|triple| triple.parts) {
+        Some(Parts::Leaf { kind, .. }) => Some(kind.clone()),
+        _ => None,
     };
     Ok(Located {
         path: entry_path(root, entry),
-        handle: Handle::new(slug, triple.key),
+        handle,
         kind,
         outcome: entry_outcome(&entry),
     })
@@ -225,14 +231,13 @@ fn located(root: &Path, entry: Entry<'_, TaskName>) -> Result<Located> {
 ````
 <!-- /fragment -->
 
-`located` is where the two chapters before this one are drawn on: `entry_path`
-is chapter 6's one place paths are built, and `entry_outcome` is chapter 6's
-reading of the terminal marks. What this chapter adds is the `Parts` match —
-a leaf yields a kind and a slug, a node yields a slug and `None` — and
-`Handle::new`, which pairs that slug with the key the triple already carries.
-Chapter 3 established that the handle *is* the identity; here it is built rather
-than parsed, which is why the key comes from the triple and not from the text of
-the reference.
+
+`located` combines path, handle, kind and outcome for a positioned entry.
+`entry_handle` first tries `Handle::of_leaf`; for a node it takes the actual
+distinguished entry from `entry.contents()` and passes both names to
+`Handle::of_node`. The name module validates their species pairing, while the
+tree module establishes parentage from the same guarded snapshot.
+
 
 The `.context(…)` on the first line is a refusal, and it is the block's most
 interesting one because it describes a state the rest of the file works to make
@@ -248,7 +253,7 @@ The verb the chapter is named for is next, and it is short because the work is
 below it. Its doc comment is the longest in the block, and what it spends its
 length on is the cost rather than the code.
 
-<!-- fragment «resolution-resolve-in» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="805-845" parent="resolution" -->
+<!-- fragment «resolution-resolve-in» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="753-793" parent="resolution" -->
 ````rust
 /// `resolve <ref>` against a tree already read.
 ///
@@ -325,7 +330,7 @@ could in principle fail.
 
 The intermediate type is what makes one grammar serve two verbs.
 
-<!-- fragment «resolution-lookup-type» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="846-858" parent="resolution" -->
+<!-- fragment «resolution-lookup-type» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="794-806" parent="resolution" -->
 ````rust
 /// What a reference matched in the snapshot, before anything is said about it.
 ///
@@ -364,7 +369,7 @@ to be the thing both verbs read.
 One small helper serves only the ambiguous arm, and it carries an
 `unreachable!`.
 
-<!-- fragment «resolution-slug-match-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="859-869" parent="resolution" -->
+<!-- fragment «resolution-slug-match-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="807-817" parent="resolution" -->
 ````rust
 /// The key of an entry a bare slug matched.
 ///
@@ -393,11 +398,11 @@ only from ten lines away.
 
 Then the grammar itself, which is the function the whole chapter is named for.
 
-<!-- fragment «resolution-grammar» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="870-918" parent="resolution" -->
+<!-- fragment «resolution-grammar» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="818-868" parent="resolution" -->
 ````rust
 /// The reference grammar itself: `[n]` / `n` / `[n]-slug` by key, a bare slug by
-/// slug, and a full `<slug>-k<key>` handle by its terminal key once the bare
-/// slug has failed.
+/// slug, and a full `<slug>-k<key>` handle by key and current title once the
+/// bare slug has failed.
 fn lookup<'a>(snapshot: &'a Snapshot<TaskName>, reference: &str) -> Result<Lookup<'a>> {
     // The library answers a search with `Sought`, its own word for *matched
     // nothing* — not a refusal, and not an error. Grove already has a word for
@@ -418,23 +423,25 @@ fn lookup<'a>(snapshot: &'a Snapshot<TaskName>, reference: &str) -> Result<Looku
             let matches: Vec<Entry<'a, TaskName>> = snapshot
                 .walk()
                 .filter(|entry| {
-                    entry
-                        .triple()
-                        .is_some_and(|triple| triple.parts.slug().as_str() == slug.as_str())
+                    entry_handle(*entry)
+                        .is_some_and(|handle| handle.slug().as_str() == slug.as_str())
                 })
                 .collect();
             Ok(match matches.len() {
-                // A bare slug that matched nothing is retried as a reference
-                // ending in a key, and the peel is the name owner's —
-                // `task_name::terminal_key`, which shares `peel_key` with the
-                // filename grammar. **Not `Handle::parse`**, which would also
-                // require the head to be a slug: an operator pastes a retired
-                // leaf's whole stem (`01-DONE-impl--build-k5`) and means key 5,
-                // and the deleted `task_tree::handle_key` served that by
-                // ignoring everything before the key. A reference that ends in
-                // no key is simply unmatched.
+                // Retry an unmatched slug as a full handle. The shared key
+                // parser locates its candidate; equality with the current
+                // snapshot-derived handle then checks both title and spelling.
+                // A stale title or a filename stem is not a handle match.
                 0 => match task_name::terminal_key(&slug) {
-                    Some(key) => by_key(key.get()),
+                    Some(key) => match by_key(key.get()) {
+                        Lookup::Found(entry)
+                            if entry_handle(entry)
+                                .is_some_and(|handle| handle.to_string() == slug) =>
+                        {
+                            Lookup::Found(entry)
+                        }
+                        _ => Lookup::NotFound,
+                    },
                     None => Lookup::NotFound,
                 },
                 1 => Lookup::Found(matches[0]),
@@ -469,13 +476,12 @@ a retired leaf's whole stem, `01-DONE-impl--build-k5`, meaning key 5. The delete
 `task_tree::handle_key` served that by ignoring everything before the key, and
 this fallback preserves the behaviour rather than the function.
 
-Chapter 3 read `Handle::parse`'s leniency on a zero-padded key — `a-k007` parses
-as key 7 and normalises it away on the way back out — and argued it from a
-precedent it named but could not yet show: *`parse_ref` is already lenient beside
-it, taking a bare `007` for key 7.* This is that grammar, read at last. The
-leniency is in the last branch of `parse_ref` below, and the two are consistent
-because they are the same idea applied at two layers: a key written with leading
-zeros is the same key, wherever it is written.
+
+Bare numeric and bracketed references ask for a key alone. Full handles
+ask for both the key and the current title. The distinction matters after a
+node file is renamed: `7` still resolves the node at key 7, while a handle
+carrying its previous title no longer matches.
+
 
 **The order of the two attempts is the part that has to be argued rather than
 read.** The slug is tried first and the terminal key only when the slug matched
@@ -493,7 +499,7 @@ would appear only in trees large enough to collide.
 `resolve_in` is the read side. The same grammar has a second caller, and it is
 the one the mutating verbs of chapter 10 go through.
 
-<!-- fragment «resolution-reference» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="919-956" parent="resolution" -->
+<!-- fragment «resolution-reference» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="869-912" parent="resolution" -->
 ````rust
 /// What a `<parent>` / `<target>` argument names in the tree: a path, or a
 /// reference in the key/slug namespace.
@@ -525,7 +531,13 @@ pub(crate) fn reference<'a>(
         Lookup::Ambiguous(matches) => {
             let keys = matches
                 .iter()
-                .map(|entry| format!("[{}]", slug_match_key(entry)))
+                .map(|entry| {
+                    format!(
+                        "[{}] {}",
+                        slug_match_key(entry),
+                        entry_handle(*entry).expect("a slug match has a handle")
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join(", ");
             bail!("reference {argument:?} is ambiguous; re-query by key: {keys}")
@@ -564,7 +576,7 @@ order, turned from a value into a sentence, and it is why `slug_match_key` exist
 
 The path branch is a small function with three cases and no error.
 
-<!-- fragment «resolution-existing-path» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="957-975" parent="resolution" -->
+<!-- fragment «resolution-existing-path» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="913-931" parent="resolution" -->
 ````rust
 /// Interpret an argument as a path that actually exists: absolute, or relative
 /// to the grove root, or relative to the cwd. `None` if no such path exists —
@@ -599,7 +611,7 @@ construction instead of by grammar.
 The reference grammar's own front door is two items, and they are the last of
 the block's production.
 
-<!-- fragment «resolution-ref-type» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="976-981" parent="resolution" -->
+<!-- fragment «resolution-ref-type» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="932-937" parent="resolution" -->
 ````rust
 /// A parsed reference: a permanent key, or a bare slug.
 pub(crate) enum Ref {
@@ -612,7 +624,7 @@ pub(crate) enum Ref {
 `Ref` has two cases because the grammar has two branches, and the function that
 produces it is where the bracket syntax is actually read.
 
-<!-- fragment «resolution-parse-ref» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="982-1004" parent="resolution" -->
+<!-- fragment «resolution-parse-ref» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="938-960" parent="resolution" -->
 ````rust
 /// Classify a `resolve` reference. `[n]` / `[n]-slug` and a bare integer `n`
 /// resolve by key; anything else is a bare slug. A bracketed-but-malformed key
@@ -655,19 +667,16 @@ attempting a parse and falling through on failure: `"12x"` must become the slug
 overflow, and its context sentence says so in the same words as the bracketed
 one.
 
-**The leniency chapter 3 argued from is the plain `u32::parse` in both key
-branches.** `007` parses as 7 because that is what parsing an integer does, and
-nothing normalises it back — the key is the number, and the spelling was never
-retained. Chapter 3 showed the same leniency in `Handle::parse` and had to argue
-that it was deliberate rather than accidental, using this function as its
-precedent; the precedent turns out to be one line of ordinary integer parsing in
-two places, which is a weaker foundation than a rule written down, and it is
-worth saying so. What makes it deliberate here is the test that pins `build-k005`
-alongside `build-k5`.
+
+The bare-key branches use integer parsing, so `007` names key 7. A full
+handle follows the canonical name grammar instead: `build-k005` is not a
+canonical handle. Keeping those input forms distinct lets a caller deliberately
+choose title-independent lookup without silently accepting a stale title.
+
 
 The block closes on two functions that are not part of the grammar at all.
 
-<!-- fragment «resolution-read-count» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1005-1015" parent="resolution" -->
+<!-- fragment «resolution-read-count» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="961-971" parent="resolution" -->
 ````rust
 
 #[cfg(test)]
@@ -696,7 +705,7 @@ file's order is by convention.
 <a id="twenty-one-tests"></a>
 ## Twenty-one tests, in two labelled sections
 
-The chapter's second ownership block is lines 1653 to 1996 — 344 lines, 19%
+The chapter's second ownership block is lines 1,609 to 1,929 — 344 lines, 19%
 comment prose, and twenty-one `#[test]` functions. It is the largest test block
 in `task_tree.rs`, ahead of chapter 8's twenty-three tests over 307 lines and
 chapter 7's nineteen over 255, though it is the least test-heavy of the three by
@@ -704,8 +713,8 @@ proportion: 344 of this chapter's 613 owned lines are tests, against chapter 8's
 334 of 443 and chapter 7's 255 of 322.
 
 **The source separates it into two labelled sections, and this chapter keeps the
-separation.** Lines 1653 to 1874 are `// ---- resolve`, fifteen tests over the
-grammar as a whole; lines 1875 to 1996 are
+separation.** Lines 1,609 to 1,830 are `// ---- resolve`, fifteen tests over the
+grammar as a whole; lines 1,831 to 1,929 are
 `` // ---- resolve: the full `<slug>-k<key>` handle (task-tree-scheme §5) ``, six
 tests over the terminal-key fallback alone. The second label exists because that
 fallback was added after the rest and is argued from a design record rather than
@@ -719,7 +728,7 @@ in advance. Almost every test here asserts on a *path* — `name_of(&path)` — 
 path is the one thing that several different wrong implementations would agree
 on. Where a test's force actually comes from somewhere else, that is said.
 
-<!-- fragment «resolve-tests» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1668-2011" parent="source-task-tree" -->
+<!-- fragment «resolve-tests» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1624-1944" parent="source-task-tree" -->
 <!-- insert «resolve-tests-fixture» -->
 <!-- insert «resolve-tests-bracket-key» -->
 <!-- insert «resolve-tests-bare-number» -->
@@ -750,7 +759,7 @@ on. Where a test's force actually comes from somewhere else, that is said.
 The section opens on a helper and a fixture rather than on a test, and the doc
 comment on the helper is where the block's design is stated.
 
-<!-- fragment «resolve-tests-fixture» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1668-1706" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-fixture» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1624-1662" parent="resolve-tests" -->
 ````rust
     // ---- resolve ------------------------------------------------------------
 
@@ -760,9 +769,9 @@ comment on the helper is where the block's design is stated.
     ///
     /// ```text
     /// .grove/
-    ///   BRIEF.md
-    ///   01-design-k1/         node
-    ///     BRIEF.md
+    ///   _BRIEF.md
+    ///   01-k1/         node
+    ///     _grow.md
     ///     01-impl--add-k2.md        live leaf, slug "add"
     ///     02-impl--remove-k3.md
     ///   02-add-k4.DONE? -> 02-DONE-impl--add-k4.md   retired leaf, slug "add"
@@ -781,9 +790,9 @@ comment on the helper is where the block's design is stated.
 
     fn resolve_fixture() -> (TempDir, PathBuf) {
         let (tmp, g) = grove();
-        touch(&g, "BRIEF.md");
-        let design = mknode(&g, "01-design-k1");
-        touch(&design, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let design = mknode(&g, "01-k1", "design");
+        touch(&design, "_design.md");
         touch(&design, "01-impl--add-k2.md");
         touch(&design, "02-impl--remove-k3.md");
         touch(&g, "02-DONE-impl--add-k4.md");
@@ -824,7 +833,7 @@ outside `task_tree.rs` entirely.
 The first four tests take the key branch through its spellings. The opening one
 sends a bracketed key to the deepest entry the fixture has.
 
-<!-- fragment «resolve-tests-bracket-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1707-1719" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-bracket-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1663-1675" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_by_bracket_key_finds_a_nested_leaf() {
@@ -832,7 +841,7 @@ sends a bracketed key to the deepest entry the fixture has.
         match resolve(&g, "[2]").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "01-impl--add-k2.md");
-                assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
+                assert_eq!(name_of(path.parent().unwrap()), "01-k1");
                 assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected one entry, got {other:?}"),
@@ -847,16 +856,15 @@ including inside a node directory, and that the answer carries the outcome. The
 two path assertions pin both the filename and the parent directory, so a match
 that found some other `add` would fail.
 
-**What it would pass under with the property broken:** an implementation that
-ignored the brackets entirely and treated `[2]` as a bare slug would fail here —
-nothing has the slug `[2]` — so the bracket parse is genuinely exercised. But an
-implementation that searched only the root level would also fail, and one that
-searched only node directories would pass; the test does not distinguish
-*recursive* from *node-only*. `resolve_bare_slug_unique_across_dirs` below, which
-finds a root-level entry, is what closes that reading, and the pair is what
-establishes recursion rather than either alone.
 
-<!-- fragment «resolve-tests-bare-number» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1720-1731" parent="resolve-tests" -->
+A test using only the root marker cannot distinguish a distinguished-name
+check from a hard-coded `_BRIEF.md` check. The node-file integration fixture
+varies the titled file and verifies that it does not become a separate resolve
+candidate or acquire a kind. Initialization supplies `TaskName::Brief`, while
+promotion supplies `TaskName::NodeFile`.
+
+
+<!-- fragment «resolve-tests-bare-number» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1676-1687" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_by_bare_number_finds_a_done_leaf() {
@@ -887,7 +895,7 @@ different things — the first that the *number* branch works, the second that t
 `DONE` infix survives into the answer. A single test carrying two independent
 claims is fine, but it means a failure here does not localise.
 
-<!-- fragment «resolve-tests-pruned» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1732-1760" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-pruned» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1688-1716" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_finds_a_pruned_leaf_by_key() {
@@ -899,7 +907,7 @@ claims is fine, but it means a failure here does not localise.
         // tree that hides its dead ends lies"), here in `resolve` rather than
         // the tree itself.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         touch(&g, "01-ABANDONED-impl--spike-k1.md");
         match resolve(&g, "[1]").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
@@ -942,7 +950,7 @@ defect — the comment introduces it as *the full `<slug>-k<key>` handle resolve
 too* — but a reader counting handle tests from the section labels alone will
 count six and the true number is seven.
 
-<!-- fragment «resolve-tests-decorative-slug» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1761-1772" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-decorative-slug» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1717-1728" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_bracket_key_ignores_decorative_slug() {
@@ -963,14 +971,13 @@ count six and the true number is seven.
 bullet of `resolve_in`'s grammar. `[5]-whatever` finds key 5 and the suffix is
 discarded without being examined.
 
-**What it would pass under with the property broken:** an implementation that
-parsed `[5]-whatever` by taking everything before the first `-` would also pass,
-as would one that split on `]` and ignored the tail. Both are in fact what the
-code does; what the test does not reach is any suffix that could be mistaken for
-a second reference — `[5]-build`, where the decorative slug names a *different*
-entity's slug, is not tested, and would be the case that distinguishes *ignored*
-from *ignored unless it matches something*. Reading `parse_ref` settles that it is
-truly ignored, but the block does not.
+
+A test using only the root marker cannot distinguish a distinguished-name
+check from a hard-coded `_BRIEF.md` check. The node-file integration fixture
+varies the titled file and verifies that it does not become a separate resolve
+candidate or acquire a kind. Initialization supplies `TaskName::Brief`, while
+promotion supplies `TaskName::NodeFile`.
+
 
 <a id="a-node-is-an-entry"></a>
 ### A node, an absence, and the slug branch
@@ -978,16 +985,16 @@ truly ignored, but the block does not.
 A node is an entry too, and resolving one is where `Located::kind` earns its
 `Option`.
 
-<!-- fragment «resolve-tests-node-by-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1773-1787" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-node-by-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1729-1743" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_key_resolves_a_node_to_its_directory() {
         // A node's identity rides in its directory name, so a key reference to a
-        // node resolves to the directory path (append /BRIEF.md to read it).
+        // node resolves to its directory; `_grow.md` supplies its title and brief.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "[1]").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
-                assert_eq!(name_of(&path), "01-design-k1");
+                assert_eq!(name_of(&path), "01-k1");
                 assert!(path.is_dir());
                 assert_eq!(outcome, Outcome::Live);
             }
@@ -998,10 +1005,11 @@ A node is an entry too, and resolving one is where `Located::kind` earns its
 ````
 <!-- /fragment -->
 
-**The property is that a node resolves to its directory**, which is what makes
-`Located::kind` optional. The comment gives the operator consequence — append
-`/BRIEF.md` to read it — and `assert!(path.is_dir())` is what separates this from
-a leaf.
+
+A node resolves to its directory. Its title is obtained from the actual
+node file, and that file carries the brief body. The `is_dir()` assertion
+distinguishes the returned node from a leaf or its titled file.
+
 
 **What it would pass under with the property broken:** the test never inspects
 `kind`, so an implementation that reported `Some(design)` for the node — reading
@@ -1011,7 +1019,7 @@ the slug as a kind, say — would pass all three assertions. The claim that a no
 coverage gap in the chapter, and `resolve_handle_of_a_node_resolves_to_its_directory`
 in the second section repeats the same omission.
 
-<!-- fragment «resolve-tests-key-not-found» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1788-1793" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-key-not-found» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1744-1749" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_key_not_found() {
@@ -1025,12 +1033,15 @@ in the second section repeats the same omission.
 **The property is that an unmatched key is `Sought::Nothing` rather than an
 error** — a miss is an answer. One line, and it is the whole of the claim.
 
-**What it would pass under with the property broken:** an implementation that
-returned `Nothing` for *every* bracketed key would pass this test; the four tests
-above are what rule that out. This is the clearest case in the block of a test
-whose force is entirely borrowed from its siblings.
 
-<!-- fragment «resolve-tests-slug-unique» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1794-1805" parent="resolve-tests" -->
+A test using only the root marker cannot distinguish a distinguished-name
+check from a hard-coded `_BRIEF.md` check. The node-file integration fixture
+varies the titled file and verifies that it does not become a separate resolve
+candidate or acquire a kind. Initialization supplies `TaskName::Brief`, while
+promotion supplies `TaskName::NodeFile`.
+
+
+<!-- fragment «resolve-tests-slug-unique» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1750-1761" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_bare_slug_unique_across_dirs() {
@@ -1049,7 +1060,7 @@ whose force is entirely borrowed from its siblings.
 Its twin moves the unique match inside the node directory, so that between them
 the two cover both levels of the fixture.
 
-<!-- fragment «resolve-tests-slug-nested» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1806-1819" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-slug-nested» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1762-1775" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_bare_slug_resolves_a_nested_unique_leaf() {
@@ -1058,7 +1069,7 @@ the two cover both levels of the fixture.
         match resolve(&g, "remove").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "02-impl--remove-k3.md");
-                assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
+                assert_eq!(name_of(path.parent().unwrap()), "01-k1");
                 assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected one entry, got {other:?}"),
@@ -1086,7 +1097,7 @@ established only by `resolve_prefers_a_real_slug_over_the_handle_fallback` in th
 second section, which is the one test in the block built out of two slugs that
 overlap.
 
-<!-- fragment «resolve-tests-slug-not-found» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1820-1825" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-slug-not-found» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1776-1781" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_bare_slug_not_found() {
@@ -1101,7 +1112,7 @@ overlap.
 slug-branch twin of `resolve_key_not_found`. It is also, quietly, the only test
 that exercises the zero-match arm of the slug branch on a reference that ends in
 no key at all — the arm that calls `terminal_key` and gets `None`. The second
-section's `resolve_reads_a_terminal_key_whatever_precedes_it` pins that arm
+section's `resolve_checks_the_title_of_a_full_handle` pins that arm
 deliberately with three references; this one reaches it by accident.
 
 <a id="the-ambiguous-arm"></a>
@@ -1110,14 +1121,14 @@ deliberately with three references; this one reaches it by accident.
 One test in the block observes the variant the library has no counterpart for,
 and it is the case the fixture's two `add` leaves were built to produce.
 
-<!-- fragment «resolve-tests-ambiguous» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1826-1847" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-ambiguous» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1782-1803" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_bare_slug_ambiguous_lists_every_match_by_key() {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "add").unwrap() {
             Sought::Match(Resolution::Ambiguous(matches)) => {
-                // Pre-order: the nested `01-design/01-add-k2` precedes the
+                // Pre-order: the nested `01-design/01-k2` precedes the
                 // root-level `02-DONE-add-k4`.
                 assert_eq!(matches.len(), 2);
                 // The key comes back inside the handle now: it is the handle
@@ -1140,7 +1151,7 @@ and it is the case the fixture's two `add` leaves were built to produce.
 **This is the chapter's central test**, and it is the only one that observes an
 `Ambiguous`. The property is threefold: that a bare slug matching twice answers
 rather than refuses, that both matches come back, and that they come back **in
-pre-order** — the nested `01-design/01-add-k2` before the root-level
+pre-order** — the nested `01-design/01-k2` before the root-level
 `02-DONE-add-k4`, as the comment says. The assertions pin each match's handle,
 path and outcome in turn.
 
@@ -1151,18 +1162,13 @@ with, and the key alone was never enough to name the entry back.* That is the
 abstract, and it is the one place in the block where the shape of the answer is
 tested rather than its content.
 
-**What it would pass under with the property broken:** an implementation that
-collected matches in *file-system* order rather than pre-order would pass on many
-platforms and fail on some, because `01-design-k1` sorts before `02-DONE-…`
-either way; the ordering claim is therefore weaker than it looks, and the test
-that would distinguish walk order from name order is chapter 7's
-`pick_orders_numerically_not_lexically`, not this one. More sharply: an
-implementation that returned `Ambiguous` for *every* slug match, including the
-unique ones, would fail `resolve_bare_slug_unique_across_dirs` but pass here — so
-the boundary between one match and two is held by that test rather than by this
-one. The `matches.len()` assertion establishes *two*, not *exactly the two that
-match*; that is established by the four assertions that follow it, which are
-specific enough to leave no room.
+
+A test using only the root marker cannot distinguish a distinguished-name
+check from a hard-coded `_BRIEF.md` check. The node-file integration fixture
+varies the titled file and verifies that it does not become a separate resolve
+candidate or acquire a kind. Initialization supplies `TaskName::Brief`, while
+promotion supplies `TaskName::NodeFile`.
+
 
 <a id="the-root-and-its-brief"></a>
 ### Two things that are not entries
@@ -1170,7 +1176,7 @@ specific enough to leave no room.
 Two references name things the grammar deliberately cannot reach, and each takes
 a test of its own. The first is the root brief.
 
-<!-- fragment «resolve-tests-root-brief» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1848-1856" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-root-brief» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1804-1812" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_root_brief_is_unreferenceable() {
@@ -1178,14 +1184,14 @@ a test of its own. The first is the root brief.
         // It carries no key and no slug, so nothing spells it. Its own filename
         // does not either.
         assert_eq!(resolve(&g, "BRIEF").unwrap(), Sought::Nothing);
-        assert_eq!(resolve(&g, "BRIEF.md").unwrap(), Sought::Nothing);
+        assert_eq!(resolve(&g, "_BRIEF.md").unwrap(), Sought::Nothing);
     }
 
 ````
 <!-- /fragment -->
 The second is `.`, which does reach an answer — just not an entry.
 
-<!-- fragment «resolve-tests-dot» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1857-1866" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-dot» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1813-1822" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_dot_is_the_grove_root_itself() {
@@ -1202,14 +1208,14 @@ The second is `.`, which does reach an answer — just not an entry.
 
 **The pair establishes the two ends of *not an entry*.** The root brief carries
 no key and no slug, so nothing spells it — and, as the comment adds, *its own
-filename does not either*, which is why both `BRIEF` and `BRIEF.md` are tried.
+filename does not either*, which is why both `BRIEF` and `_BRIEF.md` are tried.
 `.` is the root itself, and answers `Resolution::Root`, with the assertion
 message carrying the claim: *`.` is the root, and the root is not an entry*.
 
 **What they would pass under with the property broken:** `resolve_root_brief_is_unreferenceable`
 would pass for an implementation that refused *every* reference containing an
 uppercase letter, or one that never matched anything ending in `.md`. Neither is
-excluded here — but `resolve_reads_a_terminal_key_whatever_precedes_it` in the
+excluded here — but `resolve_checks_the_title_of_a_full_handle` in the
 second section resolves `Build-k5` and `02-DONE-impl--add-k4`, which rules out
 both. The two tests are two sections apart and neither mentions the other.
 
@@ -1226,7 +1232,7 @@ snapshot — and a version that walked the tree first and special-cased a miss o
 The section closes on three refusals. The first of them never reaches this
 chapter's code at all.
 
-<!-- fragment «resolve-tests-empty-reference» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1867-1871" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-empty-reference» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1823-1827" parent="resolve-tests" -->
 ````rust
     #[test]
     fn an_empty_reference_names_nothing_and_is_refused_before_the_tree() {
@@ -1248,7 +1254,7 @@ verb surfaces was usually not produced by that verb.
 `Reference::parse` reject whitespace, including a change with no relation to
 resolution.
 
-<!-- fragment «resolve-tests-malformed-bracket» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1872-1878" parent="resolve-tests" -->
+<!-- fragment «resolve-tests-malformed-bracket» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1828-1834" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_malformed_bracket_ref_errors() {
@@ -1267,14 +1273,15 @@ not parse, and fails at *`'[…]'` is not an integer key*. Neither assertion
 inspects the message, so the test establishes only that both are errors rather
 than misses — which is, to be fair, the distinction the doc comment draws.
 
-**What it would pass under with the property broken:** an implementation that
-returned an error for every reference beginning with `[` would pass, and
-`resolve_by_bracket_key_finds_a_nested_leaf` is what rules it out. More to the
-point, an implementation that swapped the two messages would pass unchanged,
-since neither is read. The measurement below is what settles which clauses this
-test actually holds.
 
-<!-- fragment «resolve-tests-absent-root» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1879-1889" parent="resolve-tests" -->
+A test using only the root marker cannot distinguish a distinguished-name
+check from a hard-coded `_BRIEF.md` check. The node-file integration fixture
+varies the titled file and verifies that it does not become a separate resolve
+candidate or acquire a kind. Initialization supplies `TaskName::Brief`, while
+promotion supplies `TaskName::NodeFile`.
+
+
+<!-- fragment «resolve-tests-absent-root» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1835-1845" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_errors_when_grove_root_absent() {
@@ -1316,15 +1323,14 @@ canonical commit and prose handle. The six tests below are the argument that
 `resolve` accepts that spelling, and — more carefully — that it accepts it
 *without* accepting a handle-shaped grammar it never promised.
 
-<!-- fragment «resolve-handle-tests-full-handle» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1890-1906" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-full-handle» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1846-1861" parent="resolve-tests" -->
 ````rust
     // ---- resolve: the full `<slug>-k<key>` handle (task-tree-scheme §5) --------------
 
     #[test]
     fn resolve_by_full_slug_handle_finds_by_terminal_key() {
         // §5's canonical commit/prose handle is `<slug>-k<key>`; resolve accepts it
-        // directly — the terminal `-k<key>` is read as the key, the slug decorative
-        // — so the handle round-trips back to a path.
+        // directly, checking both the key and the current title.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "build-k5").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
@@ -1356,54 +1362,32 @@ promises more than its fixture can deliver.
 The next test is the section's argument, and it carries the longest doc comment
 in the block.
 
-<!-- fragment «resolve-handle-tests-terminal-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1907-1955" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-terminal-key» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1862-1888" parent="resolve-tests" -->
 ````rust
-    /// The fallback reads a **terminal key**, not a handle, and nothing before
-    /// that key has to be a slug.
-    ///
-    /// The realistic case is the first: an operator pastes a retired leaf's
-    /// whole filename stem, which carries a position and a `DONE` infix and is
-    /// therefore not a slug at all. `name-ownership-k14` briefly routed this
-    /// through `Handle::parse` and lost every row below — a change to what
-    /// `resolve` accepts, smuggled in by a refactor whose subject was who owns
-    /// the grammar. Pinned so the next such routing has to be deliberate.
+    /// A full handle must agree with the positioned entry's current title.
     #[test]
-    fn resolve_reads_a_terminal_key_whatever_precedes_it() {
+    fn resolve_checks_the_title_of_a_full_handle() {
         let (_t, g) = resolve_fixture();
         for reference in [
-            // A retired leaf's stem, as it literally appears on disk.
             "02-DONE-impl--add-k4",
-            // A live leaf's stem.
             "03-impl--build-k5",
-            // Shapes no slug may take: uppercase, an underscore, a reserved
-            // word, an empty head. All of them still end in a key.
             "Build-k5",
             "a_b-k5",
             "DONE-k5",
             "-k5",
-            // A lenient key spelling, as `parse_ref` already accepts for a bare
-            // integer.
             "build-k005",
+            "wrong-k5",
         ] {
-            match resolve(&g, reference).unwrap() {
-                Sought::Match(Resolution::Entry(Located { path, .. })) => assert_eq!(
-                    name_of(&path),
-                    if reference.contains("-k4") {
-                        "02-DONE-impl--add-k4.md"
-                    } else {
-                        "03-impl--build-k5.md"
-                    },
-                    "{reference:?}"
-                ),
-                other => panic!("{reference:?}: expected one entry, got {other:?}"),
-            }
-        }
-        // A reference ending in no key at all is still simply unmatched.
-        for reference in ["nothing", "nothing-k", "nothing-kx"] {
             assert!(
                 matches!(resolve(&g, reference).unwrap(), Sought::Nothing),
-                "{reference:?} should not resolve"
+                "{reference}"
             );
+        }
+        for reference in ["build-k5", "5"] {
+            assert!(matches!(
+                resolve(&g, reference).unwrap(),
+                Sought::Match(Resolution::Entry(_))
+            ));
         }
     }
 
@@ -1420,18 +1404,12 @@ and it records the history: `name-ownership-k14` briefly routed this through
 smuggled in by a refactor whose subject was who owns the grammar*. The test is
 pinned so the next such routing has to be deliberate.
 
-The table of references is the coverage, and it is unusually well chosen: two
-real filename stems, four shapes no slug may take — uppercase `Build-k5`, an
-underscore `a_b-k5`, the reserved word `DONE-k5`, an empty head `-k5` — and the
-zero-padded `build-k005`. **Six of the seven are references `Handle::parse`
-refuses** — the two filename stems for the `--` separator between kind and slug,
-and the four shape rows for an uppercase letter, an underscore, a reserved word
-and an empty head — so the comment's *lost every row below* is very nearly
-literal: `build-k005` is the only one of the seven that is also a well-formed
-handle. That is what makes the table a regression pin rather than a
-demonstration. It is also why the last row does double duty, since it is the row
-where chapter 3's leniency precedent is pinned by an assertion rather than argued
-from parsing behaviour.
+
+The reference table includes filename stems, malformed slug tokens, a
+zero-padded key and a stale title. Each is unmatched. The accepted controls
+are the current full handle and the bare key, establishing both ways to find
+the entry without accepting a stale or malformed handle.
+
 
 **What it would pass under with the property broken:** the seven positive rows
 would all pass under an implementation that read a terminal key with *no* slug
@@ -1450,7 +1428,7 @@ rows end in a non-digit, so all three stop at the first clause, and the second �
 digits present but no `-k` marker, which is what `nothing5` would be — is
 exercised by nothing in this block. The trio is one case written three ways.
 
-<!-- fragment «resolve-handle-tests-disambiguates» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1956-1969" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-disambiguates» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1889-1902" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_full_handle_disambiguates_what_a_bare_slug_could_not() {
@@ -1460,7 +1438,7 @@ exercised by nothing in this block. The trio is one case written three ways.
         match resolve(&g, "add-k2").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, .. })) => {
                 assert_eq!(name_of(&path), "01-impl--add-k2.md");
-                assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
+                assert_eq!(name_of(path.parent().unwrap()), "01-k1");
             }
             other => panic!("expected one entry, got {other:?}"),
         }
@@ -1474,18 +1452,15 @@ ambiguous — the fixture is built for it — and the full handle `add-k2` names
 exactly the nested live leaf. The two path assertions pin the filename and the
 parent, so the *other* `add` would fail it.
 
-**What it would pass under with the property broken:** an implementation that
-resolved `add-k2` by taking the text before the last `-k` and then, on finding
-two matches, returning the first in pre-order would pass — the nested `add-k2` is
-first. That is not a fanciful alternative: it is precisely what a `seek` over the
-slug branch would do, and it is the implementation the whole chapter argues
-against. Nothing in this test distinguishes *resolved by key 2* from *returned
-the first of two `add`s*. What does distinguish them is
-`resolve_bare_slug_ambiguous_lists_every_match_by_key`, which shows that the bare
-slug does **not** short-circuit — so the handle's answer cannot be the
-short-circuit either. The pair is the argument; neither half is.
 
-<!-- fragment «resolve-handle-tests-node» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1970-1982" parent="resolve-tests" -->
+A test using only the root marker cannot distinguish a distinguished-name
+check from a hard-coded `_BRIEF.md` check. The node-file integration fixture
+varies the titled file and verifies that it does not become a separate resolve
+candidate or acquire a kind. Initialization supplies `TaskName::Brief`, while
+promotion supplies `TaskName::NodeFile`.
+
+
+<!-- fragment «resolve-handle-tests-node» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1903-1915" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_handle_of_a_node_resolves_to_its_directory() {
@@ -1493,7 +1468,7 @@ short-circuit either. The pair is the argument; neither half is.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "design-k1").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, .. })) => {
-                assert_eq!(name_of(&path), "01-design-k1");
+                assert_eq!(name_of(&path), "01-k1");
                 assert!(path.is_dir());
             }
             other => panic!("expected one entry, got {other:?}"),
@@ -1512,7 +1487,7 @@ nothing here or there pins the claim that a node's kind is `None`.
 its key-branch twin, plus one more — since `design` is a unique slug in the
 fixture, an implementation ignoring the `-k1` would pass.
 
-<!-- fragment «resolve-handle-tests-precedence» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1983-2003" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-precedence» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1916-1936" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_prefers_a_real_slug_over_the_handle_fallback() {
@@ -1520,7 +1495,7 @@ fixture, an implementation ignoring the `-k1` would pass.
         // key fallback fires only when the slug match is empty. So a slug `foo-k5`
         // (key 7) wins over a *different* entity that happens to hold key 5.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         touch(&g, "01-impl--foo-k5-k7.md"); // slug "foo-k5", key 7
         touch(&g, "02-impl--other-k5.md"); // slug "other", key 5
         match resolve(&g, "foo-k5").unwrap() {
@@ -1561,7 +1536,7 @@ implementation that preferred the *longer* match, or the lower position, would
 also pass — but neither is a plausible reading of the code, and this is as close
 to airtight as the block gets.
 
-<!-- fragment «resolve-handle-tests-unmatched» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="2004-2011" parent="resolve-tests" -->
+<!-- fragment «resolve-handle-tests-unmatched» owner="wider-than-a-key" source="crates/grove-loop/src/task_tree.rs" lines="1937-1944" parent="resolve-tests" -->
 ````rust
     #[test]
     fn resolve_handle_shaped_but_unmatched_is_not_found() {
@@ -1579,12 +1554,13 @@ a handle whose key matches nothing is `NotFound` and not an error, *like any
 unmatched reference*. `ghost` is not a slug in the fixture and `99` is not a key,
 so both halves of the grammar miss and the answer is `Nothing`.
 
-**What it would pass under with the property broken:** an implementation that
-answered `Nothing` for every reference containing a `-k` would pass, and the five
-tests above rule it out. Like `resolve_key_not_found` and
-`resolve_bare_slug_not_found` before it, this test's job is to hold the
-*miss-is-an-answer* line at one more spelling, and its force is the block's rather
-than its own.
+
+A test using only the root marker cannot distinguish a distinguished-name
+check from a hard-coded `_BRIEF.md` check. The node-file integration fixture
+varies the titled file and verifies that it does not become a separate resolve
+candidate or acquire a kind. Initialization supplies `TaskName::Brief`, while
+promotion supplies `TaskName::NodeFile`.
+
 
 <a id="what-the-refusals-are-worth"></a>
 ## What the refusals are worth, measured
@@ -1626,17 +1602,13 @@ Each covered arm was mutated separately, and each produced a small, distinct
 failure set — which is what attributes the failures rather than merely counting
 them, and what rules out a second silent observer standing behind the first.
 
-**Three of the seven are unobserved, and the three are unobserved for three
-different reasons.** Arm 1 is unreachable rather than untested: the root brief
-cannot come back from either branch of `lookup`, because `by_key` cannot return
-an entry with no key and the slug filter requires a `triple` the root brief does
-not have. `resolve_root_brief_is_unreferenceable` establishes the *behaviour*
-without going anywhere near the clause that would state it, which is a fair
-description of a well-guarded invariant rather than a gap. Arm 2 is the same
-story with a panic instead of a refusal, and its doc comment already argues why.
-Arm 7 is different: a bare all-digit reference that overflows `u32` —
-`99999999999` — reaches it, and nothing in the crate ever writes one. That is a
-genuine hole, and a small one.
+
+A distinguished file cannot become a separate resolve candidate:
+`entry_handle` returns no handle for a file alone, and key lookup returns only
+positioned entries. This exclusion also prevents a node's file from making its
+own node title appear ambiguous. The black-box node-file tests exercise both
+unique and repeated node titles.
+
 
 **The more interesting result is where the covered arms are covered from**, and
 the two `reference` arms are not covered from the same place. Arm 4 is held by
@@ -1645,9 +1617,9 @@ exactly one test, `add_refuses_an_ambiguous_parent_slug_and_lists_the_keys`, in
 one declared corpus exclusion at that, which this book cites by name and never
 reproduces. Arm 3 is held by four, and only two of them are in that file:
 `add_refuses_a_parent_that_names_nothing_in_the_tree` (line 413) and
-`insert_errors_when_target_missing` (line 1,159). The other two,
+`insert_errors_when_target_missing` (line 1,117). The other two,
 `add_under_nonexistent_parent_errors` and `insert_requires_an_existing_target`,
-are in `crates/grove-llm/tests/leaf.rs` at lines 432 and 526 — an integration
+are in `crates/grove-llm/tests/leaf.rs` at lines 432 and 474 — an integration
 target of a **different crate**, outside this book's corpus altogether. So
 chapter 10 owns the whole of arm 4's evidence and half of arm 3's, and the rest
 of arm 3's is in a crate this book does not document. Arms 5 and 6 are held by
@@ -1701,26 +1673,19 @@ library has no counterpart for, and `Located::handle` is what makes it
 actionable — a caller that gets two matches gets two handles, and re-asks with
 one of them.
 
-**Chapter 3's forward reference is closed here.** That chapter argued
-`Handle::parse`'s leniency on `a-k007` from a precedent it named without reading:
-`parse_ref` takes a bare `007` for key 7. The precedent is real, and it turns out
-to be one line of ordinary `u32` parsing in each of two branches rather than a
-rule written down anywhere — which is a thinner foundation than the argument
-implied, and worth knowing. What makes the leniency deliberate rather than
-incidental is the `build-k005` row in
-`resolve_reads_a_terminal_key_whatever_precedes_it`, and that row is in this
-chapter's block.
 
-**The block also settles what the fallback is not.** It reads a terminal key,
-not a handle: nothing before the `-k<key>` has to be a slug, and the deleted
-`task_tree::handle_key` is named in the comment as the behaviour being preserved.
-The four shapes no slug may take — `Build-k5`, `a_b-k5`, `DONE-k5`, `-k5` — are
-exactly what `Handle::parse` would refuse, and they are in the test because a
-refactor once routed the fallback through `Handle::parse` and silently narrowed
-what `resolve` accepts. The grammar chapter 4 made canonical is the *filename*
-grammar; the reference grammar is deliberately wider and deliberately lenient,
-and the two meet only at `peel_key`, which `terminal_key` shares with the
-filename side.
+Bare numeric references and handles have different contracts. `007` can
+name key 7 through numeric lookup; `topic-k007` cannot be a canonical handle.
+A full handle also checks the current title, which a numeric reference omits.
+
+
+
+The fallback uses the terminal key to locate a candidate, then compares
+the entire argument with the candidate’s handle. That final comparison rejects
+filename stems and stale titles. For a node the candidate handle uses its
+actual file’s slug, so a file rename changes handle lookup but preserves key
+lookup.
+
 
 **One thing this block does not pin, and it is worth naming.** `Located::kind` is
 `None` for a node directory, and that is stated in the field's doc comment and

@@ -316,7 +316,7 @@ pub(crate) fn entry_path(root: &Path, entry: Entry<'_, TaskName>) -> PathBuf {
 pub(crate) enum Target<'a> {
     /// The grove root itself. Not an entry: it carries no name to rewrite.
     Root,
-    /// An entry of the snapshot — a task file, a node directory, or a `BRIEF.md`.
+    /// An entry of the snapshot — a task file, a node directory, or a node file.
     Entry(Entry<'a, TaskName>),
 }
 
@@ -396,7 +396,7 @@ fn unreachable_by_any_walk(candidate: &Path, resolved: &Path, name: &str) -> any
         ),
         Verdict::Entry(_) => anyhow!(
             "Grove entry {} is not in the task tree: every level above it must be \
-             a node directory named NN-<slug>-k<key>",
+             a node directory named NN-k<key>",
             candidate.display()
         ),
     }
@@ -443,21 +443,6 @@ pub(crate) fn addressable_key(
             .map(|other| entry_path(root, *other).display().to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        if let Some(node) = interrupted_promotion(&twins) {
-            bail!(
-                "a node directory and a task file share position {} and key {}, and \
-                 the directory holds no BRIEF.md: {}. That is an interrupted \
-                 `leaf-decompose` — the promotion created {} and then failed to move \
-                 the leaf into it, and its rollback failed too. Removing either half \
-                 resolves it: delete the empty directory to keep the leaf, or move \
-                 the leaf in as its BRIEF.md to keep the node.",
-                node.ordinal()
-                    .map_or_else(|| "?".to_string(), |ordinal| ordinal.get().to_string()),
-                triple.key,
-                paths,
-                node.name(),
-            );
-        }
         bail!(
             "two entries in this tree carry key {}, so naming one of them names \
              both: {}. A key is assigned once and never reused, so this is a hand \
@@ -468,43 +453,6 @@ pub(crate) fn addressable_key(
         );
     }
     Ok(triple.key)
-}
-
-/// The node half of an interrupted promotion, when that is what these
-/// key-sharing entries are.
-///
-/// **The library names this state and Grove has to recognise it, because the
-/// process that meets it is never the process that caused it.**
-/// `Error::FailedPartiallyRolledBack` says *a node and a leaf sharing an ordinal
-/// and a key, with the node holding no distinguished child, is an interrupted
-/// promotion* — but it says so in the run whose rollback failed. A later command
-/// opens a tree in exactly that state and the library reports nothing at all: a
-/// duplicate key is an obligation on the domain and not something any operation
-/// checks. So the only wording available is Grove's, which is why writing one is
-/// not a second wording of anything (`docs/ARCHITECTURE.md#library-refusals`,
-/// clause 3) — and the recovery it gives is the library's own, not
-/// [`addressable_key`]'s general *give one a fresh key*, which is actively wrong
-/// here: the node and the leaf are **one entity** caught mid-shape-change, and
-/// giving either a fresh key would make two of it.
-///
-/// The signature is exact and cannot be met by a hand edit that merely
-/// duplicated a key: two entries, one a node and one a leaf, at the same
-/// ordinal, with the node empty of a `BRIEF.md`. Both are positioned by
-/// construction — the caller filtered on `key() == Some(_)`, and the charter
-/// brief carries no key — so the ordinals compared here always exist. Grove itself never writes a
-/// childless node — `leaf-decompose` creates the brief in the same unit — so
-/// nothing in the verb set produces this shape by any other route.
-fn interrupted_promotion<'a>(twins: &[Entry<'a, TaskName>]) -> Option<Entry<'a, TaskName>> {
-    let [first, second] = twins else { return None };
-    let (node, leaf) = match (first.contents(), second.contents()) {
-        (Some(_), None) => (*first, *second),
-        (None, Some(_)) => (*second, *first),
-        _ => return None,
-    };
-    if node.ordinal() != leaf.ordinal() {
-        return None;
-    }
-    node.contents()?.distinguished().is_none().then_some(node)
 }
 
 /// The key the library will give the next entry it creates from this snapshot —
@@ -654,14 +602,8 @@ pub(crate) fn kind_in(tree: &Tree, leaf_path: Option<&Path>) -> Result<Option<Ki
     }
 }
 
-/// `brief-chain`: the `BRIEF.md` of each of the leaf's ancestor levels, from the
-/// grove root down to its containing node, root→leaf.
-///
-/// This is the library's `distinguished_chain` and nothing else: a node's
-/// distinguished child *is* its charter, and the library already skips levels
-/// that have none — which is exactly `brief-chain`'s documented *a directory
-/// level with no `BRIEF.md` is skipped silently*. A leaf has no brief of its
-/// own, so its containing node's is the deepest one collected.
+/// Every ancestor's node file, root-first, from the guarded snapshot.
+/// Whole-tree validation has already refused any missing or misplaced file.
 pub(crate) fn brief_chain(tree: &Tree, leaf_path: &Path) -> Result<Vec<PathBuf>> {
     let entry = leaf_entry(tree, leaf_path)?;
     Ok(entry
@@ -739,7 +681,7 @@ fn leaf_entry<'a>(tree: &'a Tree, leaf_path: &Path) -> Result<Entry<'a, TaskName
     // name the grammar disclaimed, so no walk reaches it.
     bail!(
         "Grove leaf {} is not in the task tree: every level above it must be a \
-         node directory named NN-<slug>-k<key>",
+         node directory named NN-k<key>",
         candidate.display()
     )
 }
@@ -786,17 +728,23 @@ pub struct Located {
 }
 
 /// Everything a resolved reference says about one entry.
+/// Compose identity using only names from the same snapshot.
+fn entry_handle(entry: Entry<'_, TaskName>) -> Option<Handle> {
+    Handle::of_leaf(entry.name()).or_else(|| {
+        let file = entry.contents()?.distinguished()?;
+        Handle::of_node(entry.name(), file.name())
+    })
+}
+
 fn located(root: &Path, entry: Entry<'_, TaskName>) -> Result<Located> {
-    let triple = entry
-        .triple()
-        .context("a resolved reference matched the root brief, which carries no identity")?;
-    let (kind, slug) = match &triple.parts {
-        Parts::Leaf { kind, slug, .. } => (Some(kind.clone()), slug.clone()),
-        Parts::Node { slug } => (None, slug.clone()),
+    let handle = entry_handle(entry).context("a resolved entry has no work-item handle")?;
+    let kind = match entry.triple().map(|triple| triple.parts) {
+        Some(Parts::Leaf { kind, .. }) => Some(kind.clone()),
+        _ => None,
     };
     Ok(Located {
         path: entry_path(root, entry),
-        handle: Handle::new(slug, triple.key),
+        handle,
         kind,
         outcome: entry_outcome(&entry),
     })
@@ -868,8 +816,8 @@ fn slug_match_key(entry: &Entry<'_, TaskName>) -> u32 {
 }
 
 /// The reference grammar itself: `[n]` / `n` / `[n]-slug` by key, a bare slug by
-/// slug, and a full `<slug>-k<key>` handle by its terminal key once the bare
-/// slug has failed.
+/// slug, and a full `<slug>-k<key>` handle by key and current title once the
+/// bare slug has failed.
 fn lookup<'a>(snapshot: &'a Snapshot<TaskName>, reference: &str) -> Result<Lookup<'a>> {
     // The library answers a search with `Sought`, its own word for *matched
     // nothing* — not a refusal, and not an error. Grove already has a word for
@@ -890,23 +838,25 @@ fn lookup<'a>(snapshot: &'a Snapshot<TaskName>, reference: &str) -> Result<Looku
             let matches: Vec<Entry<'a, TaskName>> = snapshot
                 .walk()
                 .filter(|entry| {
-                    entry
-                        .triple()
-                        .is_some_and(|triple| triple.parts.slug().as_str() == slug.as_str())
+                    entry_handle(*entry)
+                        .is_some_and(|handle| handle.slug().as_str() == slug.as_str())
                 })
                 .collect();
             Ok(match matches.len() {
-                // A bare slug that matched nothing is retried as a reference
-                // ending in a key, and the peel is the name owner's —
-                // `task_name::terminal_key`, which shares `peel_key` with the
-                // filename grammar. **Not `Handle::parse`**, which would also
-                // require the head to be a slug: an operator pastes a retired
-                // leaf's whole stem (`01-DONE-impl--build-k5`) and means key 5,
-                // and the deleted `task_tree::handle_key` served that by
-                // ignoring everything before the key. A reference that ends in
-                // no key is simply unmatched.
+                // Retry an unmatched slug as a full handle. The shared key
+                // parser locates its candidate; equality with the current
+                // snapshot-derived handle then checks both title and spelling.
+                // A stale title or a filename stem is not a handle match.
                 0 => match task_name::terminal_key(&slug) {
-                    Some(key) => by_key(key.get()),
+                    Some(key) => match by_key(key.get()) {
+                        Lookup::Found(entry)
+                            if entry_handle(entry)
+                                .is_some_and(|handle| handle.to_string() == slug) =>
+                        {
+                            Lookup::Found(entry)
+                        }
+                        _ => Lookup::NotFound,
+                    },
                     None => Lookup::NotFound,
                 },
                 1 => Lookup::Found(matches[0]),
@@ -946,7 +896,13 @@ pub(crate) fn reference<'a>(
         Lookup::Ambiguous(matches) => {
             let keys = matches
                 .iter()
-                .map(|entry| format!("[{}]", slug_match_key(entry)))
+                .map(|entry| {
+                    format!(
+                        "[{}] {}",
+                        slug_match_key(entry),
+                        entry_handle(*entry).expect("a slug match has a handle")
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join(", ");
             bail!("reference {argument:?} is ambiguous; re-query by key: {keys}")
@@ -1032,7 +988,7 @@ pub(crate) mod tests {
     /// stdout and a *no live leaves* diagnostic.
     ///
     /// Walk order is the library's: within a level the distinguished child first
-    /// (`BRIEF.md`, never a leaf), then the positioned children by ordinal, with
+    /// (the node file, never a leaf), then the positioned children by ordinal, with
     /// nodes descended in place — so a node at an earlier ordinal is fully explored
     /// before a later sibling. `DONE` and `ABANDONED` leaves are skipped; foreign
     /// names never reach the snapshot at all.
@@ -1081,6 +1037,7 @@ pub(crate) mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join(".grove");
         fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("_BRIEF.md"), "root brief").unwrap();
         (tmp, root)
     }
 
@@ -1092,9 +1049,10 @@ pub(crate) mod tests {
     }
 
     /// Create a node directory inside `dir`, returning its absolute path.
-    fn mknode(dir: &Path, name: &str) -> PathBuf {
+    fn mknode(dir: &Path, name: &str, slug: &str) -> PathBuf {
         let p = dir.join(name);
         fs::create_dir_all(&p).unwrap();
+        fs::write(p.join(format!("_{slug}.md")), "node brief").unwrap();
         p
     }
 
@@ -1179,8 +1137,8 @@ pub(crate) mod tests {
         // A node at an earlier position is fully explored before a later sibling
         // leaf: the node's first live child wins.
         let (_t, g) = grove();
-        let node = mknode(&g, "01-design-k1");
-        touch(&node, "BRIEF.md");
+        let node = mknode(&g, "01-k1", "design");
+        touch(&node, "_design.md");
         touch(&node, "01-impl--child-k2.md");
         touch(&g, "02-impl--later-k3.md");
         let got = pick(&g).unwrap().unwrap();
@@ -1190,9 +1148,9 @@ pub(crate) mod tests {
     #[test]
     fn pick_skips_briefs_and_returns_the_child_leaf() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let node = mknode(&g, "01-node-k1");
-        touch(&node, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let node = mknode(&g, "01-k1", "node");
+        touch(&node, "_node.md");
         touch(&node, "01-impl--child-k2.md");
         let got = pick(&g).unwrap().unwrap();
         assert_eq!(name_of(&got), "01-impl--child-k2.md");
@@ -1203,8 +1161,8 @@ pub(crate) mod tests {
         // A node whose subtree is entirely retired yields no live leaf, so pick
         // moves on to the next sibling.
         let (_t, g) = grove();
-        let node = mknode(&g, "01-done-node-k1");
-        touch(&node, "BRIEF.md");
+        let node = mknode(&g, "01-k1", "done-node");
+        touch(&node, "_done-node.md");
         touch(&node, "01-DONE-impl--child-k2.md");
         touch(&g, "02-impl--live-k3.md");
         let got = pick(&g).unwrap().unwrap();
@@ -1217,8 +1175,8 @@ pub(crate) mod tests {
         // grove's two terminal leaf states (DONE, ABANDONED) behave identically
         // for the walk (pruning).
         let (_t, g) = grove();
-        let node = mknode(&g, "01-dead-node-k1");
-        touch(&node, "BRIEF.md");
+        let node = mknode(&g, "01-k1", "dead-node");
+        touch(&node, "_dead-node.md");
         touch(&node, "01-ABANDONED-impl--child-k2.md");
         touch(&g, "02-impl--live-k3.md");
         let got = pick(&g).unwrap().unwrap();
@@ -1228,10 +1186,10 @@ pub(crate) mod tests {
     #[test]
     fn pick_descends_nested_nodes() {
         let (_t, g) = grove();
-        let n1 = mknode(&g, "01-outer-k1");
-        touch(&n1, "BRIEF.md");
-        let n2 = mknode(&n1, "01-inner-k2");
-        touch(&n2, "BRIEF.md");
+        let n1 = mknode(&g, "01-k1", "outer");
+        touch(&n1, "_outer.md");
+        let n2 = mknode(&n1, "01-k2", "inner");
+        touch(&n2, "_inner.md");
         touch(&n2, "01-impl--deep-k3.md");
         let got = pick(&g).unwrap().unwrap();
         assert_eq!(name_of(&got), "01-impl--deep-k3.md");
@@ -1240,9 +1198,9 @@ pub(crate) mod tests {
     #[test]
     fn pick_none_when_only_briefs_and_done_leaves() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let node = mknode(&g, "01-node-k1");
-        touch(&node, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let node = mknode(&g, "01-k1", "node");
+        touch(&node, "_node.md");
         touch(&node, "01-DONE-impl--child-k2.md");
         assert_eq!(pick(&g).unwrap(), None);
     }
@@ -1252,10 +1210,10 @@ pub(crate) mod tests {
         // A grove whose only remaining leaves are abandoned reports "no live
         // leaves" — correct: the work is settled, however it settled.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         touch(&g, "01-ABANDONED-impl--a-k1.md");
-        let node = mknode(&g, "02-node-k2");
-        touch(&node, "BRIEF.md");
+        let node = mknode(&g, "02-k2", "node");
+        touch(&node, "_node.md");
         touch(&node, "01-DONE-impl--b-k3.md");
         touch(&node, "02-ABANDONED-impl--c-k4.md");
         assert_eq!(pick(&g).unwrap(), None);
@@ -1296,15 +1254,12 @@ pub(crate) mod tests {
     fn pick_refuses_a_species_mismatch_at_a_task_shaped_name() {
         for (make, name, expected) in [
             (
-                &mknode as &dyn Fn(&Path, &str) -> PathBuf,
+                &(|dir: &Path, name: &str| mknode(dir, name, "topic"))
+                    as &dyn Fn(&Path, &str) -> PathBuf,
                 "01-impl--trap-k1.md",
                 "names a leaf",
             ),
-            (
-                &|d: &Path, n: &str| touch(d, n),
-                "01-trap-k1",
-                "names a node",
-            ),
+            (&|d: &Path, n: &str| touch(d, n), "01-k1", "names a node"),
         ] {
             let (_t, g) = grove();
             make(&g, name);
@@ -1340,7 +1295,7 @@ pub(crate) mod tests {
         // A stray `done/` directory (or any foreign dir) is not a node and holds
         // no live leaf reachable by the walk.
         let (_t, g) = grove();
-        let legacy = mknode(&g, "done");
+        let legacy = mknode(&g, "done", "foreign");
         touch(&legacy, "09-impl--old-k9.md");
         touch(&g, "01-impl--a-k1.md");
         let got = pick(&g).unwrap().unwrap();
@@ -1363,23 +1318,23 @@ pub(crate) mod tests {
     #[test]
     fn brief_chain_root_level_leaf_returns_only_root_brief() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         let leaf = touch(&g, "01-impl--a-k1.md");
         let chain = brief_chain_at(&g, &leaf).unwrap();
         assert_eq!(
             chain.iter().map(|p| name_of(p)).collect::<Vec<_>>(),
-            vec!["BRIEF.md"]
+            vec!["_BRIEF.md"]
         );
     }
 
     #[test]
     fn brief_chain_two_levels_deep_root_then_each_ancestor_brief() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let n1 = mknode(&g, "02-mid-k1");
-        touch(&n1, "BRIEF.md");
-        let n2 = mknode(&n1, "01-node-k2");
-        touch(&n2, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let n1 = mknode(&g, "02-k1", "mid");
+        touch(&n1, "_mid.md");
+        let n2 = mknode(&n1, "01-k2", "node");
+        touch(&n2, "_node.md");
         let leaf = touch(&n2, "01-impl--leaf-k3.md");
         let chain = brief_chain_at(&g, &leaf).unwrap();
         // Each brief's parent dir distinguishes them; assert on the parent.
@@ -1388,9 +1343,12 @@ pub(crate) mod tests {
                 .iter()
                 .map(|p| name_of(p.parent().unwrap()))
                 .collect::<Vec<_>>(),
-            vec![".grove", "02-mid-k1", "01-node-k2"]
+            vec![".grove", "02-k1", "01-k2"]
         );
-        assert!(chain.iter().all(|p| name_of(p) == "BRIEF.md"));
+        assert_eq!(
+            chain.iter().map(|p| name_of(p)).collect::<Vec<_>>(),
+            vec!["_BRIEF.md", "_mid.md", "_node.md"]
+        );
     }
 
     #[test]
@@ -1398,11 +1356,11 @@ pub(crate) mod tests {
         // The directory ascent inherently excludes a sibling node's brief: a leaf
         // under `01-design` never sees `02-other`'s brief.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let design = mknode(&g, "01-design-k1");
-        touch(&design, "BRIEF.md");
-        let other = mknode(&g, "02-other-k3");
-        touch(&other, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let design = mknode(&g, "01-k1", "design");
+        touch(&design, "_design.md");
+        let other = mknode(&g, "02-k3", "other");
+        touch(&other, "_other.md");
         let leaf = touch(&design, "01-impl--leaf-k2.md");
         let chain = brief_chain_at(&g, &leaf).unwrap();
         assert_eq!(
@@ -1410,43 +1368,41 @@ pub(crate) mod tests {
                 .iter()
                 .map(|p| name_of(p.parent().unwrap()))
                 .collect::<Vec<_>>(),
-            vec![".grove", "01-design-k1"]
+            vec![".grove", "01-k1"]
         );
     }
 
     #[test]
-    fn brief_chain_skips_missing_intermediate_brief() {
+    fn brief_chain_refuses_missing_intermediate_node_file() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        // No BRIEF.md in `02-mid` — a mid-decomposition transient.
-        let n1 = mknode(&g, "02-mid-k1");
-        let n2 = mknode(&n1, "01-node-k2");
-        touch(&n2, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        // Remove the positioned node file to exercise the earlier level refusal.
+        let n1 = mknode(&g, "02-k1", "mid");
+        let n2 = mknode(&n1, "01-k2", "node");
+        touch(&n2, "_node.md");
         let leaf = touch(&n2, "01-impl--leaf-k3.md");
-        let chain = brief_chain_at(&g, &leaf).unwrap();
-        assert_eq!(
-            chain
-                .iter()
-                .map(|p| name_of(p.parent().unwrap()))
-                .collect::<Vec<_>>(),
-            vec![".grove", "01-node-k2"]
+        fs::remove_file(n1.join("_mid.md")).unwrap();
+        let error = brief_chain_at(&g, &leaf).unwrap_err().to_string();
+        assert!(error.contains("exactly one regular node file"), "{error}");
+        assert!(
+            error.contains(&n1.join("_mid.md").parent().unwrap().display().to_string()),
+            "{error}"
         );
     }
 
     #[test]
-    fn brief_chain_skips_missing_root_brief() {
+    fn brief_chain_refuses_missing_root_node_file() {
         let (_t, g) = grove();
-        // No root BRIEF.md.
-        let n1 = mknode(&g, "02-mid-k1");
-        touch(&n1, "BRIEF.md");
+        // No root _BRIEF.md.
+        let n1 = mknode(&g, "02-k1", "mid");
+        touch(&n1, "_mid.md");
         let leaf = touch(&n1, "01-impl--leaf-k2.md");
-        let chain = brief_chain_at(&g, &leaf).unwrap();
-        assert_eq!(
-            chain
-                .iter()
-                .map(|p| name_of(p.parent().unwrap()))
-                .collect::<Vec<_>>(),
-            vec!["02-mid-k1"]
+        fs::remove_file(g.join("_BRIEF.md")).unwrap();
+        let error = brief_chain_at(&g, &leaf).unwrap_err().to_string();
+        assert!(error.contains("exactly one regular node file"), "{error}");
+        assert!(
+            error.contains(&g.join("_BRIEF.md").parent().unwrap().display().to_string()),
+            "{error}"
         );
     }
 
@@ -1454,9 +1410,9 @@ pub(crate) mod tests {
     fn brief_chain_resolves_chain_for_a_done_leaf() {
         // Normally called on a live leaf, but a `DONE` leaf still has ancestors.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let n1 = mknode(&g, "01-design-k1");
-        touch(&n1, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let n1 = mknode(&g, "01-k1", "design");
+        touch(&n1, "_design.md");
         let leaf = touch(&n1, "01-DONE-impl--leaf-k2.md");
         let chain = brief_chain_at(&g, &leaf).unwrap();
         assert_eq!(
@@ -1464,31 +1420,31 @@ pub(crate) mod tests {
                 .iter()
                 .map(|p| name_of(p.parent().unwrap()))
                 .collect::<Vec<_>>(),
-            vec![".grove", "01-design-k1"]
+            vec![".grove", "01-k1"]
         );
     }
 
     #[test]
     fn brief_chain_accepts_grove_root_relative_leaf_path() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let n1 = mknode(&g, "01-design-k1");
-        touch(&n1, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let n1 = mknode(&g, "01-k1", "design");
+        touch(&n1, "_design.md");
         touch(&n1, "01-impl--leaf-k2.md");
-        let chain = brief_chain_at(&g, Path::new("01-design-k1/01-impl--leaf-k2.md")).unwrap();
+        let chain = brief_chain_at(&g, Path::new("01-k1/01-impl--leaf-k2.md")).unwrap();
         assert_eq!(
             chain
                 .iter()
                 .map(|p| name_of(p.parent().unwrap()))
                 .collect::<Vec<_>>(),
-            vec![".grove", "01-design-k1"]
+            vec![".grove", "01-k1"]
         );
     }
 
     #[test]
     fn brief_chain_errors_when_leaf_name_is_not_task_shaped() {
         let (tmp, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         let stray = tmp.path().join("stray.md");
         fs::write(&stray, b"# stub\n").unwrap();
         let err = brief_chain_at(&g, &stray).unwrap_err();
@@ -1503,7 +1459,7 @@ pub(crate) mod tests {
     #[test]
     fn brief_chain_errors_when_task_shaped_leaf_is_outside_grove_root() {
         let (tmp, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         let outside = tmp.path().join("01-impl--a-k1.md");
         fs::write(&outside, b"# stub\n").unwrap();
         let err = brief_chain_at(&g, &outside).unwrap_err();
@@ -1516,7 +1472,7 @@ pub(crate) mod tests {
     #[test]
     fn brief_chain_errors_when_given_the_grove_root_which_is_not_a_file() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         let err = brief_chain_at(&g, &g).unwrap_err();
         assert!(
             err.to_string().contains("Grove leaf not found"),
@@ -1608,17 +1564,17 @@ pub(crate) mod tests {
         // No live leaves ⇒ Ok(None), the same signal pick gives (the CLI renders
         // the "no live leaves" diagnostic).
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         assert_eq!(kind(&g, None).unwrap(), None);
     }
 
     #[test]
     fn kind_accepts_a_grove_root_relative_path() {
         let (_t, g) = grove();
-        let node = mknode(&g, "01-design-k1");
-        touch(&node, "BRIEF.md");
+        let node = mknode(&g, "01-k1", "design");
+        touch(&node, "_design.md");
         touch_body(&node, "01-impl--leaf-k2.md", "**Kind:** impl\n");
-        let got = kind(&g, Some(Path::new("01-design-k1/01-impl--leaf-k2.md"))).unwrap();
+        let got = kind(&g, Some(Path::new("01-k1/01-impl--leaf-k2.md"))).unwrap();
         assert_eq!(got, Some(a_kind("impl")));
     }
 
@@ -1673,9 +1629,9 @@ pub(crate) mod tests {
     ///
     /// ```text
     /// .grove/
-    ///   BRIEF.md
-    ///   01-design-k1/         node
-    ///     BRIEF.md
+    ///   _BRIEF.md
+    ///   01-k1/         node
+    ///     _grow.md
     ///     01-impl--add-k2.md        live leaf, slug "add"
     ///     02-impl--remove-k3.md
     ///   02-add-k4.DONE? -> 02-DONE-impl--add-k4.md   retired leaf, slug "add"
@@ -1694,9 +1650,9 @@ pub(crate) mod tests {
 
     fn resolve_fixture() -> (TempDir, PathBuf) {
         let (tmp, g) = grove();
-        touch(&g, "BRIEF.md");
-        let design = mknode(&g, "01-design-k1");
-        touch(&design, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let design = mknode(&g, "01-k1", "design");
+        touch(&design, "_design.md");
         touch(&design, "01-impl--add-k2.md");
         touch(&design, "02-impl--remove-k3.md");
         touch(&g, "02-DONE-impl--add-k4.md");
@@ -1710,7 +1666,7 @@ pub(crate) mod tests {
         match resolve(&g, "[2]").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "01-impl--add-k2.md");
-                assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
+                assert_eq!(name_of(path.parent().unwrap()), "01-k1");
                 assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected one entry, got {other:?}"),
@@ -1739,7 +1695,7 @@ pub(crate) mod tests {
         // tree that hides its dead ends lies"), here in `resolve` rather than
         // the tree itself.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         touch(&g, "01-ABANDONED-impl--spike-k1.md");
         match resolve(&g, "[1]").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
@@ -1773,11 +1729,11 @@ pub(crate) mod tests {
     #[test]
     fn resolve_key_resolves_a_node_to_its_directory() {
         // A node's identity rides in its directory name, so a key reference to a
-        // node resolves to the directory path (append /BRIEF.md to read it).
+        // node resolves to its directory; `_grow.md` supplies its title and brief.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "[1]").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
-                assert_eq!(name_of(&path), "01-design-k1");
+                assert_eq!(name_of(&path), "01-k1");
                 assert!(path.is_dir());
                 assert_eq!(outcome, Outcome::Live);
             }
@@ -1810,7 +1766,7 @@ pub(crate) mod tests {
         match resolve(&g, "remove").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
                 assert_eq!(name_of(&path), "02-impl--remove-k3.md");
-                assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
+                assert_eq!(name_of(path.parent().unwrap()), "01-k1");
                 assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected one entry, got {other:?}"),
@@ -1828,7 +1784,7 @@ pub(crate) mod tests {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "add").unwrap() {
             Sought::Match(Resolution::Ambiguous(matches)) => {
-                // Pre-order: the nested `01-design/01-add-k2` precedes the
+                // Pre-order: the nested `01-design/01-k2` precedes the
                 // root-level `02-DONE-add-k4`.
                 assert_eq!(matches.len(), 2);
                 // The key comes back inside the handle now: it is the handle
@@ -1851,7 +1807,7 @@ pub(crate) mod tests {
         // It carries no key and no slug, so nothing spells it. Its own filename
         // does not either.
         assert_eq!(resolve(&g, "BRIEF").unwrap(), Sought::Nothing);
-        assert_eq!(resolve(&g, "BRIEF.md").unwrap(), Sought::Nothing);
+        assert_eq!(resolve(&g, "_BRIEF.md").unwrap(), Sought::Nothing);
     }
 
     #[test]
@@ -1892,8 +1848,7 @@ pub(crate) mod tests {
     #[test]
     fn resolve_by_full_slug_handle_finds_by_terminal_key() {
         // §5's canonical commit/prose handle is `<slug>-k<key>`; resolve accepts it
-        // directly — the terminal `-k<key>` is read as the key, the slug decorative
-        // — so the handle round-trips back to a path.
+        // directly, checking both the key and the current title.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "build-k5").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, outcome, .. })) => {
@@ -1904,52 +1859,30 @@ pub(crate) mod tests {
         }
     }
 
-    /// The fallback reads a **terminal key**, not a handle, and nothing before
-    /// that key has to be a slug.
-    ///
-    /// The realistic case is the first: an operator pastes a retired leaf's
-    /// whole filename stem, which carries a position and a `DONE` infix and is
-    /// therefore not a slug at all. `name-ownership-k14` briefly routed this
-    /// through `Handle::parse` and lost every row below — a change to what
-    /// `resolve` accepts, smuggled in by a refactor whose subject was who owns
-    /// the grammar. Pinned so the next such routing has to be deliberate.
+    /// A full handle must agree with the positioned entry's current title.
     #[test]
-    fn resolve_reads_a_terminal_key_whatever_precedes_it() {
+    fn resolve_checks_the_title_of_a_full_handle() {
         let (_t, g) = resolve_fixture();
         for reference in [
-            // A retired leaf's stem, as it literally appears on disk.
             "02-DONE-impl--add-k4",
-            // A live leaf's stem.
             "03-impl--build-k5",
-            // Shapes no slug may take: uppercase, an underscore, a reserved
-            // word, an empty head. All of them still end in a key.
             "Build-k5",
             "a_b-k5",
             "DONE-k5",
             "-k5",
-            // A lenient key spelling, as `parse_ref` already accepts for a bare
-            // integer.
             "build-k005",
+            "wrong-k5",
         ] {
-            match resolve(&g, reference).unwrap() {
-                Sought::Match(Resolution::Entry(Located { path, .. })) => assert_eq!(
-                    name_of(&path),
-                    if reference.contains("-k4") {
-                        "02-DONE-impl--add-k4.md"
-                    } else {
-                        "03-impl--build-k5.md"
-                    },
-                    "{reference:?}"
-                ),
-                other => panic!("{reference:?}: expected one entry, got {other:?}"),
-            }
-        }
-        // A reference ending in no key at all is still simply unmatched.
-        for reference in ["nothing", "nothing-k", "nothing-kx"] {
             assert!(
                 matches!(resolve(&g, reference).unwrap(), Sought::Nothing),
-                "{reference:?} should not resolve"
+                "{reference}"
             );
+        }
+        for reference in ["build-k5", "5"] {
+            assert!(matches!(
+                resolve(&g, reference).unwrap(),
+                Sought::Match(Resolution::Entry(_))
+            ));
         }
     }
 
@@ -1961,7 +1894,7 @@ pub(crate) mod tests {
         match resolve(&g, "add-k2").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, .. })) => {
                 assert_eq!(name_of(&path), "01-impl--add-k2.md");
-                assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
+                assert_eq!(name_of(path.parent().unwrap()), "01-k1");
             }
             other => panic!("expected one entry, got {other:?}"),
         }
@@ -1973,7 +1906,7 @@ pub(crate) mod tests {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "design-k1").unwrap() {
             Sought::Match(Resolution::Entry(Located { path, .. })) => {
-                assert_eq!(name_of(&path), "01-design-k1");
+                assert_eq!(name_of(&path), "01-k1");
                 assert!(path.is_dir());
             }
             other => panic!("expected one entry, got {other:?}"),
@@ -1986,7 +1919,7 @@ pub(crate) mod tests {
         // key fallback fires only when the slug match is empty. So a slug `foo-k5`
         // (key 7) wins over a *different* entity that happens to hold key 5.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         touch(&g, "01-impl--foo-k5-k7.md"); // slug "foo-k5", key 7
         touch(&g, "02-impl--other-k5.md"); // slug "other", key 5
         match resolve(&g, "foo-k5").unwrap() {
@@ -2016,9 +1949,9 @@ pub(crate) mod tests {
         // End-to-end: pick the first live leaf in a nested tree, then resolve its
         // ancestor brief chain — the loop's bootstrap path.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let n1 = mknode(&g, "01-scheme-k1");
-        touch(&n1, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let n1 = mknode(&g, "01-k1", "scheme");
+        touch(&n1, "_scheme.md");
         touch(&n1, "01-DONE-impl--id-model-k2.md");
         let leaf = touch(&n1, "02-impl--read-verbs-k3.md");
         touch(&g, "02-impl--shed-tui-k4.md");
@@ -2032,7 +1965,7 @@ pub(crate) mod tests {
                 .iter()
                 .map(|p| name_of(p.parent().unwrap()))
                 .collect::<Vec<_>>(),
-            vec![".grove", "01-scheme-k1"]
+            vec![".grove", "01-k1"]
         );
     }
 }

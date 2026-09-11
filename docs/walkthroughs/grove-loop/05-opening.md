@@ -61,17 +61,9 @@ not have supplied: **path construction**, because the library returns no paths,
 and **refusal precedence**, because an absent root is a condition grove states in
 its own words.
 
-The chapter owns 290 of the file's 2,038 lines, in one block. Six of this file's
-ten blocks carry no `#[test]` at all — the five production blocks and, despite
-its name, `path-composition-tests`, which is the support the source labels *the
-path-taking compositions, which are the tests' alone*; the file's first `#[test]`
-is at line 1,108. What is true of this chapter alone is one level up: it is the only one of
-this file's five chapters that owns **no part of the inline test module**, where
-chapters 6 to 9 each own a production block and at least one block inside
-`#[cfg(test)] mod tests`. So every claim below is held from outside the chapter —
-two source-scanning tests and four lock tests in
-`crates/grove-llm/tests/tree_lock.rs`, and assertions in later blocks of this same
-file.
+This chapter owns 290 lines of `task_tree.rs` in 1 blocks.
+The source index records their current ranges; the fragments below reconstruct
+every owned byte.
 
 <a id="one-spelling-of-the-root"></a>
 ## The header, and the one place paths are built
@@ -135,8 +127,8 @@ Both halves of that are held by tests, and neither of them is in this crate.
 ships and so belong to the package that ships them all. The first asserts that
 the non-comment mentions of `ordinal_fs_tree::fs` across that scan are exactly
 five, all in `crates/grove-loop/src/task_tree.rs` — **and all five are in this
-chapter's block**: the import at line 46, the two guard aliases at lines 58 and
-102, and the two acquisitions at lines 86 and 183. The count is the control, so a
+chapter's block**: the import at line 46 the two guard aliases at lines 58 and
+102 and the two acquisitions at lines 86 and 183. The count is the control, so a
 rename that hid the call sites fails the test rather than passing it clean. The
 second cuts each file at its inline `mod tests`, skips the releases, and reports
 any remaining `libc::flock` acquisition that does not carry `LOCK_NB`. Its
@@ -145,7 +137,7 @@ two lockers being two files, and a bare count of matches unable to tell one of
 them being hidden from the other having grown a lock. It could not tell before
 `lock-scan-blind-to-contention-probe-k190`: the cut was taken at each file's
 first `#[cfg(test)]`, which in this file is the test-only `READ_COUNT`
-thread-local at line 60, so the probe below was never read and the lease's four
+thread-local at line 60 so the probe below was never read and the lease's four
 matches cleared the old floor alone.
 
 The second passage is the one an early-use row is anchored on, and it is the
@@ -315,7 +307,7 @@ would break `entry_path` two chapters later.
 the thing declared in this chapter that reaches furthest past it. It is declared
 here and incremented in exactly two places — line 83 in `read_or_vacant` and line
 181 in `open_write` — which are the two acquisitions, so the counter measures
-*locks taken* and not verbs run. Its accessors sit at lines 1,006 to 1,014, in
+*locks taken* and not verbs run. Its accessors sit at lines 962 to 970 in
 the block chapter 9 owns, and **nine assertions read them**: one in chapter 7's
 `pick-tests`, six in `tree_lifecycle.rs` spread across the blocks chapters 11, 12,
 13 and 14 own, and two in the `task_grow` test file chapter 10 can only cite by
@@ -565,9 +557,9 @@ in `crates/grove-llm/tests/tree_lock.rs`: it holds an external shared lock on th
 worktree, runs `leaf-add`, and asserts on the child's stderr that the waiting
 diagnostic appears exactly once — `assert_eq!(…count(), 1)` rather than a
 `contains`, so a second copy would fail it. But count the guards. `reopen_write`
-has three callers: `write` itself at line 152, which announced before it got
-here; the `leaf-decompose` retitle at `tree_lifecycle.rs` line 586; and
-`apply_prune`'s loop at line 953. Only the last takes *N* of them, and `leaf-add`
+has three callers: `write` itself at line 152 which announced before it got
+here; the `leaf-decompose` retitle at `tree_lifecycle.rs` line 534; and
+`apply_prune`'s loop at line 909. Only the last takes *N* of them, and `leaf-add`
 is not it — a one-guard verb prints exactly once under a per-guard policy and a
 per-command one alike, so that assertion cannot tell the two apart. The run that
 could distinguish them is a bulk `leaf-prune` against a contended tree, and no
@@ -632,7 +624,7 @@ Two functions in this file produce that sentence. `absent_tree` at line 196 is
 one; `restate`'s absence clause at line 277 is the other, and the two are the
 same format string written twice with nothing holding them to each other. Eight
 assertions pin it across the crate — four in later blocks of this file, at lines
-1,356, 1,518, 1,648 and 1,870, which chapters 7, 8 and 9 own, and four more in
+1,311 1,518, 1,648 and 1,870, which chapters 7, 8 and 9 own, and four more in
 `tree_lifecycle.rs`, in the `task_grow` test file, and in `grove-llm`'s own
 integration suite — and **every one of the eight is a `contains`**. So not one of
 them can tell the two spellings apart, and none would report it if one drifted.

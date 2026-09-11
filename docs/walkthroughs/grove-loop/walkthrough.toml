@@ -211,12 +211,12 @@ lines = 377
 [[root]]
 id    = "source-task-name"
 path  = "crates/grove-loop/src/task_name.rs"
-lines = 1743
+lines = 1675
 
 [[root]]
 id    = "source-task-tree"
 path  = "crates/grove-loop/src/task_tree.rs"
-lines = 2038
+lines = 1971
 
 [[root]]
 id    = "source-task-grow"
@@ -226,12 +226,12 @@ lines = 518
 [[root]]
 id    = "source-tree-lifecycle"
 path  = "crates/grove-loop/src/tree_lifecycle.rs"
-lines = 2732
+lines = 2734
 
 [[root]]
 id    = "source-verbs"
 path  = "crates/grove-loop/src/verbs.rs"
-lines = 363
+lines = 361
 
 [[root]]
 id    = "source-driver"
@@ -279,55 +279,55 @@ lines = "1-377"
 id    = "tokens-and-verdicts"
 root  = "source-task-name"
 owner = "four-verdicts"
-lines = "1-220"
+lines = "1-156"
 
 [[block]]
 id    = "kind-slug-and-handle"
 root  = "source-task-name"
 owner = "the-handle-not-the-position"
-lines = "221-590"
+lines = "157-505"
 
 [[block]]
 id    = "the-task-name"
 root  = "source-task-name"
 owner = "canonical-or-nothing"
-lines = "591-1016"
+lines = "506-953"
 
 [[block]]
 id    = "name-test-support-and-kit"
 root  = "source-task-name"
 owner = "canonical-or-nothing"
-lines = "1017-1206"
+lines = "954-1168"
 
 [[block]]
 id    = "classification-verdict-tests"
 root  = "source-task-name"
 owner = "four-verdicts"
-lines = "1207-1228"
+lines = "1169-1188"
 
 [[block]]
 id    = "grammar-and-canonicity-tests"
 root  = "source-task-name"
 owner = "canonical-or-nothing"
-lines = "1229-1341"
+lines = "1189-1298"
 
 [[block]]
 id    = "shape-refusal-tests"
 root  = "source-task-name"
 owner = "four-verdicts"
-lines = "1342-1550"
+lines = "1299-1495"
 
 [[block]]
 id    = "slug-rule-tests"
 root  = "source-task-name"
 owner = "the-handle-not-the-position"
-lines = "1551-1579"
+lines = "1496-1524"
 
 [[block]]
 id    = "handle-grammar-tests"
 root  = "source-task-name"
 owner = "the-handle-not-the-position"
-lines = "1580-1743"
+lines = "1525-1675"
 
 [[block]]
 id    = "tree-opening"
@@ -339,55 +339,55 @@ lines = "1-290"
 id    = "paths-and-addressing"
 root  = "source-task-tree"
 owner = "paths-are-built-here"
-lines = "291-570"
+lines = "291-518"
 
 [[block]]
 id    = "walk-selection"
 root  = "source-task-tree"
 owner = "first-live-leaf"
-lines = "571-637"
+lines = "519-585"
 
 [[block]]
 id    = "kind-and-brief-chain"
 root  = "source-task-tree"
 owner = "root-to-leaf"
-lines = "638-746"
+lines = "586-688"
 
 [[block]]
 id    = "resolution"
 root  = "source-task-tree"
 owner = "wider-than-a-key"
-lines = "747-1015"
+lines = "689-971"
 
 [[block]]
 id    = "path-composition-tests"
 root  = "source-task-tree"
 owner = "paths-are-built-here"
-lines = "1016-1105"
+lines = "972-1063"
 
 [[block]]
 id    = "pick-tests"
 root  = "source-task-tree"
 owner = "first-live-leaf"
-lines = "1106-1360"
+lines = "1064-1315"
 
 [[block]]
 id    = "brief-chain-and-kind-tests"
 root  = "source-task-tree"
 owner = "root-to-leaf"
-lines = "1361-1667"
+lines = "1316-1623"
 
 [[block]]
 id    = "resolve-tests"
 root  = "source-task-tree"
 owner = "wider-than-a-key"
-lines = "1668-2011"
+lines = "1624-1944"
 
 [[block]]
 id    = "pick-with-brief-chain-tests"
 root  = "source-task-tree"
 owner = "root-to-leaf"
-lines = "2012-2038"
+lines = "1945-1971"
 
 [[block]]
 id    = "growing-the-tree"
@@ -399,61 +399,61 @@ lines = "1-518"
 id    = "finish-transition"
 root  = "source-tree-lifecycle"
 owner = "the-tree-deletes-itself"
-lines = "1-331"
+lines = "1-326"
 
 [[block]]
 id    = "grove-beginning"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "332-492"
+lines = "327-487"
 
 [[block]]
 id    = "decompose-production"
 root  = "source-tree-lifecycle"
 owner = "the-key-survives"
-lines = "493-698"
+lines = "488-705"
 
 [[block]]
 id    = "outcomes-in-place"
 root  = "source-tree-lifecycle"
 owner = "marked-in-place"
-lines = "699-1015"
+lines = "706-1022"
 
 [[block]]
 id    = "body-helpers"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "1016-1079"
+lines = "1023-1086"
 
 [[block]]
 id    = "root-init-tests"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "1080-1469"
+lines = "1087-1502"
 
 [[block]]
 id    = "finish-tests"
 root  = "source-tree-lifecycle"
 owner = "the-tree-deletes-itself"
-lines = "1470-1668"
+lines = "1503-1697"
 
 [[block]]
 id    = "decompose-tests"
 root  = "source-tree-lifecycle"
 owner = "the-key-survives"
-lines = "1669-2241"
+lines = "1698-2243"
 
 [[block]]
 id    = "retire-and-prune-tests"
 root  = "source-tree-lifecycle"
 owner = "marked-in-place"
-lines = "2242-2732"
+lines = "2244-2734"
 
 [[block]]
 id    = "the-twelve-verbs"
 root  = "source-verbs"
 owner = "twelve-not-fourteen"
-lines = "1-363"
+lines = "1-361"
 
 [[block]]
 id    = "driver-operations"

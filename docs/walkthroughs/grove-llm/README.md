@@ -9,7 +9,7 @@ which says what each of the twelve verbs does to the tree, what it prints and
 whether it commits. This reader has run most of those verbs; what they have not
 read is the code.
 
-`crates/grove-llm` is four files and 1,017 lines: a manifest, a sixteen-line
+`crates/grove-llm` is four files and 1,015 lines: a manifest, a sixteen-line
 library root, a three-line entry point, and one module of 944 lines that is
 the whole command surface. Every verb in that module is one call into
 `grove_loop::verbs` plus rendering, and the file's own header says what is left
@@ -27,7 +27,7 @@ own code, ask what is left there that is not rendering, and answer in three
 parts: which text is parsed before which lock, which check runs before which
 mutation, which admission precedes which signal — and for each, say what
 reversing the order costs and name the test that would catch it. All three are
-provable inside these 1,017 lines. The stream contract — data on stdout,
+provable inside these 1,015 lines. The stream contract — data on stdout,
 advice on stderr, exit zero for information, every refusal carrying its
 remedy — is the rendering half of the same thesis, and the last chapter
 tabulates it.
@@ -53,7 +53,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and the source index records how those fragments
 reconstruct each in-scope file. During authoring a scoped check proves the
 completed prefix and reports later-owned ranges as deferred; only the final
-check proves complete reconstruction of all four files and 1,017 lines.
+check proves complete reconstruction of all four files and 1,015 lines.
 
 <a id="reading-fragments"></a>
 ## Reading fragments

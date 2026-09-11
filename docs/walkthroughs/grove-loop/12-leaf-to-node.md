@@ -46,7 +46,7 @@ chapter 10 grew now holds work that will not fit one session.
 
 ```text
 <worktree>/.grove/
-├── BRIEF.md
+├── _BRIEF.md
 ├── 01-requirements--plan-k1.md
 └── 02-impl--build-k3.md              a LEAF (grove): one session's work
                                       a LEAF (ordinal-fs-tree): a file entry
@@ -54,17 +54,17 @@ chapter 10 grew now holds work that will not fit one session.
 leaf_decompose(guard, "02-impl--build-k3.md", "step", Some(impl))
 
 <worktree>/.grove/
-├── BRIEF.md
+├── _BRIEF.md
 ├── 01-requirements--plan-k1.md
-└── 02-build-k3/                      a NODE (grove): a task that proved bigger
+└── 02-k3/                      a NODE (grove): a task that proved bigger
     │                                 a NODE (ordinal-fs-tree): a directory entry
     │                                 position 02 kept, key 3 KEPT
-    ├── BRIEF.md                      the leaf's own bytes, RENAMED in
+    ├── _BRIEF.md                      the leaf's own bytes, RENAMED in
     │                                 "# build-k3"  ->  "# build-k3 — brief"
     └── 01-impl--step-k4.md           grown in the SAME operation, key 4 predicted
 
-  ⇒ Ok(( <root>/02-build-k3/BRIEF.md,
-         <root>/02-build-k3/01-impl--step-k4.md ))
+  ⇒ Ok(( <root>/02-k3/_build.md,
+         <root>/02-k3/01-impl--step-k4.md ))
 ```
 
 Those are the names `decompose_converts_leaf_file_to_node_dir_preserving_the_key`
@@ -76,11 +76,11 @@ species, and one line of one file's text.
 <a id="one-promote-that-had-to-be-one"></a>
 ## One `promote`, and why it had to be one
 
-The chapter's first ownership block is `tree_lifecycle.rs` lines 490 to 695 — 206
+The chapter's first ownership block is `tree_lifecycle.rs` lines 485 to 702 — 206
 lines, the file's third production concern. It is three items: the verb, the
 classification it runs first, and the check it runs last.
 
-<!-- fragment «decompose-production» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="493-698" parent="source-tree-lifecycle" -->
+<!-- fragment «decompose-production» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="488-705" parent="source-tree-lifecycle" -->
 <!-- insert «decompose-verb-contract» -->
 <!-- insert «decompose-verb-body» -->
 <!-- insert «decompose-decomposable» -->
@@ -92,11 +92,11 @@ The doc comment is the longest in the file and it is an argument rather than a
 description, so this chapter's job over it is to connect its parts and not to
 restate them.
 
-<!-- fragment «decompose-verb-contract» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="493-534" parent="decompose-production" -->
+<!-- fragment «decompose-verb-contract» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="488-529" parent="decompose-production" -->
 ````rust
 /// `leaf-decompose <leaf-path> <first-child-slug>`: convert a live leaf file
-/// `NN-<kind>--<slug>-k<key>.md` into a node directory `NN-<slug>-k<key>/` (**key
-/// preserved**) holding a `BRIEF.md` (seeded from the leaf body, its `# <handle>`
+/// `NN-<kind>--<slug>-k<key>.md` into a node directory `NN-k<key>/` (**key
+/// preserved**) holding `_<slug>.md` (seeded from the leaf body, its `# <handle>`
 /// header retitled `# <handle> — brief`) and a first child
 /// `01-<kind>--<first-child-slug>-k<new>.md` grown atomically so the node is never
 /// childless. Refuses a brief, a node, and an already-`DONE` leaf. Returns
@@ -176,7 +176,7 @@ with, and the node's in the brief header this verb retitles afterwards. A key th
 disagreed would not be a wrong return value; it would be a file whose name
 contradicts its own first line, permanently.
 
-<!-- fragment «decompose-verb-body» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="535-593" parent="decompose-production" -->
+<!-- fragment «decompose-verb-body» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="530-600" parent="decompose-production" -->
 ````rust
 pub(crate) fn leaf_decompose(
     tree: Guard,
@@ -218,10 +218,15 @@ pub(crate) fn leaf_decompose(
     // them — `Parts` is opaque, and nothing the library can reach describes
     // *this* entry as a node (`docs/adr/entry-name-is-the-only-seam.md`). The
     // same slug, so the species is the only thing that moved.
-    let node_parts = Parts::node(slug.clone());
+    let node_parts = Parts::node();
     let child = task_grow::new_leaf(child_key, Outcome::Live, kind, child_slug);
     let report = tree
-        .promote(key, node_parts, TaskName::Brief, Some(child))
+        .promote(
+            key,
+            node_parts,
+            TaskName::NodeFile(slug.clone()),
+            Some(child),
+        )
         .map_err(task_tree::raised)?;
     let (brief_path, child_path) = promoted(&report, key, child_key)?;
 
@@ -233,7 +238,14 @@ pub(crate) fn leaf_decompose(
     // `reopen_write`, not `write`: the wait this command made was announced by
     // the promotion (`docs/ARCHITECTURE.md#tree-access-lock`).
     let _guard = task_tree::reopen_write(&grove_root)?;
-    append_brief_suffix_in_file(&brief_path, &Handle::new(slug.clone(), key))?;
+    append_brief_suffix_in_file(&brief_path, &Handle::new(slug.clone(), key)).with_context(
+        || {
+            format!(
+                "promotion succeeded; repair the heading in {}",
+                brief_path.display()
+            )
+        },
+    )?;
     Ok((brief_path, child_path))
 }
 
@@ -241,7 +253,7 @@ pub(crate) fn leaf_decompose(
 <!-- /fragment -->
 
 **The body is a classification, an operation, and an edit — in that order, and
-the order is what the comments are about.** The braces around lines 548 to 567 are
+the order is what the comments are about.** The braces around lines 543 to 562 are
 not style: `promote` *consumes* the guard, so every borrow of the guard's snapshot
 has to end before the call, and the block is how the four values the operation
 needs — the key, the slug, the kind and the predicted child key — get out of the
@@ -250,7 +262,7 @@ snapshot's lifetime alive.
 <a id="the-precondition-that-moved-into-the-type"></a>
 ### A precondition that moved into the type, and the comment that says so
 
-Lines 538 to 541 talk about a precondition and line 542 performs none, which is
+Lines 533 to 536 talk about a precondition and line 537 performs none, which is
 the shape this section exists to adjudicate.
 
     // No check here: `Slug` is the precondition, discharged wherever one was
@@ -305,7 +317,7 @@ had to move.
 `docs/ARCHITECTURE.md#library-refusals` for this verb: *classify the resolved
 entry before calling*.
 
-<!-- fragment «decompose-decomposable» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="594-631" parent="decompose-production" -->
+<!-- fragment «decompose-decomposable» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="601-638" parent="decompose-production" -->
 ````rust
 /// The decomposed leaf's own kind and slug, or Grove's refusal that this entry
 /// is not a live leaf.
@@ -321,7 +333,7 @@ fn decomposable<'a>(entry: &Entry<'a, TaskName>) -> Result<(Kind, &'a Slug)> {
         bail!("cannot decompose a brief (it is already a node): {name}")
     };
     match triple.parts {
-        Parts::Node { .. } => {
+        Parts::Node => {
             bail!("cannot decompose a node (it already has children): {name}")
         }
         Parts::Leaf {
@@ -349,7 +361,7 @@ fn decomposable<'a>(entry: &Entry<'a, TaskName>) -> Result<(Kind, &'a Slug)> {
 <!-- /fragment -->
 
 **Five refusal arms, four conditions, and none of the four is a fact about the
-filesystem.** The `else` on line 601 refuses a charter brief; the `Parts::Node`
+filesystem.** The `else` on line 608 refuses a charter brief; the `Parts::Node`
 arm refuses a node; the two outcome arms refuse a retired and an abandoned leaf;
 and the `is_finish` guard inside the live arm refuses the kind the driver reserved
 for itself. Brief-ness, an outcome infix and `finish`-reservation are the three
@@ -365,12 +377,12 @@ needed anyway is what makes the library's own species refusal unreachable. That 
 clause 2's second sentence read as a consequence rather than as an instruction,
 and *The seam* below is where it stops being a sentence and becomes an assertion.
 
-**The predicate is read off the snapshot and not off the filesystem**, which is
-clause 2's own requirement: a node here is an entry whose `triple().parts` is
-`Parts::Node`, never a path that `is_dir`. Chapter 6 met the same rule in
-`interrupted_promotion`, which asks whether an entry's `contents()` is `Some`.
-Two predicates for one condition would let grove refuse where the library would
-have proceeded, and this function has one.
+
+**The predicate is read off the snapshot.** `decomposable` matches the
+entry's parsed parts, so a node is `Parts::Node` and a node file has no
+positioned triple. The same observation supplies the source leaf's slug and
+key; no directory title is inferred from its path or body.
+
 
 **The return is the *parent's* kind, not the child's.** `decomposable` answers
 `(Kind, &Slug)` — the decomposed leaf's own kind and its own slug — and the caller
@@ -386,7 +398,7 @@ below.
 `promoted` runs after the operation has already landed. Nothing it finds can be
 recovered from, and its doc comment says so in as many words.
 
-<!-- fragment «decompose-promoted-claims» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="632-647" parent="decompose-production" -->
+<!-- fragment «decompose-promoted-claims» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="639-654" parent="decompose-production" -->
 ````rust
 /// What a promotion left behind: the node's brief, and the first child — each
 /// checked against what Grove promised itself.
@@ -419,10 +431,10 @@ checking rather than accepting: the node's name is composed from the promoted
 leaf's triple, so a preserved key and a preserved ordinal are one fact rather than
 two. The on-disk half is asserted by
 `decompose_converts_leaf_file_to_node_dir_preserving_the_key`, which reads
-`02-build-k3` off the parent directory's name — a string carrying the ordinal and
+`02-k3` off the parent directory's name — a string carrying the ordinal and
 the key at once, so one assertion pins both.
 
-<!-- fragment «decompose-promoted-body» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="648-698" parent="decompose-production" -->
+<!-- fragment «decompose-promoted-body» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="655-705" parent="decompose-production" -->
 ````rust
 fn promoted(
     report: &Report<TaskName>,
@@ -495,7 +507,7 @@ contract — and *What the refusals are worth, measured* below shows that all si
 them are held by nothing at all, for the same reason.
 
 One detail in the child-key message repays attention: `predicted_child` is an
-`Option<Key>`, and line 685 renders `None` as the string `"no key"` rather than
+`Option<Key>`, and line 692 renders `None` as the string `"no key"` rather than
 letting a formatter choose. A promotion with no first child would predict nothing,
 so the message has to be sayable in a case this verb never produces — `leaf_decompose`
 always passes `Some(child)`.
@@ -503,7 +515,7 @@ always passes `Some(child)`.
 <a id="the-tests-and-what-each-would-pass-under"></a>
 ## What the sixteen tests establish, and what each would pass under
 
-The chapter's second ownership block is lines 1666 to 2234 — 569 lines, and the
+The chapter's second ownership block is lines 1,695 to 2,236 — 564 lines, and the
 largest single inline-test block in the book: larger than chapter 17's
 `driver_lease.rs` tests at 564 and chapter 13's at 491, and larger than any of the
 eleven in `task_name.rs` and `task_tree.rs`. It carries **twenty-two** `#[test]`
@@ -515,7 +527,7 @@ property it establishes **and what would have to be true for it to pass while th
 property was broken**. The second half is the part a reviewer can check and the
 test cannot state.
 
-<!-- fragment «decompose-tests» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1669-2241" parent="source-tree-lifecycle" -->
+<!-- fragment «decompose-tests» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1698-2243" parent="source-tree-lifecycle" -->
 <!-- insert «decompose-tests-opening» -->
 <!-- insert «decompose-tests-brief-and-child» -->
 <!-- insert «decompose-tests-kind» -->
@@ -531,7 +543,7 @@ test cannot state.
 <!-- insert «decompose-tests-sweep» -->
 <!-- /fragment -->
 
-**These tests depend on chapter 11's support block**, at lines 1077 to 1261, and
+**These tests depend on chapter 11's support block**, at lines 1,084 to 1,293 and
 this is the block that collects on it. Chapter 11 counted five of its own eighteen
 items called by its own tests; **this block calls twelve of the eighteen, and nine
 of those twelve are ones chapter 11's tests never touched** — `a_kind`, `jj_grove`,
@@ -540,23 +552,21 @@ of those twelve are ones chapter 11's tests never touched** — `a_kind`, `jj_gr
 are named nowhere in these 569 lines; `run_jj` and `open` are reached, but only
 from inside the support block itself, which is where chapter 11 put them.
 
-Three of the nine are the ones this section reads first. `mknode` builds a node
-directory with a `BRIEF.md` in it, `touch_body` writes a leaf with a body of the
-caller's choosing rather than a one-line stub, and `list` returns the grove root's
-entries sorted so an assertion does not depend on directory order. Chapter 11
-reproduces and explains all three; this chapter names them and reads them at work.
-And the reason this section needs `jj_grove` where chapter 11's tests mostly needed
-a bare directory is the whole difference between the two chapters: this verb
-renames entries.
 
-<!-- fragment «decompose-tests-opening» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1669-1698" parent="decompose-tests" -->
+`mknode` builds a slugless directory with a titled file supplied explicitly
+by its caller. `touch_body` supplies arbitrary leaf content, and `list` sorts
+filesystem names for deterministic assertions. These fixtures keep the root
+and every positioned-node level valid before testing a verb’s own refusal.
+
+
+<!-- fragment «decompose-tests-opening» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1698-1724" parent="decompose-tests" -->
 ````rust
     // ---- leaf-decompose -----------------------------------------------------
 
     #[test]
     fn decompose_converts_leaf_file_to_node_dir_preserving_the_key() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let (brief, _child) = leaf_decompose(
@@ -566,19 +576,16 @@ renames entries.
             Some(a_kind("impl")),
         )
         .unwrap();
-        // The entity that was leaf k3 becomes node k3 — a directory holding BRIEF.md.
-        assert_eq!(name_of(&brief), "BRIEF.md");
-        assert_eq!(name_of(brief.parent().unwrap()), "02-build-k3");
+        // The entity that was leaf k3 becomes node k3 — a directory holding _build.md.
+        assert_eq!(name_of(&brief), "_build.md");
+        assert_eq!(name_of(brief.parent().unwrap()), "02-k3");
         let files = list(&g);
-        assert!(
-            files.contains(&"02-build-k3".to_string()),
-            "node dir present"
-        );
+        assert!(files.contains(&"02-k3".to_string()), "node dir present");
         assert!(
             !files.contains(&"02-impl--build-k3.md".to_string()),
             "old leaf file gone"
         );
-        assert!(g.join("02-build-k3").is_dir());
+        assert!(g.join("02-k3").is_dir());
     }
 
 ````
@@ -586,7 +593,7 @@ renames entries.
 
 **`decompose_converts_leaf_file_to_node_dir_preserving_the_key`** — the chapter's
 rule, on disk. The leaf file `02-impl--build-k3.md` is gone, the directory
-`02-build-k3` is there, it holds a `BRIEF.md`, and the directory's name carries
+`02-k3` is there, it holds `_build.md`, and the directory's name carries
 the same position and the same key the leaf had. The three assertions are chosen
 so that no two of them can be satisfied by the same accident: `name_of(&brief)`
 pins the returned path's basename, `name_of(brief.parent())` pins the node's
@@ -597,17 +604,17 @@ It would pass while the property was broken if the library **copied** rather tha
 renamed: the old file's absence is asserted from `list`, which reads the
 directory, so a copy-then-delete would look identical here. What that would break
 is the brief's *bytes*, and it is the next test that holds them. And nothing here
-asserts that the key was not merely reallocated to the same value; `02-build-k3`
+asserts that the key was not merely reallocated to the same value; `02-k3`
 is one string, so *key 3 preserved* and *key 3 freshly allocated on a tree whose
 maximum was 2* are the same observation. The prediction that separates them is
 `promoted`'s, in production, and it is held by nothing (below).
 
-<!-- fragment «decompose-tests-brief-and-child» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1699-1745" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-brief-and-child» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1725-1771" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decompose_seeds_brief_from_leaf_body_and_appends_brief_suffix() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch_body(
             &g,
             "02-impl--build-k3.md",
@@ -636,7 +643,7 @@ maximum was 2* are the same observation. The prediction that separates them is
     #[test]
     fn decompose_creates_the_first_child_at_01_with_a_fresh_key() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let (_brief, child) = leaf_decompose(
@@ -647,8 +654,8 @@ maximum was 2* are the same observation. The prediction that separates them is
         )
         .unwrap();
         assert_eq!(name_of(&child), "01-impl--step-k4.md");
-        assert_eq!(name_of(child.parent().unwrap()), "02-build-k3");
-        assert!(g.join("02-build-k3").join("01-impl--step-k4.md").is_file());
+        assert_eq!(name_of(child.parent().unwrap()), "02-k3");
+        assert!(g.join("02-k3").join("01-impl--step-k4.md").is_file());
     }
 
 ````
@@ -661,17 +668,13 @@ is what makes this checkable: the leaf is written with a real body —
 `"# build-k3\n\n## Goal\nship it\n"` — so the `contains("## Goal\nship it")`
 assertion has something to find that the retitle could have destroyed.
 
-It would pass while the property was broken if the retitle were applied to a
-*copy* whose original was deleted, since the assertions are on the brief's
-content and not on its identity. It would also pass if
-`append_brief_suffix_in_file` were not idempotent: this fixture's header has no
-suffix on it, so the *already suffixed* branch of that helper is never taken.
-**That branch is chapter 11's source and is held by nothing**, established by
-mutation there — panicking on its conservative `return Ok(())` reddens nothing
-across all 560 — and this chapter is where the helper is consumed, so the gap is
-worth stating here rather than only where the code lives. Its doc comment promises
-two things, idempotence and *never clobbers a custom title*, and both promises run
-through the branch nothing reaches.
+
+The promotion fixture checks the resulting body. The separate
+`node_heading_update_is_idempotent_and_preserves_custom_headings` regression
+applies the update twice and compares bytes, then checks that a custom heading
+and body remain unchanged. The black-box node-file fixture also promotes a
+custom heading through the real verb.
+
 
 **`decompose_creates_the_first_child_at_01_with_a_fresh_key`** — the node is never
 childless, and the child is `01-impl--step-k4.md`: position 01 because it is the
@@ -686,12 +689,12 @@ end state. The lock count that does observe it is
 `decompose_takes_one_guard_for_the_promotion_and_one_for_the_retitle`, in the seam
 section, and even that counts guards rather than operations.
 
-<!-- fragment «decompose-tests-kind» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1746-1825" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-kind» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1772-1851" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decompose_first_child_header_is_the_handle_and_filename_carries_the_kind() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let (_brief, child) = leaf_decompose(
@@ -710,7 +713,7 @@ section, and even that counts guards rather than operations.
     #[test]
     fn decompose_first_child_can_be_a_planning_task() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let (_brief, child) = leaf_decompose(
@@ -729,7 +732,7 @@ section, and even that counts guards rather than operations.
         // task-kind-taxonomy: `leaf-decompose` gives the first child the leaf
         // being decomposed's own kind when `--kind` is not given.
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch_body(
             &g,
             "02-research-a--build-k3.md",
@@ -750,7 +753,7 @@ section, and even that counts guards rather than operations.
     #[test]
     fn decompose_override_wins_over_the_parent_leafs_kind() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch_body(
             &g,
             "02-research-a--build-k3.md",
@@ -814,13 +817,13 @@ the body, which this fixture rules out by making the two disagree — a fixture
 built to falsify rather than to satisfy, which is the shape chapter 11 named in
 its own support block.
 
-<!-- fragment «decompose-tests-nested» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1826-1852" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-nested» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1852-1874" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decompose_a_nested_leaf_preserves_key_and_grows_a_grandchild() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
-        let build = mknode(&g, "02-build-k1", "build-k1");
+        touch(&g, "_BRIEF.md", "root — brief");
+        let build = mknode(&g, "02-k1", "build-k1");
         touch(&build, "02-impl--mid-k5.md", "mid-k5");
         commit_all(&g);
         let (brief, child) = leaf_decompose(
@@ -830,17 +833,13 @@ its own support block.
             Some(a_kind("impl")),
         )
         .unwrap();
-        assert_eq!(
-            name_of(brief.parent().unwrap()),
-            "02-mid-k5",
-            "key 5 preserved"
-        );
+        assert_eq!(name_of(brief.parent().unwrap()), "02-k5", "key 5 preserved");
         assert_eq!(
             name_of(&child),
             "01-impl--first-k6.md",
             "fresh key max(1,5)+1 = 6"
         );
-        assert_eq!(name_of(child.parent().unwrap()), "02-mid-k5");
+        assert_eq!(name_of(child.parent().unwrap()), "02-k5");
     }
 
 ````
@@ -848,8 +847,8 @@ its own support block.
 
 **`decompose_a_nested_leaf_preserves_key_and_grows_a_grandchild`** — the rule
 again, one level down, and the only test in the block whose fixture is not a flat
-grove. A node `02-build-k1` holds a leaf `02-impl--mid-k5.md`; decomposing it
-gives `02-mid-k5` holding `01-impl--first-k6.md`. Both assertions carry their
+grove. A node `02-k1` holds a leaf `02-impl--mid-k5.md`; decomposing it
+gives `02-k5` holding `01-impl--first-k6.md`. Both assertions carry their
 arithmetic in the failure message — *key 5 preserved*, *fresh key max(1,5)+1 = 6*
 — which is what makes them readable as a claim about `next_key` rather than as two
 literals.
@@ -865,16 +864,16 @@ broken under two other rules the fixture cannot separate: *the decomposed leaf's
 own key plus one*, and *the maximum inside the leaf's own container plus one* both
 answer 6 here as well.
 
-<!-- fragment «decompose-tests-refusals» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1853-1926" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-refusals» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1875-1948" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decompose_refuses_a_brief() {
         let (_t, g) = jj_grove();
-        let node = mknode(&g, "02-build-k3", "build-k3");
+        let node = mknode(&g, "02-k3", "build-k3");
         commit_all(&g);
         let err = leaf_decompose(
             guard(&g),
-            &node.join("BRIEF.md"),
+            &node.join("_build.md"),
             &a_slug("x"),
             Some(a_kind("impl")),
         )
@@ -885,7 +884,7 @@ answer 6 here as well.
     #[test]
     fn decompose_refuses_a_node_directory() {
         let (_t, g) = jj_grove();
-        let node = mknode(&g, "02-build-k3", "build-k3");
+        let node = mknode(&g, "02-k3", "build-k3");
         commit_all(&g);
         let err = leaf_decompose(guard(&g), &node, &a_slug("x"), Some(a_kind("impl"))).unwrap_err();
         assert!(err.to_string().contains("node"), "got {err}");
@@ -894,7 +893,7 @@ answer 6 here as well.
     #[test]
     fn decompose_refuses_a_done_leaf() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-DONE-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let err = leaf_decompose(
@@ -913,7 +912,7 @@ answer 6 here as well.
     #[test]
     fn decompose_refuses_an_abandoned_leaf() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-ABANDONED-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let err = leaf_decompose(
@@ -954,24 +953,23 @@ copy.
 
 **The result here is the opposite of chapter 8's, and it is worth saying plainly:
 each of the four refusals the structure brief names fires exactly where its name
-says.** `decompose_refuses_a_brief` reddens only when line 602's arm is replaced;
-`decompose_refuses_a_node_directory` only line 606's; `decompose_refuses_a_done_leaf`
-only line 611's; `decompose_refuses_an_abandoned_leaf` only line 615's. The full
+says.** `decompose_refuses_a_brief` reddens only when line 609's arm is replaced;
+`decompose_refuses_a_node_directory` only line 613's; `decompose_refuses_a_done_leaf`
+only line 618's; `decompose_refuses_an_abandoned_leaf` only line 622's. The full
 attribution is in *What the refusals are worth, measured* below.
 
 **But three of the five assertions do not distinguish the arm they landed on**,
 and that is what each would pass under.
 
-**`decompose_refuses_a_brief`** asserts `contains("brief")`, and among the five
-arms that is unambiguous: line 602's *cannot decompose a brief (it is already a
-node)* is the only message carrying the word. It is tighter than it looks against
-the refusals *before* the arm, too, and by an accident worth naming. The fixture
-passes `node.join("BRIEF.md")`, so a refusal from `task_tree::target` would name
-that path — and `contains` is case-sensitive, so `BRIEF.md` does not satisfy a
-check for `brief`. **The lower case is what makes the assertion mean the arm.**
+
+**`decompose_refuses_a_brief`** passes a positioned node's file to the
+verb and checks the brief refusal. The containing node and its file are both
+valid, so the fixture reaches the verb's species check rather than failing
+whole-tree validation first.
+
 
 **`decompose_refuses_a_node_directory`** asserts `contains("node")`, and three
-different messages satisfy it. **Line 602's brief message contains `node` too**, in
+different messages satisfy it. **Line 609's brief message contains `node` too**, in
 the parenthetical *(it is already a node)*; so does chapter 6's *not a Grove leaf
 or node directory*. The mutation shows the test lands on 606 today, and nothing in
 it would notice if a node started falling out of the `entry.triple()` `else`
@@ -981,15 +979,15 @@ instead. The two arms are one `Option` apart: the `else` fires when `triple()` i
 **`decompose_refuses_a_done_leaf`** asserts
 `to_lowercase().contains("done") || contains("retired")`. The first disjunct is
 satisfied by the **abandoned** arm as well: lowercase `abandoned` contains the
-substring `done`, at index 4. So a `DONE` leaf routed to line 615 would leave this
+substring `done`, at index 4. So a `DONE` leaf routed to line 622 would leave this
 test green. The second disjunct is what actually distinguishes them — `retired`
-appears only in line 611's message — and it is an `||`, so the test passes on
+appears only in line 618's message — and it is an `||`, so the test passes on
 either. **The test is one character-class accident away from asserting nothing
 about which arm fired**, and the substring that saves it is the one a reader is
 least likely to think is load-bearing.
 
 **`decompose_refuses_an_abandoned_leaf`** asserts `contains("abandoned")`,
-case-sensitively. Line 611's message carries `DONE` in capitals and `retired` in
+case-sensitively. Line 618's message carries `DONE` in capitals and `retired` in
 lower case, so it cannot satisfy this one. This is the only refusal assertion of
 the four that is unambiguous by construction rather than by accident.
 
@@ -999,13 +997,13 @@ neither of the five arms: it reddens only when `task_tree::target`'s result is
 made to panic. `README.md` is `Verdict::Foreign`, so the store's walk disclaims it,
 no entry of the snapshot has that name, and `target` answers *not a Grove leaf or
 node directory* — **chapter 6's sentence, raised by chapter 6's function** at line
-549, seven lines before `decomposable` is called at 556. The assertion
-`contains("leaf")` is satisfied by that message and by lines 611's and 615's, so
+544 seven lines before `decomposable` is called at 556. The assertion
+`contains("leaf")` is satisfied by that message and by lines 618's and 615's, so
 the test's name is the only thing in it that says which function refused. The
 honest form is *this is chapter 6's resolution observed through chapter 12's
 verb*.
 
-<!-- fragment «decompose-tests-slug-and-path» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1927-1973" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-slug-and-path» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1949-1995" parent="decompose-tests" -->
 ````rust
     /// A bad child slug leaves the leaf un-decomposed — and now it cannot even
     /// be spelled.
@@ -1018,7 +1016,7 @@ verb*.
     #[test]
     fn decompose_cannot_be_reached_with_a_bad_child_slug() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
 
@@ -1030,7 +1028,7 @@ verb*.
             "leaf untouched"
         );
         assert!(
-            !files.contains(&"02-build-k3".to_string()),
+            !files.contains(&"02-k3".to_string()),
             "no half-built node dir"
         );
     }
@@ -1038,13 +1036,13 @@ verb*.
     #[test]
     fn decompose_accepts_an_absolute_path() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         let abs = g.join("02-impl--build-k3.md");
         let (brief, _child) =
             leaf_decompose(guard(&g), &abs, &a_slug("step"), Some(a_kind("impl"))).unwrap();
-        assert_eq!(name_of(brief.parent().unwrap()), "02-build-k3");
+        assert_eq!(name_of(brief.parent().unwrap()), "02-k3");
     }
 
     #[test]
@@ -1107,7 +1105,7 @@ The block's second labelled section is 264 lines for six tests, and it is the
 densest argument in the chapter. Its subject is not what the verb does but what
 the *library* cannot be made to say through it.
 
-<!-- fragment «decompose-tests-seam-opening» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1974-1981" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-seam-opening» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1996-2003" parent="decompose-tests" -->
 ````rust
     // ---- leaf-decompose: the seam --------------------------------------------
     //
@@ -1147,7 +1145,7 @@ one is checked by reading it and by nothing else. It carries no headings, so the
 particular defect that instrument's blind spot hides — a heading whose body
 renders under the next one — cannot arise here.
 
-<!-- fragment «decompose-tests-one-guard» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1982-2010" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-one-guard» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2004-2032" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decompose_takes_one_guard_for_the_promotion_and_one_for_the_retitle() {
@@ -1158,7 +1156,7 @@ renders under the next one — cannot arise here.
         // Asserted as a number so a later change moves it rather than quietly
         // contradicting the paragraph, exactly as `leaf-insert`'s lint is.
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-impl--build-k3.md", "build-k3");
         commit_all(&g);
         crate::task_tree::reset_read_count();
@@ -1198,7 +1196,7 @@ sites and neither is in this file: one in `task_tree::read_or_vacant`, under the
 acquisition that both `write` and `reopen_write` route through. So the counter
 counts **every observation of the tree**, shared and exclusive alike; the two it
 records here both happen to be exclusive. The
-reset happens on line 1991, and then the call on line 1993 evaluates its own
+reset happens on line 1,991 and then the call on line 2,015 evaluates its own
 arguments — including `guard(&g)`, which is chapter 11's helper and which opens
 the tree. So the two openings are **the test's own argument** and the verb's
 `reopen_write` on line 586. `promote` opens nothing; it consumes the guard it was
@@ -1213,7 +1211,7 @@ thread-local and blind to who called `open_write`. What it genuinely rules out i
 the retitle riding inside the promotion's guard, which is impossible for a reason
 the type system already gives: `promote` consumes it.
 
-<!-- fragment «decompose-tests-twin» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2011-2041" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-twin» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2033-2063" parent="decompose-tests" -->
 ````rust
     #[test]
     fn decomposing_a_leaf_whose_key_names_a_twin_is_refused_rather_than_misaimed() {
@@ -1222,7 +1220,7 @@ the type system already gives: `promote` consumes it.
         // reaches first on a duplicate-key tree. Decomposing the live leaf could
         // otherwise promote its `DONE` twin.
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "01-impl--a-k1.md", "a-k1");
         touch(&g, "01-DONE-impl--a-k1.md", "a-k1");
         commit_all(&g);
@@ -1241,7 +1239,7 @@ the type system already gives: `promote` consumes it.
             "got {err}"
         );
         assert!(
-            g.join("01-impl--a-k1.md").is_file() && !g.join("01-a-k1").exists(),
+            g.join("01-impl--a-k1.md").is_file() && !g.join("01-k1").exists(),
             "a refused promotion creates nothing"
         );
     }
@@ -1268,7 +1266,7 @@ all that mentioned *two entries in this tree carry key 1* — the assertion is o
 that substring — so it is a claim about the message and about the tree's
 unchangedness, not about which function produced either.
 
-<!-- fragment «decompose-tests-destination» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2042-2112" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-destination» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2064-2134" parent="decompose-tests" -->
 ````rust
     #[test]
     fn destination_occupied_is_unreachable_because_the_occupant_duplicates_the_key() {
@@ -1283,9 +1281,9 @@ unchangedness, not about which function produced either.
         // (an interrupted promotion), because they take different branches and
         // only the second is a state the library can leave behind.
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-impl--build-k3.md", "build-k3");
-        mknode(&g, "02-build-k3", "build-k3");
+        mknode(&g, "02-k3", "build-k3");
         commit_all(&g);
 
         let err = leaf_decompose(
@@ -1332,8 +1330,8 @@ unchangedness, not about which function produced either.
         let tree = crate::task_tree::write(grove_root).unwrap();
         match tree.promote(
             ordinal_fs_tree::Key::new(key),
-            Parts::node(Slug::new(slug).unwrap()),
-            TaskName::Brief,
+            Parts::node(),
+            TaskName::NodeFile(Slug::new(slug).unwrap()),
             None,
         ) {
             Ok(_) => panic!("the library must refuse this tree"),
@@ -1356,8 +1354,8 @@ any operation is planned. `Refusal::DestinationOccupied` is therefore unreachabl
 through this verb, and the second assertion says so directly: the operator must
 not see *already taken*.
 
-**And then the test proves that its own claim could have failed.** Lines 2082 to
-2087 call `library_promotion_refusal`, which reaches past every precondition grove
+**And then the test proves that its own claim could have failed.** Lines 2,104 to
+2,109 call `library_promotion_refusal`, which reaches past every precondition grove
 puts in front of the library and calls `promote` directly — and asserts that the
 library *does* refuse this same tree. Without that, *grove's check hides the
 library's refusal* would be indistinguishable from *there was no refusal to hide*,
@@ -1370,7 +1368,7 @@ refusal let go of the lock.** `library_promotion_refusal` takes a fresh
 times — once for the first disjunct, once more for the second if the first was
 false, and once more in the failure message. Each of those is an exclusive
 acquisition. The verb's own guard is not held by then, and not because `promote`
-consumed it: the call on lines 2057 to 2063 is refused inside `addressable_key`,
+consumed it: the call on lines 2,057 to 2,085 is refused inside `addressable_key`,
 before the operation is reached, so `leaf_decompose` — which takes its `Guard` by
 value — drops it on the error path. **A refusal releases the lock by returning.**
 Grove's guard `flock`s the directory and so excludes rather than nests, which
@@ -1388,85 +1386,68 @@ the precise one.
 `library_promotion_refusal` is the only call to the library's `promote` anywhere
 in grove's own crates other than `leaf_decompose` itself: sweeping every `.rs`
 file under `crates/` for `.promote(` returns eleven hits, and exactly two of them
-— lines 575 and 2099 of this file — are grove's. The other nine are
+— lines 575 and 2,121 of this file — are grove's. The other nine are
 `ordinal-fs-tree`'s own binary and its `promoting_on_disk` tests, which is what a
 library's own tests are for. That two-of-eleven is the enumeration behind the doc
 comment's *Grove has no production path that does this*, and it is what makes
 `library_promotion_refusal` a test instrument built to be the thing production is
 not.
 
-**Both shapes of occupant are checked, and only one of them is a state the library
-can leave behind.** The fixture here creates the node *with* a `BRIEF.md` — an
-ordinary hand edit. The next test creates one *without*. They take different
-branches inside `addressable_key`, and the second is the interrupted promotion.
 
-<!-- fragment «decompose-tests-interrupted» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2113-2155" parent="decompose-tests" -->
+A duplicate key in a valid tree reaches `addressable_key`. A directory
+missing its node file fails earlier, during the guarded open, and receives the
+conditional recovery advice owned by `TaskName::validate_distinguished`. The
+two cases require different operator actions.
+
+
+<!-- fragment «decompose-tests-interrupted» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2135-2158" parent="decompose-tests" -->
 ````rust
     #[test]
-    fn an_interrupted_promotion_is_diagnosed_as_one_rather_than_as_a_hand_edit() {
-        // The tree `Error::FailedPartiallyRolledBack` warns about, met by a
-        // *later* command — which is the only way it is ever met, since the run
-        // that caused it already reported it and exited. The library reports
-        // nothing here: a duplicate key is an obligation on the domain and no
-        // operation checks it. So the recovery advice is Grove's to give, and it
-        // is the library's own — remove either half — and not
-        // `addressable_key`'s general *give one a fresh key*, which would make
-        // two entities out of one caught mid-shape-change.
+    fn a_missing_node_file_gives_conditional_promotion_recovery() {
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
-        touch(&g, "02-impl--build-k3.md", "build-k3");
-        fs::create_dir(g.join("02-build-k3")).unwrap();
-        commit_all(&g);
-
-        let err = leaf_decompose(
-            guard(&g),
-            Path::new("02-impl--build-k3.md"),
-            &a_slug("step"),
-            Some(a_kind("impl")),
-        )
-        .unwrap_err();
-
-        let message = err.to_string();
-        assert!(
-            message.contains("interrupted `leaf-decompose`"),
-            "got {message}"
-        );
-        assert!(
-            message.contains("holds no BRIEF.md") && message.contains("Removing either half"),
-            "the recovery has to be the library's own: {message}"
-        );
-        assert!(
-            !message.contains("fresh key"),
-            "the general duplicate-key advice is wrong for this tree: {message}"
-        );
-        assert!(
-            g.join("02-impl--build-k3.md").is_file(),
-            "a refused promotion creates nothing and repairs nothing"
-        );
+        let leaf = touch(&g, "02-impl--build-k3.md", "build-k3");
+        fs::create_dir(g.join("02-k3")).unwrap();
+        let before = fs::read(&leaf).unwrap();
+        let message = match task_tree::write(&g) {
+            Ok(_) => panic!("missing node file must refuse at open"),
+            Err(error) => error.to_string(),
+        };
+        for expected in [
+            "02-k3",
+            "_<slug>.md",
+            "interrupted `leaf-decompose`",
+            "if this directory is empty",
+            "sibling leaf",
+            "Retain the key and leaf body",
+        ] {
+            assert!(message.contains(expected), "{message}");
+        }
+        assert_eq!(fs::read(&leaf).unwrap(), before);
+        assert_eq!(fs::read_dir(g.join("02-k3")).unwrap().count(), 0);
     }
 
 ````
 <!-- /fragment -->
 
-**`an_interrupted_promotion_is_diagnosed_as_one_rather_than_as_a_hand_edit`** —
+**`a_missing_node_file_gives_conditional_promotion_recovery`** —
 the tree `Error::FailedPartiallyRolledBack` warns about, met by a *later* command,
 which the comment observes is the only way it is ever met: the run that caused it
 already reported it and exited.
 
-Three assertions and one of them is negative, which is where the claim lives. The
-message must contain *interrupted `leaf-decompose`*; it must contain both
-*holds no BRIEF.md* and *Removing either half*; and it must **not** contain
-*fresh key*. The last is the real assertion: `addressable_key`'s general
-duplicate-key advice is *give one of them a fresh key*, and that advice is
-actively wrong here, because the node and the leaf are one entity caught
-mid-shape-change and a fresh key would make two of it. Without the negative
-assertion the test would pass while the general message was being given.
 
-It would pass while the property was broken if the two positive substrings were
-produced for a tree that was *not* an interrupted promotion — the fixture is what
-rules that out, and it is built by hand: `fs::create_dir` with no `BRIEF.md` in it,
-which is the one shape grove itself never writes, because `leaf-decompose` creates
-the brief in the same store operation.
+The missing-file regression checks the offending directory, the required
+`_<slug>.md` form and conditional interrupted-decomposition advice. It also
+compares the original leaf bytes and verifies that the directory remains empty.
+The message tells the operator what to inspect; it does not claim to have
+observed a same-position, same-key sibling.
+
+
+
+The fixture demonstrates refusal and nonmutation, not automatic recognition
+of a failed promotion. The operator checks the sibling relationship and can
+remove the empty directory to retain the leaf, or move the leaf into the node
+as its titled file. Both recovery routes retain the key and body.
+
 
 **This is the chapter's rule read from the wreckage.** An interrupted promotion is
 two halves of *one* entity, and the only reason that sentence is available at all
@@ -1474,7 +1455,7 @@ is that the key was preserved. Had the promotion allocated the node a new key, t
 two would be two entities sharing an ordinal, and *remove either half* would be
 the wrong advice.
 
-<!-- fragment «decompose-tests-last-key» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2156-2186" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-last-key» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2159-2188" parent="decompose-tests" -->
 ````rust
     #[test]
     fn a_tree_at_the_last_key_refuses_the_promotion_rather_than_wrapping() {
@@ -1484,7 +1465,7 @@ the wrong advice.
         // in the operation is the child's. Grove predicts `None`, hands the
         // library no bytes, and lets it state the condition (clause 3).
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "02-impl--build-k4294967295.md", "build-k4294967295");
         commit_all(&g);
 
@@ -1501,8 +1482,7 @@ the wrong advice.
             "got {err}"
         );
         assert!(
-            g.join("02-impl--build-k4294967295.md").is_file()
-                && !g.join("02-build-k4294967295").exists(),
+            g.join("02-impl--build-k4294967295.md").is_file() && !g.join("02-k4294967295").exists(),
             "a refusal writes nothing"
         );
     }
@@ -1529,12 +1509,12 @@ unchanged. The second assertion — the leaf still a file and no node directory
 beside it — is what makes it a claim about a refusal that *writes nothing*, and it
 is the sentence the second part of the what-could-not-move test asks for.
 
-<!-- fragment «decompose-tests-sweep» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2187-2241" parent="decompose-tests" -->
+<!-- fragment «decompose-tests-sweep» owner="the-key-survives" source="crates/grove-loop/src/tree_lifecycle.rs" lines="2189-2243" parent="decompose-tests" -->
 ````rust
     #[test]
     fn no_promotion_refusal_reaches_an_operator_from_an_ordinary_argument() {
         // The three refusals `promote` owns, asserted unreachable rather than
-        // described. The caller supplies `TaskName::Brief`, whose species below
+        // described. The caller supplies `TaskName::NodeFile`, whose species below
         // excludes `SuppliedNameNotDistinguished`; the other two reject any argument
         // that is not a live leaf, and the sweep is what makes that a claim
         // about the *verb* rather than about the cases someone thought of.
@@ -1543,32 +1523,32 @@ is the sentence the second part of the what-could-not-move test asks for.
                 TaskName::Brief.view(),
                 ordinal_fs_tree::NameView::Distinguished
             ),
-            "Grove's distinguished child is BRIEF.md, so a promotion always has \
+            "Grove's distinguished child is _BRIEF.md, so a promotion always has \
              somewhere to put the leaf's bytes"
         );
         assert_eq!(
-            Parts::node(crate::task_name::Slug::new("build").unwrap()).species(),
+            Parts::node().species(),
             ordinal_fs_tree::PositionedSpecies::Node,
             "`leaf-decompose` composes node parts and nothing else, so \
              `PromotePartsNotNode` cannot fire"
         );
 
         let (_t, g) = jj_grove();
-        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "_BRIEF.md", "root — brief");
         touch(&g, "01-DONE-impl--done-k1.md", "done-k1");
         touch(&g, "02-ABANDONED-impl--gone-k2.md", "gone-k2");
         touch(&g, "03-finish--wrap-k3.md", "wrap-k3");
-        let node = mknode(&g, "04-build-k4", "build-k4");
+        let node = mknode(&g, "04-k4", "build-k4");
         commit_all(&g);
 
         for argument in [
             g.as_path(),
-            &g.join("BRIEF.md"),
+            &g.join("_BRIEF.md"),
             &g.join("01-DONE-impl--done-k1.md"),
             &g.join("02-ABANDONED-impl--gone-k2.md"),
             &g.join("03-finish--wrap-k3.md"),
             node.as_path(),
-            &node.join("BRIEF.md"),
+            &node.join("_build.md"),
         ] {
             let err = leaf_decompose(guard(&g), argument, &a_slug("step"), Some(a_kind("impl")))
                 .unwrap_err()
@@ -1593,12 +1573,12 @@ is the sentence the second part of the what-could-not-move test asks for.
 block's closing argument and the widest test in it. Three refusals `promote` owns,
 asserted unreachable rather than described.
 
-**Two of the three are checked without a tree.**
-`SuppliedNameNotDistinguished` cannot fire for the `TaskName::Brief` value Grove
-passes: the first assertion checks its distinguished view. `PromotePartsNotNode` cannot fire because `leaf-decompose`
-composes `Parts::node` and nothing else, which the second assertion reads off
-`Parts::node(...).species()`. Neither needs a fixture, because neither is a fact
-about a tree.
+
+`SuppliedNameNotDistinguished` cannot fire for the `TaskName::NodeFile`
+value Grove supplies; the assertion checks its distinguished view. The
+`Parts::node()` value also has node species by construction. These checks need
+no filesystem fixture because they concern only the names supplied to the plan.
+
 
 **The third is discharged by a sweep, and the sweep is what makes it a claim about
 the verb.** Seven arguments — the grove root, the root's charter brief, a `DONE`
@@ -1609,9 +1589,9 @@ would be a claim about those cases; enumerating every argument shape that is not
 live leaf is a claim about the function.
 
 **This test is the only observer of one of the block's arms.** The mutation study
-attributes to it, and to nothing else, the grove-root refusal on line 550; it is
+attributes to it, and to nothing else, the grove-root refusal on line 545; it is
 also a second observer of all five `decomposable` refusals, each of which has a
-named test of its own — including the `finish`-reservation on line 622, which
+named test of its own — including the `finish`-reservation on line 629 which
 `every_agent_side_mutation_refuses_the_driver_reserved_finish_kind` holds from
 outside the crate. That makes it the most load-bearing test in the chapter — and
 it asserts only *absence*, which is worth saying: it can tell you no library
@@ -1713,11 +1693,11 @@ once already in the same call, so a second opening failing is a filesystem event
 a test would have to simulate. Neither group is a gap a fixture could close.
 
 **Row 2 is the one that is not, and it is an ordinary operator-facing refusal.**
-`refuse_finish_kind` on line 560 guards `--kind finish` — an *override* naming the
+`refuse_finish_kind` on line 555 guards `--kind finish` — an *override* naming the
 driver's reserved kind on a leaf whose own kind is something else. It is not the
 same arm as row 10: row 10 refuses decomposing a `finish` **leaf**, and the
-mutation separates them cleanly, because the classification on line 556 runs first
-and takes the finish-leaf case before line 560 is reached. Removing line 560
+mutation separates them cleanly, because the classification on line 551 runs first
+and takes the finish-leaf case before line 555 is reached. Removing line 555
 outright reddens nothing — the suite lands exactly on its 560-test control — so
 nothing in this workspace passes `--kind finish` to this verb.
 
@@ -1725,7 +1705,7 @@ nothing in this workspace passes `--kind finish` to this verb.
 a `Kind` and passes it straight through; the check it runs first,
 `require_declared`, asks whether the *launch configuration* declares that kind, not
 whether grove reserved it. So an operator whose configuration declared a `finish`
-template would meet line 560 and nothing else. The help text says so —
+template would meet line 555 and nothing else. The help text says so —
 `leaf-decompose`'s `--kind` is documented as *except driver-reserved finish* — and
 the sentence is held by one unobserved line.
 
@@ -1750,7 +1730,7 @@ turned into an entry. What the chapter contributes on this axis is one *writing*
 the node's name, composed from the promoted leaf's own triple with `Parts::node`
 swapped in — and the observation that a preserved key and a preserved ordinal are
 one fact because that composition makes them one string. The grammar chapter 4
-proved canonical is what lets `02-build-k3` be read back as the same entity it
+proved canonical is what lets `02-k3` be read back as the same entity it
 names.
 
 **On the way through — the preconditions.** This is the chapter's weight, and the
@@ -1785,7 +1765,7 @@ the one that would be wrong under any other choice.
 
 The second choice is smaller and it is the one the measurement caught: **the
 first child's kind is the parent's unless a flag says otherwise, and the flag can
-name a kind grove reserved.** The refusal is there, on line 560, and it is held by
+name a kind grove reserved.** The refusal is there, on line 555 and it is held by
 nothing.
 
 The grove now has a node where it had a leaf, and the node has a live child that

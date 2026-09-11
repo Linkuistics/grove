@@ -39,8 +39,8 @@ the page is where each handler renders `Nothing`.
 
 The chapter's premise is the tree these verbs read, stated once in the form the
 [task-tree scheme](../../../CONTEXT.md#task-tree-scheme) fixes. A node is a
-directory `NN-<slug>-k<key>/` of numbered children, optionally headed by a
-`BRIEF.md`; a leaf is a file `NN-<kind>--<slug>-k<key>.md`, and a retired or
+directory `NN-k<key>/` of numbered children, optionally headed by a
+`_BRIEF.md`; a leaf is a file `NN-<kind>--<slug>-k<key>.md`, and a retired or
 abandoned leaf carries `DONE-` or `ABANDONED-` immediately after its position.
 The position is per directory and moves under a renumber; the key is permanent
 and unique across the whole tree. That is why every spelling of an entry this
@@ -52,12 +52,12 @@ this book.
 
 The chapter owns three blocks of `cli.rs` and reads them in the order the
 argument takes. The four handlers with `leaf_in` and `render_resolution`, lines
-514 to 636, are read first, inside and after the worked example, because the
+511 to 634 are read first, inside and after the worked example, because the
 example is `resolve` at full resolution and every other handler is a shorter
-form of the same shape; the three helpers at lines 904 to 944 follow, one of
+form of the same shape; the three helpers at lines 902 to 942 follow, one of
 them the path rule that the through-line from *The grammar and the openings*
 explains; and the four variants whose doc comments are the verbs' `--help`,
-lines 75 to 124, are read last, as the catalogue of promises the handlers have
+lines 75 to 124 are read last, as the catalogue of promises the handlers have
 just been seen to keep — after the example, where a catalogue belongs.
 
 <a id="worked-resolve"></a>
@@ -80,7 +80,7 @@ $ cd /work/atlas && grove-llm resolve rate-limit-k3
 /work/atlas/.grove/01-impl--rate-limit-k3.md
 
 $ grove-llm brief-chain /work/atlas/.grove/01-impl--rate-limit-k3.md
-/work/atlas/.grove/BRIEF.md
+/work/atlas/.grove/_BRIEF.md
 
 # … the session's leaf-add and leaf-retire have landed …
 
@@ -90,8 +90,8 @@ note: referenced task is retired (DONE): /work/atlas/.grove/01-DONE-impl--rate-l
 
 $ grove-llm resolve rate-limit
 resolve: reference "rate-limit" is ambiguous; re-query by key:
-  [3] /work/atlas/.grove/01-DONE-impl--rate-limit-k3.md (retired)
-  [4] /work/atlas/.grove/02-review-impl--rate-limit-k4.md
+  [3] rate-limit-k3 /work/atlas/.grove/01-DONE-impl--rate-limit-k3.md (retired)
+  [4] rate-limit-k4 /work/atlas/.grove/02-review-impl--rate-limit-k4.md
 ```
 
 The transcript merges the two streams as a terminal does; the table separates
@@ -101,7 +101,7 @@ what the process exited — so the three renderings can be compared line by line
 | Invocation | The tree | stdout | stderr | Exit |
 |---|---|---|---|---|
 | `resolve rate-limit-k3` | the leaf live | its path | nothing | `0` |
-| `brief-chain` on that path | the same | `/work/atlas/.grove/BRIEF.md` | nothing | `0` |
+| `brief-chain` on that path | the same | `/work/atlas/.grove/_BRIEF.md` | nothing | `0` |
 | `resolve rate-limit-k3` | the leaf retired | its renamed path | the retired note, naming the same path | `0` |
 | `resolve rate-limit` | two entries carry the slug | nothing | the ambiguity line, then one keyed line per match, in walk order | `0` |
 
@@ -148,7 +148,7 @@ this line exactly as a match does, so the process exits `0` for all three, and
 the comment names the verb this is modelled on — `pick`, whose own absent
 answer is read in the next section.
 
-<!-- fragment «handler-resolve» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="562-580" parent="handlers-reading-and-rendering" -->
+<!-- fragment «handler-resolve» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="559-577" parent="handlers-reading-and-rendering" -->
 ````rust
 fn cmd_resolve(reference: &str) -> Result<()> {
     let worktree = worktree()?;
@@ -196,7 +196,7 @@ gives — the handler answered the root before calling — so it returns two emp
 strings, which would be the not-found shape with no diagnostic; the arm exists
 because the `match` is exhaustive over the type, and no test constructs it.
 
-<!-- fragment «render-resolution-head» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="581-594" parent="handlers-reading-and-rendering" -->
+<!-- fragment «render-resolution-head» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="578-591" parent="handlers-reading-and-rendering" -->
 ````rust
 /// Render a resolution to the `(stdout, stderr)` the `resolve` verb emits.
 ///
@@ -235,7 +235,7 @@ pinned only through the library, by
 `render_found_abandoned_notes_on_stderr_but_still_prints_path`, which also
 requires that it does not say *retired*.
 
-<!-- fragment «render-resolution-entry» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="595-611" parent="handlers-reading-and-rendering" -->
+<!-- fragment «render-resolution-entry» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="592-608" parent="handlers-reading-and-rendering" -->
 ````rust
         Sought::Match(Resolution::Entry(entry)) => {
             let stdout = format!("{}\n", entry.path.display());
@@ -275,7 +275,7 @@ entries, several of them, and the loop's doc comment says why that is an answer
 rather than a refusal — the caller is a session that can re-ask with a narrower
 reference, and listing the matches is what lets it.
 
-<!-- fragment «render-resolution-absent» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="612-636" parent="handlers-reading-and-rendering" -->
+<!-- fragment «render-resolution-absent» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="609-634" parent="handlers-reading-and-rendering" -->
 ````rust
         Sought::Nothing => (
             String::new(),
@@ -291,8 +291,9 @@ reference, and listing the matches is what lets it.
                     Outcome::Abandoned => " (abandoned)",
                 };
                 stderr.push_str(&format!(
-                    "  [{}] {}{}\n",
+                    "  [{}] {} {}{}\n",
                     matched.handle.key(),
+                    matched.handle,
                     matched.path.display(),
                     tag
                 ));
@@ -305,28 +306,17 @@ reference, and listing the matches is what lets it.
 ````
 <!-- /fragment -->
 
-The second verb in the transcript is `brief-chain`, and its handler is the
-shape every reading verb takes when the thing it acts on can be defaulted: the
-working tree, the shared opening, the leaf, one call, rendering. `leaf_in`
-answers the leaf — the one named, or `pick`'s next — and its `None` is the
-finished grove, so the handler prints the shared diagnostic and returns
-`Ok(())` without calling the chain at all; that ending is measured in the next
-section and is held by no test in `crates/grove-llm/tests/brief_chain.rs` —
-the empty-grove test is `kind`'s, and that file's header says the diagnostic
-mirrors this verb. With a leaf, `verbs::brief_chain` returns the briefs root-first as a
-`Vec<PathBuf>`, one per ancestor directory that holds one, and the handler
-prints each on its own line:
-`leaf_two_levels_deep_returns_root_and_ancestor_node_briefs` pins the order and
-`missing_intermediate_brief_is_skipped_silently` the silence. The vector can be
-empty. A leaf whose directory and ancestors hold no `BRIEF.md` has an empty
-chain, the handler prints nothing on either stream and exits `0`;
-`missing_root_brief_yields_empty_chain` requires the success and the empty
-stdout, and the empty stderr is measured. It is the one
-absent answer on this page with no diagnostic, because it is not the grove that
-is finished: a leaf with no charter above it is a leaf whose ancestors have not
-written one, which the help calls skipping a level silently.
 
-<!-- fragment «handler-brief-chain» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="524-536" parent="handlers-reading-and-rendering" -->
+`brief-chain` opens the guarded tree, selects the requested leaf or the
+next live leaf, and prints the chain root-first. The first path is `_BRIEF.md`;
+subsequent paths are the titled files of positioned ancestors.
+`leaf_two_levels_deep_returns_root_and_ancestor_node_briefs` pins this order.
+`missing_intermediate_node_file_refuses` and `missing_root_node_file_refuses`
+require failure at open, before a partial chain can be printed. A valid tree
+with no live leaf still uses the shared no-live-leaves diagnostic.
+
+
+<!-- fragment «handler-brief-chain» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="521-533" parent="handlers-reading-and-rendering" -->
 ````rust
 fn cmd_brief_chain(leaf_path: Option<&Path>) -> Result<()> {
     let worktree = worktree()?;
@@ -353,7 +343,7 @@ The named branch goes through `normalize_leaf_path`, read under its own heading
 below; the unnamed branch calls `verbs::pick`, keeps the selection's path,
 discards the rest of the selection, and turns `Nothing` into `None`.
 
-<!-- fragment «handler-leaf-in» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="551-561" parent="handlers-reading-and-rendering" -->
+<!-- fragment «handler-leaf-in» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="548-558" parent="handlers-reading-and-rendering" -->
 ````rust
 /// The leaf a read verb acts on: the one named, or `pick`'s next.
 fn leaf_in(tree: &Tree, leaf_path: Option<&Path>) -> Result<Option<PathBuf>> {
@@ -410,7 +400,7 @@ crate's tests pin is the rendering of it. `picks_first_live_leaf_in_numeric_orde
 `ABANDONED` leaf; the help promises it, and it holds, measured — an abandoned
 leaf at position one is passed over for the live leaf at position two.
 
-<!-- fragment «handler-pick» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="514-523" parent="handlers-reading-and-rendering" -->
+<!-- fragment «handler-pick» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="511-520" parent="handlers-reading-and-rendering" -->
 ````rust
 fn cmd_pick() -> Result<()> {
     let worktree = worktree()?;
@@ -445,7 +435,7 @@ pins is that the body of the leaf is never read — a `**Kind:**` or
 `**Harness:**` line, however garbled, changes nothing — and that the two
 routing flags the verb once carried are rejected as unknown arguments.
 
-<!-- fragment «handler-kind» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="537-550" parent="handlers-reading-and-rendering" -->
+<!-- fragment «handler-kind» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="534-547" parent="handlers-reading-and-rendering" -->
 ````rust
 fn cmd_kind(leaf_path: Option<&Path>) -> Result<()> {
     let worktree = worktree()?;
@@ -474,7 +464,7 @@ session's name, and a grove driven from `/work/app` is labelled `app`.
 working tree has only at the filesystem root, so the fallback is the type's
 rather than a case the verb meets.
 
-<!-- fragment «helper-label» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="928-936" parent="path-and-label-helpers" -->
+<!-- fragment «helper-label» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="926-934" parent="path-and-label-helpers" -->
 ````rust
 // The grove's display label for the pick/brief-chain "no live leaves" diagnostic
 // — the worktree directory's basename (it equals the grove name / branch).
@@ -499,7 +489,7 @@ and not a signal: no verb on this page acts on it, and the driver, which never
 runs this verb, reaches the same answer by its own walk and acts on `Nothing`
 rather than on any line of text.
 
-<!-- fragment «helper-no-live-leaves» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="937-944" parent="path-and-label-helpers" -->
+<!-- fragment «helper-no-live-leaves» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="935-942" parent="path-and-label-helpers" -->
 ````rust
 /// The one diagnostic every read verb shares, printed once here rather than
 /// spelled four times.
@@ -512,17 +502,18 @@ fn no_live_leaves(worktree: &Path) {
 ````
 <!-- /fragment -->
 
-The table gathers every absent answer this page has read, against the refusals
-it has set beside them, so a reader can see the rule as a relation: an absent
-answer always exits `0` and is always on stderr, a refusal always exits `1`,
-and the one absent answer that prints nothing at all is the empty chain.
+
+The table distinguishes absent selections from malformed trees. An absent
+selection is a successful answer with a diagnostic; an invalid required-file
+set is a refusal and exits 1 before the requested read runs.
+
 
 | Verb | What was absent | stdout | stderr | Exit | Held by |
 |---|---|---|---|---|---|
 | `pick` | a live leaf | nothing | `grove atlas: no live leaves; this grove is done` | `0` | `fully_retired_grove_prints_diagnostic_and_exits_zero` |
 | `kind`, no argument | a live leaf | nothing | the same line | `0` | `empty_grove_prints_no_live_leaves_on_stderr_and_exits_zero` |
 | `brief-chain`, no argument | a live leaf | nothing | the same line | `0` | the handler alone |
-| `brief-chain` | any brief above the leaf | nothing | nothing | `0` | `missing_root_brief_yields_empty_chain` |
+| `brief-chain` | required node file missing | nothing | level-validation error | `1` | `missing_root_node_file_refuses` |
 | `resolve` | any entry | nothing | `resolve: no entry matches reference "…"` | `0` | `resolve_not_found_exits_zero_with_diagnostic` |
 | `resolve` | one entry, several found | nothing | the ambiguity listing | `0` | `resolve_ambiguous_slug_lists_keys_on_stderr` |
 | `resolve` | a live entry behind the match | the path | the retired or abandoned note | `0` | `resolve_finds_retired_leaf_with_note` |
@@ -532,7 +523,7 @@ and the one absent answer that prints nothing at all is the empty chain.
 The composite that reassembles the handlers is stated here, in source order,
 and the source index names it as one of the root's twenty-two children.
 
-<!-- fragment «handlers-reading-and-rendering» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="514-636" parent="source-command-surface" -->
+<!-- fragment «handlers-reading-and-rendering» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="511-634" parent="source-command-surface" -->
 <!-- insert «handler-pick» -->
 <!-- insert «handler-brief-chain» -->
 <!-- insert «handler-kind» -->
@@ -582,7 +573,7 @@ path, and every test that passes a `.grove/`-relative path from the
 working-tree root is the second row — and no test exercises the pass-through
 branch or the last row.
 
-<!-- fragment «helper-normalize-leaf-path» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="904-927" parent="path-and-label-helpers" -->
+<!-- fragment «helper-normalize-leaf-path» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="902-925" parent="path-and-label-helpers" -->
 ````rust
 // Normalize a user-supplied leaf path to what the verbs accept (absolute, or
 // relative to the grove root). The real driving flow passes back the **absolute**
@@ -614,7 +605,7 @@ fn normalize_leaf_path(p: &Path) -> PathBuf {
 The composite that reassembles the three helpers, the last block of the module,
 is stated here.
 
-<!-- fragment «path-and-label-helpers» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="904-944" parent="source-command-surface" -->
+<!-- fragment «path-and-label-helpers» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="902-942" parent="source-command-surface" -->
 <!-- insert «helper-normalize-leaf-path» -->
 <!-- insert «helper-label» -->
 <!-- insert «helper-no-live-leaves» -->
@@ -635,7 +626,7 @@ its handler with none.
 ````rust
     /// Print the absolute path of the next live leaf in this grove's tree — a
     /// recursive depth-first **pre-order** walk over the directory tree (a node
-    /// is a directory of numbered children, optionally headed by a `BRIEF.md`),
+    /// is a directory of numbered children and exactly one `_<slug>.md` node file),
     /// returning the
     /// first live leaf and skipping briefs and terminal leaves — retired
     /// (`DONE`) and abandoned (`ABANDONED`) alike. Empty stdout
@@ -653,11 +644,11 @@ handler's, stated under *The absent answer*.
 
 <!-- fragment «verbs-brief-chain-help» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="83-92" parent="verbs-reading" -->
 ````rust
-    /// Print the BRIEF.md chain for a leaf, root→leaf, one absolute path per
-    /// line — the `BRIEF.md` of each of the leaf's ancestor **directories**,
+    /// Print the node-file chain for a leaf, root→leaf, one absolute path per
+    /// line — `_BRIEF.md` at the root, then each ancestor's `_<slug>.md`,
     /// from the grove root down to the leaf's containing directory. With no
-    /// argument the chain is computed for `pick`'s next leaf. A directory level
-    /// with no `BRIEF.md` is skipped silently.
+    /// argument the chain is computed for `pick`'s next leaf. Missing or misplaced
+    /// node files refuse the whole tree read.
     BriefChain {
         /// Optional leaf path. Absolute, or relative to the grove root
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
@@ -697,21 +688,13 @@ it for the no-argument form of either.
 ````
 <!-- /fragment -->
 
-`Resolve`'s comment is the reference grammar as the verb accepts it, and the
-grammar is the [task-tree scheme](../../../CONTEXT.md#task-tree-scheme)'s: a
-permanent key, in three spellings; a bare slug, which the loop's walk matches
-by slug over every entry; and the `<slug>-k<key>` handle, matched by its
-terminal key — lenient on the digits, so `rate-limit-k003` is key `3`,
-measured. A node resolves to its directory, and the comment says what
-to append to read its charter. The rest of the comment is this chapter's rule
-in the verb's own words — the note on stderr, the diagnostic instead of a path,
-*either way it still exits zero* — and the handler was read above keeping each
-clause. Two spellings are absent from the comment. `.` is one: the loop's
-`Reference` accepts it, the handler answers it before rendering, and
-`resolve_dot_prints_the_grove_root` pins it, so the help is narrower than the
-verb by one form. A path is the other: the loop's `Reference` describes it and
-this verb does not honour it, so on that form the help and the handler agree
-and the loop's refusal wording does not.
+
+The help describes keys, slugs and current full handles. Numeric keys
+ignore the title; handles check it. A node resolves to its directory and its
+brief lives in the uniquely validated titled file. Ambiguous slug output names
+keys, handles and paths. `.` resolves the root, while paths belong to the
+mutating verbs’ reference interface rather than `resolve`.
+
 
 <!-- fragment «verbs-resolve-help» owner="information-not-error" source="crates/grove-llm/src/cli.rs" lines="108-124" parent="verbs-reading" -->
 ````rust
@@ -721,8 +704,8 @@ and the loop's refusal wording does not.
     /// optionally `[n]-slug`) resolves the unique keyed entry; a bare slug
     /// resolves by slug (0 ⇒ not found, 1 ⇒ that entry, >1 ⇒ ambiguous, listing
     /// each match's key so you re-query by key); the full `<slug>-k<key>` handle
-    /// resolves by its terminal key. A node resolves to
-    /// its **directory** path (append `/BRIEF.md` to read its charter). Prints
+    /// resolves by key and checks the current title. A node resolves to
+    /// its **directory** path; its `_<slug>.md` carries the brief. Prints
     /// the path on stdout; a `DONE` or `ABANDONED` match also prints its own
     /// note on stderr (so the two are distinguishable — a resolved dead end
     /// never looks live); a not-found or ambiguous reference prints a
@@ -743,19 +726,19 @@ implied.
 
 | Verb | The help promises | Kept at | Held by |
 |---|---|---|---|
-| `pick` | the first live leaf, pre-order, briefs and `DONE`/`ABANDONED` leaves skipped | the call, line 517; the walk is the loop's | `descends_a_node_directory_in_preorder`, `skips_retired_done_leaves`; the `ABANDONED` skip by no test in this crate |
-| `pick` | empty stdout and a diagnostic on stderr when no live leaves | lines 519 and 521 | `fully_retired_grove_prints_diagnostic_and_exits_zero` |
-| `brief-chain` | root→leaf, one absolute path per line | lines 531 to 533 | `leaf_two_levels_deep_returns_root_and_ancestor_node_briefs` |
-| `brief-chain` | no argument: `pick`'s next leaf | `leaf_in`, lines 555 to 557 | `no_arg_form_uses_picks_next_leaf` |
-| `brief-chain` | a level with no `BRIEF.md` skipped silently | the call, line 531; an empty vector prints nothing | `missing_intermediate_brief_is_skipped_silently`, `missing_root_brief_yields_empty_chain` |
-| `kind` | one lowercase token and a newline | line 545 | `every_shipped_kind_round_trips_through_the_verb` |
-| `kind` | no argument: `pick`'s leaf; a finished grove: the diagnostic, exit `0` | lines 543 to 546 | `no_arg_form_reads_picks_next_leaf`, `empty_grove_prints_no_live_leaves_on_stderr_and_exits_zero` |
-| `kind` | a malformed name errors visibly; foreign files are ignored | the `?` on line 539, at the opening, for a malformed name anywhere in the tree; the `?` on line 544 for a named path that is not a leaf; the walk | by no test in `kind.rs`; `foreign_files_are_not_leaves` in `pick.rs` |
+| `pick` | the first live leaf, pre-order, briefs and `DONE`/`ABANDONED` leaves skipped | the call, line 514; the walk is the loop's | `descends_a_node_directory_in_preorder`, `skips_retired_done_leaves`; the `ABANDONED` skip by no test in this crate |
+| `pick` | empty stdout and a diagnostic on stderr when no live leaves | lines 516 and 518 | `fully_retired_grove_prints_diagnostic_and_exits_zero` |
+| `brief-chain` | root→leaf, one absolute path per line | lines 528 to 530 | `leaf_two_levels_deep_returns_root_and_ancestor_node_briefs` |
+| `brief-chain` | no argument: `pick`'s next leaf | `leaf_in`, lines 552 to 554 | `no_arg_form_uses_picks_next_leaf` |
+| `brief-chain` | a missing required node file refuses the read | the guarded opening, before the call | `missing_intermediate_node_file_refuses`, `missing_root_node_file_refuses` |
+| `kind` | one lowercase token and a newline | line 542 | `every_shipped_kind_round_trips_through_the_verb` |
+| `kind` | no argument: `pick`'s leaf; a finished grove: the diagnostic, exit `0` | lines 540 to 543 | `no_arg_form_reads_picks_next_leaf`, `empty_grove_prints_no_live_leaves_on_stderr_and_exits_zero` |
+| `kind` | a malformed name errors visibly; foreign files are ignored | the `?` on line 536 at the opening, for a malformed name anywhere in the tree; the `?` on line 541 for a named path that is not a leaf; the walk | by no test in `kind.rs`; `foreign_files_are_not_leaves` in `pick.rs` |
 | `kind` | nothing here routes a launch | no flag and no field to route by | `the_removed_routing_flags_are_rejected` |
-| `resolve` | a key in three spellings; the handle by its terminal key; a node to its directory | the call, line 565 | `resolve_by_key_bracketed_and_bare`, `resolve_by_full_slug_handle_finds_by_terminal_key`, `resolve_key_resolves_a_node_to_its_directory`; `[n]-slug` by no test |
-| `resolve` | a bare slug: not found, that entry, or ambiguous listing each key | lines 612 to 633 | `resolve_not_found_exits_zero_with_diagnostic`, `resolve_by_unique_slug`, `resolve_ambiguous_slug_lists_keys_on_stderr` |
-| `resolve` | a `DONE` or `ABANDONED` match prints its path and its own note | lines 596 to 609 | `resolve_finds_retired_leaf_with_note`; `render_found_abandoned_notes_on_stderr_but_still_prints_path` |
-| `resolve` | either way it still exits zero | line 578 | the three slug tests above, each asserting success |
+| `resolve` | a key in three spellings; the handle by key and current title; a node to its directory | the call, line 562 | `resolve_by_key_bracketed_and_bare`, `resolve_by_full_slug_handle_finds_by_terminal_key`, `resolve_key_resolves_a_node_to_its_directory`; `[n]-slug` by no test |
+| `resolve` | a bare slug: not found, that entry, or ambiguous listing each key and handle | lines 609 to 631 | `resolve_not_found_exits_zero_with_diagnostic`, `resolve_by_unique_slug`, `resolve_ambiguous_slug_lists_keys_on_stderr` |
+| `resolve` | a `DONE` or `ABANDONED` match prints its path and its own note | lines 593 to 606 | `resolve_finds_retired_leaf_with_note`; `render_found_abandoned_notes_on_stderr_but_still_prints_path` |
+| `resolve` | either way it still exits zero | line 575 | the three slug tests above, each asserting success |
 
 The composite that reassembles the four variants is stated here.
 

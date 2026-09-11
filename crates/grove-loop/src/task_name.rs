@@ -1,78 +1,14 @@
-// Grove's implementation of `ordinal_fs_tree::EntryName` — the whole seam
-// between the task tree and the library that drives it (gh issue #13,
-// increment 2).
+// Grove's canonical task names, handles and per-level node-file rule.
 //
-// **This is the only grammar grove has.** It was written in the *expand* stage
-// against the library's conformance kit while grove's own path-walking name
-// model was still live, each verb group moved onto it in its own leaf through
-// the *migrate* stage, and `sweep-k37` deleted the other side. So there is no
-// longer a call site whose `use` line has to be read to know which model it
-// means, and the two-grammar hazards this header used to enumerate are history
-// (`docs/ARCHITECTURE.md`, *The withdrawn tree algebra*).
+//     leaf       NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md
+//     node dir   NN-k<key>
+//     node file  _<slug>.md
+//     root file  _BRIEF.md
 //
-// The three on-disk shapes, as `grammar-separator-k15` left them — that leaf
-// put the `--` between a leaf's session kind and its slug and renamed every
-// entry in this repo's own tree onto it, in the same session as the release
-// that can read it:
-//
-//     leaf       NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md
-//     node dir   NN-<slug>-k<key>
-//     brief      BRIEF.md                     (the containing node's charter)
-//
-// **The grammar is canonical, and that was the departure from the model it
-// replaced.** The withdrawn one was deliberately lenient on padding — it
-// accepted a hand-typed `5` and rendered `05` — so `format(parse(f)) == f`
-// failed there and one entry could occupy two files, sharing a key and a
-// position. That is the library's *canonicity* obligation broken, and
-// `docs/ordinal-fs-tree/models/structure.als` draws the picture under
-// `witness_two_filenames_name_one_entry`. Here a lenient spelling is a refusal
-// that names the spelling grove writes. The decision, its cost and the
-// alternative are `docs/adr/task-names-are-canonical.md`.
-//
-// A second, smaller departure, and the reason no caller may hand this a path:
-// the withdrawn parser tolerated a trailing `/` on a node name for callers
-// passing one. A `parse` fed by a directory listing never sees one, and
-// tolerating it would be a second spelling of one name — exactly what
-// canonicity forbids. Trimming a caller's argument is the caller's job.
-//
-// The classification is where a name grammar loses data, so it is where the care
-// goes. `Verdict` has four outcomes and the load-bearing split is between two of
-// them: `Foreign` is skipped **recursively**, taking a whole subtree with it when
-// the name is a directory, while `Malformed` and `Reserved` halt. So:
-//
-//   - `BRIEF.md`                              -> the distinguished child
-//   - `NN-…-k<key>[.md]`                      -> an entry, or `Malformed` if it
-//                                                does not parse completely
-//   - `README.md`, anything else              -> `Foreign`
-//
-// **Both of a leaf name's words are this module's**, and since `open-kind-k20`
-// they are validated by one rule. `Kind` was a compiled enum living in a module
-// of its own, justified by being the key a command template is configured under;
-// what it actually was, once the set opened, is the other half of the shape
-// `Slug` already had — and the canonicity of a leaf name depends on the two
-// obeying the *same* rule, which is a grammar fact and belongs here. So
-// `src/leaf.rs` went, `refuse_token` states the shape once, and `Kind::new` and
-// `Slug::new` are two nouns over it.
-//
-// **The handle is part of this grammar, not a second one** (`name-ownership-k14`,
-// `docs/specs/module-decomposition.md` decision 4). `<slug>-k<key>` — the
-// position-free identity that crosses every module boundary, from the store that
-// produces it, through the prompt, to the verbs a session hands it back to — was
-// spelled by four `format!`s outside this file and by both arms of the renderer
-// inside it, and peeled by `split_shape` here and by `task_tree::handle_key`
-// there, whose own comment conceded it *"mirrors the filename grammar"*. None of
-// them was behind a type.
-// It is now [`Handle`], and the ownership is structural rather than
-// disciplinary: [`Handle::render`] is the only `write!` the grammar appears in,
-// [`peel_key`] the only place it is taken apart, and **both of [`TaskName`]'s
-// renderings end in a call to the former**. So a filename and a handle saying
-// different things is not a bug this module can have — it is not expressible.
-//
-// The same fact read the other way: the handle is a **contiguous terminal
-// substring** of every name that has one, a leaf's followed only by the `.md`
-// its species takes. That is the property `grammar-separator-k15` bought with
-// its rename, and with one renderer it cost that leaf one `write!` and one
-// `split_once`.
+// Directories carry position and key; their node files carry their titles.
+// Names starting with a digit or underscore belong to this grammar, so a
+// malformed spelling refuses the whole read rather than hiding a subtree.
+// The contract is docs/adr/task-names-are-canonical.md.
 
 use core::fmt;
 
@@ -82,7 +18,7 @@ use ordinal_fs_tree::{
 
 /// The name of a node's distinguished child: the charter every node directory is
 /// headed by.
-pub const BRIEF: &str = "BRIEF.md";
+pub const BRIEF: &str = "_BRIEF.md";
 
 /// The permanent key's delimiter — the terminal `-k<digits>` of every positioned
 /// name (task-tree-scheme, amending the original `[<key>]`: brackets are
@@ -355,11 +291,11 @@ pub enum HandleError {
         /// What was handed in.
         text: String,
     },
-    /// A terminal key that does not fit in 32 bits, so there is no key to name.
-    KeyOutOfRange {
+    /// A key that is noncanonical, zero or outside the representable range.
+    BadKey {
         /// What was handed in.
         text: String,
-        /// The digit run that overflowed.
+        /// The refused digit run.
         digits: String,
     },
     /// A terminal key preceded by something that is not a slug.
@@ -383,9 +319,9 @@ impl fmt::Display for HandleError {
                  the terminal `-k<digits>`, so a slug may contain `-k9` and still be read \
                  unambiguously."
             ),
-            Self::KeyOutOfRange { text, digits } => write!(
+            Self::BadKey { text, digits } => write!(
                 f,
-                "{text:?} is not a Grove handle: the key {digits:?} does not fit in 32 bits. \
+                "{text:?} is not a Grove handle: the key {digits:?} must be positive decimal without leading zero and fit in 32 bits. \
                  A handle's key is the one the tree allocated, and no tree has allocated \
                  that."
             ),
@@ -400,24 +336,9 @@ impl fmt::Display for HandleError {
 
 impl std::error::Error for HandleError {}
 
-/// The permanent, position-free identity of a work item: `<slug>-k<key>`.
-///
-/// **This type owns the `<slug>-k<key>` grammar, and it is the only thing that
-/// spells it.** [`Handle::render`] is the single `write!` the grammar appears
-/// in, and both of [`TaskName`]'s renderings end in a call to it — so the
-/// filename and the handle cannot drift, because saying two different things is
-/// not expressible. That is the *structural* form of `one type owns a name`
-/// (`docs/specs/module-decomposition.md`, decision 4); the disciplinary form —
-/// a rule a review has to hold — is what the six hand-rolled sites this type
-/// replaced showed does not hold.
-///
-/// It is also why the handle is a **contiguous terminal substring** of every
-/// name that has one. That property is what `grammar-separator-k15` bought, and
-/// with the grammar in one function that leaf was an edit to [`render`]'s
-/// caller rather than a rewrite — the separator sits *before* the handle, never
-/// inside it, so [`render`] itself did not change at all.
-///
-/// [`render`]: Handle::render
+/// The position-free identity of a work item: `<slug>-k<key>`.
+/// Leaf names supply both fields; node handles pair the directory key with
+/// the slug of its node file, supplied by the tree's guarded snapshot.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Handle {
     slug: Slug,
@@ -426,68 +347,63 @@ pub struct Handle {
 
 impl Handle {
     /// The handle of a slug and the key the tree allocated for it.
+    ///
+    /// The caller supplies a positive key. The generic library permits zero,
+    /// but zero is outside Grove’s domain and does not round-trip through parse.
     #[must_use]
     pub const fn new(slug: Slug, key: Key) -> Self {
         Self { slug, key }
     }
 
-    /// The handle of a positioned name.
-    ///
-    /// `None` for the charter brief, which is the one name in the grammar with
-    /// no key — and therefore no identity of its own, its subject being the node
-    /// that contains it.
+    /// Construct a leaf handle; every other name species has none.
     #[must_use]
-    pub fn of(name: &TaskName) -> Option<Self> {
+    pub fn of_leaf(name: &TaskName) -> Option<Self> {
         match name {
-            TaskName::Brief => None,
-            TaskName::Positioned { key, parts, .. } => Some(Self::new(parts.slug().clone(), *key)),
+            TaskName::Positioned {
+                key,
+                parts: Parts::Leaf { slug, .. },
+                ..
+            } => Some(Self::new(slug.clone(), *key)),
+            _ => None,
         }
     }
 
-    /// Read a handle back out of its rendering.
-    ///
-    /// The inverse of [`Handle::render`], and one of [`peel_key`]'s three callers
-    /// beside [`split_shape`] and [`terminal_key`] — so a handle, a filename and a
-    /// bare reference find the key by one rule and cannot disagree.
-    ///
-    /// **Deliberately lenient on the key's spelling where [`TaskName::parse`] is
-    /// canonical, and the asymmetry is the point.** Canonicity exists because
-    /// two spellings of one *filename* are two files on disk sharing one key and
-    /// one position (`docs/adr/task-names-are-canonical.md`); a handle is never
-    /// on disk, so that argument does not reach it. It is a **reference**
-    /// namespace — typed by a human at `resolve` and at `finish-commit` — and
-    /// `parse_ref` is already lenient beside it, taking a bare `007` for key 7.
-    /// So `a-k007` is key 7 here, exactly as the `task_tree::handle_key` this
-    /// replaced had it, and `Handle::parse(x).to_string() == x` holds only for
-    /// what [`Handle::render`] writes.
-    ///
-    /// **It is stricter than the deleted `task_tree::handle_key` on the slug**,
-    /// which that function did not look at — and that is why `resolve`'s
-    /// fallback asks [`terminal_key`] instead. This is the *handle* question,
-    /// asked where a handle is genuinely meant: `finish-commit`'s argument. A
-    /// caller who only wants the key a reference ends in must not ask it here,
-    /// or an operator pasting `01-DONE-impl--build-k5` gets a refusal for a head
-    /// that was never going to be a slug.
+    /// Pair a node directory with its titled node file. The caller establishes
+    /// parentage; this constructor rejects every other species pairing.
+    #[must_use]
+    pub fn of_node(node: &TaskName, file: &TaskName) -> Option<Self> {
+        match (node, file) {
+            (
+                TaskName::Positioned {
+                    key,
+                    parts: Parts::Node,
+                    ..
+                },
+                TaskName::NodeFile(slug),
+            ) => Some(Self::new(slug.clone(), *key)),
+            _ => None,
+        }
+    }
+
+    /// Parse a canonical handle using the same key grammar as directory names.
     ///
     /// # Errors
-    ///
-    /// Returns [`HandleError`] when there is no terminal `-k<digits>`, when the
-    /// key does not fit in 32 bits, or when what precedes the key is not a
-    /// [`Slug`].
+    /// Returns [`HandleError`] for a missing, noncanonical or out-of-range key,
+    /// or a head that is not a valid slug.
     pub fn parse(text: &str) -> Result<Self, HandleError> {
         let Some((before, digits)) = peel_key(text) else {
             return Err(HandleError::NotHandleShaped {
                 text: text.to_string(),
             });
         };
-        let Ok(key) = digits.parse::<u32>() else {
-            return Err(HandleError::KeyOutOfRange {
+        let Some(key) = parse_key(digits) else {
+            return Err(HandleError::BadKey {
                 text: text.to_string(),
                 digits: digits.to_string(),
             });
         };
         match Slug::new(before) {
-            Ok(slug) => Ok(Self::new(slug, Key::new(key))),
+            Ok(slug) => Ok(Self::new(slug, key)),
             Err(error) => Err(HandleError::BadSlug {
                 text: text.to_string(),
                 slug: before.to_string(),
@@ -515,7 +431,8 @@ impl Handle {
     /// there is one `write!`, not that a `Handle` value has to exist to reach
     /// it.
     fn render(f: &mut fmt::Formatter<'_>, slug: &Slug, key: Key) -> fmt::Result {
-        write!(f, "{slug}{KEY_MARK}{}", key.get())
+        write!(f, "{slug}")?;
+        render_key(f, key)
     }
 }
 
@@ -543,11 +460,8 @@ pub enum Parts {
         /// Its human-facing name.
         slug: Slug,
     },
-    /// A node directory: children, headed by a `BRIEF.md` charter.
-    Node {
-        /// Its human-facing name.
-        slug: Slug,
-    },
+    /// A positioned directory, whose title belongs to its node file.
+    Node,
 }
 
 impl Parts {
@@ -563,15 +477,16 @@ impl Parts {
 
     /// A node's parts.
     #[must_use]
-    pub const fn node(slug: Slug) -> Self {
-        Self::Node { slug }
+    pub const fn node() -> Self {
+        Self::Node
     }
 
-    /// The slug, whichever variant this is.
+    /// A leaf's title. Nodes carry no title in their parts.
     #[must_use]
-    pub const fn slug(&self) -> &Slug {
+    pub const fn slug(&self) -> Option<&Slug> {
         match self {
-            Self::Leaf { slug, .. } | Self::Node { slug } => slug,
+            Self::Leaf { slug, .. } => Some(slug),
+            Self::Node => None,
         }
     }
 
@@ -583,15 +498,20 @@ impl Parts {
     pub const fn species(&self) -> PositionedSpecies {
         match self {
             Self::Leaf { .. } => PositionedSpecies::Leaf,
-            Self::Node { .. } => PositionedSpecies::Node,
+            Self::Node => PositionedSpecies::Node,
         }
     }
 }
 
 /// A task tree entry's name.
 ///
-/// The two variants are the whole of the type: a name carries an ordinal, a key
-/// and parts **together**, or it is the charter brief and carries none of them.
+/// Direct construction, including [`EntryName::compose`], requires a positive
+/// key for a domain-valid Grove name. The generic library’s total constructor
+/// preserves even zero, which Grove refuses when parsing and never allocates.
+/// The parse/render round-trip promise applies only to domain-valid inputs.
+///
+/// A positioned name carries ordinal, key and parts together. Root and titled
+/// node files are distinguished names with no position or key.
 /// The obligation *a name is positioned or distinguished, never neither* is
 /// therefore not something this domain can break — see
 /// [`EntryName::view`](ordinal_fs_tree::EntryName::view).
@@ -606,14 +526,17 @@ pub enum TaskName {
         /// Everything else.
         parts: Parts,
     },
-    /// `BRIEF.md` — the containing node's charter.
+    /// `_BRIEF.md` — the root node file.
     Brief,
+    /// A positioned node's titled file; never a leaf or a separate handle.
+    NodeFile(Slug),
 }
 
 impl fmt::Display for TaskName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Brief => f.write_str(BRIEF),
+            Self::NodeFile(slug) => write!(f, "_{slug}.md"),
             Self::Positioned {
                 ordinal,
                 key,
@@ -650,9 +573,9 @@ impl fmt::Display for TaskName {
                         Handle::render(f, slug, *key)?;
                         f.write_str(".md")
                     }
-                    Parts::Node { slug } => {
-                        write!(f, "{ordinal:02}-")?;
-                        Handle::render(f, slug, *key)
+                    Parts::Node => {
+                        write!(f, "{ordinal:02}")?;
+                        render_key(f, *key)
                     }
                 }
             }
@@ -669,6 +592,13 @@ impl fmt::Display for TaskName {
 /// next step.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TaskNameError {
+    /// An owned name does not have a complete canonical spelling.
+    InvalidName { name: String },
+    /// The complete node-file set has wrong cardinality or placement.
+    NodeFiles {
+        node: Option<String>,
+        names: Vec<String>,
+    },
     /// A task-shaped name spelled a way grove does not write — a hand-typed
     /// `5-…` where grove renders `05-…`, or a number too large to hold.
     NotCanonical {
@@ -698,12 +628,6 @@ pub enum TaskNameError {
         /// Why it is not a session kind.
         error: TokenError,
     },
-    /// A node directory wearing an outcome infix.
-    NodeWearsOutcome {
-        /// What is on disk.
-        name: String,
-    },
-    /// A slug the grammar cannot render and read back.
     BadSlug {
         /// What is on disk.
         name: String,
@@ -727,6 +651,17 @@ pub enum TaskNameError {
 impl fmt::Display for TaskNameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidName { name } => write!(f,
+                "malformed Grove name {name:?}: expected NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md, NN-k<key>/, _<slug>.md in a node, or _BRIEF.md at the root; keys are positive decimal without leading zero and fit in 32 bits"),
+            Self::NodeFiles { node, names } => {
+                let required = if node.is_some() { "_<slug>.md" } else { "_BRIEF.md" };
+                write!(f, "malformed Grove level: expected exactly one regular node file {required}; found {names:?}")?;
+                if node.is_some() && names.is_empty() {
+                    f.write_str(". Check for an interrupted `leaf-decompose`: if this directory is empty and a sibling leaf shares its position and key, delete the empty directory to retain the leaf, or move that leaf into it as its _<slug>.md node file. Retain the key and leaf body; do not allocate a fresh key or manufacture a brief")?;
+                }
+                Ok(())
+            }
+
             Self::NotCanonical { name, canonical } => write!(
                 f,
                 "{name:?} is a Grove task name spelled a way Grove does not write. Rename it \
@@ -751,18 +686,10 @@ impl fmt::Display for TaskNameError {
                  Any well-formed token is a kind; whether a skill exists for it is the \
                  methodology's business and not this grammar's."
             ),
-            Self::NodeWearsOutcome { name } => write!(
-                f,
-                "malformed Grove node directory {name:?}: expected NN-<slug>-k<key>. A node \
-                 is never marked DONE or ABANDONED — its done-ness is the absence of a live \
-                 leaf in its subtree — so an outcome infix on a directory hides every leaf \
-                 under it. Drop the infix to restore the subtree, or rename the directory \
-                 out of the task-shaped grammar if it is not Grove's."
-            ),
             Self::BadSlug { name, slug, error } => write!(
                 f,
                 "malformed Grove task name {name:?}: the slug {slug:?} is not one — \
-                 {error}. Rename it with a slug that is."
+                 {error}. Expected _<slug>.md or NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md."
             ),
             Self::SpeciesMismatch {
                 name,
@@ -773,7 +700,7 @@ impl fmt::Display for TaskNameError {
                 "malformed Grove tree: {name:?} names a {declares}, which must be {}, but \
                  the listing found {found}. Nothing here can be right — either the name or \
                  the object is wrong — and a walk that skipped it would lose everything \
-                 under it.",
+                 under it. Required forms: NN-k<key>/, NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md, _<slug>.md or _BRIEF.md.",
                 declares.requires()
             ),
         }
@@ -789,40 +716,59 @@ impl EntryName for TaskName {
     fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
         // The charter is matched before the positioned grammar, because it is
         // not positioned and nothing below would recognise it.
-        if name == BRIEF {
+        if let Some(token) = name.strip_prefix('_') {
+            let parsed = if name == BRIEF {
+                Self::Brief
+            } else {
+                let Some(token) = token.strip_suffix(".md") else {
+                    return Verdict::Malformed(TaskNameError::InvalidName {
+                        name: name.to_string(),
+                    });
+                };
+                match Slug::new(token) {
+                    Ok(slug) => Self::NodeFile(slug),
+                    Err(error) => return Verdict::Malformed(bad_slug(name, token, error)),
+                }
+            };
             return match disagreement(Species::Distinguished, found, name) {
                 Some(error) => Verdict::Malformed(error),
-                None => Verdict::Entry(Self::Brief),
+                None => Verdict::Entry(parsed),
             };
         }
-        // The `.md` suffix is what the name *declares* its species to be.
+        if !name.as_bytes().first().is_some_and(u8::is_ascii_digit) {
+            return Verdict::Foreign;
+        }
         let (stem, declares_leaf) = match name.strip_suffix(".md") {
             Some(stem) => (stem, true),
             None => (name, false),
         };
 
-        // Is this name Grove's at all? A name is Grove's when it is **positioned
-        // and keyed** — a leading digit run, and a terminal `-k<digits>`. That
-        // shape is the one only Grove's grow verbs write, so everything else is
-        // Foreign and skipped, which is safe precisely because we are
-        // disclaiming it. A stray `README.md` lands here.
-        // Everything that *is* this shape and does not parse is Malformed,
-        // whichever species it declares: a task-shaped name Grove skips is lost
-        // work, and a whole subtree when the name is a directory.
-        let Some((digits, middle, key_digits)) = split_shape(stem) else {
-            return Verdict::Foreign;
+        // Digit-prefixed entries are owned even when their position, key or
+        // species is malformed. Refusing them keeps hidden work out of a walk.
+        let shape = if declares_leaf {
+            split_shape(stem)
+        } else {
+            peel_key(stem).map(|(digits, key)| (digits, "", key))
         };
-
+        let Some((digits, middle, key_digits)) = shape else {
+            return Verdict::Malformed(TaskNameError::InvalidName {
+                name: name.to_string(),
+            });
+        };
+        if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+            return Verdict::Malformed(TaskNameError::InvalidName {
+                name: name.to_string(),
+            });
+        }
         let Ok(ordinal) = digits.parse::<u32>() else {
             return Verdict::Malformed(uncomputable_canonical(name));
         };
-        let Ok(key) = key_digits.parse::<u32>() else {
-            return Verdict::Malformed(uncomputable_canonical(name));
+        let Some(key) = parse_key(key_digits) else {
+            return Verdict::Malformed(TaskNameError::InvalidName {
+                name: name.to_string(),
+            });
         };
 
-        // The outcome infix sits immediately after the position, and is admitted
-        // here for *both* species precisely so that a directory wearing one is
-        // reported rather than skipped.
         let (outcome, after_outcome) = Outcome::strip(middle);
 
         let parts = if declares_leaf {
@@ -855,21 +801,13 @@ impl EntryName for TaskName {
                 Err(error) => return Verdict::Malformed(bad_slug(name, slug, error)),
             }
         } else {
-            if outcome != Outcome::Live {
-                return Verdict::Malformed(TaskNameError::NodeWearsOutcome {
-                    name: name.to_string(),
-                });
-            }
-            match Slug::new(after_outcome) {
-                Ok(slug) => Parts::node(slug),
-                Err(error) => return Verdict::Malformed(bad_slug(name, after_outcome, error)),
-            }
+            Parts::node()
         };
 
         let parts_species = parts.species();
         let parsed = Self::Positioned {
             ordinal: Ordinal::new(ordinal),
-            key: Key::new(key),
+            key,
             parts,
         };
 
@@ -893,6 +831,30 @@ impl EntryName for TaskName {
         }
     }
 
+    fn validate_distinguished(node: Option<&Self>, children: &[Self]) -> Result<(), Self::Err> {
+        let valid = matches!(
+            (node, children),
+            (None, [Self::Brief])
+                | (
+                    Some(Self::Positioned {
+                        parts: Parts::Node,
+                        ..
+                    }),
+                    [Self::NodeFile(_)]
+                )
+        );
+        if valid {
+            Ok(())
+        } else {
+            let mut names: Vec<_> = children.iter().map(ToString::to_string).collect();
+            names.sort();
+            Err(TaskNameError::NodeFiles {
+                node: node.map(ToString::to_string),
+                names,
+            })
+        }
+    }
+
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
         Self::Positioned {
             ordinal,
@@ -903,7 +865,7 @@ impl EntryName for TaskName {
 
     fn view(&self) -> NameView<'_, Self::Parts> {
         match self {
-            Self::Brief => NameView::Distinguished,
+            Self::Brief | Self::NodeFile(_) => NameView::Distinguished,
             Self::Positioned {
                 ordinal,
                 key,
@@ -941,25 +903,14 @@ fn bad_slug(name: &str, slug: &str, error: TokenError) -> TaskNameError {
 /// A canonicity refusal whose advice cannot be computed: the numbers did not fit
 /// in 32 bits, so there is no spelling to offer back.
 fn uncomputable_canonical(name: &str) -> TaskNameError {
-    TaskNameError::NotCanonical {
+    TaskNameError::InvalidName {
         name: name.to_string(),
-        canonical: "a name whose position and key both fit in 32 bits".to_string(),
     }
 }
 
-/// Split a stem into `(position digits, middle, key digits)`, or `None` when the
-/// stem is not task-shaped at all.
-///
-/// The position is the leading digit run, ended by the first `-` — the position
-/// is pure digits, so the first dash is its unambiguous boundary. The key is the
-/// *terminal* `-k<digits>`, which is what keeps a slug containing `-k9`
-/// unambiguous: `05-impl--task-k9-k3.md` is the slug `task-k9` at key 3.
-///
-/// The middle is returned unexamined, including when it is empty: `01--k3` has
-/// both markers Grove recognises its own names by, with everything between them
-/// missing, so it is Malformed rather than Foreign. Disclaiming it would skip the
-/// file — and the whole subtree beneath it when it is a directory — while the
-/// walk reported a healthy tree.
+/// Split a leaf stem into its position, kind/slug middle and terminal key.
+/// A failed split is still an owned refusal because the caller classified
+/// digit-prefixed names before reaching this helper.
 fn split_shape(stem: &str) -> Option<(&str, &str, &str)> {
     let dash = stem.find('-')?;
     let (digits, rest) = (&stem[..dash], &stem[dash + 1..]);
@@ -970,41 +921,27 @@ fn split_shape(stem: &str) -> Option<(&str, &str, &str)> {
     Some((digits, middle, key_digits))
 }
 
-/// The [`Key`] a reference ends in, or `None` when it does not end in one.
-///
-/// **A narrower question than [`Handle::parse`], asked by the reference
-/// namespace and answered by the same peel.** `resolve`'s bare-slug fallback
-/// wants *does this end in a key*, not *is this a handle*: an operator pastes a
-/// retired leaf's whole stem — `01-DONE-impl--build-k5` — and means key 5, and
-/// nothing before the key is a slug there or needs to be. Routing that through
-/// `Handle::parse` narrows `resolve` to references whose head happens to be a
-/// well-formed slug, which is a change to the verb rather than to the grammar's
-/// ownership, and this leaf owns the second and not the first.
-///
-/// One peel still: this and [`Handle::parse`] both go through [`peel_key`], and
-/// the difference between them is what they *require of what precedes it*.
+/// Read a terminal canonical key token. Callers still validate the title when
+/// using this as a full handle rather than a bare key reference.
 #[must_use]
 pub fn terminal_key(reference: &str) -> Option<Key> {
     let (_, digits) = peel_key(reference)?;
+    parse_key(digits)
+}
+
+/// Parse the shared canonical key digits, independently of the preceding title.
+fn parse_key(digits: &str) -> Option<Key> {
+    if digits.starts_with('0') || digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
     digits.parse().ok().map(Key::new)
 }
 
-/// Peel a terminal `-k<digits>` into what precedes it and the digit run, or
-/// `None` when there is none.
-///
-/// **The only peel of the key in grove**, shared by [`split_shape`],
-/// [`Handle::parse`] and [`terminal_key`] — which is what makes *a handle and a
-/// filename find the key identically* a fact rather than a claim. It was two
-/// functions (`task_tree::handle_key` was the second, and its own comment
-/// conceded it "mirrors the filename grammar"), and the terminality rule is
-/// subtle enough that two of it is one too many: the key is the **last**
-/// `-k<digits>`, so `migrate-v1-to-v2-k27` is key 27 and a slug may contain
-/// `-k9` and still read unambiguously.
-///
-/// The digits are returned unparsed because the three callers disagree about
-/// what an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
-/// handle says [`HandleError::KeyOutOfRange`] and a reference says `None` — and
-/// that is their judgement, not this function's.
+fn render_key(f: &mut fmt::Formatter<'_>, key: Key) -> fmt::Result {
+    write!(f, "{KEY_MARK}{}", key.get())
+}
+
+/// Peel the final `-k<digits>` token; `parse_key` validates its digits.
 fn peel_key(text: &str) -> Option<(&str, &str)> {
     let digits_start = text.len() - text.bytes().rev().take_while(u8::is_ascii_digit).count();
     if digits_start == text.len() {
@@ -1017,6 +954,43 @@ fn peel_key(text: &str) -> Option<(&str, &str)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn node_files_and_slugless_directories_are_canonical() {
+        for (name, found) in [
+            ("_BRIEF.md", Found::File),
+            ("_topic-k9.md", Found::File),
+            ("02-k7", Found::Dir),
+        ] {
+            assert_eq!(entry(name, found).to_string(), name);
+        }
+        for (name, found) in [
+            ("_", Found::File),
+            ("_Topic.md", Found::File),
+            ("_topic.txt", Found::File),
+            ("01-topic-k7", Found::Dir),
+            ("01-k0", Found::Dir),
+            ("01-k07", Found::Dir),
+            ("01-broken", Found::Dir),
+            ("01-impl--topic-k0.md", Found::File),
+        ] {
+            malformed(name, found);
+        }
+    }
+
+    #[test]
+    fn every_level_requires_a_correctly_placed_node_file() {
+        assert!(TaskName::validate_distinguished(None, &[]).is_err());
+        let root = entry("_BRIEF.md", Found::File);
+        let title = entry("_topic.md", Found::File);
+        let node = entry("02-k7", Found::Dir);
+        assert!(TaskName::validate_distinguished(None, std::slice::from_ref(&root)).is_ok());
+        assert!(
+            TaskName::validate_distinguished(Some(&node), std::slice::from_ref(&title)).is_ok()
+        );
+        assert!(TaskName::validate_distinguished(None, std::slice::from_ref(&title)).is_err());
+        assert!(TaskName::validate_distinguished(Some(&node), &[root, title]).is_err());
+    }
 
     /// A [`Kind`] for a test that needs one, by its label.
     ///
@@ -1067,14 +1041,14 @@ mod tests {
     /// reasoned: removing the seven canonicity lines from `parse` leaves the kit
     /// green without `5-impl--domain-k29.md` and red with it
     /// (`docs/formalism-findings.md` entry 020). `07-DONE-grove-flip-k28` is
-    /// `NodeWearsOutcome`: a near-miss for the crate, never for the kit.
+    /// malformed directory syntax: a near-miss for the crate, never for the kit.
     fn listings() -> Vec<(&'static str, Found)> {
         vec![
-            ("BRIEF.md", Found::File),
+            ("_BRIEF.md", Found::File),
             ("01-DONE-requirements--plan-k1.md", Found::File),
             ("02-impl--domain-k29.md", Found::File),
             ("03-ABANDONED-design--refusals-k30.md", Found::File),
-            ("07-grove-flip-k28", Found::Dir),
+            ("07-k28", Found::Dir),
             ("README.md", Found::File),
             ("5-impl--domain-k29.md", Found::File),
             ("07-DONE-grove-flip-k28", Found::Dir),
@@ -1088,46 +1062,34 @@ mod tests {
                 Key::new(1),
                 Parts::leaf(Outcome::Live, a_kind("impl"), slug("domain")),
             ),
-            (
-                Ordinal::new(2),
-                Key::new(28),
-                Parts::node(slug("grove-flip")),
-            ),
+            (Ordinal::new(2), Key::new(28), Parts::node()),
         ]
     }
 
     fn level_samples() -> Vec<conformance::LevelSample<TaskName>> {
-        [
-            None,
-            Some(TaskName::compose(
-                Ordinal::FIRST,
-                Key::new(1),
-                Parts::node(slug("topic")),
-            )),
+        let root = TaskName::Brief;
+        let title = TaskName::NodeFile(slug("topic"));
+        let other = TaskName::NodeFile(slug("other"));
+        let node = TaskName::compose(Ordinal::FIRST, Key::new(1), Parts::node());
+        vec![
+            (None, vec![], false),
+            (None, vec![root.clone()], true),
+            (None, vec![title.clone()], false),
+            (None, vec![root.clone(), title.clone()], false),
+            (Some(node.clone()), vec![], false),
+            (Some(node.clone()), vec![title.clone()], true),
+            (Some(node.clone()), vec![root], false),
+            (Some(node), vec![title, other], false),
         ]
         .into_iter()
-        .flat_map(|node| {
-            [
-                vec![],
-                vec![TaskName::Brief],
-                vec![TaskName::Brief, TaskName::Brief],
-            ]
-            .into_iter()
-            .map(move |distinguished| conformance::LevelSample {
-                node: node.clone(),
-                distinguished,
-                accepted: true,
-            })
+        .map(|(node, distinguished, accepted)| conformance::LevelSample {
+            node,
+            distinguished,
+            accepted,
         })
         .collect()
     }
 
-    /// The leaf's own *Done when*: the kit runs green over a fixture covering
-    /// the current `.grove/` shapes. It samples the five name laws and the
-    /// current permissive level policy; finite fixtures are not a proof —
-    /// `compose` places what it is given, the grammar is canonical,
-    /// distinguished names are canonical, `parse` refuses
-    /// what `found` contradicts, and a name renders as one path component.
     #[test]
     fn the_task_tree_domain_conforms() {
         conformance::check::<TaskName>(
@@ -1208,7 +1170,7 @@ mod tests {
 
     #[test]
     fn the_charter_is_the_distinguished_child() {
-        assert_eq!(entry("BRIEF.md", Found::File), TaskName::Brief);
+        assert_eq!(entry("_BRIEF.md", Found::File), TaskName::Brief);
         assert!(matches!(TaskName::Brief.view(), NameView::Distinguished));
     }
 
@@ -1217,9 +1179,7 @@ mod tests {
         for name in [
             "README.md",
             "notes",
-            "01-k3.md",     // no `-k` key delimiter
             "impl-a-k1.md", // unpositioned
-            "01-verbs-k2/", // a path argument's trailing slash is the caller's to trim
             ".gitignore",
         ] {
             assert_eq!(verdict(name, Found::File), Verdict::Foreign, "{name:?}");
@@ -1261,11 +1221,11 @@ mod tests {
     #[test]
     fn a_node_directory_parses() {
         assert_eq!(
-            entry("07-grove-flip-k28", Found::Dir),
+            entry("07-k28", Found::Dir),
             TaskName::Positioned {
                 ordinal: Ordinal::new(7),
                 key: Key::new(28),
-                parts: Parts::node(slug("grove-flip")),
+                parts: Parts::node(),
             }
         );
     }
@@ -1277,7 +1237,7 @@ mod tests {
         match entry("05-impl--task-k9-k3.md", Found::File) {
             TaskName::Positioned { key, parts, .. } => {
                 assert_eq!(key, Key::new(3));
-                assert_eq!(parts.slug().as_str(), "task-k9");
+                assert_eq!(parts.slug().unwrap().as_str(), "task-k9");
             }
             other => panic!("{other:?}"),
         }
@@ -1295,7 +1255,7 @@ mod tests {
             ("5-impl--a-k1.md", "05-impl--a-k1.md"),
             ("005-impl--a-k1.md", "05-impl--a-k1.md"),
             ("0100-impl--a-k1.md", "100-impl--a-k1.md"),
-            ("7-verbs-k2", "07-verbs-k2"),
+            ("7-k2", "07-k2"),
         ] {
             let found = if written.ends_with(".md") {
                 Found::File
@@ -1330,12 +1290,9 @@ mod tests {
     #[test]
     fn an_unrepresentable_number_is_refused_without_a_suggestion() {
         for name in ["99999999999-impl--a-k1.md", "01-impl--a-k99999999999.md"] {
-            match malformed(name, Found::File) {
-                TaskNameError::NotCanonical { canonical, .. } => {
-                    assert!(canonical.contains("32 bits"), "{canonical}");
-                }
-                other => panic!("{other:?}"),
-            }
+            let advice = malformed(name, Found::File).to_string();
+            assert!(advice.contains("32 bits"), "{advice}");
+            assert!(advice.contains(name), "{advice}");
         }
     }
 
@@ -1489,22 +1446,10 @@ mod tests {
     /// and it names the real damage.
     #[test]
     fn a_node_wearing_an_outcome_infix_is_malformed() {
-        for name in ["07-DONE-grove-flip-k28", "07-ABANDONED-grove-flip-k28"] {
-            let error = malformed(name, Found::Dir);
-            assert_eq!(
-                error,
-                TaskNameError::NodeWearsOutcome {
-                    name: name.to_string()
-                },
-                "{name:?}"
-            );
-            let advice = error.to_string();
-            assert!(
-                advice.contains("malformed Grove node directory"),
-                "{advice}"
-            );
-            assert!(advice.contains("hides every leaf under it"), "{advice}");
-            assert!(advice.contains("Drop the infix"), "{advice}");
+        for name in ["07-DONE-k28", "07-ABANDONED-k28"] {
+            let advice = malformed(name, Found::Dir).to_string();
+            assert!(advice.contains(name), "{advice}");
+            assert!(advice.contains("NN-k<key>"), "{advice}");
         }
     }
 
@@ -1514,8 +1459,8 @@ mod tests {
             ("01-impl--Domain-k1.md", Found::File, "Domain"),
             ("01-impl--a_b-k1.md", Found::File, "a_b"),
             ("01-impl--a--b-k1.md", Found::File, "a--b"),
-            ("01--k1", Found::Dir, ""),
-            ("01-BRIEF-k1", Found::Dir, "BRIEF"),
+            ("_.md", Found::File, ""),
+            ("_DONE.md", Found::File, "DONE"),
         ] {
             match malformed(name, found) {
                 TaskNameError::BadSlug { slug, .. } => assert_eq!(slug, bad, "{name:?}"),
@@ -1532,8 +1477,8 @@ mod tests {
     fn a_species_mismatch_is_malformed_in_both_directions() {
         for (name, found, declares) in [
             ("02-impl--domain-k29.md", Found::Dir, Species::Leaf),
-            ("07-grove-flip-k28", Found::File, Species::Node),
-            ("BRIEF.md", Found::Dir, Species::Distinguished),
+            ("07-k28", Found::File, Species::Node),
+            ("_BRIEF.md", Found::Dir, Species::Distinguished),
             ("02-impl--domain-k29.md", Found::Other, Species::Leaf),
         ] {
             assert_eq!(
@@ -1579,14 +1524,9 @@ mod tests {
 
     // ---- the handle owns the grammar ----------------------------------------
 
-    /// **The structural claim decision 4 asks for, asserted rather than
-    /// reviewed.** Every positioned name's rendering ends in its own handle's
-    /// rendering — a node's exactly, a leaf's followed only by the `.md` suffix
-    /// its species takes. A second spelling of `<slug>-k<key>` anywhere in
-    /// `TaskName`'s `Display` fails this the moment the two disagree, which is
-    /// what *drift is not expressible* has to mean if it is not to be a promise.
+    /// Leaf renderings end in their handle, followed by the file suffix.
     #[test]
-    fn every_positioned_name_ends_in_its_own_handle() {
+    fn every_leaf_name_ends_in_its_own_handle() {
         let names = [
             TaskName::compose(
                 Ordinal::new(5),
@@ -1603,16 +1543,9 @@ mod tests {
                 Key::new(1),
                 Parts::leaf(Outcome::Abandoned, a_kind("finish"), slug("a")),
             ),
-            // The slug that contains the key marker: the case terminality
-            // exists for.
-            TaskName::compose(
-                Ordinal::new(7),
-                Key::new(2),
-                Parts::node(slug("migrate-k9-to-k10")),
-            ),
         ];
         for name in names {
-            let handle = Handle::of(&name).expect("a positioned name has a handle");
+            let handle = Handle::of_leaf(&name).expect("a positioned name has a handle");
             let rendered = name.to_string();
             let tail = rendered.strip_suffix(".md").unwrap_or(&rendered);
             assert!(
@@ -1632,7 +1565,7 @@ mod tests {
     /// own — `of` says so rather than inventing one.
     #[test]
     fn the_brief_has_no_handle() {
-        assert_eq!(Handle::of(&TaskName::Brief), None);
+        assert_eq!(Handle::of_leaf(&TaskName::Brief), None);
     }
 
     /// `parse` is the inverse of the rendering, including across the slug that
@@ -1663,7 +1596,6 @@ mod tests {
         for (filename, handle_text) in [
             ("05-impl--task-k9-k3.md", "task-k9-k3"),
             ("01-DONE-design--decomposition-k2.md", "decomposition-k2"),
-            ("07-migrate-k9-to-k10-k2", "migrate-k9-to-k10-k2"),
         ] {
             let found = if filename.ends_with(".md") {
                 Found::File
@@ -1671,7 +1603,7 @@ mod tests {
                 Found::Dir
             };
             let name = entry(filename, found);
-            let from_name = Handle::of(&name).expect("a positioned name has a handle");
+            let from_name = Handle::of_leaf(&name).expect("a positioned name has a handle");
             let from_text = Handle::parse(handle_text).expect("a well-formed handle");
             assert_eq!(from_name, from_text, "{filename:?} vs {handle_text:?}");
         }
@@ -1697,7 +1629,7 @@ mod tests {
         ));
 
         let wide = Handle::parse("a-k99999999999").expect_err("key too wide");
-        assert!(matches!(wide, HandleError::KeyOutOfRange { .. }));
+        assert!(matches!(wide, HandleError::BadKey { .. }));
         assert!(wide.to_string().contains("99999999999"));
 
         let bad = Handle::parse("Bad-Slug-k2").expect_err("not a slug");
@@ -1711,33 +1643,33 @@ mod tests {
         ));
     }
 
-    /// The two ways `parse` departs from the `task_tree::handle_key` it
-    /// replaced, pinned because they are the only behaviour this leaf moved.
-    ///
-    /// Lenient where `handle_key` was, on the key's spelling — a handle is a
-    /// reference a human types and never a name on disk, so canonicity has no
-    /// argument here. Stricter where `handle_key` looked at nothing, on the
-    /// slug — `handle_key` answered *key 3* for four references no entry could
-    /// ever wear, since every slug on disk went through `Slug::new`.
     #[test]
-    fn parse_is_lenient_on_the_key_and_strict_on_the_slug() {
-        for (text, key) in [("a-k007", 7u32), ("a-k0", 0)] {
-            assert_eq!(
-                Handle::parse(text)
-                    .expect("a lenient key spelling")
-                    .key()
-                    .get(),
-                key
-            );
+    fn handles_require_canonical_keys_and_slugs() {
+        for text in ["a-k007", "a-k0", "-k3", "A-k3", "DONE-k3", "a_b-k3"] {
+            assert!(Handle::parse(text).is_err(), "{text}");
         }
-        // Not canonical, and deliberately so: the rendering normalises.
-        assert_eq!(Handle::parse("a-k007").expect("parses").to_string(), "a-k7");
-        // What `handle_key` used to resolve by key and this refuses.
-        for text in ["-k3", "A-k3", "DONE-k3", "a_b-k3"] {
-            assert!(
-                matches!(Handle::parse(text), Err(HandleError::BadSlug { .. })),
-                "{text:?} should be refused for its slug"
-            );
+    }
+
+    #[test]
+    fn node_handles_require_a_directory_and_its_titled_file() {
+        let node = entry("07-k2", Found::Dir);
+        let file = entry("_migrate-k9-to-k10.md", Found::File);
+        let leaf = entry("01-impl--work-k3.md", Found::File);
+        let root = TaskName::Brief;
+        assert_eq!(
+            Handle::of_node(&node, &file).unwrap().to_string(),
+            "migrate-k9-to-k10-k2"
+        );
+        for name in [&node, &file, &root] {
+            assert!(Handle::of_leaf(name).is_none());
+        }
+        for first in [&node, &file, &leaf, &root] {
+            for second in [&node, &file, &leaf, &root] {
+                assert_eq!(
+                    Handle::of_node(first, second).is_some(),
+                    first == &node && second == &file
+                );
+            }
         }
     }
 }

@@ -36,7 +36,7 @@ fn grove() -> TempDir {
     support::init_jj_repo(tmp.path());
     let root = tmp.path().join(".grove");
     fs::create_dir_all(&root).unwrap();
-    fs::write(root.join("BRIEF.md"), "# root — brief\n").unwrap();
+    fs::write(root.join("_BRIEF.md"), "# root — brief\n").unwrap();
     tmp
 }
 
@@ -102,7 +102,7 @@ fn a_review_chain_is_three_leaf_adds_landing_as_flat_siblings() {
             "01-design--sync-k1.md",
             "02-review-design--sync-k2.md",
             "03-integrate-review-design--sync-k3.md",
-            "BRIEF.md",
+            "_BRIEF.md",
         ],
         "flat siblings — no chain node was created for them"
     );
@@ -160,7 +160,7 @@ fn there_is_no_chain_constructor_left_to_call() {
         );
         assert_eq!(
             tree(t.path()),
-            vec!["BRIEF.md"],
+            vec!["_BRIEF.md"],
             "{argv:?} touched the tree"
         );
     }
@@ -297,16 +297,11 @@ fn a_later_sibling_node_blocks_and_is_itself_the_insert_target() {
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("03-follow-up-k3/01-impl--detail-k4.md"),
+        Some("03-k3/01-impl--detail-k4.md"),
         "a live descendant of a later sibling node is what runs next"
     );
 
-    insert(
-        t.path(),
-        "03-follow-up-k3",
-        "sync",
-        "integrate-review-design",
-    );
+    insert(t.path(), "03-k3", "sync", "integrate-review-design");
 
     assert_eq!(
         picked(t.path()).as_deref(),
@@ -314,7 +309,7 @@ fn a_later_sibling_node_blocks_and_is_itself_the_insert_target() {
         "inserting before the node directory puts the integration ahead of its whole subtree"
     );
     assert!(
-        t.path().join(".grove/04-follow-up-k3").is_dir(),
+        t.path().join(".grove/04-k3").is_dir(),
         "the node shifted down one position with its subtree intact"
     );
 }
@@ -336,14 +331,14 @@ fn targeting_the_blocking_nodes_descendant_inserts_at_the_wrong_level() {
 
     insert(
         t.path(),
-        "03-follow-up-k3/01-impl--detail-k4.md",
+        "03-k3/01-impl--detail-k4.md",
         "sync",
         "integrate-review-design",
     );
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("03-follow-up-k3/01-integrate-review-design--sync-k5.md"),
+        Some("03-k3/01-integrate-review-design--sync-k5.md"),
         "it runs next either way — the defect is the level, not the order"
     );
     assert!(
@@ -369,7 +364,7 @@ fn terminal_entries_between_the_steps_do_not_block_an_append() {
         "01-design--sync-k1.md",
         "02-review-design--sync-k2.md",
         "03-impl--old-k3.md",
-        "04-stale-k4/01-impl--gone-k5.md",
+        "04-k4/01-impl--gone-k5.md",
     ] {
         retire(t.path(), rel);
     }
@@ -401,11 +396,11 @@ fn live_work_in_a_later_outer_node_cannot_get_in_front_of_an_append() {
     add(t.path(), "inner-k1", "sync", "review-design");
     add(t.path(), ".", "outer", "impl");
     decompose(t.path(), "02-impl--outer-k4.md", "later");
-    retire(t.path(), "01-inner-k1/01-design--sync-k2.md");
-    retire(t.path(), "01-inner-k1/02-review-design--sync-k3.md");
+    retire(t.path(), "01-k1/01-design--sync-k2.md");
+    retire(t.path(), "01-k1/02-review-design--sync-k3.md");
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("02-outer-k4/01-impl--later-k5.md"),
+        Some("02-k4/01-impl--later-k5.md"),
         "the only live work is in the outer sibling node"
     );
 
@@ -413,7 +408,7 @@ fn live_work_in_a_later_outer_node_cannot_get_in_front_of_an_append() {
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("01-inner-k1/03-integrate-review-design--sync-k6.md"),
+        Some("01-k1/03-integrate-review-design--sync-k6.md"),
         "the appended integration still precedes the whole later sibling node"
     );
 }
@@ -455,22 +450,13 @@ fn the_finish_sentinel_does_not_block_an_append() {
 /// `-chain-k` name at all: the whole current-shape suite would keep passing if
 /// a future change made node parsing, `pick`'s descent, handle resolution or
 /// `brief-chain` assume a charter that this node, uniquely, does not have.
-///
-/// So the fixture is deliberately the *awkward* legacy case — a brief-less node
-/// holding a live producer and its two steps, in current filename format,
-/// exactly as `leaf-add-chain` would have written it — and all three read paths
-/// are exercised against it untouched.
+/// A series uses ordinary nodes and leaves, including conventionally named steps.
 #[test]
-fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
+fn a_chain_node_picks_resolves_and_walks_its_node_files() {
     let t = grove();
-    let node = t.path().join(".grove/01-sync-chain-k1");
+    let node = t.path().join(".grove/01-k1");
     fs::create_dir_all(&node).unwrap();
-    // No `BRIEF.md` — the property under test. The three steps carry the derived
-    // kinds *and* the `-review` / `-integrate` stem suffixes the deleted
-    // constructor emitted — a spelling the methodology no longer teaches and that
-    // remains a perfectly legal filename, since the suffix was always convention
-    // rather than grammar. Nothing was migrated for that change either, so this
-    // fixture now guards both compatibility claims at once.
+    fs::write(node.join("_sync.md"), "chain brief").unwrap();
     for (name, header) in [
         ("01-design--sync-k2.md", "sync-k2"),
         ("02-review-design--sync-review-k3.md", "sync-review-k3"),
@@ -487,19 +473,17 @@ fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
     let (stdout, stderr, ok) = run(t.path(), &["pick"]);
     assert!(ok, "pick failed on a legacy chain node: {stderr}");
     assert!(
-        stdout
-            .trim()
-            .ends_with("01-sync-chain-k1/01-design--sync-k2.md"),
+        stdout.trim().ends_with("01-k1/01-design--sync-k2.md"),
         "pick must descend the unmigrated node, got {stdout:?}"
     );
 
     // The children resolve by their permanent handles, which the node never
     // renumbered and no migration rewrote.
     for (handle, expected) in [
-        ("sync-k2", "01-sync-chain-k1/01-design--sync-k2.md"),
+        ("sync-k2", "01-k1/01-design--sync-k2.md"),
         (
             "sync-review-k3",
-            "01-sync-chain-k1/02-review-design--sync-review-k3.md",
+            "01-k1/02-review-design--sync-review-k3.md",
         ),
     ] {
         let (stdout, stderr, ok) = run(t.path(), &["resolve", handle]);
@@ -515,19 +499,16 @@ fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
     // there is no `Done when` to check and nothing to promote.
     let (stdout, stderr, ok) = run(
         t.path(),
-        &[
-            "brief-chain",
-            ".grove/01-sync-chain-k1/01-design--sync-k2.md",
-        ],
+        &["brief-chain", ".grove/01-k1/01-design--sync-k2.md"],
     );
     assert!(ok, "brief-chain failed: {stderr}");
     let briefs: Vec<&str> = stdout.lines().filter(|l| !l.is_empty()).collect();
     assert_eq!(
         briefs.len(),
-        1,
-        "expected the root brief alone, got {briefs:?}"
+        2,
+        "expected the root and node files, got {briefs:?}"
     );
-    assert!(briefs[0].ends_with(".grove/BRIEF.md"), "got {briefs:?}");
+    assert!(briefs[0].ends_with(".grove/_BRIEF.md"), "got {briefs:?}");
 
     // And none of it moved anything: no migration ran.
     let mut names: Vec<String> = fs::read_dir(&node)
@@ -542,8 +523,9 @@ fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
             "01-design--sync-k2.md",
             "02-review-design--sync-review-k3.md",
             "03-integrate-review-design--sync-integrate-k4.md",
+            "_sync.md",
         ],
-        "the legacy node must be untouched — still brief-less, still `-chain`"
+        "reads must leave the node untouched"
     );
 }
 
@@ -667,7 +649,7 @@ fn research_pair_slugs_ending_in_the_step_marker_pick_resolve_and_report_their_k
             "01-research-a--survey-a-k1.md",
             "02-research-b--survey-b-k2.md",
             "03-combine-research--survey-combine-k3.md",
-            "BRIEF.md",
+            "_BRIEF.md",
         ],
         "reading a pair name must never rewrite it"
     );
@@ -699,7 +681,7 @@ fn a_failed_run_prints_no_path_at_all() {
     );
     assert_eq!(
         tree(t.path()),
-        vec!["01-research-a--survey-k1.md", "BRIEF.md"],
+        vec!["01-research-a--survey-k1.md", "_BRIEF.md"],
         "no half-built pair left behind"
     );
 }
@@ -722,7 +704,7 @@ fn leaf_add_refuses_to_guess_a_kind() {
         stderr.contains("--kind"),
         "the refusal must name the missing flag: {stderr}"
     );
-    assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
+    assert_eq!(tree(t.path()), vec!["_BRIEF.md"], "nothing created");
 }
 
 /// The same for `leaf-insert`, which carried the same default.
@@ -737,7 +719,7 @@ fn leaf_insert_refuses_to_guess_a_kind() {
     assert!(stderr.contains("--kind"), "{stderr}");
     assert_eq!(
         tree(t.path()),
-        vec!["01-impl--first-k1.md", "BRIEF.md"],
+        vec!["01-impl--first-k1.md", "_BRIEF.md"],
         "nothing inserted, nothing renumbered"
     );
 }
@@ -761,7 +743,7 @@ fn an_ill_formed_kind_is_refused_by_shape_and_names_the_character() {
         !stderr.contains("integrate-review-prototype"),
         "and it must not list a set grove no longer holds: {stderr}"
     );
-    assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
+    assert_eq!(tree(t.path()), vec!["_BRIEF.md"], "nothing created");
 }
 
 #[test]
@@ -799,7 +781,7 @@ fn leaf_add_rejects_removed_harness_flags() {
         stderr.contains("unexpected argument '--harness-a'"),
         "{stderr}"
     );
-    assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
+    assert_eq!(tree(t.path()), vec!["_BRIEF.md"], "nothing created");
 }
 
 #[test]
@@ -811,7 +793,7 @@ fn leaf_add_requires_parent_and_slug() {
     assert!(stderr.contains("<SLUG>"), "{stderr}");
     assert_eq!(
         tree(t.path()),
-        vec!["BRIEF.md"],
+        vec!["_BRIEF.md"],
         "a malformed command must not leave a partial shape on disk"
     );
 }

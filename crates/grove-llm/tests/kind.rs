@@ -20,6 +20,7 @@ fn init_repo() -> TempDir {
     support::init_jj_repo(tmp.path());
     let grove = tmp.path().join(".grove");
     fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("_BRIEF.md"), "root brief").unwrap();
     tmp
 }
 
@@ -40,9 +41,10 @@ fn touch(dir: &Path, name: &str) {
 }
 
 /// Create a node directory, returning its path (for nesting children inside).
-fn mknode(dir: &Path, name: &str) -> PathBuf {
+fn mknode(dir: &Path, name: &str, slug: &str) -> PathBuf {
     let p = dir.join(name);
     fs::create_dir_all(&p).unwrap();
+    fs::write(p.join(format!("_{slug}.md")), "node brief").unwrap();
     p
 }
 
@@ -131,9 +133,9 @@ fn a_retired_work_body_label_is_ignored() {
 fn no_arg_form_reads_picks_next_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "BRIEF.md");
-    let node = mknode(&grove, "01-node-k1");
-    touch(&node, "BRIEF.md");
+    touch(&grove, "_BRIEF.md");
+    let node = mknode(&grove, "01-k1", "node");
+    touch(&node, "_node.md");
     // pick's next live leaf is the node's first child — a planning leaf.
     touch_leaf(&node, "01-planning--first-k2.md", "impl");
 
@@ -146,7 +148,7 @@ fn no_arg_form_reads_picks_next_leaf() {
 fn empty_grove_prints_no_live_leaves_on_stderr_and_exits_zero() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "BRIEF.md"); // brief only — no live leaf
+    touch(&grove, "_BRIEF.md"); // brief only — no live leaf
 
     let (stdout, stderr, ok) = run(tmp.path(), &["kind"]);
     assert!(ok, "empty grove must exit 0");

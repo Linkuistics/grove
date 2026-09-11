@@ -36,6 +36,8 @@ fn init_repo() -> TempDir {
     support::init_jj_repo(tmp.path());
     fs::write(tmp.path().join("README"), b"r\n").unwrap();
     support::jj(tmp.path(), &["commit", "-m", "init"]);
+    fs::create_dir_all(tmp.path().join(".grove")).unwrap();
+    fs::write(tmp.path().join(".grove/_BRIEF.md"), "root brief").unwrap();
     tmp
 }
 
@@ -47,11 +49,15 @@ fn touch(p: &Path, body: &str) {
     fs::write(p, body.as_bytes()).unwrap();
 }
 
-/// Create a node directory holding a `BRIEF.md`, returning the directory path.
+/// Create a node directory holding a `_BRIEF.md`, returning the directory path.
 fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
     let p = dir.join(name);
     fs::create_dir_all(&p).unwrap();
-    fs::write(p.join("BRIEF.md"), format!("# {handle} — brief\n")).unwrap();
+    fs::write(
+        p.join(format!("_{}.md", handle.rsplit_once("-k").unwrap().0)),
+        format!("# {handle} — brief\n"),
+    )
+    .unwrap();
     p
 }
 
@@ -102,7 +108,7 @@ fn exists(repo: &Path, rel: &str) -> bool {
 fn add_to_empty_root_uses_position_one() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
@@ -125,7 +131,7 @@ fn add_to_empty_root_uses_position_one() {
 fn add_to_nonempty_root_uses_next_position_and_fresh_key() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     touch(&grove.join("01-impl--existing-k1.md"), "# existing-k1\n");
     stage_all(tmp.path());
 
@@ -142,7 +148,7 @@ fn add_to_nonempty_root_uses_next_position_and_fresh_key() {
 fn add_under_a_node_by_key_uses_child_position() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    let node = mknode(&grove, "01-node-k1", "node-k1");
+    let node = mknode(&grove, "01-k1", "node-k1");
     touch(&node.join("01-impl--child-k2.md"), "# child-k2\n");
     stage_all(tmp.path());
 
@@ -152,7 +158,7 @@ fn add_under_a_node_by_key_uses_child_position() {
     // Next child under the node is position 02; fresh key is max (2) + 1 = 3.
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-node-k1/02-impl--second-k3.md")
+        PathBuf::from(".grove/01-k1/02-impl--second-k3.md")
     );
 }
 
@@ -160,18 +166,15 @@ fn add_under_a_node_by_key_uses_child_position() {
 fn add_under_a_node_by_path() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    mknode(&grove, "01-node-k1", "node-k1");
+    mknode(&grove, "01-k1", "node-k1");
     stage_all(tmp.path());
 
     // Parent referenced by its grove-root-relative directory path.
-    let (stdout, _, ok) = run(
-        tmp.path(),
-        &["leaf-add", "01-node-k1", "only", "--kind", "impl"],
-    );
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", "01-k1", "only", "--kind", "impl"]);
     assert!(ok, "leaf-add by path failed");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-node-k1/01-impl--only-k2.md")
+        PathBuf::from(".grove/01-k1/01-impl--only-k2.md")
     );
 }
 
@@ -179,7 +182,7 @@ fn add_under_a_node_by_path() {
 fn add_with_planning_kind_writes_planning_in_filename() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
@@ -200,7 +203,7 @@ fn add_accepts_every_non_reserved_kind() {
     // likely to be mangled between the CLI, the grammar, and the leaf template.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     for (i, label) in support::kind_labels()
@@ -236,7 +239,7 @@ fn add_accepts_every_non_reserved_kind() {
 fn add_refuses_an_undeclared_kind_by_naming_it_and_the_file_that_must_declare_it() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "reserch"]);
@@ -265,7 +268,7 @@ fn add_refuses_an_undeclared_kind_by_naming_it_and_the_file_that_must_declare_it
 fn add_rejects_a_kind_that_is_not_a_token_and_names_the_character() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     for (token, refused) in [("Impl", "'I'"), ("my_kind", "'_'"), ("a--b", "`--`")] {
@@ -289,7 +292,7 @@ fn add_rejects_a_kind_that_is_not_a_token_and_names_the_character() {
 fn the_retired_work_kind_is_now_just_a_token_the_configuration_decides_on() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "work"]);
@@ -313,7 +316,7 @@ fn the_retired_work_kind_is_now_just_a_token_the_configuration_decides_on() {
 fn add_refuses_to_guess_a_kind() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (stdout, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x"]);
@@ -332,7 +335,7 @@ fn add_refuses_to_guess_a_kind() {
 fn add_rejects_the_removed_harness_flag_without_writing() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (stdout, stderr, ok) = run(
@@ -363,7 +366,7 @@ fn add_without_a_harness_writes_no_harness_line_at_all() {
     // always emitted one would make every leaf grove creates unlaunchable.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "impl"]);
@@ -376,7 +379,7 @@ fn add_without_a_harness_writes_no_harness_line_at_all() {
 fn add_help_exposes_no_harness_flag() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(tmp.path(), &["leaf-add", "--help"]);
@@ -388,7 +391,7 @@ fn add_help_exposes_no_harness_flag() {
 fn insert_rejects_the_removed_harness_flag_without_writing() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     touch(&grove.join("01-impl--a-k1.md"), "# a-k1\n");
     stage_all(tmp.path());
 
@@ -417,7 +420,7 @@ fn insert_rejects_the_removed_harness_flag_without_writing() {
 fn add_rejects_invalid_slug() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "Bad Slug", "--kind", "impl"]);
@@ -432,7 +435,7 @@ fn add_rejects_invalid_slug() {
 fn add_under_nonexistent_parent_errors() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("_BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
     // Key 9 resolves to nothing (not a path, not a key) → the ref-or-path mapping
@@ -488,7 +491,7 @@ fn insert_at_start_shifts_root_siblings_up_by_one() {
 fn insert_cascades_a_node_subtree_with_position_free_headers() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    let node = mknode(&grove, "01-node-k1", "node-k1");
+    let node = mknode(&grove, "01-k1", "node-k1");
     touch(&node.join("01-prototype--inner-k2.md"), "# inner-k2\n");
     touch(&grove.join("02-design--outer-k3.md"), "# outer-k3\n");
     stage_all(tmp.path());
@@ -502,7 +505,7 @@ fn insert_cascades_a_node_subtree_with_position_free_headers() {
     // node 01 → 02 drags its whole subtree (the child rides along, name and key
     // unchanged); the unrelated sibling 02 → 03.
     assert!(
-        exists(tmp.path(), ".grove/02-node-k1/01-prototype--inner-k2.md"),
+        exists(tmp.path(), ".grove/02-k1/01-prototype--inner-k2.md"),
         "node dir + child not moved as a unit"
     );
     assert!(
@@ -510,13 +513,13 @@ fn insert_cascades_a_node_subtree_with_position_free_headers() {
         "outer not bumped"
     );
     assert!(
-        !exists(tmp.path(), ".grove/01-node-k1"),
+        !exists(tmp.path(), ".grove/01-k1"),
         "old node dir still present"
     );
     // The renumber rewrites ZERO file contents — the dragged brief's position-free
     // header is byte-identical (v2's "cascade collapse", task-tree-scheme).
     assert_eq!(
-        read(tmp.path(), ".grove/02-node-k1/BRIEF.md"),
+        read(tmp.path(), ".grove/02-k1/_node.md"),
         "# node-k1 — brief\n",
         "position-free header must not be rewritten on renumber"
     );

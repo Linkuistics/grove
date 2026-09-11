@@ -64,7 +64,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Command {
     /// Scaffold a brand-new grove's tree: create `.grove/`, write the root
-    /// `BRIEF.md` charter, and lay down a first **requirements** leaf
+    /// `_BRIEF.md` charter, and lay down a first **requirements** leaf
     /// `01-requirements--<slug>-k1.md` (default slug `plan`) — the kind is fixed, since the
     /// bootstrap session's only input is the human's own words. After this,
     /// `grove-llm pick` returns the new
@@ -74,17 +74,17 @@ pub enum Command {
     RootInit(RootInitArgs),
     /// Print the absolute path of the next live leaf in this grove's tree — a
     /// recursive depth-first **pre-order** walk over the directory tree (a node
-    /// is a directory of numbered children, optionally headed by a `BRIEF.md`),
+    /// is a directory of numbered children and exactly one `_<slug>.md` node file),
     /// returning the
     /// first live leaf and skipping briefs and terminal leaves — retired
     /// (`DONE`) and abandoned (`ABANDONED`) alike. Empty stdout
     /// (and a diagnostic on stderr) when the grove has no live leaves.
     Pick,
-    /// Print the BRIEF.md chain for a leaf, root→leaf, one absolute path per
-    /// line — the `BRIEF.md` of each of the leaf's ancestor **directories**,
+    /// Print the node-file chain for a leaf, root→leaf, one absolute path per
+    /// line — `_BRIEF.md` at the root, then each ancestor's `_<slug>.md`,
     /// from the grove root down to the leaf's containing directory. With no
-    /// argument the chain is computed for `pick`'s next leaf. A directory level
-    /// with no `BRIEF.md` is skipped silently.
+    /// argument the chain is computed for `pick`'s next leaf. Missing or misplaced
+    /// node files refuse the whole tree read.
     BriefChain {
         /// Optional leaf path. Absolute, or relative to the grove root
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
@@ -111,8 +111,8 @@ pub enum Command {
     /// optionally `[n]-slug`) resolves the unique keyed entry; a bare slug
     /// resolves by slug (0 ⇒ not found, 1 ⇒ that entry, >1 ⇒ ambiguous, listing
     /// each match's key so you re-query by key); the full `<slug>-k<key>` handle
-    /// resolves by its terminal key. A node resolves to
-    /// its **directory** path (append `/BRIEF.md` to read its charter). Prints
+    /// resolves by key and checks the current title. A node resolves to
+    /// its **directory** path; its `_<slug>.md` carries the brief. Prints
     /// the path on stdout; a `DONE` or `ABANDONED` match also prints its own
     /// note on stderr (so the two are distinguishable — a resolved dead end
     /// never looks live); a not-found or ambiguous reference prints a
@@ -203,9 +203,9 @@ pub enum Command {
     /// later sibling of an ancestor.
     LeafInsert(LeafInsertArgs),
     /// Convert a live leaf file `NN-<kind>--<slug>-k<key>.md` into a node **directory**
-    /// `NN-<slug>-k<key>/` (**key preserved** — the leaf that was `k<key>`
+    /// `NN-k<key>/` (**key preserved** — the leaf that was `k<key>`
     /// becomes the node `k<key>`), moving the leaf body in as the node's
-    /// `BRIEF.md` (a plain rename on every lane, staging nothing; its
+    /// `_<slug>.md` (a plain rename on every lane, staging nothing; its
     /// `# <slug>-k<key>` header retitled with ` — brief`) and
     /// atomically growing a first child
     /// `01-<kind>--<first-child-slug>-k<new>.md` so the
@@ -442,12 +442,9 @@ fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
     // handle that is not one is told *why*, and only a well-formed handle
     // reaches the verb.
     //
-    // **The operator's own spelling is quoted here, and nowhere deeper.**
-    // `Handle::parse` is deliberately lenient on the key — `finish-k0001` is the
-    // live `finish-k1` and is accepted, which is right, since the operator meant
-    // that leaf — so everything past this point speaks in canonical handles. A
-    // refusal that only showed those would be answering a question the operator
-    // did not ask, and this is the last frame that still has what they typed.
+    // Parse the canonical handle before opening the tree. The contextual
+    // refusal below quotes the command argument; the lifecycle operation
+    // compares it with the handle read from the selected live finish leaf.
     let finish = Handle::parse(finish_handle)?;
     let workspace = Workspace::resolve(&worktree).context("cannot commit the finished grove")?;
     let commit = verbs::finish_commit(&workspace, &finish)
@@ -623,8 +620,9 @@ pub fn render_resolution(reference: &str, resolution: &Sought<Resolution>) -> (S
                     Outcome::Abandoned => " (abandoned)",
                 };
                 stderr.push_str(&format!(
-                    "  [{}] {}{}\n",
+                    "  [{}] {} {}{}\n",
                     matched.handle.key(),
+                    matched.handle,
                     matched.path.display(),
                     tag
                 ));

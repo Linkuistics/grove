@@ -51,7 +51,7 @@ pub fn root_init(vacancy: Vacancy, slug: &Slug, kind: &Kind) -> Result<Initializ
 /// What [`root_init`] wrote.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Initialized {
-    /// The grove's charter, `.grove/BRIEF.md`.
+    /// The grove's charter, `.grove/_BRIEF.md`.
     pub brief: PathBuf,
     /// The first leaf, which is what `pick` will answer next.
     pub first_leaf: PathBuf,
@@ -84,10 +84,8 @@ pub fn kind(tree: &Tree, leaf: Option<&Path>) -> Result<Sought<Kind>, Error> {
     Ok(sought(task_tree::kind_in(tree, leaf)?))
 }
 
-/// Every `BRIEF.md` from the grove root down to the leaf, in that order.
-///
-/// A directory level with no `BRIEF.md` is skipped silently: a node is not
-/// obliged to carry a charter.
+/// Every ancestor node file, root-first: `_BRIEF.md`, then `_<slug>.md`.
+/// The guarded opening refuses missing or misplaced node files.
 ///
 /// # Errors
 ///

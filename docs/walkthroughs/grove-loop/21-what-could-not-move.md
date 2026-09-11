@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 10,593 lines. The fragment graph closed at
+This chapter owns none of the crate's 10,458 lines. The fragment graph closed at
 the end of [chapter 20](20-the-loop.md), where the last of `loop_driver.rs`'s 615
 lines was reproduced and the last of the book's 39 ownership blocks turned
 `resolved`; the [source index](source-index.md) records that graph in full and
@@ -83,25 +83,20 @@ next three sections read them.
 <a id="the-names"></a>
 ## On the way in — the names
 
-**The crate owns two grammars, and only one of them is canonical.** The filename
-grammar is `task_name.rs` — 1,743 lines over chapters [2](02-the-tokens.md),
-[3](03-kind-slug-handle.md) and [4](04-the-name.md), all of it spent before the
-book has opened a tree — and it must satisfy
-`format(parse(f)) == f` or one entity occupies two files at one position under
-one key. The reference grammar is [chapter 9](09-resolve.md)'s, and it is
-deliberately the opposite: wider, lenient about padding, never round-tripped, and
-accepting four spellings the filename grammar refuses. The two are not a
-duplication and the book proves it rather than asserting it — **they meet at
-exactly one function**, `peel_key`, which `terminal_key` shares with the filename
-side, and chapter 9 is where that is established.
 
-That asymmetry is the crate's whole answer to question 1 on the reading side. A
-grammar whose output is written to disk and read back has to be canonical,
-because the disk is the only state grove keeps; a grammar that only ever consumes
-what a human typed has nothing to round-trip, so leniency costs nothing and buys
-an operator five ways to name one thing. Canonicity is not a virtue the crate
-applies uniformly. It is a cost it pays exactly where the alternative is two
-files that are one entry.
+Filename parsing is canonical: every accepted spelling renders back to
+itself. Reference lookup additionally accepts numeric and bracketed keys and
+the root marker. Full handles use canonical positive keys and must agree with
+the current title. Both routes share the name module’s key grammar where a
+key appears in a name or handle.
+
+
+
+Title-independent lookup is explicit in a bare key. A full handle
+expresses both identity and a current title, so accepting an old title would
+conceal a naming mistake. Neither lookup reads the brief body to recover a
+title; the guarded snapshot’s names supply it.
+
 
 **Six of the ten chapters that answer this question explicitly answer it by
 naming what they do not own.** [11](11-a-grove-begins.md) and
@@ -363,7 +358,7 @@ scope, what it does and does not promise, and the contention probe are chapter
 5's; `addressable_key`'s refusal and `leaf-prune` on a node are chapters 6 and
 13's; the walk and the finish-reservation rule are chapters 7 and 14's; the one
 pick and what it serves is chapter 20's; what a node is and how a missing
-`BRIEF.md` is read are chapters 8 and 12's; `resolve` on a stem several leaves
+`_BRIEF.md` is read are chapters 8 and 12's; `resolve` on a stem several leaves
 share, and the grow verbs' refusal on the same reference, are chapters 9 and
 10's; `leaf-add`'s unwinding, the lint's second opening and key prediction are
 chapter 10's; the two calls of `root-init`, the one-store-operation scaffold,
@@ -443,17 +438,9 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 445 + 451 + 563 + 729 + 290 + 370 + 322 + 443 + 613 + 518 + 615
-+ 779 + 808 + 530 + 516 + 819 + 564 + 358 + 245 + 615 = 10,593 lines across
-20 chapters, and 0 for this one. The five parts are 1,743, 2,556, 2,732, 516
-and 2,601 lines, with chapter 1's 445 standing outside them. The largest single
-owned block is [chapter 16](16-the-lease.md)'s 819 lines, which is that chapter's
-own enumerated claim; measured per *chapter* rather than per block the range runs
-from those 819 down to [chapter 19](19-the-core.md)'s 245, and the thirty-nine
-blocks themselves run smaller still, down to twenty-two lines. The largest root is
-`tree_lifecycle.rs` at 2,732 lines, split four ways. Thirty-eight per cent of the corpus — 3,999 lines
-across five roots — is inline `#[cfg(test)] mod tests`, none of it excluded, and
-every line of it is owned and explained by the chapter whose concept it proves.
+**Owned source.** 445 + 373 + 529 + 773 + 290 + 320 + 319 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 514 + 819 + 564 + 358 + 245 + 615 = 10,458 lines across
+20 source-owning chapters. This closing chapter owns zero lines. The source
+index records the root sizes, block ranges and chapter totals.
 
 **The corpus's own claims.** Two were known false before drafting began, and
 neither still is: each has been corrected at source, in one commit with the
@@ -554,7 +541,7 @@ sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved, and each of this book's first five
 children ended with thousands of lines legitimately deferred; in final mode a
 defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Thirteen files, 10,593 resolved
+page inventory must match the manifest exactly. Thirteen files, 10,458 resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 ```console
@@ -599,7 +586,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 13 roots, 10,593 lines, 21 chapters, two
+The book is complete: 13 roots, 10,458 lines, 21 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

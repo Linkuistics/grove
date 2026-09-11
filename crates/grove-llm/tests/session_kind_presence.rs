@@ -72,7 +72,7 @@ fn snapshot(grove: &Path) -> Vec<(PathBuf, Option<String>)> {
 fn seed_grove(repo: &Path) -> PathBuf {
     let grove = repo.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# fixture — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# fixture — brief\n").unwrap();
     fs::write(grove.join("01-impl--seed-k1.md"), "# seed-k1\n").unwrap();
     grove
 }
@@ -230,7 +230,7 @@ fn a_verbs_own_refusal_is_not_replaced_by_a_configuration_complaint() {
     let (stderr, ok) = run(
         repo.path(),
         home.path(),
-        &["leaf-decompose", ".grove/BRIEF.md", "first"],
+        &["leaf-decompose", ".grove/_BRIEF.md", "first"],
     );
 
     assert!(!ok, "{stderr}");
@@ -238,7 +238,7 @@ fn a_verbs_own_refusal_is_not_replaced_by_a_configuration_complaint() {
         !stderr.contains("refusing to write a leaf of kind"),
         "the brief refusal must survive: {stderr}"
     );
-    assert!(grove.join("BRIEF.md").exists());
+    assert!(grove.join("_BRIEF.md").exists());
 }
 
 #[test]

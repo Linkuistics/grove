@@ -103,7 +103,7 @@ lines = 3
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove-llm/src/cli.rs"
-lines = 944
+lines = 942
 
 [[block]]
 id    = "manifest-thin-by-crate"
@@ -211,49 +211,49 @@ lines = "412-437"
 id    = "handlers-leaving"
 root  = "source-command-surface"
 owner = "admit-before-signal"
-lines = "438-483"
+lines = "438-480"
 
 [[block]]
 id    = "handler-root-init"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "484-513"
+lines = "481-510"
 
 [[block]]
 id    = "handlers-reading-and-rendering"
 root  = "source-command-surface"
 owner = "information-not-error"
-lines = "514-636"
+lines = "511-634"
 
 [[block]]
 id    = "handlers-growing"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "637-767"
+lines = "635-765"
 
 [[block]]
 id    = "handlers-ending"
 root  = "source-command-surface"
 owner = "two-steps-remain"
-lines = "768-825"
+lines = "766-823"
 
 [[block]]
 id    = "presence-rule-and-slug"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "826-862"
+lines = "824-860"
 
 [[block]]
 id    = "openings"
 root  = "source-command-surface"
 owner = "admitted-before-dispatch"
-lines = "863-903"
+lines = "861-901"
 
 [[block]]
 id    = "path-and-label-helpers"
 root  = "source-command-surface"
 owner = "information-not-error"
-lines = "904-944"
+lines = "902-942"
 
 [[early-use]]
 symbols   = "`Reading`, `Tree`, `Writing`, `TreeWrite`"
@@ -307,7 +307,7 @@ statement = "The launch configuration, loaded whole and asked whether one kind r
 symbols   = "`Handle`"
 first-use = "01-orientation.md#the-imports"
 owner     = "admit-before-signal"
-statement = "A `<slug>-k<key>` handle, parsed leniently on the key and spoken canonically thereafter."
+statement = "A `<slug>-k<key>` handle, parsed with a canonical positive key."
 
 [[early-use]]
 symbols   = "`Signalled`"

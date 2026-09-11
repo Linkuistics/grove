@@ -35,12 +35,12 @@ that epoch before dispatch, and this is the chapter where the guard admission
 returned is finally consulted. It is consulted by one verb, which is why `run`
 passes it to one arm and to no other.
 
-`finish-commit` carries the chapter's second claim, and it is about text rather
-than order. The verb reads the operator's handle through the type that owns the
-grammar, which is deliberately lenient on the key's spelling, and it quotes
-what the operator typed exactly once, in the last frame that still has it.
-After that frame, every layer uses the canonical handle parsed from the
-filename.
+
+`finish-commit` parses a canonical handle before opening the tree. Leading
+zeros, zero and overflow refuse at that boundary. Its contextual error quotes
+the operator’s argument; subsequent layers compare with the current handle
+read from the selected finish leaf.
+
 
 The chapter owns three blocks of `cli.rs`: the two variants (248–289),
 `CompleteArgs` (311–322), and the two handlers (438–483). It reads `complete`
@@ -137,46 +137,41 @@ one live `finish` leaf the driver materialised with the next key after `k8`.
 
 ```text
 /work/atlas/.grove/
-├── BRIEF.md
+├── _BRIEF.md
 ├── 01-DONE-impl--rate-limit-k3.md
 ├── 02-DONE-review-impl--rate-limit-k4.md
-├── 03-cache-k5/
-│   ├── BRIEF.md
+├── 03-k5/
+│   ├── _cache.md
 │   ├── 01-DONE-impl--warm-k6.md
 │   ├── 02-ABANDONED-impl--evict-k7.md
 │   └── 03-ABANDONED-impl--ttl-k8.md
 └── 04-finish--finish-k9.md
 ```
 
-The finish session has promoted what it needed from the briefs and has the
-human's confirmation. It first supplies a handle for a different leaf, then
-supplies the live finish leaf's handle with a noncanonical key spelling. Neither
-spelling is the canonical `finish-k9`, and only the second identifies that leaf.
+
+The finish session first supplies a different canonical handle, then the
+live finish leaf’s handle. The first refuses; the second performs teardown.
+
 
 ```console
-$ grove-llm finish-commit other-k007
-Error: `grove-llm finish-commit other-k007`
+$ grove-llm finish-commit other-k7
+Error: `grove-llm finish-commit other-k7`
 
 Caused by:
     requested finish handle other-k7 does not match the live finish leaf finish-k9
 
-$ grove-llm finish-commit finish-k0009
+$ grove-llm finish-commit finish-k9
 finish-commit finish-k9: committed as yuntyzvxnwwtzyqovpwvwmlqvwmrtmyz
 ```
 
-The two are the chapter's second claim in one pair. `Handle::parse` accepts
-both spellings, because a handle is a reference an operator types rather than a
-name on disk, and a leading zero in the key changes nothing about which leaf is
-meant. What differs is what each refers to: `other-k7` is no leaf in this tree,
-so the call refuses, and `finish-k9` is the live finish leaf, so the teardown
-proceeds. The refusal shows the operator's `other-k007` and the canonical
-`other-k7` in the same message — the first from the handler's own context line,
-the second from the call — beside the live handle they should have written.
-Where a spelling is not a handle at all, `Handle::parse` refuses before any
-grove is opened, and the message names the grammar rather than the tree. It is
-not the verb's first step, though: `worktree()` is line 439 and `Handle::parse`
-line 451, so a malformed handle typed in a working tree that is not jj-enabled
-meets the seam's refusal first.
+
+Both arguments are syntactically canonical. `other-k7` does not match the
+live finish leaf, so the lifecycle call refuses. `finish-k9` matches and the
+commit uses the selected leaf’s handle. A zero-padded argument would instead
+fail in `Handle::parse` before opening the tree. Workspace resolution precedes
+that parsing, so a command outside a jj workspace can fail at the workspace
+boundary first.
+
 
 The accepted invocation printed one line on stderr and nothing on stdout,
 deleted `.grove/`, and took one commit. What that commit contains is the
@@ -190,12 +185,12 @@ finish-k9: remove completed grove task tree
 $ jj diff -r @- --summary
 D .grove/01-DONE-impl--rate-limit-k3.md
 D .grove/02-DONE-review-impl--rate-limit-k4.md
-D .grove/03-cache-k5/01-DONE-impl--warm-k6.md
-D .grove/03-cache-k5/02-ABANDONED-impl--evict-k7.md
-D .grove/03-cache-k5/03-ABANDONED-impl--ttl-k8.md
-D .grove/03-cache-k5/BRIEF.md
+D .grove/03-k5/01-DONE-impl--warm-k6.md
+D .grove/03-k5/02-ABANDONED-impl--evict-k7.md
+D .grove/03-k5/03-ABANDONED-impl--ttl-k8.md
+D .grove/03-k5/_cache.md
 D .grove/04-finish--finish-k9.md
-D .grove/BRIEF.md
+D .grove/_BRIEF.md
 
 $ jj diff --summary
 M crates/gateway/lib.rs
@@ -222,7 +217,7 @@ the guard about that path before anything is written. Its comment states why the
 channel is resolved in the handler at all, and the page checks that reason
 against the seam it names.
 
-<!-- fragment «handler-complete-admit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="459-466" parent="handlers-leaving" -->
+<!-- fragment «handler-complete-admit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="456-463" parent="handlers-leaving" -->
 ````rust
 fn cmd_complete(args: &CompleteArgs, session_epoch: Option<&SessionEpochGuard>) -> Result<()> {
     // **Asked before the write, which is why the channel is resolved here.** The
@@ -273,7 +268,7 @@ finally matched on. `verbs::complete` takes the channel and the flag, writes
 the disposition if there is a channel, and answers which of the two happened;
 the handler turns each answer into one line of advice on stderr.
 
-<!-- fragment «handler-complete-endings» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="467-483" parent="handlers-leaving" -->
+<!-- fragment «handler-complete-endings» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="464-480" parent="handlers-leaving" -->
 ````rust
     match verbs::complete(channel.as_deref(), args.done)? {
         Signalled::Wrote(_) => {
@@ -375,7 +370,7 @@ the call returned. Its comment argues for quoting the operator's own text here
 and nowhere deeper, and the page checks that against the refusal the worked
 example produced.
 
-<!-- fragment «handler-finish-commit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="438-458" parent="handlers-leaving" -->
+<!-- fragment «handler-finish-commit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="438-455" parent="handlers-leaving" -->
 ````rust
 fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
     let worktree = worktree()?;
@@ -384,12 +379,9 @@ fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
     // handle that is not one is told *why*, and only a well-formed handle
     // reaches the verb.
     //
-    // **The operator's own spelling is quoted here, and nowhere deeper.**
-    // `Handle::parse` is deliberately lenient on the key — `finish-k0001` is the
-    // live `finish-k1` and is accepted, which is right, since the operator meant
-    // that leaf — so everything past this point speaks in canonical handles. A
-    // refusal that only showed those would be answering a question the operator
-    // did not ask, and this is the last frame that still has what they typed.
+    // Parse the canonical handle before opening the tree. The contextual
+    // refusal below quotes the command argument; the lifecycle operation
+    // compares it with the handle read from the selected live finish leaf.
     let finish = Handle::parse(finish_handle)?;
     let workspace = Workspace::resolve(&worktree).context("cannot commit the finished grove")?;
     let commit = verbs::finish_commit(&workspace, &finish)
@@ -401,34 +393,20 @@ fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
 ````
 <!-- /fragment -->
 
-`Handle::parse` is the text-before-anything step, and it is the same discipline
-*Growing the tree* read in `slug` and `parse_kind`: the grammar's own type
-refuses what is not a handle, before the tree is opened, with a message about
-the grammar rather than about the tree. Its leniency on the key is deliberate
-and documented at the type — a handle is a reference typed by a human, never a
-name on disk, so `finish-k0009` is key 9 — where a filename's spelling is
-canonical because two spellings of one filename would be two files sharing one
-key. Three shapes were measured as refusals from this line, each naming what
-was handed in and what the grammar expects: a token with no terminal
-`-k<digits>` at all, a key that does not fit in 32 bits, and a key preceded by
-something that is not a slug. No test in this crate exercises those three
-through the binary; the wording is the loop's type and this book does not trace
-it further.
 
-The `with_context` on the call is what put `finish-commit other-k007` at the
-head of the worked example's refusal, and it is the only place the raw text
-appears after this frame. Below it the call speaks in `selection.handle`, the
-handle read off the live leaf's own filename, which is why the same refusal
-carries `other-k7` in its lower line and why the accepted teardown's commit
-message says `finish-k9`.
-`a_lenient_key_spelling_is_accepted_and_committed_canonically` in
-`crates/grove-llm/tests/finish_commit.rs` holds both halves against one
-invocation — the leniency accepted, and the commit message still canonical —
-and its own comment explains that testing acceptance alone would miss a
-noncanonical commit message.
-`a_refused_handle_is_quoted_as_the_operator_wrote_it` requires the raw spelling
-in stderr, and that assertion passes because of this handler's
-context line.
+`Handle::parse` owns validation before any tree is opened, just as `Slug`
+and `Kind` do for growth. It requires a valid slug and a canonical positive
+decimal key fitting in `u32`. `finish-k0009` refuses rather than naming key 9;
+`a_noncanonical_key_spelling_refuses_without_mutation` verifies that boundary
+through the binary.
+
+
+The `with_context` on the lifecycle call quotes the command argument when
+the requested handle does not match the live finish leaf. A malformed handle
+fails earlier in `Handle::parse`. The noncanonical-key regression checks
+refusal and nonmutation; the successful teardown tests check that the committed
+identity is the handle read from the selected leaf.
+
 
 `Workspace::resolve` here is the second resolution of the working tree in one
 verb, and the page states what the context line beside it does and does not
@@ -445,7 +423,7 @@ it a safety net rather than the message a non-jj tree produces.
 
 The call is where the teardown happens, and the book stops at it. What comes
 back is a `Commit` carrying a change id — the identity that survives the
-rewrites a commit id does not — and line 455 prints one line naming the
+rewrites a commit id does not — and line 452 prints one line naming the
 canonical handle and that id, on stderr, with stdout left empty. Everything
 before the print is the loop's: revalidating the live leaf under the exclusive
 lock, refusing when ordinary work has appeared, refusing an untracked tree or a
@@ -463,7 +441,7 @@ than from its own measurement.
 The composite that reassembles the two handlers, in source order, is stated
 here.
 
-<!-- fragment «handlers-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="438-483" parent="source-command-surface" -->
+<!-- fragment «handlers-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="438-480" parent="source-command-surface" -->
 <!-- insert «handler-finish-commit» -->
 <!-- insert «handler-complete-admit» -->
 <!-- insert «handler-complete-endings» -->
@@ -531,11 +509,10 @@ could. That is the same shape *Ending work* found in `leaf-prune`'s bold rule,
 stated here as a fact about what the binary can check rather than as a rule the
 page enforces.
 
-The argument's own help is inside this block, and it is the only place the
-verb tells an operator what shape the handle takes. It gives `finish-k42` as
-the example, which is the canonical spelling; the leniency the type allows is
-documented at the type and not here, so an operator learns it by trying it or
-by reading the loop.
+
+The argument help gives the canonical example `finish-k42`. The parser
+requires that same key spelling, including positivity and no leading zeros.
+
 
 `Complete`'s comment is the module's account of why this verb writes a flag and
 returns rather than ending the session itself, and it is the only place in the
@@ -597,19 +574,19 @@ test that holds it, in the form the closing chapter's rows are built from.
 
 | Promise in the help | Verb | Kept at | Held by |
 |---|---|---|---|
-| revalidates the live finish leaf and the absence of ordinary work | `finish-commit` | the call, lines 453–454 | `finish_commit_refuses_when_ordinary_work_appeared`, `finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf` |
-| a deletion and a path-scoped commit, with no transaction | `finish-commit` | the call, lines 453–454 | `native_jj_finish_commit_records_only_the_teardown`, `colocated_jj_finish_commit_records_only_the_teardown` |
+| revalidates the live finish leaf and the absence of ordinary work | `finish-commit` | the call, lines 450–451 | `finish_commit_refuses_when_ordinary_work_appeared`, `finish_commit_refuses_a_handle_that_is_not_the_live_finish_leaf` |
+| a deletion and a path-scoped commit, with no transaction | `finish-commit` | the call, lines 450–451 | `native_jj_finish_commit_records_only_the_teardown`, `colocated_jj_finish_commit_records_only_the_teardown` |
 | a precondition refusal names the way out | `finish-commit` | the call's refusals | `finish_commit_refuses_an_untracked_task_tree_naming_how_to_track_it`, for `jj commit … root:.grove`; `finish_commit_on_an_absent_tree_names_the_operation_log`, for `jj op log` and `jj undo` |
 | a failed deletion names `jj restore .grove`, a failed commit `jj undo` | `finish-commit` | the call, and the seam beneath it | no test in either crate — each needs a failure injected between the steps |
-| only `.grove/` is committed; unrelated changes stay uncommitted | `finish-commit` | the call, lines 453–454 | `native_jj_finish_commit_preserves_unrelated_working_copy_changes`, and its colocated twin |
+| only `.grove/` is committed; unrelated changes stay uncommitted | `finish-commit` | the call, lines 450–451 | `native_jj_finish_commit_preserves_unrelated_working_copy_changes`, and its colocated twin |
 | does not infer or automate the human confirmation | `finish-commit` | nowhere — the code cannot keep it | — |
-| the change id on stderr | `finish-commit` | line 455 | no test in this crate |
-| writes the disposition flag and returns immediately | `complete` | line 467 | `relaunch_signal_is_read_back_as_relaunch`, `done_signal_is_read_back_as_done` |
-| the default relaunches; `--done` stops the loop cleanly | `complete` | line 467, where `args.done` is passed to the call | the same two, through the token each reads back; lines 469–473 only choose which of the two the stderr line reports |
-| the default channel comes from `GROVE_SIGNAL_FILE` | `complete` | line 463, in `signal_channel` | `an_empty_signal_environment_is_no_loop_context`, for the empty value; the flag's precedence over a non-empty one is measured, not tested |
-| an absent channel is a safe near-no-op that says so | `complete` | lines 476–479 | `no_channel_at_all_is_answered_rather_than_refused`, for the value |
+| the change id on stderr | `finish-commit` | line 452 | no test in this crate |
+| writes the disposition flag and returns immediately | `complete` | line 464 | `relaunch_signal_is_read_back_as_relaunch`, `done_signal_is_read_back_as_done` |
+| the default relaunches; `--done` stops the loop cleanly | `complete` | line 464 where `args.done` is passed to the call | the same two, through the token each reads back; lines 466–470 only choose which of the two the stderr line reports |
+| the default channel comes from `GROVE_SIGNAL_FILE` | `complete` | line 460 in `signal_channel` | `an_empty_signal_environment_is_no_loop_context`, for the empty value; the flag's precedence over a non-empty one is measured, not tested |
+| an absent channel is a safe near-no-op that says so | `complete` | lines 473–476 | `no_channel_at_all_is_answered_rather_than_refused`, for the value |
 | ending the session is the driver's job | `complete` | nothing in this module | the driver's, in `crates/grove-loop` |
-| the channel is the one the epoch admitted | `complete` | lines 464–466 | `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt` |
+| the channel is the one the epoch admitted | `complete` | lines 461–463 | `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt` |
 
 The last row is the chapter's rule and the only one held by a test that drives
 this binary as a process under a real driver.

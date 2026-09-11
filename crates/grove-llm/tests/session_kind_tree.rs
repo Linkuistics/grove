@@ -14,6 +14,7 @@ fn init_repo() -> TempDir {
 fn current_grove(repository: &Path) -> PathBuf {
     let grove = repository.join(".grove");
     fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("_BRIEF.md"), "root brief").unwrap();
     grove
 }
 
@@ -305,11 +306,11 @@ fn a_task_shaped_entry_of_the_wrong_species_is_malformed_not_foreign() {
     // adjustment made quietly here.
     for (name, directory, expected) in [
         // An outcome infix on a node name: parses as neither species.
-        ("01-DONE-node-k1", true, "never marked DONE or ABANDONED"),
+        ("01-DONE-k1", true, "NN-k<key>"),
         // A leaf's name on a directory: parses as a leaf, is not one.
         ("01-impl--decoy-k1.md", true, "names a leaf"),
         // A node's name on a regular file: parses as a node, is not one.
-        ("01-decoy-k1", false, "names a node"),
+        ("01-k1", false, "names a node"),
     ] {
         let repository = init_repo();
         let grove = current_grove(repository.path());
@@ -363,16 +364,17 @@ fn entries_outside_the_task_shaped_grammar_stay_foreign_at_either_species() {
     fs::create_dir_all(grove.join("done")).unwrap();
     fs::write(grove.join("README.md"), "not a task\n").unwrap();
     // Positioned but unkeyed, and keyed but unpositioned: neither is task-shaped.
-    fs::write(grove.join("01-notes.md"), "not a task\n").unwrap();
+    fs::write(grove.join("notes.md"), "not a task\n").unwrap();
     fs::create_dir_all(grove.join("scratch-k9")).unwrap();
-    let node = grove.join("01-real-k1");
+    let node = grove.join("01-k1");
     fs::create_dir_all(&node).unwrap();
+    fs::write(node.join("_work.md"), "node brief").unwrap();
     fs::write(node.join("01-impl--work-k2.md"), "# work-k2\n").unwrap();
 
     let output = grove_llm(repository.path(), &["pick"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
-        stdout(&output).contains("01-real-k1/01-impl--work-k2.md"),
+        stdout(&output).contains("01-k1/01-impl--work-k2.md"),
         "{}",
         stdout(&output)
     );
@@ -380,7 +382,7 @@ fn entries_outside_the_task_shaped_grammar_stay_foreign_at_either_species() {
     let output = grove_llm(repository.path(), &["resolve", "work-k2"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
-        stdout(&output).contains("01-real-k1/01-impl--work-k2.md"),
+        stdout(&output).contains("01-k1/01-impl--work-k2.md"),
         "{}",
         stdout(&output)
     );
@@ -490,7 +492,7 @@ fn a_leftover_finish_witness_is_a_foreign_entry_every_verb_walks_past() {
         let repository = init_repo();
         let grove = current_grove(repository.path());
         fs::create_dir_all(grove.join("FINISHING-finish-k2")).unwrap();
-        fs::write(grove.join("BRIEF.md"), "# demo — brief\n").unwrap();
+        fs::write(grove.join("_BRIEF.md"), "# demo — brief\n").unwrap();
         write_leaf(&grove, "01-impl--task-k1.md", "# task-k1\n");
 
         let output = grove_llm(repository.path(), &arguments);

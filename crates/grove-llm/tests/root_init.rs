@@ -5,7 +5,7 @@
 // scaffold.
 //
 // The verb's output contract:
-// - stdout: two absolute paths: root `BRIEF.md`, then the first requirements
+// - stdout: two absolute paths: root `_BRIEF.md`, then the first requirements
 //   leaf.
 // - working-tree change only — makes NO git commit; the scaffold is left
 //   untracked for the first session's commit to fold in.
@@ -65,7 +65,7 @@ fn sole_leaf(worktree: &Path) -> PathBuf {
     let leaves: Vec<String> = fs::read_dir(worktree.join(".grove"))
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-        .filter(|n| n != "BRIEF.md")
+        .filter(|n| n != "_BRIEF.md")
         .collect();
     assert_eq!(
         leaves.len(),
@@ -85,10 +85,10 @@ fn root_init_creates_root_brief_and_first_requirements_leaf() {
     let (stdout, _, ok) = run(tmp.path(), &["root-init"]);
     assert!(ok, "root-init failed");
 
-    // stdout: the root BRIEF.md first, then the leaf.
+    // stdout: the root _BRIEF.md first, then the leaf.
     assert_eq!(
         rel_line(&stdout, tmp.path(), 0),
-        PathBuf::from(".grove/BRIEF.md")
+        PathBuf::from(".grove/_BRIEF.md")
     );
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
@@ -101,14 +101,14 @@ fn root_init_creates_root_brief_and_first_requirements_leaf() {
     );
 
     // Both entries exist on disk.
-    assert!(tmp.path().join(".grove/BRIEF.md").is_file());
+    assert!(tmp.path().join(".grove/_BRIEF.md").is_file());
     assert!(tmp
         .path()
         .join(".grove/01-requirements--plan-k1.md")
         .is_file());
 
     // The root brief carries the BRIEF-FORMAT headers and a `— brief` title.
-    let brief = read(tmp.path(), ".grove/BRIEF.md");
+    let brief = read(tmp.path(), ".grove/_BRIEF.md");
     assert!(
         brief.contains("— brief\n"),
         "brief missing `— brief` title: {brief:?}"
@@ -217,7 +217,7 @@ fn root_init_refuses_when_grove_already_exists() {
     let tmp = init_repo();
     fs::create_dir_all(tmp.path().join(".grove")).unwrap();
     fs::write(
-        tmp.path().join(".grove/BRIEF.md"),
+        tmp.path().join(".grove/_BRIEF.md"),
         "# existing — brief\n".as_bytes(),
     )
     .unwrap();
@@ -231,7 +231,7 @@ fn root_init_refuses_when_grove_already_exists() {
     );
     // The existing brief is untouched.
     assert_eq!(
-        read(tmp.path(), ".grove/BRIEF.md"),
+        read(tmp.path(), ".grove/_BRIEF.md"),
         "# existing — brief\n".to_string()
     );
 }
@@ -299,7 +299,7 @@ fn root_init_makes_no_commit() {
     // on. jj has no untracked-file state to assert instead: it snapshots the
     // working copy on the next command, so "nothing was committed" is a claim
     // about `@-`, and the scaffold's presence is a claim about the filesystem.
-    assert!(tmp.path().join(".grove/BRIEF.md").is_file());
+    assert!(tmp.path().join(".grove/_BRIEF.md").is_file());
     assert_eq!(
         support::jj(
             tmp.path(),

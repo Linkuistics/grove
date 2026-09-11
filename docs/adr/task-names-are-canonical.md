@@ -1,7 +1,8 @@
 # A task name has exactly one spelling
 
 Grove's task-tree grammar is canonical. Parsing and rendering are inverses in
-both directions: `parse(format(n)) == n` and `format(parse(f)) == f`. A
+both directions for domain-valid inputs: `parse(format(n)) == n` and
+`format(parse(f)) == f`. A
 position uses at least two digits with no excess leading zero; a key is positive
 decimal with no leading zero. Each filename has one reading.
 
@@ -13,6 +14,13 @@ decimal with no leading zero. Each filename has one reading.
 The first `--` separates a leaf's kind from its slug. Both are nonempty tokens
 of lowercase ASCII letters, digits and single hyphens; neither contains the
 separator or a reserved word. Node directories carry only position and key.
+The generic library represents keys as `u32` and its total `compose` operation
+preserves the supplied key. Direct Rust construction of Grove names and handles
+therefore requires a positive key; `Key::new(0)` is outside Grove’s valid input
+domain and carries no parse/render round-trip promise. Parsing enforces this
+boundary, and Grove allocates keys starting at 1. Retaining the generic API lets
+sibling shifts preserve identity without adding a domain-specific key type.
+
 Every directory, including the root, holds exactly one node file, a regular
 file. `_BRIEF.md` belongs only at the root; a titled node file belongs only in
 a positioned node. `BRIEF` is reserved and cannot be a slug.

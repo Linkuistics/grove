@@ -31,7 +31,7 @@ byte for byte.
 ```text
 "01-requirements--plan-k1.md", Found::File
   │
-  ├─ not BRIEF.md, so not the charter
+  ├─ not _BRIEF.md, so not the charter
   ├─ strip ".md"          →  stem "01-requirements--plan-k1", declares a leaf
   ├─ split_shape          →  digits "01" · middle "requirements--plan" · key "1"
   ├─ parse both numbers   →  ordinal 1, key 1        (either failing ends here)
@@ -50,16 +50,12 @@ in the first six steps is canonicity — they are the grammar chapters 2 and 3
 already read, applied in order. Canonicity is the ninth step, and it is a
 comparison rather than a rule about any one field.
 
-Two forks leave that column, and both are refusals rather than skips. A name
-grove would have written differently — `1-requirements--plan-k1.md`, the same
-name with the position unpadded — reaches step nine, renders as
-`01-requirements--plan-k1.md`, and is refused as `NotCanonical` **carrying the
-spelling it should have had**. A name whose numbers do not fit in 32 bits —
-`99999999999-requirements--plan-k1.md` — never reaches step nine at all, because
-step four failed, and is refused as `NotCanonical` with a canonical form that
-says only *a name whose position and key both fit in 32 bits*. That second
-refusal is the one the brief's worked example calls *uncomputable*: grove has no
-spelling to offer back, because there is no `u32` to render.
+
+Two refusals illustrate the boundary. An unpadded position can be parsed
+and rendered, so `NotCanonical` supplies the padded filename. An unrepresentable
+position or invalid key cannot produce a valid Grove name, so `InvalidName`
+states the required grammar and range without inventing a replacement.
+
 
 The withdrawn model is what makes this concrete rather than theoretical. Before
 this domain existed grove's grammar was lenient on padding: it accepted a
@@ -71,7 +67,7 @@ was invisible.
 
 | Byte run of `01-requirements--plan-k1.md` | Written by | Read back by |
 |---|---|---|
-| `01` | the leaf arm's `write!` at line 644 | `split_shape`'s leading digit run |
+| `01` | the leaf arm's `write!` at line 567 | `split_shape`'s leading digit run |
 | `requirements` | `kind.label()` | the head of the first `--` split |
 | `--` | `SEPARATOR` | `split_once(SEPARATOR)` |
 | `plan-k1` | `Handle::render` | `peel_key`, then `Slug::new` |
@@ -83,24 +79,25 @@ back. Canonicity is the claim that the right-hand column composed with the middl
 one is the identity, and the check at the end of `parse` establishes it by
 performing both rather than by reasoning about the pairs.
 
-The chapter owns 729 of the file's 1,743 lines in three blocks — the name itself
-and the seam under it at lines 591 to 1,016, the test support and the conformance
-kit at 1,017 to 1,206, and the grammar and canonicity tests at 1,229 to 1,341.
-With them, all nine of this file's ownership blocks are resolved and
-`task_name.rs` is fully reconstructed.
+This chapter owns 773 lines of `task_name.rs` in 3 blocks.
+The source index records their current ranges; the fragments below reconstruct
+every owned byte.
 
 <a id="the-parsed-name"></a>
 ## The name, and the rendering that is `format`
 
-The block opens on the type the previous two chapters kept naming. `Handle::of`
-matched on its two variants in chapter 3 and `Handle::parse` was documented
-against its canonicity; neither said what it holds.
 
-The composite below is this chapter's production ownership block. It expands, in
-order, to lines 591 through 1,020 of the file, and the fourteen fragments it
-names run from here to the end of *Under the seam*.
+`TaskName` distinguishes positioned entries, the root file and titled node
+files. Leaf handles come from one positioned name; node handles require the
+directory name together with its titled file.
 
-<!-- fragment «the-task-name» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="591-1016" parent="source-task-name" -->
+
+The composite below reassembles this chapter’s production block. Its
+fragment directive records the current source range, and each inserted
+fragment is explained where the corresponding behavior is introduced.
+
+
+<!-- fragment «the-task-name» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="506-953" parent="source-task-name" -->
 <!-- insert «name-task-name» -->
 <!-- insert «name-task-name-display» -->
 <!-- insert «name-task-name-error» -->
@@ -117,18 +114,23 @@ names run from here to the end of *Under the seam*.
 <!-- insert «name-peel-key» -->
 <!-- /fragment -->
 
-The enum is two variants and the derives stop at `Clone`, `Debug`, `PartialEq`
+The enum is three variants and the derives stop at `Clone`, `Debug`, `PartialEq`
 and `Eq`. A positioned name carries its ordinal, its key and its parts in one
 variant rather than in three independent fields, and the charter carries none of
 them; the doc comment names the obligation that shape discharges and points at
 the trait method that states it.
 
-<!-- fragment «name-task-name» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="591-612" parent="the-task-name" -->
+<!-- fragment «name-task-name» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="506-534" parent="the-task-name" -->
 ````rust
 /// A task tree entry's name.
 ///
-/// The two variants are the whole of the type: a name carries an ordinal, a key
-/// and parts **together**, or it is the charter brief and carries none of them.
+/// Direct construction, including [`EntryName::compose`], requires a positive
+/// key for a domain-valid Grove name. The generic library’s total constructor
+/// preserves even zero, which Grove refuses when parsing and never allocates.
+/// The parse/render round-trip promise applies only to domain-valid inputs.
+///
+/// A positioned name carries ordinal, key and parts together. Root and titled
+/// node files are distinguished names with no position or key.
 /// The obligation *a name is positioned or distinguished, never neither* is
 /// therefore not something this domain can break — see
 /// [`EntryName::view`](ordinal_fs_tree::EntryName::view).
@@ -143,8 +145,10 @@ pub enum TaskName {
         /// Everything else.
         parts: Parts,
     },
-    /// `BRIEF.md` — the containing node's charter.
+    /// `_BRIEF.md` — the root node file.
     Brief,
+    /// A positioned node's titled file; never a leaf or a separate handle.
+    NodeFile(Slug),
 }
 
 ````
@@ -167,12 +171,13 @@ named for. Both of its arms reach `Handle::render` — the node arm ends there, 
 leaf arm writes `.md` after it — and chapter 3 established that call is the only
 `write!` in the crate spelling `<slug>-k<key>`.
 
-<!-- fragment «name-task-name-display» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="613-662" parent="the-task-name" -->
+<!-- fragment «name-task-name-display» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="535-585" parent="the-task-name" -->
 ````rust
 impl fmt::Display for TaskName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Brief => f.write_str(BRIEF),
+            Self::NodeFile(slug) => write!(f, "_{slug}.md"),
             Self::Positioned {
                 ordinal,
                 key,
@@ -209,9 +214,9 @@ impl fmt::Display for TaskName {
                         Handle::render(f, slug, *key)?;
                         f.write_str(".md")
                     }
-                    Parts::Node { slug } => {
-                        write!(f, "{ordinal:02}-")?;
-                        Handle::render(f, slug, *key)
+                    Parts::Node => {
+                        write!(f, "{ordinal:02}")?;
+                        render_key(f, *key)
                     }
                 }
             }
@@ -232,14 +237,13 @@ end of `parse` is what makes it binding. A padding rule added here later cannot
 escape that comparison, because the comparison is against this function's output
 and not against a specification of it.
 
-The second comment is chapter 3's structural claim, now visible from the writing
-side: neither arm spells `<slug>-k<key>`, both call `Handle::render`, and
-`every_positioned_name_ends_in_its_own_handle` is the assertion chapter 3 read
-over four composed names. The leaf arm's `write!` stops at the separator, hands
-the slug and the key to `render`, and then writes `.md`; the node arm writes the
-position and hands over immediately. The suffix is what makes the handle a
-*contiguous terminal substring* of a node's name exactly and of a leaf's name
-with only `.md` after it.
+
+The leaf renderer writes the position, outcome and kind, then calls
+`Handle::render` and appends `.md`. The node renderer writes only position and
+the shared key token. A node handle is assembled from two filenames and need
+not be a substring of either. `render_key` is shared by handle and directory
+rendering, keeping their terminal key spelling consistent.
+
 
 The third comment states the fact `parse` has to reconcile: the `.md` suffix is
 what the **name** declares its species to be, and a listing reports what is
@@ -253,7 +257,7 @@ Six variants, and the doc comment states why each carries advice rather than a
 diagnosis: the store halts on a `Malformed` verdict wherever in the tree it sits,
 so whoever hit it has a frozen tree and needs a next step, not a category.
 
-<!-- fragment «name-task-name-error» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="663-726" parent="the-task-name" -->
+<!-- fragment «name-task-name-error» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="586-650" parent="the-task-name" -->
 ````rust
 /// What grove says when it refuses a name.
 ///
@@ -264,6 +268,13 @@ so whoever hit it has a frozen tree and needs a next step, not a category.
 /// next step.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TaskNameError {
+    /// An owned name does not have a complete canonical spelling.
+    InvalidName { name: String },
+    /// The complete node-file set has wrong cardinality or placement.
+    NodeFiles {
+        node: Option<String>,
+        names: Vec<String>,
+    },
     /// A task-shaped name spelled a way grove does not write — a hand-typed
     /// `5-…` where grove renders `05-…`, or a number too large to hold.
     NotCanonical {
@@ -293,12 +304,6 @@ pub enum TaskNameError {
         /// Why it is not a session kind.
         error: TokenError,
     },
-    /// A node directory wearing an outcome infix.
-    NodeWearsOutcome {
-        /// What is on disk.
-        name: String,
-    },
-    /// A slug the grammar cannot render and read back.
     BadSlug {
         /// What is on disk.
         name: String,
@@ -322,37 +327,48 @@ pub enum TaskNameError {
 ````
 <!-- /fragment -->
 
-The variants are in the order `parse` reaches them, and only the first is this
-chapter's own. Chapter 2 read five of the six being asserted, inside its
-`refusals inside the shape` block; this chapter reads the sixth. That division is
-a fact about where the assertions live rather than a judgement, and it is worth
-having in one place because a reader looking for the proof of a variant will
-otherwise look on the wrong page.
 
-| Variant | Raised at | Asserted by | On which page |
-|---|---|---|---|
-| `NotCanonical` | 884, and 948 in `uncomputable_canonical`, called at 817 and 820 | `a_lenient_position_is_refused_and_the_refusal_names_the_canonical_spelling`, `an_unrepresentable_number_is_refused_without_a_suggestion` | this chapter |
-| `MissingSeparator` | 836 | `a_leaf_without_the_separator_is_refused_and_the_refusal_names_the_grammar` | chapter 2 |
-| `BadKind` | 846 | `a_session_kind_that_is_not_a_token_is_malformed` | chapter 2 |
-| `NodeWearsOutcome` | 859 | `a_node_wearing_an_outcome_infix_is_malformed` | chapter 2 |
-| `BadSlug` | 938 in `bad_slug`, called at 855 and 865 | `a_slug_the_grammar_cannot_read_back_is_malformed` | chapter 2 |
-| `SpeciesMismatch` | 930 in `disagreement`, called at 793 and 890 | `a_species_mismatch_is_malformed_in_both_directions` | chapter 2 |
+The errors distinguish malformed owned syntax, noncanonical positions, token
+failures, species contradictions and invalid distinguished-file sets. Each
+refusal carries the offending spelling or the level’s actual file names.
 
-Read the table for where a variant's proof is, not for how many there are: one
-refusal is canonicity's and five are the grammar's, which is the same split the
-chapter sequence makes between chapter 2's rule and this one's. `NotCanonical` is
-the only variant with two raising sites, and the second exists precisely because
-canonicity's advice is not always computable.
+
+| Variant | Boundary |
+|---|---|
+| `InvalidName` | owned syntax or key cannot form a canonical name |
+| `NotCanonical` | parsed name renders with a different position spelling |
+| `MissingSeparator` | leaf has no kind/slug separator |
+| `BadKind`, `BadSlug` | token construction |
+| `SpeciesMismatch` | listing species contradicts the name |
+| `NodeFiles` | required file cardinality or root/node placement |
+
+
+`NotCanonical` can offer the spelling obtained by rendering a parsed name.
+`InvalidName` instead states the required grammar when no valid name can be
+constructed. `NodeFiles` belongs to the complete-level callback rather than the
+individual parser.
+
 
 Two variants nest a `TokenError` — the refusal chapter 2 read — and neither
 chains it. `BadKind` and `BadSlug` each carry the offending token beside the
 error explaining it, so the message can name both.
 
-<!-- fragment «name-task-name-error-display» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="727-784" parent="the-task-name" -->
+<!-- fragment «name-task-name-error-display» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="651-711" parent="the-task-name" -->
 ````rust
 impl fmt::Display for TaskNameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidName { name } => write!(f,
+                "malformed Grove name {name:?}: expected NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md, NN-k<key>/, _<slug>.md in a node, or _BRIEF.md at the root; keys are positive decimal without leading zero and fit in 32 bits"),
+            Self::NodeFiles { node, names } => {
+                let required = if node.is_some() { "_<slug>.md" } else { "_BRIEF.md" };
+                write!(f, "malformed Grove level: expected exactly one regular node file {required}; found {names:?}")?;
+                if node.is_some() && names.is_empty() {
+                    f.write_str(". Check for an interrupted `leaf-decompose`: if this directory is empty and a sibling leaf shares its position and key, delete the empty directory to retain the leaf, or move that leaf into it as its _<slug>.md node file. Retain the key and leaf body; do not allocate a fresh key or manufacture a brief")?;
+                }
+                Ok(())
+            }
+
             Self::NotCanonical { name, canonical } => write!(
                 f,
                 "{name:?} is a Grove task name spelled a way Grove does not write. Rename it \
@@ -377,18 +393,10 @@ impl fmt::Display for TaskNameError {
                  Any well-formed token is a kind; whether a skill exists for it is the \
                  methodology's business and not this grammar's."
             ),
-            Self::NodeWearsOutcome { name } => write!(
-                f,
-                "malformed Grove node directory {name:?}: expected NN-<slug>-k<key>. A node \
-                 is never marked DONE or ABANDONED — its done-ness is the absence of a live \
-                 leaf in its subtree — so an outcome infix on a directory hides every leaf \
-                 under it. Drop the infix to restore the subtree, or rename the directory \
-                 out of the task-shaped grammar if it is not Grove's."
-            ),
             Self::BadSlug { name, slug, error } => write!(
                 f,
                 "malformed Grove task name {name:?}: the slug {slug:?} is not one — \
-                 {error}. Rename it with a slug that is."
+                 {error}. Expected _<slug>.md or NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md."
             ),
             Self::SpeciesMismatch {
                 name,
@@ -399,7 +407,7 @@ impl fmt::Display for TaskNameError {
                 "malformed Grove tree: {name:?} names a {declares}, which must be {}, but \
                  the listing found {found}. Nothing here can be right — either the name or \
                  the object is wrong — and a walk that skipped it would lose everything \
-                 under it.",
+                 under it. Required forms: NN-k<key>/, NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md, _<slug>.md or _BRIEF.md.",
                 declares.requires()
             ),
         }
@@ -411,21 +419,18 @@ impl std::error::Error for TaskNameError {}
 ````
 <!-- /fragment -->
 
-Five of the six messages state the grammar they wanted; `BadSlug`'s states none
-and defers to the nested `TokenError`, which names the clause the slug broke.
-Three go further and state the consequence of getting it wrong rather than only
-the rule. `NotCanonical` ends on
-*two spellings of one name mean two files on disk are one entry, sharing a key
-and a position*, which is this chapter's rule written into the error an operator
-reads. `NodeWearsOutcome` ends on *an outcome infix on a directory hides every
-leaf under it*, and `SpeciesMismatch` on *a walk that skipped it would lose
-everything under it* — both of which are chapter 2's *Malformed, never Foreign*
-argument, stated where it is acted on.
+
+The messages state the grammar they require or delegate to the token error
+that names the broken clause. `NotCanonical` explains why alternate spellings
+can conceal duplicate identity; `SpeciesMismatch` explains why skipping the
+entry could hide everything beneath it. A missing node file also supplies
+conditional recovery advice without claiming to have inspected a sibling.
+
 
 `SpeciesMismatch`'s message is the only one that **computes** a value rather
 than quoting one it was handed: `declares.requires()` is the store's, and it
 renders what the declared species demands of the listing. That is also the only
-refusal `parse` can raise for the charter, at line 793, where a `BRIEF.md` the
+refusal `parse` can raise for the charter, at line 733 where a `_BRIEF.md` the
 listing found as a directory is refused before the positioned grammar is
 reached.
 
@@ -443,7 +448,7 @@ library that drives it, and `parse` is the half of it that reads. The first
 fragment carries the impl header, the two associated types, and the charter
 branch that has to run before anything positioned is attempted.
 
-<!-- fragment «name-parse-charter» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="785-797" parent="the-task-name" -->
+<!-- fragment «name-parse-charter» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="712-737" parent="the-task-name" -->
 ````rust
 impl EntryName for TaskName {
     type Parts = Parts;
@@ -452,10 +457,23 @@ impl EntryName for TaskName {
     fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
         // The charter is matched before the positioned grammar, because it is
         // not positioned and nothing below would recognise it.
-        if name == BRIEF {
+        if let Some(token) = name.strip_prefix('_') {
+            let parsed = if name == BRIEF {
+                Self::Brief
+            } else {
+                let Some(token) = token.strip_suffix(".md") else {
+                    return Verdict::Malformed(TaskNameError::InvalidName {
+                        name: name.to_string(),
+                    });
+                };
+                match Slug::new(token) {
+                    Ok(slug) => Self::NodeFile(slug),
+                    Err(error) => return Verdict::Malformed(bad_slug(name, token, error)),
+                }
+            };
             return match disagreement(Species::Distinguished, found, name) {
                 Some(error) => Verdict::Malformed(error),
-                None => Verdict::Entry(Self::Brief),
+                None => Verdict::Entry(parsed),
             };
         }
 ````
@@ -468,75 +486,79 @@ which is the whole of what it may do with one — copy a value it already holds,
 and compare two of them — so chapter 3's `Parts` needs no constructor the store
 could reach.
 
-The charter is matched first, against the `BRIEF` constant chapter 2 read, and
-the comment gives the reason as a fact about the code below rather than as a
-preference: `BRIEF.md` has no leading digit run, so `split_shape` would return
-`None` and the name would be classified `Foreign` and skipped. A skipped charter
-is a node with no readable brief chain. The match is on the whole name including
-the suffix, because `BRIEF` is `"BRIEF.md"` and the stripping below has not
-happened yet.
+
+Underscore-prefixed names are handled before positioned names. `_BRIEF.md`
+is the root-file variant; another underscore name must end in `.md` and contain
+a valid slug. The level callback then enforces placement: the root marker only
+at the root, and one titled file in each positioned node.
+
 
 Even the charter is asked the species question.
 `disagreement(Species::Distinguished, found, name)` is the same call the
-positioned path ends on, and it refuses a `BRIEF.md` the listing found as a
+positioned path ends on, and it refuses a `_BRIEF.md` the listing found as a
 directory — the one shape in which a node's charter could hide a subtree.
 
 The second fragment decides whether the name belongs to Grove at all and whether
 both number fields are numeric.
 
-<!-- fragment «name-parse-shape» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="798-821" parent="the-task-name" -->
+<!-- fragment «name-parse-shape» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="738-770" parent="the-task-name" -->
 ````rust
-        // The `.md` suffix is what the name *declares* its species to be.
+        if !name.as_bytes().first().is_some_and(u8::is_ascii_digit) {
+            return Verdict::Foreign;
+        }
         let (stem, declares_leaf) = match name.strip_suffix(".md") {
             Some(stem) => (stem, true),
             None => (name, false),
         };
 
-        // Is this name Grove's at all? A name is Grove's when it is **positioned
-        // and keyed** — a leading digit run, and a terminal `-k<digits>`. That
-        // shape is the one only Grove's grow verbs write, so everything else is
-        // Foreign and skipped, which is safe precisely because we are
-        // disclaiming it. A stray `README.md` lands here.
-        // Everything that *is* this shape and does not parse is Malformed,
-        // whichever species it declares: a task-shaped name Grove skips is lost
-        // work, and a whole subtree when the name is a directory.
-        let Some((digits, middle, key_digits)) = split_shape(stem) else {
-            return Verdict::Foreign;
+        // Digit-prefixed entries are owned even when their position, key or
+        // species is malformed. Refusing them keeps hidden work out of a walk.
+        let shape = if declares_leaf {
+            split_shape(stem)
+        } else {
+            peel_key(stem).map(|(digits, key)| (digits, "", key))
         };
-
+        let Some((digits, middle, key_digits)) = shape else {
+            return Verdict::Malformed(TaskNameError::InvalidName {
+                name: name.to_string(),
+            });
+        };
+        if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+            return Verdict::Malformed(TaskNameError::InvalidName {
+                name: name.to_string(),
+            });
+        }
         let Ok(ordinal) = digits.parse::<u32>() else {
             return Verdict::Malformed(uncomputable_canonical(name));
         };
-        let Ok(key) = key_digits.parse::<u32>() else {
-            return Verdict::Malformed(uncomputable_canonical(name));
+        let Some(key) = parse_key(key_digits) else {
+            return Verdict::Malformed(TaskNameError::InvalidName {
+                name: name.to_string(),
+            });
         };
 ````
 <!-- /fragment -->
 
-`declares_leaf` is a boolean and not a `Species`, and it stays a boolean until
-`parts` is built, because a name that declares a leaf and fails the kind rule
-never reaches a `Parts` at all. The comment on the `split_shape` call is the
-*Malformed, never Foreign* rule chapter 2 established, stated where the decision
-is actually taken: **positioned and keyed** is the whole test for whether a name
-is grove's, everything else is `Foreign` and skipped, and everything that is this
-shape and does not parse is `Malformed` whichever species it declares.
 
-The two `parse::<u32>()` calls are where a name leaves the canonical path with no
-canonical form to offer. Neither can fail on a non-digit: `split_shape` rejects a
-position that is not all ASCII digits, and the key run it returns is whatever
-`peel_key` took from the end while the bytes were digits. Width is the only way
-left, and `uncomputable_canonical` is the refusal that says so. These are the two
-lines that give `NotCanonical` a second raising site.
+A leading digit establishes Grove ownership before shape parsing. The `.md`
+suffix selects the leaf grammar; a directory name contains only the position
+and key. Failure to split an owned spelling is malformed syntax, never a
+foreign entry that the reader could skip.
+
+
+
+The position parser checks representability, while the shared `parse_key`
+checks positivity, canonical decimal spelling and representability. A position
+that can be represented but needs padding reaches the render comparison; an
+invalid key or unrepresentable position receives `InvalidName`.
+
 
 The third fragment builds the parts, and it is the grammar chapters 2 and 3
 defined, applied in order.
 
-<!-- fragment «name-parse-parts» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="822-867" parent="the-task-name" -->
+<!-- fragment «name-parse-parts» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="771-805" parent="the-task-name" -->
 ````rust
 
-        // The outcome infix sits immediately after the position, and is admitted
-        // here for *both* species precisely so that a directory wearing one is
-        // reported rather than skipped.
         let (outcome, after_outcome) = Outcome::strip(middle);
 
         let parts = if declares_leaf {
@@ -569,35 +591,23 @@ defined, applied in order.
                 Err(error) => return Verdict::Malformed(bad_slug(name, slug, error)),
             }
         } else {
-            if outcome != Outcome::Live {
-                return Verdict::Malformed(TaskNameError::NodeWearsOutcome {
-                    name: name.to_string(),
-                });
-            }
-            match Slug::new(after_outcome) {
-                Ok(slug) => Parts::node(slug),
-                Err(error) => return Verdict::Malformed(bad_slug(name, after_outcome, error)),
-            }
+            Parts::node()
         };
 ````
 <!-- /fragment -->
 
-`Outcome::strip` runs **before** the leaf/node branch, and the comment says why
-in one sentence: admitting the infix for both species is what lets a directory
-wearing one be reported rather than skipped. The node arm then refuses a
-non-`Live` outcome explicitly, which is the `NodeWearsOutcome` variant. Had the
-strip sat inside the leaf arm instead, `07-DONE-grove-flip-k28` would have taken
-`DONE-grove-flip` as its slug, failed `Slug::new` on the uppercase, and been
-refused as `BadSlug` — a refusal naming the wrong thing, about a directory whose
-whole subtree is at stake.
 
-The leaf arm's first comment is the separator argument from chapter 2 seen from
-the parsing side. The middle splits at the **first** `--`, and that is the whole
-of the kind/slug boundary: no longest match against a label set, and no second
-reading to choose between. The comment names `split_filename_prefix`, the
-function that resolved the ambiguity by consulting the closed kind set, and says
-`open-kind-k20` took the set away — so the separator is what makes the single
-line safe rather than merely shorter.
+Only leaf names use the stripped outcome and parse a kind and slug. A node
+has no such fields: its shape parser accepts exactly position and key, and its
+parts are `Parts::Node`. An outcome or title in a directory spelling therefore
+fails shape parsing.
+
+
+
+The leaf middle splits at the first `--`. Both kind and slug may contain
+single hyphens, so this separator makes the boundary independent of a registry
+of known kinds. The two token constructors validate their own fields.
+
 
 The second comment states the distinction made by the two-stage failure: a name
 with no separator is *shaped* wrong and can only be told to rename, while a name
@@ -607,13 +617,13 @@ with a separator has a single token to quote back. Those are the
 
 The fourth fragment is canonicity, and the check itself is seven lines of it.
 
-<!-- fragment «name-parse-canonicity» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="868-895" parent="the-task-name" -->
+<!-- fragment «name-parse-canonicity» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="806-857" parent="the-task-name" -->
 ````rust
 
         let parts_species = parts.species();
         let parsed = Self::Positioned {
             ordinal: Ordinal::new(ordinal),
-            key: Key::new(key),
+            key,
             parts,
         };
 
@@ -634,6 +644,30 @@ The fourth fragment is canonicity, and the check itself is seven lines of it.
         match disagreement(parts_species.species(), found, name) {
             Some(error) => Verdict::Malformed(error),
             None => Verdict::Entry(parsed),
+        }
+    }
+
+    fn validate_distinguished(node: Option<&Self>, children: &[Self]) -> Result<(), Self::Err> {
+        let valid = matches!(
+            (node, children),
+            (None, [Self::Brief])
+                | (
+                    Some(Self::Positioned {
+                        parts: Parts::Node,
+                        ..
+                    }),
+                    [Self::NodeFile(_)]
+                )
+        );
+        if valid {
+            Ok(())
+        } else {
+            let mut names: Vec<_> = children.iter().map(ToString::to_string).collect();
+            names.sort();
+            Err(TaskNameError::NodeFiles {
+                node: node.map(ToString::to_string),
+                names,
+            })
         }
     }
 
@@ -689,7 +723,7 @@ validation at all. That is the point of it: every part these methods place was v
 built, and re-checking here would be a second opinion about a question already
 settled.
 
-<!-- fragment «name-entry-name-rest» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="896-923" parent="the-task-name" -->
+<!-- fragment «name-entry-name-rest» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="858-885" parent="the-task-name" -->
 ````rust
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
         Self::Positioned {
@@ -701,7 +735,7 @@ settled.
 
     fn view(&self) -> NameView<'_, Self::Parts> {
         match self {
-            Self::Brief => NameView::Distinguished,
+            Self::Brief | Self::NodeFile(_) => NameView::Distinguished,
             Self::Positioned {
                 ordinal,
                 key,
@@ -723,7 +757,7 @@ settled.
 <!-- /fragment -->
 
 `compose` is the store's constructor for a name, and it is the one chapter 3's
-`every_positioned_name_ends_in_its_own_handle` builds its four fixtures with. It
+`every_leaf_name_ends_in_its_own_handle` builds its four fixtures with. It
 takes an ordinal, a key and a `Parts` and returns a `Positioned` holding all
 three, unexamined — which is what makes that test's assertion about `Display`
 rather than about parsing. There is no arm for the charter, because the charter
@@ -760,12 +794,14 @@ constraint rather than an agreement.
 <a id="under-the-seam"></a>
 ## Under the seam: the helpers, and the one peel
 
-Six free functions sit below the impl — `disagreement`, `bad_slug`,
-`uncomputable_canonical`, `split_shape`, `terminal_key` and `peel_key` — and
-exactly one of them, `terminal_key`, is public. The first two exist so that a
-refusal is built in one place rather than at each of its raising sites.
 
-<!-- fragment «name-refusal-helpers» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="924-940" parent="the-task-name" -->
+Below the implementation, small helpers centralize species errors, slug
+errors, unrepresentable-number refusals, leaf shape splitting and key parsing
+and rendering. `terminal_key` is the public lookup helper. The token helpers
+keep names and handles on one key grammar.
+
+
+<!-- fragment «name-refusal-helpers» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="886-902" parent="the-task-name" -->
 ````rust
 /// `Some(error)` when what the listing found contradicts what the name declares.
 fn disagreement(declares: Species, found: Found, name: &str) -> Option<TaskNameError> {
@@ -787,57 +823,41 @@ fn bad_slug(name: &str, slug: &str, error: TokenError) -> TaskNameError {
 ````
 <!-- /fragment -->
 
-`disagreement` returns an `Option` rather than a `Result` because both of its
-callers want to continue when it is `None`, and `.then(|| …)` is the whole body.
-`declares.agrees_with(found)` is the store's, and it is what makes the species
-question a question about the store's three-case `Species` rather than about
-grove's two-case `Parts`. `bad_slug` has two callers and exists because the leaf
-arm and the node arm reach it with different slug expressions — `slug` from the
-separator split, `after_outcome` whole — and a helper is what keeps the variant's
-three fields filled the same way from both.
+
+`disagreement` compares the name's declared species with the listing's
+actual species. It rejects a directory wearing a leaf or node-file name, and a
+file wearing a node-directory name. `bad_slug` carries the original filename,
+the offending token and its token error for both leaf slugs and node-file slugs.
+
 
 The third is the refusal with nothing to advise.
 
-<!-- fragment «name-uncomputable-canonical» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="941-949" parent="the-task-name" -->
+<!-- fragment «name-uncomputable-canonical» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="903-910" parent="the-task-name" -->
 ````rust
 /// A canonicity refusal whose advice cannot be computed: the numbers did not fit
 /// in 32 bits, so there is no spelling to offer back.
 fn uncomputable_canonical(name: &str) -> TaskNameError {
-    TaskNameError::NotCanonical {
+    TaskNameError::InvalidName {
         name: name.to_string(),
-        canonical: "a name whose position and key both fit in 32 bits".to_string(),
     }
 }
 
 ````
 <!-- /fragment -->
 
-The `canonical` field carries a sentence rather than a name, and it is the one
-place in the grammar where that field is not a filename. Everything downstream
-reads it as text — `TaskNameError`'s `Display` interpolates it into *Rename it to
-{canonical:?}* — so the message an operator reads is *rename it to "a name whose
-position and key both fit in 32 bits"*, which is advice rather than a target. The
-alternative would be a seventh variant carrying no canonical form; this keeps
-`NotCanonical` one variant with one meaning — *grove would not have written
-this* — and pays for it with a field that is sometimes a description.
+
+`uncomputable_canonical` returns `InvalidName`: the spelling cannot be
+represented, so there is no replacement filename to suggest. `NotCanonical`
+remains reserved for a parsed name whose renderer provides an actual target.
+
 
 The fourth is where a stem becomes three pieces.
 
-<!-- fragment «name-split-shape» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="950-972" parent="the-task-name" -->
+<!-- fragment «name-split-shape» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="911-923" parent="the-task-name" -->
 ````rust
-/// Split a stem into `(position digits, middle, key digits)`, or `None` when the
-/// stem is not task-shaped at all.
-///
-/// The position is the leading digit run, ended by the first `-` — the position
-/// is pure digits, so the first dash is its unambiguous boundary. The key is the
-/// *terminal* `-k<digits>`, which is what keeps a slug containing `-k9`
-/// unambiguous: `05-impl--task-k9-k3.md` is the slug `task-k9` at key 3.
-///
-/// The middle is returned unexamined, including when it is empty: `01--k3` has
-/// both markers Grove recognises its own names by, with everything between them
-/// missing, so it is Malformed rather than Foreign. Disclaiming it would skip the
-/// file — and the whole subtree beneath it when it is a directory — while the
-/// walk reported a healthy tree.
+/// Split a leaf stem into its position, kind/slug middle and terminal key.
+/// A failed split is still an owned refusal because the caller classified
+/// digit-prefixed names before reaching this helper.
 fn split_shape(stem: &str) -> Option<(&str, &str, &str)> {
     let dash = stem.find('-')?;
     let (digits, rest) = (&stem[..dash], &stem[dash + 1..]);
@@ -859,18 +879,12 @@ nothing about what precedes it. The key is the **terminal** `-k<digits>`, which
 is what keeps a slug containing `-k9` readable, and it is found by `peel_key`
 rather than here.
 
-The last paragraph is the one that matters for chapter 2's rule. The middle is
-returned unexamined, **including when it is empty**: `01--k3` carries both markers
-grove recognises its own names by with everything between them missing, so it
-reaches the parts branch and is refused there rather than disclaimed as
-`Foreign`. Which refusal depends on the suffix the comment's example does not
-carry. Spelled `01--k3` it declares a node, `Slug::new("")` fails, and it is
-`BadSlug` with an empty slug whatever the listing found; spelled `01--k3.md` it
-declares a leaf, the split at `--` finds nothing to split, and it is
-`MissingSeparator` — the verdict chapter 2's separator test pins over the same
-shape, at `01--k1.md`. Both are Malformed, which is the comment's claim. Disclaiming it instead would skip the
-entry, and the whole subtree beneath it when it is a directory, while the walk
-reported a healthy tree.
+
+The leading digit already establishes ownership before `split_shape`
+runs. A missing key, malformed directory position or incomplete kind/slug
+separator therefore produces a refusal, never a foreign-entry skip. The leaf
+middle is split at the first `--`; directory names contain no middle or slug.
+
 
 The fifth and sixth fragments are the one peel, and they read in the opposite
 order to the call graph: the public narrowing first, then the private primitive
@@ -878,25 +892,14 @@ it goes through. Each carries its own doc comment, and the blank line at line 99
 is what makes that true — two `///` runs with no gap between them are one comment
 on the item below, whichever function the earlier run describes.
 
-<!-- fragment «name-terminal-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="973-991" parent="the-task-name" -->
+<!-- fragment «name-terminal-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="924-931" parent="the-task-name" -->
 ````rust
-/// The [`Key`] a reference ends in, or `None` when it does not end in one.
-///
-/// **A narrower question than [`Handle::parse`], asked by the reference
-/// namespace and answered by the same peel.** `resolve`'s bare-slug fallback
-/// wants *does this end in a key*, not *is this a handle*: an operator pastes a
-/// retired leaf's whole stem — `01-DONE-impl--build-k5` — and means key 5, and
-/// nothing before the key is a slug there or needs to be. Routing that through
-/// `Handle::parse` narrows `resolve` to references whose head happens to be a
-/// well-formed slug, which is a change to the verb rather than to the grammar's
-/// ownership, and this leaf owns the second and not the first.
-///
-/// One peel still: this and [`Handle::parse`] both go through [`peel_key`], and
-/// the difference between them is what they *require of what precedes it*.
+/// Read a terminal canonical key token. Callers still validate the title when
+/// using this as a full handle rather than a bare key reference.
 #[must_use]
 pub fn terminal_key(reference: &str) -> Option<Key> {
     let (_, digits) = peel_key(reference)?;
-    digits.parse().ok().map(Key::new)
+    parse_key(digits)
 }
 
 ````
@@ -910,24 +913,21 @@ head that was never going to be a slug. The body is two statements and neither
 validates anything: peel, and then `digits.parse().ok()`, which is one of the
 three judgements the next fragment's comment enumerates.
 
-<!-- fragment «name-peel-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="992-1016" parent="the-task-name" -->
+<!-- fragment «name-peel-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="932-953" parent="the-task-name" -->
 ````rust
-/// Peel a terminal `-k<digits>` into what precedes it and the digit run, or
-/// `None` when there is none.
-///
-/// **The only peel of the key in grove**, shared by [`split_shape`],
-/// [`Handle::parse`] and [`terminal_key`] — which is what makes *a handle and a
-/// filename find the key identically* a fact rather than a claim. It was two
-/// functions (`task_tree::handle_key` was the second, and its own comment
-/// conceded it "mirrors the filename grammar"), and the terminality rule is
-/// subtle enough that two of it is one too many: the key is the **last**
-/// `-k<digits>`, so `migrate-v1-to-v2-k27` is key 27 and a slug may contain
-/// `-k9` and still read unambiguously.
-///
-/// The digits are returned unparsed because the three callers disagree about
-/// what an over-wide key means — a name says [`TaskNameError::NotCanonical`], a
-/// handle says [`HandleError::KeyOutOfRange`] and a reference says `None` — and
-/// that is their judgement, not this function's.
+/// Parse the shared canonical key digits, independently of the preceding title.
+fn parse_key(digits: &str) -> Option<Key> {
+    if digits.starts_with('0') || digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok().map(Key::new)
+}
+
+fn render_key(f: &mut fmt::Formatter<'_>, key: Key) -> fmt::Result {
+    write!(f, "{KEY_MARK}{}", key.get())
+}
+
+/// Peel the final `-k<digits>` token; `parse_key` validates its digits.
 fn peel_key(text: &str) -> Option<(&str, &str)> {
     let digits_start = text.len() - text.bytes().rev().take_while(u8::is_ascii_digit).count();
     if digits_start == text.len() {
@@ -940,25 +940,20 @@ fn peel_key(text: &str) -> Option<(&str, &str)> {
 ````
 <!-- /fragment -->
 
-**The doc comment enumerates the three callers.** Line 999 names them —
-`split_shape` at line 973, `Handle::parse` at line 478, and `terminal_key` at
-line 992 — and line 1,008 says all three disagree about what an over-wide key
-means. Chapter 3 reads the same relation from the other side, in
-`Handle::parse`'s own clause, and `terminal_key`'s closing line, at 989, states
-it a third time from its own: *this and `Handle::parse` both go through
-`peel_key`, and the difference between them is what they require of what
-precedes it*.
 
-What those two paragraphs argue is a property of the crate rather than of the
-function. A terminal `-k<digits>` is taken apart in exactly one place; the three
-callers differ only in what they require of the text before it, and in what they
-make of a digit run too wide for a `u32`. `split_shape` hands the width question
-to `parse`, which answers `NotCanonical`; `Handle::parse` answers
-`KeyOutOfRange`; `terminal_key` answers `None`, because a reference that ends in
-a number nothing allocated is a reference to nothing. Returning the digits
-unparsed is what lets one peel serve three judgements.
+`peel_key` finds the final digit run and the preceding `-k`. The shared
+`parse_key` then checks canonical positive decimal spelling and `u32` width.
+Names, handles and terminal-key lookup use this boundary; their callers
+validate the fields before the key according to their own role.
 
-Eight lines of body, and the terminality rule is line 1,013. The digit run is
+
+
+Invalid key digits become `InvalidName` in filename parsing, `BadKey` in
+handle parsing, or `None` in terminal-key lookup. These are different reports
+of the same canonical-key rule, not different accepted key spellings.
+
+
+Eight lines of body, and the terminality rule is line 950. The digit run is
 found from the **end** — `bytes().rev().take_while(u8::is_ascii_digit)` — so
 `task-k9-k3` yields the digits `3` and the text `task-k9-k`, and the
 `strip_suffix(KEY_MARK)` then leaves the slug `task-k9`. A rule that searched
@@ -966,16 +961,12 @@ forwards for `-k` would answer the slug `task` and the key `9`, which is the
 divergence chapter 3's `a_handle_and_a_filename_peel_the_same_key` exists to
 rule out for the pair of routes and this function rules out for all three.
 
-The first guard is what makes a name with no key `Foreign` rather than an error.
-`digits_start == text.len()` means there were no trailing digits at all, and
-`None` propagates through `split_shape`'s `?` to `Verdict::Foreign`. The name
-that leaves the grammar *here* is one with a position and a dash but no key —
-`01-k3.md`, the fixture chapter 2 lists as Foreign with the comment *no `-k` key
-delimiter*: `peel_key` finds the trailing `3` and then fails to strip `-k` from
-in front of it. A `README.md` never reaches this function at all; it has no dash,
-so it leaves five lines earlier at `split_shape`'s own `find('-')?`. Between them
-the two guards are the whole of *is this name grove's*, and both answer by
-declining to speak rather than by refusing.
+
+The no-trailing-digits guard returns `None`. Filename parsing has already
+classified digit-prefixed input as owned, so that result produces a malformed
+name refusal. `README.md` is disclaimed before these helpers run. A missing
+key cannot make a positioned-looking entry disappear from the snapshot.
+
 
 That completes the production block. All 1,020 production lines of
 `task_name.rs` are now read across three chapters, and what remains of the file
@@ -989,7 +980,7 @@ kit: the library's own checker, pointed at grove's grammar. This is the second
 block, 157 lines, and it is where canonicity stops being grove's private
 comparison and becomes an obligation something outside grove can grade.
 
-<!-- fragment «name-test-support-and-kit» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1017-1206" parent="source-task-name" -->
+<!-- fragment «name-test-support-and-kit» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="954-1168" parent="source-task-name" -->
 <!-- insert «name-tests-support» -->
 <!-- insert «name-tests-kit-fixture» -->
 <!-- insert «name-tests-conforms» -->
@@ -1002,11 +993,48 @@ five were named in chapter 2 before their definitions were read: `verdict`,
 `entry` and `malformed` at its four-verdicts section, `a_kind` and `slug` at its
 refusals section. Each has a row in the early-use ledger for that reason.
 
-<!-- fragment «name-tests-support» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1017-1054" parent="name-test-support-and-kit" -->
+<!-- fragment «name-tests-support» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="954-1028" parent="name-test-support-and-kit" -->
 ````rust
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn node_files_and_slugless_directories_are_canonical() {
+        for (name, found) in [
+            ("_BRIEF.md", Found::File),
+            ("_topic-k9.md", Found::File),
+            ("02-k7", Found::Dir),
+        ] {
+            assert_eq!(entry(name, found).to_string(), name);
+        }
+        for (name, found) in [
+            ("_", Found::File),
+            ("_Topic.md", Found::File),
+            ("_topic.txt", Found::File),
+            ("01-topic-k7", Found::Dir),
+            ("01-k0", Found::Dir),
+            ("01-k07", Found::Dir),
+            ("01-broken", Found::Dir),
+            ("01-impl--topic-k0.md", Found::File),
+        ] {
+            malformed(name, found);
+        }
+    }
+
+    #[test]
+    fn every_level_requires_a_correctly_placed_node_file() {
+        assert!(TaskName::validate_distinguished(None, &[]).is_err());
+        let root = entry("_BRIEF.md", Found::File);
+        let title = entry("_topic.md", Found::File);
+        let node = entry("02-k7", Found::Dir);
+        assert!(TaskName::validate_distinguished(None, std::slice::from_ref(&root)).is_ok());
+        assert!(
+            TaskName::validate_distinguished(Some(&node), std::slice::from_ref(&title)).is_ok()
+        );
+        assert!(TaskName::validate_distinguished(None, std::slice::from_ref(&title)).is_err());
+        assert!(TaskName::validate_distinguished(Some(&node), &[root, title]).is_err());
+    }
 
     /// A [`Kind`] for a test that needs one, by its label.
     ///
@@ -1067,7 +1095,7 @@ the same when it is handed nothing to check, so it also reports which obligation
 were never **exercised** — and that second finding distinguishes *no samples*
 from *samples*, not *samples* from *samples that pose the question*.
 
-<!-- fragment «name-tests-kit-fixture» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1055-1098" parent="name-test-support-and-kit" -->
+<!-- fragment «name-tests-kit-fixture» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1029-1068" parent="name-test-support-and-kit" -->
 ````rust
     // ---- the conformance kit ------------------------------------------------
 
@@ -1084,14 +1112,14 @@ from *samples*, not *samples* from *samples that pose the question*.
     /// reasoned: removing the seven canonicity lines from `parse` leaves the kit
     /// green without `5-impl--domain-k29.md` and red with it
     /// (`docs/formalism-findings.md` entry 020). `07-DONE-grove-flip-k28` is
-    /// `NodeWearsOutcome`: a near-miss for the crate, never for the kit.
+    /// malformed directory syntax: a near-miss for the crate, never for the kit.
     fn listings() -> Vec<(&'static str, Found)> {
         vec![
-            ("BRIEF.md", Found::File),
+            ("_BRIEF.md", Found::File),
             ("01-DONE-requirements--plan-k1.md", Found::File),
             ("02-impl--domain-k29.md", Found::File),
             ("03-ABANDONED-design--refusals-k30.md", Found::File),
-            ("07-grove-flip-k28", Found::Dir),
+            ("07-k28", Found::Dir),
             ("README.md", Found::File),
             ("5-impl--domain-k29.md", Found::File),
             ("07-DONE-grove-flip-k28", Found::Dir),
@@ -1105,11 +1133,7 @@ from *samples*, not *samples* from *samples that pose the question*.
                 Key::new(1),
                 Parts::leaf(Outcome::Live, a_kind("impl"), slug("domain")),
             ),
-            (
-                Ordinal::new(2),
-                Key::new(28),
-                Parts::node(slug("grove-flip")),
-            ),
+            (Ordinal::new(2), Key::new(28), Parts::node()),
         ]
     }
 
@@ -1131,14 +1155,14 @@ that refusal exactly where it was.
 
 | Fixture | Verdict | With the check removed |
 |---|---|---|
-| `BRIEF.md` | `Entry(Brief)` | unchanged |
+| `_BRIEF.md` | `Entry(Brief)` | unchanged |
 | `01-DONE-requirements--plan-k1.md` | `Entry` | unchanged |
 | `02-impl--domain-k29.md` | `Entry` | unchanged |
 | `03-ABANDONED-design--refusals-k30.md` | `Entry` | unchanged |
-| `07-grove-flip-k28` | `Entry` | unchanged |
+| `07-k28` | `Entry` | unchanged |
 | `README.md` | `Foreign` | unchanged |
 | `5-impl--domain-k29.md` | `Malformed(NotCanonical)` | **`Entry`, renders `05-impl--domain-k29.md`** |
-| `07-DONE-grove-flip-k28` | `Malformed(NodeWearsOutcome)` | unchanged |
+| `07-DONE-grove-flip-k28` | `Malformed(InvalidName)` | unchanged |
 
 `5-impl--domain-k29.md` is the entry the obligation rests on, and it is the only
 one that could fail it. Its kind, slug and key are all well-formed — `impl`,
@@ -1172,13 +1196,11 @@ message the second arm prints is *`5-impl--domain-k29.md` parsed to a name that
 renders as `05-impl--domain-k29.md`. Two spellings of one name means two files on
 disk are one entry.* The first arm is the one the suite runs.
 
-`07-DONE-grove-flip-k28` is inert in the kit for a different reason and is not
-inert in the crate. Under the canonicity mutation it stays `NodeWearsOutcome`,
-refused by its own explicit guard. Under a different mutation — removing that
-guard — it parses as a node, renders `07-grove-flip-k28`, and is refused as
-`NotCanonical`, which is canonicity working as the backstop for a rule that has
-its own line. That is a real property and it is a property of the domain; the kit
-cannot see it either way, because a Malformed name never reaches the comparison.
+
+`07-DONE-grove-flip-k28` is malformed directory syntax. It never reaches
+the canonical rendering comparison, so it cannot alone demonstrate that the
+comparison protects accepted names. The short-position fixture does.
+
 
 The clause about coverage is the one worth carrying away. A kit's *this
 obligation was never exercised* finding cannot see a gap of this shape: the
@@ -1197,40 +1219,32 @@ and not strings.
 
 The kit is then one line.
 
-<!-- fragment «name-tests-conforms» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1099-1141" parent="name-test-support-and-kit" -->
+<!-- fragment «name-tests-conforms» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1069-1103" parent="name-test-support-and-kit" -->
 ````rust
     fn level_samples() -> Vec<conformance::LevelSample<TaskName>> {
-        [
-            None,
-            Some(TaskName::compose(
-                Ordinal::FIRST,
-                Key::new(1),
-                Parts::node(slug("topic")),
-            )),
+        let root = TaskName::Brief;
+        let title = TaskName::NodeFile(slug("topic"));
+        let other = TaskName::NodeFile(slug("other"));
+        let node = TaskName::compose(Ordinal::FIRST, Key::new(1), Parts::node());
+        vec![
+            (None, vec![], false),
+            (None, vec![root.clone()], true),
+            (None, vec![title.clone()], false),
+            (None, vec![root.clone(), title.clone()], false),
+            (Some(node.clone()), vec![], false),
+            (Some(node.clone()), vec![title.clone()], true),
+            (Some(node.clone()), vec![root], false),
+            (Some(node), vec![title, other], false),
         ]
         .into_iter()
-        .flat_map(|node| {
-            [
-                vec![],
-                vec![TaskName::Brief],
-                vec![TaskName::Brief, TaskName::Brief],
-            ]
-            .into_iter()
-            .map(move |distinguished| conformance::LevelSample {
-                node: node.clone(),
-                distinguished,
-                accepted: true,
-            })
+        .map(|(node, distinguished, accepted)| conformance::LevelSample {
+            node,
+            distinguished,
+            accepted,
         })
         .collect()
     }
 
-    /// The leaf's own *Done when*: the kit runs green over a fixture covering
-    /// the current `.grove/` shapes. It samples the five name laws and the
-    /// current permissive level policy; finite fixtures are not a proof —
-    /// `compose` places what it is given, the grammar is canonical,
-    /// distinguished names are canonical, `parse` refuses
-    /// what `found` contradicts, and a name renders as one path component.
     #[test]
     fn the_task_tree_domain_conforms() {
         conformance::check::<TaskName>(
@@ -1275,7 +1289,7 @@ state behind `view` or `positioned_species`, and this call does not try to.
 
 The second kit call replaces the triples and keeps the listings.
 
-<!-- fragment «name-tests-kind-shapes» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1142-1187" parent="name-test-support-and-kit" -->
+<!-- fragment «name-tests-kind-shapes» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1104-1149" parent="name-test-support-and-kit" -->
 ````rust
     /// The kit's canonicity check reparses what the domain composes, so a kind
     /// whose token does not survive the round trip is a defect it would catch —
@@ -1374,7 +1388,7 @@ the fixture.
 
 The last test in the block is the negative the open kind bought.
 
-<!-- fragment «name-tests-undeclared-kind» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1188-1206" parent="name-test-support-and-kit" -->
+<!-- fragment «name-tests-undeclared-kind» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1150-1168" parent="name-test-support-and-kit" -->
 ````rust
     /// The other half of the same claim, and the one that would have been a
     /// *compile* error before: a token no methodology has ever declared parses,
@@ -1425,7 +1439,7 @@ The third block is 113 lines and two labelled sections. The first is four tests
 that walk the carried example's own shapes through `parse` and back out; the
 second is three that hold canonicity itself.
 
-<!-- fragment «grammar-and-canonicity-tests» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1229-1341" parent="source-task-name" -->
+<!-- fragment «grammar-and-canonicity-tests» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1189-1298" parent="source-task-name" -->
 <!-- insert «name-tests-live-leaf» -->
 <!-- insert «name-tests-terminal-marks» -->
 <!-- insert «name-tests-node-directory» -->
@@ -1438,7 +1452,7 @@ second is three that hold canonicity itself.
 The first is the round trip in the smallest form there is: one name, its whole
 parsed value, and its rendering.
 
-<!-- fragment «name-tests-live-leaf» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1229-1244" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-live-leaf» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1189-1204" parent="grammar-and-canonicity-tests" -->
 ````rust
     // ---- the grammar --------------------------------------------------------
 
@@ -1478,7 +1492,7 @@ still says nothing about any name but this one.
 
 The second widens it to the two terminal marks.
 
-<!-- fragment «name-tests-terminal-marks» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1245-1260" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-terminal-marks» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1205-1220" parent="grammar-and-canonicity-tests" -->
 ````rust
     #[test]
     fn both_terminal_marks_parse() {
@@ -1518,16 +1532,16 @@ no non-canonical spelling, so no refusal path is reached.
 
 The third is the other species.
 
-<!-- fragment «name-tests-node-directory» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1261-1272" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-node-directory» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1221-1232" parent="grammar-and-canonicity-tests" -->
 ````rust
     #[test]
     fn a_node_directory_parses() {
         assert_eq!(
-            entry("07-grove-flip-k28", Found::Dir),
+            entry("07-k28", Found::Dir),
             TaskName::Positioned {
                 ordinal: Ordinal::new(7),
                 key: Key::new(28),
-                parts: Parts::node(slug("grove-flip")),
+                parts: Parts::node(),
             }
         );
     }
@@ -1535,17 +1549,18 @@ The third is the other species.
 ````
 <!-- /fragment -->
 
-**What it establishes.** A node directory parses to `Parts::node` with its slug
-and key, and — because `entry` is reached with `Found::Dir` — the species the
-name declares agrees with what the listing found. It is the whole node path
-through `parse` in three lines: no suffix, so no leaf branch; no infix, so the
-`NodeWearsOutcome` guard passes; a slug that is the whole middle.
+
+**What it establishes.** `07-k28` parses as a directory at position 7 and
+key 28 with `Parts::Node`. Its parts carry no title. A separate `_topic.md`
+parses as a distinguished name, and the level rule decides whether it is
+correctly placed beside that directory's children.
+
 
 **What it would still pass under.** The slug `grove-flip` contains a hyphen and
 no `-k`, so the terminality rule is not posed here. The node arm of `Display` is
 not among the gaps, although nothing in the test says otherwise: widening its
-position format to three digits turns this test red, because `07-grove-flip-k28`
-would render as `007-grove-flip-k28` and `entry` would meet a `NotCanonical`. The
+position format to three digits turns this test red, because `07-k28`
+would render as `007-k28` and `entry` would meet a `NotCanonical`. The
 hazard the fixture does not carry is its own, and chapter 2 carries it instead:
 `a_node_wearing_an_outcome_infix_is_malformed` refuses this very name wearing
 each of the two infixes, and that refusal is what makes accepting the bare form
@@ -1554,7 +1569,7 @@ meaningful rather than permissive.
 The fourth is the terminality rule from the parsing side, and it is the same
 fixture chapter 3 used from the handle side.
 
-<!-- fragment «name-tests-terminal-key-marker» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1273-1285" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-terminal-key-marker» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1233-1245" parent="grammar-and-canonicity-tests" -->
 ````rust
     /// The key is the *terminal* `-k<digits>`, so a slug that itself ends in one
     /// stays unambiguous.
@@ -1563,7 +1578,7 @@ fixture chapter 3 used from the handle side.
         match entry("05-impl--task-k9-k3.md", Found::File) {
             TaskName::Positioned { key, parts, .. } => {
                 assert_eq!(key, Key::new(3));
-                assert_eq!(parts.slug().as_str(), "task-k9");
+                assert_eq!(parts.slug().unwrap().as_str(), "task-k9");
             }
             other => panic!("{other:?}"),
         }
@@ -1597,7 +1612,7 @@ Three tests, and between them they are the whole of what this crate says about
 canonicity in its own voice. The kit grades the obligation from outside; these
 state what grove refuses, what it accepts, and what it cannot advise about.
 
-<!-- fragment «name-tests-lenient-position» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1286-1318" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-lenient-position» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1246-1278" parent="grammar-and-canonicity-tests" -->
 ````rust
     // ---- question 2: the grammar is canonical -------------------------------
 
@@ -1611,7 +1626,7 @@ state what grove refuses, what it accepts, and what it cannot advise about.
             ("5-impl--a-k1.md", "05-impl--a-k1.md"),
             ("005-impl--a-k1.md", "05-impl--a-k1.md"),
             ("0100-impl--a-k1.md", "100-impl--a-k1.md"),
-            ("7-verbs-k2", "07-verbs-k2"),
+            ("7-k2", "07-k2"),
         ] {
             let found = if written.ends_with(".md") {
                 Found::File
@@ -1638,7 +1653,7 @@ state what grove refuses, what it accepts, and what it cannot advise about.
 **What it establishes.** Four lenient spellings are refused, and each refusal
 carries the exact spelling grove would have written. `5-…` has too few leading
 zeros; `005-…` and `0100-…` have too many, on either side of the point where
-padding stops; and `7-verbs-k2` is a directory rather than a file, so the fourth
+padding stops; and `7-k2` is a directory rather than a file, so the fourth
 refusal is reached through the node arm rather than the leaf arm. The assertion is on the whole `TaskNameError`
 value, so the `canonical` field is the name and not merely a string containing
 it, and the two `contains` checks then hold that the rendered message carries
@@ -1648,23 +1663,23 @@ hand-edited tree unreadable with no stated way back.
 
 **What it would still pass under.** Every fixture varies the position and nothing
 else — the kind, the slug and the key are `impl`, `a` and `1` throughout, and
-`7-verbs-k2` differs only in being a node. The gap that leaves is the **key**,
+`7-k2` differs only in being a node. The gap that leaves is the **key**,
 which has a canonicity of its own and is not tested here: the key renders as
 plain decimal, so `01-impl--a-k007.md` is refused as `NotCanonical` with the
 canonical form `01-impl--a-k7.md`, and no fixture in this file poses it. That
 absence is the same asymmetry chapter 3 read from the other side —
-`parse_is_lenient_on_the_key_and_strict_on_the_slug` asserts that `Handle::parse`
+`handles_require_canonical_keys_and_slugs` asserts that `Handle::parse`
 *accepts* `a-k007` for key 7, because a handle is a reference a human types and
 never a file on disk. The two directions are both deliberate and only one of them
-has a fixture. `malformed` is also called twice per fixture, at lines 1,277 and
-1,284, so the test assumes `parse` is deterministic rather than showing it, and
+has a fixture. `malformed` is also called twice per fixture, at lines 1,237 and
+1,244 so the test assumes `parse` is deterministic rather than showing it, and
 the message assertions are `contains`, so a message that named the canonical form
 and then said something wrong beside it would pass.
 
 The second is the boundary the format string produces rather than the one anyone
 chose.
 
-<!-- fragment «name-tests-unpadded-past-99» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1319-1327" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-unpadded-past-99» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1279-1287" parent="grammar-and-canonicity-tests" -->
 ````rust
     /// `{:02}` is a minimum width, not an exact one, so the canonical rule is
     /// *zero-padded to at least two digits and no other leading zero*. Three
@@ -1699,43 +1714,35 @@ together.
 
 The third is the refusal with no advice to give.
 
-<!-- fragment «name-tests-unrepresentable» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1328-1341" parent="grammar-and-canonicity-tests" -->
+<!-- fragment «name-tests-unrepresentable» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="1288-1298" parent="grammar-and-canonicity-tests" -->
 ````rust
     /// A number too large to hold is still this domain's name and still
     /// Malformed; what changes is that there is no canonical spelling to offer.
     #[test]
     fn an_unrepresentable_number_is_refused_without_a_suggestion() {
         for name in ["99999999999-impl--a-k1.md", "01-impl--a-k99999999999.md"] {
-            match malformed(name, Found::File) {
-                TaskNameError::NotCanonical { canonical, .. } => {
-                    assert!(canonical.contains("32 bits"), "{canonical}");
-                }
-                other => panic!("{other:?}"),
-            }
+            let advice = malformed(name, Found::File).to_string();
+            assert!(advice.contains("32 bits"), "{advice}");
+            assert!(advice.contains(name), "{advice}");
         }
     }
 
 ````
 <!-- /fragment -->
 
-**What it establishes.** Both numbers in the grammar are refused when they do not
-fit in 32 bits, and both refusals are `NotCanonical` carrying a `canonical` field
-that says so in words. The two fixtures reach `uncomputable_canonical` from its
-two call sites — line 817 for an over-wide position and line 820 for an over-wide
-key — so the pair is what makes those two lines both live. The name stays
-grove's: it is task-shaped, so it is Malformed rather than Foreign, which is
-chapter 2's rule reaching the one case where grove has nothing to suggest.
 
-**What it would still pass under.** The assertion is `canonical.contains("32
-bits")`, so nothing pins the rest of the sentence, the `name` field, or the
-rendered message; a refusal that named the wrong file and mentioned 32 bits would
-pass. Both fixtures overflow by the same margin and in the same shape — an
-eleven-digit run — so the boundary itself is untested: `4294967295`, the largest
-key there is, and `4294967296`, the smallest there is not, are absent, and a
-guard that refused at the wrong side of `u32::MAX` would not be seen here. And
-because `uncomputable_canonical` builds the same variant the previous test
-asserts a real spelling in, nothing distinguishes the two refusals except the
-`canonical` field's content, which is exactly what this test reads.
+The overflow fixtures require `InvalidName`, preserving the offending
+spelling and stating the representable key range. The canonical-name matrix
+also covers `u32::MAX` and one beyond it. No canonical replacement is offered
+when the number cannot be represented.
+
+
+
+The assertions pin the offending spelling and the range advice, while the
+accepted maximum-key case protects against refusing too early. These cases
+are sampled evidence; the shared integer parser supplies the complete width
+check. Zero is explicitly refused by `parse_key`.
+
 
 The grammar is complete. Every byte an entry's name can carry has one place that
 writes it and one place that reads it back, the comparison at the end of `parse`

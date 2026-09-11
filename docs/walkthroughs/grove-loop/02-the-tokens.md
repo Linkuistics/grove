@@ -30,16 +30,12 @@ whose middle is spelled wrong. Grove keeps the grammar because grove is the only
 layer that can tell those two apart, and it pays for keeping it by having to
 classify rather than merely to parse.
 
-This chapter owns 451 of the file's 1,743 lines in three blocks: the module
-header, the imports, the three constants, `Outcome` and `TokenError`, and
-`refuse_token` — lines 1 to 220 — and the two labelled sections of the file's own
-inline test module that hold this chapter's claims, lines 1,207 to 1,228 and
-1,342 to 1,550. The named parts of a leaf's name are chapter 3's and the parsing
-itself is chapter 4's; where the header argues about either, this page says which
-chapter proves it and does not prove it here.
+This chapter owns 373 lines of `task_name.rs` in 3 blocks.
+The source index records their current ranges; the fragments below reconstruct
+every owned byte.
 
 **The carried example enters here.** `01-requirements--plan-k1.md` is the first
-*leaf* `root_init` writes into a new grove; the charter `BRIEF.md` is written
+*leaf* `root_init` writes into a new grove; the charter `_BRIEF.md` is written
 before it and is itself an entry, which is why the first test on this page is
 about the charter. Chapter 11 reads the verb that writes both. This chapter is where that string stops being a filename and becomes one of
 four verdicts. The example's second ending enters here too, and it is a name
@@ -54,16 +50,13 @@ argument in the crate. The header is reproduced in eight fragments because it
 makes eight separate claims, four of which are proved in later chapters.
 
 The composite below is this chapter's first ownership block. It expands, in
-order, to lines 1 through 220 of the file, and the sixteen fragments it names run
+order, to lines 1 through 156 of the file, and the sixteen fragments it names run
 from here to the end of the production half of this page.
 
-<!-- fragment «tokens-and-verdicts» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1-220" parent="source-task-name" -->
+<!-- fragment «tokens-and-verdicts» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1-156" parent="source-task-name" -->
 <!-- insert «name-the-only-grammar» -->
-<!-- insert «name-three-on-disk-shapes» -->
 <!-- insert «name-canonicity-departure» -->
-<!-- insert «name-no-caller-hands-a-path» -->
 <!-- insert «name-classification-loses-data» -->
-<!-- insert «name-both-words-one-rule» -->
 <!-- insert «name-handle-is-this-grammar» -->
 <!-- insert «name-handle-terminal-substring» -->
 <!-- insert «name-imports» -->
@@ -83,42 +76,26 @@ site's `use` line to know which grammar a given call meant, and the header used
 to enumerate the hazards that created. Deleting the other side is what turned
 *the only grammar grove has* from a policy into a fact about the code.
 
-<!-- fragment «name-the-only-grammar» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1-12" parent="tokens-and-verdicts" -->
+<!-- fragment «name-the-only-grammar» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1-7" parent="tokens-and-verdicts" -->
 ````rust
-// Grove's implementation of `ordinal_fs_tree::EntryName` — the whole seam
-// between the task tree and the library that drives it (gh issue #13,
-// increment 2).
+// Grove's canonical task names, handles and per-level node-file rule.
 //
-// **This is the only grammar grove has.** It was written in the *expand* stage
-// against the library's conformance kit while grove's own path-walking name
-// model was still live, each verb group moved onto it in its own leaf through
-// the *migrate* stage, and `sweep-k37` deleted the other side. So there is no
-// longer a call site whose `use` line has to be read to know which model it
-// means, and the two-grammar hazards this header used to enumerate are history
-// (`docs/ARCHITECTURE.md`, *The withdrawn tree algebra*).
+//     leaf       NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md
+//     node dir   NN-k<key>
+//     node file  _<slug>.md
+//     root file  _BRIEF.md
 //
 ````
 <!-- /fragment -->
 
-Three shapes, and they are the whole of what grove writes into a `.grove/`
-directory. Read them as the specification the rest of the file implements: a leaf
-is a file with a position, an optional outcome infix, a session kind, a slug and
-a key; a node is a directory with a position, a slug and a key and no infix and
-no kind; and the charter is a fixed name with none of those parts.
 
-<!-- fragment «name-three-on-disk-shapes» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="13-21" parent="tokens-and-verdicts" -->
-````rust
-// The three on-disk shapes, as `grammar-separator-k15` left them — that leaf
-// put the `--` between a leaf's session kind and its slug and renamed every
-// entry in this repo's own tree onto it, in the same session as the release
-// that can read it:
-//
-//     leaf       NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md
-//     node dir   NN-<slug>-k<key>
-//     brief      BRIEF.md                     (the containing node's charter)
-//
-````
-<!-- /fragment -->
+The grammar has four spellings: a positioned leaf, a slugless positioned
+directory, a titled node file and the root file. Only leaves carry a kind and
+outcome. Every level requires exactly one regular node file, with `_BRIEF.md`
+reserved for the root and `_<slug>.md` reserved for positioned nodes.
+
+
+
 
 The canonicity paragraph states the stakes of chapter 4, and it is the reason
 this crate carries a grammar rather than a parser. `format(parse(f)) == f` is the
@@ -131,38 +108,19 @@ tree grove believes has one entry where the filesystem has two. Chapter 4 owns
 the argument, the conformance kit that checks it and the refusal that replaces
 the leniency.
 
-<!-- fragment «name-canonicity-departure» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="22-31" parent="tokens-and-verdicts" -->
+<!-- fragment «name-canonicity-departure» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="8-8" parent="tokens-and-verdicts" -->
 ````rust
-// **The grammar is canonical, and that was the departure from the model it
-// replaced.** The withdrawn one was deliberately lenient on padding — it
-// accepted a hand-typed `5` and rendered `05` — so `format(parse(f)) == f`
-// failed there and one entry could occupy two files, sharing a key and a
-// position. That is the library's *canonicity* obligation broken, and
-// `docs/ordinal-fs-tree/models/structure.als` draws the picture under
-// `witness_two_filenames_name_one_entry`. Here a lenient spelling is a refusal
-// that names the spelling grove writes. The decision, its cost and the
-// alternative are `docs/adr/task-names-are-canonical.md`.
-//
+// Directories carry position and key; their node files carry their titles.
 ````
 <!-- /fragment -->
 
-The second departure is smaller and is the one a caller feels. A trailing `/` on
-a node's name is what a caller passing a path would produce; a listing never
-produces one. Tolerating it would be a second spelling, which is the same defect
-as the padding, so the tolerance was removed and the trimming pushed back to the
-caller. The consequence is visible in the classification tests below, where
-`01-verbs-k2/` is Foreign rather than a node.
 
-<!-- fragment «name-no-caller-hands-a-path» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="32-37" parent="tokens-and-verdicts" -->
-````rust
-// A second, smaller departure, and the reason no caller may hand this a path:
-// the withdrawn parser tolerated a trailing `/` on a node name for callers
-// passing one. A `parse` fed by a directory listing never sees one, and
-// tolerating it would be a second spelling of one name — exactly what
-// canonicity forbids. Trimming a caller's argument is the caller's job.
-//
-````
-<!-- /fragment -->
+The parser takes a directory-entry name, not a path. A trailing slash on
+`01-k2/` is malformed owned syntax; path normalization belongs to callers.
+Names received from a filesystem listing never carry that trailing slash.
+
+
+
 
 <a id="the-four-verdicts"></a>
 ## The classification, and where a name grammar loses data
@@ -171,18 +129,9 @@ The header's fifth passage is the one this chapter is named for. It states
 where the classification's care goes and why, and it lists the three mappings
 that follow from it.
 
-<!-- fragment «name-classification-loses-data» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="38-47" parent="tokens-and-verdicts" -->
+<!-- fragment «name-classification-loses-data» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="9-9" parent="tokens-and-verdicts" -->
 ````rust
-// The classification is where a name grammar loses data, so it is where the care
-// goes. `Verdict` has four outcomes and the load-bearing split is between two of
-// them: `Foreign` is skipped **recursively**, taking a whole subtree with it when
-// the name is a directory, while `Malformed` and `Reserved` halt. So:
-//
-//   - `BRIEF.md`                              -> the distinguished child
-//   - `NN-…-k<key>[.md]`                      -> an entry, or `Malformed` if it
-//                                                does not parse completely
-//   - `README.md`, anything else              -> `Foreign`
-//
+// Names starting with a digit or underscore belong to this grammar, so a
 ````
 <!-- /fragment -->
 
@@ -242,7 +191,8 @@ symbol on the path to one is named here and read there.
   reported at the assertion rather than inside the helper. Chapter 4 reproduces
   all three with the block that defines them.
 - **`TaskName::Brief`** is the distinguished value supplied by the lifecycle
-  callers: chapter 11 initializes with it and chapter 12 promotes into it.
+  callers for root initialization; promotion supplies `TaskName::NodeFile`
+  with the source leaf’s slug instead.
   The first test below checks its classification and rendered filename.
 
 <a id="both-words-one-rule"></a>
@@ -251,19 +201,7 @@ symbol on the path to one is named here and read there.
 The sixth passage explains why the last item in this block is a free function
 over strings rather than a method on either of the two types it serves.
 
-<!-- fragment «name-both-words-one-rule» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="48-56" parent="tokens-and-verdicts" -->
-````rust
-// **Both of a leaf name's words are this module's**, and since `open-kind-k20`
-// they are validated by one rule. `Kind` was a compiled enum living in a module
-// of its own, justified by being the key a command template is configured under;
-// what it actually was, once the set opened, is the other half of the shape
-// `Slug` already had — and the canonicity of a leaf name depends on the two
-// obeying the *same* rule, which is a grammar fact and belongs here. So
-// `src/leaf.rs` went, `refuse_token` states the shape once, and `Kind::new` and
-// `Slug::new` are two nouns over it.
-//
-````
-<!-- /fragment -->
+
 
 This passage is the reason `refuse_token` exists at the end of this block rather
 than a validator on each of the two types. Before `open-kind-k20` a kind was a
@@ -287,22 +225,9 @@ is read here because it states what ownership of a grammar means in this crate:
 not that the rules are written down, but that there is exactly one place each of
 them can be executed.
 
-<!-- fragment «name-handle-is-this-grammar» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="57-70" parent="tokens-and-verdicts" -->
+<!-- fragment «name-handle-is-this-grammar» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="10-10" parent="tokens-and-verdicts" -->
 ````rust
-// **The handle is part of this grammar, not a second one** (`name-ownership-k14`,
-// `docs/specs/module-decomposition.md` decision 4). `<slug>-k<key>` — the
-// position-free identity that crosses every module boundary, from the store that
-// produces it, through the prompt, to the verbs a session hands it back to — was
-// spelled by four `format!`s outside this file and by both arms of the renderer
-// inside it, and peeled by `split_shape` here and by `task_tree::handle_key`
-// there, whose own comment conceded it *"mirrors the filename grammar"*. None of
-// them was behind a type.
-// It is now [`Handle`], and the ownership is structural rather than
-// disciplinary: [`Handle::render`] is the only `write!` the grammar appears in,
-// [`peel_key`] the only place it is taken apart, and **both of [`TaskName`]'s
-// renderings end in a call to the former**. So a filename and a handle saying
-// different things is not a bug this module can have — it is not expressible.
-//
+// malformed spelling refuses the whole read rather than hiding a subtree.
 ````
 <!-- /fragment -->
 
@@ -324,9 +249,9 @@ and the `strip_suffix` in `peel_key` — which is the header's claim in a form a
 reader can grep for. The claim is about production code: the inline tests build
 fixture names with `format!`, as any other caller writing a filename would.
 `peel_key` and `split_shape` are private free functions in chapter 4's block —
-`peel_key` at lines 1,012 to 1,019 returns what precedes a terminal `-k<digits>`
+`peel_key` at lines 949 to 956 returns what precedes a terminal `-k<digits>`
 and the digit run, leaving each caller to judge an over-wide key for itself, and
-`split_shape` at lines 967 to 975 splits a task-shaped stem into position digits,
+`split_shape` at lines 918 to 975 splits a task-shaped stem into position digits,
 an unexamined middle and key digits by *calling* `peel_key` rather than finding
 the key itself. That call is why the header can say there is one peel.
 
@@ -336,13 +261,9 @@ with the rest of the other model, and what survives it in this crate is comments
 recording that it is gone. It is the one name here the book cannot promise a
 reader anywhere to go for.
 
-<!-- fragment «name-handle-terminal-substring» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="71-76" parent="tokens-and-verdicts" -->
+<!-- fragment «name-handle-terminal-substring» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="11-12" parent="tokens-and-verdicts" -->
 ````rust
-// The same fact read the other way: the handle is a **contiguous terminal
-// substring** of every name that has one, a leaf's followed only by the `.md`
-// its species takes. That is the property `grammar-separator-k15` bought with
-// its rename, and with one renderer it cost that leaf one `write!` and one
-// `split_once`.
+// The contract is docs/adr/task-names-are-canonical.md.
 
 ````
 <!-- /fragment -->
@@ -360,7 +281,7 @@ cost that leaf a single `write!` and a single `split_once`.
 
 The declarations begin. Six lines, and the second `use` is the seam.
 
-<!-- fragment «name-imports» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="77-82" parent="tokens-and-verdicts" -->
+<!-- fragment «name-imports» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="13-18" parent="tokens-and-verdicts" -->
 ````rust
 use core::fmt;
 
@@ -379,15 +300,15 @@ trait grove implements, and the classification that implementation returns.
 
 The grammar's own markers are three string constants, all of them in this block,
 and only one carries an argument. Two further `&str` constants appear later in
-the file — the two reserved kind labels at lines 246 and 249 — and they are
+the file — the two reserved kind labels at lines 182 and 185 — and they are
 chapter 3's, because a reserved kind is a fact about the kind token rather than
 about the grammar's punctuation.
 
-<!-- fragment «name-brief-and-key-mark» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="83-91" parent="tokens-and-verdicts" -->
+<!-- fragment «name-brief-and-key-mark» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="19-27" parent="tokens-and-verdicts" -->
 ````rust
 /// The name of a node's distinguished child: the charter every node directory is
 /// headed by.
-pub const BRIEF: &str = "BRIEF.md";
+pub const BRIEF: &str = "_BRIEF.md";
 
 /// The permanent key's delimiter — the terminal `-k<digits>` of every positioned
 /// name (task-tree-scheme, amending the original `[<key>]`: brackets are
@@ -404,7 +325,7 @@ of meaning: the original scheme wrote the permanent key as `[<key>]`, and square
 brackets are shell-glob metacharacters, so an operator could not name a task file
 in a shell without quoting it.
 
-<!-- fragment «name-separator» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="92-104" parent="tokens-and-verdicts" -->
+<!-- fragment «name-separator» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="28-40" parent="tokens-and-verdicts" -->
 ````rust
 /// The separator between a leaf's session kind and its slug
 /// (`grammar-separator-k15`, `docs/specs/module-decomposition.md` decision 3).
@@ -442,7 +363,7 @@ two tests that hold it, and both are on this page.
 `Outcome` is the first of this block's two types, and it is the smaller half of
 what a leaf's name carries beyond its position and its key.
 
-<!-- fragment «name-outcome» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="105-120" parent="tokens-and-verdicts" -->
+<!-- fragment «name-outcome» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="41-56" parent="tokens-and-verdicts" -->
 ````rust
 /// A leaf's outcome: live, retired (`DONE`), or abandoned (`ABANDONED`) —
 /// mutually exclusive by construction, so the impossible fourth state cannot be
@@ -478,7 +399,7 @@ live, skipping briefs and every leaf marked `DONE` or `ABANDONED`. Chapter 7
 reads that walk. This enum is the half of it the walk consults, which is why the
 variant that has no infix is the one a verb is documented in terms of.
 
-<!-- fragment «name-outcome-infix-and-strip» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="121-148" parent="tokens-and-verdicts" -->
+<!-- fragment «name-outcome-infix-and-strip» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="57-84" parent="tokens-and-verdicts" -->
 ````rust
 impl Outcome {
     /// The infix this outcome takes, immediately after the position. Empty for
@@ -528,7 +449,7 @@ statement as `infix` returning the empty string for it.
 The block's last three items are one type and one function, and together they
 are the whole of what this module says about a badly spelled word.
 
-<!-- fragment «name-token-error» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="149-165" parent="tokens-and-verdicts" -->
+<!-- fragment «name-token-error» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="85-101" parent="tokens-and-verdicts" -->
 ````rust
 /// Why a string is not a well-formed [`Slug`] or [`Kind`].
 ///
@@ -557,7 +478,7 @@ a message that says a token holds characters outside a set, without saying which
 character was outside it, leaves the operator comparing a forty-character name
 against a rule by eye.
 
-<!-- fragment «name-token-error-traits» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="166-173" parent="tokens-and-verdicts" -->
+<!-- fragment «name-token-error-traits» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="102-109" parent="tokens-and-verdicts" -->
 ````rust
 impl fmt::Display for TokenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -579,7 +500,7 @@ here is carried up into one.
 `refuse_token` is the rule itself. It takes the noun being checked and the
 string offered for it, and returns the reason it is not usable, or nothing.
 
-<!-- fragment «name-refuse-token» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="174-220" parent="tokens-and-verdicts" -->
+<!-- fragment «name-refuse-token» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="110-156" parent="tokens-and-verdicts" -->
 ````rust
 /// The shape a leaf name's two words share — or the reason this string has not
 /// got it.
@@ -659,7 +580,7 @@ file's own labelled section for the classification. It holds two tests, one for
 each of the two verdicts a name can reach without ever being parsed as a
 positioned entry.
 
-<!-- fragment «classification-verdict-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1207-1228" parent="source-task-name" -->
+<!-- fragment «classification-verdict-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1169-1188" parent="source-task-name" -->
 <!-- insert «name-tests-the-charter» -->
 <!-- insert «name-tests-foreign» -->
 <!-- /fragment -->
@@ -667,20 +588,20 @@ positioned entry.
 The first test takes the charter, which is the one name in the grammar that
 carries no position, no key and no parts.
 
-<!-- fragment «name-tests-the-charter» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1207-1214" parent="classification-verdict-tests" -->
+<!-- fragment «name-tests-the-charter» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1169-1176" parent="classification-verdict-tests" -->
 ````rust
     // ---- classification: the four verdicts ---------------------------------
 
     #[test]
     fn the_charter_is_the_distinguished_child() {
-        assert_eq!(entry("BRIEF.md", Found::File), TaskName::Brief);
+        assert_eq!(entry("_BRIEF.md", Found::File), TaskName::Brief);
         assert!(matches!(TaskName::Brief.view(), NameView::Distinguished));
     }
 
 ````
 <!-- /fragment -->
 
-**What it establishes.** `BRIEF.md` parses as `Brief`, whose view is
+**What it establishes.** `_BRIEF.md` parses as `Brief`, whose view is
 `Distinguished`. Grove passes this value explicitly when initializing and
 promoting; the library does not manufacture the name.
 
@@ -688,16 +609,14 @@ promoting; the library does not manufacture the name.
 this parsing test stayed green. The lifecycle tests exercise those callers and
 check the files they create; the conformance kit samples the name laws.
 
-<!-- fragment «name-tests-foreign» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1215-1228" parent="classification-verdict-tests" -->
+<!-- fragment «name-tests-foreign» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1177-1188" parent="classification-verdict-tests" -->
 ````rust
     #[test]
     fn a_name_that_is_not_task_shaped_is_foreign() {
         for name in [
             "README.md",
             "notes",
-            "01-k3.md",     // no `-k` key delimiter
             "impl-a-k1.md", // unpositioned
-            "01-verbs-k2/", // a path argument's trailing slash is the caller's to trim
             ".gitignore",
         ] {
             assert_eq!(verdict(name, Found::File), Verdict::Foreign, "{name:?}");
@@ -707,20 +626,13 @@ check the files they create; the conformance kit samples the name laws.
 ````
 <!-- /fragment -->
 
-**What it establishes.** Six names that are not grove's reach `Foreign`.
-`split_shape` has three ways to return nothing, and the fixtures are spread
-unevenly across them rather than one to a point. `README.md` and `notes` have no leading
-digit run at all. `01-k3.md` needs reading against `split_shape`, because its
-inline comment is looser than the mechanism: the string does carry a `-k` before
-its digit, but the position's terminating dash is consumed first, so what reaches
-`peel_key` is `k3`, and `k3` has no `-k` to strip. `impl-a-k1.md` has both a middle and a key but is
-unpositioned: the characters before its first dash are not a digit run. `01-verbs-k2/` carries the trailing
-slash a caller passing a path would produce, which puts a non-digit after the key
-and is exactly the tolerance the header's second departure removed. `.gitignore`
-has neither marker. A name is grove's when it is positioned *and* keyed;
-`README.md`, `notes` and `.gitignore` fail on the same first test — no dash at
-all, so no digit run to read — and only the middle three fixtures each remove
-exactly one of the two markers.
+
+The foreign-name fixtures lack both ownership prefixes: neither a leading
+underscore nor a leading digit. `README.md`, `notes`, `.gitignore` and an
+unpositioned kind-like filename are disclaimed before shape parsing. Separate
+owned-refusal fixtures cover missing keys and trailing slashes, preventing
+those malformed names from being silently skipped.
+
 
 **What it would still pass under.** The test asserts only the Foreign side of the
 boundary, so it would pass while some genuinely task-shaped name was *also*
@@ -751,7 +663,7 @@ a slug. `a_kind` and `slug` are two test helpers defined with the conformance ki
 in chapter 4's block: each takes a label, builds the corresponding token type,
 and panics if the label is not well-formed, so an invalid fixture is a test bug
 rather than a compile error. The `to_string()` calls on an error are
-`TaskNameError`'s `Display`, chapter 4's renderer at line 727, which writes each
+`TaskNameError`'s `Display`, chapter 4's renderer at line 651 which writes each
 refusal's recovery advice and not merely its detection — three of this section's
 six tests assert on that rendered text, so the advice is part of what they pin
 rather than commentary beside it. And the `to_string()` calls in the round-trip
@@ -760,7 +672,7 @@ parsed name back to its filename bytes, both arms of its positioned case ending
 in the call to `Handle::render` the module header claimed. All five are read
 where chapter 4 and chapter 3 reproduce the blocks that define them.
 
-<!-- fragment «shape-refusal-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1342-1550" parent="source-task-name" -->
+<!-- fragment «shape-refusal-tests» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1299-1495" parent="source-task-name" -->
 <!-- insert «name-tests-kind-not-a-token» -->
 <!-- insert «name-tests-missing-separator» -->
 <!-- insert «name-tests-one-reading» -->
@@ -773,7 +685,7 @@ The first of the six takes the session kind, which is the word `open-kind-k20`
 changed most: it was checked against a closed set of nineteen labels and is now
 checked against a shape.
 
-<!-- fragment «name-tests-kind-not-a-token» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1342-1387" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-kind-not-a-token» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1299-1344" parent="shape-refusal-tests" -->
 ````rust
     // ---- refusals inside the shape -----------------------------------------
 
@@ -847,7 +759,7 @@ a fact about the code rather than an assertion in this test — the doc comment
 above it records that this fixture list itself used to contain `01-wrok--a-k1.md`
 and that the name now parses.
 
-<!-- fragment «name-tests-missing-separator» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1388-1424" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-missing-separator» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1345-1381" parent="shape-refusal-tests" -->
 ````rust
     /// **The scenario `grammar-separator-k15` exists to refuse.** A task-shaped
     /// leaf with no `--` is every name the old grammar wrote, so the refusal has
@@ -889,18 +801,12 @@ and that the name now parses.
 ````
 <!-- /fragment -->
 
-**What it establishes.** A task-shaped leaf with no `--` is Malformed, and the
-refusal names the canonical form and tells the operator to rename. Five fixtures:
-the first three are names the previous grammar wrote and are the migration case
-the doc comment names; the last two are degenerate — a middle of one word, and a
-middle that is empty entirely. Both degenerate names still carry the leading
-digit run and the terminal `-k<digits>`, which are the two markers grove
-recognises its own names by, so both are Malformed rather than Foreign. The
-fixtures here are files, and the doc comment's reason for insisting on Malformed
-is about directories: a name with an empty middle borne by a directory would, if
-disclaimed, take its whole subtree out of the walk. The unsuffixed `01--k1` is
-not a fixture of this test — it appears two tests below, under `Found::Dir`,
-where it reaches a different refusal.
+
+A digit-prefixed leaf with no `--` is malformed. The refusal states the
+kind/slug separator and the required spelling; degenerate empty middles are
+owned for the same reason as otherwise plausible leaf names. Ownership is
+established by the leading digit, even if the terminal key is missing.
+
 
 **What it would still pass under.** The three assertions on the message are
 `contains` checks against fixed substrings, so the test would pass while the
@@ -915,7 +821,7 @@ unpinned is precedence — a `.md`-suffixed name handed to the walk as a directo
 reaches this refusal before the species check runs, and nothing here says which
 of the two a reader should expect.
 
-<!-- fragment «name-tests-one-reading» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1425-1486" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-one-reading» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1382-1443" parent="shape-refusal-tests" -->
 ````rust
     /// The spec's own round-trip scenario, by name: *a multi-word kind beside a
     /// multi-word slug* (`docs/specs/module-decomposition.md`, requirement *a
@@ -1017,29 +923,17 @@ string, which is the canonicity defect this whole grammar exists to prevent; the
 two `to_string()` assertions either side of it are what close that, and each pins
 its own name to its own bytes.
 
-<!-- fragment «name-tests-node-wearing-outcome» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1487-1510" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-node-wearing-outcome» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1444-1455" parent="shape-refusal-tests" -->
 ````rust
     /// A directory wearing an outcome infix keeps the diagnostic it has today,
     /// wording included: it is one of the better error messages in the codebase
     /// and it names the real damage.
     #[test]
     fn a_node_wearing_an_outcome_infix_is_malformed() {
-        for name in ["07-DONE-grove-flip-k28", "07-ABANDONED-grove-flip-k28"] {
-            let error = malformed(name, Found::Dir);
-            assert_eq!(
-                error,
-                TaskNameError::NodeWearsOutcome {
-                    name: name.to_string()
-                },
-                "{name:?}"
-            );
-            let advice = error.to_string();
-            assert!(
-                advice.contains("malformed Grove node directory"),
-                "{advice}"
-            );
-            assert!(advice.contains("hides every leaf under it"), "{advice}");
-            assert!(advice.contains("Drop the infix"), "{advice}");
+        for name in ["07-DONE-k28", "07-ABANDONED-k28"] {
+            let advice = malformed(name, Found::Dir).to_string();
+            assert!(advice.contains(name), "{advice}");
+            assert!(advice.contains("NN-k<key>"), "{advice}");
         }
     }
 
@@ -1059,10 +953,10 @@ while the same infix on a *file* was mishandled in either direction — that cas
 is the leaf grammar's, and `01-DONE-requirements--plan-k1.md` in chapter 4's
 conformance fixture is what exercises it. The wording assertions pin the message
 and not the behaviour: the test would pass while nothing in the walk halted on
-the verdict, and while the parse reached `NodeWearsOutcome` for the wrong reason,
+the verdict, and while the parse reached `InvalidName` for the wrong reason,
 since the fixtures differ only in which infix they carry.
 
-<!-- fragment «name-tests-bad-slug» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1511-1526" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-bad-slug» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1456-1471" parent="shape-refusal-tests" -->
 ````rust
     #[test]
     fn a_slug_the_grammar_cannot_read_back_is_malformed() {
@@ -1070,8 +964,8 @@ since the fixtures differ only in which infix they carry.
             ("01-impl--Domain-k1.md", Found::File, "Domain"),
             ("01-impl--a_b-k1.md", Found::File, "a_b"),
             ("01-impl--a--b-k1.md", Found::File, "a--b"),
-            ("01--k1", Found::Dir, ""),
-            ("01-BRIEF-k1", Found::Dir, "BRIEF"),
+            ("_.md", Found::File, ""),
+            ("_DONE.md", Found::File, "DONE"),
         ] {
             match malformed(name, found) {
                 TaskNameError::BadSlug { slug, .. } => assert_eq!(slug, bad, "{name:?}"),
@@ -1097,11 +991,11 @@ the offending character is asserted for a kind in the first test of this section
 and, for a slug, nowhere. What carries it is that both nouns run through the same
 `refuse_token`, which is the structural claim the header's *one refusal because
 there is one rule* passage makes; this test depends on that sharing rather than
-re-checking it. The test would also pass while a leaf's slug and a node's slug
+re-checking it. The test would also pass while a leaf's slug and a titled node file's slug
 were validated by two different rules that happened to agree on these five
 fixtures.
 
-<!-- fragment «name-tests-species-mismatch» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1527-1550" parent="shape-refusal-tests" -->
+<!-- fragment «name-tests-species-mismatch» owner="four-verdicts" source="crates/grove-loop/src/task_name.rs" lines="1472-1495" parent="shape-refusal-tests" -->
 ````rust
     /// The species half of the obligation, both ways round. A directory wearing
     /// a leaf's name and a file wearing a node's are each a malformed *tree*,
@@ -1111,8 +1005,8 @@ fixtures.
     fn a_species_mismatch_is_malformed_in_both_directions() {
         for (name, found, declares) in [
             ("02-impl--domain-k29.md", Found::Dir, Species::Leaf),
-            ("07-grove-flip-k28", Found::File, Species::Node),
-            ("BRIEF.md", Found::Dir, Species::Distinguished),
+            ("07-k28", Found::File, Species::Node),
+            ("_BRIEF.md", Found::Dir, Species::Distinguished),
             ("02-impl--domain-k29.md", Found::Other, Species::Leaf),
         ] {
             assert_eq!(
@@ -1131,7 +1025,7 @@ fixtures.
 <!-- /fragment -->
 
 **What it establishes.** The `.md` suffix is what a name declares its species to
-be, and `BRIEF.md` declares the distinguished species. When the filesystem
+be, and `_BRIEF.md` declares the distinguished species. When the filesystem
 contradicts the declaration the result is a malformed tree rather than a foreign
 entry, in both directions and for all three species. The doc comment states why
 the judgement is grove's: the library can see the contradiction perfectly well,

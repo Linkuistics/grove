@@ -137,7 +137,7 @@ fn the_opening_joins_the_grove_root_itself() {
     let (_tmp, root) = worktree();
     let initialized = scaffold(&root);
 
-    assert_eq!(initialized.brief, root.join(".grove").join("BRIEF.md"));
+    assert_eq!(initialized.brief, root.join(".grove").join("_BRIEF.md"));
     assert_eq!(writable(&root).root(), root.join(".grove"));
 }
 
@@ -160,14 +160,14 @@ fn root_init_writes_the_charter_and_one_first_leaf_that_pick_answers() {
     let (_tmp, root) = worktree();
     let initialized = scaffold(&root);
 
-    assert_eq!(name_of(&initialized.brief), "BRIEF.md");
+    assert_eq!(name_of(&initialized.brief), "_BRIEF.md");
     assert_eq!(
         name_of(&initialized.first_leaf),
         "01-requirements--plan-k1.md"
     );
     assert_eq!(
         listing(&root),
-        vec!["01-requirements--plan-k1.md", "BRIEF.md"]
+        vec!["01-requirements--plan-k1.md", "_BRIEF.md"]
     );
 
     let Reading::Tree(tree) = grove_loop::read(&root).unwrap() else {
@@ -398,12 +398,12 @@ fn leaf_decompose_turns_a_leaf_into_a_node_with_one_first_child() {
     )
     .unwrap();
 
-    assert_eq!(name_of(&decomposed.brief), "BRIEF.md");
+    assert_eq!(name_of(&decomposed.brief), "_plan.md");
     assert_eq!(name_of(&decomposed.first_child), "01-impl--first-k2.md");
     // The key is preserved: the entity that was the leaf became the node.
     assert_eq!(
         name_of(decomposed.brief.parent().unwrap()),
-        "01-plan-k1",
+        "01-k1",
         "the node keeps the leaf's ordinal and key"
     );
 }
@@ -476,7 +476,7 @@ fn the_growing_verbs_refuse_the_drivers_reserved_kind() {
     assert!(error.contains("driver-reserved"), "got {error}");
     assert_eq!(
         listing(&root),
-        vec!["01-requirements--plan-k1.md", "BRIEF.md"],
+        vec!["01-requirements--plan-k1.md", "_BRIEF.md"],
         "a refusal leaves the tree byte-identical"
     );
 }

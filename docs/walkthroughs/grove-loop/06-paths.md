@@ -67,22 +67,18 @@ why one page carries both, and it is the reason the chapter can make its rule a
 fact about the code rather than a convention — there is no second path builder to
 disagree with the first.
 
-The chapter owns 370 of `task_tree.rs`'s 2,038 lines, in two blocks: the
-production run from `entry_path` to the two small entry readings the walk and the
-resolver need, and the ninety lines the file's own test module opens with. The
-second is the block whose name is `path-composition-tests`, and it carries no
-`#[test]` at all: all sixty-three of the file's tests sit in the four blocks
-chapters 7, 8 and 9 own — nineteen, twenty-three and twenty-one respectively. The
-last section says what this one does carry and why the file put it there.
+This chapter owns 320 lines of `task_tree.rs` in 2 blocks.
+The source index records their current ranges; the fragments below reconstruct
+every owned byte.
 
 <a id="one-place-a-path-is-built"></a>
 ## The one place a path is built
 
 The composite below is the chapter's first ownership block. It expands, in
-order, to lines 291 through 570 of the file, and the nine fragments it names run
+order, to lines 291 through 518 of the file, and the nine fragments it names run
 from here to the end of the section before last.
 
-<!-- fragment «paths-and-addressing» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="291-570" parent="source-task-tree" -->
+<!-- fragment «paths-and-addressing» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="291-518" parent="source-task-tree" -->
 <!-- insert «paths-entry-path» -->
 <!-- insert «paths-target-enum» -->
 <!-- insert «paths-target-fn» -->
@@ -159,7 +155,7 @@ paths it refuses over. Two are chapter 7's, both inside `selected`, the private
 helper behind that chapter's two selection entry points. Two are chapter 8's, in
 `brief_chain` and in `leaf_entry`. One is chapter 9's, in the resolver. One is
 chapter 13's, in the prune planner's `plan_subtree` (`tree_lifecycle.rs` line
-878). Two are chapter 10's, in `task_grow.rs`. Seven of the ten are in this file.
+826). Two are chapter 10's, in `task_grow.rs`. Seven of the ten are in this file.
 That spread is what the header's claim is *for*: every path grove prints, from
 `pick`'s single line to a prune's list of what it left alone, comes out of this
 eight-line body, so a change to how grove spells a path is a change in one place.
@@ -188,7 +184,7 @@ type comes before it, and the type is where the interesting decision is.
 pub(crate) enum Target<'a> {
     /// The grove root itself. Not an entry: it carries no name to rewrite.
     Root,
-    /// An entry of the snapshot — a task file, a node directory, or a `BRIEF.md`.
+    /// An entry of the snapshot — a task file, a node directory, or a node file.
     Entry(Entry<'a, TaskName>),
 }
 
@@ -219,7 +215,7 @@ entry, and it names `leaf-add .` as what the operator wanted. `leaf-retire`'s an
 act on leaves*. Those two are chapter 13's and chapter 12's — one marks a live leaf
 `DONE` in place, keeping its position and its key; the other turns a leaf file
 into a node directory, keeping the key and moving the body in as the node's
-`BRIEF.md` — and the minimum this chapter needs of either is that both act on a
+`_BRIEF.md` — and the minimum this chapter needs of either is that both act on a
 leaf, which is why both refuse the root and why neither can say so in the
 resolver's words. Two verbs sharing a reason is not evidence against keeping the
 case out of the resolver — the resolver still cannot supply `leaf-insert`'s
@@ -401,7 +397,7 @@ fragment above: `target`'s own doc comment says *Canonicalised to compare and
 never to report, **exactly as `leaf_entry` does***, which is an admission that
 there are two. Across the whole of `crates/grove-loop/src/`, `canonicalize` is
 called at eight sites. Six are production and all six are in this file — lines
-346, 349 and 369 inside `target`, and 712, 715 and 734 inside `leaf_entry` —
+346 349 and 369 inside `target`, and 712, 715 and 734 inside `leaf_entry` —
 and the remaining two are assertions inside `driver_lease.rs`'s own
 `#[cfg(test)]` module, which chapter 17 owns. `target` and `leaf_entry` are two
 functions whose tails are near-duplicates of one another, one resolving any
@@ -498,7 +494,7 @@ fn unreachable_by_any_walk(candidate: &Path, resolved: &Path, name: &str) -> any
         ),
         Verdict::Entry(_) => anyhow!(
             "Grove entry {} is not in the task tree: every level above it must be \
-             a node directory named NN-<slug>-k<key>",
+             a node directory named NN-k<key>",
             candidate.display()
         ),
     }
@@ -523,7 +519,7 @@ a `Found` this function computes — sorts the reason into three:
   that needs a sentence Grove has to compose. The doc comment says what it is:
   *the entry is task-shaped and some level above it is not, which is exactly the
   subtree no walk descends into*, and the message names the shape a level must
-  have — `NN-<slug>-k<key>`.
+  have — `NN-k<key>`.
 
 **Two of the three arms can only be reached inside a subtree the grammar
 disclaimed, and chapter 5's account of the read is what shows it.** The library
@@ -579,7 +575,7 @@ Resolving an argument to an entry is half of clause 1. The other half is turning
 that entry into the key the library will be called with, and it is where the
 chapter's strongest precondition is enforced.
 
-<!-- fragment «paths-addressable-key» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="405-472" parent="paths-and-addressing" -->
+<!-- fragment «paths-addressable-key» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="405-455" parent="paths-and-addressing" -->
 ````rust
 /// The key by which the library can address this entry, or Grove's refusal that
 /// it cannot.
@@ -622,21 +618,6 @@ pub(crate) fn addressable_key(
             .map(|other| entry_path(root, *other).display().to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        if let Some(node) = interrupted_promotion(&twins) {
-            bail!(
-                "a node directory and a task file share position {} and key {}, and \
-                 the directory holds no BRIEF.md: {}. That is an interrupted \
-                 `leaf-decompose` — the promotion created {} and then failed to move \
-                 the leaf into it, and its rollback failed too. Removing either half \
-                 resolves it: delete the empty directory to keep the leaf, or move \
-                 the leaf in as its BRIEF.md to keep the node.",
-                node.ordinal()
-                    .map_or_else(|| "?".to_string(), |ordinal| ordinal.get().to_string()),
-                triple.key,
-                paths,
-                node.name(),
-            );
-        }
         bail!(
             "two entries in this tree carry key {}, so naming one of them names \
              both: {}. A key is assigned once and never reused, so this is a hand \
@@ -647,8 +628,6 @@ pub(crate) fn addressable_key(
         );
     }
     Ok(triple.key)
-}
-
 ````
 <!-- /fragment -->
 
@@ -733,43 +712,8 @@ addressing is what it does; the evidence is where the verbs are.
 The special refusal has a shape of its own: it is Grove's sentence carrying the
 **library's** recovery advice rather than Grove's.
 
-<!-- fragment «paths-interrupted-promotion» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="473-509" parent="paths-and-addressing" -->
+<!-- fragment «paths-interrupted-promotion» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="456-457" parent="paths-and-addressing" -->
 ````rust
-/// The node half of an interrupted promotion, when that is what these
-/// key-sharing entries are.
-///
-/// **The library names this state and Grove has to recognise it, because the
-/// process that meets it is never the process that caused it.**
-/// `Error::FailedPartiallyRolledBack` says *a node and a leaf sharing an ordinal
-/// and a key, with the node holding no distinguished child, is an interrupted
-/// promotion* — but it says so in the run whose rollback failed. A later command
-/// opens a tree in exactly that state and the library reports nothing at all: a
-/// duplicate key is an obligation on the domain and not something any operation
-/// checks. So the only wording available is Grove's, which is why writing one is
-/// not a second wording of anything (`docs/ARCHITECTURE.md#library-refusals`,
-/// clause 3) — and the recovery it gives is the library's own, not
-/// [`addressable_key`]'s general *give one a fresh key*, which is actively wrong
-/// here: the node and the leaf are **one entity** caught mid-shape-change, and
-/// giving either a fresh key would make two of it.
-///
-/// The signature is exact and cannot be met by a hand edit that merely
-/// duplicated a key: two entries, one a node and one a leaf, at the same
-/// ordinal, with the node empty of a `BRIEF.md`. Both are positioned by
-/// construction — the caller filtered on `key() == Some(_)`, and the charter
-/// brief carries no key — so the ordinals compared here always exist. Grove itself never writes a
-/// childless node — `leaf-decompose` creates the brief in the same unit — so
-/// nothing in the verb set produces this shape by any other route.
-fn interrupted_promotion<'a>(twins: &[Entry<'a, TaskName>]) -> Option<Entry<'a, TaskName>> {
-    let [first, second] = twins else { return None };
-    let (node, leaf) = match (first.contents(), second.contents()) {
-        (Some(_), None) => (*first, *second),
-        (None, Some(_)) => (*second, *first),
-        _ => return None,
-    };
-    if node.ordinal() != leaf.ordinal() {
-        return None;
-    }
-    node.contents()?.distinguished().is_none().then_some(node)
 }
 
 ````
@@ -794,18 +738,13 @@ advice this arm gives instead is the library's own, transcribed into Grove's
 sentence: remove either half, and which half you remove is which outcome you
 choose.
 
-**The signature is exact, and that is the point.** Two entries, one with contents
-and one without, at the same ordinal, with the node empty of a `BRIEF.md`. Both
-of the comment's exclusions are narrower than they first read, and deliberately
-so. A hand edit that *merely* duplicated a key does not meet the signature — the
-ordinals would have to agree as well, and the node would have to be empty — but a
-hand edit that built exactly this shape does, which is precisely how the test
-below constructs it. And *nothing in the verb set* produces it by another route,
-because `leaf-decompose` creates the brief in the same store operation, so Grove
-itself never writes a childless node. The signature does not guarantee that only
-one route reaches the shape; it guarantees that only one route reaches it **by
-accident** — and that is enough to make the specific advice safe, since the
-advice is right for the shape however it was arrived at.
+
+A missing positioned-node file is refused before a snapshot is exposed.
+Its diagnostic conditionally asks the operator to inspect an empty directory
+and a same-position, same-key sibling leaf. The reader performs no second
+listing after the guarded open fails and makes no claim that it observed that
+sibling. The recovery preserves the leaf's identity and bytes.
+
 
 The comment's claim that the compared ordinals always exist is sound, and it is
 worth checking rather than accepting, because the code hedges against its own
@@ -817,25 +756,19 @@ unreachable. It is a fallback rather than a bug — the alternative in a formatt
 argument is an `unwrap` — but a reader tracing the `?` should know it cannot be
 printed.
 
-**One test, and its third assertion is the one that is not obvious.**
-`an_interrupted_promotion_is_diagnosed_as_one_rather_than_as_a_hand_edit`
-(chapter 12) builds the shape with a bare `create_dir` and asserts four things:
-that the message names an *interrupted `leaf-decompose`*; that it carries the
-library's own recovery — *holds no BRIEF.md* and *Removing either half*; that it
-does **not** contain *fresh key*; and that the leaf is still a file, so the
-refused promotion created nothing and repaired nothing. The first two already
-separate this arm from the general one, whose sentence names neither phrase. What
-the third adds is that the general advice is **replaced** rather than
-supplemented: an implementation that recognised the shape and then appended *give
-one of them a fresh key* anyway would pass the first two and fail this one, and
-it is exactly that message an operator must not act on.
+
+`a_missing_node_file_gives_conditional_promotion_recovery` constructs an
+empty node beside a leaf and calls the guarded opening directly. The assertions
+check the conditional wording, required filename, containing path and unchanged
+leaf bytes. No mutation or addressable-key lookup is reached.
+
 
 <a id="predicting-the-allocation"></a>
 ## Predicting what the library will allocate, and checking the prediction
 
 The last substantial function in the block reads a key that does not exist yet.
 
-<!-- fragment «paths-next-key» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="510-546" parent="paths-and-addressing" -->
+<!-- fragment «paths-next-key» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="458-494" parent="paths-and-addressing" -->
 ````rust
 /// The key the library will give the next entry it creates from this snapshot —
 /// `max + 1` over every name in the tree — or `None` when the keyspace is full.
@@ -949,7 +882,7 @@ The block ends with two short functions. Neither is about paths, and they are
 here because the file is ordered by concern and this is where its addressing
 section ends.
 
-<!-- fragment «paths-live-leaf» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="547-559" parent="paths-and-addressing" -->
+<!-- fragment «paths-live-leaf» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="495-507" parent="paths-and-addressing" -->
 ````rust
 /// A live leaf's session kind and handle, or `None` when the entry is not one.
 fn live_leaf(entry: &Entry<'_, TaskName>) -> Option<(Kind, Handle)> {
@@ -970,7 +903,7 @@ fn live_leaf(entry: &Entry<'_, TaskName>) -> Option<(Kind, Handle)> {
 **One caller, and it is chapter 7's.** `live_leaf` answers *is this entry a leaf
 that is still live, and if so what is its kind and handle* — a `Some` only for a
 `Parts::Leaf` whose outcome is `Outcome::Live`. Everything else, briefs and node
-directories and `DONE` and `ABANDONED` leaves alike, is `None`. It is called once, at line 609, inside
+directories and `DONE` and `ABANDONED` leaves alike, is `None`. It is called once, at line 557 inside
 `selected` — the private helper behind both of chapter 7's selection entry
 points — and it is called on **every** entry of the walk rather than until one
 matches: `selected` collects the whole live set first, because it has to refuse a
@@ -981,7 +914,7 @@ matches on and chapter 3 the `Parts` it destructures; this is the two of them
 read together for the first time, and chapter 7 owns what is done with the
 result.
 
-<!-- fragment «paths-entry-outcome» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="560-570" parent="paths-and-addressing" -->
+<!-- fragment «paths-entry-outcome» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="508-518" parent="paths-and-addressing" -->
 ````rust
 /// The outcome `resolve` reports for a matched entry: a leaf's own
 /// live/`DONE`/`ABANDONED` state, or [`Outcome::Live`] for a node — a node
@@ -1024,11 +957,11 @@ first ninety.
 The second ownership block is where the test module opens. It is ninety lines and
 it is the only block of this book whose name says *tests* and whose contents are
 none: **zero of the file's sixty-three `#[test]` functions are in it**, and the
-first is at line 1,108, in chapter 7's block. Sixteen of the book's thirty-nine
+first is at line 1,066 in chapter 7's block. Sixteen of the book's thirty-nine
 ownership blocks carry `test` in their id and the other fifteen hold between one
 and thirty-two tests each; this is the one that holds none.
 
-<!-- fragment «path-composition-tests» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1016-1105" parent="source-task-tree" -->
+<!-- fragment «path-composition-tests» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="972-1063" parent="source-task-tree" -->
 <!-- insert «paths-tests-module-open» -->
 <!-- insert «paths-tests-composed-verbs» -->
 <!-- insert «paths-tests-a-kind-and-imports» -->
@@ -1043,7 +976,7 @@ true for it to pass while that property was broken. There is no reproduced test
 in these ninety lines. What the block needs instead is the question its own
 section comment answers: why is any of this in the test module at all?
 
-<!-- fragment «paths-tests-module-open» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1016-1029" parent="path-composition-tests" -->
+<!-- fragment «paths-tests-module-open» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="972-985" parent="path-composition-tests" -->
 ````rust
 #[cfg(test)]
 pub(crate) mod tests {
@@ -1079,14 +1012,14 @@ fact**, and it is what makes the first composition callable from outside the
 module. The block declares nine functions — four compositions and five fixtures —
 and exactly one of the nine is `pub(crate)`. The next fragment says which.
 
-<!-- fragment «paths-tests-composed-verbs» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1030-1057" parent="path-composition-tests" -->
+<!-- fragment «paths-tests-composed-verbs» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="986-1013" parent="path-composition-tests" -->
 ````rust
     /// `pick`: the first **live leaf** in walk order, or `None` for a grove with no
     /// live work left — the loop's finish signal, which the CLI renders as empty
     /// stdout and a *no live leaves* diagnostic.
     ///
     /// Walk order is the library's: within a level the distinguished child first
-    /// (`BRIEF.md`, never a leaf), then the positioned children by ordinal, with
+    /// (the node file, never a leaf), then the positioned children by ordinal, with
     /// nodes descended in place — so a node at an earlier ordinal is fully explored
     /// before a later sibling. `DONE` and `ABANDONED` leaves are skipped; foreign
     /// names never reach the snapshot at all.
@@ -1136,7 +1069,7 @@ tests; what is stated here is what they are tests *of*. `kind`'s says the kind i
 read from the filename and never from the body, and that `None` is the same
 signal `pick` gives.
 
-<!-- fragment «paths-tests-a-kind-and-imports» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1058-1068" parent="path-composition-tests" -->
+<!-- fragment «paths-tests-a-kind-and-imports» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1014-1024" parent="path-composition-tests" -->
 ````rust
     /// A [`Kind`] for a test that needs one, by its label.
     ///
@@ -1161,7 +1094,7 @@ somewhere downstream where it would read as a claim about the code under test.
 The two `use` lines that follow it sit mid-module rather than at the top, which
 is where the file's own history put them.
 
-<!-- fragment «paths-tests-brief-chain-at» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1069-1078" parent="path-composition-tests" -->
+<!-- fragment «paths-tests-brief-chain-at» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1025-1034" parent="path-composition-tests" -->
 ````rust
     /// The guard composed with the verb — what a test needs to drive
     /// `brief-chain` standalone. Production never wants it: `llm_cli` holds one
@@ -1192,17 +1125,18 @@ the same guard to `leaf_in` and to `verbs::brief_chain`. So the claim is right
 and the address is stale — the mildest form of the class this chapter has already
 met twice, since a stale name misdirects a reader rather than misleading one.
 Three other comments in the crate spell it the same way: `tree_lifecycle.rs`'s
-module header at line 42, which chapter 14 owns, its test module at line 1,147,
+module header at line 42 which chapter 14 owns, its test module at line 1,105
 which chapter 11 owns, and one in the excluded `task_grow/tests.rs`. Both
 chapters will meet it again.
 
-<!-- fragment «paths-tests-fixtures» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1079-1105" parent="path-composition-tests" -->
+<!-- fragment «paths-tests-fixtures» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1035-1063" parent="path-composition-tests" -->
 ````rust
     /// Stand up a fresh `.grove/` directory and return `(tempdir, grove_root)`.
     fn grove() -> (TempDir, PathBuf) {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join(".grove");
         fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("_BRIEF.md"), "root brief").unwrap();
         (tmp, root)
     }
 
@@ -1214,9 +1148,10 @@ chapters will meet it again.
     }
 
     /// Create a node directory inside `dir`, returning its absolute path.
-    fn mknode(dir: &Path, name: &str) -> PathBuf {
+    fn mknode(dir: &Path, name: &str, slug: &str) -> PathBuf {
         let p = dir.join(name);
         fs::create_dir_all(&p).unwrap();
+        fs::write(p.join(format!("_{slug}.md")), "node brief").unwrap();
         p
     }
 

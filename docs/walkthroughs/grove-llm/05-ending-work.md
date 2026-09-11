@@ -84,11 +84,11 @@ leaves are as the retirement left them.
 
 ```text
 /work/atlas/.grove/
-├── BRIEF.md
+├── _BRIEF.md
 ├── 01-DONE-impl--rate-limit-k3.md
 ├── 02-review-impl--rate-limit-k4.md
-└── 03-cache-k5/
-    ├── BRIEF.md
+└── 03-k5/
+    ├── _BRIEF.md
     ├── 01-DONE-impl--warm-k6.md
     ├── 02-impl--evict-k7.md
     └── 03-impl--ttl-k8.md
@@ -98,11 +98,11 @@ The human has confirmed that the cache work is abandoned, and the prune names
 the node.
 
 ```console
-$ grove-llm leaf-prune /work/atlas/.grove/03-cache-k5
-/work/atlas/.grove/03-cache-k5/02-ABANDONED-impl--evict-k7.md
-/work/atlas/.grove/03-cache-k5/03-ABANDONED-impl--ttl-k8.md
+$ grove-llm leaf-prune /work/atlas/.grove/03-k5
+/work/atlas/.grove/03-k5/02-ABANDONED-impl--evict-k7.md
+/work/atlas/.grove/03-k5/03-ABANDONED-impl--ttl-k8.md
 leaf-prune: left 1 already-DONE leaf untouched:
-  /work/atlas/.grove/03-cache-k5/01-DONE-impl--warm-k6.md
+  /work/atlas/.grove/03-k5/01-DONE-impl--warm-k6.md
 leaf-prune: two steps remain:
   1. commit this session's work, including these renames
   2. run `grove-llm complete` as your last action
@@ -112,7 +112,7 @@ The call marks the two live leaves and leaves the retired one alone, and the
 handler renders what came back in a fixed order: the marked paths on stdout,
 one per line; the leaf left untouched on stderr, as an advisory; and the
 reminder on stderr, last, now saying *these renames* because two leaves were
-marked. The node's `BRIEF.md` is not a leaf and is neither marked nor reported.
+marked. The node's `_<slug>.md` is not a leaf and is neither marked nor reported.
 Exit `0`; the verb added two renames to the working copy and nothing else, and
 every body under the node is byte-identical. Run a second time on the same node, the
 same command marks nothing, prints *leaf-prune: nothing live to mark* and the
@@ -124,7 +124,7 @@ drew.
 The table separates the two invocations by stream, so what each verb prints
 and where reads as one relation rather than two transcripts.
 
-| | `leaf-retire` of the session's leaf | `leaf-prune` of `03-cache-k5` |
+| | `leaf-retire` of the session's leaf | `leaf-prune` of `03-k5` |
 |---|---|---|
 | the opening | exclusive | exclusive |
 | the call | `verbs::leaf_retire`: one rename | `verbs::leaf_prune`: two renames, one leaf left alone |
@@ -141,7 +141,7 @@ The reminder is one function both handlers call, and its comment carries the
 chapter's thesis. It is read first because it is the last thing either verb
 does.
 
-<!-- fragment «eprint-next-steps» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="768-785" parent="handlers-ending" -->
+<!-- fragment «eprint-next-steps» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="766-783" parent="handlers-ending" -->
 ````rust
 // The two steps that always follow a terminal mark: the commit that carries it,
 // then the completion signal. `leaf-retire` and `leaf-prune` are the
@@ -219,7 +219,7 @@ those phrases is held by the source and no test.
 resolve the working tree, normalize the path, open for writing, make the call,
 print what it returned, then the reminder.
 
-<!-- fragment «handler-leaf-retire» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="786-795" parent="handlers-ending" -->
+<!-- fragment «handler-leaf-retire» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="784-793" parent="handlers-ending" -->
 ````rust
 fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -259,10 +259,10 @@ carries the word shown, not the wording; every wording is the source's.
 
 | Operand | Refusal on stderr | Held by |
 |---|---|---|
-| the node's `BRIEF.md` | `cannot retire a brief (briefs are never done): BRIEF.md` | `retire_refuses_a_brief` — a refusal naming *brief* |
+| the node's `_<slug>.md` | `cannot retire a brief (briefs are never done): _topic.md` | `retire_refuses_a_brief` — a refusal naming *brief* |
 | a `DONE` leaf | `leaf is already retired (DONE): 01-DONE-impl--rate-limit-k3.md` | `retire_refuses_an_already_done_leaf` — a refusal naming *already retired* or *DONE* |
 | an `ABANDONED` leaf | `cannot retire an abandoned (ABANDONED) leaf: …` | no test in this crate |
-| a node directory | `cannot retire a node (nodes are never marked done): 03-cache-k5` | no test in this crate |
+| a node directory | `cannot retire a node (nodes are never marked done): 03-k5` | no test in this crate |
 | the grove root, `.grove` | `cannot retire the grove root (lifecycle verbs act on leaves): /work/atlas/.grove` | no test in this crate |
 | a `finish` leaf | `` `finish` is driver-reserved and cannot be retired `` | `every_agent_side_mutation_refuses_the_driver_reserved_finish_kind` in `session_kind_tree.rs` — a refusal naming *finish* and *driver-reserved* |
 | `.grove/99-impl--nope-k99.md`, typed at `/work/atlas`, no such leaf | `resolving path /work/atlas/.grove/.grove/99-impl--nope-k99.md`, then *No such file or directory* | no test in this crate |
@@ -337,7 +337,7 @@ path but a `Pruned` with two lists, the leaves newly marked and the retired
 leaves found and left alone. The first fragment is the opening, the call, and
 the rendering of both lists.
 
-<!-- fragment «handler-leaf-prune-marks» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="796-816" parent="handlers-ending" -->
+<!-- fragment «handler-leaf-prune-marks» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="794-814" parent="handlers-ending" -->
 ````rust
 fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
     let worktree = worktree()?;
@@ -429,7 +429,7 @@ with the root's path; no test in this crate holds it either.
 The second fragment is the reminder, and its comment states the two conditions
 the worked example showed.
 
-<!-- fragment «handler-leaf-prune-reminder» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="817-825" parent="handlers-ending" -->
+<!-- fragment «handler-leaf-prune-reminder» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="815-823" parent="handlers-ending" -->
 ````rust
     // Last, so the reminder is the final thing in the agent's context — and only
     // when this call actually ended some work; a no-op prune leaves no session
@@ -486,7 +486,7 @@ stated here.
 The composite that reassembles the reminder and the two handlers, in source
 order, is stated here.
 
-<!-- fragment «handlers-ending» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="768-825" parent="source-command-surface" -->
+<!-- fragment «handlers-ending» owner="two-steps-remain" source="crates/grove-llm/src/cli.rs" lines="766-823" parent="source-command-surface" -->
 <!-- insert «eprint-next-steps» -->
 <!-- insert «handler-leaf-retire» -->
 <!-- insert «handler-leaf-prune-marks» -->
@@ -521,7 +521,7 @@ body untouched — and names three refusals.
 The three refusals it names are the call's, and it is silent on three more the
 call also makes — a node, the grove root, a `finish` leaf — and on the
 not-found case; the table under *`leaf-retire`: one rename* has all seven.
-*Prints the retired file's absolute path on stdout* is line 791; the absolute
+*Prints the retired file's absolute path on stdout* is line 789; the absolute
 path is the call's, built from the caller's own spelling of the root.
 *Working-tree change only — no commit* is true of every verb in this module
 but `finish-commit`, and here it is the point: the commit is the first of the two steps the handler
@@ -560,8 +560,8 @@ chains.
 Read against the handler, the comment divides into what the code keeps and
 what it only says. The two cases — a leaf marked directly with its three
 refusals, a node marked recursively with `DONE` leaves left alone and the root
-refused — are the call's, and the rendering of the two lists is lines 801–803
-and 807–816.
+refused — are the call's, and the rendering of the two lists is lines 799–801
+and 805–814.
 *Prints each newly-marked leaf's absolute path on stdout, one per line; any
 already-`DONE` leaves found and left alone are reported on stderr* is exactly
 those lines. *Pruning writes no producer receipt* is
@@ -576,15 +576,15 @@ are built from.
 
 | Promise in the help | Verb | Kept at | Held by |
 |---|---|---|---|
-| the `DONE` infix, position and key kept, body untouched | `leaf-retire` | the call, line 790 | `retire_adds_done_infix_in_place` |
-| refuses a brief, a `DONE` leaf, an `ABANDONED` leaf | `leaf-retire` | the call, through `?` on line 790 | `retire_refuses_a_brief`, `retire_refuses_an_already_done_leaf`; the third by no test in this crate |
-| the retired path on stdout | `leaf-retire` | line 791 | `retire_names_the_remaining_steps_on_stderr` — exactly one stdout line |
+| the `DONE` infix, position and key kept, body untouched | `leaf-retire` | the call, line 788 | `retire_adds_done_infix_in_place` |
+| refuses a brief, a `DONE` leaf, an `ABANDONED` leaf | `leaf-retire` | the call, through `?` on line 788 | `retire_refuses_a_brief`, `retire_refuses_an_already_done_leaf`; the third by no test in this crate |
+| the retired path on stdout | `leaf-retire` | line 789 | `retire_names_the_remaining_steps_on_stderr` — exactly one stdout line |
 | no launch-routing metadata written | `leaf-retire` | nothing in the handler writes | `retiring_a_reviewed_producer_changes_only_its_own_filename` |
-| a leaf marked directly; a node's live leaves marked, `DONE` left alone, the root refused | `leaf-prune` | the call, line 800 | `pruning_a_node_marks_every_leaf_the_same_way`, `leaf_prune_marks_a_whole_subtree_abandoned_in_a_jj_native_tree`; the root refusal by no test in this crate |
-| marked paths on stdout, one per line; `DONE` leaves left alone reported on stderr | `leaf-prune` | lines 801–803 and 807–816 | `prune_that_marks_nothing_stays_quiet` for the empty case; the left-`DONE` wording by no test in this crate |
+| a leaf marked directly; a node's live leaves marked, `DONE` left alone, the root refused | `leaf-prune` | the call, line 798 | `pruning_a_node_marks_every_leaf_the_same_way`, `leaf_prune_marks_a_whole_subtree_abandoned_in_a_jj_native_tree`; the root refusal by no test in this crate |
+| marked paths on stdout, one per line; `DONE` leaves left alone reported on stderr | `leaf-prune` | lines 799–801 and 805–814 | `prune_that_marks_nothing_stays_quiet` for the empty case; the left-`DONE` wording by no test in this crate |
 | no producer receipt | `leaf-prune` | nothing in the handler writes | `pruning_a_reviewed_producer_changes_only_its_own_filename` |
 | HITL: only after explicit human confirmation | `leaf-prune` | nowhere — the code cannot keep it | — |
-| two steps remain, on stderr | both | lines 792 and 820–822 | `assert_next_steps`, applied three ways |
+| two steps remain, on stderr | both | lines 790 and 818–820 | `assert_next_steps`, applied three ways |
 
 The composite that reassembles the two variants is stated here.
 

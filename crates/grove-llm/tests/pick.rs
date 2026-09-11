@@ -1,7 +1,7 @@
 // Fixture-driven tests for `grove-llm pick` on the **v2 directory scheme**
 // (task-tree-scheme). The tree is a real directory tree under `.grove/`: a node is a
-// directory `NN-<slug>-k<key>/` of numbered children, optionally headed by a
-// `BRIEF.md`; leaves
+// directory `NN-k<key>/` of numbered children, optionally headed by a
+// `_BRIEF.md`; leaves
 // are files `NN-[DONE-]<slug>-k<key>.md`. `pick` is a recursive depth-first
 // pre-order walk returning the first live leaf (not a brief, not `DONE`). Each
 // test stands up a real git repo so `git rev-parse --show-toplevel` resolves to
@@ -19,6 +19,7 @@ fn init_repo() -> TempDir {
     support::init_jj_repo(tmp.path());
     let grove = tmp.path().join(".grove");
     fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("_BRIEF.md"), "root brief").unwrap();
     tmp
 }
 
@@ -29,9 +30,10 @@ fn touch(dir: &Path, name: &str) {
 }
 
 /// Create a node directory, returning its path (for nesting children inside).
-fn mknode(dir: &Path, name: &str) -> PathBuf {
+fn mknode(dir: &Path, name: &str, slug: &str) -> PathBuf {
     let p = dir.join(name);
     fs::create_dir_all(&p).unwrap();
+    fs::write(p.join(format!("_{slug}.md")), "node brief").unwrap();
     p
 }
 
@@ -76,9 +78,9 @@ fn picks_first_live_leaf_in_numeric_order() {
 fn descends_a_node_directory_in_preorder() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "BRIEF.md");
-    let node = mknode(&grove, "01-node-k1");
-    touch(&node, "BRIEF.md");
+    touch(&grove, "_BRIEF.md");
+    let node = mknode(&grove, "01-k1", "node");
+    touch(&node, "_node.md");
     touch(&node, "01-impl--inner-k2.md");
     touch(&grove, "02-impl--outer-k3.md");
 
@@ -135,7 +137,7 @@ fn foreign_files_are_not_leaves() {
 fn root_brief_is_not_a_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "BRIEF.md");
+    touch(&grove, "_BRIEF.md");
     touch(&grove, "01-impl--only-k1.md");
 
     let (stdout, _, ok) = pick_stdout(tmp.path());

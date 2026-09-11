@@ -38,14 +38,12 @@ directory listing: the handle is `plan-k1`, which is rows four and five run
 together, and row one is not in it. Strip `.md` and the name ends in exactly
 those bytes.
 
-Two routes reach that handle and neither carries the position. `Handle::of`
-takes the parsed name and reads the slug and the key out of it. `Handle::parse`
-takes the text `plan-k1` — typed by an operator who never saw the file — and
-reads the same slug and the same key out of that. Both produce a `Handle` whose
-two fields are `plan` and `1`; neither has a field the `01` could go in. The
-observable end is that `Handle::of` applied to the parsed `01-requirements--plan-k1.md`
-and `Handle::parse` applied to the string `plan-k1` are equal, which is asserted
-over three filenames in `a_handle_and_a_filename_peel_the_same_key` below.
+
+`Handle::of_leaf` and `Handle::parse` both yield `plan-k1` for the
+canonical leaf `01-requirements--plan-k1.md`. `Handle::of_node` instead pairs
+`01-k1` with `_plan.md`. Neither constructor retains the position; node-file
+parentage is established by the tree caller, not inferred by the name module.
+
 
 The separation preserves references where the position changes and the identity
 must not. `leaf-insert` shifts every later sibling up one position, and
@@ -53,15 +51,13 @@ must not. `leaf-insert` shifts every later sibling up one position, and
 its key, so it keeps its handle, so every reference already written to it still
 resolves. Chapters 10 and 12 read those two verbs. This chapter is where the
 property they rely on is established, and the test that holds it is
-`every_positioned_name_ends_in_its_own_handle`, whose own comment says why it is
+`every_leaf_name_ends_in_its_own_handle`, whose own comment says why it is
 asserted rather than reviewed for: *drift is not expressible* has to be held by
 something, or it is a promise.
 
-The chapter owns 563 of the file's 1,743 lines in three blocks — the named parts
-themselves at lines 221 to 590, and the two labelled sections of the inline test
-module that hold this chapter's claims, at 1,551 to 1,579 and 1,580 to 1,743. The
-name that carries these parts is chapter 4's, and so is every route into them
-from a string on disk.
+This chapter owns 529 lines of `task_name.rs` in 3 blocks.
+The source index records their current ranges; the fragments below reconstruct
+every owned byte.
 
 <a id="the-open-token"></a>
 ## The kind: an open token, and the whole of the type
@@ -72,10 +68,10 @@ free function rather than a method because the canonicity of a leaf name depends
 on both words rather than on either type. `Kind` is the first type built on it.
 
 The composite below is this chapter's production ownership block. It expands, in
-order, to lines 221 through 590 of the file, and the sixteen fragments it names
+order, to lines 157 through 505 of the file, and the sixteen fragments it names
 run from here to the end of the seventh section.
 
-<!-- fragment «kind-slug-and-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="221-590" parent="source-task-name" -->
+<!-- fragment «kind-slug-and-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="157-505" parent="source-task-name" -->
 <!-- insert «name-kind» -->
 <!-- insert «name-reserved-labels» -->
 <!-- insert «name-kind-methods» -->
@@ -101,7 +97,7 @@ out is `label` or `Display`. The derives are worth reading against that: `Clone`
 `String` offers, because a kind is a token and grove holds no opinion about it
 that a string comparison would not already answer.
 
-<!-- fragment «name-kind» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="221-244" parent="kind-slug-and-handle" -->
+<!-- fragment «name-kind» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="157-180" parent="kind-slug-and-handle" -->
 ````rust
 /// A leaf's **session kind**: the word before the `--`, the skill a session is
 /// told to load, and the key its command template is configured under.
@@ -135,7 +131,7 @@ session loads; it is the stem the skill's name is built from. `crates/grove-loop
 line 63 renders `format!("{PLUGIN}-{}", kind.label())` with `PLUGIN` as `"grove"`,
 so the kind `impl` names the skill `grove-impl`, and chapter 19 reads that
 composition. The third clause is exact as written: the configuration is keyed by
-the label itself, at `crates/grove-loop/src/loop_driver.rs` lines 254 and 266,
+the label itself, at `crates/grove-loop/src/loop_driver.rs` lines 190 and 202
 which chapter 20 reads.
 
 The claim in the second bold sentence is checkable inside this corpus, and it
@@ -144,7 +140,7 @@ holds. Extracting every string literal from the production source of
 `REQUIREMENTS` and `FINISH`, in the fragment below — and no third. The
 parenthesis is right about which near-misses to expect and is not a complete
 partition of what the extraction returns: `"plan"` at
-`crates/grove-loop/src/tree_lifecycle.rs` line 56 and `"finish"` at line 166 of
+`crates/grove-loop/src/tree_lifecycle.rs` line 56 and `"finish"` at line 102 of
 the same file are the two slug literals it names. The second is the clearest
 case in the crate: a literal `"finish"` that is a slug rather than a kind and
 reaches `Slug::new` rather than `Kind::new`. Beyond those the extraction also
@@ -164,7 +160,7 @@ The two constants are private and the two constructors are public, which is the
 shape the doc comment's parenthetical reason produces: a constant that is the
 literal's one home, and a function that is how anything else reaches it.
 
-<!-- fragment «name-reserved-labels» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="245-250" parent="kind-slug-and-handle" -->
+<!-- fragment «name-reserved-labels» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="181-186" parent="kind-slug-and-handle" -->
 ````rust
 /// Root scaffolding's kind. One of the two tokens grove may name.
 const REQUIREMENTS: &str = "requirements";
@@ -176,17 +172,17 @@ const FINISH: &str = "finish";
 <!-- /fragment -->
 
 `Kind::requirements` is spent once in the crate's production source, at
-`crates/grove-loop/src/tree_lifecycle.rs` line 83, where the lifecycle transition
+`crates/grove-loop/src/tree_lifecycle.rs` line 19 where the lifecycle transition
 scaffolds a grove for a driver that has no operator to ask; `Kind::finish` is
-spent at lines 136 and 147 of the same file for the teardown sentinel, and at
-`crates/grove-loop/src/loop_driver.rs` line 254 to name the template that leaf
+spent at lines 72 and 83 of the same file for the teardown sentinel, and at
+`crates/grove-loop/src/loop_driver.rs` line 190 to name the template that leaf
 will need. Chapters 14 and 20 read those. The asymmetry in the implementation
 below follows from that: there is an `is_finish` and no `is_requirements`,
 because grove never has to ask whether a leaf is the one `root-init` laid down —
 that leaf is ordinary work from the moment it exists — and does have to ask
 whether a leaf is the one the driver reserved for itself.
 
-<!-- fragment «name-kind-methods» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="251-300" parent="kind-slug-and-handle" -->
+<!-- fragment «name-kind-methods» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="187-236" parent="kind-slug-and-handle" -->
 ````rust
 impl Kind {
     /// Validate a string as a session kind.
@@ -247,25 +243,25 @@ minimum: one validating constructor that returns the same `TokenError` a `Slug`
 returns, two constructors that cannot fail, and one accessor.
 
 **Seven calls, six functions, and the comment's four categories cover them.**
-Two calls are in selection, at `crates/grove-loop/src/task_tree.rs` lines 615 and
-629, both inside `selected` — and only the second is the ordering, since the
+Two calls are in selection, at `crates/grove-loop/src/task_tree.rs` lines 537 and
+552 both inside `selected` — and only the second is the ordering, since the
 first refuses a tree holding more than one live `finish` leaf, which is a
 malformed-tree report rather than a sort. One is the creation refusal, at
-`crates/grove-loop/src/task_grow.rs` line 491, reached by `leaf-add`,
+`crates/grove-loop/src/task_grow.rs` line 407 reached by `leaf-add`,
 `leaf-insert`, `root-init` and `leaf-decompose`. One is at
-`crates/grove-loop/src/tree_lifecycle.rs` line 230, inside `finish_commit`, which
+`crates/grove-loop/src/tree_lifecycle.rs` line 166 inside `finish_commit`, which
 is the verb the finish session runs — `crates/grove-loop/src/loop_driver.rs`
 never calls `is_finish` at all, so nothing in the loop driver itself asks. The
-remaining three, at lines 621, 757 and 921 of `tree_lifecycle.rs`, refuse to
-decompose, retire or prune a `finish` leaf that already exists. Line 621 is
+remaining three, at lines 544 757 and 921 of `tree_lifecycle.rs`, refuse to
+decompose, retire or prune a `finish` leaf that already exists. Line 544 is
 provably a separate question from the creation refusal, because `leaf-decompose`
-asks both: line 621 about the leaf it is converting, and line 560's call to
+asks both: line 544 about the leaf it is converting, and line 474's call to
 `refuse_finish_kind` about the kind of the child it is growing. Chapters 7, 10,
 12, 13 and 14 read the seven sites. The licence reaches all of them: every one of
 the seven is grove recognising a leaf it wrote itself, and none of them
 interprets what a `finish` session is for.
 
-<!-- fragment «name-kind-display» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="301-306" parent="kind-slug-and-handle" -->
+<!-- fragment «name-kind-display» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="237-242" parent="kind-slug-and-handle" -->
 ````rust
 impl fmt::Display for Kind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -290,7 +286,7 @@ The second word is the human-facing one, and its doc comment states the rule thi
 chapter is named for from the other side — the slug is not unique and not
 identity, and the key is.
 
-<!-- fragment «name-slug» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="307-315" parent="kind-slug-and-handle" -->
+<!-- fragment «name-slug» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="243-251" parent="kind-slug-and-handle" -->
 ````rust
 /// The human-facing part of a name. Not unique, and not identity — the key is.
 ///
@@ -313,7 +309,7 @@ set. The consequence a reader can hold on to is the one the second paragraph
 states: a `Slug` value that exists is one that renders and re-parses, so no code
 downstream of construction has to re-check it.
 
-<!-- fragment «name-slug-methods» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="316-338" parent="kind-slug-and-handle" -->
+<!-- fragment «name-slug-methods» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="252-274" parent="kind-slug-and-handle" -->
 ````rust
 impl Slug {
     /// Validate a string as a slug.
@@ -342,14 +338,14 @@ impl Slug {
 <!-- /fragment -->
 
 That guarantee is spent where a constant would have been easier.
-`crates/grove-loop/src/tree_lifecycle.rs` line 166 builds the `finish` sentinel's
+`crates/grove-loop/src/tree_lifecycle.rs` line 102 builds the `finish` sentinel's
 slug by putting the literal `"finish"` through this constructor and turning a
 failure into an error, rather than holding a validated `Slug` constant — the
 comment there says a constant that goes through the validating constructor is
 still one constant, and going through it is what keeps the guarantee true of
 every `Slug` in the process rather than of most of them. Chapter 14 reads it.
 
-<!-- fragment «name-slug-display» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="339-344" parent="kind-slug-and-handle" -->
+<!-- fragment «name-slug-display» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="275-280" parent="kind-slug-and-handle" -->
 ````rust
 impl fmt::Display for Slug {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -371,7 +367,7 @@ A handle reaches grove from two directions, and the second is what shapes this
 type: a filename that fails to parse is a report about a tree, but a handle that
 fails to parse is usually something a person typed.
 
-<!-- fragment «name-handle-error» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="345-375" parent="kind-slug-and-handle" -->
+<!-- fragment «name-handle-error» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="281-311" parent="kind-slug-and-handle" -->
 ````rust
 /// Why a string is not a well-formed [`Handle`].
 ///
@@ -386,11 +382,11 @@ pub enum HandleError {
         /// What was handed in.
         text: String,
     },
-    /// A terminal key that does not fit in 32 bits, so there is no key to name.
-    KeyOutOfRange {
+    /// A key that is noncanonical, zero or outside the representable range.
+    BadKey {
         /// What was handed in.
         text: String,
-        /// The digit run that overflowed.
+        /// The refused digit run.
         digits: String,
     },
     /// A terminal key preceded by something that is not a slug.
@@ -410,12 +406,12 @@ pub enum HandleError {
 Three variants, in the order `Handle::parse` reaches them, and each carries the
 text it was handed. `NotHandleShaped` carries nothing else because there is
 nothing else to name — the string had no terminal `-k<digits>` at all.
-`KeyOutOfRange` carries the digit run, which is the part the operator has to
+`BadKey` carries the digit run, which is the part the operator has to
 look at. `BadSlug` carries both the offending slug and the `TokenError`
 explaining it, which is the one place in this file where an error of chapter 2's
 is nested inside an error of this chapter's.
 
-<!-- fragment «name-handle-error-display» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="376-402" parent="kind-slug-and-handle" -->
+<!-- fragment «name-handle-error-display» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="312-338" parent="kind-slug-and-handle" -->
 ````rust
 impl fmt::Display for HandleError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -427,9 +423,9 @@ impl fmt::Display for HandleError {
                  the terminal `-k<digits>`, so a slug may contain `-k9` and still be read \
                  unambiguously."
             ),
-            Self::KeyOutOfRange { text, digits } => write!(
+            Self::BadKey { text, digits } => write!(
                 f,
-                "{text:?} is not a Grove handle: the key {digits:?} does not fit in 32 bits. \
+                "{text:?} is not a Grove handle: the key {digits:?} must be positive decimal without leading zero and fit in 32 bits. \
                  A handle's key is the one the tree allocated, and no tree has allocated \
                  that."
             ),
@@ -467,26 +463,11 @@ The proof has two halves: this section, where the single renderer is defined and
 every rendering path is shown to end in it, and the test section below, where the
 consequence is asserted.
 
-<!-- fragment «name-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="403-426" parent="kind-slug-and-handle" -->
+<!-- fragment «name-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="339-347" parent="kind-slug-and-handle" -->
 ````rust
-/// The permanent, position-free identity of a work item: `<slug>-k<key>`.
-///
-/// **This type owns the `<slug>-k<key>` grammar, and it is the only thing that
-/// spells it.** [`Handle::render`] is the single `write!` the grammar appears
-/// in, and both of [`TaskName`]'s renderings end in a call to it — so the
-/// filename and the handle cannot drift, because saying two different things is
-/// not expressible. That is the *structural* form of `one type owns a name`
-/// (`docs/specs/module-decomposition.md`, decision 4); the disciplinary form —
-/// a rule a review has to hold — is what the six hand-rolled sites this type
-/// replaced showed does not hold.
-///
-/// It is also why the handle is a **contiguous terminal substring** of every
-/// name that has one. That property is what `grammar-separator-k15` bought, and
-/// with the grammar in one function that leaf was an edit to [`render`]'s
-/// caller rather than a rewrite — the separator sits *before* the handle, never
-/// inside it, so [`render`] itself did not change at all.
-///
-/// [`render`]: Handle::render
+/// The position-free identity of a work item: `<slug>-k<key>`.
+/// Leaf names supply both fields; node handles pair the directory key with
+/// the slug of its node file, supplied by the tree's guarded snapshot.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Handle {
     slug: Slug,
@@ -502,84 +483,80 @@ them. That is consistent with the rule the chapter opened on rather than an
 oversight to note: ordering entries is the position's job, the position is not in
 the handle, and the two places that compare handles compare them for equality.
 
-<!-- fragment «name-handle-new-and-of» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="427-446" parent="kind-slug-and-handle" -->
+<!-- fragment «name-handle-new-and-of» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="348-370" parent="kind-slug-and-handle" -->
 ````rust
 impl Handle {
     /// The handle of a slug and the key the tree allocated for it.
+    ///
+    /// The caller supplies a positive key. The generic library permits zero,
+    /// but zero is outside Grove’s domain and does not round-trip through parse.
     #[must_use]
     pub const fn new(slug: Slug, key: Key) -> Self {
         Self { slug, key }
     }
 
-    /// The handle of a positioned name.
-    ///
-    /// `None` for the charter brief, which is the one name in the grammar with
-    /// no key — and therefore no identity of its own, its subject being the node
-    /// that contains it.
+    /// Construct a leaf handle; every other name species has none.
     #[must_use]
-    pub fn of(name: &TaskName) -> Option<Self> {
+    pub fn of_leaf(name: &TaskName) -> Option<Self> {
         match name {
-            TaskName::Brief => None,
-            TaskName::Positioned { key, parts, .. } => Some(Self::new(parts.slug().clone(), *key)),
+            TaskName::Positioned {
+                key,
+                parts: Parts::Leaf { slug, .. },
+                ..
+            } => Some(Self::new(slug.clone(), *key)),
+            _ => None,
         }
     }
 
 ````
 <!-- /fragment -->
 
-`of` is where the charter leaves the identity namespace. `TaskName` is chapter
-4's type and has exactly two variants: `Brief`, which is the `BRIEF.md` charter
-and carries no ordinal, no key and no parts, and `Positioned`, which carries all
-three. A handle needs a key, `Brief` has none, and `of` returns `None` rather
-than inventing one — the charter's subject is the node that contains it, so its
-identity is that node's. `the_brief_has_no_handle` below is the assertion.
 
-<!-- fragment «name-handle-parse» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="447-498" parent="kind-slug-and-handle" -->
+The root file and a titled node file alone have no handle.
+`Handle::of_leaf` accepts only a leaf; `Handle::of_node` accepts only a
+positioned directory paired with a titled node file. The species-pairing test
+checks the other combinations, including the root marker, to ensure none
+manufactures an identity.
+
+
+<!-- fragment «name-handle-parse» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="371-414" parent="kind-slug-and-handle" -->
 ````rust
-    /// Read a handle back out of its rendering.
-    ///
-    /// The inverse of [`Handle::render`], and one of [`peel_key`]'s three callers
-    /// beside [`split_shape`] and [`terminal_key`] — so a handle, a filename and a
-    /// bare reference find the key by one rule and cannot disagree.
-    ///
-    /// **Deliberately lenient on the key's spelling where [`TaskName::parse`] is
-    /// canonical, and the asymmetry is the point.** Canonicity exists because
-    /// two spellings of one *filename* are two files on disk sharing one key and
-    /// one position (`docs/adr/task-names-are-canonical.md`); a handle is never
-    /// on disk, so that argument does not reach it. It is a **reference**
-    /// namespace — typed by a human at `resolve` and at `finish-commit` — and
-    /// `parse_ref` is already lenient beside it, taking a bare `007` for key 7.
-    /// So `a-k007` is key 7 here, exactly as the `task_tree::handle_key` this
-    /// replaced had it, and `Handle::parse(x).to_string() == x` holds only for
-    /// what [`Handle::render`] writes.
-    ///
-    /// **It is stricter than the deleted `task_tree::handle_key` on the slug**,
-    /// which that function did not look at — and that is why `resolve`'s
-    /// fallback asks [`terminal_key`] instead. This is the *handle* question,
-    /// asked where a handle is genuinely meant: `finish-commit`'s argument. A
-    /// caller who only wants the key a reference ends in must not ask it here,
-    /// or an operator pasting `01-DONE-impl--build-k5` gets a refusal for a head
-    /// that was never going to be a slug.
+    /// Pair a node directory with its titled node file. The caller establishes
+    /// parentage; this constructor rejects every other species pairing.
+    #[must_use]
+    pub fn of_node(node: &TaskName, file: &TaskName) -> Option<Self> {
+        match (node, file) {
+            (
+                TaskName::Positioned {
+                    key,
+                    parts: Parts::Node,
+                    ..
+                },
+                TaskName::NodeFile(slug),
+            ) => Some(Self::new(slug.clone(), *key)),
+            _ => None,
+        }
+    }
+
+    /// Parse a canonical handle using the same key grammar as directory names.
     ///
     /// # Errors
-    ///
-    /// Returns [`HandleError`] when there is no terminal `-k<digits>`, when the
-    /// key does not fit in 32 bits, or when what precedes the key is not a
-    /// [`Slug`].
+    /// Returns [`HandleError`] for a missing, noncanonical or out-of-range key,
+    /// or a head that is not a valid slug.
     pub fn parse(text: &str) -> Result<Self, HandleError> {
         let Some((before, digits)) = peel_key(text) else {
             return Err(HandleError::NotHandleShaped {
                 text: text.to_string(),
             });
         };
-        let Ok(key) = digits.parse::<u32>() else {
-            return Err(HandleError::KeyOutOfRange {
+        let Some(key) = parse_key(digits) else {
+            return Err(HandleError::BadKey {
                 text: text.to_string(),
                 digits: digits.to_string(),
             });
         };
         match Slug::new(before) {
-            Ok(slug) => Ok(Self::new(slug, Key::new(key))),
+            Ok(slug) => Ok(Self::new(slug, key)),
             Err(error) => Err(HandleError::BadSlug {
                 text: text.to_string(),
                 slug: before.to_string(),
@@ -591,36 +568,27 @@ identity is that node's. `the_brief_has_no_handle` below is the assertion.
 ````
 <!-- /fragment -->
 
-The asymmetry the doc comment argues for is the chapter's rule seen from the
-reference side. `TaskName::parse` — chapter 4's, and the only route from a
-filename to a parsed name — is canonical: it refuses a name whose spelling is not
-the one the renderer would have written, because two spellings of one filename
-are two files on disk sharing one key and one position. A handle is never on
-disk, so the argument does not reach it, and `Handle::parse` accepts `a-k007` for
-key 7 and normalises it away on the way back out. `parse_ref`, at
-`crates/grove-loop/src/task_tree.rs` line 986, is the reference grammar's own
-front door and is lenient in the same way for a bare key, which chapter 9 reads.
 
-The strictness in the other direction is what sends one caller elsewhere.
-`Handle::parse` refuses a head that is not a `Slug`, so an operator pasting a
-retired leaf's whole stem — `01-DONE-impl--build-k5` — would be refused for a head
-that was never going to be a slug. `resolve`'s bare-slug fallback therefore asks
-`terminal_key` instead, a public function at
-`crates/grove-loop/src/task_name.rs` line 991 that answers *does this end in a
-key* and requires nothing of what precedes it. Chapter 4 defines it and chapter 9
-reads the fallback that calls it.
+Handle parsing and directory parsing share the same positive decimal key
+rule: no leading zero and a value that fits in `u32`. Thus `a-k007` and `a-k0`
+are refused as handles. A bare numeric reference is a separate lookup form,
+which chapter 9 explains without treating its spelling as a filename.
 
-**One peel, and the three callers that ask it.** A terminal `-k<digits>` is
-taken apart in exactly one function, `peel_key`, whose `strip_suffix` is one of
-the crate's two reads of `KEY_MARK`; the other is `Handle::render` below, and the
-third mention of the constant is its own definition. Its callers are
-`split_shape` for filenames at line 973, `Handle::parse` at line 478, and
-`terminal_key` at line 992, which chapter 4 reads. That is what the clause the
-comment ends on rests on: a handle, a filename and a bare reference cannot
-disagree about where the key is, because none of the three finds it and all three
-ask `peel_key`.
 
-<!-- fragment «name-handle-accessors-and-render» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="499-521" parent="kind-slug-and-handle" -->
+`terminal_key` locates the candidate for resolve’s full-handle fallback.
+It validates the terminal key but cannot validate a current title. The caller
+therefore compares the entire argument with the handle obtained from that
+candidate in the guarded snapshot. A pasted filename stem does not match.
+
+
+
+`peel_key` finds the final key token, and `parse_key` validates its digits.
+Directory names, leaf names, handles and terminal-key lookup reuse those
+helpers. `render_key` supplies the corresponding canonical spelling for
+directories and handles, which leaf rendering also reuses.
+
+
+<!-- fragment «name-handle-accessors-and-render» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="415-438" parent="kind-slug-and-handle" -->
 ````rust
     /// Its human-facing part.
     #[must_use]
@@ -641,7 +609,8 @@ ask `peel_key`.
     /// there is one `write!`, not that a `Handle` value has to exist to reach
     /// it.
     fn render(f: &mut fmt::Formatter<'_>, slug: &Slug, key: Key) -> fmt::Result {
-        write!(f, "{slug}{KEY_MARK}{}", key.get())
+        write!(f, "{slug}")?;
+        render_key(f, key)
     }
 }
 
@@ -651,12 +620,12 @@ ask `peel_key`.
 `render` is the single `write!` the header claimed, and its signature is why the
 claim holds rather than merely being policy. It takes a slug and a key rather
 than `&self`, so chapter 4's `Display for TaskName` can end both of its positioned
-arms in a call to it — at lines 650 and 655 — without building a `Handle` it does
+arms in a call to it — at lines 573 and 655 — without building a `Handle` it does
 not need. A `Handle` value is not the point; one `write!` is. Both accessors are
 `const fn`, which costs nothing here and is the same treatment `Parts` gives its
 three below.
 
-<!-- fragment «name-handle-display» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="522-527" parent="kind-slug-and-handle" -->
+<!-- fragment «name-handle-display» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="439-444" parent="kind-slug-and-handle" -->
 ````rust
 impl fmt::Display for Handle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -667,9 +636,11 @@ impl fmt::Display for Handle {
 ````
 <!-- /fragment -->
 
-That is the third caller of `render` and the shortest. Together with the two arms
-in chapter 4 it is the whole set: three call sites, one `write!`, and nothing
-else in the crate's production code that spells `<slug>-k<key>`.
+
+`Display` delegates handle spelling to `render`. Leaves reuse that renderer
+in their filenames; node directories instead call the shared key renderer. A
+node handle combines the file’s title with the containing directory’s key.
+
 
 <a id="the-parts"></a>
 ## The parts, and the species that follows from them
@@ -679,7 +650,7 @@ The last type in the block is the one the store asks grove for by name. Where
 type the store's `EntryName` trait carries, and it is how grove tells the store
 what kind of thing it is looking at without the store having to know.
 
-<!-- fragment «name-parts» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="528-552" parent="kind-slug-and-handle" -->
+<!-- fragment «name-parts» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="445-466" parent="kind-slug-and-handle" -->
 ````rust
 /// Everything in a name that grove understands and the library does not.
 ///
@@ -699,11 +670,8 @@ pub enum Parts {
         /// Its human-facing name.
         slug: Slug,
     },
-    /// A node directory: children, headed by a `BRIEF.md` charter.
-    Node {
-        /// Its human-facing name.
-        slug: Slug,
-    },
+    /// A positioned directory, whose title belongs to its node file.
+    Node,
 }
 
 ````
@@ -719,7 +687,7 @@ type cannot hold, the bytes can still spell, which is why chapter 2's
 the parse, because a directory named `01-DONE-thing-k2` is a name a filesystem
 will accept and this enum has nowhere to put it.
 
-<!-- fragment «name-parts-methods» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="553-590" parent="kind-slug-and-handle" -->
+<!-- fragment «name-parts-methods» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="467-505" parent="kind-slug-and-handle" -->
 ````rust
 impl Parts {
     /// A leaf's parts.
@@ -734,15 +702,16 @@ impl Parts {
 
     /// A node's parts.
     #[must_use]
-    pub const fn node(slug: Slug) -> Self {
-        Self::Node { slug }
+    pub const fn node() -> Self {
+        Self::Node
     }
 
-    /// The slug, whichever variant this is.
+    /// A leaf's title. Nodes carry no title in their parts.
     #[must_use]
-    pub const fn slug(&self) -> &Slug {
+    pub const fn slug(&self) -> Option<&Slug> {
         match self {
-            Self::Leaf { slug, .. } | Self::Node { slug } => slug,
+            Self::Leaf { slug, .. } => Some(slug),
+            Self::Node => None,
         }
     }
 
@@ -754,7 +723,7 @@ impl Parts {
     pub const fn species(&self) -> PositionedSpecies {
         match self {
             Self::Leaf { .. } => PositionedSpecies::Leaf,
-            Self::Node { .. } => PositionedSpecies::Node,
+            Self::Node => PositionedSpecies::Node,
         }
     }
 }
@@ -762,13 +731,12 @@ impl Parts {
 ````
 <!-- /fragment -->
 
-`slug` is the accessor that makes the variants interchangeable where a caller
-needs only the human-facing half, and `Handle::of` above is its first customer.
-`species` returns `PositionedSpecies` rather than the store's wider `Species`,
-and the doc comment gives the reason in one line: parts belong to a positioned
-name, and the store's `Species` has a third case for the distinguished child,
-which by construction has no parts to ask. That is the same move `Handle::of`
-makes with its `Option`, in the type system rather than in a return value.
+
+`Parts::slug` returns `Some` only for a leaf and `None` for a node.
+A node's title belongs exclusively to `TaskName::NodeFile`. `Parts::species`
+classifies positioned names without admitting a distinguished-file variant;
+node files have no positioned parts to classify.
+
 
 <a id="the-slug-rule"></a>
 ## The slug rule, unchanged
@@ -778,7 +746,7 @@ test. It is the file's own labelled section for the slug, and what it pins is
 that the rule did not change when `open-kind-k20` opened the kind: a slug is
 still the shape it always was, and the kind is now the same shape.
 
-<!-- fragment «slug-rule-tests» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1551-1579" parent="source-task-name" -->
+<!-- fragment «slug-rule-tests» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1496-1524" parent="source-task-name" -->
 ````rust
     // ---- the slug rule ------------------------------------------------------
 
@@ -843,7 +811,7 @@ this file asserts over the pair.
 **`BadKind` is the variant a refused kind arrives in, and it carries a rename.**
 Under the closed kind set it was `TaskNameError::UnknownKind`, and
 `open-kind-k20` replaced membership refusal with shape refusal; `BadKind`'s own
-doc comment at line 689 records that change, calling it *a shape refusal, not an
+doc comment at line 619 records that change, calling it *a shape refusal, not an
 unknown-kind one*. The point the inline comment makes does not depend on which
 name carries it: a slug holding `--` would move where the name splits, and the
 refusal would quote a token nobody wrote.
@@ -855,7 +823,7 @@ The second test block is 164 lines and holds six tests. It is where the module
 header's structural claim stops being a claim, and it is the only place in this
 chapter that reaches for a name rather than a part.
 
-<!-- fragment «handle-grammar-tests» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1580-1743" parent="source-task-name" -->
+<!-- fragment «handle-grammar-tests» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1525-1675" parent="source-task-name" -->
 <!-- insert «name-tests-ends-in-handle» -->
 <!-- insert «name-tests-brief-no-handle» -->
 <!-- insert «name-tests-handle-round-trip» -->
@@ -871,18 +839,13 @@ a `TaskName::Positioned` holding all three, with no validation, because every pa
 handed to it was validated when it was built. That is what lets this test assert
 over names it *builds* rather than names it parses.
 
-<!-- fragment «name-tests-ends-in-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1580-1630" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-ends-in-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1525-1563" parent="handle-grammar-tests" -->
 ````rust
     // ---- the handle owns the grammar ----------------------------------------
 
-    /// **The structural claim decision 4 asks for, asserted rather than
-    /// reviewed.** Every positioned name's rendering ends in its own handle's
-    /// rendering — a node's exactly, a leaf's followed only by the `.md` suffix
-    /// its species takes. A second spelling of `<slug>-k<key>` anywhere in
-    /// `TaskName`'s `Display` fails this the moment the two disagree, which is
-    /// what *drift is not expressible* has to mean if it is not to be a promise.
+    /// Leaf renderings end in their handle, followed by the file suffix.
     #[test]
-    fn every_positioned_name_ends_in_its_own_handle() {
+    fn every_leaf_name_ends_in_its_own_handle() {
         let names = [
             TaskName::compose(
                 Ordinal::new(5),
@@ -899,16 +862,9 @@ over names it *builds* rather than names it parses.
                 Key::new(1),
                 Parts::leaf(Outcome::Abandoned, a_kind("finish"), slug("a")),
             ),
-            // The slug that contains the key marker: the case terminality
-            // exists for.
-            TaskName::compose(
-                Ordinal::new(7),
-                Key::new(2),
-                Parts::node(slug("migrate-k9-to-k10")),
-            ),
         ];
         for name in names {
-            let handle = Handle::of(&name).expect("a positioned name has a handle");
+            let handle = Handle::of_leaf(&name).expect("a positioned name has a handle");
             let rendered = name.to_string();
             let tail = rendered.strip_suffix(".md").unwrap_or(&rendered);
             assert!(
@@ -927,14 +883,12 @@ over names it *builds* rather than names it parses.
 ````
 <!-- /fragment -->
 
-**What it establishes.** For four composed names — three leaves and a node,
-across all three outcomes and across a slug that itself contains `-k9` — the
-rendering ends in the rendering of the handle `Handle::of` derives from the same
-name, with only `.md` allowed after it. The second assertion takes the byte range
-that suffix occupies and parses it back, so the tail is the handle by the
-grammar's own reading rather than by coincidence of bytes. Together they are the
-consequence the header claimed: a second spelling of `<slug>-k<key>` anywhere in
-`TaskName`'s `Display` fails here the moment the two spellings disagree.
+
+**What it establishes.** Each leaf outcome renders a filename ending in
+its handle plus `.md`. The separate node-handle test uses a directory and titled
+file, including a title containing `-k`, and checks that all invalid species
+pairings return no handle. Node filenames do not carry the handle substring.
+
 
 **What it would still pass under.** The assertion is `ends_with`, so everything
 before the handle is unconstrained: `Display` could write the wrong ordinal,
@@ -949,13 +903,13 @@ that has been on disk follows from it. And the one fixture whose slug contains
 the key marker is the node, so a leaf-only failure on that case is outside what
 these four cover.
 
-<!-- fragment «name-tests-brief-no-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1631-1637" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-brief-no-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1564-1570" parent="handle-grammar-tests" -->
 ````rust
     /// The charter is the one name with no key, and therefore no identity of its
     /// own — `of` says so rather than inventing one.
     #[test]
     fn the_brief_has_no_handle() {
-        assert_eq!(Handle::of(&TaskName::Brief), None);
+        assert_eq!(Handle::of_leaf(&TaskName::Brief), None);
     }
 
 ````
@@ -971,7 +925,7 @@ about `Handle::new`, which is public and will build a handle for any slug and ke
 a caller supplies — the guarantee is that nothing *derives* an identity for the
 charter, not that no such value can exist.
 
-<!-- fragment «name-tests-handle-round-trip» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1638-1657" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-handle-round-trip» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1571-1590" parent="handle-grammar-tests" -->
 ````rust
     /// `parse` is the inverse of the rendering, including across the slug that
     /// contains the key marker.
@@ -1002,16 +956,14 @@ the slug `task-k9` at key 3, not the slug `task` at anything. A rule that took t
 first `-k` instead of the last would fail on it, which makes this fixture the
 discriminating one rather than a fourth example.
 
-**What it would still pass under.** All four keys are already canonical decimal
-with no leading zero, so the leniency the doc comment argues for is invisible
-here — the test below is what pins it. Every case starts from text and ends at
-text, so a `Handle::new` that normalised or rejected a slug on the way in would
-not be seen. And the third assertion compares against the input, which means it
-holds only for strings `render` would have written; the test carries no case where
-`parse` accepts something and renders it differently, again leaving that to the
-last test in this block.
 
-<!-- fragment «name-tests-same-peel» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1658-1679" parent="handle-grammar-tests" -->
+The accepted handle cases cover canonical spellings. The adjacent refusal
+cases cover leading zeros, zero, overflow and bad slug tokens. Direct Rust
+construction requires a positive key: the generic `Key` also represents zero,
+but Grove’s round-trip guarantee excludes that out-of-domain input.
+
+
+<!-- fragment «name-tests-same-peel» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1591-1611" parent="handle-grammar-tests" -->
 ````rust
     /// A handle and a filename find the key by one rule. Asserted over the pair
     /// rather than over either alone, because the failure this replaces was two
@@ -1021,7 +973,6 @@ last test in this block.
         for (filename, handle_text) in [
             ("05-impl--task-k9-k3.md", "task-k9-k3"),
             ("01-DONE-design--decomposition-k2.md", "decomposition-k2"),
-            ("07-migrate-k9-to-k10-k2", "migrate-k9-to-k10-k2"),
         ] {
             let found = if filename.ends_with(".md") {
                 Found::File
@@ -1029,7 +980,7 @@ last test in this block.
                 Found::Dir
             };
             let name = entry(filename, found);
-            let from_name = Handle::of(&name).expect("a positioned name has a handle");
+            let from_name = Handle::of_leaf(&name).expect("a positioned name has a handle");
             let from_text = Handle::parse(handle_text).expect("a well-formed handle");
             assert_eq!(from_name, from_text, "{filename:?} vs {handle_text:?}");
         }
@@ -1054,7 +1005,7 @@ fields. All three filenames are canonical, so no refusal path is exercised. And
 the two routes could share one wrong rule and agree: what this pins is that they
 agree, and what makes the shared rule right is the round-trip fixtures above.
 
-<!-- fragment «name-tests-refused-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1680-1713" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-refused-handle» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1612-1645" parent="handle-grammar-tests" -->
 ````rust
     /// Every refusal names what it was handed and what a handle is, which is the
     /// error model the rest of this design follows.
@@ -1076,7 +1027,7 @@ agree, and what makes the shared rule right is the round-trip fixtures above.
         ));
 
         let wide = Handle::parse("a-k99999999999").expect_err("key too wide");
-        assert!(matches!(wide, HandleError::KeyOutOfRange { .. }));
+        assert!(matches!(wide, HandleError::BadKey { .. }));
         assert!(wide.to_string().contains("99999999999"));
 
         let bad = Handle::parse("Bad-Slug-k2").expect_err("not a slug");
@@ -1111,35 +1062,35 @@ had refused it for the wrong clause. Nothing here asserts *which* clause of
 the two are indistinguishable to the test even though the code refuses them for
 different reasons.
 
-<!-- fragment «name-tests-lenient-strict» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1714-1743" parent="handle-grammar-tests" -->
+<!-- fragment «name-tests-lenient-strict» owner="the-handle-not-the-position" source="crates/grove-loop/src/task_name.rs" lines="1646-1675" parent="handle-grammar-tests" -->
 ````rust
-    /// The two ways `parse` departs from the `task_tree::handle_key` it
-    /// replaced, pinned because they are the only behaviour this leaf moved.
-    ///
-    /// Lenient where `handle_key` was, on the key's spelling — a handle is a
-    /// reference a human types and never a name on disk, so canonicity has no
-    /// argument here. Stricter where `handle_key` looked at nothing, on the
-    /// slug — `handle_key` answered *key 3* for four references no entry could
-    /// ever wear, since every slug on disk went through `Slug::new`.
     #[test]
-    fn parse_is_lenient_on_the_key_and_strict_on_the_slug() {
-        for (text, key) in [("a-k007", 7u32), ("a-k0", 0)] {
-            assert_eq!(
-                Handle::parse(text)
-                    .expect("a lenient key spelling")
-                    .key()
-                    .get(),
-                key
-            );
+    fn handles_require_canonical_keys_and_slugs() {
+        for text in ["a-k007", "a-k0", "-k3", "A-k3", "DONE-k3", "a_b-k3"] {
+            assert!(Handle::parse(text).is_err(), "{text}");
         }
-        // Not canonical, and deliberately so: the rendering normalises.
-        assert_eq!(Handle::parse("a-k007").expect("parses").to_string(), "a-k7");
-        // What `handle_key` used to resolve by key and this refuses.
-        for text in ["-k3", "A-k3", "DONE-k3", "a_b-k3"] {
-            assert!(
-                matches!(Handle::parse(text), Err(HandleError::BadSlug { .. })),
-                "{text:?} should be refused for its slug"
-            );
+    }
+
+    #[test]
+    fn node_handles_require_a_directory_and_its_titled_file() {
+        let node = entry("07-k2", Found::Dir);
+        let file = entry("_migrate-k9-to-k10.md", Found::File);
+        let leaf = entry("01-impl--work-k3.md", Found::File);
+        let root = TaskName::Brief;
+        assert_eq!(
+            Handle::of_node(&node, &file).unwrap().to_string(),
+            "migrate-k9-to-k10-k2"
+        );
+        for name in [&node, &file, &root] {
+            assert!(Handle::of_leaf(name).is_none());
+        }
+        for first in [&node, &file, &leaf, &root] {
+            for second in [&node, &file, &leaf, &root] {
+                assert_eq!(
+                    Handle::of_node(first, second).is_some(),
+                    first == &node && second == &file
+                );
+            }
         }
     }
 }
@@ -1152,14 +1103,11 @@ and 0, and `a-k007` renders back as `a-k7`, which is the one assertion in this
 file that shows the parse is deliberately not canonical. Four references that end
 in `-k3` and could never be an entry's name are refused for their slug.
 
-**What it would still pass under.** The leniency is exercised only through
-leading zeros, so a parse that also accepted whitespace or a sign would pass. The
-four refused references are asserted only to be `BadSlug`, and they trip three
-different clauses of `refuse_token` — `-k3` the empty-token clause, `A-k3` and
-`a_b-k3` the character set, `DONE-k3` the reserved words — so the test cannot show
-that any one of those clauses is reached. And the whole comparison is with a
-function that no longer exists: `task_tree::handle_key` was deleted, so what this
-test protects is a behaviour, not a difference a reader can run both sides of.
+
+The refusal cases establish the handle parser’s boundary without implying
+that every malformed string has been enumerated. Bare numeric tree references
+are a separate interface; their accepted spelling is not a handle-parser rule.
+
 
 **Four references, and `handle_key` would have answered every one of them.**
 `-k3`, `A-k3`, `DONE-k3` and `a_b-k3` are all refused here, and all four would

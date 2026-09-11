@@ -322,7 +322,7 @@ where each is shown running.
 |---|---|---|
 | `root-init` | scaffold | Creates `.grove/`, the root brief and a first `requirements` leaf. Bare `grove` performs this itself on a tree with no `.grove/`. |
 | `pick` | read | Prints the next live leaf — the same depth-first pre-order answer the driver computes. |
-| `brief-chain` | read | Prints the `BRIEF.md` chain root to leaf, one path per line. |
+| `brief-chain` | read | Prints root `_BRIEF.md` followed by ancestor titled node files, one path per line. |
 | `kind` | read | Prints a leaf's kind token, read from its filename. |
 | `resolve` | read | Turns a key, handle or slug into the entry's current path, live or terminal. |
 | `leaf-add` | grow | Appends one leaf per `--kind` under a node, with fresh keys. |

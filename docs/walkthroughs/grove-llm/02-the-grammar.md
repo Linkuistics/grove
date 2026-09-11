@@ -10,7 +10,7 @@ things in a fixed order: it parses the argument vector, it reads the current
 directory, it admits this process against the live session epoch, and only then
 does it dispatch to the handler the verb names. The rule this chapter opens on
 is that order — **every verb is admitted before it is dispatched** — and its
-second half is what the four helpers at lines 863 to 903 hold: **a grove
+second half is what the four helpers at lines 861 to 901 hold: **a grove
 that is not there is not a grove that is finished**, so a verb run in a working
 tree with no `.grove/` is refused, with the remedy in the refusal, rather than
 told its work is done. Neither rule is one of the three orders *Orientation*
@@ -34,12 +34,12 @@ call, before dispatch, so no handler has to ask.
 
 The chapter owns four blocks of `cli.rs` and reads them in the order the
 argument takes rather than the file's: the head of the grammar, lines 35 to
-65, where the version, the help-on-nothing behaviour and the `Option` are
-declared; the four openings, lines 863 to 903, which every handler that
+65 where the version, the help-on-nothing behaviour and the `Option` are
+declared; the four openings, lines 861 to 901 which every handler that
 touches the tree calls and whose refusal the worked example ends on; `run`
-itself, lines 412 to 437, read inside the worked example because the example
+itself, lines 412 to 437 read inside the worked example because the example
 is `run` with concrete values; and the enum's close with `operation_label`,
-lines 290 to 310, which is the label admission quotes and the chapter's catalogue of the
+lines 290 to 310 which is the label admission quotes and the chapter's catalogue of the
 twelve labels — after the example, where a catalogue belongs.
 
 <a id="the-grammar-head"></a>
@@ -145,7 +145,7 @@ The enum's head is a fragment of three lines, one of them blank, and it opens th
 `#[derive(Subcommand)]` makes each variant one verb, its doc comment that
 verb's `--help`, and its name the hyphenated form of the variant's; `pub enum
 Command {` is the type `Cli` holds and `run` matches on. Twelve variants follow
-between lines 66 and 289, and this page names none of them here: their doc
+between lines 66 and 289 and this page names none of them here: their doc
 comments are the help text the guide paraphrases, and each family is read
 beside its handler in the chapter that owns it.
 
@@ -169,7 +169,7 @@ names it as one of the root's twenty-two children.
 <a id="the-openings"></a>
 ## One working tree, two locks, one refusal
 
-Lines 863 to 903 are four private helpers, read here before the worked example
+Lines 861 to 901 are four private helpers, read here before the worked example
 because its refusal ending runs through three of them. Every handler that
 touches the tree begins with `worktree()`, and every one that opens a tree it
 must already find there then calls `readable` or `writable`; the two exceptions
@@ -206,7 +206,7 @@ inside the loop and once here; the two resolutions start from the same
 directory and cannot disagree, and the *command resolved* clause of
 admission's refusal is the first of them being reported.
 
-<!-- fragment «openings-worktree» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="863-870" parent="openings" -->
+<!-- fragment «openings-worktree» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="861-868" parent="openings" -->
 ````rust
 // Resolve the worktree from the cwd. The task-tree verbs run from the worktree
 // root (not from inside `.grove/`), and `grove-loop` joins `.grove` itself, so
@@ -238,7 +238,7 @@ other refusals unchanged: a root that is there but unreadable, or a name in it
 grove refuses, are a different category from vacancy and carry the loop's own
 wording.
 
-<!-- fragment «openings-readable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="871-884" parent="openings" -->
+<!-- fragment «openings-readable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="869-882" parent="openings" -->
 ````rust
 /// The shared opening a read verb needs, refusing a worktree with no grove.
 ///
@@ -276,7 +276,7 @@ workstream, and the shape of the
 return type is what makes that impossible — there is no path from `writable`
 to a `TreeWrite` over a root that had no tree.
 
-<!-- fragment «openings-writable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="885-893" parent="openings" -->
+<!-- fragment «openings-writable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="883-891" parent="openings" -->
 ````rust
 /// The exclusive opening a mutating verb needs, refusing a worktree with no
 /// grove.
@@ -305,7 +305,7 @@ wanted. One test pins the first line — `errors_when_grove_root_absent` in
 and that its stderr contains *grove root not found* — and no test asserts the
 second line, so the remedy is held by this function alone.
 
-<!-- fragment «openings-absent» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="894-903" parent="openings" -->
+<!-- fragment «openings-absent» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="892-901" parent="openings" -->
 ````rust
 /// The refusal for a worktree that holds no grove — one wording, and it carries
 /// the remedy, because an error that only reports detection is unfinished
@@ -322,7 +322,7 @@ fn absent(grove_root: &Path) -> anyhow::Error {
 
 The composite that reassembles the four helpers is stated here.
 
-<!-- fragment «openings» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="863-903" parent="source-command-surface" -->
+<!-- fragment «openings» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="861-901" parent="source-command-surface" -->
 <!-- insert «openings-worktree» -->
 <!-- insert «openings-readable» -->
 <!-- insert «openings-writable» -->
@@ -400,7 +400,7 @@ workspace, and under a stale channel that refuses every verb.
 |---|---|---|---|---|
 | `grove-llm resolve rate-limit-k3` in `/work/atlas` | the live channel | line 427: `cmd_resolve` dispatched | stdout | `0` |
 | the same, in `/work/atlas-v2` | the live channel | line 421: admission refuses | stderr | `1` |
-| the same, in `/work/atlas-v2` | no channel | line 427, then `readable` refuses in `cmd_resolve` | stderr | `1` |
+| the same, in `/work/atlas-v2` | no channel | line 427 then `readable` refuses in `cmd_resolve` | stderr | `1` |
 | `grove-llm --version`, anywhere | any | line 413: `parse` exits | stdout | `0` |
 | `grove-llm --help`, anywhere | any | line 413: `parse` exits | stdout | `0` |
 | `grove-llm`, anywhere | any | line 413: `parse` exits | stderr | `2` |

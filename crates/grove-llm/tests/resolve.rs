@@ -1,7 +1,7 @@
 // Fixture-driven tests for `grove-llm resolve <ref>` on the **v2 directory
 // scheme** (task-tree-scheme). The tree is a real directory tree under `.grove/`: a node
-// is a directory `NN-<slug>-k<key>/` of numbered children, optionally headed by a
-// `BRIEF.md`;
+// is a directory `NN-k<key>/` of numbered children, optionally headed by a
+// `_BRIEF.md`;
 // leaves are files `NN-[DONE-]<slug>-k<key>.md`. `resolve` turns a reference into
 // the current path of the entity it names, searching the whole tree — live
 // leaves, retired (`DONE`) leaves, and node directories alike:
@@ -30,6 +30,7 @@ fn init_repo() -> TempDir {
     support::init_jj_repo(tmp.path());
     let grove = tmp.path().join(".grove");
     fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("_BRIEF.md"), "root brief").unwrap();
     tmp
 }
 
@@ -40,9 +41,10 @@ fn touch(dir: &Path, name: &str) {
 }
 
 /// Create a node directory, returning its path (for nesting children inside).
-fn mknode(dir: &Path, name: &str) -> PathBuf {
+fn mknode(dir: &Path, name: &str, slug: &str) -> PathBuf {
     let p = dir.join(name);
     fs::create_dir_all(&p).unwrap();
+    fs::write(p.join(format!("_{slug}.md")), "node brief").unwrap();
     p
 }
 
@@ -113,16 +115,16 @@ fn resolve_by_unique_slug() {
 #[test]
 fn resolve_key_resolves_a_node_to_its_directory() {
     // A node's identity rides in its directory name, so a key reference to a node
-    // resolves to the directory path (append /BRIEF.md to read its charter).
+    // resolves to the directory path (append /_BRIEF.md to read its charter).
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    let node = mknode(&grove, "01-design-k1");
-    touch(&node, "BRIEF.md");
+    let node = mknode(&grove, "01-k1", "design");
+    touch(&node, "_design.md");
     touch(&node, "01-impl--inner-k2.md");
 
     let (stdout, _, ok) = run(tmp.path(), &["resolve", "[1]"]);
     assert!(ok);
-    assert_eq!(name_of(&stdout), "01-design-k1");
+    assert_eq!(name_of(&stdout), "01-k1");
 }
 
 #[test]
@@ -131,14 +133,14 @@ fn resolve_finds_a_nested_leaf_by_key() {
     // its file path under that node's directory.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    let node = mknode(&grove, "01-design-k1");
-    touch(&node, "BRIEF.md");
+    let node = mknode(&grove, "01-k1", "design");
+    touch(&node, "_design.md");
     touch(&node, "01-impl--inner-k2.md");
 
     let (stdout, _, ok) = run(tmp.path(), &["resolve", "2"]);
     assert!(ok);
     assert_eq!(name_of(&stdout), "01-impl--inner-k2.md");
-    assert_eq!(parent_of(&stdout), "01-design-k1");
+    assert_eq!(parent_of(&stdout), "01-k1");
 }
 
 #[test]
@@ -268,7 +270,7 @@ fn grove_help_does_not_list_resolve() {
 fn resolve_dot_prints_the_grove_root() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "BRIEF.md");
+    touch(&grove, "_BRIEF.md");
     touch(&grove, "01-impl--only-k1.md");
 
     let (out, err, ok) = run(tmp.path(), &["resolve", "."]);
@@ -288,7 +290,7 @@ fn resolve_dot_prints_the_grove_root() {
 #[test]
 fn resolve_refuses_an_empty_reference() {
     let tmp = init_repo();
-    touch(&tmp.path().join(".grove"), "BRIEF.md");
+    touch(&tmp.path().join(".grove"), "_BRIEF.md");
 
     let (out, err, ok) = run(tmp.path(), &["resolve", "  "]);
 

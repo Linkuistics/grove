@@ -11,7 +11,7 @@ are questions about the same snapshot the selection came from: **what kind of
 session does this leaf want, and what has already been decided above it?**
 
 > The kind is the token in the filename, never anything in the body. The context
-> is the `BRIEF.md` of every ancestor level, root to leaf — and a brief is not a
+> is the `_BRIEF.md` of every ancestor level, root to leaf — and a brief is not a
 > leaf, so it is never the thing the argument may name.
 
 That is grove's answer to *what did not go, and why could it not?* asked of the
@@ -29,30 +29,30 @@ chain is only interesting once there is something above the leaf to collect.
 
 ```text
 .grove/                                the tree as root-init left it, walked in chapter 7
-├── BRIEF.md
+├── _BRIEF.md
 └── 01-requirements--plan-k1.md
 
 brief_chain(tree, "01-requirements--plan-k1.md")
-  └─ [ <root>/BRIEF.md ]               one ancestor level: the grove root's own charter
+  └─ [ <root>/_BRIEF.md ]               one ancestor level: the grove root's own charter
 
 .grove/                                the same grove, once that leaf has become a node
-├── BRIEF.md                           the root charter
-└── 01-plan-k1/                        a node — NN-<slug>-k<key>, no kind and no outcome
-    ├── BRIEF.md                       the node's charter
+├── _BRIEF.md                           the root charter
+└── 01-k1/                        a node — NN-k<key>, no kind and no outcome
+    ├── _plan.md                       the node's charter
     └── 01-requirements--scheme-k2.md  ← the leaf the argument names
 
-leaf_entry(tree, "01-plan-k1/01-requirements--scheme-k2.md")
+leaf_entry(tree, "01-k1/01-requirements--scheme-k2.md")
   │  relative ⇒ joined onto the caller's own spelling of the root
   │  is_file ✓   parses as Positioned { parts: Leaf { .. } } ✓
   │  canonicalised only to compare: not the root, and under it
   └─ the snapshot entry whose rendered name is that filename
 
 entry.distinguished_chain()            the library's operation, root-first
-  ├─ level .grove/       → BRIEF.md
-  └─ level 01-plan-k1/   → BRIEF.md    a level with none is skipped, not reported
+  ├─ level .grove/       → _BRIEF.md
+  └─ level 01-k1/   → _plan.md    every level has passed validation
 
-brief_chain ⇒ [ <root>/BRIEF.md,
-                <root>/01-plan-k1/BRIEF.md ]      paths built by chapter 6's entry_path
+brief_chain ⇒ [ <root>/_BRIEF.md,
+                <root>/01-k1/_plan.md ]      paths built by chapter 6's entry_path
 kind_in     ⇒ Some(requirements)                  read from the filename, never the body
 ```
 
@@ -62,24 +62,18 @@ distinguished child — is the library's too. `entry_path` is chapter 6's. The
 figure is drawn with them in it because the shape of this chapter's answer is
 exactly how little is left once they are taken out.
 
-The chapter owns 443 of `task_tree.rs`'s 2,038 lines, in **three** blocks — more
-than any other chapter of this file. A hundred and nine lines are the production
-run: two verbs against an already-read tree, and the private resolver they share.
-The other 334 are tests, in two blocks the file separates: 307 carrying the
-`brief-chain` and `kind` sections, and the file's closing 27, which exercise
-`pick` and `brief_chain` against one observation and are this chapter's because
-of the second of those. That last block is the file's last 27 lines, and it is
-the only place in `task_tree.rs` where two verbs are put in front of one tree
-together.
+This chapter owns 438 lines of `task_tree.rs` in 3 blocks.
+The source index records their current ranges; the fragments below reconstruct
+every owned byte.
 
 <a id="two-questions-one-entry"></a>
 ## Two questions, one entry
 
 The chapter's first ownership block is the production run. It expands to lines
-638 through 746 of the file, and the six fragments it names run to the end of the
+586 through 688 of the file, and the six fragments it names run to the end of the
 section after next.
 
-<!-- fragment «kind-and-brief-chain» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="638-746" parent="source-task-tree" -->
+<!-- fragment «kind-and-brief-chain» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="586-688" parent="source-task-tree" -->
 <!-- insert «kind-in» -->
 <!-- insert «brief-chain-fn» -->
 <!-- insert «leaf-entry-signature» -->
@@ -91,7 +85,7 @@ section after next.
 The two verbs come first and they are both thin. `kind_in` is nineteen lines of
 which six are a refusal the file itself calls unreachable.
 
-<!-- fragment «kind-in» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="638-656" parent="kind-and-brief-chain" -->
+<!-- fragment «kind-in» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="586-604" parent="kind-and-brief-chain" -->
 ````rust
 /// `kind` against a tree already read.
 pub(crate) fn kind_in(tree: &Tree, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
@@ -140,7 +134,7 @@ of that name in `verbs.rs`, which chapter 15 reads with the other eleven: that
 verb takes an already-open `&Tree` too, so *against a tree already read* would
 distinguish it from nothing. It is `tests::kind`, the composition
 [chapter 6](06-paths.md#compositions-that-are-the-tests-alone) read at line
-1,053, which opens the root and then calls this function. The minimum here is
+1,009 which opens the root and then calls this function. The minimum here is
 that `kind_in` is the half that runs against a tree somebody else opened, which
 is why its own name carries the crate's `_in` suffix. The name is a code span
 rather than a link, and the closing section returns to why it had to become
@@ -171,16 +165,10 @@ say otherwise and show they are not read.
 The second verb is the one this chapter is named for, and it is the shortest
 answer to *what could not move* in the book so far.
 
-<!-- fragment «brief-chain-fn» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="657-673" parent="kind-and-brief-chain" -->
+<!-- fragment «brief-chain-fn» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="605-615" parent="kind-and-brief-chain" -->
 ````rust
-/// `brief-chain`: the `BRIEF.md` of each of the leaf's ancestor levels, from the
-/// grove root down to its containing node, root→leaf.
-///
-/// This is the library's `distinguished_chain` and nothing else: a node's
-/// distinguished child *is* its charter, and the library already skips levels
-/// that have none — which is exactly `brief-chain`'s documented *a directory
-/// level with no `BRIEF.md` is skipped silently*. A leaf has no brief of its
-/// own, so its containing node's is the deepest one collected.
+/// Every ancestor's node file, root-first, from the guarded snapshot.
+/// Whole-tree validation has already refused any missing or misplaced file.
 pub(crate) fn brief_chain(tree: &Tree, leaf_path: &Path) -> Result<Vec<PathBuf>> {
     let entry = leaf_entry(tree, leaf_path)?;
     Ok(entry
@@ -212,17 +200,13 @@ description of grove written into the crate underneath grove, and it is the
 clearest evidence in this book that the extraction was designed rather than
 merely performed.
 
-**Three of grove's own concepts are nonetheless in this function, and each is a
-seam.** The first is that a `BRIEF.md` *is* the distinguished child — the
-identification is grove's: the lifecycle callers supply `TaskName::Brief` for
-initialization and promotion, and the library never learns what the file means. The
-second is the skip. The doc comment claims the library's behaviour already
-matches the verb's documented contract — *a directory level with no `BRIEF.md`
-is skipped silently* — and that is a claim about two documents agreeing, which
-this chapter can check: the library's `distinguished_chain` filters ancestors
-through `distinguished()` and collects what survives, so a level without one
-contributes nothing and reports nothing. Two tests below hold the grove side of
-that agreement.
+
+Grove supplies the meaning of distinguished names: `TaskName::Brief` is
+`_BRIEF.md` at the root, and `TaskName::NodeFile` is `_<slug>.md` in a
+positioned node. The library's chain follows the snapshot's ancestor entries.
+Grove's level callback requires a file at every level, so the chain cannot
+silently omit an ancestor from a valid Grove snapshot.
+
 
 The third is the last line of the body. `entry_path(tree.root(), brief)` is
 chapter 6's builder, and it is here because **the library returns entries and
@@ -232,13 +216,12 @@ caller's own spelling of the root. So the verb's output is absolute paths, which
 is what the guide shows an operator seeing, and every component after the root is
 a name the snapshot admitted.
 
-The doc comment spells the verb `brief-chain`, hyphenated, because it is naming
-the operator-facing verb rather than this function: `verbs::brief_chain` takes an
-already-open `&Tree`, calls this, and hands back the paths, and chapter 15 reads
-it. The minimum
-here is that the *documented* contract the comment appeals to — a level with no
-charter is skipped silently — belongs to that verb and to the guide, and this
-function is where the library's behaviour is claimed to already satisfy it.
+
+`brief_chain` consumes a tree that has already passed complete-level
+validation. The library supplies the ancestor chain; Grove guarantees that each
+ancestor has exactly one correctly placed regular file. Missing files fail
+before this function can return a partial chain.
+
 
 **A leaf has no brief of its own.** The doc comment's last sentence is the rule
 in the chapter's title, stated from the collecting end: the deepest brief in the
@@ -256,7 +239,7 @@ this chapter's share of the crate's grammar work sits, because deciding which
 entry a caller meant is a question about names before it is a question about
 paths.
 
-<!-- fragment «leaf-entry-signature» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="674-693" parent="kind-and-brief-chain" -->
+<!-- fragment «leaf-entry-signature» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="616-635" parent="kind-and-brief-chain" -->
 ````rust
 /// The snapshot entry a caller's leaf argument names: absolute, or relative to
 /// the grove root.
@@ -299,7 +282,7 @@ because a directory argument, including the grove root itself, is not a file.
 
 The next clause is the one that makes this grove's rather than the library's.
 
-<!-- fragment «leaf-entry-grammar» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="694-707" parent="kind-and-brief-chain" -->
+<!-- fragment «leaf-entry-grammar» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="636-649" parent="kind-and-brief-chain" -->
 ````rust
     // The grammar itself, rather than a second reading of the filename: a
     // non-canonical or unknown-kind argument gets the domain's own recovery
@@ -326,14 +309,12 @@ and the two refusing verdicts are forwarded verbatim — `bail!("{error}")` pass
 the domain's rendered message through untouched, which is the mechanism by which
 chapter 4's advice reaches an operator who typed a path at this verb.
 
-**And this is where *a brief is not a leaf* is enforced.** The accepting arm asks
-for `Positioned { parts: Parts::Leaf { .. } }` and nothing else. `BRIEF.md` parses
-as `TaskName::Brief`, a variant that carries no position, no key and no parts at
-all, so it cannot match; it falls to the final arm and is refused as *not a
-current-format Grove leaf*. That is the rule the chapter is named for, and it is
-enforced by the shape of a pattern rather than by a check. The same arm refuses a
-node directory, for the same structural reason — chapter 3's `Parts::Node` has a
-slug and nothing else.
+
+**A node file is not a leaf.** The accepting pattern requires
+`Positioned { parts: Parts::Leaf { .. }, .. }`. Neither distinguished variant
+can match, and `Parts::Node` cannot match either. This establishes the species
+boundary without reading the file's brief body.
+
 
 **The second ending passes through this arm.** The book's second ending is a
 task-*shaped* name that grove refuses although the store would have accepted the
@@ -350,7 +331,7 @@ list anywhere.
 
 The clause that follows is the one chapter 5 pointed forward to.
 
-<!-- fragment «leaf-entry-compare» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="708-729" parent="kind-and-brief-chain" -->
+<!-- fragment «leaf-entry-compare» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="650-671" parent="kind-and-brief-chain" -->
 ````rust
     // Canonicalised to *compare* and never to report: two spellings of one path
     // name one entry, and the paths this module returns are still built from the
@@ -403,20 +384,20 @@ the second of the two functions and makes no count of its own.
 
 **One of the two refusals in this fragment is observed and the other is not**,
 and the split is measured rather than inferred. Deleting the containment clause —
-lines 723 to 729 — turns exactly one test red,
+lines 665 to 671 — turns exactly one test red,
 `brief_chain_errors_when_task_shaped_leaf_is_outside_grove_root`, which
 `unreachable-root-clause-k152` added for it after this chapter reported the gap;
 without the clause the argument falls through to the closing `bail!` and is told
 that every level above it must be a node directory, which is the wrong advice for
 a file that is not under the root at all. Deleting the grove-root clause instead —
-lines 717 to 722, leaving the canonicalisation and the walk untouched — leaves all
+lines 659 to 664 leaving the canonicalisation and the walk untouched — leaves all
 246 of `grove-loop`'s inline tests green and all twenty-five of `grove-llm`'s test
 targets green. Nothing in the repository asserts *is the grove root, not a leaf*,
 and the section on the tests says why nothing can.
 
 The last fragment is the walk, and the refusal that closes the function.
 
-<!-- fragment «leaf-entry-walk» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="730-746" parent="kind-and-brief-chain" -->
+<!-- fragment «leaf-entry-walk» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="672-688" parent="kind-and-brief-chain" -->
 ````rust
     for entry in tree.walk() {
         if entry.name().to_string() != name {
@@ -430,7 +411,7 @@ The last fragment is the walk, and the refusal that closes the function.
     // name the grammar disclaimed, so no walk reaches it.
     bail!(
         "Grove leaf {} is not in the task tree: every level above it must be a \
-         node directory named NN-<slug>-k<key>",
+         node directory named NN-k<key>",
         candidate.display()
     )
 }
@@ -457,7 +438,7 @@ By the time control reaches it the argument is task-shaped, is a file, and is
 under the root — and is still not in the tree. The comment gives the only
 remaining explanation: *it sits under a name the grammar disclaimed, so no walk
 reaches it*, and the message tells the operator the repair — every level above a
-leaf must be a node directory named `NN-<slug>-k<key>`. This is the mirror of
+leaf must be a node directory named `NN-k<key>`. This is the mirror of
 chapter 7's disclaimed-name result. There, a name the grammar does not claim is
 passed over and the walk continues; here, work parked under such a name is
 invisible to every verb, and this message is the only place the crate says so to
@@ -486,7 +467,7 @@ own, `touch_body`, and otherwise builds every tree with `grove`, `touch` and
 compositions — all five of them chapter 6's, and the first of them the one whose
 comment says production never wants it.
 
-<!-- fragment «brief-chain-and-kind-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1361-1667" parent="source-task-tree" -->
+<!-- fragment «brief-chain-and-kind-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1316-1623" parent="source-task-tree" -->
 <!-- insert «chain-tests-shape» -->
 <!-- insert «chain-tests-siblings» -->
 <!-- insert «chain-tests-skipping» -->
@@ -518,9 +499,9 @@ can honestly be named for.
 
 | Group | Tests | The property the group holds |
 |---|---:|---|
-| the shape of a chain | 2 | one entry per ancestor level, root first, each a `BRIEF.md` |
+| the shape of a chain | 2 | one entry per ancestor level, root first, root `_BRIEF.md`, then titled node files |
 | not a sibling's | 1 | the ascent cannot reach a sibling subtree |
-| a level without one | 2 | a missing brief is skipped, at a node and at the root alike |
+| a level without one | 2 | a missing node file refuses the whole read at either depth |
 | outcome and spelling | 2 | a `DONE` leaf has ancestors; a relative argument is joined onto the root |
 | four refusals | 4 | each is refused, and each name now says by what |
 | the filename, not the body | 6 | the kind is the token in the name whatever the body says |
@@ -535,30 +516,30 @@ thirteen fragments below follow source order.
 The section label and the first two chain tests come together, because the second
 is what the first is worth.
 
-<!-- fragment «chain-tests-shape» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1361-1395" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-shape» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1316-1353" parent="brief-chain-and-kind-tests" -->
 ````rust
     // ---- brief-chain --------------------------------------------------------
 
     #[test]
     fn brief_chain_root_level_leaf_returns_only_root_brief() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         let leaf = touch(&g, "01-impl--a-k1.md");
         let chain = brief_chain_at(&g, &leaf).unwrap();
         assert_eq!(
             chain.iter().map(|p| name_of(p)).collect::<Vec<_>>(),
-            vec!["BRIEF.md"]
+            vec!["_BRIEF.md"]
         );
     }
 
     #[test]
     fn brief_chain_two_levels_deep_root_then_each_ancestor_brief() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let n1 = mknode(&g, "02-mid-k1");
-        touch(&n1, "BRIEF.md");
-        let n2 = mknode(&n1, "01-node-k2");
-        touch(&n2, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let n1 = mknode(&g, "02-k1", "mid");
+        touch(&n1, "_mid.md");
+        let n2 = mknode(&n1, "01-k2", "node");
+        touch(&n2, "_node.md");
         let leaf = touch(&n2, "01-impl--leaf-k3.md");
         let chain = brief_chain_at(&g, &leaf).unwrap();
         // Each brief's parent dir distinguishes them; assert on the parent.
@@ -567,9 +548,12 @@ is what the first is worth.
                 .iter()
                 .map(|p| name_of(p.parent().unwrap()))
                 .collect::<Vec<_>>(),
-            vec![".grove", "02-mid-k1", "01-node-k2"]
+            vec![".grove", "02-k1", "01-k2"]
         );
-        assert!(chain.iter().all(|p| name_of(p) == "BRIEF.md"));
+        assert_eq!(
+            chain.iter().map(|p| name_of(p)).collect::<Vec<_>>(),
+            vec!["_BRIEF.md", "_mid.md", "_node.md"]
+        );
     }
 
 ````
@@ -577,15 +561,15 @@ is what the first is worth.
 
 **The first test's property is that a root-level leaf collects exactly the grove
 root's own charter** — one level of ancestry, one brief. It is the base case, and
-alone it establishes very little: the fixture contains exactly one `BRIEF.md`, so
-an implementation that globbed every `BRIEF.md` in the tree, or returned the
+alone it establishes very little: the fixture contains exactly one `_BRIEF.md`, so
+an implementation that globbed every node file in the tree, or returned the
 leaf's own directory's brief, or returned the root's brief unconditionally, would
 all answer identically.
 
 **The second test is where the chain becomes a chain.** Three levels, three
 briefs, and the assertion is on each brief's *parent directory* — `.grove`,
-`02-mid-k1`, `01-node-k2` — with a second assertion that every returned path is
-in fact named `BRIEF.md`. The comment above it says why the assertion is shaped
+`02-k1`, `01-k2` — with a second assertion that every returned path is
+in fact named `_BRIEF.md`. The comment above it says why the assertion is shaped
 that way: the three files are indistinguishable by their own names, so the parent
 is the only thing that identifies them.
 
@@ -594,21 +578,21 @@ genuinely pinned — `Vec` equality is ordered, so a leaf-to-root implementation
 fails — and the two-assertion structure closes the reading that the function
 returns *directories* rather than briefs. What neither closes is breadth: this
 fixture is a single spine with no branch, so an implementation collecting every
-`BRIEF.md` anywhere in the tree still passes both. The next test exists for that,
+`_BRIEF.md` anywhere in the tree still passes both. The next test exists for that,
 and it is the only test in the block that could close it.
 
-<!-- fragment «chain-tests-siblings» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1396-1416" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-siblings» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1354-1374" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn brief_chain_only_includes_ancestors_not_sibling_subtrees() {
         // The directory ascent inherently excludes a sibling node's brief: a leaf
         // under `01-design` never sees `02-other`'s brief.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let design = mknode(&g, "01-design-k1");
-        touch(&design, "BRIEF.md");
-        let other = mknode(&g, "02-other-k3");
-        touch(&other, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let design = mknode(&g, "01-k1", "design");
+        touch(&design, "_design.md");
+        let other = mknode(&g, "02-k3", "other");
+        touch(&other, "_other.md");
         let leaf = touch(&design, "01-impl--leaf-k2.md");
         let chain = brief_chain_at(&g, &leaf).unwrap();
         assert_eq!(
@@ -616,7 +600,7 @@ and it is the only test in the block that could close it.
                 .iter()
                 .map(|p| name_of(p.parent().unwrap()))
                 .collect::<Vec<_>>(),
-            vec![".grove", "01-design-k1"]
+            vec![".grove", "01-k1"]
         );
     }
 
@@ -624,7 +608,7 @@ and it is the only test in the block that could close it.
 <!-- /fragment -->
 
 **The property is that the chain is an ancestry and not a search**: a leaf under
-`01-design-k1` never sees `02-other-k3`'s brief, though both nodes sit at the
+`01-k1` never sees `02-k3`'s brief, though both nodes sit at the
 same level and both have one.
 
 **What it would pass under with the property broken:** almost anything, and the
@@ -640,62 +624,56 @@ thing to have a test for; the honest description is that this test pins the
 The pair that follows provides the block's strongest discrimination because of
 what differs between its two halves.
 
-<!-- fragment «chain-tests-skipping» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1417-1452" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-skipping» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1375-1408" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
-    fn brief_chain_skips_missing_intermediate_brief() {
+    fn brief_chain_refuses_missing_intermediate_node_file() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        // No BRIEF.md in `02-mid` — a mid-decomposition transient.
-        let n1 = mknode(&g, "02-mid-k1");
-        let n2 = mknode(&n1, "01-node-k2");
-        touch(&n2, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        // Remove the positioned node file to exercise the earlier level refusal.
+        let n1 = mknode(&g, "02-k1", "mid");
+        let n2 = mknode(&n1, "01-k2", "node");
+        touch(&n2, "_node.md");
         let leaf = touch(&n2, "01-impl--leaf-k3.md");
-        let chain = brief_chain_at(&g, &leaf).unwrap();
-        assert_eq!(
-            chain
-                .iter()
-                .map(|p| name_of(p.parent().unwrap()))
-                .collect::<Vec<_>>(),
-            vec![".grove", "01-node-k2"]
+        fs::remove_file(n1.join("_mid.md")).unwrap();
+        let error = brief_chain_at(&g, &leaf).unwrap_err().to_string();
+        assert!(error.contains("exactly one regular node file"), "{error}");
+        assert!(
+            error.contains(&n1.join("_mid.md").parent().unwrap().display().to_string()),
+            "{error}"
         );
     }
 
     #[test]
-    fn brief_chain_skips_missing_root_brief() {
+    fn brief_chain_refuses_missing_root_node_file() {
         let (_t, g) = grove();
-        // No root BRIEF.md.
-        let n1 = mknode(&g, "02-mid-k1");
-        touch(&n1, "BRIEF.md");
+        // No root _BRIEF.md.
+        let n1 = mknode(&g, "02-k1", "mid");
+        touch(&n1, "_mid.md");
         let leaf = touch(&n1, "01-impl--leaf-k2.md");
-        let chain = brief_chain_at(&g, &leaf).unwrap();
-        assert_eq!(
-            chain
-                .iter()
-                .map(|p| name_of(p.parent().unwrap()))
-                .collect::<Vec<_>>(),
-            vec!["02-mid-k1"]
+        fs::remove_file(g.join("_BRIEF.md")).unwrap();
+        let error = brief_chain_at(&g, &leaf).unwrap_err().to_string();
+        assert!(error.contains("exactly one regular node file"), "{error}");
+        assert!(
+            error.contains(&g.join("_BRIEF.md").parent().unwrap().display().to_string()),
+            "{error}"
         );
     }
 
 ````
 <!-- /fragment -->
 
-**The property is the verb's documented behaviour: a directory level with no
-`BRIEF.md` is skipped silently.** Silently is the operative word — the chain is
-shorter, and nothing reports that a level was passed over. The first test removes
-the brief from an intermediate node; the second removes it from the grove root
-itself.
 
-**What each would pass under with the property broken:** an implementation that
-returned an error on a missing brief fails both; one that inserted a placeholder
-path fails both. So each test alone closes *refuse* and *fabricate*. What only
-the **pair** closes is the reading that the root is special. A perfectly
-plausible implementation treats the grove's own charter as mandatory and every
-node's as optional — that is how a great many hierarchical-config readers behave
-— and it passes the first test and fails the second. Having both is what makes
-*a level* mean every level, and it is the clearest case in this block of two
-tests being worth more than twice one.
+**Missing node files refuse the read.** The two tests remove a file from
+an otherwise valid fixture, once at the root and once at an intermediate node.
+Both assert the level error and its containing path. They establish that the
+chain cannot conceal an incomplete level.
+
+
+The pair tests missing files at both depths. Each requires refusal rather
+than omission or a fabricated path, preventing an implementation from making
+only the root mandatory while silently omitting positioned-node briefs.
+
 
 **Neither test observes the silence.** Both assert on the returned vector, and a
 silent skip and a skip that logged a warning to stderr are indistinguishable to
@@ -707,15 +685,15 @@ asserted anywhere.
 The next pair tests two independent properties and is grouped only by source
 order.
 
-<!-- fragment «chain-tests-done-and-relative» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1453-1487" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-done-and-relative» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1409-1443" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn brief_chain_resolves_chain_for_a_done_leaf() {
         // Normally called on a live leaf, but a `DONE` leaf still has ancestors.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let n1 = mknode(&g, "01-design-k1");
-        touch(&n1, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let n1 = mknode(&g, "01-k1", "design");
+        touch(&n1, "_design.md");
         let leaf = touch(&n1, "01-DONE-impl--leaf-k2.md");
         let chain = brief_chain_at(&g, &leaf).unwrap();
         assert_eq!(
@@ -723,24 +701,24 @@ order.
                 .iter()
                 .map(|p| name_of(p.parent().unwrap()))
                 .collect::<Vec<_>>(),
-            vec![".grove", "01-design-k1"]
+            vec![".grove", "01-k1"]
         );
     }
 
     #[test]
     fn brief_chain_accepts_grove_root_relative_leaf_path() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let n1 = mknode(&g, "01-design-k1");
-        touch(&n1, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let n1 = mknode(&g, "01-k1", "design");
+        touch(&n1, "_design.md");
         touch(&n1, "01-impl--leaf-k2.md");
-        let chain = brief_chain_at(&g, Path::new("01-design-k1/01-impl--leaf-k2.md")).unwrap();
+        let chain = brief_chain_at(&g, Path::new("01-k1/01-impl--leaf-k2.md")).unwrap();
         assert_eq!(
             chain
                 .iter()
                 .map(|p| name_of(p.parent().unwrap()))
                 .collect::<Vec<_>>(),
-            vec![".grove", "01-design-k1"]
+            vec![".grove", "01-k1"]
         );
     }
 
@@ -764,7 +742,7 @@ block uses one.
 **The second property is that a grove-root-relative argument is joined onto the
 root** rather than resolved against the process's working directory. This one
 discriminates properly: the fixture creates the file under the temporary grove
-and then passes `01-design-k1/01-impl--leaf-k2.md` with no leading directory, so
+and then passes `01-k1/01-impl--leaf-k2.md` with no leading directory, so
 an implementation that skipped the join would `is_file`-test a path relative to
 wherever the test binary happened to run and refuse. It is a real test of a real
 clause, and its twin for the other verb is
@@ -776,12 +754,12 @@ again by inserting a test between the two.
 Then the four refusals — the run where the block's names once stopped matching
 its behaviour, and the one `unreachable-root-clause-k152` repaired.
 
-<!-- fragment «chain-tests-refusals» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1488-1537" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-refusals» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1444-1493" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn brief_chain_errors_when_leaf_name_is_not_task_shaped() {
         let (tmp, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         let stray = tmp.path().join("stray.md");
         fs::write(&stray, b"# stub\n").unwrap();
         let err = brief_chain_at(&g, &stray).unwrap_err();
@@ -796,7 +774,7 @@ its behaviour, and the one `unreachable-root-clause-k152` repaired.
     #[test]
     fn brief_chain_errors_when_task_shaped_leaf_is_outside_grove_root() {
         let (tmp, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         let outside = tmp.path().join("01-impl--a-k1.md");
         fs::write(&outside, b"# stub\n").unwrap();
         let err = brief_chain_at(&g, &outside).unwrap_err();
@@ -809,7 +787,7 @@ its behaviour, and the one `unreachable-root-clause-k152` repaired.
     #[test]
     fn brief_chain_errors_when_given_the_grove_root_which_is_not_a_file() {
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         let err = brief_chain_at(&g, &g).unwrap_err();
         assert!(
             err.to_string().contains("Grove leaf not found"),
@@ -854,7 +832,7 @@ one. The fixture writes `01-impl--a-k1.md` as a **sibling** of `.grove` rather
 than a child: task-shaped, so it clears the grammar arm the test above stops at;
 a regular file, so it clears `is_file`; and outside the root, so `starts_with`
 refuses it. The negation is what makes it evidence rather than decoration —
-delete lines 723 to 729 and this is the only test in either suite that goes red,
+delete lines 665 to 671 and this is the only test in either suite that goes red,
 and what it then reports is the closing `bail!`'s advice about node directories,
 which is the wrong advice for a path that is not under the root at all.
 
@@ -866,16 +844,16 @@ was `brief_chain_errors_when_given_the_grove_root_itself`, and the clause **that
 name pointed at is not merely untested: **no argument reaches it.** Reaching it
 requires a path that `is_file` accepted and that canonicalises to the same path as
 the grove root, and chapter 5's opening refuses a root that is not a directory
-(`task_tree.rs` line 276, *grove root not found*). A regular file and a directory
+(`task_tree.rs` line 276 *grove root not found*). A regular file and a directory
 are not one inode, so no argument an operator can supply satisfies both.
 
 **What that argument leaves out is the gap between the two readings, and it is
-the reason the clause was kept.** Line 687 and line 711 are two *by-name*
+the reason the clause was kept.** Line 629 and line 653 are two *by-name*
 resolutions of the same path — `is_file` and `canonicalize` — twenty-four lines
 apart, and neither holds a descriptor, so nothing pins what the name denotes
 between them. Rebind it in that window and both facts hold in turn: measured
 directly, a regular file that `is_file` accepts and that is replaced by a symbolic
-link to the grove root before line 711 canonicalises to `root_real` exactly, on a
+link to the grove root before line 653 canonicalises to `root_real` exactly, on a
 filename the grammar already admitted and which never changed. So the clause is
 unreachable by argument and reachable by rebinding, which is a different finding
 from dead code — it is the guard a deliberate second resolution owes. Delete it
@@ -910,7 +888,7 @@ hold.
 The `kind` section opens with its label and the fixture that makes its central
 claim testable.
 
-<!-- fragment «kind-tests-label-and-fixture» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1538-1547" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-label-and-fixture» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1494-1503" parent="brief-chain-and-kind-tests" -->
 ````rust
     // ---- kind ---------------------------------------------------------------
 
@@ -933,7 +911,7 @@ chapter's blocks define; the rest are chapter 6's.
 
 The first two tests are a smoke test and the claim.
 
-<!-- fragment «kind-tests-two-leaves» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1548-1561" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-two-leaves» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1504-1517" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_reads_an_impl_leaf() {
@@ -967,7 +945,7 @@ and it is the whole difference between a test and an example.
 The third is the section's most interesting test, and its doc comment records why
 it was rewritten.
 
-<!-- fragment «kind-tests-open-token» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1562-1589" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-open-token» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1518-1545" parent="brief-chain-and-kind-tests" -->
 ````rust
     /// The verb reads whatever token the filename carries, including tokens no
     /// methodology declares and none this repo has ever configured.
@@ -1031,7 +1009,7 @@ to vocabulary, closed as to shape.** grove will carry `spike-2` and will refuse
 The remaining nine tests split into one more disagreement, a defaulting pair, a
 relative path, four more bodies, and a refusal.
 
-<!-- fragment «kind-tests-legacy-label» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1590-1596" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-legacy-label» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1546-1552" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_ignores_a_legacy_work_label_in_the_body() {
@@ -1048,7 +1026,7 @@ methodology retired. It discriminates against a body-reading implementation
 exactly as far as its predecessor does and no further; what it adds is a record
 of which legacy strings were actually met in real task files.
 
-<!-- fragment «kind-tests-default-and-empty» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1597-1614" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-default-and-empty» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1553-1570" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_no_arg_defaults_to_picks_next_leaf() {
@@ -1064,7 +1042,7 @@ of which legacy strings were actually met in real task files.
         // No live leaves ⇒ Ok(None), the same signal pick gives (the CLI renders
         // the "no live leaves" diagnostic).
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
         assert_eq!(kind(&g, None).unwrap(), None);
     }
 
@@ -1088,15 +1066,15 @@ comment names the consequence — the CLI renders the *no live leaves* diagnosti
 and this is the same signal chapter 7 read out of `pick`. It is the shape the
 loop needs in order to distinguish a finished grove from a broken one.
 
-<!-- fragment «kind-tests-relative-path» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1615-1624" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-relative-path» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1571-1580" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_accepts_a_grove_root_relative_path() {
         let (_t, g) = grove();
-        let node = mknode(&g, "01-design-k1");
-        touch(&node, "BRIEF.md");
+        let node = mknode(&g, "01-k1", "design");
+        touch(&node, "_design.md");
         touch_body(&node, "01-impl--leaf-k2.md", "**Kind:** impl\n");
-        let got = kind(&g, Some(Path::new("01-design-k1/01-impl--leaf-k2.md"))).unwrap();
+        let got = kind(&g, Some(Path::new("01-k1/01-impl--leaf-k2.md"))).unwrap();
         assert_eq!(got, Some(a_kind("impl")));
     }
 
@@ -1110,7 +1088,7 @@ grove root finds it. Both verbs share one resolver, so the pair tests one clause
 twice — which is defensible, since the two verbs are separately callable and the
 sharing is an implementation fact rather than a contract.
 
-<!-- fragment «kind-tests-body-ignored» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1625-1656" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-body-ignored» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1581-1612" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_ignores_trailing_commentary_on_a_legacy_kind_line() {
@@ -1178,7 +1156,7 @@ it. That is the residue of the `kind` section, and it is the same shape as the
 residue chapter 7 recorded for its own refusals: a property stated in a doc
 comment and held by nothing.
 
-<!-- fragment «kind-tests-absent-root» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1657-1667" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-absent-root» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1613-1623" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_errors_when_grove_root_absent() {
@@ -1209,7 +1187,7 @@ chapter's rather than chapter 7's because the thing it exercises second is
 `brief_chain`, and it is the only place in the file where two verbs are put in
 front of one tree.
 
-<!-- fragment «pick-with-brief-chain-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="2012-2038" parent="source-task-tree" -->
+<!-- fragment «pick-with-brief-chain-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1945-1971" parent="source-task-tree" -->
 ````rust
     // ---- pick + brief-chain together ----------------------------------------
 
@@ -1218,9 +1196,9 @@ front of one tree.
         // End-to-end: pick the first live leaf in a nested tree, then resolve its
         // ancestor brief chain — the loop's bootstrap path.
         let (_t, g) = grove();
-        touch(&g, "BRIEF.md");
-        let n1 = mknode(&g, "01-scheme-k1");
-        touch(&n1, "BRIEF.md");
+        touch(&g, "_BRIEF.md");
+        let n1 = mknode(&g, "01-k1", "scheme");
+        touch(&n1, "_scheme.md");
         touch(&n1, "01-DONE-impl--id-model-k2.md");
         let leaf = touch(&n1, "02-impl--read-verbs-k3.md");
         touch(&g, "02-impl--shed-tui-k4.md");
@@ -1234,7 +1212,7 @@ front of one tree.
                 .iter()
                 .map(|p| name_of(p.parent().unwrap()))
                 .collect::<Vec<_>>(),
-            vec![".grove", "01-scheme-k1"]
+            vec![".grove", "01-k1"]
         );
     }
 }
@@ -1248,7 +1226,7 @@ chain. The fixture is the block's own word for what makes it worth having —
 real grove has at once: a root charter, a node with a charter of its own, a
 retired leaf, and a live leaf after the node at root level.
 
-That shape does discriminate. `pick` must descend into `01-scheme-k1` rather than
+That shape does discriminate. `pick` must descend into `01-k1` rather than
 taking the root-level `02-impl--shed-tui-k4.md`, and it must skip the `DONE` leaf
 at position 01 inside the node. Both are chapter 7's properties, re-established
 here incidentally; what is new is that the leaf `pick` chose is then a valid
@@ -1311,7 +1289,7 @@ have defaulted, because nothing beneath grove knows what a kind is.
 
 **A brief is not a leaf, and that is a fact about a pattern.** The resolver
 accepts `Positioned { parts: Parts::Leaf { .. } }` and refuses everything else, so
-a `BRIEF.md` argument and a node-directory argument are both turned away by the
+a `_BRIEF.md` argument and a node-directory argument are both turned away by the
 shape of a match arm rather than by a check anyone had to remember to write. The
 collecting end of the same rule is that a leaf contributes no brief of its own,
 so the deepest brief in a chain always belongs to the leaf's containing node.

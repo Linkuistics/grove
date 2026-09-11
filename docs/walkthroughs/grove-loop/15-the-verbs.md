@@ -95,7 +95,7 @@ for leaving the tree alone. Its own doc comment fixes the distinction at line
 The three roots this chapter owns are declared whole here, each as one
 composite whose children are the items below in file order.
 
-<!-- fragment «the-twelve-verbs» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="1-363" parent="source-verbs" -->
+<!-- fragment «the-twelve-verbs» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="1-361" parent="source-verbs" -->
 <!-- insert «verbs-surface-header» -->
 <!-- insert «verbs-imports» -->
 <!-- insert «verbs-root-init» -->
@@ -237,7 +237,7 @@ refused, not repaired.
 /// What [`root_init`] wrote.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Initialized {
-    /// The grove's charter, `.grove/BRIEF.md`.
+    /// The grove's charter, `.grove/_BRIEF.md`.
     pub brief: PathBuf,
     /// The first leaf, which is what `pick` will answer next.
     pub first_leaf: PathBuf,
@@ -305,13 +305,11 @@ The second reads a leaf's session kind; the third reads its ancestors' charters,
 root to leaf. Both take the leaf a caller names and both hand the work straight
 to `task_tree` under the opening they were given.
 
-<!-- fragment «verbs-brief-chain» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="86-97" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-brief-chain» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="86-95" parent="the-twelve-verbs" -->
 ````rust
 
-/// Every `BRIEF.md` from the grove root down to the leaf, in that order.
-///
-/// A directory level with no `BRIEF.md` is skipped silently: a node is not
-/// obliged to carry a charter.
+/// Every ancestor node file, root-first: `_BRIEF.md`, then `_<slug>.md`.
+/// The guarded opening refuses missing or misplaced node files.
 ///
 /// # Errors
 ///
@@ -322,18 +320,15 @@ pub fn brief_chain(tree: &Tree, leaf: &Path) -> Result<Vec<PathBuf>, Error> {
 ````
 <!-- /fragment -->
 
-Two verbs chapter 8 read from the other side. Each is the public half of a
-`task_tree` function — taking the already-open `&Tree` a caller hands it, since
-no verb here but `finish_commit` opens a tree — and each carries the contract
-that function's comment appeals to but does not own: that a named path which is
-not a leaf is an *error*
-rather than a `Nothing`, because the caller asserted it was one; and that a
-directory level with no `BRIEF.md` is skipped silently. The
-[guide's account of the tree verbs](../../USAGE.md#usage-tree-verbs) states the
-same two contracts for the operator, which is where they are owed, since a
-session reads them from `--help` and never from this file.
 
-<!-- fragment «verbs-resolve» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="98-110" parent="the-twelve-verbs" -->
+The public `kind` and `brief_chain` functions consume an already-open tree.
+A supplied path that is not a leaf is an error. Every successfully opened level
+has exactly one correctly placed node file, so a brief chain contains the root
+file followed by each positioned ancestor's titled file. Missing files refuse
+at open, before either function can return a partial answer.
+
+
+<!-- fragment «verbs-resolve» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="96-108" parent="the-twelve-verbs" -->
 ````rust
 
 /// What a session's reference names.
@@ -363,7 +358,7 @@ belongs in the success channel.
 Two verbs grow the tree, and both take a `&TreeWrite` — the write opening whose
 guard a mutation consumes. The first appends; the second makes room.
 
-<!-- fragment «verbs-leaf-add» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="111-134" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-leaf-add» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="109-132" parent="the-twelve-verbs" -->
 ````rust
 
 /// Append one or more leaves under `parent`, all carrying `slug`, as **one**
@@ -398,7 +393,7 @@ tokens are the methodology's, not grove's* is the crate declining a decision it
 could easily have made: a research pair is a three-kind list because a skill said
 so, and `leaf_add` neither knows nor validates that.
 
-<!-- fragment «verbs-leaf-insert» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="135-155" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-leaf-insert» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="133-153" parent="the-twelve-verbs" -->
 ````rust
 
 /// Take `target`'s slot, shifting it and every later sibling up by one.
@@ -435,7 +430,7 @@ What follows `leaf_insert` in the file is not the next verb. It is the lint that
 finishes `leaf-insert`'s job, and it opens by disqualifying itself from the count
 before it says anything about what it does.
 
-<!-- fragment «verbs-not-a-thirteenth-verb» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="156-210" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-not-a-thirteenth-verb» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="154-208" parent="the-twelve-verbs" -->
 ````rust
 
 /// The stale position-prefixed references a [`leaf_insert`] left behind, one
@@ -546,7 +541,7 @@ book, and this is the chapter that says so rather than following it.
 Three verbs change what a live leaf is without moving its bytes anywhere a
 reader has to follow. The first promotes it to a node; the other two mark it.
 
-<!-- fragment «verbs-leaf-decompose» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="211-231" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-leaf-decompose» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="209-229" parent="the-twelve-verbs" -->
 ````rust
 
 /// Turn a leaf into a node, its bytes becoming the node's charter, with one
@@ -575,7 +570,7 @@ pub fn leaf_decompose(
 Its report is the second of the four declared beside their verb, and it names
 the two paths a promotion produces.
 
-<!-- fragment «verbs-decomposed» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="232-240" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-decomposed» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="230-238" parent="the-twelve-verbs" -->
 ````rust
 
 /// What [`leaf_decompose`] wrote.
@@ -594,7 +589,7 @@ of what this verb adds to chapter 12's promotion, and `Decomposed`'s second fiel
 comment — *so a node is never childless* — is an invariant stated in a struct
 rather than asserted in code.
 
-<!-- fragment «verbs-leaf-retire» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="241-249" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-leaf-retire» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="239-247" parent="the-twelve-verbs" -->
 ````rust
 
 /// Mark one leaf `DONE` in place. Filename only — the file's bytes do not move.
@@ -611,7 +606,7 @@ pub fn leaf_retire(tree: &TreeWrite, leaf: &Path) -> Result<PathBuf, Error> {
 `leaf_retire` marks one leaf and returns one path. The bulk mark cannot promise
 either, and its comment says so before its signature does.
 
-<!-- fragment «verbs-leaf-prune» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="250-269" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-leaf-prune» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="248-267" parent="the-twelve-verbs" -->
 ````rust
 
 /// Mark abandoned work `ABANDONED` in place: one leaf, or every *live* leaf
@@ -640,7 +635,7 @@ The report is where the non-atomicity becomes usable rather than merely
 admitted: two vectors, one of what was marked and one of what was deliberately
 not.
 
-<!-- fragment «verbs-pruned» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="270-279" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-pruned» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="268-277" parent="the-twelve-verbs" -->
 ````rust
 
 /// What [`leaf_prune`] marked, and what it deliberately left alone.
@@ -669,7 +664,7 @@ The last two verbs are the ones that do not take a tree from their caller,
 because what each of them reaches is not the tree. The first reaches the version
 control system.
 
-<!-- fragment «verbs-finish-commit» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="280-302" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-finish-commit» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="278-300" parent="the-twelve-verbs" -->
 ````rust
 
 /// Commit the teardown the finish session performed. **Reaches the VCS seam.**
@@ -710,7 +705,7 @@ that this is the one verb a caller must **not** invoke while holding a
 is gone and the commit is named, or the tree is untouched and the handle is
 refused.
 
-<!-- fragment «verbs-complete» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="303-327" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-complete» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="301-325" parent="the-twelve-verbs" -->
 ````rust
 
 /// Write the relaunch flag to the signal file and return. **Reaches the
@@ -754,7 +749,7 @@ The question it asks first is the second thing on this file that is not a verb.
 
 `complete` asks one question before it writes, and the question is public.
 
-<!-- fragment «verbs-signal-channel» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="328-341" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-signal-channel» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="326-339" parent="the-twelve-verbs" -->
 ````rust
 
 /// Whether [`complete`] would signal, and where.
@@ -822,7 +817,7 @@ deleting the emptiness filter instead turns exactly three tests red —
 `the_channel_can_be_asked_for_before_it_is_written` — at the same 560-test total,
 so nothing failed to compile.
 
-<!-- fragment «verbs-signalled» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="342-351" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-signalled» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="340-349" parent="the-twelve-verbs" -->
 ````rust
 
 /// What [`complete`] did.
@@ -847,7 +842,7 @@ says who ends the session instead.
 The file ends on its only private function, and on the boundary the whole module
 exists to keep.
 
-<!-- fragment «verbs-sought» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="352-363" parent="the-twelve-verbs" -->
+<!-- fragment «verbs-sought» owner="twelve-not-fourteen" source="crates/grove-loop/src/verbs.rs" lines="350-361" parent="the-twelve-verbs" -->
 ````rust
 
 /// `Option` in, [`Sought`] out — the one place the crate crosses that boundary.

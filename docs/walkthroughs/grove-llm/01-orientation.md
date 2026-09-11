@@ -9,7 +9,7 @@
 launches a session for one leaf, the session runs these verbs to find its leaf,
 read its brief chain, grow the tree, mark its own leaf done and signal the
 driver, and each of those verbs is a call into `grove_loop::verbs` plus the
-rendering of what came back. Its whole source is four files and 1,017
+rendering of what came back. Its whole source is four files and 1,015
 lines, and 944 of them are one module; nearly half of that module is comment,
 and the comment at its head states the book's organizing claim.
 
@@ -474,7 +474,7 @@ read in full.
 | `Sought`, `Resolution` | `Sought` is a found-or-nothing answer; `Resolution` is what `resolve` found — the root, one entry, or an ambiguity. | Reading the tree |
 | `Kind`, `Slug` | The grammar's own types for a `--kind` token and a slug; malformed text is refused by them, before any lock. | Growing the tree |
 | `SessionConfig` | The launch configuration, loaded whole and asked whether one kind resolves to a template. | Growing the tree |
-| `Handle` | A `<slug>-k<key>` handle, parsed leniently on the key and spoken canonically thereafter. | Leaving the loop |
+| `Handle` | A `<slug>-k<key>` handle, parsed with a canonical positive key. | Leaving the loop |
 | `Signalled` | Whether `complete` wrote the disposition to a channel or found no loop to signal. | Leaving the loop |
 
 What the block is not evidence of is the five `grove_loop` items the module
@@ -539,7 +539,7 @@ session for that leaf and is watching for one file to appear.
 │       ├── driver.lease                 held by the driver for as long as it runs
 │       └── session.epoch                rewritten by the driver around this launch
 ├── .grove/
-│   ├── BRIEF.md
+│   ├── _BRIEF.md
 │   └── 01-impl--rate-limit-k3.md      live: no DONE or ABANDONED infix
 └── crates/
     └── gateway/
@@ -569,7 +569,7 @@ $ grove-llm resolve rate-limit-k3
 
 $ grove-llm brief-chain /work/atlas/.grove/01-impl--rate-limit-k3.md
   admitted, then verbs::brief_chain under the shared opening
-  stdout   /work/atlas/.grove/BRIEF.md
+  stdout   /work/atlas/.grove/_BRIEF.md
 
   … the session reads the brief and the leaf, and does the work …
 
@@ -624,20 +624,20 @@ its transcript jumps.
 
 ```text
 .grove/ as the driver launched it            read by chapters 2, 3 and 4
-├── BRIEF.md
+├── _BRIEF.md
 └── 01-impl--rate-limit-k3.md
 
       $ grove-llm leaf-add . rate-limit --kind review-impl     chapter 4
 
 .grove/ after the add                        read by chapter 4
-├── BRIEF.md
+├── _BRIEF.md
 ├── 01-impl--rate-limit-k3.md
 └── 02-review-impl--rate-limit-k4.md
 
       $ grove-llm leaf-retire …/01-impl--rate-limit-k3.md      chapter 5
 
 .grove/ after the retire                     read by chapters 3 and 5
-├── BRIEF.md
+├── _BRIEF.md
 ├── 01-DONE-impl--rate-limit-k3.md
 └── 02-review-impl--rate-limit-k4.md
 ```

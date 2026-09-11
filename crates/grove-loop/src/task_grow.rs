@@ -279,7 +279,7 @@ fn renumbered(report: &Report<TaskName>) -> Result<Vec<Renumber>> {
 /// means there is nothing to do.
 ///
 /// **It scans the tree, where it used to scan the directory.** The bodies are
-/// every leaf and every `BRIEF.md` the snapshot holds, which is what grove has
+/// every leaf and node file the snapshot holds, which is what grove has
 /// under the guard and exactly the set the reader admits. A foreign `.md` file
 /// dropped inside `.grove/` by hand is no longer scanned; grove writes none, and
 /// the alternative is a second, wider notion of *what is in the tree* than every
@@ -316,8 +316,8 @@ pub(crate) fn stale_cross_refs(tree: Tree, renumbered: &[Renumber]) -> Vec<Strin
     // the paths inside a shifted node moved with it, so the tree this scans is
     // the one the shift *left*.
     // The stale tokens are the *old* position-prefixed names the renumber moved
-    // (`02-mid-k3`), with any `.md` extension dropped so a path reference
-    // `02-mid-k3/01-impl--x-k4.md` matches the directory token. The `-k<digits>`
+    // (`02-k3`), with any `.md` extension dropped so a path reference
+    // `02-k3/01-impl--x-k4.md` matches the directory token. The `-k<digits>`
     // tail makes these specific enough to scan as plain substrings.
     let stale: Vec<String> = renumbered
         .iter()
@@ -374,7 +374,7 @@ fn parent_node(tree: &Guard, parent: &str) -> Result<Target> {
             if entry.contents().is_none() {
                 bail!(
                     "parent is not a node directory (need a directory named \
-                     NN-<slug>-k<key>): {}",
+                     NN-k<key>): {}",
                     task_tree::entry_path(root, entry).display()
                 );
             }

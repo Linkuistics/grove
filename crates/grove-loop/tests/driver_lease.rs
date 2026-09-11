@@ -431,7 +431,7 @@ fn driver_uses_the_on_disk_worktree_while_the_configured_command_inherits_git_co
         &["config", "core.worktree", foreign.to_str().unwrap()],
     );
     fs::create_dir_all(intended.join(".grove")).unwrap();
-    fs::write(intended.join(".grove/BRIEF.md"), "# intended — brief\n").unwrap();
+    fs::write(intended.join(".grove/_BRIEF.md"), "# intended — brief\n").unwrap();
     fs::write(intended.join(".grove/01-impl--test-k1.md"), "# test-k1\n").unwrap();
 
     let launch_log = tmp.path().join("launch-log");
@@ -888,7 +888,7 @@ fn a_second_driver_refuses_before_tree_access_or_launch() {
     init_colocated_worktree(&root);
     fs::create_dir_all(root.join(".claude")).unwrap();
     fs::create_dir_all(root.join(".grove")).unwrap();
-    fs::write(root.join(".grove/BRIEF.md"), "# test — brief\n").unwrap();
+    fs::write(root.join(".grove/_BRIEF.md"), "# test — brief\n").unwrap();
     fs::write(root.join(".grove/01-impl--test-k1.md"), "# test-k1\n").unwrap();
     run_command("git", &root, &["add", ".grove"]);
     run_command(
@@ -990,7 +990,7 @@ fn a_lease_replaced_under_a_running_driver_refuses_the_next_transition() {
     let root = tmp.path().join("worktree");
     init_colocated_worktree(&root);
     fs::create_dir_all(root.join(".grove")).unwrap();
-    fs::write(root.join(".grove/BRIEF.md"), "# test — brief\n").unwrap();
+    fs::write(root.join(".grove/_BRIEF.md"), "# test — brief\n").unwrap();
     fs::write(root.join(".grove/01-impl--test-k1.md"), "# test-k1\n").unwrap();
 
     let launch_log = tmp.path().join("launch-log");
@@ -1032,7 +1032,7 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
     init_colocated_worktree(&root);
     let grove = root.join(".grove");
     fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("BRIEF.md"), "# test — brief\n").unwrap();
+    fs::write(grove.join("_BRIEF.md"), "# test — brief\n").unwrap();
     fs::write(grove.join("01-impl--test-k1.md"), "# test-k1\n").unwrap();
     let ready = tmp.path().join("harness-ready");
     let signal_log = tmp.path().join("signal-path");

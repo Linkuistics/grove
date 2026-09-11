@@ -10,11 +10,11 @@
 |---|---|---|
 | `source-crate-manifest` | `crates/grove-loop/Cargo.toml` | 68 |
 | `source-library-root` | `crates/grove-loop/src/lib.rs` | 377 |
-| `source-task-name` | `crates/grove-loop/src/task_name.rs` | 1,743 |
-| `source-task-tree` | `crates/grove-loop/src/task_tree.rs` | 2,038 |
+| `source-task-name` | `crates/grove-loop/src/task_name.rs` | 1,675 |
+| `source-task-tree` | `crates/grove-loop/src/task_tree.rs` | 1,971 |
 | `source-task-grow` | `crates/grove-loop/src/task_grow.rs` | 518 |
-| `source-tree-lifecycle` | `crates/grove-loop/src/tree_lifecycle.rs` | 2,732 |
-| `source-verbs` | `crates/grove-loop/src/verbs.rs` | 363 |
+| `source-tree-lifecycle` | `crates/grove-loop/src/tree_lifecycle.rs` | 2,734 |
+| `source-verbs` | `crates/grove-loop/src/verbs.rs` | 361 |
 | `source-driver` | `crates/grove-loop/src/driver.rs` | 57 |
 | `source-complete` | `crates/grove-loop/src/complete.rs` | 96 |
 | `source-driver-lease` | `crates/grove-loop/src/driver_lease.rs` | 1,383 |
@@ -28,7 +28,7 @@
 <!-- source-root «source-library-root» source="crates/grove-loop/src/lib.rs" lines="1-377" -->
 <!-- insert «library-root» -->
 <!-- /source-root -->
-<!-- source-root «source-task-name» source="crates/grove-loop/src/task_name.rs" lines="1-1743" -->
+<!-- source-root «source-task-name» source="crates/grove-loop/src/task_name.rs" lines="1-1675" -->
 <!-- insert «tokens-and-verdicts» -->
 <!-- insert «kind-slug-and-handle» -->
 <!-- insert «the-task-name» -->
@@ -39,7 +39,7 @@
 <!-- insert «slug-rule-tests» -->
 <!-- insert «handle-grammar-tests» -->
 <!-- /source-root -->
-<!-- source-root «source-task-tree» source="crates/grove-loop/src/task_tree.rs" lines="1-2038" -->
+<!-- source-root «source-task-tree» source="crates/grove-loop/src/task_tree.rs" lines="1-1971" -->
 <!-- insert «tree-opening» -->
 <!-- insert «paths-and-addressing» -->
 <!-- insert «walk-selection» -->
@@ -54,7 +54,7 @@
 <!-- source-root «source-task-grow» source="crates/grove-loop/src/task_grow.rs" lines="1-518" -->
 <!-- insert «growing-the-tree» -->
 <!-- /source-root -->
-<!-- source-root «source-tree-lifecycle» source="crates/grove-loop/src/tree_lifecycle.rs" lines="1-2732" -->
+<!-- source-root «source-tree-lifecycle» source="crates/grove-loop/src/tree_lifecycle.rs" lines="1-2734" -->
 <!-- insert «finish-transition» -->
 <!-- insert «grove-beginning» -->
 <!-- insert «decompose-production» -->
@@ -65,7 +65,7 @@
 <!-- insert «decompose-tests» -->
 <!-- insert «retire-and-prune-tests» -->
 <!-- /source-root -->
-<!-- source-root «source-verbs» source="crates/grove-loop/src/verbs.rs" lines="1-363" -->
+<!-- source-root «source-verbs» source="crates/grove-loop/src/verbs.rs" lines="1-361" -->
 <!-- insert «the-twelve-verbs» -->
 <!-- /source-root -->
 <!-- source-root «source-driver» source="crates/grove-loop/src/driver.rs" lines="1-57" -->
@@ -95,36 +95,36 @@
 |---|---|---|---|---|---|
 | `manifest-domain-bound` | `source-crate-manifest` | `allowed-to-mean` | `1-68` | 68 | `resolved` |
 | `library-root` | `source-library-root` | `allowed-to-mean` | `1-377` | 377 | `resolved` |
-| `tokens-and-verdicts` | `source-task-name` | `four-verdicts` | `1-220` | 220 | `resolved` |
-| `kind-slug-and-handle` | `source-task-name` | `the-handle-not-the-position` | `221-590` | 370 | `resolved` |
-| `the-task-name` | `source-task-name` | `canonical-or-nothing` | `591-1016` | 426 | `resolved` |
-| `name-test-support-and-kit` | `source-task-name` | `canonical-or-nothing` | `1017-1206` | 190 | `resolved` |
-| `classification-verdict-tests` | `source-task-name` | `four-verdicts` | `1207-1228` | 22 | `resolved` |
-| `grammar-and-canonicity-tests` | `source-task-name` | `canonical-or-nothing` | `1229-1341` | 113 | `resolved` |
-| `shape-refusal-tests` | `source-task-name` | `four-verdicts` | `1342-1550` | 209 | `resolved` |
-| `slug-rule-tests` | `source-task-name` | `the-handle-not-the-position` | `1551-1579` | 29 | `resolved` |
-| `handle-grammar-tests` | `source-task-name` | `the-handle-not-the-position` | `1580-1743` | 164 | `resolved` |
+| `tokens-and-verdicts` | `source-task-name` | `four-verdicts` | `1-156` | 156 | `resolved` |
+| `kind-slug-and-handle` | `source-task-name` | `the-handle-not-the-position` | `157-505` | 349 | `resolved` |
+| `the-task-name` | `source-task-name` | `canonical-or-nothing` | `506-953` | 448 | `resolved` |
+| `name-test-support-and-kit` | `source-task-name` | `canonical-or-nothing` | `954-1168` | 215 | `resolved` |
+| `classification-verdict-tests` | `source-task-name` | `four-verdicts` | `1169-1188` | 20 | `resolved` |
+| `grammar-and-canonicity-tests` | `source-task-name` | `canonical-or-nothing` | `1189-1298` | 110 | `resolved` |
+| `shape-refusal-tests` | `source-task-name` | `four-verdicts` | `1299-1495` | 197 | `resolved` |
+| `slug-rule-tests` | `source-task-name` | `the-handle-not-the-position` | `1496-1524` | 29 | `resolved` |
+| `handle-grammar-tests` | `source-task-name` | `the-handle-not-the-position` | `1525-1675` | 151 | `resolved` |
 | `tree-opening` | `source-task-tree` | `one-spelling-of-grove` | `1-290` | 290 | `resolved` |
-| `paths-and-addressing` | `source-task-tree` | `paths-are-built-here` | `291-570` | 280 | `resolved` |
-| `walk-selection` | `source-task-tree` | `first-live-leaf` | `571-637` | 67 | `resolved` |
-| `kind-and-brief-chain` | `source-task-tree` | `root-to-leaf` | `638-746` | 109 | `resolved` |
-| `resolution` | `source-task-tree` | `wider-than-a-key` | `747-1015` | 269 | `resolved` |
-| `path-composition-tests` | `source-task-tree` | `paths-are-built-here` | `1016-1105` | 90 | `resolved` |
-| `pick-tests` | `source-task-tree` | `first-live-leaf` | `1106-1360` | 255 | `resolved` |
-| `brief-chain-and-kind-tests` | `source-task-tree` | `root-to-leaf` | `1361-1667` | 307 | `resolved` |
-| `resolve-tests` | `source-task-tree` | `wider-than-a-key` | `1668-2011` | 344 | `resolved` |
-| `pick-with-brief-chain-tests` | `source-task-tree` | `root-to-leaf` | `2012-2038` | 27 | `resolved` |
+| `paths-and-addressing` | `source-task-tree` | `paths-are-built-here` | `291-518` | 228 | `resolved` |
+| `walk-selection` | `source-task-tree` | `first-live-leaf` | `519-585` | 67 | `resolved` |
+| `kind-and-brief-chain` | `source-task-tree` | `root-to-leaf` | `586-688` | 103 | `resolved` |
+| `resolution` | `source-task-tree` | `wider-than-a-key` | `689-971` | 283 | `resolved` |
+| `path-composition-tests` | `source-task-tree` | `paths-are-built-here` | `972-1063` | 92 | `resolved` |
+| `pick-tests` | `source-task-tree` | `first-live-leaf` | `1064-1315` | 252 | `resolved` |
+| `brief-chain-and-kind-tests` | `source-task-tree` | `root-to-leaf` | `1316-1623` | 308 | `resolved` |
+| `resolve-tests` | `source-task-tree` | `wider-than-a-key` | `1624-1944` | 321 | `resolved` |
+| `pick-with-brief-chain-tests` | `source-task-tree` | `root-to-leaf` | `1945-1971` | 27 | `resolved` |
 | `growing-the-tree` | `source-task-grow` | `what-the-library-cannot-see` | `1-518` | 518 | `resolved` |
-| `finish-transition` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1-331` | 331 | `resolved` |
-| `grove-beginning` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `332-492` | 161 | `resolved` |
-| `decompose-production` | `source-tree-lifecycle` | `the-key-survives` | `493-698` | 206 | `resolved` |
-| `outcomes-in-place` | `source-tree-lifecycle` | `marked-in-place` | `699-1015` | 317 | `resolved` |
-| `body-helpers` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1016-1079` | 64 | `resolved` |
-| `root-init-tests` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1080-1469` | 390 | `resolved` |
-| `finish-tests` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1470-1668` | 199 | `resolved` |
-| `decompose-tests` | `source-tree-lifecycle` | `the-key-survives` | `1669-2241` | 573 | `resolved` |
-| `retire-and-prune-tests` | `source-tree-lifecycle` | `marked-in-place` | `2242-2732` | 491 | `resolved` |
-| `the-twelve-verbs` | `source-verbs` | `twelve-not-fourteen` | `1-363` | 363 | `resolved` |
+| `finish-transition` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1-326` | 326 | `resolved` |
+| `grove-beginning` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `327-487` | 161 | `resolved` |
+| `decompose-production` | `source-tree-lifecycle` | `the-key-survives` | `488-705` | 218 | `resolved` |
+| `outcomes-in-place` | `source-tree-lifecycle` | `marked-in-place` | `706-1022` | 317 | `resolved` |
+| `body-helpers` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1023-1086` | 64 | `resolved` |
+| `root-init-tests` | `source-tree-lifecycle` | `never-mistaken-for-finished` | `1087-1502` | 416 | `resolved` |
+| `finish-tests` | `source-tree-lifecycle` | `the-tree-deletes-itself` | `1503-1697` | 195 | `resolved` |
+| `decompose-tests` | `source-tree-lifecycle` | `the-key-survives` | `1698-2243` | 546 | `resolved` |
+| `retire-and-prune-tests` | `source-tree-lifecycle` | `marked-in-place` | `2244-2734` | 491 | `resolved` |
+| `the-twelve-verbs` | `source-verbs` | `twelve-not-fourteen` | `1-361` | 361 | `resolved` |
 | `driver-operations` | `source-driver` | `twelve-not-fourteen` | `1-57` | 57 | `resolved` |
 | `complete-verb` | `source-complete` | `twelve-not-fourteen` | `1-96` | 96 | `resolved` |
 | `lease-and-epoch` | `source-driver-lease` | `one-per-working-tree` | `1-819` | 819 | `resolved` |
@@ -167,89 +167,86 @@
 | `library-root-selection` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `329-332` | `library-root` | `—` |
 | `library-root-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `333-351` | `library-root` | `—` |
 | `library-root-error-traits` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `352-377` | `library-root` | `—` |
-| `source-task-name` | `source-index` | `source-task-name` | `root` | `—` | `1-1743` | `—` | `tokens-and-verdicts`, `kind-slug-and-handle`, `the-task-name`, `name-test-support-and-kit`, `classification-verdict-tests`, `grammar-and-canonicity-tests`, `shape-refusal-tests`, `slug-rule-tests`, `handle-grammar-tests` |
-| `name-the-only-grammar` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1-12` | `tokens-and-verdicts` | `—` |
-| `tokens-and-verdicts` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1-220` | `source-task-name` | `name-the-only-grammar`, `name-three-on-disk-shapes`, `name-canonicity-departure`, `name-no-caller-hands-a-path`, `name-classification-loses-data`, `name-both-words-one-rule`, `name-handle-is-this-grammar`, `name-handle-terminal-substring`, `name-imports`, `name-brief-and-key-mark`, `name-separator`, `name-outcome`, `name-outcome-infix-and-strip`, `name-token-error`, `name-token-error-traits`, `name-refuse-token` |
-| `name-three-on-disk-shapes` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `13-21` | `tokens-and-verdicts` | `—` |
-| `name-canonicity-departure` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `22-31` | `tokens-and-verdicts` | `—` |
-| `name-no-caller-hands-a-path` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `32-37` | `tokens-and-verdicts` | `—` |
-| `name-classification-loses-data` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `38-47` | `tokens-and-verdicts` | `—` |
-| `name-both-words-one-rule` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `48-56` | `tokens-and-verdicts` | `—` |
-| `name-handle-is-this-grammar` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `57-70` | `tokens-and-verdicts` | `—` |
-| `name-handle-terminal-substring` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `71-76` | `tokens-and-verdicts` | `—` |
-| `name-imports` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `77-82` | `tokens-and-verdicts` | `—` |
-| `name-brief-and-key-mark` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `83-91` | `tokens-and-verdicts` | `—` |
-| `name-separator` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `92-104` | `tokens-and-verdicts` | `—` |
-| `name-outcome` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `105-120` | `tokens-and-verdicts` | `—` |
-| `name-outcome-infix-and-strip` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `121-148` | `tokens-and-verdicts` | `—` |
-| `name-token-error` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `149-165` | `tokens-and-verdicts` | `—` |
-| `name-token-error-traits` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `166-173` | `tokens-and-verdicts` | `—` |
-| `name-refuse-token` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `174-220` | `tokens-and-verdicts` | `—` |
-| `name-kind` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `221-244` | `kind-slug-and-handle` | `—` |
-| `kind-slug-and-handle` | `kind-slug-handle` | `source-task-name` | `composite` | `the-handle-not-the-position` | `221-590` | `source-task-name` | `name-kind`, `name-reserved-labels`, `name-kind-methods`, `name-kind-display`, `name-slug`, `name-slug-methods`, `name-slug-display`, `name-handle-error`, `name-handle-error-display`, `name-handle`, `name-handle-new-and-of`, `name-handle-parse`, `name-handle-accessors-and-render`, `name-handle-display`, `name-parts`, `name-parts-methods` |
-| `name-reserved-labels` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `245-250` | `kind-slug-and-handle` | `—` |
-| `name-kind-methods` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `251-300` | `kind-slug-and-handle` | `—` |
-| `name-kind-display` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `301-306` | `kind-slug-and-handle` | `—` |
-| `name-slug` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `307-315` | `kind-slug-and-handle` | `—` |
-| `name-slug-methods` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `316-338` | `kind-slug-and-handle` | `—` |
-| `name-slug-display` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `339-344` | `kind-slug-and-handle` | `—` |
-| `name-handle-error` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `345-375` | `kind-slug-and-handle` | `—` |
-| `name-handle-error-display` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `376-402` | `kind-slug-and-handle` | `—` |
-| `name-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `403-426` | `kind-slug-and-handle` | `—` |
-| `name-handle-new-and-of` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `427-446` | `kind-slug-and-handle` | `—` |
-| `name-handle-parse` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `447-498` | `kind-slug-and-handle` | `—` |
-| `name-handle-accessors-and-render` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `499-521` | `kind-slug-and-handle` | `—` |
-| `name-handle-display` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `522-527` | `kind-slug-and-handle` | `—` |
-| `name-parts` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `528-552` | `kind-slug-and-handle` | `—` |
-| `name-parts-methods` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `553-590` | `kind-slug-and-handle` | `—` |
-| `name-task-name` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `591-612` | `the-task-name` | `—` |
-| `the-task-name` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `591-1016` | `source-task-name` | `name-task-name`, `name-task-name-display`, `name-task-name-error`, `name-task-name-error-display`, `name-parse-charter`, `name-parse-shape`, `name-parse-parts`, `name-parse-canonicity`, `name-entry-name-rest`, `name-refusal-helpers`, `name-uncomputable-canonical`, `name-split-shape`, `name-terminal-key`, `name-peel-key` |
-| `name-task-name-display` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `613-662` | `the-task-name` | `—` |
-| `name-task-name-error` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `663-726` | `the-task-name` | `—` |
-| `name-task-name-error-display` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `727-784` | `the-task-name` | `—` |
-| `name-parse-charter` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `785-797` | `the-task-name` | `—` |
-| `name-parse-shape` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `798-821` | `the-task-name` | `—` |
-| `name-parse-parts` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `822-867` | `the-task-name` | `—` |
-| `name-parse-canonicity` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `868-895` | `the-task-name` | `—` |
-| `name-entry-name-rest` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `896-923` | `the-task-name` | `—` |
-| `name-refusal-helpers` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `924-940` | `the-task-name` | `—` |
-| `name-uncomputable-canonical` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `941-949` | `the-task-name` | `—` |
-| `name-split-shape` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `950-972` | `the-task-name` | `—` |
-| `name-terminal-key` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `973-991` | `the-task-name` | `—` |
-| `name-peel-key` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `992-1016` | `the-task-name` | `—` |
-| `name-tests-support` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1017-1054` | `name-test-support-and-kit` | `—` |
-| `name-test-support-and-kit` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `1017-1206` | `source-task-name` | `name-tests-support`, `name-tests-kit-fixture`, `name-tests-conforms`, `name-tests-kind-shapes`, `name-tests-undeclared-kind` |
-| `name-tests-kit-fixture` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1055-1098` | `name-test-support-and-kit` | `—` |
-| `name-tests-conforms` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1099-1141` | `name-test-support-and-kit` | `—` |
-| `name-tests-kind-shapes` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1142-1187` | `name-test-support-and-kit` | `—` |
-| `name-tests-undeclared-kind` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1188-1206` | `name-test-support-and-kit` | `—` |
-| `name-tests-the-charter` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1207-1214` | `classification-verdict-tests` | `—` |
-| `classification-verdict-tests` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1207-1228` | `source-task-name` | `name-tests-the-charter`, `name-tests-foreign` |
-| `name-tests-foreign` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1215-1228` | `classification-verdict-tests` | `—` |
-| `name-tests-live-leaf` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1229-1244` | `grammar-and-canonicity-tests` | `—` |
-| `grammar-and-canonicity-tests` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `1229-1341` | `source-task-name` | `name-tests-live-leaf`, `name-tests-terminal-marks`, `name-tests-node-directory`, `name-tests-terminal-key-marker`, `name-tests-lenient-position`, `name-tests-unpadded-past-99`, `name-tests-unrepresentable` |
-| `name-tests-terminal-marks` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1245-1260` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-node-directory` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1261-1272` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-terminal-key-marker` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1273-1285` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-lenient-position` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1286-1318` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-unpadded-past-99` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1319-1327` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-unrepresentable` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1328-1341` | `grammar-and-canonicity-tests` | `—` |
-| `name-tests-kind-not-a-token` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1342-1387` | `shape-refusal-tests` | `—` |
-| `shape-refusal-tests` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1342-1550` | `source-task-name` | `name-tests-kind-not-a-token`, `name-tests-missing-separator`, `name-tests-one-reading`, `name-tests-node-wearing-outcome`, `name-tests-bad-slug`, `name-tests-species-mismatch` |
-| `name-tests-missing-separator` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1388-1424` | `shape-refusal-tests` | `—` |
-| `name-tests-one-reading` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1425-1486` | `shape-refusal-tests` | `—` |
-| `name-tests-node-wearing-outcome` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1487-1510` | `shape-refusal-tests` | `—` |
-| `name-tests-bad-slug` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1511-1526` | `shape-refusal-tests` | `—` |
-| `name-tests-species-mismatch` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1527-1550` | `shape-refusal-tests` | `—` |
-| `slug-rule-tests` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1551-1579` | `source-task-name` | `—` |
-| `name-tests-ends-in-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1580-1630` | `handle-grammar-tests` | `—` |
-| `handle-grammar-tests` | `kind-slug-handle` | `source-task-name` | `composite` | `the-handle-not-the-position` | `1580-1743` | `source-task-name` | `name-tests-ends-in-handle`, `name-tests-brief-no-handle`, `name-tests-handle-round-trip`, `name-tests-same-peel`, `name-tests-refused-handle`, `name-tests-lenient-strict` |
-| `name-tests-brief-no-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1631-1637` | `handle-grammar-tests` | `—` |
-| `name-tests-handle-round-trip` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1638-1657` | `handle-grammar-tests` | `—` |
-| `name-tests-same-peel` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1658-1679` | `handle-grammar-tests` | `—` |
-| `name-tests-refused-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1680-1713` | `handle-grammar-tests` | `—` |
-| `name-tests-lenient-strict` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1714-1743` | `handle-grammar-tests` | `—` |
-| `source-task-tree` | `source-index` | `source-task-tree` | `root` | `—` | `1-2038` | `—` | `tree-opening`, `paths-and-addressing`, `walk-selection`, `kind-and-brief-chain`, `resolution`, `path-composition-tests`, `pick-tests`, `brief-chain-and-kind-tests`, `resolve-tests`, `pick-with-brief-chain-tests` |
+| `source-task-name` | `source-index` | `source-task-name` | `root` | `—` | `1-1675` | `—` | `tokens-and-verdicts`, `kind-slug-and-handle`, `the-task-name`, `name-test-support-and-kit`, `classification-verdict-tests`, `grammar-and-canonicity-tests`, `shape-refusal-tests`, `slug-rule-tests`, `handle-grammar-tests` |
+| `name-the-only-grammar` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1-7` | `tokens-and-verdicts` | `—` |
+| `tokens-and-verdicts` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1-156` | `source-task-name` | `name-the-only-grammar`, `name-canonicity-departure`, `name-classification-loses-data`, `name-handle-is-this-grammar`, `name-handle-terminal-substring`, `name-imports`, `name-brief-and-key-mark`, `name-separator`, `name-outcome`, `name-outcome-infix-and-strip`, `name-token-error`, `name-token-error-traits`, `name-refuse-token` |
+| `name-canonicity-departure` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `8-8` | `tokens-and-verdicts` | `—` |
+| `name-classification-loses-data` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `9-9` | `tokens-and-verdicts` | `—` |
+| `name-handle-is-this-grammar` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `10-10` | `tokens-and-verdicts` | `—` |
+| `name-handle-terminal-substring` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `11-12` | `tokens-and-verdicts` | `—` |
+| `name-imports` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `13-18` | `tokens-and-verdicts` | `—` |
+| `name-brief-and-key-mark` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `19-27` | `tokens-and-verdicts` | `—` |
+| `name-separator` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `28-40` | `tokens-and-verdicts` | `—` |
+| `name-outcome` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `41-56` | `tokens-and-verdicts` | `—` |
+| `name-outcome-infix-and-strip` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `57-84` | `tokens-and-verdicts` | `—` |
+| `name-token-error` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `85-101` | `tokens-and-verdicts` | `—` |
+| `name-token-error-traits` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `102-109` | `tokens-and-verdicts` | `—` |
+| `name-refuse-token` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `110-156` | `tokens-and-verdicts` | `—` |
+| `name-kind` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `157-180` | `kind-slug-and-handle` | `—` |
+| `kind-slug-and-handle` | `kind-slug-handle` | `source-task-name` | `composite` | `the-handle-not-the-position` | `157-505` | `source-task-name` | `name-kind`, `name-reserved-labels`, `name-kind-methods`, `name-kind-display`, `name-slug`, `name-slug-methods`, `name-slug-display`, `name-handle-error`, `name-handle-error-display`, `name-handle`, `name-handle-new-and-of`, `name-handle-parse`, `name-handle-accessors-and-render`, `name-handle-display`, `name-parts`, `name-parts-methods` |
+| `name-reserved-labels` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `181-186` | `kind-slug-and-handle` | `—` |
+| `name-kind-methods` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `187-236` | `kind-slug-and-handle` | `—` |
+| `name-kind-display` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `237-242` | `kind-slug-and-handle` | `—` |
+| `name-slug` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `243-251` | `kind-slug-and-handle` | `—` |
+| `name-slug-methods` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `252-274` | `kind-slug-and-handle` | `—` |
+| `name-slug-display` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `275-280` | `kind-slug-and-handle` | `—` |
+| `name-handle-error` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `281-311` | `kind-slug-and-handle` | `—` |
+| `name-handle-error-display` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `312-338` | `kind-slug-and-handle` | `—` |
+| `name-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `339-347` | `kind-slug-and-handle` | `—` |
+| `name-handle-new-and-of` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `348-370` | `kind-slug-and-handle` | `—` |
+| `name-handle-parse` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `371-414` | `kind-slug-and-handle` | `—` |
+| `name-handle-accessors-and-render` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `415-438` | `kind-slug-and-handle` | `—` |
+| `name-handle-display` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `439-444` | `kind-slug-and-handle` | `—` |
+| `name-parts` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `445-466` | `kind-slug-and-handle` | `—` |
+| `name-parts-methods` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `467-505` | `kind-slug-and-handle` | `—` |
+| `name-task-name` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `506-534` | `the-task-name` | `—` |
+| `the-task-name` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `506-953` | `source-task-name` | `name-task-name`, `name-task-name-display`, `name-task-name-error`, `name-task-name-error-display`, `name-parse-charter`, `name-parse-shape`, `name-parse-parts`, `name-parse-canonicity`, `name-entry-name-rest`, `name-refusal-helpers`, `name-uncomputable-canonical`, `name-split-shape`, `name-terminal-key`, `name-peel-key` |
+| `name-task-name-display` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `535-585` | `the-task-name` | `—` |
+| `name-task-name-error` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `586-650` | `the-task-name` | `—` |
+| `name-task-name-error-display` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `651-711` | `the-task-name` | `—` |
+| `name-parse-charter` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `712-737` | `the-task-name` | `—` |
+| `name-parse-shape` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `738-770` | `the-task-name` | `—` |
+| `name-parse-parts` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `771-805` | `the-task-name` | `—` |
+| `name-parse-canonicity` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `806-857` | `the-task-name` | `—` |
+| `name-entry-name-rest` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `858-885` | `the-task-name` | `—` |
+| `name-refusal-helpers` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `886-902` | `the-task-name` | `—` |
+| `name-uncomputable-canonical` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `903-910` | `the-task-name` | `—` |
+| `name-split-shape` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `911-923` | `the-task-name` | `—` |
+| `name-terminal-key` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `924-931` | `the-task-name` | `—` |
+| `name-peel-key` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `932-953` | `the-task-name` | `—` |
+| `name-tests-support` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `954-1028` | `name-test-support-and-kit` | `—` |
+| `name-test-support-and-kit` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `954-1168` | `source-task-name` | `name-tests-support`, `name-tests-kit-fixture`, `name-tests-conforms`, `name-tests-kind-shapes`, `name-tests-undeclared-kind` |
+| `name-tests-kit-fixture` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1029-1068` | `name-test-support-and-kit` | `—` |
+| `name-tests-conforms` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1069-1103` | `name-test-support-and-kit` | `—` |
+| `name-tests-kind-shapes` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1104-1149` | `name-test-support-and-kit` | `—` |
+| `name-tests-undeclared-kind` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1150-1168` | `name-test-support-and-kit` | `—` |
+| `name-tests-the-charter` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1169-1176` | `classification-verdict-tests` | `—` |
+| `classification-verdict-tests` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1169-1188` | `source-task-name` | `name-tests-the-charter`, `name-tests-foreign` |
+| `name-tests-foreign` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1177-1188` | `classification-verdict-tests` | `—` |
+| `name-tests-live-leaf` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1189-1204` | `grammar-and-canonicity-tests` | `—` |
+| `grammar-and-canonicity-tests` | `the-name` | `source-task-name` | `composite` | `canonical-or-nothing` | `1189-1298` | `source-task-name` | `name-tests-live-leaf`, `name-tests-terminal-marks`, `name-tests-node-directory`, `name-tests-terminal-key-marker`, `name-tests-lenient-position`, `name-tests-unpadded-past-99`, `name-tests-unrepresentable` |
+| `name-tests-terminal-marks` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1205-1220` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-node-directory` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1221-1232` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-terminal-key-marker` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1233-1245` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-lenient-position` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1246-1278` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-unpadded-past-99` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1279-1287` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-unrepresentable` | `the-name` | `source-task-name` | `literal` | `canonical-or-nothing` | `1288-1298` | `grammar-and-canonicity-tests` | `—` |
+| `name-tests-kind-not-a-token` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1299-1344` | `shape-refusal-tests` | `—` |
+| `shape-refusal-tests` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1299-1495` | `source-task-name` | `name-tests-kind-not-a-token`, `name-tests-missing-separator`, `name-tests-one-reading`, `name-tests-node-wearing-outcome`, `name-tests-bad-slug`, `name-tests-species-mismatch` |
+| `name-tests-missing-separator` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1345-1381` | `shape-refusal-tests` | `—` |
+| `name-tests-one-reading` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1382-1443` | `shape-refusal-tests` | `—` |
+| `name-tests-node-wearing-outcome` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1444-1455` | `shape-refusal-tests` | `—` |
+| `name-tests-bad-slug` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1456-1471` | `shape-refusal-tests` | `—` |
+| `name-tests-species-mismatch` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1472-1495` | `shape-refusal-tests` | `—` |
+| `slug-rule-tests` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1496-1524` | `source-task-name` | `—` |
+| `name-tests-ends-in-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1525-1563` | `handle-grammar-tests` | `—` |
+| `handle-grammar-tests` | `kind-slug-handle` | `source-task-name` | `composite` | `the-handle-not-the-position` | `1525-1675` | `source-task-name` | `name-tests-ends-in-handle`, `name-tests-brief-no-handle`, `name-tests-handle-round-trip`, `name-tests-same-peel`, `name-tests-refused-handle`, `name-tests-lenient-strict` |
+| `name-tests-brief-no-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1564-1570` | `handle-grammar-tests` | `—` |
+| `name-tests-handle-round-trip` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1571-1590` | `handle-grammar-tests` | `—` |
+| `name-tests-same-peel` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1591-1611` | `handle-grammar-tests` | `—` |
+| `name-tests-refused-handle` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1612-1645` | `handle-grammar-tests` | `—` |
+| `name-tests-lenient-strict` | `kind-slug-handle` | `source-task-name` | `literal` | `the-handle-not-the-position` | `1646-1675` | `handle-grammar-tests` | `—` |
+| `source-task-tree` | `source-index` | `source-task-tree` | `root` | `—` | `1-1971` | `—` | `tree-opening`, `paths-and-addressing`, `walk-selection`, `kind-and-brief-chain`, `resolution`, `path-composition-tests`, `pick-tests`, `brief-chain-and-kind-tests`, `resolve-tests`, `pick-with-brief-chain-tests` |
 | `tree-header-who-owns-the-walk` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `1-13` | `tree-opening` | `—` |
 | `tree-opening` | `opening` | `source-task-tree` | `composite` | `one-spelling-of-grove` | `1-290` | `source-task-tree` | `tree-header-who-owns-the-walk`, `tree-header-paths-here`, `tree-header-no-canonicalising`, `tree-header-refusal-precedence`, `tree-imports`, `tree-alias-and-read-count`, `tree-vacant-and-read-or-vacant`, `tree-guard-opening-vacancy`, `tree-read`, `tree-write`, `tree-write-or-vacancy`, `tree-reopen-write`, `tree-open-write`, `tree-absent-tree`, `tree-raised`, `tree-announce-contention`, `tree-restate` |
 | `tree-header-paths-here` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `14-23` | `tree-opening` | `—` |
@@ -269,96 +266,96 @@
 | `tree-announce-contention` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `210-259` | `tree-opening` | `—` |
 | `tree-restate` | `opening` | `source-task-tree` | `literal` | `one-spelling-of-grove` | `260-290` | `tree-opening` | `—` |
 | `paths-entry-path` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `291-309` | `paths-and-addressing` | `—` |
-| `paths-and-addressing` | `paths` | `source-task-tree` | `composite` | `paths-are-built-here` | `291-570` | `source-task-tree` | `paths-entry-path`, `paths-target-enum`, `paths-target-fn`, `paths-unreachable-by-any-walk`, `paths-addressable-key`, `paths-interrupted-promotion`, `paths-next-key`, `paths-live-leaf`, `paths-entry-outcome` |
+| `paths-and-addressing` | `paths` | `source-task-tree` | `composite` | `paths-are-built-here` | `291-518` | `source-task-tree` | `paths-entry-path`, `paths-target-enum`, `paths-target-fn`, `paths-unreachable-by-any-walk`, `paths-addressable-key`, `paths-interrupted-promotion`, `paths-next-key`, `paths-live-leaf`, `paths-entry-outcome` |
 | `paths-target-enum` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `310-322` | `paths-and-addressing` | `—` |
 | `paths-target-fn` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `323-375` | `paths-and-addressing` | `—` |
 | `paths-unreachable-by-any-walk` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `376-404` | `paths-and-addressing` | `—` |
-| `paths-addressable-key` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `405-472` | `paths-and-addressing` | `—` |
-| `paths-interrupted-promotion` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `473-509` | `paths-and-addressing` | `—` |
-| `paths-next-key` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `510-546` | `paths-and-addressing` | `—` |
-| `paths-live-leaf` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `547-559` | `paths-and-addressing` | `—` |
-| `paths-entry-outcome` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `560-570` | `paths-and-addressing` | `—` |
-| `walk-selection-type` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `571-579` | `walk-selection` | `—` |
-| `walk-selection` | `the-walk` | `source-task-tree` | `composite` | `first-live-leaf` | `571-637` | `source-task-tree` | `walk-selection-type`, `walk-pick-in`, `walk-select-in`, `walk-select-in-write`, `walk-selected` |
-| `walk-pick-in` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `580-585` | `walk-selection` | `—` |
-| `walk-select-in` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `586-595` | `walk-selection` | `—` |
-| `walk-select-in-write` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `596-605` | `walk-selection` | `—` |
-| `walk-selected` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `606-637` | `walk-selection` | `—` |
-| `kind-in` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `638-656` | `kind-and-brief-chain` | `—` |
-| `kind-and-brief-chain` | `kind-and-briefs` | `source-task-tree` | `composite` | `root-to-leaf` | `638-746` | `source-task-tree` | `kind-in`, `brief-chain-fn`, `leaf-entry-signature`, `leaf-entry-grammar`, `leaf-entry-compare`, `leaf-entry-walk` |
-| `brief-chain-fn` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `657-673` | `kind-and-brief-chain` | `—` |
-| `leaf-entry-signature` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `674-693` | `kind-and-brief-chain` | `—` |
-| `leaf-entry-grammar` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `694-707` | `kind-and-brief-chain` | `—` |
-| `leaf-entry-compare` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `708-729` | `kind-and-brief-chain` | `—` |
-| `leaf-entry-walk` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `730-746` | `kind-and-brief-chain` | `—` |
-| `resolution-outcome` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `747-765` | `resolution` | `—` |
-| `resolution` | `resolve` | `source-task-tree` | `composite` | `wider-than-a-key` | `747-1015` | `source-task-tree` | `resolution-outcome`, `resolution-located`, `resolution-located-fn`, `resolution-resolve-in`, `resolution-lookup-type`, `resolution-slug-match-key`, `resolution-grammar`, `resolution-reference`, `resolution-existing-path`, `resolution-ref-type`, `resolution-parse-ref`, `resolution-read-count` |
-| `resolution-located` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `766-787` | `resolution` | `—` |
-| `resolution-located-fn` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `788-804` | `resolution` | `—` |
-| `resolution-resolve-in` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `805-845` | `resolution` | `—` |
-| `resolution-lookup-type` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `846-858` | `resolution` | `—` |
-| `resolution-slug-match-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `859-869` | `resolution` | `—` |
-| `resolution-grammar` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `870-918` | `resolution` | `—` |
-| `resolution-reference` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `919-956` | `resolution` | `—` |
-| `resolution-existing-path` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `957-975` | `resolution` | `—` |
-| `resolution-ref-type` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `976-981` | `resolution` | `—` |
-| `resolution-parse-ref` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `982-1004` | `resolution` | `—` |
-| `resolution-read-count` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1005-1015` | `resolution` | `—` |
-| `paths-tests-module-open` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1016-1029` | `path-composition-tests` | `—` |
-| `path-composition-tests` | `paths` | `source-task-tree` | `composite` | `paths-are-built-here` | `1016-1105` | `source-task-tree` | `paths-tests-module-open`, `paths-tests-composed-verbs`, `paths-tests-a-kind-and-imports`, `paths-tests-brief-chain-at`, `paths-tests-fixtures` |
-| `paths-tests-composed-verbs` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1030-1057` | `path-composition-tests` | `—` |
-| `paths-tests-a-kind-and-imports` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1058-1068` | `path-composition-tests` | `—` |
-| `paths-tests-brief-chain-at` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1069-1078` | `path-composition-tests` | `—` |
-| `paths-tests-fixtures` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1079-1105` | `path-composition-tests` | `—` |
-| `walk-tests-select-one-observation` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1106-1130` | `pick-tests` | `—` |
-| `pick-tests` | `the-walk` | `source-task-tree` | `composite` | `first-live-leaf` | `1106-1360` | `source-task-tree` | `walk-tests-select-one-observation`, `walk-tests-order`, `walk-tests-terminal-leaves`, `walk-tests-descent`, `walk-tests-fall-through`, `walk-tests-none`, `walk-tests-foreign`, `walk-tests-species-mismatch`, `walk-tests-symlink`, `walk-tests-legacy-and-absent-root` |
-| `walk-tests-order` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1131-1156` | `pick-tests` | `—` |
-| `walk-tests-terminal-leaves` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1157-1176` | `pick-tests` | `—` |
-| `walk-tests-descent` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1177-1200` | `pick-tests` | `—` |
-| `walk-tests-fall-through` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1201-1239` | `pick-tests` | `—` |
-| `walk-tests-none` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1240-1269` | `pick-tests` | `—` |
-| `walk-tests-foreign` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1270-1287` | `pick-tests` | `—` |
-| `walk-tests-species-mismatch` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1288-1319` | `pick-tests` | `—` |
-| `walk-tests-symlink` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1320-1337` | `pick-tests` | `—` |
-| `walk-tests-legacy-and-absent-root` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1338-1360` | `pick-tests` | `—` |
-| `chain-tests-shape` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1361-1395` | `brief-chain-and-kind-tests` | `—` |
-| `brief-chain-and-kind-tests` | `kind-and-briefs` | `source-task-tree` | `composite` | `root-to-leaf` | `1361-1667` | `source-task-tree` | `chain-tests-shape`, `chain-tests-siblings`, `chain-tests-skipping`, `chain-tests-done-and-relative`, `chain-tests-refusals`, `kind-tests-label-and-fixture`, `kind-tests-two-leaves`, `kind-tests-open-token`, `kind-tests-legacy-label`, `kind-tests-default-and-empty`, `kind-tests-relative-path`, `kind-tests-body-ignored`, `kind-tests-absent-root` |
-| `chain-tests-siblings` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1396-1416` | `brief-chain-and-kind-tests` | `—` |
-| `chain-tests-skipping` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1417-1452` | `brief-chain-and-kind-tests` | `—` |
-| `chain-tests-done-and-relative` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1453-1487` | `brief-chain-and-kind-tests` | `—` |
-| `chain-tests-refusals` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1488-1537` | `brief-chain-and-kind-tests` | `—` |
-| `kind-tests-label-and-fixture` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1538-1547` | `brief-chain-and-kind-tests` | `—` |
-| `kind-tests-two-leaves` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1548-1561` | `brief-chain-and-kind-tests` | `—` |
-| `kind-tests-open-token` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1562-1589` | `brief-chain-and-kind-tests` | `—` |
-| `kind-tests-legacy-label` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1590-1596` | `brief-chain-and-kind-tests` | `—` |
-| `kind-tests-default-and-empty` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1597-1614` | `brief-chain-and-kind-tests` | `—` |
-| `kind-tests-relative-path` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1615-1624` | `brief-chain-and-kind-tests` | `—` |
-| `kind-tests-body-ignored` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1625-1656` | `brief-chain-and-kind-tests` | `—` |
-| `kind-tests-absent-root` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1657-1667` | `brief-chain-and-kind-tests` | `—` |
-| `resolve-tests-fixture` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1668-1706` | `resolve-tests` | `—` |
-| `resolve-tests` | `resolve` | `source-task-tree` | `composite` | `wider-than-a-key` | `1668-2011` | `source-task-tree` | `resolve-tests-fixture`, `resolve-tests-bracket-key`, `resolve-tests-bare-number`, `resolve-tests-pruned`, `resolve-tests-decorative-slug`, `resolve-tests-node-by-key`, `resolve-tests-key-not-found`, `resolve-tests-slug-unique`, `resolve-tests-slug-nested`, `resolve-tests-slug-not-found`, `resolve-tests-ambiguous`, `resolve-tests-root-brief`, `resolve-tests-dot`, `resolve-tests-empty-reference`, `resolve-tests-malformed-bracket`, `resolve-tests-absent-root`, `resolve-handle-tests-full-handle`, `resolve-handle-tests-terminal-key`, `resolve-handle-tests-disambiguates`, `resolve-handle-tests-node`, `resolve-handle-tests-precedence`, `resolve-handle-tests-unmatched` |
-| `resolve-tests-bracket-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1707-1719` | `resolve-tests` | `—` |
-| `resolve-tests-bare-number` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1720-1731` | `resolve-tests` | `—` |
-| `resolve-tests-pruned` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1732-1760` | `resolve-tests` | `—` |
-| `resolve-tests-decorative-slug` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1761-1772` | `resolve-tests` | `—` |
-| `resolve-tests-node-by-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1773-1787` | `resolve-tests` | `—` |
-| `resolve-tests-key-not-found` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1788-1793` | `resolve-tests` | `—` |
-| `resolve-tests-slug-unique` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1794-1805` | `resolve-tests` | `—` |
-| `resolve-tests-slug-nested` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1806-1819` | `resolve-tests` | `—` |
-| `resolve-tests-slug-not-found` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1820-1825` | `resolve-tests` | `—` |
-| `resolve-tests-ambiguous` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1826-1847` | `resolve-tests` | `—` |
-| `resolve-tests-root-brief` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1848-1856` | `resolve-tests` | `—` |
-| `resolve-tests-dot` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1857-1866` | `resolve-tests` | `—` |
-| `resolve-tests-empty-reference` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1867-1871` | `resolve-tests` | `—` |
-| `resolve-tests-malformed-bracket` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1872-1878` | `resolve-tests` | `—` |
-| `resolve-tests-absent-root` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1879-1889` | `resolve-tests` | `—` |
-| `resolve-handle-tests-full-handle` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1890-1906` | `resolve-tests` | `—` |
-| `resolve-handle-tests-terminal-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1907-1955` | `resolve-tests` | `—` |
-| `resolve-handle-tests-disambiguates` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1956-1969` | `resolve-tests` | `—` |
-| `resolve-handle-tests-node` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1970-1982` | `resolve-tests` | `—` |
-| `resolve-handle-tests-precedence` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1983-2003` | `resolve-tests` | `—` |
-| `resolve-handle-tests-unmatched` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `2004-2011` | `resolve-tests` | `—` |
-| `pick-with-brief-chain-tests` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `2012-2038` | `source-task-tree` | `—` |
+| `paths-addressable-key` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `405-455` | `paths-and-addressing` | `—` |
+| `paths-interrupted-promotion` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `456-457` | `paths-and-addressing` | `—` |
+| `paths-next-key` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `458-494` | `paths-and-addressing` | `—` |
+| `paths-live-leaf` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `495-507` | `paths-and-addressing` | `—` |
+| `paths-entry-outcome` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `508-518` | `paths-and-addressing` | `—` |
+| `walk-selection-type` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `519-527` | `walk-selection` | `—` |
+| `walk-selection` | `the-walk` | `source-task-tree` | `composite` | `first-live-leaf` | `519-585` | `source-task-tree` | `walk-selection-type`, `walk-pick-in`, `walk-select-in`, `walk-select-in-write`, `walk-selected` |
+| `walk-pick-in` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `528-533` | `walk-selection` | `—` |
+| `walk-select-in` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `534-543` | `walk-selection` | `—` |
+| `walk-select-in-write` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `544-553` | `walk-selection` | `—` |
+| `walk-selected` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `554-585` | `walk-selection` | `—` |
+| `kind-in` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `586-604` | `kind-and-brief-chain` | `—` |
+| `kind-and-brief-chain` | `kind-and-briefs` | `source-task-tree` | `composite` | `root-to-leaf` | `586-688` | `source-task-tree` | `kind-in`, `brief-chain-fn`, `leaf-entry-signature`, `leaf-entry-grammar`, `leaf-entry-compare`, `leaf-entry-walk` |
+| `brief-chain-fn` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `605-615` | `kind-and-brief-chain` | `—` |
+| `leaf-entry-signature` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `616-635` | `kind-and-brief-chain` | `—` |
+| `leaf-entry-grammar` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `636-649` | `kind-and-brief-chain` | `—` |
+| `leaf-entry-compare` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `650-671` | `kind-and-brief-chain` | `—` |
+| `leaf-entry-walk` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `672-688` | `kind-and-brief-chain` | `—` |
+| `resolution-outcome` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `689-707` | `resolution` | `—` |
+| `resolution` | `resolve` | `source-task-tree` | `composite` | `wider-than-a-key` | `689-971` | `source-task-tree` | `resolution-outcome`, `resolution-located`, `resolution-located-fn`, `resolution-resolve-in`, `resolution-lookup-type`, `resolution-slug-match-key`, `resolution-grammar`, `resolution-reference`, `resolution-existing-path`, `resolution-ref-type`, `resolution-parse-ref`, `resolution-read-count` |
+| `resolution-located` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `708-729` | `resolution` | `—` |
+| `resolution-located-fn` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `730-752` | `resolution` | `—` |
+| `resolution-resolve-in` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `753-793` | `resolution` | `—` |
+| `resolution-lookup-type` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `794-806` | `resolution` | `—` |
+| `resolution-slug-match-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `807-817` | `resolution` | `—` |
+| `resolution-grammar` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `818-868` | `resolution` | `—` |
+| `resolution-reference` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `869-912` | `resolution` | `—` |
+| `resolution-existing-path` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `913-931` | `resolution` | `—` |
+| `resolution-ref-type` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `932-937` | `resolution` | `—` |
+| `resolution-parse-ref` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `938-960` | `resolution` | `—` |
+| `resolution-read-count` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `961-971` | `resolution` | `—` |
+| `paths-tests-module-open` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `972-985` | `path-composition-tests` | `—` |
+| `path-composition-tests` | `paths` | `source-task-tree` | `composite` | `paths-are-built-here` | `972-1063` | `source-task-tree` | `paths-tests-module-open`, `paths-tests-composed-verbs`, `paths-tests-a-kind-and-imports`, `paths-tests-brief-chain-at`, `paths-tests-fixtures` |
+| `paths-tests-composed-verbs` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `986-1013` | `path-composition-tests` | `—` |
+| `paths-tests-a-kind-and-imports` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1014-1024` | `path-composition-tests` | `—` |
+| `paths-tests-brief-chain-at` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1025-1034` | `path-composition-tests` | `—` |
+| `paths-tests-fixtures` | `paths` | `source-task-tree` | `literal` | `paths-are-built-here` | `1035-1063` | `path-composition-tests` | `—` |
+| `walk-tests-select-one-observation` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1064-1088` | `pick-tests` | `—` |
+| `pick-tests` | `the-walk` | `source-task-tree` | `composite` | `first-live-leaf` | `1064-1315` | `source-task-tree` | `walk-tests-select-one-observation`, `walk-tests-order`, `walk-tests-terminal-leaves`, `walk-tests-descent`, `walk-tests-fall-through`, `walk-tests-none`, `walk-tests-foreign`, `walk-tests-species-mismatch`, `walk-tests-symlink`, `walk-tests-legacy-and-absent-root` |
+| `walk-tests-order` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1089-1114` | `pick-tests` | `—` |
+| `walk-tests-terminal-leaves` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1115-1134` | `pick-tests` | `—` |
+| `walk-tests-descent` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1135-1158` | `pick-tests` | `—` |
+| `walk-tests-fall-through` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1159-1197` | `pick-tests` | `—` |
+| `walk-tests-none` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1198-1227` | `pick-tests` | `—` |
+| `walk-tests-foreign` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1228-1245` | `pick-tests` | `—` |
+| `walk-tests-species-mismatch` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1246-1274` | `pick-tests` | `—` |
+| `walk-tests-symlink` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1275-1292` | `pick-tests` | `—` |
+| `walk-tests-legacy-and-absent-root` | `the-walk` | `source-task-tree` | `literal` | `first-live-leaf` | `1293-1315` | `pick-tests` | `—` |
+| `chain-tests-shape` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1316-1353` | `brief-chain-and-kind-tests` | `—` |
+| `brief-chain-and-kind-tests` | `kind-and-briefs` | `source-task-tree` | `composite` | `root-to-leaf` | `1316-1623` | `source-task-tree` | `chain-tests-shape`, `chain-tests-siblings`, `chain-tests-skipping`, `chain-tests-done-and-relative`, `chain-tests-refusals`, `kind-tests-label-and-fixture`, `kind-tests-two-leaves`, `kind-tests-open-token`, `kind-tests-legacy-label`, `kind-tests-default-and-empty`, `kind-tests-relative-path`, `kind-tests-body-ignored`, `kind-tests-absent-root` |
+| `chain-tests-siblings` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1354-1374` | `brief-chain-and-kind-tests` | `—` |
+| `chain-tests-skipping` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1375-1408` | `brief-chain-and-kind-tests` | `—` |
+| `chain-tests-done-and-relative` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1409-1443` | `brief-chain-and-kind-tests` | `—` |
+| `chain-tests-refusals` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1444-1493` | `brief-chain-and-kind-tests` | `—` |
+| `kind-tests-label-and-fixture` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1494-1503` | `brief-chain-and-kind-tests` | `—` |
+| `kind-tests-two-leaves` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1504-1517` | `brief-chain-and-kind-tests` | `—` |
+| `kind-tests-open-token` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1518-1545` | `brief-chain-and-kind-tests` | `—` |
+| `kind-tests-legacy-label` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1546-1552` | `brief-chain-and-kind-tests` | `—` |
+| `kind-tests-default-and-empty` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1553-1570` | `brief-chain-and-kind-tests` | `—` |
+| `kind-tests-relative-path` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1571-1580` | `brief-chain-and-kind-tests` | `—` |
+| `kind-tests-body-ignored` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1581-1612` | `brief-chain-and-kind-tests` | `—` |
+| `kind-tests-absent-root` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1613-1623` | `brief-chain-and-kind-tests` | `—` |
+| `resolve-tests-fixture` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1624-1662` | `resolve-tests` | `—` |
+| `resolve-tests` | `resolve` | `source-task-tree` | `composite` | `wider-than-a-key` | `1624-1944` | `source-task-tree` | `resolve-tests-fixture`, `resolve-tests-bracket-key`, `resolve-tests-bare-number`, `resolve-tests-pruned`, `resolve-tests-decorative-slug`, `resolve-tests-node-by-key`, `resolve-tests-key-not-found`, `resolve-tests-slug-unique`, `resolve-tests-slug-nested`, `resolve-tests-slug-not-found`, `resolve-tests-ambiguous`, `resolve-tests-root-brief`, `resolve-tests-dot`, `resolve-tests-empty-reference`, `resolve-tests-malformed-bracket`, `resolve-tests-absent-root`, `resolve-handle-tests-full-handle`, `resolve-handle-tests-terminal-key`, `resolve-handle-tests-disambiguates`, `resolve-handle-tests-node`, `resolve-handle-tests-precedence`, `resolve-handle-tests-unmatched` |
+| `resolve-tests-bracket-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1663-1675` | `resolve-tests` | `—` |
+| `resolve-tests-bare-number` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1676-1687` | `resolve-tests` | `—` |
+| `resolve-tests-pruned` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1688-1716` | `resolve-tests` | `—` |
+| `resolve-tests-decorative-slug` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1717-1728` | `resolve-tests` | `—` |
+| `resolve-tests-node-by-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1729-1743` | `resolve-tests` | `—` |
+| `resolve-tests-key-not-found` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1744-1749` | `resolve-tests` | `—` |
+| `resolve-tests-slug-unique` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1750-1761` | `resolve-tests` | `—` |
+| `resolve-tests-slug-nested` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1762-1775` | `resolve-tests` | `—` |
+| `resolve-tests-slug-not-found` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1776-1781` | `resolve-tests` | `—` |
+| `resolve-tests-ambiguous` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1782-1803` | `resolve-tests` | `—` |
+| `resolve-tests-root-brief` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1804-1812` | `resolve-tests` | `—` |
+| `resolve-tests-dot` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1813-1822` | `resolve-tests` | `—` |
+| `resolve-tests-empty-reference` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1823-1827` | `resolve-tests` | `—` |
+| `resolve-tests-malformed-bracket` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1828-1834` | `resolve-tests` | `—` |
+| `resolve-tests-absent-root` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1835-1845` | `resolve-tests` | `—` |
+| `resolve-handle-tests-full-handle` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1846-1861` | `resolve-tests` | `—` |
+| `resolve-handle-tests-terminal-key` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1862-1888` | `resolve-tests` | `—` |
+| `resolve-handle-tests-disambiguates` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1889-1902` | `resolve-tests` | `—` |
+| `resolve-handle-tests-node` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1903-1915` | `resolve-tests` | `—` |
+| `resolve-handle-tests-precedence` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1916-1936` | `resolve-tests` | `—` |
+| `resolve-handle-tests-unmatched` | `resolve` | `source-task-tree` | `literal` | `wider-than-a-key` | `1937-1944` | `resolve-tests` | `—` |
+| `pick-with-brief-chain-tests` | `kind-and-briefs` | `source-task-tree` | `literal` | `root-to-leaf` | `1945-1971` | `source-task-tree` | `—` |
 | `source-task-grow` | `source-index` | `source-task-grow` | `root` | `—` | `1-518` | `—` | `growing-the-tree` |
 | `grow-header-the-four` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `1-24` | `growing-the-tree` | `—` |
 | `growing-the-tree` | `growing` | `source-task-grow` | `composite` | `what-the-library-cannot-see` | `1-518` | `source-task-grow` | `grow-header-the-four`, `grow-header-what-went`, `grow-imports`, `grow-leaf-add-doc`, `grow-leaf-add`, `grow-inserted-and-insert-doc`, `grow-leaf-insert`, `grow-renumber`, `grow-renumbered`, `grow-lint-doc`, `grow-lint`, `grow-parent-node`, `grow-containing-level`, `grow-new-leaf`, `grow-allocated`, `grow-refuse-finish-kind`, `grow-template-and-stem`, `grow-test-module` |
@@ -379,9 +376,9 @@
 | `grow-refuse-finish-kind` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `482-496` | `growing-the-tree` | `—` |
 | `grow-template-and-stem` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `497-516` | `growing-the-tree` | `—` |
 | `grow-test-module` | `growing` | `source-task-grow` | `literal` | `what-the-library-cannot-see` | `517-518` | `growing-the-tree` | `—` |
-| `source-tree-lifecycle` | `source-index` | `source-tree-lifecycle` | `root` | `—` | `1-2732` | `—` | `finish-transition`, `grove-beginning`, `decompose-production`, `outcomes-in-place`, `body-helpers`, `root-init-tests`, `finish-tests`, `decompose-tests`, `retire-and-prune-tests` |
+| `source-tree-lifecycle` | `source-index` | `source-tree-lifecycle` | `root` | `—` | `1-2734` | `—` | `finish-transition`, `grove-beginning`, `decompose-production`, `outcomes-in-place`, `body-helpers`, `root-init-tests`, `finish-tests`, `decompose-tests`, `retire-and-prune-tests` |
 | `finishing-module-header` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1-44` | `finish-transition` | `—` |
-| `finish-transition` | `finishing` | `source-tree-lifecycle` | `composite` | `the-tree-deletes-itself` | `1-331` | `source-tree-lifecycle` | `finishing-module-header`, `finishing-imports`, `finishing-default-slug`, `finishing-current-transition`, `finishing-transition-contract`, `finishing-transition-body`, `finishing-materialize-contract`, `finishing-materialize-body`, `finishing-new-finish-leaf`, `finishing-finish-handle`, `finishing-finish-slug`, `finishing-finish-body`, `finishing-commit-contract`, `finishing-commit-classify`, `finishing-commit-revalidate`, `finishing-delete-contract`, `finishing-delete-body`, `finishing-recoverable-contract`, `finishing-recoverable-body` |
+| `finish-transition` | `finishing` | `source-tree-lifecycle` | `composite` | `the-tree-deletes-itself` | `1-326` | `source-tree-lifecycle` | `finishing-module-header`, `finishing-imports`, `finishing-default-slug`, `finishing-current-transition`, `finishing-transition-contract`, `finishing-transition-body`, `finishing-materialize-contract`, `finishing-materialize-body`, `finishing-new-finish-leaf`, `finishing-finish-handle`, `finishing-finish-slug`, `finishing-finish-body`, `finishing-commit-contract`, `finishing-commit-classify`, `finishing-commit-revalidate`, `finishing-delete-contract`, `finishing-delete-body`, `finishing-recoverable-contract`, `finishing-recoverable-body` |
 | `finishing-imports` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `45-53` | `finish-transition` | `—` |
 | `finishing-default-slug` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `54-57` | `finish-transition` | `—` |
 | `finishing-current-transition` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `58-63` | `finish-transition` | `—` |
@@ -395,123 +392,123 @@
 | `finishing-finish-body` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `169-180` | `finish-transition` | `—` |
 | `finishing-commit-contract` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `181-194` | `finish-transition` | `—` |
 | `finishing-commit-classify` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `195-226` | `finish-transition` | `—` |
-| `finishing-commit-revalidate` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `227-259` | `finish-transition` | `—` |
-| `finishing-delete-contract` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `260-264` | `finish-transition` | `—` |
-| `finishing-delete-body` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `265-307` | `finish-transition` | `—` |
-| `finishing-recoverable-contract` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `308-317` | `finish-transition` | `—` |
-| `finishing-recoverable-body` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `318-331` | `finish-transition` | `—` |
-| `grove-beginning-root-init` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `332-350` | `grove-beginning` | `—` |
-| `grove-beginning` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `332-492` | `source-tree-lifecycle` | `grove-beginning-root-init`, `grove-beginning-default-slug`, `grove-beginning-initialize`, `grove-beginning-root-shape-type`, `grove-beginning-root-shape-fn` |
-| `grove-beginning-default-slug` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `351-356` | `grove-beginning` | `—` |
-| `grove-beginning-initialize` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `357-411` | `grove-beginning` | `—` |
-| `grove-beginning-root-shape-type` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `412-446` | `grove-beginning` | `—` |
-| `grove-beginning-root-shape-fn` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `447-492` | `grove-beginning` | `—` |
-| `decompose-verb-contract` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `493-534` | `decompose-production` | `—` |
-| `decompose-production` | `leaf-to-node` | `source-tree-lifecycle` | `composite` | `the-key-survives` | `493-698` | `source-tree-lifecycle` | `decompose-verb-contract`, `decompose-verb-body`, `decompose-decomposable`, `decompose-promoted-claims`, `decompose-promoted-body` |
-| `decompose-verb-body` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `535-593` | `decompose-production` | `—` |
-| `decompose-decomposable` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `594-631` | `decompose-production` | `—` |
-| `decompose-promoted-claims` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `632-647` | `decompose-production` | `—` |
-| `decompose-promoted-body` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `648-698` | `decompose-production` | `—` |
-| `outcomes-retire-contract` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `699-709` | `outcomes-in-place` | `—` |
-| `outcomes-in-place` | `outcomes` | `source-tree-lifecycle` | `composite` | `marked-in-place` | `699-1015` | `source-tree-lifecycle` | `outcomes-retire-contract`, `outcomes-retire-body`, `outcomes-retire-parts`, `outcomes-prune-result`, `outcomes-prune-contract`, `outcomes-prune-body`, `outcomes-planned`, `outcomes-plan-prune`, `outcomes-plan-subtree`, `outcomes-plan-leaf`, `outcomes-apply-prune`, `outcomes-stopped-partway`, `outcomes-marked-path` |
-| `outcomes-retire-body` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `710-730` | `outcomes-in-place` | `—` |
-| `outcomes-retire-parts` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `731-767` | `outcomes-in-place` | `—` |
-| `outcomes-prune-result` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `768-778` | `outcomes-in-place` | `—` |
-| `outcomes-prune-contract` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `779-808` | `outcomes-in-place` | `—` |
-| `outcomes-prune-body` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `809-824` | `outcomes-in-place` | `—` |
-| `outcomes-planned` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `825-831` | `outcomes-in-place` | `—` |
-| `outcomes-plan-prune` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `832-854` | `outcomes-in-place` | `—` |
-| `outcomes-plan-subtree` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `855-891` | `outcomes-in-place` | `—` |
-| `outcomes-plan-leaf` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `892-932` | `outcomes-in-place` | `—` |
-| `outcomes-apply-prune` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `933-979` | `outcomes-in-place` | `—` |
-| `outcomes-stopped-partway` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `980-999` | `outcomes-in-place` | `—` |
-| `outcomes-marked-path` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `1000-1015` | `outcomes-in-place` | `—` |
-| `body-helpers-grove-name` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1016-1040` | `body-helpers` | `—` |
-| `body-helpers` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `1016-1079` | `source-tree-lifecycle` | `body-helpers-grove-name`, `body-helpers-root-brief`, `body-helpers-retitle` |
-| `body-helpers-root-brief` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1041-1056` | `body-helpers` | `—` |
-| `body-helpers-retitle` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1057-1079` | `body-helpers` | `—` |
-| `root-init-tests-open` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1080-1095` | `root-init-tests` | `—` |
-| `root-init-tests` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `1080-1469` | `source-tree-lifecycle` | `root-init-tests-open`, `root-init-tests-worktrees`, `root-init-tests-grow-leaf`, `root-init-tests-guards`, `root-init-tests-root-init-at`, `root-init-tests-writers`, `root-init-tests-basics`, `root-init-tests-refusals`, `root-init-tests-one-guard`, `root-init-tests-one-operation`, `root-init-tests-no-self-wait`, `root-init-tests-prediction`, `root-init-tests-refused-grove`, `root-init-tests-taskless` |
-| `root-init-tests-worktrees` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1096-1148` | `root-init-tests` | `—` |
-| `root-init-tests-grow-leaf` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1149-1170` | `root-init-tests` | `—` |
-| `root-init-tests-guards` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1171-1202` | `root-init-tests` | `—` |
-| `root-init-tests-root-init-at` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1203-1223` | `root-init-tests` | `—` |
-| `root-init-tests-writers` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1224-1264` | `root-init-tests` | `—` |
-| `root-init-tests-basics` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1265-1311` | `root-init-tests` | `—` |
-| `root-init-tests-refusals` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1312-1336` | `root-init-tests` | `—` |
-| `root-init-tests-one-guard` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1337-1355` | `root-init-tests` | `—` |
-| `root-init-tests-one-operation` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1356-1378` | `root-init-tests` | `—` |
-| `root-init-tests-no-self-wait` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1379-1413` | `root-init-tests` | `—` |
-| `root-init-tests-prediction` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1414-1426` | `root-init-tests` | `—` |
-| `root-init-tests-refused-grove` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1427-1444` | `root-init-tests` | `—` |
-| `root-init-tests-taskless` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1445-1469` | `root-init-tests` | `—` |
-| `finishing-test-three-spellings` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1470-1498` | `finish-tests` | `—` |
-| `finish-tests` | `finishing` | `source-tree-lifecycle` | `composite` | `the-tree-deletes-itself` | `1470-1668` | `source-tree-lifecycle` | `finishing-test-three-spellings`, `finishing-test-last-key`, `finishing-test-last-ordinal`, `finishing-test-reuse`, `finishing-test-already-current`, `finishing-test-malformed-name`, `finishing-test-no-grove-entries`, `finishing-test-dangling-symlink` |
-| `finishing-test-last-key` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1499-1525` | `finish-tests` | `—` |
-| `finishing-test-last-ordinal` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1526-1542` | `finish-tests` | `—` |
-| `finishing-test-reuse` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1543-1565` | `finish-tests` | `—` |
-| `finishing-test-already-current` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1566-1584` | `finish-tests` | `—` |
-| `finishing-test-malformed-name` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1585-1615` | `finish-tests` | `—` |
-| `finishing-test-no-grove-entries` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1616-1644` | `finish-tests` | `—` |
-| `finishing-test-dangling-symlink` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1645-1668` | `finish-tests` | `—` |
-| `decompose-tests-opening` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1669-1698` | `decompose-tests` | `—` |
-| `decompose-tests` | `leaf-to-node` | `source-tree-lifecycle` | `composite` | `the-key-survives` | `1669-2241` | `source-tree-lifecycle` | `decompose-tests-opening`, `decompose-tests-brief-and-child`, `decompose-tests-kind`, `decompose-tests-nested`, `decompose-tests-refusals`, `decompose-tests-slug-and-path`, `decompose-tests-seam-opening`, `decompose-tests-one-guard`, `decompose-tests-twin`, `decompose-tests-destination`, `decompose-tests-interrupted`, `decompose-tests-last-key`, `decompose-tests-sweep` |
-| `decompose-tests-brief-and-child` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1699-1745` | `decompose-tests` | `—` |
-| `decompose-tests-kind` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1746-1825` | `decompose-tests` | `—` |
-| `decompose-tests-nested` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1826-1852` | `decompose-tests` | `—` |
-| `decompose-tests-refusals` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1853-1926` | `decompose-tests` | `—` |
-| `decompose-tests-slug-and-path` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1927-1973` | `decompose-tests` | `—` |
-| `decompose-tests-seam-opening` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1974-1981` | `decompose-tests` | `—` |
-| `decompose-tests-one-guard` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1982-2010` | `decompose-tests` | `—` |
-| `decompose-tests-twin` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2011-2041` | `decompose-tests` | `—` |
-| `decompose-tests-destination` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2042-2112` | `decompose-tests` | `—` |
-| `decompose-tests-interrupted` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2113-2155` | `decompose-tests` | `—` |
-| `decompose-tests-last-key` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2156-2186` | `decompose-tests` | `—` |
-| `decompose-tests-sweep` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2187-2241` | `decompose-tests` | `—` |
-| `retire-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2242-2259` | `retire-and-prune-tests` | `—` |
-| `retire-and-prune-tests` | `outcomes` | `source-tree-lifecycle` | `composite` | `marked-in-place` | `2242-2732` | `source-tree-lifecycle` | `retire-tests-opening`, `retire-tests-body-untouched`, `retire-tests-nested`, `retire-tests-refusals`, `retire-tests-absolute`, `untracked-tests-opening`, `untracked-tests-decompose-and-prune`, `prune-leaf-tests-opening`, `prune-leaf-tests-body-and-nested`, `prune-leaf-tests-refusals`, `prune-leaf-tests-absolute`, `prune-node-tests-opening`, `prune-node-tests-done-untouched`, `prune-node-tests-grandchild`, `prune-node-tests-mixed-tracking`, `prune-node-tests-atomic`, `prune-node-tests-twin`, `prune-node-tests-guard-count`, `prune-node-tests-nothing-live`, `prune-node-tests-root-refusals` |
-| `retire-tests-body-untouched` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2260-2269` | `retire-and-prune-tests` | `—` |
-| `retire-tests-nested` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2270-2281` | `retire-and-prune-tests` | `—` |
-| `retire-tests-refusals` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2282-2338` | `retire-and-prune-tests` | `—` |
-| `retire-tests-absolute` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2339-2348` | `retire-and-prune-tests` | `—` |
-| `untracked-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2349-2374` | `retire-and-prune-tests` | `—` |
-| `untracked-tests-decompose-and-prune` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2375-2401` | `retire-and-prune-tests` | `—` |
-| `prune-leaf-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2402-2421` | `retire-and-prune-tests` | `—` |
-| `prune-leaf-tests-body-and-nested` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2422-2447` | `retire-and-prune-tests` | `—` |
-| `prune-leaf-tests-refusals` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2448-2492` | `retire-and-prune-tests` | `—` |
-| `prune-leaf-tests-absolute` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2493-2502` | `retire-and-prune-tests` | `—` |
-| `prune-node-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2503-2521` | `retire-and-prune-tests` | `—` |
-| `prune-node-tests-done-untouched` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2522-2540` | `retire-and-prune-tests` | `—` |
-| `prune-node-tests-grandchild` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2541-2558` | `retire-and-prune-tests` | `—` |
-| `prune-node-tests-mixed-tracking` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2559-2588` | `retire-and-prune-tests` | `—` |
-| `prune-node-tests-atomic` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2589-2642` | `retire-and-prune-tests` | `—` |
-| `prune-node-tests-twin` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2643-2669` | `retire-and-prune-tests` | `—` |
-| `prune-node-tests-guard-count` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2670-2699` | `retire-and-prune-tests` | `—` |
-| `prune-node-tests-nothing-live` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2700-2711` | `retire-and-prune-tests` | `—` |
-| `prune-node-tests-root-refusals` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2712-2732` | `retire-and-prune-tests` | `—` |
-| `source-verbs` | `source-index` | `source-verbs` | `root` | `—` | `1-363` | `—` | `the-twelve-verbs` |
+| `finishing-commit-revalidate` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `227-254` | `finish-transition` | `—` |
+| `finishing-delete-contract` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `255-259` | `finish-transition` | `—` |
+| `finishing-delete-body` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `260-302` | `finish-transition` | `—` |
+| `finishing-recoverable-contract` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `303-312` | `finish-transition` | `—` |
+| `finishing-recoverable-body` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `313-326` | `finish-transition` | `—` |
+| `grove-beginning-root-init` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `327-345` | `grove-beginning` | `—` |
+| `grove-beginning` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `327-487` | `source-tree-lifecycle` | `grove-beginning-root-init`, `grove-beginning-default-slug`, `grove-beginning-initialize`, `grove-beginning-root-shape-type`, `grove-beginning-root-shape-fn` |
+| `grove-beginning-default-slug` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `346-351` | `grove-beginning` | `—` |
+| `grove-beginning-initialize` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `352-406` | `grove-beginning` | `—` |
+| `grove-beginning-root-shape-type` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `407-441` | `grove-beginning` | `—` |
+| `grove-beginning-root-shape-fn` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `442-487` | `grove-beginning` | `—` |
+| `decompose-verb-contract` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `488-529` | `decompose-production` | `—` |
+| `decompose-production` | `leaf-to-node` | `source-tree-lifecycle` | `composite` | `the-key-survives` | `488-705` | `source-tree-lifecycle` | `decompose-verb-contract`, `decompose-verb-body`, `decompose-decomposable`, `decompose-promoted-claims`, `decompose-promoted-body` |
+| `decompose-verb-body` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `530-600` | `decompose-production` | `—` |
+| `decompose-decomposable` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `601-638` | `decompose-production` | `—` |
+| `decompose-promoted-claims` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `639-654` | `decompose-production` | `—` |
+| `decompose-promoted-body` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `655-705` | `decompose-production` | `—` |
+| `outcomes-retire-contract` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `706-716` | `outcomes-in-place` | `—` |
+| `outcomes-in-place` | `outcomes` | `source-tree-lifecycle` | `composite` | `marked-in-place` | `706-1022` | `source-tree-lifecycle` | `outcomes-retire-contract`, `outcomes-retire-body`, `outcomes-retire-parts`, `outcomes-prune-result`, `outcomes-prune-contract`, `outcomes-prune-body`, `outcomes-planned`, `outcomes-plan-prune`, `outcomes-plan-subtree`, `outcomes-plan-leaf`, `outcomes-apply-prune`, `outcomes-stopped-partway`, `outcomes-marked-path` |
+| `outcomes-retire-body` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `717-737` | `outcomes-in-place` | `—` |
+| `outcomes-retire-parts` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `738-774` | `outcomes-in-place` | `—` |
+| `outcomes-prune-result` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `775-785` | `outcomes-in-place` | `—` |
+| `outcomes-prune-contract` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `786-815` | `outcomes-in-place` | `—` |
+| `outcomes-prune-body` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `816-831` | `outcomes-in-place` | `—` |
+| `outcomes-planned` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `832-838` | `outcomes-in-place` | `—` |
+| `outcomes-plan-prune` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `839-861` | `outcomes-in-place` | `—` |
+| `outcomes-plan-subtree` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `862-898` | `outcomes-in-place` | `—` |
+| `outcomes-plan-leaf` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `899-939` | `outcomes-in-place` | `—` |
+| `outcomes-apply-prune` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `940-986` | `outcomes-in-place` | `—` |
+| `outcomes-stopped-partway` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `987-1006` | `outcomes-in-place` | `—` |
+| `outcomes-marked-path` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `1007-1022` | `outcomes-in-place` | `—` |
+| `body-helpers-grove-name` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1023-1047` | `body-helpers` | `—` |
+| `body-helpers` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `1023-1086` | `source-tree-lifecycle` | `body-helpers-grove-name`, `body-helpers-root-brief`, `body-helpers-retitle` |
+| `body-helpers-root-brief` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1048-1063` | `body-helpers` | `—` |
+| `body-helpers-retitle` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1064-1086` | `body-helpers` | `—` |
+| `root-init-tests-open` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1087-1122` | `root-init-tests` | `—` |
+| `root-init-tests` | `a-grove-begins` | `source-tree-lifecycle` | `composite` | `never-mistaken-for-finished` | `1087-1502` | `source-tree-lifecycle` | `root-init-tests-open`, `root-init-tests-worktrees`, `root-init-tests-grow-leaf`, `root-init-tests-guards`, `root-init-tests-root-init-at`, `root-init-tests-writers`, `root-init-tests-basics`, `root-init-tests-refusals`, `root-init-tests-one-guard`, `root-init-tests-one-operation`, `root-init-tests-no-self-wait`, `root-init-tests-prediction`, `root-init-tests-refused-grove`, `root-init-tests-taskless` |
+| `root-init-tests-worktrees` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1123-1176` | `root-init-tests` | `—` |
+| `root-init-tests-grow-leaf` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1177-1198` | `root-init-tests` | `—` |
+| `root-init-tests-guards` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1199-1230` | `root-init-tests` | `—` |
+| `root-init-tests-root-init-at` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1231-1251` | `root-init-tests` | `—` |
+| `root-init-tests-writers` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1252-1296` | `root-init-tests` | `—` |
+| `root-init-tests-basics` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1297-1343` | `root-init-tests` | `—` |
+| `root-init-tests-refusals` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1344-1369` | `root-init-tests` | `—` |
+| `root-init-tests-one-guard` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1370-1388` | `root-init-tests` | `—` |
+| `root-init-tests-one-operation` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1389-1411` | `root-init-tests` | `—` |
+| `root-init-tests-no-self-wait` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1412-1446` | `root-init-tests` | `—` |
+| `root-init-tests-prediction` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1447-1459` | `root-init-tests` | `—` |
+| `root-init-tests-refused-grove` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1460-1477` | `root-init-tests` | `—` |
+| `root-init-tests-taskless` | `a-grove-begins` | `source-tree-lifecycle` | `literal` | `never-mistaken-for-finished` | `1478-1502` | `root-init-tests` | `—` |
+| `finishing-test-three-spellings` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1503-1531` | `finish-tests` | `—` |
+| `finish-tests` | `finishing` | `source-tree-lifecycle` | `composite` | `the-tree-deletes-itself` | `1503-1697` | `source-tree-lifecycle` | `finishing-test-three-spellings`, `finishing-test-last-key`, `finishing-test-last-ordinal`, `finishing-test-reuse`, `finishing-test-already-current`, `finishing-test-malformed-name`, `finishing-test-no-grove-entries`, `finishing-test-dangling-symlink` |
+| `finishing-test-last-key` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1532-1558` | `finish-tests` | `—` |
+| `finishing-test-last-ordinal` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1559-1575` | `finish-tests` | `—` |
+| `finishing-test-reuse` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1576-1598` | `finish-tests` | `—` |
+| `finishing-test-already-current` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1599-1617` | `finish-tests` | `—` |
+| `finishing-test-malformed-name` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1618-1648` | `finish-tests` | `—` |
+| `finishing-test-no-grove-entries` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1649-1673` | `finish-tests` | `—` |
+| `finishing-test-dangling-symlink` | `finishing` | `source-tree-lifecycle` | `literal` | `the-tree-deletes-itself` | `1674-1697` | `finish-tests` | `—` |
+| `decompose-tests-opening` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1698-1724` | `decompose-tests` | `—` |
+| `decompose-tests` | `leaf-to-node` | `source-tree-lifecycle` | `composite` | `the-key-survives` | `1698-2243` | `source-tree-lifecycle` | `decompose-tests-opening`, `decompose-tests-brief-and-child`, `decompose-tests-kind`, `decompose-tests-nested`, `decompose-tests-refusals`, `decompose-tests-slug-and-path`, `decompose-tests-seam-opening`, `decompose-tests-one-guard`, `decompose-tests-twin`, `decompose-tests-destination`, `decompose-tests-interrupted`, `decompose-tests-last-key`, `decompose-tests-sweep` |
+| `decompose-tests-brief-and-child` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1725-1771` | `decompose-tests` | `—` |
+| `decompose-tests-kind` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1772-1851` | `decompose-tests` | `—` |
+| `decompose-tests-nested` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1852-1874` | `decompose-tests` | `—` |
+| `decompose-tests-refusals` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1875-1948` | `decompose-tests` | `—` |
+| `decompose-tests-slug-and-path` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1949-1995` | `decompose-tests` | `—` |
+| `decompose-tests-seam-opening` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `1996-2003` | `decompose-tests` | `—` |
+| `decompose-tests-one-guard` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2004-2032` | `decompose-tests` | `—` |
+| `decompose-tests-twin` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2033-2063` | `decompose-tests` | `—` |
+| `decompose-tests-destination` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2064-2134` | `decompose-tests` | `—` |
+| `decompose-tests-interrupted` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2135-2158` | `decompose-tests` | `—` |
+| `decompose-tests-last-key` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2159-2188` | `decompose-tests` | `—` |
+| `decompose-tests-sweep` | `leaf-to-node` | `source-tree-lifecycle` | `literal` | `the-key-survives` | `2189-2243` | `decompose-tests` | `—` |
+| `retire-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2244-2261` | `retire-and-prune-tests` | `—` |
+| `retire-and-prune-tests` | `outcomes` | `source-tree-lifecycle` | `composite` | `marked-in-place` | `2244-2734` | `source-tree-lifecycle` | `retire-tests-opening`, `retire-tests-body-untouched`, `retire-tests-nested`, `retire-tests-refusals`, `retire-tests-absolute`, `untracked-tests-opening`, `untracked-tests-decompose-and-prune`, `prune-leaf-tests-opening`, `prune-leaf-tests-body-and-nested`, `prune-leaf-tests-refusals`, `prune-leaf-tests-absolute`, `prune-node-tests-opening`, `prune-node-tests-done-untouched`, `prune-node-tests-grandchild`, `prune-node-tests-mixed-tracking`, `prune-node-tests-atomic`, `prune-node-tests-twin`, `prune-node-tests-guard-count`, `prune-node-tests-nothing-live`, `prune-node-tests-root-refusals` |
+| `retire-tests-body-untouched` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2262-2271` | `retire-and-prune-tests` | `—` |
+| `retire-tests-nested` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2272-2283` | `retire-and-prune-tests` | `—` |
+| `retire-tests-refusals` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2284-2340` | `retire-and-prune-tests` | `—` |
+| `retire-tests-absolute` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2341-2350` | `retire-and-prune-tests` | `—` |
+| `untracked-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2351-2376` | `retire-and-prune-tests` | `—` |
+| `untracked-tests-decompose-and-prune` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2377-2403` | `retire-and-prune-tests` | `—` |
+| `prune-leaf-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2404-2423` | `retire-and-prune-tests` | `—` |
+| `prune-leaf-tests-body-and-nested` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2424-2449` | `retire-and-prune-tests` | `—` |
+| `prune-leaf-tests-refusals` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2450-2494` | `retire-and-prune-tests` | `—` |
+| `prune-leaf-tests-absolute` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2495-2504` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-opening` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2505-2523` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-done-untouched` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2524-2542` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-grandchild` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2543-2560` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-mixed-tracking` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2561-2590` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-atomic` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2591-2644` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-twin` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2645-2671` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-guard-count` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2672-2701` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-nothing-live` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2702-2713` | `retire-and-prune-tests` | `—` |
+| `prune-node-tests-root-refusals` | `outcomes` | `source-tree-lifecycle` | `literal` | `marked-in-place` | `2714-2734` | `retire-and-prune-tests` | `—` |
+| `source-verbs` | `source-index` | `source-verbs` | `root` | `—` | `1-361` | `—` | `the-twelve-verbs` |
 | `verbs-surface-header` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `1-12` | `the-twelve-verbs` | `—` |
-| `the-twelve-verbs` | `the-verbs` | `source-verbs` | `composite` | `twelve-not-fourteen` | `1-363` | `source-verbs` | `verbs-surface-header`, `verbs-imports`, `verbs-root-init`, `verbs-initialized`, `verbs-pick`, `verbs-kind`, `verbs-brief-chain`, `verbs-resolve`, `verbs-leaf-add`, `verbs-leaf-insert`, `verbs-not-a-thirteenth-verb`, `verbs-leaf-decompose`, `verbs-decomposed`, `verbs-leaf-retire`, `verbs-leaf-prune`, `verbs-pruned`, `verbs-finish-commit`, `verbs-complete`, `verbs-signal-channel`, `verbs-signalled`, `verbs-sought` |
+| `the-twelve-verbs` | `the-verbs` | `source-verbs` | `composite` | `twelve-not-fourteen` | `1-361` | `source-verbs` | `verbs-surface-header`, `verbs-imports`, `verbs-root-init`, `verbs-initialized`, `verbs-pick`, `verbs-kind`, `verbs-brief-chain`, `verbs-resolve`, `verbs-leaf-add`, `verbs-leaf-insert`, `verbs-not-a-thirteenth-verb`, `verbs-leaf-decompose`, `verbs-decomposed`, `verbs-leaf-retire`, `verbs-leaf-prune`, `verbs-pruned`, `verbs-finish-commit`, `verbs-complete`, `verbs-signal-channel`, `verbs-signalled`, `verbs-sought` |
 | `verbs-imports` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `13-23` | `the-twelve-verbs` | `—` |
 | `verbs-root-init` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `24-49` | `the-twelve-verbs` | `—` |
 | `verbs-initialized` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `50-58` | `the-twelve-verbs` | `—` |
 | `verbs-pick` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `59-72` | `the-twelve-verbs` | `—` |
 | `verbs-kind` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `73-85` | `the-twelve-verbs` | `—` |
-| `verbs-brief-chain` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `86-97` | `the-twelve-verbs` | `—` |
-| `verbs-resolve` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `98-110` | `the-twelve-verbs` | `—` |
-| `verbs-leaf-add` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `111-134` | `the-twelve-verbs` | `—` |
-| `verbs-leaf-insert` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `135-155` | `the-twelve-verbs` | `—` |
-| `verbs-not-a-thirteenth-verb` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `156-210` | `the-twelve-verbs` | `—` |
-| `verbs-leaf-decompose` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `211-231` | `the-twelve-verbs` | `—` |
-| `verbs-decomposed` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `232-240` | `the-twelve-verbs` | `—` |
-| `verbs-leaf-retire` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `241-249` | `the-twelve-verbs` | `—` |
-| `verbs-leaf-prune` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `250-269` | `the-twelve-verbs` | `—` |
-| `verbs-pruned` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `270-279` | `the-twelve-verbs` | `—` |
-| `verbs-finish-commit` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `280-302` | `the-twelve-verbs` | `—` |
-| `verbs-complete` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `303-327` | `the-twelve-verbs` | `—` |
-| `verbs-signal-channel` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `328-341` | `the-twelve-verbs` | `—` |
-| `verbs-signalled` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `342-351` | `the-twelve-verbs` | `—` |
-| `verbs-sought` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `352-363` | `the-twelve-verbs` | `—` |
+| `verbs-brief-chain` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `86-95` | `the-twelve-verbs` | `—` |
+| `verbs-resolve` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `96-108` | `the-twelve-verbs` | `—` |
+| `verbs-leaf-add` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `109-132` | `the-twelve-verbs` | `—` |
+| `verbs-leaf-insert` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `133-153` | `the-twelve-verbs` | `—` |
+| `verbs-not-a-thirteenth-verb` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `154-208` | `the-twelve-verbs` | `—` |
+| `verbs-leaf-decompose` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `209-229` | `the-twelve-verbs` | `—` |
+| `verbs-decomposed` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `230-238` | `the-twelve-verbs` | `—` |
+| `verbs-leaf-retire` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `239-247` | `the-twelve-verbs` | `—` |
+| `verbs-leaf-prune` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `248-267` | `the-twelve-verbs` | `—` |
+| `verbs-pruned` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `268-277` | `the-twelve-verbs` | `—` |
+| `verbs-finish-commit` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `278-300` | `the-twelve-verbs` | `—` |
+| `verbs-complete` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `301-325` | `the-twelve-verbs` | `—` |
+| `verbs-signal-channel` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `326-339` | `the-twelve-verbs` | `—` |
+| `verbs-signalled` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `340-349` | `the-twelve-verbs` | `—` |
+| `verbs-sought` | `the-verbs` | `source-verbs` | `literal` | `twelve-not-fourteen` | `350-361` | `the-twelve-verbs` | `—` |
 | `source-driver` | `source-index` | `source-driver` | `root` | `—` | `1-57` | `—` | `driver-operations` |
 | `driver-not-fourteen-header` | `the-verbs` | `source-driver` | `literal` | `twelve-not-fourteen` | `1-26` | `driver-operations` | `—` |
 | `driver-operations` | `the-verbs` | `source-driver` | `composite` | `twelve-not-fourteen` | `1-57` | `source-driver` | `driver-not-fourteen-header`, `driver-imports`, `driver-transition-to-current`, `driver-materialize-finish` |
@@ -697,7 +694,7 @@
 | `TaskName::Brief`, `TaskName::Positioned` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `canonical-or-nothing` | The two variants of the parsed name: the `BRIEF.md` charter, which carries no ordinal, no key and no parts, and every other entry, which carries all three. `Handle::of` matches on both and derives a handle only for the second. | `explained` |
 | `TaskName::parse` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `canonical-or-nothing` | The one route from a filename to a parsed name, and the canonical half of the asymmetry `Handle::parse` is documented against: it refuses a name spelled any way but the one the renderer would have written. | `explained` |
 | `terminal_key` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `canonical-or-nothing` | The public function that answers *does this reference end in a key* and requires nothing of what precedes it, which is why `resolve`'s bare-slug fallback asks it rather than `Handle::parse`. It reaches the key through the same `peel_key`. | `explained` |
-| `parse_ref` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `wider-than-a-key` | The reference grammar's own front door, already lenient on a bare key — `007` is key 7 there — which is the precedent `Handle::parse`'s leniency on `a-k007` is argued from. | `explained` |
+| `parse_ref` | `03-kind-slug-handle.md#one-place-the-grammar-is-spelled` | `wider-than-a-key` | The reference grammar accepts bare numeric keys independently of canonical full handles; `007` is key 7, while `a-k007` is not a canonical handle. | `explained` |
 | `TaskName::compose` | `03-kind-slug-handle.md#the-handle-is-the-identity` | `canonical-or-nothing` | Composition builds a positioned name from a position, a kind, a slug and a key, so the handle's structural claim can be asserted over names built rather than parsed. | `explained` |
 | `entry_path` | `05-opening.md#one-spelling-of-the-root` | `paths-are-built-here` | The one place an entry's absolute path is built, because the store returns no paths. Chapter 5 reproduces the module header that says so; chapter 6 reads the function. | `explained` |
 | `target` | `05-opening.md#one-spelling-of-the-root` | `paths-are-built-here` | The other function the module header names as a place canonicalisation happens: it resolves a caller's path to a snapshot entry, canonicalising the candidate, the grove root and each walked entry's built path. Chapter 5 needs only that it does what `leaf_entry` does and returns no path, which is what makes the header's clause true of two functions rather than one. Chapter 6 reads it. | `explained` |
@@ -726,7 +723,7 @@
 ## Owned source totals
 
 Every line of the thirteen source roots is credited once, to the slice whose
-page owns it; the table shows how the 10,593 lines divide across the twenty-one
+page owns it; the table shows how the 10,458 lines divide across the twenty-one
 chapters, and its total is what a completed book must account for. Nine roots are
 owned whole by one chapter; the four that split — `src/task_name.rs` three ways,
 `src/task_tree.rs` five, `src/tree_lifecycle.rs` four and `src/driver_lease.rs`
@@ -735,24 +732,24 @@ two — are why the ownership table above has thirty-nine rows rather than thirt
 | Slice | Page | Owned lines |
 |---|---|---:|
 | `allowed-to-mean` | `01-orientation.md` | 445 |
-| `four-verdicts` | `02-the-tokens.md` | 451 |
-| `the-handle-not-the-position` | `03-kind-slug-handle.md` | 563 |
-| `canonical-or-nothing` | `04-the-name.md` | 729 |
+| `four-verdicts` | `02-the-tokens.md` | 373 |
+| `the-handle-not-the-position` | `03-kind-slug-handle.md` | 529 |
+| `canonical-or-nothing` | `04-the-name.md` | 773 |
 | `one-spelling-of-grove` | `05-opening.md` | 290 |
-| `paths-are-built-here` | `06-paths.md` | 370 |
-| `first-live-leaf` | `07-the-walk.md` | 322 |
-| `root-to-leaf` | `08-kind-and-briefs.md` | 443 |
-| `wider-than-a-key` | `09-resolve.md` | 613 |
+| `paths-are-built-here` | `06-paths.md` | 320 |
+| `first-live-leaf` | `07-the-walk.md` | 319 |
+| `root-to-leaf` | `08-kind-and-briefs.md` | 438 |
+| `wider-than-a-key` | `09-resolve.md` | 604 |
 | `what-the-library-cannot-see` | `10-growing.md` | 518 |
-| `never-mistaken-for-finished` | `11-a-grove-begins.md` | 615 |
-| `the-key-survives` | `12-leaf-to-node.md` | 779 |
+| `never-mistaken-for-finished` | `11-a-grove-begins.md` | 641 |
+| `the-key-survives` | `12-leaf-to-node.md` | 764 |
 | `marked-in-place` | `13-outcomes.md` | 808 |
-| `the-tree-deletes-itself` | `14-finishing.md` | 530 |
-| `twelve-not-fourteen` | `15-the-verbs.md` | 516 |
+| `the-tree-deletes-itself` | `14-finishing.md` | 521 |
+| `twelve-not-fourteen` | `15-the-verbs.md` | 514 |
 | `one-per-working-tree` | `16-the-lease.md` | 819 |
 | `which-calls-are-admitted` | `17-the-epoch.md` | 564 |
 | `whose-file-and-whether` | `18-which-files.md` | 358 |
 | `too-late-to-say-later` | `19-the-core.md` | 245 |
 | `four-things-a-runner-cannot-choose` | `20-the-loop.md` | 615 |
 | `assembly` | `21-what-could-not-move.md` | 0 |
-| **Total** | 13 source roots | **10,593** |
+| **Total** | 13 source roots | **10,458** |

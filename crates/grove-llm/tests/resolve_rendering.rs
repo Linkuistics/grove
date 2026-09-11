@@ -71,7 +71,7 @@ fn render_not_found_empty_stdout_diagnostic_stderr() {
 fn render_ambiguous_lists_keys_on_stderr_empty_stdout() {
     let r = ambiguous(vec![
         located(
-            "/g/.grove/01-design-k1/01-impl--add-k2.md",
+            "/g/.grove/01-k1/01-impl--add-k2.md",
             "add-k2",
             Outcome::Live,
         ),

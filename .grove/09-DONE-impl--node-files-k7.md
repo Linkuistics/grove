@@ -83,3 +83,58 @@ without retirement, sealing or `grove-llm complete`. The human re-runs the
 installed `grove` in this workspace; this same live handle is selected again.
 Resume from the running log and `jj diff`, preserving the unfinished change,
 and seal only after the whole increment and its books pass.
+
+## Decisions (running log)
+
+**1. Implementation follows the reviewed grammar and supplied-name seam.**
+`Parts::Node` carries no slug; `TaskName::NodeFile(Slug)` owns positioned-node
+file titles and `TaskName::Brief` names the root file. `Handle::of_leaf` and
+`Handle::of_node` reject invalid species pairings. Tree lookup composes node
+identity using the actual distinguished entry in the same snapshot. Full
+handles must match the current title; bare keys remain title-independent.
+The existing required-level callback enforces cardinality and placement, with
+conditional recovery advice in its missing-node-file error and no extra read.
+
+**2. Verification sequence.** The canonical-name regression failed against
+unchanged production code because `_BRIEF.md` was classified Foreign. Finish
+name/handle and conformance tests, then tree/lifecycle consumers and every
+workspace fixture, black-box contract regressions, source-book fragments and
+explanatory prose, and finally `bash scripts/check.sh` plus the isolated verb
+demonstration. The graph CLI refused startup due to an active incompatible
+generation; source searches and exact reads provide the fallback evidence.
+
+**3. Positive-key construction boundary (human decision).** The focused fresh
+review found one contract issue: generic `Key::new(0)` can be passed through the
+infallible constructor, but Grove’s parser rejects zero. The human chose to
+document domain-valid positive-key inputs rather than redesign the generic API.
+The naming ADR and Grove constructors now state that boundary. Parsing and
+allocation enforce it on operational paths. The reviewer found no other
+operational violation in node identity, guarded validation or promotion.
+
+**4. Contract tests and isolated demonstration.** The new black-box node-file
+suite exercises file-derived titles (including misleading bodies), stale
+handles after a file rename, ambiguity handles, renumbering and retirement.
+Thirteen malformed tree shapes are tried against nine read/mutation verbs;
+all refuse before changing tree names or bytes. The heading regression checks
+idempotence and custom-heading preservation. These focused tests pass.
+An isolated jj fixture initialized through the built binary then decomposed
+`plan-k1`, resolved its node, printed `_BRIEF.md` then `_plan.md`, renumbered
+the node from `01-k1` to `02-k1`, checked unchanged file contents and retired
+its child. `GROVE_SIGNAL_FILE` was cleared for the demonstration. The installed
+binary and live tree remain on their existing grammar until cutover.
+
+**5. Source-book reconciliation.** Changed roots belong to the `grove-loop`
+and `grove-llm` books. Their literal fragments, ownership spans, manifests,
+ledgers, behavior explanations and examples are updated, as is affected overview
+prose. Both changed books pass final reconstruction: 13 roots / 10,458 lines
+and 4 roots / 1,015 lines respectively, with zero deferred lines. The complete
+principal check run passed, as recorded below.
+
+**6. Final verification.** `bash scripts/check.sh` exited 0: all eight principal
+checks pass, including formatting, shellcheck, clippy, plugin installation,
+methodology conformance and its regression suite, the locked workspace tests,
+and all six final source-book checks. The focused heading regression and the
+isolated initialized-fixture demonstration also pass. All 1,734 recorded
+tracked inputs outside this task tree remain unchanged through the final
+verification tail. The task is a root child with live later siblings, so no
+parent-node close or upward cascade is due.

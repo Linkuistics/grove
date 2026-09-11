@@ -22,6 +22,9 @@ mandatory brief chain, with its conformance and installation checks agreeing.
   the root `_BRIEF.md` and positioned node `_<slug>.md` accurately. The
   mandatory node-file rule replaces advice to skip a missing Grove brief;
   `brief-chain` is the source of paths, with malformed levels refused.
+  In `grove/references/driver.md`, remove the assertion that fresh-tree
+  creation writes a format witness. Describe the actual root file and first
+  leaf only, and reconcile any other witness-creation teaching encountered.
 - Format examples show slugless node directories, named node files and
   unchanged leaf filenames. Handles and heading conventions remain accurate,
   and title extraction is always from names. Skill references to their own

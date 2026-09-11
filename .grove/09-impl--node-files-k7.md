@@ -69,3 +69,17 @@ This live `.grove/` and the installed binary/plugin stay as they are until
 `node-cutover-k10`. Use the installed binary for this leaf's bookkeeping.
 No migration command or alternate grammar ships. No naming history is added
 to docs or comments. Required review work belongs before `node-methodology-k8`.
+
+Budget for the inline fixture modules as source-book work: the `grove-loop`
+manifest includes tests inside `task_name.rs`, `task_tree.rs` and
+`tree_lifecycle.rs`; the separately excluded `task_grow/tests.rs` is different.
+The parser, coupled consumers, fixtures and book reconstructions share this
+completion boundary. No independently green split is established by this plan.
+If the session cannot finish, seek a verifiable working seam before decomposing;
+do not introduce a dual reader or retire a red child to manufacture a boundary.
+If no such seam is available, record completed edits, remaining work and actual
+check results in this leaf's running log, snapshot with `jj status`, and return
+without retirement, sealing or `grove-llm complete`. The human re-runs the
+installed `grove` in this workspace; this same live handle is selected again.
+Resume from the running log and `jj diff`, preserving the unfinished change,
+and seal only after the whole increment and its books pass.

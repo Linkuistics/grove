@@ -50,7 +50,9 @@ and 10. Positions encode these dependencies:
   and book examples, ready to release.
 - `node-cutover-k10` — the last code/release step, with the human stop,
   publication, binary and plugin install, this-tree rename and restart handoff.
-  It ends without a relaunch signal.
+  Preparation leaves the handle live for recorded human approval and restart;
+  completed cutover signals only if its mandate already names a compatible
+  driver. An old driving process must return without a relaunch signal.
 - `grove-migration-k11` — the remaining four known groves, plus newly
   discovered ones, verified after installation; this tree is checked again.
 
@@ -139,15 +141,24 @@ review and integration must run before its dependent or the release handoff.
   once per tree — one rename per node directory, one per brief — over the five
   groves under `~/Development` (`APIAnyware.add-ocaml-target`, `InTheLoop`,
   `Writegood`, `grove.gh-issue-12`, this one), each verified by opening it
-  with the new binary. `grove.gh-issue-12/.grove/FORMAT` is a foreign leftover;
-  the migration decides whether to remove it.
+  with the new binary. Root `FORMAT` files containing `session-kinds-v1`
+  were observed in `APIAnyware.add-ocaml-target`, `Writegood` and
+  `grove.gh-issue-12`. Migration applies one contents-based disposition to
+  every root `FORMAT`, including newly discovered ones: remove only a verified
+  obsolete Grove witness with recovery evidence, preserving unrelated material.
 - **The meta-grove's sequencing hazard.** The driver running this loop is the
   installed 20.2.0 binary, in memory for the loop's life, and the skills it
   names are the cached plugin. The session that renames this repo's own
-  `.grove/` onto the new grammar must be the one after which the loop is
-  stopped, the release installed, the plugin updated, and `grove` re-run
-  (restart ≡ continuation) — `grammar-separator-k15` did exactly this in the
-  same session as the release that could read it. That is a human moment.
+  `.grove/` onto the new grammar must not relaunch that old process. The
+  preparation session records the concrete release plan and outstanding
+  approval in the cutover leaf, then returns without a signal, leaving it live.
+  The human stops other drivers, records approval and their stopped state,
+  and re-runs `grove` here. The resumed session performs the approved release,
+  install, plugin refresh and rename while its own driver waits. After verified
+  retirement and sealing it returns without a signal if that driver predates
+  the grammar release; the human starts the installed new driver for migration.
+  A compatible new driver may instead receive normal completion. Existing
+  explicit authorization is retained; restart alone does not grant approval.
 - Until the plugin is updated, sessions in this loop read skill text that
   spells `BRIEF.md`; the verbs, not the sessions, write briefs, so the risk is
   confusion rather than corruption.
@@ -156,3 +167,14 @@ review and integration must run before its dependent or the release handoff.
   the other drivers before installation; those groves stay stopped until
   migration verifies them. A stopped cutover leaves its handle live until
   release, installation and this-tree verification are actually complete.
+- Release runs in the default workspace `~/Development/grove`; integration
+  materializes a second copy of this tracked `.grove/` there. This secondary
+  workspace owns conversion and retirement, then the default advances onto
+  its sealed result, preserving unrelated work. Both real copies are verified
+  with the installed reader, and no driver runs on the default copy. Cutover
+  and migration inventories include that release-created copy.
+- `node-files-k7` has one coupled parser/fixture/book completion boundary.
+  If no green split can be verified before a session's bound, it records the
+  remaining work, snapshots and stops without retiring or signalling; a human
+  restart resumes the same live handle from its diff. The library leaf names
+  a supplied-name API seam to verify before decomposition if needed.

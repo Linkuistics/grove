@@ -65,3 +65,9 @@ Keep the installed driver, installed plugin and this live tree untouched. Use
 the installed `grove-llm` for task bookkeeping. Any review earned here must be
 inserted before `node-files-k7`, so its dependent does not consume unreviewed
 API decisions. Decompose at a working seam if the scope proves too large.
+The candidate seam is supplied names and canonical-rendering identity, with
+the trait, promotion/initialization inputs, all caller adaptations and their
+books landing green first; read/projected-level enforcement and its independent
+conformance samples follow. Verify that first boundary with the existing seams
+and `bash scripts/check.sh` before treating it as independently deliverable.
+Keep Grove's filename behavior consistent at both boundaries.

@@ -17,8 +17,12 @@ including this one, opens with the installed release while retaining its work.
   `~/Development/grove.gh-issue-12/.grove`, and
   `~/Development/grove.dont-put-item-title-in-folder-names/.grove`.
 - The last tree was converted at cutover and is checked again here. The
-  `APIAnyware.add-ocaml-target` tree is the measured deep-path case. Inspect
-  `grove.gh-issue-12/.grove/FORMAT` as the known foreign leftover.
+  `APIAnyware.add-ocaml-target` tree is the measured deep-path case. Root
+  `FORMAT` files containing `session-kinds-v1` were observed in that tree,
+  `Writegood` and `grove.gh-issue-12`; recheck contents before disposition.
+  Release integration also materializes `~/Development/grove/.grove` in the
+  default workspace. Cutover converts it by advancing to the final change;
+  verify that copy again here, without treating it as an independent workstream.
 
 ## Done when
 
@@ -35,8 +39,9 @@ including this one, opens with the installed release while retaining its work.
   `NN-k<key>/_<slug>.md` for nodes. Compare leaf names, keys, outcomes, content
   digests, sibling order and node-file bytes item by item before and after.
   The deep-path case has shorter actual byte paths and no lost descendants.
-- Inspect `grove.gh-issue-12/.grove/FORMAT`. Remove it only if its contents
-  establish that it is the obsolete Grove witness, retaining recovery evidence;
+- Inspect every root `FORMAT`, including in newly discovered trees. Remove it
+  only if its contents establish that it is the obsolete Grove witness,
+  retaining recovery evidence;
   if it contains unrelated material, preserve it as foreign and state why.
   It must not supply ownership evidence, routing or permission to overwrite.
 - Run the installed new `grove-llm` directly from each workspace, with

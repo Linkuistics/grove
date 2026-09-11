@@ -51,6 +51,17 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`ordinal-fs-tree`: caller-supplied distinguished names.** `EntryName` replaces
+  `distinguished()` with `validate_distinguished`; `Vacancy::initialize` accepts
+  an optional name-and-bytes pair and `WriteGuard::promote` takes its destination
+  name explicitly. Distinguished identity compares canonical renderings, and
+  `conformance::check` takes explicit name samples as its third argument.
+  `SuppliedNameNotDistinguished` replaces `NoDistinguishedChild` for positioned
+  destinations. Callers and books use the new API; confinement regressions
+  cover both supplied-name operations. Level-policy invocation by readers and
+  planners is a following increment. Decision:
+  `docs/adr/entry-name-is-the-only-seam.md`.
+
 ## v20.2.0
 
 - **`release.toml` / `docs/RELEASING.md`: the cut was refusing to run, and both

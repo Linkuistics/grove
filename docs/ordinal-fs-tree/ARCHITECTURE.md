@@ -391,8 +391,9 @@ place is checked before any effect runs — so a plan carrying one changes nothi
 rather than landing what it can and unwinding. A violation is a refusal carrying
 the offending rendering and what is wrong with it. The conformance kit checks it
 as well, because a test is a cheaper place to meet it than an operation, and
-`tests/names_are_confined.rs` is the enforcement's own control: two adversarial
-domains, one per boundary, each satisfying everything the algebra looks at.
+`tests/names_are_confined.rs` is the enforcement's own control: adversarial
+parsed, composed and caller-supplied names exercise both boundaries, including
+initialization before root creation and promotion before any rename.
 
 ### The isomorphism this rests on
 
@@ -894,6 +895,11 @@ and none is left undefined.
   before effects. A domain admitting no distinguished names cannot promote a
   leaf, because its bytes would have nowhere to go. Initialization can omit the
   file only where the consumer permits absence.
+  The model groups these under `RefusedInvalidDistinguished`. Rust preserves
+  diagnostic detail: `Refusal::SuppliedNameNotDistinguished` identifies wrong
+  species; level-policy rejection carries the domain's error and containing
+  path through `Error<N>`. A model outcome need not be one Rust variant, and
+  the species refusal must not erase the domain's grammar advice.
 - `promote` is refused when the supplied parts do not imply species `Node` —
   the same check `rewrite` makes, with the opposite verdict.
 - `rewrite` is refused when the new parts imply a different species.

@@ -268,7 +268,7 @@ fn promoting_with_parts_that_make_a_leaf_is_refused_and_changes_nothing() {
     assert_eq!(walk(&root), before, "a refusal changes nothing");
 }
 
-/// A supplied positioned destination refuses before effects.
+/// `operations.qnt`'s `wit_refusedInvalidDistinguished`, for a positioned name.
 #[test]
 fn promoting_with_a_positioned_content_name_is_refused_and_changes_nothing() {
     let (_temporary, root) = documents_tree();

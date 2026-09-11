@@ -241,9 +241,9 @@ symbol on the path to one is named here and read there.
   unwraps the error. Both of the latter are `#[track_caller]`, so a failure is
   reported at the assertion rather than inside the helper. Chapter 4 reproduces
   all three with the block that defines them.
-- **`TaskName::distinguished`** is the associated function by which the domain
-  advertises the name of a node's distinguished child. It is the second half of
-  the first test below, and chapter 4 owns its definition.
+- **`TaskName::Brief`** is the distinguished value supplied by the lifecycle
+  callers: chapter 11 initializes with it and chapter 12 promotes into it.
+  The first test below checks its classification and rendered filename.
 
 <a id="both-words-one-rule"></a>
 ## Both of a leaf name's words, under one rule

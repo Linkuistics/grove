@@ -16,9 +16,9 @@
 //! owns it, in the same position as the refusals for content-for-a-node and a
 //! non-UTF-8 filename: a case the library can see and no model can reach.
 //!
-//! Two boundaries, so two adversaries. Each satisfies everything the algebra
-//! looks at — occupancy compares `view`s, and both views are the reference
-//! domain's — and differs only in what it renders.
+//! Parsed, composed and caller-supplied names exercise the two boundaries.
+//! Each adversary preserves the reference domain's structural views and
+//! differs in what it renders.
 
 use core::fmt;
 use std::fs;
@@ -223,4 +223,102 @@ fn a_mutation_refuses_a_composed_name_that_leaves_the_tree() {
         beside,
         "and nothing was created beside it, which is where `../` would have put it"
     );
+}
+
+/// Ordinary parsed and composed names stay confined; only the supplied value
+/// escapes. Skipping distinguished effect names in the preflight breaks both
+/// tests below, without any bad name arriving through parsing or composition.
+#[derive(Clone)]
+struct SuppliedEscapes(SyllabusName);
+
+impl fmt::Display for SuppliedEscapes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0 {
+            SyllabusName::Overview => write!(f, "../OVERVIEW.md"),
+            _ => self.0.fmt(f),
+        }
+    }
+}
+
+impl EntryName for SuppliedEscapes {
+    type Parts = Parts;
+    type Err = SyllabusError;
+
+    fn parse(name: &str, found: Found) -> Verdict<Self, Self::Err> {
+        match SyllabusName::parse(name, found) {
+            Verdict::Entry(n) => Verdict::Entry(Self(n)),
+            Verdict::Foreign => Verdict::Foreign,
+            Verdict::Malformed(e) => Verdict::Malformed(e),
+            Verdict::Reserved(e) => Verdict::Reserved(e),
+        }
+    }
+
+    fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self {
+        Self(SyllabusName::compose(ordinal, key, parts))
+    }
+
+    fn view(&self) -> NameView<'_, Self::Parts> {
+        self.0.view()
+    }
+
+    fn positioned_species(parts: &Self::Parts) -> PositionedSpecies {
+        SyllabusName::positioned_species(parts)
+    }
+}
+
+#[test]
+fn initializing_refuses_a_supplied_name_that_leaves_the_tree() {
+    let temporary = TempDir::new().expect("a temporary directory");
+    let root = temporary.path().join("syllabus");
+    let outside = temporary.path().join("OVERVIEW.md");
+    fs::write(&outside, b"outside").expect("a sibling fixture");
+    let before = names(temporary.path());
+
+    let failed = ordinal_fs_tree::fs::write::<SuppliedEscapes>(&root)
+        .expect("an absent root")
+        .expect_vacancy("no tree yet")
+        .initialize(
+            Some((SuppliedEscapes(SyllabusName::Overview), b"root".to_vec())),
+            vec![NewEntry::new(draft("first"), b"first".to_vec())],
+        )
+        .expect_err("the supplied name must stay inside the tree");
+    let Error::NameIsNotOneComponent { rendered, .. } = failed else {
+        panic!("expected the filename-boundary error, got {failed:?}");
+    };
+    assert_eq!(rendered, "../OVERVIEW.md");
+    assert!(!root.exists(), "validation precedes root creation");
+    assert_eq!(names(temporary.path()), before);
+    assert_eq!(
+        fs::read(outside).expect("the untouched sibling"),
+        b"outside"
+    );
+}
+
+#[test]
+fn promoting_refuses_a_supplied_name_that_leaves_the_tree() {
+    let (temporary, root) = tree();
+    let leaf = root.join("01-draft-first-i1.md");
+    fs::write(&leaf, b"first").expect("a leaf fixture");
+    let before = names(&root);
+    let beside = names(temporary.path());
+
+    let failed = ordinal_fs_tree::fs::write::<SuppliedEscapes>(&root)
+        .expect("ordinary parsed names stay confined")
+        .expect_tree("an existing tree")
+        .promote(
+            Key::new(1),
+            Parts::module(Label::new("first").expect("a label")),
+            SuppliedEscapes(SyllabusName::Overview),
+            None,
+        )
+        .expect_err("the supplied name must stay inside the new node");
+    let Error::NameIsNotOneComponent { rendered, .. } = failed else {
+        panic!("expected the filename-boundary error, got {failed:?}");
+    };
+    assert_eq!(rendered, "../OVERVIEW.md");
+    assert_eq!(names(&root), before);
+    assert_eq!(names(temporary.path()), beside);
+    assert_eq!(fs::read(leaf).expect("the untouched leaf"), b"first");
+    assert!(!root.join("01-first-i1").exists());
+    assert!(!root.join("OVERVIEW.md").exists());
 }

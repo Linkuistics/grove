@@ -108,3 +108,7 @@ The first boundary passed `bash scripts/check.sh` on unchanged tracked inputs.
 `validate_distinguished` is declared but not yet invoked by the reader or
 planner. Grove's filename behavior is unchanged through this split. The parent
 stays live until its full Done when is delivered, including any earned review.
+
+The integration at `supplied-names-k17` settles the refusal mapping and the
+empty distinguished-sample limit. Read its decisions 3 and 4 before completing
+`valid-levels-k16`; the architecture and name-seam book carry those contracts.

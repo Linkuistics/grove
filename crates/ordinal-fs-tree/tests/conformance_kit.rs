@@ -691,8 +691,8 @@ fn distinguished_identity_compares_rendered_names() {
     assert!(TwoOverviews::Index.same_name(&TwoOverviews::Index));
 }
 
-// The supplied name must determine both creation and the content destination.
-// A fixed OVERVIEW destination would fail the INDEX checks below.
+// `operations.qnt`'s `inv_initializeUsesSuppliedName` pins the created name.
+// A fixed OVERVIEW fails the INDEX checks; byte preservation is outside the model.
 #[test]
 fn supplied_names_initialize_and_promote_on_disk() {
     use ordinal_fs_tree::NewEntry;

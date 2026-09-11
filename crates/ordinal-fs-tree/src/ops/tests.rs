@@ -1235,7 +1235,7 @@ fn a_distinguished_child_cannot_be_named_by_key_at_all() {
     }
 }
 
-/// A supplied positioned destination refuses before effects.
+/// `wit_refusedInvalidDistinguished`: a positioned destination refuses before effects.
 #[test]
 fn promoting_with_a_positioned_content_name_is_refused() {
     let snapshot = contentless_tree();

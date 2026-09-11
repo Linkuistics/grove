@@ -214,8 +214,8 @@ merely performed.
 
 **Three of grove's own concepts are nonetheless in this function, and each is a
 seam.** The first is that a `BRIEF.md` *is* the distinguished child — the
-identification is grove's, made in chapter 2 where `TaskName::distinguished`
-advertises the name, and the library never learns what the file means. The
+identification is grove's: the lifecycle callers supply `TaskName::Brief` for
+initialization and promotion, and the library never learns what the file means. The
 second is the skip. The doc comment claims the library's behaviour already
 matches the verb's documented contract — *a directory level with no `BRIEF.md`
 is skipped silently* — and that is a claim about two documents agreeing, which

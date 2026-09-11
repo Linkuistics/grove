@@ -505,6 +505,13 @@ before a rendering can become a path. The [reference-domain
 chapter](03-reference-domain.md#conformance-obligations) defines both mechanisms
 where their implementation is introduced.
 
+An empty distinguished-name sample slice leaves obligation 5 **untested**. The
+kit cannot distinguish omitted examples from a domain that admits no such
+values, so the latter cannot obtain a wholly conforming report through this
+interface. This is an explicit sampling limit: expected-level fixtures can
+exercise acceptance of empty levels, but cannot prove that no distinguished
+value exists anywhere in the domain.
+
 Composition is total and infallible. In the orientation insert, the algebra
 reads the triple for `02-published-vectors-i5.md` and composes ordinal 3 with the
 same key and parts. The generic operation never splices a string and cannot

@@ -654,9 +654,9 @@ distinguished child, and `live_leaf`'s `?` turns that into `None`.
 special-cased the literal filename `BRIEF.md`. Nothing here distinguishes
 *rejected because it is the distinguished child* from *rejected because of its
 name*, and the distinction is real, because it is the store that decides which
-name is distinguished and grove that advertises it — chapter 4 read
-`TaskName::distinguished`, the associated function through which grove hands that
-name to the library. A test that pinned the mechanism rather than the outcome
+name is distinguished. Grove supplies `TaskName::Brief` explicitly when it
+initializes a root (chapter 11) or promotes a leaf (chapter 12).
+A test that pinned the mechanism rather than the outcome
 would have to vary the distinguished name, which nothing in this crate can do.
 
 Three fall-through tests follow, and together they close the reading the descent

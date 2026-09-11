@@ -1334,7 +1334,7 @@ values; their placement and cardinality are separate level rules.
         {
             report.violate(
                 Obligation::DistinguishedNamesAreCanonical,
-                format!("`{rendered}` is not a canonical distinguished name."),
+                format!("`{rendered}` has the wrong species or fails the canonical distinguished round trip."),
             );
         }
         for other in distinguished {
@@ -1349,7 +1349,7 @@ values; their placement and cardinality are separate level rules.
     if distinguished.is_empty() {
         report.untested(
             Obligation::DistinguishedNamesAreCanonical,
-            "no distinguished-name samples were supplied.",
+            "no distinguished-name samples: omitted examples and a domain admitting none are indistinguishable.",
         );
     }
 

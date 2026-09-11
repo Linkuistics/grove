@@ -376,9 +376,9 @@ fn no_distinguished_child_and_an_empty_one_are_different_trees() {
     );
 }
 
-/// No model claim: content is unmodelled in both models by design.
+/// Content bytes are unmodelled; the supplied name's species is modelled.
 ///
-/// The same refusal a promotion gives, for the same reason — and `promoting` is
+/// `wit_refusedInvalidDistinguishedOnInitialize` covers the name refusal; `promoting` is
 /// what tells them apart: a root initialization names no entry, because the root
 /// is not one.
 #[test]

@@ -83,7 +83,7 @@ back. Canonicity is the claim that the right-hand column composed with the middl
 one is the identity, and the check at the end of `parse` establishes it by
 performing both rather than by reasoning about the pairs.
 
-The chapter owns 700 of the file's 1,712 lines in three blocks — the name itself
+The chapter owns 698 of the file's 1,712 lines in three blocks — the name itself
 and the seam under it at lines 591 to 1,020, the test support and the conformance
 kit at 1,021 to 1,177, and the grammar and canonicity tests at 1,200 to 1,312.
 With them, all nine of this file's ownership blocks are resolved and

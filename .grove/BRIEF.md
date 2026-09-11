@@ -31,20 +31,35 @@ grammar.
 
 ## Decomposition
 
-Two leaves, in the order the walk runs them.
+The design at `node-grammar-k2` was reviewed at `node-grammar-k4` and integrated
+at `node-grammar-k5`. The planning artifact is `node-grammar-k3`; its review
+`node-grammar-k12` precedes implementation. The interview is settled, not a new
+session's input to re-interview.
 
-- `node-grammar-k2` — `design`. Reworks the design records for both contexts
-  before any code moves: the library's architecture and models (the models
-  lead), `task-names-are-canonical` in place, the specs that state the grammar,
-  the glossaries. It synthesises the interview's decision log and does not
-  re-interview. It decides its own review chain lazily, and if it cuts one it
-  `leaf-insert`s the steps ahead of `node-grammar-k3`, since planning consumes
-  the reviewed design.
-- `node-grammar-k3` — `planning`. Consumes the design and cuts the `impl`
-  leaves: library, grove grammar and verbs, skills and docs, books, cutover,
-  release, migration — placed so that the cutover of this repo's own tree is
-  the last code leaf and the migration of the other groves follows the
-  install (see *Notes*).
+The working increments stay in this grove as agreed in `plan-k1` decisions 7
+and 10. Positions encode these dependencies:
+
+- `distinguished-names-k6` — the library's supplied-name API, level validation
+  and conformance, with every necessary caller adaptation. Grove's filename
+  behavior stays consistent through this boundary.
+- `node-files-k7` — Grove's complete grammar, handles, readers, writers,
+  lifecycle and fixtures together; no dual-grammar reader.
+- `node-methodology-k8` — the shipped skills and their conformance teaching
+  the implemented grammar; installed skills wait for cutover.
+- `node-documentation-k9` — the guide and remaining prose-only documentation
+  and book examples, ready to release.
+- `node-cutover-k10` — the last code/release step, with the human stop,
+  publication, binary and plugin install, this-tree rename and restart handoff.
+  It ends without a relaunch signal.
+- `grove-migration-k11` — the remaining four known groves, plus newly
+  discovered ones, verified after installation; this tree is checked again.
+
+Each code increment owns every book whose source it changes in the same
+commit; there is no book-repair leaf. Every repository-source increment runs
+`bash scripts/check.sh`. Library behavior, Grove fixture behavior, plugin
+conformance, checked guide examples and actual installed-tree reads are the
+independent demonstrations. Each producer judges review lazily; any earned
+review and integration must run before its dependent or the release handoff.
 
 ## Pointers
 
@@ -57,20 +72,22 @@ Two leaves, in the order the walk runs them.
   `docs/adr/entry-name-is-the-only-seam.md`,
   `docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md`.
 - Specs: `docs/specs/module-decomposition.md` decisions 3 and 4 (the grammar
-  and the handle's ownership); `docs/ordinal-fs-tree/ARCHITECTURE.md` with
-  `models/structure.als` and `models/operations.qnt` — the claims
-  `DistinguishedIsUniquePerNode` and `witness_two_distinguished_children`, and
-  `HAS_DISTINGUISHED`; `docs/specs/walkthrough-books.md`, *An accepted source
-  change*.
+  and handle ownership); `docs/ordinal-fs-tree/ARCHITECTURE.md` with its
+  `models/structure.als` and `models/operations.qnt`. `ReaderAccepts` is a
+  definition, not an independently checked cardinality property;
+  `inv_successHasValidLevels` checks executed-plan preservation, with limits
+  and mutation-control evidence in `docs/formalism-findings.md` entry 049.
+  `docs/specs/walkthrough-books.md` owns source/book synchronization.
 - Glossary terms in play: Node directory, Work-item handle / title, Permanent
   key, No migration, Taskless root (`CONTEXT.md`); Distinguished child, Label
   (`docs/ordinal-fs-tree/CONTEXT.md`); the collision table in
   `CONTEXT-MAP.md`. The term to land: the node's own file, `_<slug>.md`.
-- Code: `crates/grove-loop/src/task_name.rs` is the one renderer and parser
-  (its `distinguished()` returns the fixed `Brief` today);
-  `crates/ordinal-fs-tree/src/name.rs` carries `EntryName::distinguished` and
-  its obligation, `src/ops.rs` its two call sites, `src/conformance.rs` the
-  check that a domain's distinguished name is unique.
+- Code entry points: Grove's `TaskName` and `Handle` own name composition;
+  its tree module supplies a node's actual file from the guarded snapshot.
+  The library's `EntryName` owns distinguished-name validation; the reader and
+  projected planner enforce it, and the conformance kit samples its laws.
+  Follow all API and fixture consumers rather than treating pointers as a
+  complete file list.
 - Books: the manifests under `docs/walkthroughs/` name the roots each book
   reconstructs byte for byte — `grove-loop` (`task_name.rs`, `task_tree.rs`,
   `task_grow.rs`, `tree_lifecycle.rs` among them), `ordinal-fs-tree`
@@ -134,3 +151,8 @@ Two leaves, in the order the walk runs them.
 - Until the plugin is updated, sessions in this loop read skill text that
   spells `BRIEF.md`; the verbs, not the sessions, write briefs, so the risk is
   confusion rather than corruption.
+- The shared installed binaries meet every active grove. Cutover prepares
+  converted scratch copies for new-reader preflight and coordinates stopping
+  the other drivers before installation; those groves stay stopped until
+  migration verifies them. A stopped cutover leaves its handle live until
+  release, installation and this-tree verification are actually complete.

@@ -37,6 +37,9 @@ ALWAYS=(
   inv_rewriteKeepsPlace
   inv_appendOnlyAdds
   inv_interpreterNeverFindsADestinationTaken
+  inv_successHasValidLevels
+  inv_invalidLevelIsAtomic
+  inv_initializeUsesSuppliedName
 )
 
 claims() {
@@ -66,6 +69,22 @@ claims() {
       echo "wit wit_refusedRewriteSpeciesChange"
       echo "wit wit_promoteTransientlyDuplicatesAKey"
       echo "wit wit_promoteTransientlyDuplicatesAnOrdinal"
+      ;;
+    required)
+      echo "inv inv_ordinalsDistinctAtRest"
+      echo "inv inv_keysUniqueAtRest"
+      echo "inv inv_denseAtRest"
+      echo "wit wit_initializeSucceeded"
+      echo "wit wit_initializeWritesADistinguishedChild"
+      echo "wit wit_promoteUsesFirstName"
+      echo "wit wit_promoteUsesSecondName"
+      echo "wit wit_refusedBareNode"
+      echo "wit wit_refusedInvalidDistinguishedOnInitialize"
+      ;;
+    malformed_distinguished)
+      echo "wit wit_haltedMissingDistinguished"
+      echo "wit wit_haltedTwoDistinguished"
+      echo "wit wit_haltedWrongDistinguished"
       ;;
     hand_edited)
       # A human edits between operations.  Density FAILS — reached as a
@@ -98,8 +117,8 @@ claims() {
       echo "inv inv_ordinalsDistinctAtRest"
       echo "inv inv_ordinalsDistinctThroughout"
       echo "inv inv_destinationNeverOccupied"
-      echo "wit wit_refusedNoDistinguishedChild"
-      echo "wit wit_refusedNoDistinguishedChildOnInitialize"
+      echo "wit wit_refusedInvalidDistinguished"
+      echo "wit wit_refusedInvalidDistinguishedOnInitialize"
       ;;
     unparseable)
       echo "inv inv_ordinalsDistinctAtRest"
@@ -129,7 +148,7 @@ claims() {
 }
 
 INSTANCES=(pristine hand_edited corrupted lowest_first
-           no_distinguished unparseable failures rollback_fails)
+           no_distinguished unparseable failures rollback_fails required malformed_distinguished)
 
 # Some witnesses are rare under random simulation — `rollback_fails` needs two
 # independent failures in one trace, and one of its witnesses lands in roughly

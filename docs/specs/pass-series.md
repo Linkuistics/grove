@@ -60,7 +60,7 @@ the rejected marker token are
 [`iteration-reuses-the-existing-species`](../adr/iteration-reuses-the-existing-species.md), and are not
 restated here.
 
-What the series adds over an ordinary node is entirely in its `BRIEF.md`, and it
+What the series adds over an ordinary node is entirely in its node file, and it
 is four things written **before its first pass is cut**:
 
 1. **The step sequence** — the kinds, in order, that one pass runs.
@@ -73,14 +73,14 @@ not a pass series. It is the emergent iteration above, which is the thing this
 construct exists to replace.
 
 ```
-14-render-quality-k40/              the series node
-  BRIEF.md                          the four declarations, written before pass 1
-  01-render-quality-k41/            pass 1 — an ordinary node
-    BRIEF.md                        the leaf body pass 1 was cut with
+14-k40/              the series node
+  _render-quality.md                          the four declarations, written before pass 1
+  01-k41/            pass 1 — an ordinary node
+    _render-quality.md                        the leaf body pass 1 was cut with
     01-DONE-impl--render-quality-k42.md
     02-DONE-review-impl--render-quality-k44.md
-  02-render-quality-k48/            pass 2
-    BRIEF.md                        what pass 1 left, written by pass 1's last step
+  02-k48/            pass 2
+    _render-quality.md                        what pass 1 left, written by pass 1's last step
     01-DONE-impl--render-quality-k49.md
     02-review-impl--render-quality-k53.md      <- where the series is now
 ```
@@ -88,7 +88,8 @@ construct exists to replace.
 Two passes ran, the second is inside its review step, and the reader needed
 neither grove nor a task file to learn **that**. The reader also learns it is
 looking at a series rather than an ordinary node, because two sibling directories
-carry one slug and nothing else in a grove does that — the discriminator the
+have node files carrying the same slug. This is a convention, not a structural
+proof that the work is a series — the discriminator the
 [ADR](../adr/iteration-reuses-the-existing-species.md) weighs the marker token
 against. What the reader cannot learn from this listing is the series' step
 sequence, its exit condition or its cap, and no arrangement of names could carry
@@ -102,7 +103,7 @@ cuts the next pass as a leaf —
 `grove-llm leaf-add <series-node> <stem> --kind <first step's kind>` — and the
 session that picks that leaf finds it bigger than one session and runs
 `grove-llm leaf-decompose`, which moves the leaf's body in as the pass's
-`BRIEF.md`. So a pass's charter is written by the pass before it, which is the
+node file. So a pass's charter is written by the pass before it, which is the
 only session that knows what this one has to carry forward. No verb is added and
 no node is created by anything but decomposition.
 
@@ -184,7 +185,7 @@ point where an unattended series stops being a series and becomes an
 oscillation, and stating it in advance is what stops it being chosen by a session
 that is already inside the loop.
 
-**The escalation is recorded in the series' `BRIEF.md`, because the tree cannot
+**The escalation is recorded in the series' node file, because the tree cannot
 hold it.** Stopping and saying so reaches the operator's terminal and nothing
 else, and terminal output is not an artifact. A satisfied exit cuts nothing and a
 reached cap cuts nothing, so the two outcomes leave a **byte-identical** tree: a
@@ -200,7 +201,7 @@ wrong.** This is the honest limit and it is measured, not feared: when the four
 book nodes closed, 36 further leaves were allocated under their parent. Exit
 relocated the correction traffic; it did not end it. So a series' exit means
 *this shape stops here*, and the work it was over may continue as ordinary leaves
-somewhere with no cap over them. A series whose `BRIEF.md` reads its cap as a
+somewhere with no cap over them. A series whose node file reads its cap as a
 claim that the subject is finished has asserted something the construct cannot
 deliver.
 

@@ -31,7 +31,7 @@ Four rules complete it:
   above and cuts nothing, which is what makes the correction terminate instead of
   regrowing the tail at every hop.
 - **A defect a *later* stage owns is handed forward through the book node's
-  `BRIEF.md`**, under a running `## Handed forward` list naming the owning stage
+  node file**, under a running `## Handed forward` list naming the owning stage
   and the location. Every stage reads it, because the brief chain is root-to-leaf;
   a stage clears the entries it closes, because a brief is current-state context
   and not a log. An entry that survives `proof` is promoted at node close, to an

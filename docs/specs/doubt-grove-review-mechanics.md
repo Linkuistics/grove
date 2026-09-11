@@ -184,13 +184,11 @@ it buys a licence that reads as a judgement call, which is the exact failure the
 narrowing replaced. Making departure a *mechanism* rather than the unenforced
 possibility it already is would be a separate decision, with its own ADR.
 
-Neither composition shape gets a node directory. A node means *this work proved
-bigger than one session* and carries the `BRIEF.md` those extra sessions need;
-a composed shape has no such context, and the hierarchy a node bought did not
-repay its navigation cost. One consequence is worth stating: there is a single
-node species again, so the Retire cascade's close has the same work at every node
-— a `Done when` rollup to check and a brief to promote — and no `BRIEF.md`-presence
-discriminator survives.
+Neither composition shape gets a node directory. A node means work needs
+more than one session and carries exactly one node file for that context.
+Every node close has the same work: check its `Done when` rollup and promote
+its brief. Presence is a grammar requirement, never a discriminator for a second
+species.
 
 ## Task-tree access
 

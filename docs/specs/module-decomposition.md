@@ -83,7 +83,7 @@ table in [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md).
 
 The read and write guards, `append`, `append_many`, `insert`, `promote`,
 `rewrite`, `Snapshot`, `Walk`, `Entry`, `Refusal`, and the conformance kit that
-holds a consumer to the round-trip law. The name seam is one method —
+holds a consumer to the round-trip law. The name seam is one trait —
 [`entry-name-is-the-only-seam`](../adr/entry-name-is-the-only-seam.md) is more
 load-bearing under this design than before it, not less.
 
@@ -104,15 +104,12 @@ impl<N: EntryName> Vacancy<N> {
     /// entries, under the lock already held. There is no window between deciding
     /// a tree is absent and creating it.
     ///
-    /// `distinguished` is bytes and nothing else, because the distinguished
-    /// child is the one entry a `NewEntry` cannot express: it carries no parts,
-    /// its name is `N::distinguished()`, and the library already writes one this
-    /// way when a promotion moves a leaf's bytes into a new node. `None` creates
-    /// a root without one; `Some` in a domain whose `distinguished()` is `None`
-    /// is the refusal a promotion gives for the same reason.
+    /// The consumer supplies the root file's name and bytes together.
+    /// `None` requests a root without its own file, only where the domain's
+    /// level rule permits that. An empty byte vector still creates a file.
     pub fn initialize(
         self,
-        distinguished: Option<Vec<u8>>,
+        distinguished: Option<(N, Vec<u8>)>,
         entries: Vec<NewEntry<N::Parts>>,
     ) -> Result<Report<N>, Error<N>>;
 }
@@ -134,8 +131,8 @@ vacancy are not expressible. Something at the root that is neither a tree nor
 nothing — a regular file, a symlink — is an `Error` carrying what was found, not a
 third variant.
 
-Neither operation widens the name seam. `initialize` takes bytes and a name the
-trait already supplies, exactly as promotion does, which matters: without the
+Both operations stay behind the name seam. `initialize` takes bytes and a name
+the consumer supplies, exactly as promotion takes its destination name, which matters: without the
 distinguished input the consumer would have to write the charter itself, outside
 the lock and outside the store, and the whole *the store is the only thing that
 touches the task tree* guarantee would fail at the first operation of every fresh
@@ -181,67 +178,81 @@ they leave a repository-aware mutation path just as ruled out as before
 and they leave a subtree prune exactly as non-atomic as it was
 ([`bulk-marks-are-not-atomic`](../adr/bulk-marks-are-not-atomic.md)).
 
-### 3 — The filename grammar carries a separator
+### 3 — The filename grammar separates children from the node's own file
 
-    NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md      a leaf
-    NN-<slug>-k<key>                                    a node directory
+    NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md    leaf
+    NN-k<key>/                                    node directory
+    _<slug>.md                                    node file
+    _BRIEF.md                                     root node file
 
-The middle splits at the **first** `--`; neither the kind nor the slug may
-contain one, which one shared token validator enforces for both. Round-tripping
-holds, the permanent key is the terminal token, node names carry no kind and
-never had the ambiguity, and the kind token is byte-identical to the skill
-suffix — which is the property decision 5 needs.
+A directory carries position and permanent key. Its exactly-one node file
+carries the title in the filename and the brief in its body. The root has no
+slug or key; it requires `_BRIEF.md`, and its display title comes from the
+working tree. No routing field is read from content.
 
-With an open kind set, a single `-` between kind and slug would leave one
-filename naming **two** entries: `design-decomposition` in the middle of a name
-reads as kind `design` with slug `decomposition` *and* as kind
-`design-decomposition` with an empty slug, four ways deep for a three-word kind.
-What differs between the readings is the **handle**, the identity that crosses
-every module boundary, which is why this is worse than the two-filenames-one-entry
-case canonicality already forbids. The separator *is* the boundary, so a name has
-exactly one reading with no set consulted
-([`task-names-are-canonical`](../adr/task-names-are-canonical.md), which carries
-the three rejected alternatives and what the cutover cost).
+The whole reachable tree is validated before the snapshot can answer any
+selection, even one that finds an early match. Every
+`_`-prefixed name is claimed by the node-file grammar; a wrong spelling or
+on-disk species is malformed. A root containing `_<slug>.md`, a positioned node
+containing `_BRIEF.md`, and any level with no node file or multiple node files
+are malformed too. The error names the level, the competing names when present,
+and the canonical form. Digit-prefixed names belong to the positioned grammar; other names remain
+foreign.
 
-### 4 — One type owns the name, and the handle renders through it
+The first `--` separates the leaf's kind from its slug. Both use the same token
+validator: nonempty lowercase ASCII letters, digits and single hyphens, with no
+reserved word or separator. Position and key render canonically. The kind is an
+open token and the spelling is byte-identical to its skill suffix.
+[`task-names-are-canonical`](../adr/task-names-are-canonical.md) owns the naming
+trade-offs and strict refusal policy.
 
-```rust
-pub struct Slug(String);
-pub struct Kind(String);
-pub enum   Outcome { Live, Done, Abandoned }
+### 4 — The name module owns handles composed from names
 
-/// The permanent, position-free identity of a work item.
-pub struct Handle { /* slug, key */ }
+Grove's positioned parts have two shapes: leaf parts carry outcome, kind and
+slug; node parts carry none of those fields. A parsed node file carries a slug,
+and the root node file is its own variant. The library sees only the positioned
+triple or distinguished species and never reads a slug.
 
-impl Handle {
-    /// The handle of a positioned name. `None` for the charter brief, which has
-    /// no key.
-    pub fn of(name: &TaskName) -> Option<Self>;
-    pub fn parse(text: &str) -> Result<Self, HandleError>;
-    pub fn slug(&self) -> &Slug;
-    pub fn key(&self) -> Key;
-}
-impl fmt::Display for Handle;   // <slug>-k<key>
+The name module owns `Slug`, `Kind`, `Outcome`, `TaskName` and `Handle`, including
+all parsing and rendering. A leaf handle is constructed from its parsed slug
+and key. A node handle is constructed from the directory's parsed key and its
+validated node file's parsed slug. These are two explicit constructors:
+`Handle::of_leaf` accepts a leaf name, and `Handle::of_node` accepts a node name
+and its node-file name. Invalid species pairings return no handle. Neither the
+root nor a node file alone has a work-item handle.
 
-pub enum Parts    { Leaf { outcome: Outcome, kind: Kind, slug: Slug }, Node { slug: Slug } }
-pub enum TaskName { Positioned { ordinal: Ordinal, key: Key, parts: Parts }, Brief }
+The tree module supplies the node's actual file from the same guarded read; the
+name module cannot establish parentage from two name values. It never caches
+that slug into node parts or reconstructs it by parsing a path string. A leaf
+renderer uses the handle renderer for its terminal `<slug>-k<key>` substring;
+a directory renderer emits only position and key. A node handle need not be a
+substring of either filename. Handle parsing and rendering remain one grammar
+in the name module, and the key token has one parser and renderer shared with
+directory names.
 
-impl EntryName for TaskName { type Parts = Parts; type Err = TaskNameError; }
-```
+`resolve` looks for leaf slugs in leaf names and node slugs in their node files,
+returning the directory for a node. Node files themselves are not extra resolve
+matches. Key lookup still names the positioned entry; a full handle checks its
+slug against that entry's current title. An ambiguous slug reports the existing
+candidate handles. `pick` returns only live leaves, `kind` has no kind for a
+node or node file, and `brief-chain` prints every ancestor node file root-first;
+missing files are refusals, not skipped levels.
 
-The disciplinary form of *one type owns a name* is a rule review has to hold. The
-structural form is not: **both renderings end in the handle's own rendering**, so
-there is exactly one place the `<slug>-k<key>` grammar is spelled and drift
-between the filename and the handle is not expressible. That is also what the
-separator buys — it leaves the handle a contiguous terminal substring of every
-name that has one.
+`leaf-decompose` passes slugless node parts and `_<slug>.md` built from the
+source leaf's slug to `promote`. The leaf's ordinal and key become the node's;
+its bytes move verbatim to that file. `root-init` supplies `_BRIEF.md` and the
+root brief bytes to initialization alongside the first leaf. All of these
+writes use the library's exclusive guard and plan; none writes a node file
+outside that operation.
 
-`Kind` has a place in the parsed parts and a rendering, and no set. Its
-constructor validates the token's *shape* — non-empty, lowercase ASCII letters,
-digits and single hyphens, no separator, not a reserved word — and nothing else,
-so an unrecognised kind meets a shape refusal naming the character it refused.
-Every name refusal carries both what is on disk and what it should be; that is the
-model the rest of this design's errors follow.
+The library's `validate_distinguished` method remains on `EntryName`. It sees
+root-or-node and the complete set of distinguished names, including an empty
+or competing set; Grove returns its own grammar error for wrong cardinality or
+placement. The library also enforces at most one independently. Readers invoke
+this before exposing a level; planners invoke it on projected final levels
+before effects. This includes ordinary node creation through append, batches
+and insert, optional promotion children, initialization entries and node
+rewrites. A required node file cannot be bypassed by another constructor.
 
 ### 5 — Grove names a kind only where grove writes the leaf
 
@@ -553,7 +564,7 @@ pub mod verbs {
     /// The kind of a named leaf, or of the picked one when none is named.
     pub fn kind(tree: &Tree, leaf: Option<&Path>) -> Result<Sought<Kind>, Error>;
 
-    /// Every `BRIEF.md` from the grove root down to the leaf, in that order.
+    /// Every ancestor node file from the grove root down to the leaf, in order.
     pub fn brief_chain(tree: &Tree, leaf: &Path) -> Result<Vec<PathBuf>, Error>;
 
     /// What a session's reference names. Ambiguity is an answer, not an error:
@@ -748,6 +759,26 @@ and SHALL render that split back to the byte-identical filename.
 - **THEN** it is refused, and the refusal names both what is on disk and the
   canonical form
 
+### Requirement: every level has exactly one correctly placed node file
+
+Every Grove reader SHALL refuse a reached level with zero or multiple node
+files, or with the root marker at a positioned node or a title at the root.
+Every mutation SHALL validate the reachable tree and its projected result before
+its first effect.
+
+#### Scenario: competing files beside an early live leaf
+- **WHEN** a level holds `_alpha.md` and `_beta.md` beside a selectable leaf
+- **THEN** selection refuses the level and names both files and `_<slug>.md`.
+
+#### Scenario: missing root or child file
+- **WHEN** a root lacks `_BRIEF.md` or a positioned node lacks `_<slug>.md`
+- **THEN** the read refuses with the required form and never reports completion.
+
+#### Scenario: a decomposed task retains its title and key
+- **WHEN** `02-design--pilot-k12.md` decomposes
+- **THEN** `02-k12/_pilot.md` carries its body and the node resolves as
+  `pilot-k12`, from names even if the body's heading says something else.
+
 ### Requirement: grove names only the kinds it writes
 The machinery SHALL contain no enumeration of session kinds, and SHALL reference
 a kind label literally only for the two leaves it authors itself.
@@ -814,6 +845,14 @@ Four.
    run in the Rust suite at all, because two of the four things its walk used to
    cover do not exist in the binary
    ([`behavioural-coverage-asserts-delivery`](../adr/behavioural-coverage-asserts-delivery.md)).
+
+The node grammar uses the existing model, conformance, name-unit and CLI
+fixture seams. Conformance includes distinct distinguished names and contextual
+level verdicts. Name tests exercise canonical parsing and node-handle
+composition; CLI trees exercise decomposition, root initialization, slug and
+handle resolution, brief chains, selection and malformed levels. Book checks
+cover every source root changed by an implementation, with fragments and prose
+updated in the same accepted change. No additional test service is introduced.
 
 ## Out of scope
 

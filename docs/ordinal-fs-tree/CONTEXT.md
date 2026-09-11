@@ -47,10 +47,9 @@ _Avoid_: reading grove's sense here — a leaf carries no session kind, no
 outcome, and no obligation to be a unit of work.
 
 **Node**:
-An **entry** that is a directory holding **zero or more** children. Nothing
-requires a node to be populated, and nothing distinguishes an "interesting" one.
-_Avoid_: assuming a node carries a charter, an overview, or any required
-content; a **distinguished child** is optional.
+An **entry** that is a directory holding **zero or more** children. The consumer
+may require its **distinguished child** while permitting no positioned children.
+_Avoid_: assuming that the library reads the meaning of its content.
 
 **Root**:
 The directory the consumer hands the library. It is a **node** but **not an
@@ -60,9 +59,10 @@ _Avoid_: typing an **ancestor chain** as a sequence of entries — the root is
 always its last element.
 
 **Distinguished child**:
-The one optional **entry** that is a **node**'s own content rather than one of
-its children. It is a regular file, carries neither ordinal nor key, never
-participates in ordering, and a **walk** does not descend into it.
+A **node**'s own content: a regular-file **entry** carrying no ordinal or key,
+with a name supplied per level by the consumer. A level has at most one, or
+exactly one when required by its consumer; it is outside child ordering and a
+**walk** never descends into it.
 _Avoid_: "default child", "index", "self file"; and _avoid_ calling it a
 **leaf** — its **species** is `Distinguished`.
 
@@ -133,8 +133,9 @@ _Avoid_: "id", "uid", "stable id"; and _avoid_ treating the maximum as a counter
 held anywhere but in the names themselves.
 
 **Label**:
-The human-facing part of a **name**. Not unique and not identity; the library
-never reads it.
+The human-facing part of a consumer's **name**, possibly carried by a
+**distinguished child** instead of a positioned name. Not unique and not identity;
+the library never reads it.
 _Avoid_: "slug", "title", "description".
 
 **Attributes**:
@@ -143,9 +144,9 @@ library.
 _Avoid_: "metadata", "flags", "tags", "properties".
 
 **Parts**:
-The **label** and the **attributes** together — the whole of a **name** the
-library does not understand, carried as one opaque associated type. It
-determines the **species**.
+The opaque consumer data in a positioned **name**, carried as one associated
+type and determining its positioned **species**. It may include a **label** and
+**attributes**; a label need not be present in a node's parts.
 _Avoid_: "payload", "rest", "remainder"; and _avoid_ speaking of a label or an
 attribute where the library's own surface is meant — it sees only parts.
 
@@ -277,9 +278,10 @@ but reproducibility, which is the one thing that order buys.
 
 **`leaf` and `node` mean different things here than in grove.** grove's
 [`CONTEXT.md`](../../CONTEXT.md) defines a **Leaf** as a task file executed in
-one session and a **Node directory** as a directory headed by a `BRIEF.md`
-charter. Here a leaf is *any* regular-file entry and a node is *any* directory of
-children, with no charter, no session and no lifecycle. Resolution: the words
+one session and a **Node directory** as a directory with exactly one **Node file**,
+`_<slug>.md`, carrying its title and brief. Here a leaf is *any* regular-file
+entry and a node is *any* directory of children, with no prescribed charter,
+no session and no lifecycle. Resolution: the words
 belong to whichever context you are in, and neither glossary defines the other's
 sense. This divergence is the reason these are two contexts and not one.
 

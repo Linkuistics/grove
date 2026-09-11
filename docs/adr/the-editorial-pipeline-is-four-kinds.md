@@ -75,7 +75,7 @@ rather than assuming the brief discharges them, and a `draft` session with no
 structure brief stops and says so rather than drafting anyway.
 
 **And "has a structure brief" is an interface, not an existence check.** A grove
-node acquires a `BRIEF.md` automatically when a leaf decomposes, and every
+node acquires its node file automatically when a leaf decomposes, and every
 bootstrap reads it, so a session asking only whether *some* brief exists answers
 yes in precisely the case that must stop. The `draft` kind therefore tests three
 things it can cite from a named artifact — the audience, the ordered section plan

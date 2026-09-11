@@ -70,3 +70,33 @@ re-interview.
   implement. That is what a decision record is; say nothing about the gap.
 - This is a load-bearing grammar others build on for years — the bar for a
   review chain is met on that ground alone, whatever the diff's size.
+
+## Decisions (running log)
+
+**1. The node file owns the title.** Use *Node file* for `_<slug>.md`, with
+`_BRIEF.md` at the root; *brief* names its body. A node's positioned `Parts`
+carry no slug. Grove's name module composes its handle from the parsed folder
+key and parsed node-file slug, so neither value is copied or read from content.
+
+**2. A name argument and a level check keep the seam in one trait.** Promotion
+takes the consumer's distinguished name; initialization takes an optional
+name-and-bytes pair. The library checks at most one distinguished child per
+level; `EntryName::validate_distinguished` checks the complete distinguished-name set's cardinality
+and suitability for the containing node (or root). Grove requires exactly one
+and distinguishes the root marker from a titled node file. The same check runs
+on a read level and the projected result of a plan before effects, including
+ordinary node creation. Canonical rendered filenames distinguish two
+distinguished names in `same_name`; the library interprets no title.
+
+**3. Review is tree work.** `node-grammar-k4` is the `review-design` leaf ahead of
+`node-grammar-k3`. The review is scheduled, so this producer spends no in-session
+reviewer. The reviewer creates an integration only for actionable findings.
+
+**4. Verification.** Both model runners pass: all 28 Alloy commands and all
+217 Quint claims across ten instances at the runner's standing budgets.
+Disabling only projected-final-level validation produces a successful batch
+append with a required node file missing; the restored check refuses that
+same input. `docs/formalism-findings.md` entry 049 records the control and the
+models' limits. All eight principal checks in `scripts/check.sh` pass, including
+all six books. The existing glossary and architecture anchors are preserved;
+no file under `crates/` changed. No book source root changed in this leaf.

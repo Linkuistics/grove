@@ -1,171 +1,81 @@
 # The entry name is the only seam
 
-Every point at which `ordinal-fs-tree` is parameterised by its consumer is one
-trait over the **entry name**. There are no callbacks, no hooks, no registration
-and no configuration objects, and there is no `Domain` type: the name type owns
-its own parsing, validation and formatting, reserved names are variants of it,
-and everything the library does not understand travels as one opaque associated
-type. Locking and version control are not in the trait because they are not
-domain questions — the library locks the directory containing the tree root
-whatever the domain is, and a rename is `rename(2)`.
+Every point at which `ordinal-fs-tree` is parameterised by a consumer belongs
+to `EntryName`. The name type owns parsing, formatting, species and validation
+of distinguished names at a level. There is no separate `Domain` object,
+registration mechanism or filesystem callback. The library owns locking,
+traversal and the mutation algebra; the consumer owns vocabulary.
 
-`EntryNameExt` is a second trait and not a second seam: it is
-blanket-implemented for every `EntryName` and sealed, so nothing outside the
-library can implement it and no consumer chooses anything by it. It exists
-because two of the obligations are discharged by being *derived* — a name's
-triple and its species are read off `view` and `positioned_species` — and a
-provided method on `EntryName` could be overridden, which would hand back the
-two defects the shape was chosen to remove.
+Positioned names decompose into ordinal, key and opaque parts. Distinguished
+names are supplied as values: promotion takes one destination name, and root
+initialization takes an optional name-and-bytes pair. The library does not
+extract a label or invent a distinguished name from node parts.
 
-It carries one further reading for the same reason. `same_name` — the view and
-the species together — is what every occupancy check compares, and it is derived
-rather than obliged because `Parts: Eq` admits an equality coarser than the
-domain's own species: a domain may compare a leaf's parts equal to a node's
-without breaking anything. Requiring the congruence of the domain instead was
-rejected, and the reason is that a test kit cannot exercise it — see
-`docs/formalism-findings.md` entry 015. Overridable, it would let a domain
-redefine when two names collide; obliged, it would widen the seam to cover a
-case the library can settle for itself.
+`validate_distinguished` receives the containing node name, or root, and the
+complete distinguished-name set at that level. The domain can require a file
+and distinguish its root marker from other names. The method is a deterministic
+judgment over names, not a callback into I/O. The reader invokes it before
+exposing entries; the planner invokes it over projected final levels before
+effects. Independently, the library rejects more than one distinguished child.
+A domain can issue its own grammar error for competing names before that generic
+check, so strict consumers' diagnostics carry their canonical form.
 
-[`docs/ordinal-fs-tree/ARCHITECTURE.md`](../ordinal-fs-tree/ARCHITECTURE.md)
-carries the trait itself, the seven obligations an implementation must meet, and
-the name/`(ordinal, key, parts)` isomorphism the seam rests on. This record
-carries what that document does not: the shapes that were rejected on the way to
-it, and what it would cost to change course.
+`EntryNameExt` is blanket-implemented and sealed. It derives the positioned
+triple, species and name identity, so a consumer cannot override the comparisons
+the algebra depends on. Positioned identity compares both view and species:
+`Parts: Eq` may compare a leaf's parts equal to a node's even when their species
+differ. Distinguished identity compares canonical rendered filenames; the unit
+`Distinguished` view classifies a name and carries no unique identity.
 
 ## The trade-off
 
-A seam this narrow buys three things at once, and each of them is a property
-something can check rather than a claim.
+The algebra stores names and triples and never interprets text. Canonical
+renderings are observed only for distinguished-name equality, path-component
+validation, filesystem paths and diagnostics. The models can represent these
+names as opaque atoms: no string grammar, label parser or content model crosses
+the seam. Byte-level canonicity and rendering stability remain obligations of
+the consumer and are sampled by the conformance kit.
 
-**The library holds no strings.** The algebra works on triples, so both formal
-models under `docs/ordinal-fs-tree/models/` contain no strings at all and the
-entire grammar reduces to one round-trip law. A seam that admitted a second
-domain concern would put something in the state that neither model could
-abstract away.
+A distinct associated type for distinguished-name payloads could provide their
+equality, but adds another consumer type and another equality law when canonical
+rendering already supplies the required identity. Comparing only the unit view
+would instead merge different filenames. Reopen the extra type if rendering for
+this comparison is measurably too expensive or cannot remain deterministic.
 
-That claim has exactly one qualification, and it is worth stating here because
-it is where the claim is made. The *filesystem* layer does look at one string:
-the name's rendering, which is what it joins to a level's directory. So the
-seventh obligation — a name renders as one path component — is the one the
-library enforces rather than assumes, at the two boundaries where a name becomes
-a path. It is not a second seam and not a widening of this one: a domain supplies
-no more than it did, and what changed is that the library stopped trusting the
-one value it was already using. `interpreter-k21` found the hole and
-`docs/formalism-findings.md` entry 011 records why it was invisible to both
-models — a rendering that leaves the tree is not a thing either can say.
+Level validation must see a containing name and all its distinguished names:
+per-entry parsing alone cannot detect a missing file or judge root-only
+placement. Keeping that judgment on `EntryName` avoids a second domain seam.
+The library still owns the enforcement points, including bare node creation
+through append or insert. A consumer unable to omit its own file must use an
+operation that creates it in the same plan.
 
-**The sibling shift is derived rather than implemented.** Shifting is
-`compose(new_ordinal, key, parts)` and nothing else, so it is structurally
-incapable of disturbing a key, a label or an attribute. That is only true while
-`compose` is the sole way to build a positioned name.
+A sibling shift remains `compose(new_ordinal, key, parts)`. A renamed node
+carries its subtree, including its own file, without copying a label into parts.
+The filesystem layer checks every rendered name is one path component before
+joining it to the tree; grammar canonicity alone cannot prevent a path escape.
 
-**No `D` propagates.** With one trait on the name rather than a domain type
-threaded through the tree, the spurious `D: Clone` derive bounds a
-domain-parameterised design accumulates never arise.
-
-What it costs is that a domain needing genuinely per-domain *behaviour* — a
-different lock scope, a version-control-aware move — cannot express it. That is
-paid deliberately: those two were examined and neither generalises the way a
-domain hook implies. The containing directory outlives both the root's creation
-and its deletion in every domain, and a rename that a version control system
-must be told about commits a byte-identical tree either way.
-
-**A third pressure on the same rule was tested, and the rule took it without
-widening — which is the interesting outcome, because that pressure was expected
-to be the one that fired.** Whole-root creation and destruction are the case the
-containing-directory lock was chosen for, so they are the strongest candidate a
-per-domain hook has yet had. The contract turns out to be statable with **no
-domain vocabulary at all** — the measurement is in `docs/formalism-findings.md`
-entry 047 — and both operations now live in the library
-([`root-lifecycle-belongs-to-the-store`](root-lifecycle-belongs-to-the-store.md))
-with **no trait method added**: `initialize` takes the distinguished child's
-bytes, exactly as `promote` already moves a leaf's bytes into one, and `delete`
-takes nothing at all.
-
-What *would* have widened the seam is a **coordinated** destruction — one that
-consults the caller's grade of an external effect at four points, which is a
-callback by another name, and a caller consulted from inside the transaction can
-only be refused. It would also mean the library knowing what *some* reserved
-names mean, splitting the reserved-name class into a library-owned half and a
-consumer-owned half, which is a widening of this seam rather than a use of it.
-That operation was rejected and stays rejected; what the library gained instead
-is a destroy whose only verdict is the filesystem's own.
-
-**It costs a second thing, measured at `cli-k16` and worth naming because it is
-the half a reader will assume was not paid.** `Error::Malformed` and
-`Error::Reserved` carry `EntryName::Err`, so a *parse* failure reaches an
-operator in the domain's own words — that is the whole reason those two variants
-are generic. `Error::Refused` carries `Refusal`, which is **not** generic over
-the name type and holds no domain value at all, so every algebraic refusal
-speaks the library's vocabulary: *the entry with key 4 is a leaf, which holds
-nothing. Children go in a node.* The first consumer to render one drove a tree
-of lessons and modules, which has neither. A `Refusal<N>` was rejected rather
-than overlooked — it is a second domain-facing rendering inside the seam this
-record exists to keep single, and a consumer re-wording the condition instead is
-the drift `docs/formalism-findings.md` entry 017 measured. So the library's
-words are accurate and generic, and a consumer prints them verbatim.
-`docs/ordinal-fs-tree/CLI.md`'s *What `cli-k16` found* carries the case, argued
-from the first consumer, whose vocabulary merely **differed**.
-
-**The second consumer's vocabulary collides, which this record used to name as
-the condition that would reopen it. The condition was met and did not fire, and
-the result is more useful than the prediction was.** Grove's `Leaf` is a task
-file where the library's is any regular file, so the two genuinely collide rather
-than differ — and grove's refusal-reachability table
-([`docs/ARCHITECTURE.md`](../ARCHITECTURE.md#library-refusals)) then found
-**one** algebraic refusal reachable from an ordinary argument, with one clause of
-its message wrong in that domain's reading: the recovery advice, which names an
-operation the consumer's verb set does not have. A consumer whose own
-preconditions are stronger than the library's has to classify its target before
-it calls anyway, so the check that pre-empts that refusal is one it cannot drop
-for unrelated reasons. A collision is therefore a reason to keep a consumer's own
-preconditions in front of the algebra, and not a reason to make `Refusal`
-domain-facing: widening the seam would buy a rendering for cases that consumer's
-argument surface does not produce.
-
-`growing-k33` then wrote that row into a suite and found the refusal unreachable
-in fact as well as in argument, which sharpens the claim: the pre-emption is not
-merely one the consumer *would not* drop, it is one it **cannot**. Grove's
-distinguished child is an entry carrying no key, so it can never be handed to an
-operation as a target at all, and the classification that discharges it is
-forced by the consumer's own argument surface rather than chosen. No algebraic
-refusal now reaches a Grove operator from an ordinary argument.
-
-Reopen if a consumer appears that **cannot** pre-empt — one whose argument
-surface hands a bare key or an ordinal straight to an operation, so that a
-colliding refusal reaches its operator with no check of its own in front of it.
-That is the property the first formulation was reaching for, and unlike
-*collides* it is readable off a verb set before the consumer is built.
+Name and level errors carry the consumer's error value with the relevant path.
+Algebraic refusals stay in the library's vocabulary. Consumers impose their own
+stronger task preconditions before invoking the algebra; level grammar is
+validated inside the shared store so every reader and writer meets it.
 
 ## Considered options
 
-- **A `Domain` trait with associated functions for lock scope and moving.**
-  Rejected: these are the callbacks the design rules out, respelled as a trait.
-  Each of the two behaviours it would carry was examined on its own and found to
-  have one right answer for every domain, so the trait would exist to make a
-  settled question configurable. It also puts `D` in every type. Reopen if a
-  consumer appears whose lock scope genuinely cannot be the containing
-  directory — a tree whose root is a mount point, say — which would make the
-  scope a real domain input rather than a general rule.
-- **A two-trait split by layer** — one trait for the grammar, one for
-  everything above it. Rejected because the layers are not independent: the
-  species follows from the parts, so a grammar trait that did not also answer
-  *what species is this* would leave the upper trait re-deriving it, and the two
-  would drift. Reopen if a consumer needs one grammar under two different
-  higher-level behaviours, which is the case the split would actually serve.
-- **A name that is a plain string, parsed by the library against a supplied
-  grammar description.** Rejected: it makes the library hold strings, puts a
-  grammar language in the interface, and moves reserved-name handling — which
-  must carry the domain's own recovery advice — into a layer that has no domain
-  errors to raise. Reopen never; it is the design being replaced.
+- **A `Domain` trait carrying lock and move callbacks.** Rejected because the
+  containing-directory lock and filesystem moves have one meaning for all
+  consumers. Reopen if a real consumer needs a different lock scope.
+- **A second validation layer outside the store.** Rejected because another
+  read or mutation path could bypass the same grammar rule. Nothing reopens it
+  for a rule governing a tree the store exposes.
+- **Copy a label into node parts to manufacture the distinguished name.**
+  Rejected because a name parsed from a slugless directory cannot supply that
+  value. Hydrating it from another entry would break the positioned-name
+  isomorphism and give one title two owners. Nothing reopens the duplication.
+- **Parse names inside the library from a grammar description.** Rejected
+  because vocabulary and recovery advice would move into a layer with no domain
+  words. Nothing reopens that alternative.
 
-## Why this is hard to reverse
-
-The trait *is* the library's public surface, so changing its shape changes every
-consumer, not merely the library. Two checked models and the architecture
-document are stated in its terms, and the isomorphism that makes the shift
-derivable is a property of *this* trait rather than of the design in general. A
-later split of the crate into separately modellable units is mechanical only
-while the algebra stays free of `std::fs`, which the single-trait shape is what
-makes possible.
+The trait is a public contract for every consumer, and the models and
+conformance kit are stated in its terms. Changing it therefore changes more
+than a caller signature. The [architecture](../ordinal-fs-tree/ARCHITECTURE.md)
+owns the detailed obligations; this record owns the placement of the seam.

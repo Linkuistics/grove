@@ -93,7 +93,9 @@ module operations {
   /// counterfactual is that the type system should forbid it outright.
   type Name =
     | Positioned({ ord: int, key: int, parts: int })
-    | Dist
+    | Dist(int)
+
+  type ContentName = Absent | Present(Name)
 
   /// What the consumer's `parse` made of one directory entry.  `Malformed` and
   /// `Reserved` are merged into `Broken`: they differ only in the advice they
@@ -141,11 +143,12 @@ module operations {
     | RefusedTargetNotNode
     | RefusedNoOccupantAtOrdinal
     | RefusedPromoteNotLeaf
-    | RefusedNoDistinguishedChild
+    | RefusedInvalidDistinguished
     | RefusedPromotePartsNotNode
     | RefusedRewriteSpeciesChange
     | RefusedDestinationOccupied
     | FailedDestinationOccupied
+    | HaltedInvalidLevel
     | HaltedUnparseable
     | FailedRolledBack
     | FailedPartiallyRolledBack
@@ -157,9 +160,9 @@ module operations {
     | TagAppend({ target: Target, parts: int })
     | TagAppendMany({ target: Target, parts: List[int] })
     | TagInsert({ target: Target, at: int, parts: int })
-    | TagPromote({ key: int, parts: int, withChild: bool })
+    | TagPromote({ key: int, parts: int, dist: Name, withChild: bool })
     | TagRewrite({ key: int, parts: int })
-    | TagInitialize({ dist: bool, parts: List[int] })
+    | TagInitialize({ dist: ContentName, parts: List[int] })
     | TagHandEdit
 
   type Phase =
@@ -191,9 +194,12 @@ module operations {
   /// and this is what the name answers with.
   const NODE_PARTS: Set[int]
 
-  /// Whether `distinguished()` is `Some`.  `false` models a domain with no
-  /// distinguished child, where promotion is refused rather than guessed at.
-  const HAS_DISTINGUISHED: bool
+  /// Consumer level policy: opaque names allowed at root and at other nodes.
+  /// The library counts at most one; the consumer may also require one.
+  const ROOT_DIST_NAMES: Set[int]
+  const NODE_DIST_NAMES: Set[int]
+  const REQUIRE_DIST: bool
+  const DIST_EDITS: bool
 
   /// What a human with `mv` is allowed to do to the tree between operations.
   ///   NoEdits        — only the library ever writes.  A pristine tree.
@@ -256,21 +262,21 @@ module operations {
   // -------------------------------------------------------------------------
 
   pure def isPositioned(n: Name): bool =
-    match n { Positioned(_) => true | Dist => false }
+    match n { Positioned(_) => true | Dist(_) => false }
 
   pure def ordOf(n: Name): int =
-    match n { Positioned(p) => p.ord | Dist => -1 }
+    match n { Positioned(p) => p.ord | Dist(_) => -1 }
 
   pure def keyOf(n: Name): int =
-    match n { Positioned(p) => p.key | Dist => -1 }
+    match n { Positioned(p) => p.key | Dist(_) => -1 }
 
   pure def partsOf(n: Name): int =
-    match n { Positioned(p) => p.parts | Dist => -1 }
+    match n { Positioned(p) => p.parts | Dist(_) => -1 }
 
   /// The species of a name.  The library asks the *name*, never the parts;
   /// `PARTS_SPECIES` is the trait's law, not a peek inside the seam.
   pure def speciesOf(n: Name): Species =
-    match n { Positioned(p) => speciesOfParts(p.parts) | Dist => DistS }
+    match n { Positioned(p) => speciesOfParts(p.parts) | Dist(_) => DistS }
 
   /// `compose(ordinal, key, parts)`.  It places what it is given — that is the
   /// trait obligation `ComposeLawful`, and here it is true by construction,
@@ -292,7 +298,7 @@ module operations {
     has(f, i) and match kindOf(f, i) { Named(_) => true | Foreign => false | Broken => false }
 
   pure def nameAt(f: Fs, i: EntryId): Name =
-    match kindOf(f, i) { Named(n) => n | Foreign => Dist | Broken => Dist }
+    match kindOf(f, i) { Named(n) => n | Foreign => Dist(-1) | Broken => Dist(-1) }
 
   /// A directory a walk descends into: the root, or a recognised node.  Not a
   /// foreign name (disclaimed, and the disclaimer is recursive), and not a
@@ -358,6 +364,26 @@ module operations {
   // whole-tree.
   // -------------------------------------------------------------------------
 
+  pure def distinguishedIn(f: Fs, d: EntryId): Set[EntryId] =
+    childIds(f, d).filter(i => isEntry(f, i) and speciesOf(nameAt(f, i)) == DistS)
+
+  pure def nameAllowedAt(d: EntryId, n: Name): bool =
+    match n {
+      Dist(x) => (if (d == ROOT) ROOT_DIST_NAMES else NODE_DIST_NAMES).contains(x)
+      | Positioned(_) => false
+    }
+
+  pure def levelValid(f: Fs, d: EntryId): bool =
+    val ds = distinguishedIn(f, d)
+    and {
+      ds.size() <= 1,
+      REQUIRE_DIST implies ds.size() == 1,
+      ds.forall(i => nameAllowedAt(d, nameAt(f, i))),
+    }
+
+  pure def levelsValid(f: Fs): bool =
+    visited(f).filter(d => isDescendable(f, d)).forall(d => levelValid(f, d))
+
   pure def snapshotHalts(f: Fs): bool =
     visited(f).exists(i => i != ROOT and kindOf(f, i) == Broken)
 
@@ -403,7 +429,10 @@ module operations {
       else (applyEffect(acc._1, e), true))._2
 
   pure def guardDestinations(f: Fs, plan: List[Effect]): Decision =
-    if (planIsApplicable(f, plan)) Proceed(plan) else Refuse(RefusedDestinationOccupied)
+    if (not(planIsApplicable(f, plan))) Refuse(RefusedDestinationOccupied)
+    else if (not(levelsValid(plan.foldl(f, (acc, e) => applyEffect(acc, e)))))
+      Refuse(RefusedInvalidDistinguished)
+    else Proceed(plan)
 
   // --- append ---------------------------------------------------------------
 
@@ -445,11 +474,11 @@ module operations {
 
   // --- promote --------------------------------------------------------------
 
-  pure def planPromote(f: Fs, k: int, p: int, withChild: bool): Decision =
+  pure def planPromote(f: Fs, k: int, p: int, dist: Name, withChild: bool): Decision =
     val i = resolve(f, ByKey(k))
     if (i == -1) Refuse(RefusedTargetMissing)
     else if (speciesOf(nameAt(f, i)) != LeafS) Refuse(RefusedPromoteNotLeaf)
-    else if (not(HAS_DISTINGUISHED)) Refuse(RefusedNoDistinguishedChild)
+    else if (not(nameAllowedAt(f.nextId, dist))) Refuse(RefusedInvalidDistinguished)
     else if (speciesOfParts(p) != NodeS) Refuse(RefusedPromotePartsNotNode)
     else
       val n = nameAt(f, i)
@@ -460,7 +489,7 @@ module operations {
       // the entity is unchanged, its container is new.
       val base = List(
         Create({ id: nodeId, parent: d, name: compose(ordOf(n), keyOf(n), p) }),
-        MoveTo({ id: i, parent: nodeId, name: Dist }))
+        MoveTo({ id: i, parent: nodeId, name: dist }))
       val plan = if (withChild)
         base.append(Create({ id: f.nextId + 1, parent: nodeId,
                              name: compose(1, freshKey(f), LEAF_PARTS.fold(0, (a, x) => if (a == 0) x else a)) }))
@@ -498,12 +527,17 @@ module operations {
   /// and the root has none.  Whether the root exists is a filesystem fact this
   /// model does not hold (see WHAT IS AND IS NOT MODELLED), and the vacancy /
   /// tree / neither trichotomy that decides it is `structure.als`'s.
-  pure def planInitialize(f: Fs, dist: bool, ps: List[int]): Decision =
-    if (dist and not(HAS_DISTINGUISHED)) Refuse(RefusedNoDistinguishedChild)
+  pure def planInitialize(f: Fs, dist: ContentName, ps: List[int]): Decision =
+    val valid = match dist {
+      Absent => not(REQUIRE_DIST) | Present(n) => nameAllowedAt(ROOT, n)
+    }
+    if (not(valid)) Refuse(RefusedInvalidDistinguished)
     else
       val o0 = maxOrdIn(f, ROOT)
       val k0 = freshKey(f)
-      val first = if (dist) List(Create({ id: f.nextId, parent: ROOT, name: Dist })) else List()
+      val first = match dist {
+        Absent => List() | Present(n) => List(Create({ id: f.nextId, parent: ROOT, name: n }))
+      }
       val plan = ps.indices().fold(first, (acc, ix) =>
         acc.append(Create({ id: f.nextId + first.length() + ix, parent: ROOT,
                             name: compose(o0 + ix + 1, k0 + ix, ps.nth(ix)) })))
@@ -516,13 +550,14 @@ module operations {
   /// then test is whether every branch is *live*.
   pure def decide(f: Fs, tag: OpTag): Decision =
     if (snapshotHalts(f)) Refuse(HaltedUnparseable)
+    else if (not(isInitialize(tag)) and not(levelsValid(f))) Refuse(HaltedInvalidLevel)
     else match tag {
       | TagNone            => Refuse(NotRun)
       | TagHandEdit        => Refuse(NotRun)
       | TagAppend(a)       => planAppend(f, a.target, a.parts)
       | TagAppendMany(a)   => planAppendMany(f, a.target, a.parts)
       | TagInsert(a)       => planInsert(f, a.target, a.at, a.parts)
-      | TagPromote(a)      => planPromote(f, a.key, a.parts, a.withChild)
+      | TagPromote(a)      => planPromote(f, a.key, a.parts, a.dist, a.withChild)
       | TagRewrite(a)      => planRewrite(f, a.key, a.parts)
       | TagInitialize(a)   => planInitialize(f, a.dist, a.parts)
     }
@@ -581,8 +616,8 @@ module operations {
       os.forall(o => 1.to(o).subseteq(os)))
 
   /// The filesystem's own guarantee: a directory cannot hold two entries of
-  /// one name.  Maintained by the interpreter, checked here because it is what
-  /// makes *at most one distinguished child per node* a theorem.
+  /// one name. Maintained by the interpreter. Different distinguished names
+  /// can coexist on disk, so their cardinality needs a separate level check.
   pure def siblingNamesUnique(f: Fs): bool =
     f.objects.keys().forall(a => f.objects.keys().forall(b =>
       (a != b and parentOf(f, a) == parentOf(f, b) and isEntry(f, a) and isEntry(f, b))
@@ -783,13 +818,14 @@ module operations {
     nondet at = 1.to(MAX_ORD).oneOf()
     nondet k  = keyChoices.oneOf()
     nondet wc = Set(false, true).oneOf()
+    nondet dn = Set(Dist(0), Dist(1), Dist(2), compose(1, 1, p)).oneOf()
     all {
       fs.objects.keys().size() < MAX_OBJECTS,
       any {
         beginOp(TagAppend({ target: t, parts: p })),
         beginOp(TagAppendMany({ target: t, parts: List(p, p2) })),
         beginOp(TagInsert({ target: t, at: at, parts: p })),
-        beginOp(TagPromote({ key: k, parts: p, withChild: wc })),
+        beginOp(TagPromote({ key: k, parts: p, dist: dn, withChild: wc })),
         beginOp(TagRewrite({ key: k, parts: p })),
         // **The one action that is DISABLED rather than refused**, and that is
         // the modelling statement.  `initialize` lives on a vacancy, so calling
@@ -798,9 +834,9 @@ module operations {
         // saying *not expressible*, where a `Refuse(…)` branch would say
         // *expressible and answered*, and the two are different claims.
         all { fs.objects.keys().size() == 0,
-              beginOp(TagInitialize({ dist: wc, parts: List(p) })) },
+              beginOp(TagInitialize({ dist: if (wc) Present(dn) else Absent, parts: List(p) })) },
         all { fs.objects.keys().size() == 0,
-              beginOp(TagInitialize({ dist: wc, parts: List() })) },
+              beginOp(TagInitialize({ dist: if (wc) Present(dn) else Absent, parts: List() })) },
       },
     }
 
@@ -847,6 +883,8 @@ module operations {
   action handEditStep: bool =
     nondet d = visited(fs).filter(x => isDescendable(fs, x)).oneOf()
     nondet o = 1.to(MAX_ORD).oneOf()
+    nondet dn = Set(Dist(0), Dist(1), Dist(2)).oneOf()
+    nondet di = distinguishedIn(fs, d).union(Set(-1)).oneOf()
     nondet p = PARTS.oneOf()
     nondet i = entries(fs).filter(x => isPositioned(nameAt(fs, x))).union(Set(-1)).oneOf()
     all {
@@ -856,6 +894,13 @@ module operations {
       any {
         all { idsAtOrdinal(fs, d, o).size() == 0, handEditAt(d, o, p) },
         handEditOther(d, Foreign),
+        all { DIST_EDITS, not(occupied(fs, d, dn, -1)), handEditOther(d, Named(dn)) },
+        all { DIST_EDITS, di != -1,
+          fs' = applyEffect(fs, Remove({ id: di })),
+          op' = { phase: Idle, outcome: Succeeded, tag: TagHandEdit,
+                  before: fs.objects, created: Set() },
+          history' = history.union(keysOf(fs)),
+        },
         all { BROKEN_EDITS, handEditOther(d, Broken) },
         all { CORRUPTING_EDITS, i != -1, handEditClone(i) },
       },
@@ -897,8 +942,7 @@ module operations {
 
   // --- structural, at every state, mid-apply included -----------------------
 
-  /// The filesystem's own guarantee.  It is what makes *at most one
-  /// distinguished child per node* a theorem rather than an invariant.
+  /// The filesystem guarantees unique filenames, including distinct Dist atoms.
   val inv_siblingNamesUnique: bool = siblingNamesUnique(fs)
 
   val inv_onlyNodesHaveChildren: bool = onlyNodesHaveChildren(fs)
@@ -947,6 +991,49 @@ module operations {
   val inv_keysUniqueAtRest: bool = not(atRest) or keysUnique(fs)
 
   val inv_denseAtRest: bool = not(atRest) or dense(fs)
+
+  val inv_successHasValidLevels: bool =
+    not(succeeded) or op.tag == TagHandEdit or levelsValid(fs)
+
+  val inv_invalidLevelIsAtomic: bool =
+    not(atRest) or
+      not(Set(HaltedInvalidLevel, RefusedInvalidDistinguished).contains(op.outcome)) or
+      fs.objects == op.before
+
+  val inv_initializeUsesSuppliedName: bool =
+    not(succeeded) or match op.tag {
+      TagInitialize(a) => match a.dist {
+        Absent => distinguishedIn(fs, ROOT).size() == 0
+        | Present(n) => distinguishedIn(fs, ROOT).size() == 1 and
+            distinguishedIn(fs, ROOT).forall(i => nameAt(fs, i) == n)
+      }
+      | _ => true
+    }
+
+  val wit_haltedMissingDistinguished: bool =
+    atRest and op.outcome == HaltedInvalidLevel and
+      visited(beforeFs(op)).filter(d => isDescendable(beforeFs(op), d)).exists(d =>
+        distinguishedIn(beforeFs(op), d).size() == 0)
+
+  val wit_haltedTwoDistinguished: bool =
+    atRest and op.outcome == HaltedInvalidLevel and
+      visited(beforeFs(op)).filter(d => isDescendable(beforeFs(op), d)).exists(d =>
+        distinguishedIn(beforeFs(op), d).size() > 1)
+
+  val wit_haltedWrongDistinguished: bool =
+    atRest and op.outcome == HaltedInvalidLevel and
+      visited(beforeFs(op)).filter(d => isDescendable(beforeFs(op), d)).exists(d =>
+        distinguishedIn(beforeFs(op), d).exists(i =>
+          not(nameAllowedAt(d, nameAt(beforeFs(op), i)))))
+
+  val wit_promoteUsesFirstName: bool =
+    succeeded and match op.tag { TagPromote(a) => a.dist == Dist(1) | _ => false }
+  val wit_promoteUsesSecondName: bool =
+    succeeded and match op.tag { TagPromote(a) => a.dist == Dist(2) | _ => false }
+
+  val wit_refusedBareNode: bool =
+    atRest and op.outcome == RefusedInvalidDistinguished and
+      match op.tag { TagAppend(a) => speciesOfParts(a.parts) == NodeS | _ => false }
 
   // --- keys -----------------------------------------------------------------
 
@@ -1031,7 +1118,7 @@ module operations {
             and {
               // the leaf's inode is now the distinguished child of a node
               isEntry(fs, i),
-              nameAt(fs, i) == Dist,
+              nameAt(fs, i) == a.dist,
               // ...which sits where the leaf sat, with the leaf's ordinal
               // and the leaf's key
               isEntry(fs, parentOf(fs, i)),
@@ -1106,8 +1193,8 @@ module operations {
   val wit_refusedNoOccupantAtOrdinal: bool    = atRest and op.outcome == RefusedNoOccupantAtOrdinal
   val wit_refusedPromoteNotLeaf: bool         = atRest and op.outcome == RefusedPromoteNotLeaf
   /// One refusal, two operations: `promote` and `initialize` both meet it, and
-  /// `wit_refusedNoDistinguishedChildOnInitialize` below is the second half.
-  val wit_refusedNoDistinguishedChild: bool   = atRest and op.outcome == RefusedNoDistinguishedChild
+  /// `wit_refusedInvalidDistinguishedOnInitialize` below is the second half.
+  val wit_refusedInvalidDistinguished: bool   = atRest and op.outcome == RefusedInvalidDistinguished
   val wit_refusedPromotePartsNotNode: bool    = atRest and op.outcome == RefusedPromotePartsNotNode
   val wit_refusedRewriteSpeciesChange: bool   = atRest and op.outcome == RefusedRewriteSpeciesChange
   val wit_refusedDestinationOccupied: bool    = atRest and op.outcome == RefusedDestinationOccupied
@@ -1235,16 +1322,17 @@ module operations {
   /// against the invariants, which is the whole reason the transition exists.
   val wit_initializeWritesADistinguishedChild: bool =
     succeeded and match op.tag {
-      | TagInitialize(a) => a.dist
+      | TagInitialize(a) => match a.dist { Absent => false | Present(_) => true }
       | TagNone => false | TagAppend(a) => false | TagAppendMany(a) => false
       | TagInsert(a) => false | TagPromote(a) => false | TagRewrite(a) => false
       | TagHandEdit => false
     }
 
-  /// The second half of `RefusedNoDistinguishedChild`: one refusal, reached
-  /// from two operations.  Live only in the `no_distinguished` instance.
-  val wit_refusedNoDistinguishedChildOnInitialize: bool =
-    atRest and op.outcome == RefusedNoDistinguishedChild and isInitialize(op.tag)
+  /// The second half of `RefusedInvalidDistinguished`: one refusal, reached
+  /// from promotion or initialization when the supplied name or absence is
+  /// incompatible with the level's policy.
+  val wit_refusedInvalidDistinguishedOnInitialize: bool =
+    atRest and op.outcome == RefusedInvalidDistinguished and isInitialize(op.tag)
 
   val wit_promoteWithChild: bool =
     succeeded and match op.tag {
@@ -1287,7 +1375,8 @@ module cfg {
 module pristine {
   import cfg.*
   import operations(
-    PARTS = P, NODE_PARTS = NP, HAS_DISTINGUISHED = true,
+    PARTS = P, NODE_PARTS = NP, ROOT_DIST_NAMES = Set(0, 1, 2), NODE_DIST_NAMES = Set(0, 1, 2),
+    REQUIRE_DIST = false, DIST_EDITS = false,
     HAND_EDITS = false, CORRUPTING_EDITS = false, BROKEN_EDITS = false,
     HIGHEST_FIRST = true, IO_CAN_FAIL = false, ROLLBACK_CAN_FAIL = false,
     MAX_OBJECTS = 7, MAX_ORD = 6, MAX_DEPTH = 7
@@ -1300,7 +1389,8 @@ module pristine {
 module hand_edited {
   import cfg.*
   import operations(
-    PARTS = P, NODE_PARTS = NP, HAS_DISTINGUISHED = true,
+    PARTS = P, NODE_PARTS = NP, ROOT_DIST_NAMES = Set(0, 1, 2), NODE_DIST_NAMES = Set(0, 1, 2),
+    REQUIRE_DIST = false, DIST_EDITS = false,
     HAND_EDITS = true, CORRUPTING_EDITS = false, BROKEN_EDITS = false,
     HIGHEST_FIRST = true, IO_CAN_FAIL = false, ROLLBACK_CAN_FAIL = false,
     MAX_OBJECTS = 7, MAX_ORD = 6, MAX_DEPTH = 7
@@ -1313,7 +1403,8 @@ module hand_edited {
 module corrupted {
   import cfg.*
   import operations(
-    PARTS = P, NODE_PARTS = NP, HAS_DISTINGUISHED = true,
+    PARTS = P, NODE_PARTS = NP, ROOT_DIST_NAMES = Set(0, 1, 2), NODE_DIST_NAMES = Set(0, 1, 2),
+    REQUIRE_DIST = false, DIST_EDITS = false,
     HAND_EDITS = true, CORRUPTING_EDITS = true, BROKEN_EDITS = false,
     HIGHEST_FIRST = true, IO_CAN_FAIL = false, ROLLBACK_CAN_FAIL = false,
     MAX_OBJECTS = 7, MAX_ORD = 6, MAX_DEPTH = 7
@@ -1326,7 +1417,8 @@ module corrupted {
 module lowest_first {
   import cfg.*
   import operations(
-    PARTS = P, NODE_PARTS = NP, HAS_DISTINGUISHED = true,
+    PARTS = P, NODE_PARTS = NP, ROOT_DIST_NAMES = Set(0, 1, 2), NODE_DIST_NAMES = Set(0, 1, 2),
+    REQUIRE_DIST = false, DIST_EDITS = false,
     HAND_EDITS = true, CORRUPTING_EDITS = true, BROKEN_EDITS = false,
     HIGHEST_FIRST = false, IO_CAN_FAIL = false, ROLLBACK_CAN_FAIL = false,
     MAX_OBJECTS = 7, MAX_ORD = 6, MAX_DEPTH = 7
@@ -1338,7 +1430,8 @@ module lowest_first {
 module no_distinguished {
   import cfg.*
   import operations(
-    PARTS = P, NODE_PARTS = NP, HAS_DISTINGUISHED = false,
+    PARTS = P, NODE_PARTS = NP, ROOT_DIST_NAMES = Set(), NODE_DIST_NAMES = Set(),
+    REQUIRE_DIST = false, DIST_EDITS = false,
     HAND_EDITS = true, CORRUPTING_EDITS = false, BROKEN_EDITS = false,
     HIGHEST_FIRST = true, IO_CAN_FAIL = false, ROLLBACK_CAN_FAIL = false,
     MAX_OBJECTS = 7, MAX_ORD = 6, MAX_DEPTH = 7
@@ -1351,7 +1444,8 @@ module no_distinguished {
 module unparseable {
   import cfg.*
   import operations(
-    PARTS = P, NODE_PARTS = NP, HAS_DISTINGUISHED = true,
+    PARTS = P, NODE_PARTS = NP, ROOT_DIST_NAMES = Set(0, 1, 2), NODE_DIST_NAMES = Set(0, 1, 2),
+    REQUIRE_DIST = false, DIST_EDITS = false,
     HAND_EDITS = true, CORRUPTING_EDITS = false, BROKEN_EDITS = true,
     HIGHEST_FIRST = true, IO_CAN_FAIL = false, ROLLBACK_CAN_FAIL = false,
     MAX_OBJECTS = 7, MAX_ORD = 6, MAX_DEPTH = 7
@@ -1362,7 +1456,8 @@ module unparseable {
 module failures {
   import cfg.*
   import operations(
-    PARTS = P, NODE_PARTS = NP, HAS_DISTINGUISHED = true,
+    PARTS = P, NODE_PARTS = NP, ROOT_DIST_NAMES = Set(0, 1, 2), NODE_DIST_NAMES = Set(0, 1, 2),
+    REQUIRE_DIST = false, DIST_EDITS = false,
     HAND_EDITS = true, CORRUPTING_EDITS = false, BROKEN_EDITS = false,
     HIGHEST_FIRST = true, IO_CAN_FAIL = true, ROLLBACK_CAN_FAIL = false,
     MAX_OBJECTS = 7, MAX_ORD = 6, MAX_DEPTH = 7
@@ -1374,9 +1469,38 @@ module failures {
 module rollback_fails {
   import cfg.*
   import operations(
-    PARTS = P, NODE_PARTS = NP, HAS_DISTINGUISHED = true,
+    PARTS = P, NODE_PARTS = NP, ROOT_DIST_NAMES = Set(0, 1, 2), NODE_DIST_NAMES = Set(0, 1, 2),
+    REQUIRE_DIST = false, DIST_EDITS = false,
     HAND_EDITS = true, CORRUPTING_EDITS = false, BROKEN_EDITS = false,
     HIGHEST_FIRST = true, IO_CAN_FAIL = true, ROLLBACK_CAN_FAIL = true,
+    MAX_OBJECTS = 7, MAX_ORD = 6, MAX_DEPTH = 7
+  ).*
+}
+
+/// Every level requires a file, with a distinct root marker. The two node
+/// name atoms stand for different titles supplied by the consumer.
+module required {
+  import cfg.*
+  import operations(
+    PARTS = P, NODE_PARTS = NP,
+    ROOT_DIST_NAMES = Set(0), NODE_DIST_NAMES = Set(1, 2),
+    REQUIRE_DIST = true, DIST_EDITS = false,
+    HAND_EDITS = false, CORRUPTING_EDITS = false, BROKEN_EDITS = false,
+    HIGHEST_FIRST = true, IO_CAN_FAIL = false, ROLLBACK_CAN_FAIL = false,
+    MAX_OBJECTS = 7, MAX_ORD = 6, MAX_DEPTH = 7
+  ).*
+}
+
+/// A human can remove, duplicate or misplace the file. The next operation must
+/// refuse before effects, regardless of the level its target names.
+module malformed_distinguished {
+  import cfg.*
+  import operations(
+    PARTS = P, NODE_PARTS = NP,
+    ROOT_DIST_NAMES = Set(0), NODE_DIST_NAMES = Set(1, 2),
+    REQUIRE_DIST = true, DIST_EDITS = true,
+    HAND_EDITS = true, CORRUPTING_EDITS = false, BROKEN_EDITS = false,
+    HIGHEST_FIRST = true, IO_CAN_FAIL = false, ROLLBACK_CAN_FAIL = false,
     MAX_OBJECTS = 7, MAX_ORD = 6, MAX_DEPTH = 7
   ).*
 }

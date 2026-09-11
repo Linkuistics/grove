@@ -10505,3 +10505,63 @@ is a citation rather than an instrument. Where a citation is wrong, the rule
 above it is wrong with it, and the three cases in which this tree was found
 misreporting itself are enumerated in that document's *Where the tree misreports
 itself*.
+
+## 049 — A required distinguished name is a level obligation
+
+**Situation.** A consumer supplies a distinguished name per node, with the label
+on that name and no label in its node's positioned parts. Every level in that
+consumer must hold exactly one, with a separate name allowed at the root. The
+library must preserve that rule without reading labels or content.
+
+**Formalism.** Alloy answers the one-state question: can distinct distinguished
+names coexist, and what does the reader accept? Quint answers the transition
+question: do plans preserve accepted levels and refuse invalid input without
+effects? The standing models under `docs/ordinal-fs-tree/models/` are the
+instruments; their existing runners retain both invariant and witness checks.
+
+**Caught / missed.** `witness_two_distinguished_children` admits two different
+filenames under the canonical trait laws and filesystem uniqueness. Cardinality
+is therefore a reader obligation. `witness_per_node_names_are_accepted` supplies
+the positive control: different names at root and node, a node with no label in
+its parts, and its label on its distinguished child. Missing and wrongly placed
+names have refusal witnesses too.
+
+The operational design validates projected final levels, including ordinary
+node creation through append, batches and insert, initialization entries,
+promotion's first child and rewritten node parts. Limiting the change to
+promotion and initialization would leave other constructors able to create a
+node its consumer cannot read. Quint carries this under
+`inv_successHasValidLevels`, with `wit_refusedBareNode` and explicit supplied-name
+witnesses; `inv_invalidLevelIsAtomic` covers snapshot and preflight refusals.
+As a control, disabling only the projected-final-level condition in
+`guardDestinations` violates `inv_successHasValidLevels`: an `append_many` of
+node and leaf parts succeeds with the new node missing its distinguished file.
+The counterexample reproduces with seed `0xdbe361b47e9712f3` in the `required`
+instance. Restoring the condition passes 200 sampled traces of 24 steps starting
+from that seed. This checks that the invariant detects the omitted preflight;
+it does not make random sampling exhaustive.
+The models do not establish Grove's literal spellings, handle composition,
+diagnostic text or correct invocation of the level check by Rust. They also do
+not model arbitrary consumer predicates over node parts: the executable
+instances discriminate root from node and compare opaque name atoms. Those
+remaining obligations belong to the existing conformance, name-unit and CLI
+fixture seams, and to design review.
+
+**Cost.** Wall-clock accounting for the whole design was not captured. Two Alloy
+scope failures were observed before the positive control ran: five verdict
+atoms could not hold three entry verdicts plus the three non-entry verdicts;
+increasing the unqualified scope then exceeded the translator's arity-five
+capacity. Explicit smaller bounds for unrelated signatures and six verdicts
+made the same witness satisfiable. Neither result was accepted as evidence for
+the design. Quint's standing sample and step budgets remain in its runner.
+
+**Counterfactual.** The snapshot source already shows that reads cover the whole
+tree; checking that source avoids accidentally specifying lazy validation.
+Counting the witness's distinct verdicts before its first run would have avoided
+the first Alloy failure. Enumerating every node-creating plan before changing the
+seam would expose the constructor obligation without a model; the executable
+claims then make that obligation repeatable.
+
+**Verdict.** Use the structural model to separate filename identity from level
+cardinality, and the operational model to cover every writer of that level.
+Neither replaces checking the consumer's grammar or reviewing the public seam.

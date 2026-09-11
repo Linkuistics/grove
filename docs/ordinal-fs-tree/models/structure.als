@@ -51,7 +51,7 @@ one sig LeafS, NodeS, DistS extends Species {}
 /* "label plus domain attributes", opaque to the library.  `pSpecies` encodes
    the document's claim that *the species follows from the parts*. */
 sig Parts {
-  pLabel:   one Label,
+  pLabel:   lone Label,
   pAttrs:   one Attrs,
   pSpecies: one Species
 }
@@ -71,6 +71,7 @@ sig Name {
   nKey:     lone Key,
   nParts:   lone Parts,
   nSpecies: one  Species,
+  nLabel:   lone Label,            // distinguished-name payload; opaque to the library
   shown:    one  Filename          // the Display impl
 }
 
@@ -85,7 +86,7 @@ sig EntryV extends Verdict { seen: one Name }
    below, so the model can hold both versions and compare them. */
 one sig Trait {
   composeR: Ordinal -> Key -> Parts -> Name,
-  dist:     lone Name,
+  dist:     set Name,              // names the consumer can supply per level
   parseR:   Filename -> FileKind -> Verdict
 }
 
@@ -204,7 +205,7 @@ pred ComposeTotal {
    beside a species: that is what `witness_leaf_name_without_an_ordinal` still
    exhibits.  See `docs/formalism-findings.md` entries 004 and 005. */
 pred PositionedNamesAreComplete {
-  all n: Name | n != Trait.dist implies (some n.nOrd and some n.nKey and some n.nParts)
+  all n: Name | n.nSpecies != DistS implies (some n.nOrd and some n.nKey and some n.nParts)
 }
 
 /* The grammar is canonical: `format(parse(f)) = f`.  The document states the
@@ -215,11 +216,11 @@ pred ParseIsCanonical {
   all f: Filename, k: FileKind, v: (Trait.parseR[f][k] & EntryV) | v.seen.shown = f
 }
 
-/* `distinguished()` returns *the* distinguished name, so no other name may
-   claim that species.  This is what makes "at most one distinguished child per
-   node" true, given that a directory cannot hold two entries of one name. */
-pred OneDistinguishedName {
-  all n: Name | n.nSpecies = DistS implies n = Trait.dist
+/* The consumer can supply any distinguished name. Its species carries no
+   ordinal, key or positioned parts; its opaque payload may carry a label. */
+pred DistinguishedNamesComplete {
+  Trait.dist = { n: Name | n.nSpecies = DistS }
+  no Trait.dist.nParts
 }
 
 /* Which on-disk kind each species requires. */
@@ -241,7 +242,7 @@ pred CorrectedTraitLaws {
   ParseIsCanonical
   ComposeLawful
   PositionedNamesAreComplete
-  OneDistinguishedName
+  DistinguishedNamesComplete
   SpeciesAgreementIsParsed
   // ParseIgnoresKind is dropped: the corrected `parse` sees the on-disk kind.
 }
@@ -398,7 +399,7 @@ pred AllStatedInvariants {
 //
 // `Parts` is `Clone + Eq`.  The library can copy a Parts value and compare two
 // of them; it has no constructor for one.  So the only names it can build are
-// those `compose` yields from parts it already holds, plus `distinguished()`.
+// those `compose` yields from parts it already holds, plus supplied names.
 // ---------------------------------------------------------------------------
 
 fun libraryCanBuild[known: set Parts]: set Name {
@@ -447,14 +448,44 @@ run witness_a_vacancy_is_not_an_empty_tree {
   no entries
 } for 4
 
-/* At most one distinguished child per node — a theorem, not an invariant to
-   enforce, given that `distinguished()` names one thing and a directory cannot
-   hold two entries of one name. */
+/* Cardinality is a reader check. Filesystem uniqueness alone does not
+   constrain different distinguished filenames at one level. The consumer's
+   level rule can require presence and restrict the name for root versus node. */
+one sig LevelPolicy {
+  required: set FsDir,
+  allowed: FsDir -> Name
+}
+
+fun distinguishedAt[d: FsDir]: set FsObject {
+  { x: levelOf[d] | x.nm.nSpecies = DistS }
+}
+
+pred ReaderAccepts {
+  Operable
+  all d: descended | {
+    lone distinguishedAt[d]
+    d in LevelPolicy.required implies one distinguishedAt[d]
+    distinguishedAt[d].nm in LevelPolicy.allowed[d]
+  }
+}
+
 assert DistinguishedIsUniquePerNode {
-  CorrectedTraitLaws implies
-    all d: descended | lone { x: levelOf[d] | x.nm.nSpecies = DistS }
+  CorrectedTraitLaws and ReaderAccepts implies
+    all d: descended | lone distinguishedAt[d]
 }
 check DistinguishedIsUniquePerNode for 4
+
+assert RequiredLevelsHaveExactlyOneDistinguishedChild {
+  CorrectedTraitLaws and ReaderAccepts implies
+    all d: (descended & LevelPolicy.required) | one distinguishedAt[d]
+}
+check RequiredLevelsHaveExactlyOneDistinguishedChild for 4
+
+assert AcceptedDistinguishedNameFitsItsLevel {
+  CorrectedTraitLaws and ReaderAccepts implies
+    all d: descended | distinguishedAt[d].nm in LevelPolicy.allowed[d]
+}
+check AcceptedDistinguishedNameFitsItsLevel for 4
 
 /* A sibling shift is `compose(new_ordinal, key, parts)`.  For that to be a
    shift and not a corruption, compose must preserve what it was given. */
@@ -468,21 +499,20 @@ check ShiftPreservesIdentity for 4
 /* No name is both positioned and distinguished. */
 assert PositionedAndDistinguishedAreDisjoint {
   CorrectedTraitLaws implies
-    all n: Name | some n.nOrd implies n != Trait.dist
+    all n: Name | some n.nOrd implies n not in Trait.dist
 }
 check PositionedAndDistinguishedAreDisjoint for 4
 
-/* Promotion, with the node's parts supplied by the caller — the correction.
-   The library needs no new trait method: it needs an argument.  Given parts
-   that carry the leaf's own label and imply species Node, `compose` names the
-   promoted node with its ordinal, its key and its label intact. */
+/* The consumer supplies node parts and a separate distinguished name. A
+   label can live only on the latter; composing a node need not copy it. */
 assert PromoteCanNameItsOutputFromCallerParts {
   (CorrectedTraitLaws and ComposeTotal) implies
-    all n: Name, p: Parts |
-      (n.nSpecies = LeafS and p.pSpecies = NodeS and p.pLabel = n.nParts.pLabel) implies
+    all n: Name, p: Parts, d: Trait.dist |
+      (n.nSpecies = LeafS and p.pSpecies = NodeS and
+       d.nLabel = n.nParts.pLabel) implies
         some m: Trait.composeR[n.nOrd][n.nKey][p] |
           m.nOrd = n.nOrd and m.nKey = n.nKey and
-          m.nSpecies = NodeS and m.nParts.pLabel = n.nParts.pLabel
+          m.nSpecies = NodeS and d.nLabel = n.nParts.pLabel
 }
 check PromoteCanNameItsOutputFromCallerParts for 3 but
   exactly 2 Ordinal, exactly 2 Key, exactly 2 Parts, 9 Name, 12 Verdict, 9 Filename
@@ -519,7 +549,8 @@ run witness_shift_corrupts_identity {
 /* DEFECT.  `promote` must name a node with the leaf's ordinal and key.  Its
    parts must imply species Node; the library's only Parts value is the leaf's,
    which implies Leaf.  Nothing the trait offers closes the gap — this is entry
-   001's defect in a second place, and `distinguished()` does not reach it. */
+   001's defect in a second place; supplying a distinguished name does not
+   supply the node's parts. */
 run witness_promote_cannot_name_its_output {
   CorrectedTraitLaws and ComposeTotal
   some p: Parts | p.pSpecies = NodeS          // node-shaped parts do exist
@@ -562,14 +593,45 @@ run witness_distinguished_directory_hides_a_subtree {
   some x: entries | x.nm.nSpecies = DistS and x in FsDir and some x.kids and no (x.kids & visited)
 } for 5
 
-/* DEFECT.  Nothing forces `distinguished()` to be the only name of its species,
-   so a node can hold two distinguished children while every stated invariant
-   holds. */
+/* A filesystem can hold two distinct distinguished filenames. The trait
+   laws and the positioned-entry invariants allow this; the reader refuses it. */
 run witness_two_distinguished_children {
-  StatedTraitLaws
+  CorrectedTraitLaws
   AllStatedInvariants
-  some d: descended | #{ x: levelOf[d] | x.nm.nSpecies = DistS } > 1
+  some d: descended | #{ x: distinguishedAt[d] } > 1
+  not ReaderAccepts
 } for 5
+
+run witness_missing_required_distinguished_child {
+  CorrectedTraitLaws
+  AllStatedInvariants
+  Tree.root in LevelPolicy.required
+  no distinguishedAt[Tree.root]
+  not ReaderAccepts
+} for 4
+
+run witness_distinguished_name_in_wrong_level {
+  CorrectedTraitLaws
+  AllStatedInvariants
+  one distinguishedAt[Tree.root]
+  no LevelPolicy.allowed[Tree.root]
+  not ReaderAccepts
+} for 4
+
+/* Positive control: every reached level requires exactly one, with different
+   names at root and node. The node label exists only on its own file. */
+run witness_per_node_names_are_accepted {
+  CorrectedTraitLaws
+  AllStatedInvariants
+  ReaderAccepts
+  descended in LevelPolicy.required
+  some d: (descended - Tree.root) | {
+    no d.nm.nParts.pLabel
+    some distinguishedAt[d].nm.nLabel
+    distinguishedAt[d].nm != distinguishedAt[Tree.root].nm
+  }
+} for 6 but exactly 2 Ordinal, 2 Key, 1 Parts, 1 Label, 1 Attrs,
+  3 Name, 6 Verdict, 4 Filename, 4 FsObject
 
 /* ADMITTED.  A gapped level is well-formed.  Density is not an invariant of a
    tree; whether every operation preserves it is the behavioural model's

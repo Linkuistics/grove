@@ -438,8 +438,8 @@ shared test-support block the next two chapters' tests use.
 
 **The rule: the key is preserved, because the entity that was the leaf becomes
 the node.** `leaf_decompose`, `decomposable` and `promoted`: the leaf *file*
-`NN-<kind>--<slug>-k<key>.md` becomes the node *directory* `NN-<slug>-k<key>/`,
-its body renamed in as `BRIEF.md`, and a first child grown atomically so a node
+`NN-<kind>--<slug>-k<key>.md` becomes the node *directory* `NN-k<key>/`,
+its body renamed in as `_<slug>.md`, and a first child grown atomically so a node
 is never childless. `decompose_converts_leaf_file_to_node_dir_preserving_the_key`,
 `decompose_seeds_brief_from_leaf_body_and_appends_brief_suffix`,
 `decompose_creates_the_first_child_at_01_with_a_fresh_key`,
@@ -772,7 +772,7 @@ not is not this book's.
 | 8 | the same leaf, nested | a leaf inside a node | its ancestors' briefs, root to leaf |
 | 9 | `plan-k1`, `[1]`, `1`, `plan` | four spellings of one reference | one `Resolution`, or `Ambiguous` listing the keys |
 | 10 | `leaf-add` | the grove after `root-init` | a sibling at the next position, its key predicted and checked |
-| 11 | `root-init` | an empty worktree | `BRIEF.md` and one live leaf, as **one** store operation |
+| 11 | `root-init` | an empty worktree | `_BRIEF.md` and one live leaf, as **one** store operation |
 | 12 | `leaf-decompose` | a leaf that proved too big | a node directory, **key preserved**, brief seeded, first child grown |
 | 13 | `leaf-retire`, `leaf-prune` | a live leaf | a `DONE-` or `ABANDONED-` infix; header and body untouched |
 | 14 | `finish` | the last live leaf retired | the sentinel leaf, then no `.grove` at all |
@@ -969,7 +969,7 @@ chapter:
 | 969 | `addressable_key`'s refusal, and `leaf-prune` on a node | 6, 13 |
 | 433 | the walk and the finish-reservation rule | 7, 14 |
 | 451 | the one pick and what it serves | 20 |
-| 323 | what a node is, and how a missing `BRIEF.md` is read | 8, 12 |
+| 323 | what a node is, and why missing or competing node files are refused | 8, 12 |
 | 779 | `resolve` on a chained stem, and the grow verbs' refusal | 9, 10 |
 | 884, 1007, 1053 | `leaf-add`'s all-or-nothing on error; the lint's second opening; key prediction and its check | 10 |
 | 1080, 1176, 1217 | the two calls of `root-init`; the one-store-operation scaffold; `root_shape` on a withdrawn layout | 11, 14 |

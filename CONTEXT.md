@@ -415,7 +415,7 @@ _Avoid_: treating a redirected `cargo test` as evidence the guard works — a re
 
 The mechanical first step of bare `grove` when the provided working tree has no
 `.grove/`: before launching any agent the driver creates `.grove/`, the root
-`BRIEF.md` stub and `01-requirements--plan-k1.md`, then runs the ordinary authoritative [[Pick]] and launches that requirements
+`_BRIEF.md` stub and `01-requirements--plan-k1.md`, then runs the ordinary authoritative [[Pick]] and launches that requirements
 leaf through [[Grove configuration]]. There is no special rootless session —
 every session owns a real selected leaf, and a grove begins with requirements
 gathering by construction.
@@ -426,7 +426,7 @@ the leaf it must select before the agent exists.
 <a id="bootstrap"></a>
 ### Bootstrap
 
-The per-session context-loading step of the grove loop: read the glossary, the ancestor `BRIEF.md` chain, the cited ADRs, and the task file. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
+The per-session context-loading step of the grove loop: read the glossary, the ancestor [[Node file]] chain, the cited ADRs, and the task file. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
 
 <a id="task-commit-boundary"></a>
 ### Task commit boundary / sealing
@@ -508,19 +508,13 @@ writing that leaf itself.
 <a id="no-migration"></a>
 ### No migration
 
-Grove converts no task tree. A tree whose names the current grammar cannot spell
-is **refused by name** — `TaskNameError` carries the filename on disk and the
-shape it should have had — and the operator renames it or starts a fresh grove.
-There is no migrate command, no automatic conversion inside bare `grove`, and no
-format witness to classify a tree by: the filenames *are* the format.
-_Avoid_: assuming a legacy tree is therefore silently skipped. The layouts grove
-wrote before this grammar are positioned but *unkeyed*, so their names are
-`Foreign` rather than malformed — invisible to the reader. So the lifecycle
-transition treats a root holding **no grove entry at all** as the anomaly and
-stops on it, naming what it disclaimed and the grammar it reads.
-_Avoid_: expecting the refusal to say *which* withdrawn layout this is. That
-classifier was migration's and went with it; the operator does not need it in
-order to act.
+Grove converts no task tree. Owned names that cannot be spelled by the grammar,
+and levels that cannot supply exactly one correctly placed [[Node file]], are
+refused with the offending path and the canonical form. Operators rename or
+restore entries, or start a fresh grove; no migration command, automatic
+conversion or alternate reader grammar exists.
+_Avoid_: treating a foreign-only root as completed work. It is an
+[[Unrecognised root]] and refuses without mutation.
 
 <a id="review-chain"></a>
 ### Review chain / vendor pair
@@ -578,7 +572,7 @@ arguments that once decided it have all lapsed again. What killed it is that the
 hierarchy was not worth its navigation cost, and that a node species meaning
 *these steps compose one artifact* forced every reader to carry a second sense of
 node-ness. Deleting it collapses the species back to one, so **every node carries
-a `BRIEF.md`** and no discriminator survives.
+a [[Node file]]** and no discriminator survives.
 _Avoid_: an eager chain constructor (`leaf-add-chain`) or a retrofit verb
 (`leaf-promote-chain`). Both are gone: the first would emit only a producer,
 which is `leaf-add`, and the second existed solely to wrap a chain node around a
@@ -656,7 +650,7 @@ only in the medium the document's own contract admits.
 ### Pass series / pass
 
 Work completed and then done **again**: a [[Node directory]] whose children are
-its *passes*, and whose `BRIEF.md` declares the repetition — the step sequence,
+its *passes*, and whose [[Node file]] declares the repetition — the step sequence,
 a checkable exit condition, a cap as a number, and what happens at the cap —
 before the first pass runs. Every entry is the one node species and the one
 leaf species, so [[Pick]]'s existing pre-order walk visits passes in pass order
@@ -674,8 +668,8 @@ word inside the ubiquitous language is a defect.
 _Avoid_: a marker token in a name — an infix, a `-loop` slug suffix, a second
 distinguished child. All three re-open a grammar that has one reading to add a
 discriminator the names already carry: because every pass takes the series' bare
-stem, a series that has repeated **is** sibling node directories sharing one
-slug, and nothing else in a grove produces that. The mark is redundant rather
+stem, a series that has repeated **is** sibling node directories whose node files share a slug. This is a
+reading convention; independently decomposed steps can produce the same shape. The mark is redundant rather
 than unread — but only once the second pass exists, which is the ADR's reopen
 condition and not a detail.
 _Avoid_: a `pass-2` slug. The kind says which step and the **position** says
@@ -867,7 +861,7 @@ Like `docs/adr/`, `docs/specs/` is a **minimum coherent set describing the
 design's current state**: slug-named, edited, merged and split in place, and
 deleted once a spec describes nothing. Two rules bound the set — the
 **membership test** (*would a session on an unrelated future grove need to read
-this?* if not it is a [[Node directory]]'s `BRIEF.md` and dies with `.grove/`)
+this?* if not it is a [[Node directory]]'s brief and dies with `.grove/`)
 and the **grain rule** (an ADR records *one decision and its trade-off*, a spec
 describes *how an area works* and **cites** the ADRs in its area rather than
 restating them). Shape and the seam-recording rule: the spine's `SPEC-FORMAT.md`;
@@ -880,37 +874,31 @@ covered grilling and design both. `design` is the producer whose deliverable is 
 spec, an ADR set, or both; `planning` consumes it and cuts the leaves.
 
 <a id="task-tree-scheme"></a>
-### Task-tree scheme (v2 directories, task-tree-scheme)
+### Task-tree scheme
 
 <a id="node-directory"></a>
 #### Node directory / node
 
-A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding its numbered children (leaf files and child node directories), headed by a `BRIEF.md` charter; `.grove/` is itself the root node (its charter is `.grove/BRIEF.md`). The filesystem carries the hierarchy, so a name encodes only its *per-level* position — not a global path (task-tree-scheme).
-**One species, and it always carries a charter.** A node is a leaf that proved
-*bigger than one session*, so the charter is exactly the context those extra
-sessions need, and the only writers are `leaf-decompose` (which moves the
-decomposed leaf's own body in as the brief) and `root-init` for the root. Nothing
-composes leaves into a node: a [[Review chain]]'s steps and a vendor pair's are
-flat siblings. Every node close therefore has the same work — a `Done when`
-rollup to check and a brief to promote.
-_Avoid_: calling a node a "file" — a node is always a directory.
-_Avoid_: a second, **brief-less** species meaning *these steps compose one
-artifact*, and any `BRIEF.md`-presence **discriminator** that reads one. Both
-went with the eager chain constructors; a reader that still tests for a charter
-is deciding a question with one answer, and a `Done when` check that skips a node
-for want of a brief silently drops a real rollup. A node with no charter is a
-lapse to fix, not a species — though a *reader* still tolerates it, because a
-brief is a lazy artifact (constraint 4) and nothing validates one (constraint 3).
-_Avoid_: discriminating anything by a `-chain` / `-pair` token in a slug. No verb
-writes one any more, and it was ordinary slug text a human may use for anything
-even when they did.
-_Avoid_: reading a **task-shaped** directory name Grove cannot parse — most
-often one hand-marked `DONE` — as an ignorable foreign entry. Every positioned,
-keyed name is Grove's at the species its `.md` suffix declares, and a directory
-skipped takes its whole live subtree with it while [[Pick]] reports the grove
-done; such a name is a malformed tree that stops reads and mutations. Names
-outside that grammar stay foreign at either species, and the reserved
-transaction witnesses are unpositioned, so none is reached by the rule.
+A grove tree node is a **directory** named `NN-k<key>/` holding its numbered
+children and exactly one [[Node file]], `_<slug>.md`. The root `.grove/` holds
+`_BRIEF.md`; its directory name is not parsed as an entry.
+
+A node represents work that needs more than one session. Its node file carries
+that work's title in its filename and its brief in its body. A missing or second
+node file is malformed and stops the reader; node files are never ordered as
+children or returned as tasks.
+_Avoid_: treating a node without its node file as another species, or skipping a
+malformed directory and thereby hiding its whole subtree.
+
+<a id="node-file"></a>
+#### Node file
+
+The one regular file that names a [[Node directory]]'s own work and carries its
+brief: `_<slug>.md`, or `_BRIEF.md` at the root. A positioned node's file
+supplies its [[Work-item handle]]'s title; the root file has no slug. Neither
+filename carries a position or key.
+_Avoid_: using *brief* for the filename's role — the brief is the body — or
+calling the node file a leaf, which would make it a task the walk should select.
 
 <a id="leaf"></a>
 #### Leaf
@@ -961,14 +949,19 @@ intervening leaf can move without erroring. See [[Review chain]].
 <a id="permanent-key"></a>
 #### Permanent key / stable id (`-k<key>`)
 
-The never-rewritten identity token of a leaf or node, always the **terminal** token before the extension/slash, assigned once as `max key in tree + 1` (the keys in the names *are* the counter — no counter file; **every finished leaf stays in the tree, `DONE` or `ABANDONED` alike**, so the max is always visible). `grove-llm resolve [n]` / `n` finds an entity's current path by key across any renumber, move, or slug edit.
+The never-rewritten identity token of a leaf or node, always the **terminal** token in a positioned filename or directory name; a node file carries no key. It is assigned once as `max key in tree + 1` (the keys in the names *are* the counter — no counter file; **every finished leaf stays in the tree, `DONE` or `ABANDONED` alike**, so the max is always visible). `grove-llm resolve [n]` / `n` finds an entity's current path by key across any renumber, move, or slug edit.
 _Avoid_: "position" as identity; reusing a retired key.
 _Avoid_: **deleting** a leaf to abandon it (`git rm`, or just removing the file in a jj tree) — that lowers the max and the next `leaf-add` re-issues a live key. Use [[Pruning]] (`leaf-prune`); the mark is what keeps the counter monotonic.
 
 <a id="work-item-handle"></a>
 #### Work-item handle / title (`<slug>-k<key>`)
 
-The position-free in-file `# …` header of a task or brief (`# <slug>-k<key>`, or `# <slug>-k<key> — brief` for a node; the root brief is `# <grove name> — brief`) **and** the canonical way to name a work item in commit messages and prose (task-tree-scheme §5). Stable across renumber, because it omits the mutable position. `resolve` also accepts the full handle, not just the bare key.
+The position-free name `<slug>-k<key>` used in task headings, commit messages
+and prose. A leaf supplies both fields from its filename; a node supplies the
+key from its directory and the title from its [[Node file]]'s slug. It survives
+renumbering; changing the title changes the handle, while the [[Permanent key]]
+still resolves the same work. The root has no handle and uses the grove name in
+its brief heading. Headings repeat names for readers and never supply routing.
 _Avoid_: naming a work item by its position or directory path in a commit message.
 _Avoid_: citing a **real** work item in the shipped methodology at all — not even by a
 correct handle. The handle resolves only inside the tree that issued it, a reader is
@@ -996,8 +989,8 @@ process-interruption recovery, the finish teardown, hand-built a transaction the
 version control system already owned, and both it and its in-tree witness are
 gone. A grow verb has neither and promises neither: it unwinds on a *reported*
 error, and a process killed mid-run can leave a partial shape.
-_Avoid_: locking `.grove/BRIEF.md` — root briefs are lazy, optional artifacts,
-and existing tree readers deliberately tolerate their absence.
+_Avoid_: locking `_BRIEF.md` — it cannot serialize its own creation or
+the deletion of its containing tree.
 _Avoid_: locking `.grove/` itself — it cannot serialize either its own creation
 or its finish deletion, and adding a second lifecycle lock creates an ordering
 contract instead of one seam.
@@ -1054,24 +1047,13 @@ apparatus itself.
 <a id="taskless-root"></a>
 #### Taskless root (`Taskless`)
 
-A task root that exists and holds **nothing but its charter, if even that** — no
-entry the grammar owns. It is **refused**, naming what is missing, and nothing
-grove does produces it: [[root-init]] is one store operation that writes the
-root, its charter and the first leaf under one lock and takes the root back down
-if it fails, and entries are marked and never removed, so a tree that has ever
-held a leaf still holds one. What reaches here is a tree something emptied by
-hand.
-_Avoid_: the older name **partial scaffold**, and the repair that went with it.
-While root creation was two phases under two different locks, the window between
-them was a real shape and bare `grove` completed it by appending the first
-`requirements` leaf; `collapse-tree-access-k13` closed the window, and the last
-of roughly twenty-five auto-repair functions went with the anomaly it repaired.
-_Avoid_: defining it by a missing format witness. There is no witness — it went
-with migration — and every root is witnessless now, so absence discriminates
-nothing. The question is what the root **holds**.
-_Avoid_: treating the charter as proof the root is Grove's. Its bytes derive from
-the working-tree name and every earlier format wrote the same ones
-(`docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md`).
+A present root holding only `_BRIEF.md`, or nothing at all, with no positioned
+work. It is refused with the missing work and canonical root form; the node
+file's presence is not proof of a task. Initialization creates the root, its
+node file and first leaf under one guard, and reported failure unwinds them.
+_Avoid_: treating a taskless root as ready for finishing or repairing it from
+charter contents. A process interruption can leave incomplete work that requires
+an operator's recovery.
 
 <a id="unrecognised-root"></a>
 #### Unrecognised root (`Unrecognised`)
@@ -1179,7 +1161,7 @@ because grove prints the library's errors verbatim
 
 **"chain"** carries two unrelated senses, and one of them is already a verb name:
 
-1. The **brief chain** — a leaf's ancestor `BRIEF.md` files, root→leaf, which
+1. The **brief chain** — a leaf's ancestor [[Node file]]s, root→leaf, which
    [[Bootstrap]] reads and `grove-llm brief-chain` prints. A relation between a
    leaf and its *ancestors*.
 2. The **[[Review chain]]** — `X` → `review-X` → `integrate-review-X`, a step

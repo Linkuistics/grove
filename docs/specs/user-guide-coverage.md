@@ -84,14 +84,14 @@ binary itself. Twelve verbs; `help` is clap's own and is covered by the row for
 
 | Row | Verb | Arguments and flags — all of them | Obligation |
 |---|---|---|---|
-| L1 | `root-init` | `[SLUG]` (default `plan`) | Worked. Creates `.grove/`, the root `BRIEF.md`, and `01-requirements--<slug>-k1.md`; refuses an existing `.grove/`; no commit. Note that bare `grove` does this for you. |
+| L1 | `root-init` | `[SLUG]` (default `plan`) | Worked. Creates `.grove/`, the root `_BRIEF.md`, and `01-requirements--<slug>-k1.md`; refuses an existing `.grove/`; no commit. Note that bare `grove` does this for you. |
 | L2 | `pick` | none | Worked, as a diagnostic. Depth-first pre-order; empty stdout when nothing is live. |
-| L3 | `brief-chain` | `[LEAF_PATH]` | Worked, as a diagnostic. Defaults to `pick`'s leaf; a level with no `BRIEF.md` is skipped silently. |
+| L3 | `brief-chain` | `[LEAF_PATH]` | Worked, as a diagnostic. Defaults to `pick`'s leaf; each level must have exactly one correctly placed node file; a missing or competing file refuses the read. |
 | L4 | `kind` | `[LEAF_PATH]` | Named, as a diagnostic. Defaults to `pick`'s leaf. |
 | L5 | `resolve` | `<REFERENCE>` — `[n]`, `n`, `[n]-slug`, `<slug>-k<key>`, or a bare slug | Worked. Searches live, `DONE` and `ABANDONED` alike; a node resolves to its directory; ambiguity lists the keys; exits zero either way. |
 | L6 | `leaf-add` | `<PARENT>` `<SLUG>`, `--kind <KIND>` (required, repeatable) | Worked. `.` for the root; one leaf per `--kind` in order, as one unit; appends at the end; `finish` is refused; no commit. |
 | L7 | `leaf-insert` | `<TARGET>` `<SLUG>`, `--kind <KIND>` (required, **not** repeatable — one leaf per call) | Worked. Shifts the target and later siblings up one; subtrees and keys ride along; no file contents are rewritten; no commit. |
-| L8 | `leaf-decompose` | `<LEAF_PATH>` `<FIRST_CHILD_SLUG>`, `--kind <KIND>` (optional) | Worked. Leaf becomes a node directory with the key preserved, body becomes `BRIEF.md`, first child inherits the kind unless overridden; no commit. |
+| L8 | `leaf-decompose` | `<LEAF_PATH>` `<FIRST_CHILD_SLUG>`, `--kind <KIND>` (optional) | Worked. Leaf becomes a node directory with the key preserved, body becomes `_<slug>.md` inside `NN-k<key>/`, first child inherits the kind unless overridden; no commit. |
 | L9 | `leaf-retire` | `<LEAF_PATH>` | Worked. Adds the `DONE` infix in place; refuses a brief, a `DONE` leaf and an `ABANDONED` leaf; no commit. |
 | L10 | `leaf-prune` | `<PATH>` — a live leaf **or** a node directory | Worked. HITL: only after explicit human confirmation. On a node it marks every live leaf in the subtree and leaves `DONE` ones alone; refuses the grove root; no commit. |
 | L11 | `finish-commit` | `<FINISH_HANDLE>` | Worked. Revalidates the finish leaf and the absence of ordinary work, then deletes and commits only `.grove/`; does not stand in for the human confirmation. |
@@ -138,7 +138,7 @@ lifecycle; the guide's subject is the human's path through it.
 | J4 | Watch one session through | A leaf launched | Leaf `DONE`, its work committed under the stable handle, loop relaunched |
 | J5 | Interrupt and stop the loop | A session running | Ctrl-C reaches the session and the driver decides; `kill` on `grove` ends the loop and exits `128 + N` |
 | J6 | Read the tree by eye | A `.grove/` directory | The next session identified from filenames alone, without running anything |
-| J7 | Decompose an oversized leaf | A live leaf too big for one session | A node directory with a `BRIEF.md` and a first child |
+| J7 | Decompose an oversized leaf | A live leaf too big for one session | A node directory with `_<slug>.md` and a first child |
 | J8 | Compose a review chain | A producer at a reviewable boundary | `review-*` leaf beside it, added as the producer's last act; then `integrate-review-*` placed by the insert rule |
 | J9 | Cut a research pair | An open question worth two corpora | `research-a`, `research-b` and `combine-research` cut in one all-or-nothing call |
 | J10 | Close a node | A node whose children are all terminal | The node closed and committed by the retiring session |

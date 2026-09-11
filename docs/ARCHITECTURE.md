@@ -305,40 +305,33 @@ tree](adr/one-live-driver-per-working-tree.md).
 <a id="task-tree-scheme"></a>
 ## Task-tree data model
 
-The grammar itself, the two species, the identity split between position and
-key, and the modules that own each half are the [`grove-loop`
-walkthrough](walkthroughs/grove-loop/README.md)'s. What stays here is the
-reasoning behind them.
+A node directory is `NN-k<key>/` and its exactly-one node file is
+`_<slug>.md`; the root's is `_BRIEF.md`. A leaf is
+`NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md`. The
+[naming decision](adr/task-names-are-canonical.md) owns canonicity and the
+[node and handle design](specs/module-decomposition.md) owns their composition.
 
-**A name has exactly one reading, and the `--` separator is what buys it.** That
-used to rest on a non-prefix invariant over a closed label set; `open-kind-k20`
-removed the set, and the separator between kind and slug is what made removing it
-safe ([`a-kind-is-an-open-token`](adr/a-kind-is-an-open-token.md)). Kind is
-routing metadata rather than identity.
+The directory pays only for position and key in each descendant path. Its node
+file carries the title in its filename and the brief in its body. The name
+module composes a node handle from both parsed names; file contents never
+supply a routing field. The root has neither slug nor work-item handle.
 
-**A malformed name stops reads and mutations at a node directory's name too**,
-and the asymmetric loss is why the rule reaches that far: a skipped leaf costs
-one task, a skipped node costs its whole live subtree while picking reports the
-grove finished.
+A malformed name or level stops the snapshot read. The reader validates every
+reachable level under the tree guard before selection or mutation can consume
+it, so an early live leaf cannot hide a missing or second node file elsewhere.
+`_BRIEF.md` is valid only at the root, and a titled node file only in a
+positioned node. Errors name the affected level and canonical form.
 
-**One classification serves every tree verb.** Selection, resolution, growth, key
-allocation and pruning read the same snapshot's answer about what a sibling is,
-without which a subtree the reader refuses could stay invisible to key
-allocation, lowering the visible maximum key so the next `leaf-add` re-issues a
-live one.
+The library enforces distinguished cardinality and invokes the name type's
+level validation; it owns no label vocabulary. The same checks run on projected
+plan results before effects. `leaf-decompose` supplies the source slug's node
+file to promotion, and `root-init` supplies the root name and bytes to
+initialization. No writer creates a charter outside that plan.
 
-**The filenames are the format.** There is no format witness and no format
-metadata inside the tree, so a tree whose names this grammar does not spell is
-refused by name rather than classified and converted; Grove does not migrate an
-older layout. Task bodies carry no launch metadata at all — only the
-`**Reviews:**` and `**Integrates:**` composition relationships below.
-
-**The handle and the filename cannot say different things**, because the grammar
-is written in exactly one production function and taken apart in exactly one
-other (`name-ownership-k14`). Tests spell it independently on purpose, since a
-test reusing the renderer would assert nothing. Every entry that moves, moves
-inside an `ordinal-fs-tree` operation, so no module performs a VCS-aware move —
-see [the withdrawn tree algebra](#withdrawn-tree-algebra) below.
+Every tree verb shares this classification, including key allocation. Grove
+accepts this grammar only, performs no automatic conversion and leaves foreign
+names outside the grammar alone. All tree movement remains inside
+`ordinal-fs-tree` operations.
 
 <a id="withdrawn-tree-algebra"></a>
 ### The withdrawn tree algebra
@@ -528,20 +521,21 @@ message that collides is one no argument produces.
 | `Refusal` variant | reachable from Grove's verbs? |
 |---|---|
 | `TargetMissing` | **no** — clause 1. A reference naming nothing fails in Grove's resolution, before any operation is called. |
-| `TargetNotNode` | **no**, and `growing-k33` corrected this row: it predicted *yes* for `leaf-add <a task file> <slug>` while naming its own contradiction in the next clause — *Grove keeps its own check in front of it*. Both are true of the design and only one can be true of an operator. The check is not optional either, which is what settles it: `.grove/BRIEF.md` is an entry carrying **no key**, so it cannot be handed to the library as a target however the refusal were worded, and clause 2 therefore *forces* the classification that puts this refusal permanently behind one. Asserted in `crates/grove-loop/src/task_grow/tests.rs` over every parent argument that is an entry and not a node. |
+| `TargetNotNode` | **no**, and `growing-k33` corrected this row: it predicted *yes* for `leaf-add <a task file> <slug>` while naming its own contradiction in the next clause — *Grove keeps its own check in front of it*. Both are true of the design and only one can be true of an operator. The check is not optional either, which is what settles it: `.grove/_BRIEF.md` is an entry carrying **no key**, so it cannot be handed to the library as a target however the refusal were worded, and clause 2 therefore *forces* the classification that puts this refusal permanently behind one. Asserted in `crates/grove-loop/src/task_grow/tests.rs` over every parent argument that is an entry and not a node. |
 | `NoOccupantAtOrdinal` | **no**, in none of its three messages — `leaf-insert` names the **entry** whose slot the new leaf takes, and Grove reads the ordinal off that entry in the snapshot the insert plans from, so `at` is occupied by construction. The syllabus CLI reached all three because `<at>` is an ordinal argument there; Grove's argument surface discharges the refusal `insert` spent two leaves getting right. |
 | `PromoteNotLeaf` | **no** — `leaf-decompose` refuses a brief, a `DONE` leaf, an `ABANDONED` leaf and a `finish` leaf, none of which the library can see; a node falls out of the same match. Confirmed by `promotion-k34` over every argument that is an entry and not a live leaf, the grove root included, with a positive control that calls `promote` directly on the same tree and shows the refusal is there for Grove's check to hide. |
-| `PromotePartsNotNode` | **no** — `leaf-decompose` always composes node parts, and `Parts::node(_).species()` is `Node` by construction. |
-| `NoDistinguishedChild` | **no** — Grove's distinguished child is `BRIEF.md`, so `TaskName::distinguished()` is `Some` and the refusal is about the *domain* rather than about any call. Asserted rather than assumed. That covers both operations the refusal serves: `leaf-decompose`'s promotion, and the root initialization Grove does not yet call. |
+| `PromotePartsNotNode` | **no** — `leaf-decompose` always composes node parts, and `Parts::Node`'s species is `Node` by construction. |
+| Invalid supplied distinguished name or projected level | **no from an ordinary Grove constructor** — decomposition supplies the leaf slug's node file and initialization supplies `_BRIEF.md`. Grove creates child nodes only by promotion and supplies leaf parts for each new child. Hand-edited invalid levels fail when the snapshot is read. |
 | `RewriteSpeciesChange` | **no** — `leaf-retire` and `leaf-prune` compose leaf parts for an entry they have already matched as a live leaf. Confirmed by `marking-k32`: the classification reads `Parts::Leaf` off the snapshot and composes from its own `kind` and `slug`, so no path through either verb can hand `rewrite` node parts. |
-| `DestinationOccupied` | **no from any flipped verb**, and it took three leaves to establish. **Not from `leaf-retire` or `leaf-prune`** (`marking-k32`): the occupying name must be exactly the name the mark would place, and an outcome infix and a key are both *parts of one name*, so a `DONE` twin beside the live leaf necessarily carries the live leaf's key — which `task_tree::addressable_key` refuses first. **Not from the grow verbs either** (`growing-k33`), though this row predicted *yes on a hand-edited tree: a copied leaf duplicating a key*, and composing that tree is what showed otherwise. An **append** composes its name with `max + 1` over the whole tree, so no entry in the snapshot can already carry it, whatever a hand edit did. A **shift** composes `(ordinal + 1, key, parts)`, and the only entry that could already carry that name is the sibling one ordinal higher — itself a mover, and already vacated, because the renames run highest-first and the plan is folded through the snapshot in that order. That is the second thing highest-first buys, after the intermediate state, and `ops.rs` says as much in passing — *lowest-first is refused only where a hand edit already duplicated a key and its parts at adjacent ordinals*, which is the tree this row was reaching for. Asserted against `operations.qnt`'s `corrupted` instance rendered in Grove's grammar. **And not from `leaf-decompose`** (`promotion-k34`), which is the row this table predicted longest and the one that looked most likely, since a promotion's destination is composed from an ordinal and a key that already exist. That is exactly why it cannot fire: the node is `compose(ordinal, key, node parts)` with the promoted **leaf's own** ordinal and key, so an occupant of that name is a node carrying that key, the key is duplicated tree-wide, and `addressable_key` refuses before anything is planned. Both shapes of occupant are asserted — the node with a `BRIEF.md`, which is an ordinary hand edit, and the node without one, which is the interrupted promotion below. An adversarial pass sharpened this and is worth carrying: a promotion's **only** exposure to the refusal is its first effect. The two later destinations sit in the directory the plan has just created, and `plan.rs::occupied` answers `false` for a `Level::Created` unconditionally, so no tree state whatsoever — hand-edited, nested, or rollback-damaged — can make them refuse. **So this row rests on exactly one line of Grove's code**, `task_tree::addressable_key`'s tree-wide twin scan, and that is what would reopen it: narrowing the scan from `snapshot.walk()` to a level or a subtree, downgrading its refusal to a warning, or adding a verb that hands `promote` a key without it. A `read` that attached entries unreachable from the root would do it too, since the twin scan and the occupancy scan would stop seeing the same set. |
+| `DestinationOccupied` | **No from Grove tree verbs on a validated snapshot.** Marking would collide only with a twin carrying the same key, which `task_tree::addressable_key` refuses first. Appending uses a fresh tree-wide key. Inserting shifts highest-first, and the planner folds each rename through the snapshot, so a moving sibling has vacated its destination. Promotion keeps the leaf's ordinal and key: an existing destination node with its required node file duplicates that key and is refused before planning; a node missing its file is refused by snapshot validation even earlier. Promotion's later destinations are inside the directory its plan creates. This claim depends on whole-tree snapshot validation, the tree-wide ambiguity check and occupancy checks against the projected plan; narrowing any of those boundaries requires revisiting the fixtures. |
 | `ContentForANode` | **no** — discharged by the verb set. A node arises only through `leaf-decompose`, whose node parts carry no bytes and whose first child is a leaf; `leaf-add` and `leaf-insert` compose leaf parts and nothing else. |
 | `KeysExhausted` / `OrdinalsExhausted` | **yes** — a hand-written `-k4294967295`, or a position of `4294967295`. That is the exact edge: one more is refused by the grammar as [not canonical](adr/task-names-are-canonical.md), so nothing between the two states is representable. `KeysExhausted` reaches `leaf-decompose` too, and through the **first child** alone: a promotion allocates no key for the node, the entity being unchanged, so the verb's only `max + 1` is the child's. `OrdinalsExhausted` does not — the node takes the promoted leaf's own ordinal and the child takes the first. |
 
 | non-`Io` `Error` variant | reachable from Grove's verbs? |
 |---|---|
 | `Malformed` | **yes** — a hand-edited name. Carries `TaskNameError` and therefore already speaks Grove's words, which is the whole reason that variant is generic. |
-| `Reserved` | **yes** — `FINISHING-*`, `PREPARING-FINISH-*`. Carries `TaskNameError` likewise. |
+| `Reserved` | The library supports a domain-owned reserved-name verdict; Grove's filename partition uses malformed names and foreign names. |
+| Malformed level | **yes** — a missing, competing or misplaced node file. The name type supplies Grove's canonical form and the reader attaches the level path. |
 | `Failed` | **yes in the wild, from no argument** — the filesystem refuses mid-apply and the run unwinds. **The tree is as it was found**, so a retry is safe. |
 | `FailedPartiallyRolledBack` | **yes in the wild, from no argument** — and the one message whose *recovery advice* is stated in the library's words. See below. |
 | `NonUtf8Name` | **not on macOS** — APFS refuses such a filename, so the branch cannot be reached from a test on this host. Assert that fact rather than skipping it; `docs/formalism-findings.md` entry 006. |
@@ -580,50 +574,28 @@ try, so a wrong recovery clause is not confusing but executed.
 Keeping Grove's own check is therefore cheaper than either alternative. It
 re-words nothing — Grove refuses on its own precondition, as it already does for
 a `DONE` leaf — and it is a check Grove cannot drop anyway, because `.grove/`'s
-`BRIEF.md` carries no key and so cannot be handed to the library as a target at
+node file carries no key and so cannot be handed to the library as a target at
 all.
 
 `FailedPartiallyRolledBack` is the one message left speaking the library's words
 where it matters: *a node and a leaf sharing an ordinal and a key, with the node
 holding no distinguished child, is an interrupted promotion*. In Grove's words
 that is a node directory and a task file sharing a position and a key, with the
-directory holding no `BRIEF.md`. It prints verbatim, because it fires on a failed
+directory holding no node file. It prints verbatim, because it fires on a failed
 rollback rather than on an argument and because
 [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) carries the six-term translation — a map
 between two glossaries cannot drift from the messages it translates, where a
 re-wording of each message can.
 
 <a id="interrupted-promotion"></a>
-**But the process that meets that tree is never the process that left it**, and
-that is `promotion-k34`'s finding. The run whose rollback failed reported it and
-exited. Every command afterwards opens a tree carrying a duplicate key, and the
-library reports *nothing at all* about it: key uniqueness is an obligation on the
-domain, and no operation checks it. So the recovery advice for the state the
-library warns about is only ever given by whoever meets it, and that is Grove.
+A promotion interrupted before the leaf moves can leave a leaf and node sharing
+a key, with the node lacking its own file. The next snapshot refuses that node
+as a malformed level before handle lookup can inspect the duplicate key. The
+error preserves the directory path and required node-file form; recovery restores
+the interrupted operation from version control or resolves its two halves
+explicitly. Merely assigning a fresh key does not recover one entity interrupted
+while changing shape. No reader manufactures a node file to get past the error.
 
-This is not clause 3 broken, because there is no library wording in play — the
-one that exists was printed in a process that has gone. `task_tree::addressable_key`
-therefore recognises the signature exactly (two entries under one key, one a node
-and one a leaf, at the same position, the node holding no `BRIEF.md`) and gives
-**the library's own recovery**: removing either half resolves it. Its general
-duplicate-key advice — *give one of them a fresh key* — is actively wrong here,
-and that is why the special case earns its place rather than merely fitting: the
-node and the leaf are **one entity** caught mid-shape-change, so giving either a
-fresh key would make two entities out of one. Grove itself never writes a
-childless node — the only `create_dir` on Grove's tree path is `.grove/` itself,
-and every node arises through `promote`, which creates the brief in the same
-unit — so no other route in the verb set produces this shape.
-
-#### What would reopen this
-
-A Grove verb that takes an **ordinal** or a bare **key** straight through to an
-operation, without resolving it first. That breaks clause 1 and makes
-`TargetMissing` and `NoOccupantAtOrdinal` reachable — the second in three
-distinct messages — so the vocabulary question stops being about one refusal and
-this table's count is simply wrong. Nothing in the current verb set does it: all
-seventeen of `grove-llm`'s parsed arguments are paths, references, new-name
-inputs or flags, and not one is an ordinal. No verb should be added that changes
-that without re-deriving this table.
 
 <a id="task-kind-taxonomy"></a>
 ## Task kinds and composition
@@ -696,7 +668,7 @@ last list of kinds out of grove's source.
 
 No shape gets a node directory *of its own*. The editorial chain nonetheless
 always runs inside one, because a document's leaf becomes a node the moment it is
-decomposed into stages — an ordinary node, carrying an ordinary `BRIEF.md`, which
+decomposed into stages — an ordinary node, carrying an ordinary node file, which
 is where the running `## Handed forward` list lives and whose live entries a stage
 reads to decide whether its successor is already queued. It differs from a review chain in two further ways, and both are
 deliberate: **membership is mandatory** — a stage is never skipped on a judgement
@@ -981,52 +953,23 @@ the unrenderable content is never reached.
 
 #### The grove's own creation is one store operation
 
-`lifecycle-k35` moved `root-init`, `materialize-finish`, `transition-to-current`
-and `finish-commit` onto the library's write path, and one of the four could not
-be done under a single guard at all. The library locks the directory
-**containing** the tree root — deliberately, so the lock spans the root's
-creation and its deletion — but it still had to reach the root to snapshot it, so
-it could not create one; nor could it create the distinguished child, since a
-`BRIEF.md` arrived through `promote` and there was nothing here to promote. Both
-were therefore Grove's, under Grove's own guard, and the first leaf was the
-library's, under its. Nesting them is the deadlock *One lock, and it is the
-library's* describes, so the scaffold released the first before taking the
-second — and the window between them was a tree shape a reader could meet: a root
-holding its charter and no keyed entry. Grove carried a repair for it.
+An exclusive opening of an absent root returns `Writing::Vacancy`, holding the
+lock on the containing directory. `Vacancy::initialize` accepts `_BRIEF.md`
+and its bytes alongside the first leaf; it validates the complete plan before
+creating the root and unwinds reported failures under that guard. `root-init`
+and the driver's scaffold use the same operation. A present tree cannot be
+passed as a vacancy.
 
-**`open-shape-k25` and `collapse-tree-access-k13` closed that window by removing
-the seam.** An exclusive opening of a root that holds no tree is a
-`Writing::Vacancy`, which **holds the exclusive lock**, and
-`Vacancy::initialize` creates the root, its distinguished child and a first run
-of entries under it — the three effects that used to need two guards, in one
-operation that takes the root back down if any of it fails. So `root-init` and
-the driver's own scaffold are each one call.
+A present root with only `_BRIEF.md`, or no entries, is taskless and refused.
+A root with work and no root node file is malformed and refused. A root holding
+foreign names and no owned work is unrecognised and refused. The ordered test is
+[a witnessless root refuses what it cannot account for](adr/a-witnessless-root-refuses-what-it-cannot-account-for.md).
+A process interruption can leave an incomplete root; no automatic repair assumes
+ownership from a charter's bytes.
 
-Since `loop-crate-verbs-k21` the refusal to clobber is not a check at all: the
-verb takes the `Vacancy`, so there is no way to call it against a live grove —
-the arm the opening answers with is the whole of the decision, and a caller
-already holding the tree cannot reach the verb.
-
-**A taskless root is now an anomaly to name rather than one to repair.** Grove
-produced the shape, so Grove completed it; nothing Grove does produces it any
-more, and entries are marked and never removed
-([`entries-are-never-removed`](adr/entries-are-never-removed.md)), so a root with
-a charter and no task is something else's doing. The transition stops on it with
-a sentence naming `jj undo`, and with the repair that stop replaced went the last
-survivor of roughly twenty-five auto-repair functions.
-
-That classification used to be a byte-exact match against the deterministic
-fresh-tree content, gated on a missing `.grove/FORMAT` witness. It had to be,
-because a witnessless root was *also* how a legacy tree presented and the two got
-opposite treatment. Migration is gone (`delete-migration-k6`), and the
-discrimination it needed went with it.
-
-**Reading the root's own listing as well as the snapshot is not a second
-reader.** Whether the tree holds a keyed entry is the snapshot's answer. *Which*
-foreign names a taskless root is holding is not available from one: the store
-skips a name the domain disclaims and reports nothing about it, so naming them in
-a refusal means listing the directory — under the store's own lock, which is the
-whole difference from the arrangement this replaced.
+The root listing is read under the store's guard when lifecycle diagnostics
+need to name foreign entries, which are deliberately absent from the snapshot.
+That diagnostic does not introduce another grammar or tree reader.
 
 `finish-commit` is the fourth verb, and what it stopped needing is the more
 interesting half. It used to run a preflight of its own — `preflight_root`, which
@@ -1283,7 +1226,7 @@ how Grove drives long work *without* becoming brittle, constraining machinery.
 2. **Read, don't run.** A session that must execute something before it can begin
    is a session that can fail to begin. Bootstrap is reading markdown; the one
    command a session runs, `grove-llm resolve <handle>`, is a lookup it could do
-   by eye, because the handle is in the filename.
+   by eye, because the handle is composed from the entry's names.
 3. **Suggested shape, not enforced schema.** Task files and briefs are freeform
    markdown and the format files are guides. A schema over prose buys validation
    of the half that never fails and forbids the improvisation that makes a leaf

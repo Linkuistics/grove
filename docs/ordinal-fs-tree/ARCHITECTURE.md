@@ -23,27 +23,26 @@ An **entry** is either a **leaf** — a regular file — or a **node** — a dir
 holding children. A node may hold **zero or more** children; nothing requires a
 node to be populated.
 
-Every entry's name encodes four things:
+Every positioned entry has an ordinal, a key and opaque parts. A consumer may
+place a label or other attributes in those parts or in its distinguished name:
 
 | | | |
 |---|---|---|
 | **ordinal** | the entry's position among its siblings | mutable; the sole sort input within one level |
 | **key** | the entry's identity | assigned once, unique across the whole tree, never rewritten |
-| **label** | a human-facing name | not unique, not identity |
+| **label** | a human-facing name in consumer-owned data | optional in positioned parts; not unique, not identity |
 | **attributes** | whatever else the consumer needs | entirely opaque to the library |
 
-A node may additionally hold one **distinguished child**: an entry that is the
-node's *own content* rather than one of its children. It carries no ordinal and
-no key, it never participates in ordering, and a node may have none. It is a
-**regular file** — a walk does not descend into it, so a distinguished child
-that were a directory would hide everything beneath it from every traversal.
+A node holds at most one **distinguished child**: its own content, a regular
+file with no ordinal or key. Its name is supplied per node by the consumer and
+can carry that node's label. Different distinguished names are different
+filenames; the filesystem permits them to coexist, so the reader checks their
+cardinality. The consumer may require exactly one and may restrict which name
+belongs at a given level.
 
-The tree's **root** is a node that is **not an entry**. It is the directory the
-consumer hands the library; it has no ordinal, no key and no parts, and its own
-name is never parsed. It may hold a distinguished child like any other node.
-The consequence shows up in the reading operations: whatever `ancestors`
-returns, its element type cannot be the entry type, because the root is always
-the last thing in the chain.
+The tree's **root** is a node that is **not an entry**. Its own name is never
+parsed and it has no ordinal, key or parts. The same distinguished-child check
+applies, with an explicit root context instead of a positioned name.
 
 ```mermaid
 graph TD
@@ -114,9 +113,10 @@ anything.
 
 ## Names belong to the consumer
 
-The library never parses a name, never formats one, and never learns that a name
-is a string. It knows only that a name can be decomposed into an ordinal, a key
-and an opaque remainder — and recomposed from them.
+The library delegates parsing and formatting to the consumer. Positioned names
+decompose into an ordinal, key and opaque parts, and can be recomposed from
+them. Distinguished names remain opaque values. The library compares their
+canonical renderings for identity and never interprets their labels.
 
 ### The parse trichotomy
 
@@ -180,7 +180,7 @@ registration, and no configuration objects.
 ```rust
 // `Display` is the one rendering the library knows about, and it must yield
 // exactly one filename — see the obligation below, the only one the library
-// enforces rather than assumes.
+// enforces at the filename boundary.
 pub trait EntryName: Sized + Clone + fmt::Display {
     /// Everything the library does not understand: the label, and whatever
     /// attributes the domain carries. Entirely opaque.
@@ -196,12 +196,13 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// Build a positioned name. The species follows from `parts`.
     fn compose(ordinal: Ordinal, key: Key, parts: Self::Parts) -> Self;
 
-    /// The name a node's distinguished child takes, if this domain has one.
-    /// A distinguished child carries neither an ordinal nor a key, so it can
-    /// never be produced by `compose` — this is the only way the library can
-    /// name one. `None` means the domain has no distinguished child, and
-    /// promotion is refused rather than guessed at.
-    fn distinguished() -> Option<Self> { None }
+    /// Validate the distinguished names found at one level. `None` for
+    /// `node` means the root; otherwise it is the containing positioned name.
+    /// Called on the complete set, including zero or multiple names, before
+    /// the library exposes the level. The default permits absence.
+    fn validate_distinguished(
+        node: Option<&Self>, children: &[Self],
+    ) -> Result<(), Self::Err> { Ok(()) }
 
     /// What this name is: a positioned entry with its triple, or the
     /// distinguished child. One value, because it is one choice — see the
@@ -220,7 +221,8 @@ pub trait EntryNameExt: EntryName {
     fn triple(&self) -> Option<Triple<'_, Self::Parts>>;
     fn species(&self) -> Species;
 
-    /// Whether these two names are one name: the view *and* the species. What
+    /// Identity: positioned view plus species, or equal canonical renderings
+    /// for two distinguished names. What
     /// every occupancy check compares — see the species obligation below.
     fn same_name(&self, other: &Self) -> bool;
 }
@@ -237,12 +239,11 @@ pub enum Found            { File, Dir, Other }
 
 ### What an implementation must guarantee
 
-Seven obligations. Six the library assumes and cannot check at run time; the
-seventh it **enforces**, and the asymmetry has a reason worth stating rather
-than leaving to be noticed. They are stated because the structural model found
+The name laws below are assumed semantic obligations, except the one-component
+rendering rule, which the library enforces. Level validation is a separate
+reader and planner obligation, stated below. They are stated because the structural model found
 that four were missing, and that a design missing any one of them admits a tree
-the library will quietly corrupt. Rust constrains the visible shape of two of
-the seven rather than checking them, and both are marked below. Their
+the library will quietly corrupt. Rust constrains two of the visible shapes rather than proving their laws, and both are marked below. Their
 deterministic behavior across calls remains an assumed semantic law.
 
 **Compose places what it is given.** `compose(o, k, p)` yields a name whose
@@ -298,8 +299,8 @@ parts equal while `positioned_species` calls one a leaf and the other a node,
 and it breaks no obligation by doing so. Both models assume the congruence for
 free, because `structure.als` compares `Parts` atoms and `operations.qnt`
 compares ints, and neither can pose an equality coarser than identity. So the
-library does not conclude *same name* from *same view*: name identity is the
-view **and** the species, which is `EntryNameExt::same_name`, and it is what
+library does not conclude *same name* from *same view*: for a positioned pair,
+name identity is the view **and** the species, which is `EntryNameExt::same_name`, and it is what
 every occupancy check compares. `promote-k25` found this the expensive way —
 before it, a domain of exactly that shape lost every valid promotion to a
 `DestinationOccupied` refusal, since a promotion is the one operation whose new
@@ -311,17 +312,53 @@ property only a misbehaving one can demonstrate.
 
 Both apply `docs/formalism-findings.md` entry 002's counterfactual to the
 implementation: **before modelling a structural property, ask whether the
-target language already forbids it.** The conformance kit checks the other five
-obligations and publishes the two type-shape constraints beside their remaining
-deterministic-call assumptions, so a reader counting five checks
-against seven obligations can see that the other two were not forgotten or
-overstated.
+target language already forbids it.** The conformance kit samples the remaining
+obligations and publishes the type-shape constraints beside their deterministic-call
+assumptions. Finite samples cannot establish those semantic laws.
 
-**`distinguished()` names the only entry of its species.** `parse` yields
-species `Distinguished` for that name and for nothing else. This is what makes
-*at most one distinguished child per node* true — the filesystem supplies the
-rest, since a directory cannot hold two entries of one name — so it is a
-theorem rather than an invariant anything has to enforce.
+**Distinguished names are canonical, distinct names.** Every supplied or parsed
+name of that species round-trips under `Found::File`, has no positioned triple,
+and renders as one component. There may be many such values in a domain.
+`NameView::Distinguished` classifies the species; its unit shape does not make
+all distinguished names equal. `same_name` compares canonical renderings for
+that pair, compares view and species for positioned names, and returns false
+across the two classes. The algebra continues to store names, not parsed titles.
+
+**Level validation is deterministic from names.** `validate_distinguished`
+receives the containing name (or root) and all distinguished names found there.
+It reads no file contents, ambient state or filesystem. Its verdict is independent
+of listing order. A consumer may accept absence or require presence, and may
+restrict a root's name separately from a node's. It returns its own error type
+so a refusal can name the required grammar.
+
+The reader first parses the complete direct listing, then invokes this method,
+then independently rejects a cardinality greater than one even if the consumer
+accepted it. Grove's method refuses both zero and multiple node files itself,
+with their canonical form; a permissive consumer still cannot expose two.
+The generic duplicate error carries the level and every competing rendering.
+The snapshot reader checks the whole reachable tree before returning a
+snapshot, under a shared or exclusive guard. A short-circuiting search operates
+only on that validated snapshot; an early match cannot hide damage elsewhere.
+Every planned mutation starts from such a snapshot. Root deletion is the
+separate filesystem operation described below.
+
+The planner validates the **projected final levels before any effect**, using
+the same method and cardinality rule. This covers every level created or
+changed: a node appended without content, nodes in an append batch, an inserted
+node, a promoted node and its optional first child, an initialized root and its
+initial entries, and a rewritten node whose parts change its level rule. A
+required-content domain therefore refuses bare node creation; it uses promotion
+with a supplied distinguished name. No successful operation strands an invalid
+level. Intermediate states may lack the file while an operation holds its lock.
+
+The conformance kit takes explicit distinguished-name samples alongside its
+listings and triples; it checks their round trips, their rendered identity
+(including two different names), species agreement and one-component rendering.
+It exercises level validation with root and node contexts, empty, singleton,
+competing and permuted samples. Expected domain verdicts come from the consumer's
+fixtures, never from the method under test. The kit no longer claims that the
+filesystem proves one child per level. Sample coverage remains finite; the
+library reader and planner tests establish that both actually invoke the rule.
 
 **`parse` refuses what `found` contradicts.** A name declaring `Leaf` over a
 directory, or `Node` over a regular file, is `Malformed` and never `Entry`. It is
@@ -333,15 +370,15 @@ exists to expose.
 
 **A name renders as one path component.** `Display` yields exactly one
 filename: not the empty string, not `.` or `..`, and never anything holding a
-path separator. *This is the one obligation the library does not merely assume,
+path separator. *This rendering obligation is enforced at the filename boundary,
 and the reason it is different in kind is what the rest of this paragraph is
-for.* Break any of the other six and the library corrupts the tree it was
+for.* Break an assumed name law and the library corrupts the tree it was
 handed; break this one and it **leaves** the tree. The rendering is what gets
 joined to a level's directory to reach an entry, so a name rendering as
 `../outside`, as `child/../../outside`, or as an absolute path makes a create, a
 rename, a rollback's removal and every reported path address outside the
 directory whose lock is the only thing covering any of it — while the algebra,
-which compares views and never renderings, sees a name that is perfectly
+which compares names without interpreting their text, sees a name that is perfectly
 canonical. That is the central proposition of this library, *one directory tree
 is the data structure*, made false by a value the algebra never looks at.
 
@@ -634,9 +671,10 @@ not resolve*, which a dangling link also satisfies.
 
 #### An empty directory is a tree, and a vacancy is not
 
-They are different, and the difference is which operations exist. An empty root
-directory is a tree holding no entries: append into it, walk it, and it answers.
-A vacancy is no tree at all, and the only thing it admits is being made into one.
+An empty directory is an opening of species tree, not a vacancy. Reading it
+still applies the consumer's level rule: a domain requiring a distinguished
+child refuses it. A vacancy has no root directory and can be initialized under
+its exclusive guard.
 
 ### Reading
 
@@ -646,7 +684,7 @@ A vacancy is no tree at all, and the only thing it admits is being made into one
 | `seek` | The first entry in `walk` order satisfying a predicate the caller supplies. Short-circuits. Answers a `sought`. |
 | `by_key` | The entry with a given key, or nothing. Answers a `sought`. Keys are unique in any tree the library built; in one it did not, this returns the first in `walk` order and the caller has a tree to repair. |
 | `ancestors` | An entry's containing nodes, root-first. The chain ends at the tree root, which is a node and not an entry, so its element type is not the entry type. |
-| `distinguished_chain` | The distinguished child of each of an entry's ancestors, root-first, skipping levels that have none. |
+| `distinguished_chain` | The distinguished child of each of an entry's ancestors, root-first; absence is skipped only where the consumer permits it. |
 
 A directory listing arrives in whatever order the filesystem chose, so walk
 order is computed from the names and never from the order they were read in.
@@ -708,9 +746,18 @@ positioned name's view and a label is not.
 | `append` | Add a child at the end of a node: the next free ordinal, a fresh key. |
 | `append_many` | Add several children at consecutive ordinals with consecutive keys, planned from one snapshot and applied as a unit. Either the whole run lands or none of it does. |
 | `insert` | Add a child at an occupied ordinal, shifting the occupant and every later sibling up by one. Each shift is one rename; a shifted node carries its whole subtree. |
-| `promote` | Turn a leaf into a node, **with the node's parts supplied by the caller**. The leaf's content moves verbatim into the new node's distinguished child, keeping the same ordinal and the same key — the entity is unchanged, only its shape. Optionally creates a first child in the same unit, for consumers that want both atomically. It is the one operation whose intermediate state breaks an invariant; see below. |
+| `promote` | Turn a leaf into a node, **with the node's parts and distinguished name supplied by the caller**. The leaf's content moves verbatim into the new node's distinguished child, keeping the same ordinal and the same key — the entity is unchanged, only its shape. Optionally creates a first child in the same unit, for consumers that want both atomically. It is the one operation whose intermediate state breaks an invariant; see below. |
 | `rewrite` | Replace an entry's parts, keeping its ordinal, key and species. This is how an attribute changes: the entry keeps its identity and its place, and only the opaque remainder of its name moves. Parts implying a *different* species are refused — a file cannot be renamed into a directory. |
 | `delete` | Remove the tree root and everything beneath it, following no symbolic link, and report the paths that went. The only operation that removes anything, the only one that is not planned from the snapshot, the only one with no rollback, and the only one with a precondition on how the **root** was spelled. |
+
+`promote` takes the key, node parts, an explicit distinguished `N`, and its
+optional first child. It moves the source leaf's bytes to exactly that name.
+The name must have distinguished species and pass the destination node's level
+rule; no trait constructor guesses it from node parts. `initialize` takes an
+optional `(N, Vec<u8>)` for the root's own file and the initial entries. `None`
+requests absence and is valid only if the root rule allows it. An empty byte
+vector is a present empty file. All checks occur before root creation or a
+plan's first effect.
 
 ### Promotion is not atomic against the invariants
 
@@ -842,10 +889,11 @@ and none is left undefined.
   that only one ever arrives describes a case no argument produces and no
   witness reaches. `promote-k12` found it while implementing the check, and
   `docs/formalism-findings.md` entry 014 carries it.
-- `promote` is refused outright in a domain with no distinguished child
-  (`distinguished()` is `None`), because the leaf's content would have nowhere
-  to go and discarding it silently is not an option. This is the refusal
-  `initialize` shares, above.
+- A supplied distinguished name of the wrong species, an unacceptable name
+  for its level, or a projected level with missing required content is refused
+  before effects. A domain admitting no distinguished names cannot promote a
+  leaf, because its bytes would have nowhere to go. Initialization can omit the
+  file only where the consumer permits absence.
 - `promote` is refused when the supplied parts do not imply species `Node` —
   the same check `rewrite` makes, with the opposite verdict.
 - `rewrite` is refused when the new parts imply a different species.
@@ -855,9 +903,8 @@ and none is left undefined.
   assumption. Occupancy excludes the object being *moved*, or a `rewrite` whose
   new parts equal the old — a rename onto itself — would refuse its own no-op.
 
-  Two names are one name when their views and their **species** agree —
-  `EntryNameExt::same_name`, and not a view comparison, for the reason the
-  species obligation above gives. The same rule decides an entry already in the
+  Positioned names compare by view and species; distinguished names compare
+  by canonical rendering. `EntryNameExt::same_name` owns that distinction. The same rule decides an entry already in the
   snapshot and a destination an earlier effect in this plan has already taken,
   so the two halves of an occupancy check cannot disagree about what one name
   is.
@@ -892,8 +939,7 @@ and none is left undefined.
 - **A name the domain renders as anything but one filename is refused**, and it
   is refused wherever it appears: at the read, so no snapshot holds one, and
   before a plan's first effect, so no mutation carrying one changes anything.
-  This is the seventh obligation above, and the only one the library enforces —
-  everywhere else a broken obligation corrupts the tree, and this one leaves it,
+  This is the rendering obligation above: a violation can leave the tree,
   because the rendering is what is joined to a level's directory. *Neither model
   can pose it*: both hold no strings by design, so this sits beside the
   content-for-a-node and non-valid-text refusals as a case the library can see
@@ -928,10 +974,12 @@ and none is left undefined.
 
 ## Invariants
 
-Every one of these is a **preservation** property, not an establishment one. The
-library never validates the tree it is handed, and a tree meant to be edited by
-hand is routinely one it did not build — so each invariant reads *given a tree
-that already satisfies this, every operation leaves it satisfied*. An earlier
+Key uniqueness and ordinal properties are **preservation** properties. The
+library does not establish them for a tree it is handed, and a tree meant to be edited by
+hand is routinely one it did not build — so those properties read *given a tree
+that already satisfies this, every operation leaves it satisfied*. Distinguished
+cardinality and the consumer's level rule are instead checked on reads and on
+projected plan results. An earlier
 draft said that of ordinal density alone, which implied the others were stronger
 than they are; they are not, and the honest statement is the one above.
 
@@ -1021,18 +1069,21 @@ contradiction; stated without that, it is an invariant no component is positione
 to enforce, since the library can see the mismatch and cannot construct the
 domain error that reporting it requires.
 
-**The trait's obligations.** *[S]* The five laws under *What an implementation
-must guarantee* — compose placing what it is given, a canonical grammar, names
-positioned-or-distinguished, a single distinguished name, and `parse` refusing
-what `found` contradicts. These are the consumer's, not the library's, and they
-are everything the library assumes about the grammar.
+**Distinguished cardinality and placement.** *[S establishment, B preservation]*
+A returned level has at most one distinguished child and satisfies the consumer's
+rule for its containing name. A required level has exactly one. The planner
+preserves this on successful operations, while failed rollback or process death
+can leave a level the next reader refuses. `DistinguishedIsUniquePerNode`,
+`RequiredLevelsHaveExactlyOneDistinguishedChild` and
+`witness_two_distinguished_children` state the structural distinction;
+`inv_successHasValidLevels` and `inv_invalidLevelIsAtomic` state the operational
+one. They do not prove that a consumer chose the right rule.
 
-Two properties are deliberately **not** in this list, because nothing has to
-enforce them. *At most one distinguished child per node* follows from a single
-distinguished name plus a directory not holding two entries of one name. *The
-parse verdict is total and disjoint* follows from `Verdict` being a sum type.
-Both were checked; both are free, and a model that restates them is testing the
-compiler.
+**The trait's obligations.** *[S]* The laws in *What an implementation must
+guarantee* hold the grammar and name comparison sound; level validation adds
+no vocabulary to the library. Parse totality and disjointness follow from the
+`Verdict` sum type. Unique distinguished cardinality follows from checking the
+level, not from filesystem uniqueness of filenames.
 
 **Plan atomicity.** *[B]* After a mutation returns an error, either every effect
 landed or none did. Rollback removes only entries the run itself created, so it
@@ -1051,7 +1102,8 @@ takes away from this list otherwise.
 
 ## The models
 
-The claims above are checked, not reviewed. The models live beside this document
+The models check consistency of the stated claims. Review still establishes
+that those claims describe the intended contract. The models live beside this document
 and move with the crate when it is extracted.
 
 | | |
@@ -1114,7 +1166,9 @@ that *reaches* it, never as an invariant expected to fail.
 | `hand_edited` | A human edits between operations. **Density fails**, everything else holds — the `init = arbitrary well-formed tree` answer, and the difference between these two instances is the whole of it. |
 | `corrupted` | A hand edit duplicates a key, which the library admits and never checks. Even here, highest-first neither collides nor transiently duplicates an ordinal. |
 | `lowest_first` | The same trees, shifted the other way. Both payoffs of the ordering rule are reached here and nowhere else. |
-| `no_distinguished` | A domain where `distinguished()` is `None`, so promotion is refused rather than guessed at. |
+| `no_distinguished` | A domain admitting no distinguished names; supplied names are refused. |
+| `required` | Every level requires one distinguished child; the root admits a different name from child nodes. |
+| `malformed_distinguished` | Hand edits remove, duplicate or misplace that child; the next mutation refuses without effects. |
 | `unparseable` | A name the consumer recognises and cannot parse, and the whole-tree halt it causes. |
 | `failures` | Effects fail. Where atomicity and rollback are checked. |
 | `rollback_fails` | Rollback itself fails. The only instance that does not claim key uniqueness at rest, because this is what breaks it. |

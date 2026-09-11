@@ -150,10 +150,11 @@ consumer names, and no call site passes one where the other is expected.
   | the library says | grove says | class |
   |---|---|---|
   | *leaf* — any regular-file entry | **Leaf** — a task file executed in one session | the words collide |
-  | *node* — any directory of children | **Node directory** — a directory headed by a `BRIEF.md` charter | the words collide |
+  | *node* — any directory of children | **Node directory** — a directory with exactly one **Node file** | the words collide |
   | *ordinal* | **Position** | the words differ |
   | *key* | **Permanent key** | the words differ |
-  | *distinguished child* | the node's `BRIEF.md` charter | grove names the file, not the role |
+  | *distinguished child* | **Node file** — `_<slug>.md`, or `_BRIEF.md` at the root | the role corresponds; Grove requires one per level |
+  | *label* | a work item's title / slug, in its leaf filename or node filename | the library never reads the value |
   | *entry* | **Leaf** or **Node directory** | grove has no word for the union |
   | *promote* | `leaf-decompose` | the operations coincide, the names do not |
 

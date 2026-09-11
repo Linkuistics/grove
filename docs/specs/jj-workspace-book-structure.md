@@ -281,7 +281,7 @@ commissioned, and the crate has since moved twice.** `lossy-path-rendering-k66`
 added sixteen lines to `lib.rs`, twenty-four to `refusal.rs` and eighty-five to
 `tests/workspace.rs`; `duplicated-cause-k67` then added fourteen more to
 `refusal.rs` and twenty-eight to `tests/workspace.rs`. Both are source changes
-the corpus-freeze rule in `.grove/BRIEF.md` permits, each landed in one commit
+the corpus-freeze rule in `.grove/_BRIEF.md` permits, each landed in one commit
 with every page and ledger row it invalidated. The current figures are 359, 268
 and 752 for the corpus, and 1,012 across the two test files — the corpus is what
 those two leaves left it at, and the tests have moved several times since, most

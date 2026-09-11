@@ -481,7 +481,7 @@ The name type owns parsing, composition, distinguished naming, structural view,
 species selection, error advice, and its single `Display` rendering. There is no
 domain object, callback registry, locking hook, or second formatting surface.
 
-The trait establishes seven obligations:
+The trait establishes seven name laws, plus a separate level rule:
 
 1. `compose(o, k, p)` exposes exactly `o`, `k`, and `p` through its view.
 2. Parsing and rendering are canonical in both directions: formatting an
@@ -503,7 +503,9 @@ cannot check; the reference domain's reusable conformance kit exercises them on
 consumer-supplied samples. The filesystem layer separately enforces the seventh
 before a rendering can become a path. The [reference-domain
 chapter](03-reference-domain.md#conformance-obligations) defines both mechanisms
-where their implementation is introduced.
+where their implementation is introduced. The kit also samples the separate
+level rule against independent expected verdicts: six sampled checks in total,
+alongside the two shape-constrained name laws.
 
 An empty distinguished-name sample slice leaves obligation 5 **untested**. The
 kit cannot distinguish omitted examples from a domain that admits no such
@@ -546,15 +548,15 @@ round trips, species rule, and one-component rendering contract.
 ///
 /// # What an implementation must guarantee
 ///
-/// Seven obligations. Six of them the library assumes and cannot check at run
-/// time; the seventh it **enforces** at the path boundary, and the asymmetry is stated below rather
-/// than left to be noticed. They are stated because the structural model found
+/// Seven name laws, plus one separate level rule. Six name laws are assumed at run
+/// time; the library **enforces** the seventh at the path boundary. The asymmetry
+/// is explicit. These laws are stated because the structural model found
 /// that four were missing, and that a design missing any one of them admits a
 /// tree the library will quietly corrupt. Each is written on the method it
 /// constrains — except the seventh, which constrains [`fmt::Display`] and is
-/// therefore written here. [`crate::conformance`] samples five semantic
-/// obligations and separately publishes the visible constraints Rust places on
-/// the other two. [`view`](EntryName::view) and
+/// therefore written here. [`crate::conformance`] samples five name laws plus
+/// the level rule, and publishes the visible constraints Rust places on the
+/// other two name laws. [`view`](EntryName::view) and
 /// [`positioned_species`](EntryName::positioned_species) carry those
 /// constraints; deterministic answers across calls remain semantic laws.
 ///
@@ -654,10 +656,10 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// Judge the complete distinguished-name set for a root (`None`) or node.
     /// The reader and planner invoke this before exposing a level or applying
     /// effects, then independently reject more than one distinguished child.
-    /// Verdicts must be deterministic and independent of child order. The kit
-    /// samples this separate level obligation using consumer-supplied expectations.
-    /// The answer must depend only on these names and be independent of order.
-    /// The default accepts every set; declaring this policy does not invoke it.
+    /// Verdicts must depend only on these names: they are deterministic and
+    /// independent of child order. The kit samples this separate level rule
+    /// using consumer-supplied expectations.
+    /// The default accepts every set.
     fn validate_distinguished(_node: Option<&Self>, _children: &[Self]) -> Result<(), Self::Err> {
         Ok(())
     }

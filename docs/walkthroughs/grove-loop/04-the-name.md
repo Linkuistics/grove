@@ -83,9 +83,9 @@ back. Canonicity is the claim that the right-hand column composed with the middl
 one is the identity, and the check at the end of `parse` establishes it by
 performing both rather than by reasoning about the pairs.
 
-The chapter owns 729 of the file's 1,712 lines in three blocks — the name itself
-and the seam under it at lines 591 to 1,020, the test support and the conformance
-kit at 1,021 to 1,177, and the grammar and canonicity tests at 1,200 to 1,312.
+The chapter owns 729 of the file's 1,743 lines in three blocks — the name itself
+and the seam under it at lines 591 to 1,016, the test support and the conformance
+kit at 1,017 to 1,206, and the grammar and canonicity tests at 1,229 to 1,341.
 With them, all nine of this file's ownership blocks are resolved and
 `task_name.rs` is fully reconstructed.
 
@@ -1247,7 +1247,9 @@ The kit is then one line.
 
 **What it establishes.** The name samples exercise the five semantic name
 checks. Independent root/node fixtures also exercise Grove's current permissive
-level method with missing, single and competing brief values. Their expected
+level method with missing, single and repeated brief values. Repeating the one
+valid spelling tests a method input, not a realizable directory. The kit detects
+missing contexts only; authors supply shapes and expected verdicts. Their expected
 acceptance describes the domain method; the library separately refuses multiple
 distinguished children. The kit's repetitions and permutations remain finite
 samples and do not prove universal conformance or runtime enforcement.

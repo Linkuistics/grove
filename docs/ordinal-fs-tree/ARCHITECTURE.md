@@ -349,14 +349,22 @@ node, a promoted node and its optional first child, an initialized root and its
 initial entries, and a rewritten node whose parts change its level rule. A
 required-content domain therefore refuses bare node creation; it uses promotion
 with a supplied distinguished name. No successful operation strands an invalid
-level. Intermediate states may lack the file while an operation holds its lock.
+level. Planning errors name the projected final containing directory; after a
+refusal that destination may not exist on disk. Read errors name the directory
+that was read. Intermediate states may lack the file while an operation holds its lock.
 
 The conformance kit takes explicit distinguished-name samples alongside its
 listings and triples; it checks their round trips, their rendered identity
 (including two different names), species agreement and one-component rendering.
-It exercises level validation with root and node contexts, empty, singleton,
-competing and permuted samples. Expected domain verdicts come from the consumer's
-fixtures, never from the method under test. The kit no longer claims that the
+It samples the separate level rule alongside five name laws; two other name
+laws have published type-shape constraints. The kit reports missing root or node
+contexts as untested. It does not detect missing shapes or refusing verdicts:
+fixture authors supply empty, singleton, competing and misplaced sets and
+meaningful expected verdicts, including refusals where their policy has them.
+Expected verdicts never come from the method under test. The kit repeats and
+permutes supplied sets; a clean report is not complete shape or refusal coverage.
+Repeating one name tests a method input, not a realizable directory; distinct-name
+competition is exercised independently by the Required domain's filesystem tests. The kit no longer claims that the
 filesystem proves one child per level. Sample coverage remains finite; the
 library reader and planner tests establish that both actually invoke the rule.
 

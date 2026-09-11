@@ -30,11 +30,11 @@ whose middle is spelled wrong. Grove keeps the grammar because grove is the only
 layer that can tell those two apart, and it pays for keeping it by having to
 classify rather than merely to parse.
 
-This chapter owns 451 of the file's 1,712 lines in three blocks: the module
+This chapter owns 451 of the file's 1,743 lines in three blocks: the module
 header, the imports, the three constants, `Outcome` and `TokenError`, and
 `refuse_token` — lines 1 to 220 — and the two labelled sections of the file's own
-inline test module that hold this chapter's claims, lines 1,178 to 1,199 and
-1,313 to 1,521. The named parts of a leaf's name are chapter 3's and the parsing
+inline test module that hold this chapter's claims, lines 1,207 to 1,228 and
+1,342 to 1,550. The named parts of a leaf's name are chapter 3's and the parsing
 itself is chapter 4's; where the header argues about either, this page says which
 chapter proves it and does not prove it here.
 

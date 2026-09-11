@@ -57,9 +57,9 @@ property they rely on is established, and the test that holds it is
 asserted rather than reviewed for: *drift is not expressible* has to be held by
 something, or it is a promise.
 
-The chapter owns 563 of the file's 1,712 lines in three blocks — the named parts
+The chapter owns 563 of the file's 1,743 lines in three blocks — the named parts
 themselves at lines 221 to 590, and the two labelled sections of the inline test
-module that hold this chapter's claims, at 1,522 to 1,550 and 1,551 to 1,712. The
+module that hold this chapter's claims, at 1,551 to 1,579 and 1,580 to 1,743. The
 name that carries these parts is chapter 4's, and so is every route into them
 from a string on disk.
 

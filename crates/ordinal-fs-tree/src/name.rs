@@ -352,15 +352,15 @@ impl<P: Eq> Eq for NameView<'_, P> {}
 ///
 /// # What an implementation must guarantee
 ///
-/// Seven obligations. Six of them the library assumes and cannot check at run
-/// time; the seventh it **enforces** at the path boundary, and the asymmetry is stated below rather
-/// than left to be noticed. They are stated because the structural model found
+/// Seven name laws, plus one separate level rule. Six name laws are assumed at run
+/// time; the library **enforces** the seventh at the path boundary. The asymmetry
+/// is explicit. These laws are stated because the structural model found
 /// that four were missing, and that a design missing any one of them admits a
 /// tree the library will quietly corrupt. Each is written on the method it
 /// constrains — except the seventh, which constrains [`fmt::Display`] and is
-/// therefore written here. [`crate::conformance`] samples five semantic
-/// obligations and separately publishes the visible constraints Rust places on
-/// the other two. [`view`](EntryName::view) and
+/// therefore written here. [`crate::conformance`] samples five name laws plus
+/// the level rule, and publishes the visible constraints Rust places on the
+/// other two name laws. [`view`](EntryName::view) and
 /// [`positioned_species`](EntryName::positioned_species) carry those
 /// constraints; deterministic answers across calls remain semantic laws.
 ///
@@ -460,10 +460,10 @@ pub trait EntryName: Sized + Clone + fmt::Display {
     /// Judge the complete distinguished-name set for a root (`None`) or node.
     /// The reader and planner invoke this before exposing a level or applying
     /// effects, then independently reject more than one distinguished child.
-    /// Verdicts must be deterministic and independent of child order. The kit
-    /// samples this separate level obligation using consumer-supplied expectations.
-    /// The answer must depend only on these names and be independent of order.
-    /// The default accepts every set; declaring this policy does not invoke it.
+    /// Verdicts must depend only on these names: they are deterministic and
+    /// independent of child order. The kit samples this separate level rule
+    /// using consumer-supplied expectations.
+    /// The default accepts every set.
     fn validate_distinguished(_node: Option<&Self>, _children: &[Self]) -> Result<(), Self::Err> {
         Ok(())
     }

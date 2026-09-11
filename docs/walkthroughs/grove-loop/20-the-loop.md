@@ -1949,7 +1949,7 @@ ordinal.
 module parses no filename, spells no token and constructs no name: `Handle`,
 `Kind` and `Selection` all arrive already made, through one guarded `pick`. The
 grammar's cost — a conformance kit, canonicity, `format(parse(f)) == f` — was paid
-across `task_name.rs`'s 1,712 lines in chapters 2 to 4, and what reaches here is
+across `task_name.rs`'s 1,743 lines in chapters 2 to 4, and what reaches here is
 the return on it. Chapter 19 answered this question the same way and found one
 name of its own, `PLUGIN`; this chapter finds one too, and it is not in the
 grammar at all but in the *environment*: `CHANNEL_VAR`,

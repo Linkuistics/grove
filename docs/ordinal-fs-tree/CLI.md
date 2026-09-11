@@ -439,7 +439,7 @@ should the caller do next*. Documented in `syllabus --help`.
 | `2` | usage: clap's own parse failure, an unparseable label, an unknown status | fix the arguments |
 | `3` | no entry has that key: `Refusal::TargetMissing` | `list` to find the key you meant |
 | `4` | refused: every other `Refusal`; this CLI's own two — a root holding no tree, and an `init` over one that does; a `delete` without `--yes`; and `Error::RootIsNotSpelledDirectly`, which is not a `Refusal` but is exactly this row's shape — nothing changed, and the message names the remedy | read the message; it names the remedy |
-| `5` | this tree cannot be read as a syllabus: `Malformed`, `Reserved`, `NonUtf8Name`, `NameIsNotOneComponent`, `RootIsNotATree` | a human fixes a filename, or moves aside whatever is sitting on the root; no retry helps |
+| `5` | this tree cannot be read as a syllabus: `Malformed`, `Reserved`, `NonUtf8Name`, `NameIsNotOneComponent`, `RootIsNotATree`, `InvalidLevel`, `CompetingDistinguished` | a human fixes a filename or level, or moves aside whatever is sitting on the root; no retry helps |
 | `6` | **the tree is as it was found**: `Error::Failed`, or an `Error::RemovalStopped` that had removed nothing yet | safe to retry |
 | `7` | **the tree is in neither state**: `Error::FailedPartiallyRolledBack`, or an `Error::RemovalStopped` that had removed something | do not retry blindly; the message says how far it got and what resolves it |
 
@@ -624,8 +624,8 @@ Five outcomes, in the order a later reader will want them.
 change them.** `syllabus lesson-add 4 sections` answers *"the entry with key 4 is
 a **leaf**, which holds nothing. Children go in a **node** — promote it first, or
 name a node."* This syllabus has no leaves and no nodes; it has lessons and
-modules. `Error::Malformed` and `Error::Reserved` carry `EntryName::Err`, so a
-**parse** failure reaches the operator in the domain's own words — the design
+modules. `Error::Malformed`, `Error::Reserved` and `Error::InvalidLevel` carry
+`EntryName::Err`, so a name or level failure speaks the domain's words — the design
 went out of its way to arrange that — but `Error::Refused` carries `Refusal`,
 which is not generic over `N` and holds no domain value at all. The half of the
 error surface a conforming tree meets in normal use is the half the domain cannot

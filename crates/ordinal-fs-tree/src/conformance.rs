@@ -163,8 +163,8 @@ pub struct TypeShapeConstraint {
 /// The structural constraints this kit does **not** sample because each return
 /// value already has the required Rust shape.
 ///
-/// Reporting them is the point: a consumer reading sampled checks where the
-/// document states seven needs to know that the other two were not forgotten.
+/// Of seven name laws, five are sampled and two are shape-constrained here.
+/// One separate level rule is also sampled, giving six sampled checks in all.
 /// This table deliberately does not call either obligation discharged: trait
 /// methods may consult interior or global mutable state, so identical explicit
 /// inputs can produce different well-shaped answers across calls. A finite
@@ -346,7 +346,7 @@ fn check_levels<N: EntryName>(levels: &[LevelSample<N>], report: &mut Report) {
     {
         report.untested(
             obligation,
-            "supply independent expected-level samples for both root and node contexts.",
+            "supply independent expected-level samples for both root and node contexts; coverage checks contexts only, while fixture authors supply shapes and verdicts.",
         );
     }
     for (index, sample) in levels.iter().enumerate() {
@@ -397,7 +397,7 @@ fn check_levels<N: EntryName>(levels: &[LevelSample<N>], report: &mut Report) {
 /// grammar is meant to refuse. `triples` are sample `(ordinal, key, parts)`
 /// values, one per species the domain composes. `distinguished` supplies canonical
 /// name examples. `levels` supplies root/node contexts and expected domain verdicts,
-/// including missing, singleton, competing and misplaced sets. The kit samples
+/// with shapes and verdicts chosen by the author; coverage checks contexts only. It samples
 /// repeated calls, rotations and reversals; it does not prove determinism or
 /// exhaust all permutations, and library cardinality is tested at its own seams.
 ///

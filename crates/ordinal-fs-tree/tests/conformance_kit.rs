@@ -134,10 +134,10 @@ fn samples_that_reach_only_half_the_seam_say_so() {
                           if *obligation == Obligation::ComposePlacesWhatItIsGiven)));
 }
 
-/// The obligations constrained by Rust's type shape are named rather than
-/// dropped. Each entry also names the semantic stability that Rust cannot
-/// enforce, so five sampled checks cannot be mistaken for a complete proof of
-/// seven obligations.
+/// Seven name laws have five sampled checks and two shape constraints.
+/// A separate level rule brings the sampled checks to six. Each shape entry
+/// also names the semantic stability that Rust cannot enforce; sampling
+/// and shape constraints do not prove these eight obligations.
 #[test]
 fn the_type_shape_constraints_and_their_semantic_limit_are_published() {
     assert_eq!(TYPE_SHAPE_CONSTRAINTS.len(), 2);

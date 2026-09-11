@@ -738,10 +738,10 @@ fn split_shape(stem: &str) -> Option<(&str, &str, &str)> {
 <!-- /fragment -->
 
 <a id="conformance-obligations"></a>
-## Seven obligations, with two enforcement mechanisms
+## Seven name laws and one separate level rule
 
 The library can call a consumer's methods but cannot generally prove that they
-agree across calls. Seven obligations define the usable seam:
+agree across calls. Seven name laws define the usable seam:
 
 1. `compose` places the ordinal, key, and parts it receives.
 2. Parsing and rendering form a canonical grammar in both directions.
@@ -756,8 +756,8 @@ partial triple and a positioned distinguished name unrepresentable, while
 `positioned_species(&Parts)` receives no name, ordinal, or key. Neither shape
 prevents hidden mutable state from changing an answer across identical calls.
 The `TYPE_SHAPE_CONSTRAINTS` table states both the enforced shape and the
-remaining deterministic-call assumption so five sampled checks cannot be
-mistaken for an incomplete proof.
+remaining deterministic-call assumption: five name laws are sampled and two
+are shape-constrained; the separate level rule brings sampled checks to six.
 
 The conformance kit samples the other five. The library also enforces obligation
 7 at both filesystem boundaries because violating it would address outside the
@@ -766,7 +766,13 @@ consumer is expected to test them before using real data.
 
 The kit also takes `LevelSample` fixtures with a containing name, complete
 child set and an independently written expected acceptance. Root and node
-contexts must both be exercised. It repeats each verdict and samples rotations
+contexts must both be exercised; only missing contexts produce an untested
+coverage finding. Fixture authors supply empty, singleton, competing and
+misplaced shapes and meaningful expected verdicts, including refusals where
+their policy has them. A clean report does not establish shape or refusal
+coverage. Repeated copies of one name test a method input, not a realizable
+directory; the Required fixtures exercise competition between distinct names.
+The kit repeats each verdict and samples rotations
 and reversals to detect order dependence; this is finite sampling, not a proof
 of determinism or exhaustive permutation coverage. The reference policy accepts
 absence and competing sets, while reader/planner cardinality still rejects
@@ -940,8 +946,8 @@ pub struct TypeShapeConstraint {
 /// The structural constraints this kit does **not** sample because each return
 /// value already has the required Rust shape.
 ///
-/// Reporting them is the point: a consumer reading sampled checks where the
-/// document states seven needs to know that the other two were not forgotten.
+/// Of seven name laws, five are sampled and two are shape-constrained here.
+/// One separate level rule is also sampled, giving six sampled checks in all.
 /// This table deliberately does not call either obligation discharged: trait
 /// methods may consult interior or global mutable state, so identical explicit
 /// inputs can produce different well-shaped answers across calls. A finite
@@ -1160,7 +1166,7 @@ fn check_levels<N: EntryName>(levels: &[LevelSample<N>], report: &mut Report) {
     {
         report.untested(
             obligation,
-            "supply independent expected-level samples for both root and node contexts.",
+            "supply independent expected-level samples for both root and node contexts; coverage checks contexts only, while fixture authors supply shapes and verdicts.",
         );
     }
     for (index, sample) in levels.iter().enumerate() {
@@ -1211,7 +1217,7 @@ fn check_levels<N: EntryName>(levels: &[LevelSample<N>], report: &mut Report) {
 /// grammar is meant to refuse. `triples` are sample `(ordinal, key, parts)`
 /// values, one per species the domain composes. `distinguished` supplies canonical
 /// name examples. `levels` supplies root/node contexts and expected domain verdicts,
-/// including missing, singleton, competing and misplaced sets. The kit samples
+/// with shapes and verdicts chosen by the author; coverage checks contexts only. It samples
 /// repeated calls, rotations and reversals; it does not prove determinism or
 /// exhaust all permutations, and library cardinality is tested at its own seams.
 ///
@@ -1562,8 +1568,8 @@ The crate's conformance test uses this compact corpus:
 - `PUBLISHING` as the reserved witness;
 - one lesson triple and one module triple.
 
-That set makes the reference implementation conform under all five sampled
-obligations. Separate adversarial domains prove that the kit catches ignored
+That set exercises the five sampled name laws. Independent root/node level
+fixtures exercise the sixth sampled check, the separate level rule. Separate adversarial domains prove that the kit catches ignored
 compose arguments, lenient spelling, ignored filesystem species, a second
 distinguished spelling, a contradiction disguised as foreign, hidden key drift,
 and a rendering containing `../`. Domain-specific parser tests additionally

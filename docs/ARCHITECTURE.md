@@ -417,9 +417,9 @@ running session; it becomes the next iteration's work.
 target before it calls the library, so the refusals that reach an operator are
 exactly the ones whose words are already true of a Grove tree.
 
-**Half the library's error surface already speaks Grove's words and half cannot.**
-`Error::Malformed` and `Error::Reserved` carry `EntryName::Err`, so a *parse*
-failure arrives as Grove's own `TaskNameError`; `Error::Refused` carries
+**Name and level errors speak Grove's words; algebraic refusals cannot.**
+`Error::Malformed`, `Error::Reserved` and `Error::InvalidLevel` carry
+`EntryName::Err`, Grove's own `TaskNameError`; `Error::Refused` carries
 `Refusal`, which is not generic over the name type and holds no domain value at
 all, so every algebraic refusal speaks the library's vocabulary and no domain can
 change it ([`entry-name-is-the-only-seam`](adr/entry-name-is-the-only-seam.md)).

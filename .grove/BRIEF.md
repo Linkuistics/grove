@@ -178,3 +178,26 @@ review and integration must run before its dependent or the release handoff.
   remaining work, snapshots and stops without retiring or signalling; a human
   restart resumes the same live handle from its diff. The library leaf names
   a supplied-name API seam to verify before decomposition if needed.
+
+## Library boundary delivered
+
+`distinguished-names-k6` closes with integration `valid-levels-k19`. Explicit
+supplied names, canonical identity, full-tree read validation and projected
+final-level validation are implemented and reviewed; all consumers and books
+pass `bash scripts/check.sh`. Grove still supplies its current brief name;
+`node-files-k7` owns the complete grammar switch.
+
+The grammar consumer inherits two settled limits. The conformance kit samples
+five name laws plus the separate level rule, with two name laws constrained by
+Rust's type shape. Level coverage detects missing root/node contexts only;
+fixture authors supply meaningful empty, singleton, competing, misplaced and
+refusing examples. Duplicate copies of one distinguished value test the method,
+not a realizable directory. Required-name acceptance/refusal fixtures must be
+independent, including distinct competing names; a clean kit report is not
+complete shape coverage or proof that readers and planners invoke the rule.
+
+Name/level grammar errors preserve the domain error and containing-level path;
+wrong-species supplied names remain a separate algebraic refusal. Planning-level
+errors identify the projected final containing directory, even when it does not
+yet exist on disk. This is an accepted diagnostic choice. The architecture and
+both books state the contract, and the shifted-ordinal fixture pins that path.

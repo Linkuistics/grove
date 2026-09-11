@@ -37,6 +37,17 @@ read or mutation, naming the level or offending files and the canonical form.
 A read never repairs names. The operator pays for strictness when hand-editing;
 a refusal must therefore provide the spelling needed to recover.
 
+A missing positioned-node-file error also advises the operator to check for an
+interrupted `leaf-decompose` before creating a brief: if the directory is empty
+and a sibling leaf shares its position and key, delete the empty directory to
+retain the leaf, or move that leaf into it as its `_<slug>.md` node file.
+Giving either half a fresh key or manufacturing a brief does not recover that
+operation. This advice is conditional, not a claim that Grove found the sibling.
+The level check refuses before a guarded snapshot exists, so exact recognition
+would need a new store affordance or a second reader. Accept the less specific
+diagnostic instead; reopen a guarded diagnostic interface only if automatic
+recognition is required beyond actionable operator recovery.
+
 A `_`-prefixed name belongs to the node-file grammar even when malformed. A
 digit-prefixed name belongs to the positioned grammar; neither can be silently
 disclaimed as foreign and hide work. Names outside these partitions remain

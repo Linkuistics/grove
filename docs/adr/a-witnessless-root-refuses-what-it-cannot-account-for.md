@@ -1,14 +1,16 @@
 # A witnessless root refuses what it cannot account for
 
 Grove classifies a present root from names alone. A format witness and file
-contents supply no ownership evidence. The classification is ordered:
+contents supply no ownership evidence. The reader validates every reachable
+level before classification; malformed names, missing node files and competing
+node files are refused there. Among successfully opened roots, classification
+is ordered:
 
-1. **Taskless**: nothing but `_BRIEF.md`, or an empty directory. Refuse,
+1. **Taskless**: nothing but `_BRIEF.md`. Refuse,
    naming the missing work and the required root form.
-2. **ATree**: at least one positioned name Grove owns or a name its grammar
-   refuses. Leave it for the ordinary reader, which validates every level and
-   reports malformed names, missing node files or competing node files.
-3. **Unrecognised**: foreign names and no Grove work. Refuse without mutation,
+2. **ATree**: at least one validated positioned name. Proceed with the snapshot.
+3. **Unrecognised**: `_BRIEF.md` plus foreign names and no positioned work.
+   Refuse without mutation,
    naming the disclaimed entries and the grammar Grove accepts.
 
 A node file is not evidence of a task. Its body can be a copied charter and its
@@ -21,8 +23,9 @@ Initialization writes the root, `_BRIEF.md` and the first leaf under the one
 exclusive guard that observed the vacancy. Reported failures unwind that work;
 process death can leave an incomplete shape, which is refused on the next open.
 A root holding only `_BRIEF.md` has a valid node-file shape and no work; a root
-with work and no `_BRIEF.md` has an invalid node-file shape. Neither is a finish
-signal.
+without `_BRIEF.md` has an invalid node-file shape, whether or not it contains
+work. An empty or foreign-only root therefore fails before classification.
+None is a finish signal.
 
 ## The trade-off
 

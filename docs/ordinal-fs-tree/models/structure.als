@@ -460,6 +460,8 @@ fun distinguishedAt[d: FsDir]: set FsObject {
   { x: levelOf[d] | x.nm.nSpecies = DistS }
 }
 
+/* Definition of reader acceptance, not a theorem derived from trait laws.
+   The acceptance and refusal witnesses below exercise this policy. */
 pred ReaderAccepts {
   Operable
   all d: descended | {
@@ -468,24 +470,6 @@ pred ReaderAccepts {
     distinguishedAt[d].nm in LevelPolicy.allowed[d]
   }
 }
-
-assert DistinguishedIsUniquePerNode {
-  CorrectedTraitLaws and ReaderAccepts implies
-    all d: descended | lone distinguishedAt[d]
-}
-check DistinguishedIsUniquePerNode for 4
-
-assert RequiredLevelsHaveExactlyOneDistinguishedChild {
-  CorrectedTraitLaws and ReaderAccepts implies
-    all d: (descended & LevelPolicy.required) | one distinguishedAt[d]
-}
-check RequiredLevelsHaveExactlyOneDistinguishedChild for 4
-
-assert AcceptedDistinguishedNameFitsItsLevel {
-  CorrectedTraitLaws and ReaderAccepts implies
-    all d: descended | distinguishedAt[d].nm in LevelPolicy.allowed[d]
-}
-check AcceptedDistinguishedNameFitsItsLevel for 4
 
 /* A sibling shift is `compose(new_ordinal, key, parts)`.  For that to be a
    shift and not a corruption, compose must preserve what it was given. */

@@ -10531,8 +10531,15 @@ node creation through append, batches and insert, initialization entries,
 promotion's first child and rewritten node parts. Limiting the change to
 promotion and initialization would leave other constructors able to create a
 node its consumer cannot read. Quint carries this under
-`inv_successHasValidLevels`, with `wit_refusedBareNode` and explicit supplied-name
-witnesses; `inv_invalidLevelIsAtomic` covers snapshot and preflight refusals.
+`inv_successHasValidLevels`, paired in the `required` instance with success
+witnesses for initialization with a positioned child, append, batch, insert,
+node rewrite and promotion with a child. Bare-node append, insert and batch
+each have refusal witnesses; promotion distinguishes a misplaced root name
+from a supplied positioned name. Both supplied node names have success
+witnesses. Refusals are effect-free by the definition of `beginOp`, not by an
+independent atomicity check. Likewise, Alloy's `ReaderAccepts` defines its
+cardinality and placement policy; repeating its conjuncts as implications adds
+no evidence. The structural evidence is the accepted and refused witnesses.
 As a control, disabling only the projected-final-level condition in
 `guardDestinations` violates `inv_successHasValidLevels`: an `append_many` of
 node and leaf parts succeeds with the new node missing its distinguished file.

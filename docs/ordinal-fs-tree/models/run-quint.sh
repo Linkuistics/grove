@@ -38,7 +38,6 @@ ALWAYS=(
   inv_appendOnlyAdds
   inv_interpreterNeverFindsADestinationTaken
   inv_successHasValidLevels
-  inv_invalidLevelIsAtomic
   inv_initializeUsesSuppliedName
 )
 
@@ -76,9 +75,19 @@ claims() {
       echo "inv inv_denseAtRest"
       echo "wit wit_initializeSucceeded"
       echo "wit wit_initializeWritesADistinguishedChild"
+      echo "wit wit_initializeWithChild"
+      echo "wit wit_appendSucceeded"
+      echo "wit wit_appendManySucceeded"
+      echo "wit wit_insertSucceeded"
+      echo "wit wit_rewriteNodeSucceeded"
+      echo "wit wit_promoteWithChild"
       echo "wit wit_promoteUsesFirstName"
       echo "wit wit_promoteUsesSecondName"
       echo "wit wit_refusedBareNode"
+      echo "wit wit_refusedBareNodeInsert"
+      echo "wit wit_refusedBareNodeBatch"
+      echo "wit wit_refusedRootNameOnPromote"
+      echo "wit wit_refusedPositionedNameOnPromote"
       echo "wit wit_refusedInvalidDistinguishedOnInitialize"
       ;;
     malformed_distinguished)

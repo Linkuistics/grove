@@ -591,10 +591,19 @@ re-wording of each message can.
 A promotion interrupted before the leaf moves can leave a leaf and node sharing
 a key, with the node lacking its own file. The next snapshot refuses that node
 as a malformed level before handle lookup can inspect the duplicate key. The
-error preserves the directory path and required node-file form; recovery restores
-the interrupted operation from version control or resolves its two halves
-explicitly. Merely assigning a fresh key does not recover one entity interrupted
-while changing shape. No reader manufactures a node file to get past the error.
+error preserves the directory path and required node-file form, with conditional
+recovery advice: before creating a brief, check whether this directory is empty
+and a sibling leaf shares its position and key. If so, delete the empty
+directory to keep the leaf, or move the leaf into it as `_<slug>.md`, using that
+leaf's slug, to keep the node. Merely assigning a fresh key or manufacturing a
+node file does not recover one entity interrupted while changing shape.
+
+This advice appears on every missing positioned-node-file error and does not
+assert that a matching sibling was found. The operator verifies the condition.
+Automatic recognition is deliberately lost at this earlier refusal boundary:
+a failed open returns no guarded snapshot, and another read of the invalid tree
+cannot supply one. The naming ADR records why conditional advice is preferred
+to extending the store's interface solely for this diagnostic.
 
 
 <a id="task-kind-taxonomy"></a>
@@ -960,9 +969,10 @@ creating the root and unwinds reported failures under that guard. `root-init`
 and the driver's scaffold use the same operation. A present tree cannot be
 passed as a vacancy.
 
-A present root with only `_BRIEF.md`, or no entries, is taskless and refused.
-A root with work and no root node file is malformed and refused. A root holding
-foreign names and no owned work is unrecognised and refused. The ordered test is
+A present root with only `_BRIEF.md` is taskless and refused. Any root lacking
+its node file, including an empty or foreign-only root, is malformed and refused
+before classification. A valid root holding foreign names alongside its node
+file and no positioned work is unrecognised and refused. The ordered test is
 [a witnessless root refuses what it cannot account for](adr/a-witnessless-root-refuses-what-it-cannot-account-for.md).
 A process interruption can leave an incomplete root; no automatic repair assumes
 ownership from a charter's bytes.

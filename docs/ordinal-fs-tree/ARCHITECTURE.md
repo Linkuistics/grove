@@ -1073,11 +1073,17 @@ domain error that reporting it requires.
 A returned level has at most one distinguished child and satisfies the consumer's
 rule for its containing name. A required level has exactly one. The planner
 preserves this on successful operations, while failed rollback or process death
-can leave a level the next reader refuses. `DistinguishedIsUniquePerNode`,
-`RequiredLevelsHaveExactlyOneDistinguishedChild` and
-`witness_two_distinguished_children` state the structural distinction;
-`inv_successHasValidLevels` and `inv_invalidLevelIsAtomic` state the operational
-one. They do not prove that a consumer chose the right rule.
+can leave a level the next reader refuses. Alloy's `ReaderAccepts` defines
+acceptance; it is not a theorem derived from the trait laws.
+`witness_two_distinguished_children`, the missing and misplaced-name witnesses,
+and `witness_per_node_names_are_accepted` exhibit refused and accepted shapes.
+Quint's `inv_successHasValidLevels` checks preservation through executed plans.
+The `required` instance pairs it with success witnesses for initialization,
+append, batch, insert, node rewrite and promotion with a child, and refusal
+witnesses for bare nodes and invalid supplied names. Refusals take no effects
+by definition of `beginOp`; that is not independent atomicity evidence. These
+claims do not prove that a consumer chose the right rule or model arbitrary
+predicates over rewritten node parts.
 
 **The trait's obligations.** *[S]* The laws in *What an implementation must
 guarantee* hold the grammar and name comparison sound; level validation adds

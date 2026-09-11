@@ -513,8 +513,9 @@ and levels that cannot supply exactly one correctly placed [[Node file]], are
 refused with the offending path and the canonical form. Operators rename or
 restore entries, or start a fresh grove; no migration command, automatic
 conversion or alternate reader grammar exists.
-_Avoid_: treating a foreign-only root as completed work. It is an
-[[Unrecognised root]] and refuses without mutation.
+_Avoid_: treating a root with foreign entries and no positioned work as
+completed work. With a valid root node file it is an [[Unrecognised root]];
+without one it is malformed. Either refusal leaves the tree unchanged.
 
 <a id="review-chain"></a>
 ### Review chain / vendor pair
@@ -1047,30 +1048,30 @@ apparatus itself.
 <a id="taskless-root"></a>
 #### Taskless root (`Taskless`)
 
-A present root holding only `_BRIEF.md`, or nothing at all, with no positioned
+A present root holding only `_BRIEF.md`, with no positioned
 work. It is refused with the missing work and canonical root form; the node
 file's presence is not proof of a task. Initialization creates the root, its
 node file and first leaf under one guard, and reported failure unwinds them.
 _Avoid_: treating a taskless root as ready for finishing or repairing it from
 charter contents. A process interruption can leave incomplete work that requires
-an operator's recovery.
+an operator's recovery. An empty root is malformed and refused by the reader
+before this classification, because its node file is missing.
 
 <a id="unrecognised-root"></a>
 #### Unrecognised root (`Unrecognised`)
 
-A task root holding names Grove **disclaims** — foreign at every species — and
-nothing else. It is **refused**, mutating nothing, and the refusal names the
-entries it disclaimed and the grammar Grove does read.
-It exists because the layouts Grove wrote before the current grammar are
-positioned but *unkeyed*, so every one of their names is foreign — invisible to
-the reader rather than refused by it. Without this state such a tree would read
-as an empty grove and take the driver's `finish` sentinel.
-_Avoid_: expecting the refusal to name *which* withdrawn layout it met. That
-per-layout classifier was migration's and went with it; the operator needs the
-grammar and the offending names, not the layout's history.
-_Avoid_: confusing it with a [[Taskless root]]. A taskless root holds nothing;
-this holds something Grove cannot account for. Both are refused, and the refusals
-say different things.
+A valid task root holding its root node file and names Grove **disclaims** —
+foreign at every species — with no positioned work. It is **refused**, mutating
+nothing, and the refusal names the entries it disclaimed and the grammar Grove
+does read.
+The node file alone cannot establish that foreign entries contain no work.
+A foreign-only root lacking that file is instead malformed and refused before
+classification.
+_Avoid_: inferring a foreign layout's identity from names Grove disclaims. The
+operator needs the accepted grammar and the offending names.
+_Avoid_: confusing it with a [[Taskless root]]. A taskless root holds only its
+node file; this also holds something Grove cannot account for. Both are refused,
+and the refusals say different things.
 
 <a id="lifecycle-transition"></a>
 #### Lifecycle transition

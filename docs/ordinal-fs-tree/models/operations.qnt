@@ -685,6 +685,8 @@ module operations {
   // branch of `decide`, and `decide` is total by its return type.
   // -------------------------------------------------------------------------
 
+  // Refuse takes no effects by definition here. Atomicity of executed plans
+  // is instead checked across apply and unwind by inv_atomicity.
   action beginOp(tag: OpTag): bool =
     val dec = decide(fs, tag)
     all {
@@ -995,11 +997,6 @@ module operations {
   val inv_successHasValidLevels: bool =
     not(succeeded) or op.tag == TagHandEdit or levelsValid(fs)
 
-  val inv_invalidLevelIsAtomic: bool =
-    not(atRest) or
-      not(Set(HaltedInvalidLevel, RefusedInvalidDistinguished).contains(op.outcome)) or
-      fs.objects == op.before
-
   val inv_initializeUsesSuppliedName: bool =
     not(succeeded) or match op.tag {
       TagInitialize(a) => match a.dist {
@@ -1034,6 +1031,25 @@ module operations {
   val wit_refusedBareNode: bool =
     atRest and op.outcome == RefusedInvalidDistinguished and
       match op.tag { TagAppend(a) => speciesOfParts(a.parts) == NodeS | _ => false }
+
+  val wit_refusedBareNodeInsert: bool =
+    atRest and op.outcome == RefusedInvalidDistinguished and
+      match op.tag { TagInsert(a) => speciesOfParts(a.parts) == NodeS | _ => false }
+
+  val wit_refusedBareNodeBatch: bool =
+    atRest and op.outcome == RefusedInvalidDistinguished and
+      match op.tag {
+        TagAppendMany(a) => a.parts.foldl(false, (found, p) => found or speciesOfParts(p) == NodeS)
+        | _ => false
+      }
+
+  val wit_refusedRootNameOnPromote: bool =
+    atRest and op.outcome == RefusedInvalidDistinguished and
+      match op.tag { TagPromote(a) => a.dist == Dist(0) | _ => false }
+
+  val wit_refusedPositionedNameOnPromote: bool =
+    atRest and op.outcome == RefusedInvalidDistinguished and
+      match op.tag { TagPromote(a) => isPositioned(a.dist) | _ => false }
 
   // --- keys -----------------------------------------------------------------
 
@@ -1306,6 +1322,23 @@ module operations {
   // --- coverage of the remaining operations ---------------------------------
 
   val wit_appendManySucceeded: bool = succeeded and isAppendMany(op.tag)
+
+  val wit_appendSucceeded: bool =
+    succeeded and match op.tag { TagAppend(_) => true | _ => false }
+
+  val wit_insertSucceeded: bool = succeeded and isInsert(op.tag)
+
+  val wit_rewriteNodeSucceeded: bool =
+    succeeded and match op.tag {
+      TagRewrite(a) => speciesOfParts(a.parts) == NodeS
+      | _ => false
+    }
+
+  val wit_initializeWithChild: bool =
+    succeeded and match op.tag {
+      TagInitialize(a) => a.parts.length() > 0
+      | _ => false
+    }
 
   pure def isInitialize(t: OpTag): bool =
     match t { TagInitialize(a) => true | TagNone => false | TagAppend(a) => false

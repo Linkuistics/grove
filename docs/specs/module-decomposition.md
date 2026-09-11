@@ -180,31 +180,16 @@ and they leave a subtree prune exactly as non-atomic as it was
 
 ### 3 — The filename grammar separates children from the node's own file
 
-    NN-[DONE-|ABANDONED-]<kind>--<slug>-k<key>.md    leaf
-    NN-k<key>/                                    node directory
-    _<slug>.md                                    node file
-    _BRIEF.md                                     root node file
-
-A directory carries position and permanent key. Its exactly-one node file
-carries the title in the filename and the brief in its body. The root has no
-slug or key; it requires `_BRIEF.md`, and its display title comes from the
-working tree. No routing field is read from content.
+[`task-names-are-canonical`](../adr/task-names-are-canonical.md) owns the
+grammar, token rules, node-file cardinality and placement, and strict refusal
+policy. This separation lets a directory move without repeating its title in
+every descendant path. The root's display title comes from the working tree.
 
 The whole reachable tree is validated before the snapshot can answer any
-selection, even one that finds an early match. Every
-`_`-prefixed name is claimed by the node-file grammar; a wrong spelling or
-on-disk species is malformed. A root containing `_<slug>.md`, a positioned node
-containing `_BRIEF.md`, and any level with no node file or multiple node files
-are malformed too. The error names the level, the competing names when present,
-and the canonical form. Digit-prefixed names belong to the positioned grammar; other names remain
-foreign.
-
-The first `--` separates the leaf's kind from its slug. Both use the same token
-validator: nonempty lowercase ASCII letters, digits and single hyphens, with no
-reserved word or separator. Position and key render canonically. The kind is an
-open token and the spelling is byte-identical to its skill suffix.
-[`task-names-are-canonical`](../adr/task-names-are-canonical.md) owns the naming
-trade-offs and strict refusal policy.
+selection, even one that finds an early match. The reader attaches the level
+path to grammar errors, including competing names when present. No selection
+can bypass validation of a later subtree. The kind remains an open token whose
+spelling is byte-identical to its skill suffix.
 
 ### 4 — The name module owns handles composed from names
 
@@ -241,9 +226,17 @@ missing files are refusals, not skipped levels.
 `leaf-decompose` passes slugless node parts and `_<slug>.md` built from the
 source leaf's slug to `promote`. The leaf's ordinal and key become the node's;
 its bytes move verbatim to that file. `root-init` supplies `_BRIEF.md` and the
-root brief bytes to initialization alongside the first leaf. All of these
-writes use the library's exclusive guard and plan; none writes a node file
-outside that operation.
+root brief bytes to initialization alongside the first leaf. No writer creates
+a node file outside the library's exclusive guard and plan. After promotion,
+Grove reacquires the exclusive guard and appends ` — brief` to the canonical
+handle heading. That content edit is idempotent, leaves custom headings alone,
+and belongs to Grove rather than the content-blind store. If it fails, the
+promotion remains committed and the error identifies the file to repair.
+
+A missing-node-file refusal can precede handle lookup. Its diagnostic includes
+the conditional interrupted-decompose recovery advice specified by
+[`task-names-are-canonical`](../adr/task-names-are-canonical.md). The caller
+does not inspect an invalid tree after the failed open or add a second reader.
 
 The library's `validate_distinguished` method remains on `EntryName`. It sees
 root-or-node and the complete set of distinguished names, including an empty

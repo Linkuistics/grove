@@ -888,9 +888,9 @@ middle is split at the first `--`; directory names contain no middle or slug.
 
 The fifth and sixth fragments are the one peel, and they read in the opposite
 order to the call graph: the public narrowing first, then the private primitive
-it goes through. Each carries its own doc comment, and the blank line at line 995
-is what makes that true — two `///` runs with no gap between them are one comment
-on the item below, whichever function the earlier run describes.
+it goes through. `terminal_key` delegates suffix extraction to `peel_key`
+and digit validation to `parse_key`. Each helper's comment belongs to the
+function immediately below it.
 
 <!-- fragment «name-terminal-key» owner="canonical-or-nothing" source="crates/grove-loop/src/task_name.rs" lines="924-931" parent="the-task-name" -->
 ````rust

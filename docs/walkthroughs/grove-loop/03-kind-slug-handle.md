@@ -131,8 +131,9 @@ session loads; it is the stem the skill's name is built from. `crates/grove-loop
 line 63 renders `format!("{PLUGIN}-{}", kind.label())` with `PLUGIN` as `"grove"`,
 so the kind `impl` names the skill `grove-impl`, and chapter 19 reads that
 composition. The third clause is exact as written: the configuration is keyed by
-the label itself, at `crates/grove-loop/src/loop_driver.rs` lines 190 and 202
-which chapter 20 reads.
+the label itself: `drive` in `crates/grove-loop/src/loop_driver.rs` uses
+`Kind::finish().label()` for the finish template and `selection.kind.label()`
+for the selected session configuration. Chapter 20 reads those calls.
 
 The claim in the second bold sentence is checkable inside this corpus, and it
 holds. Extracting every string literal from the production source of
@@ -140,9 +141,9 @@ holds. Extracting every string literal from the production source of
 `REQUIREMENTS` and `FINISH`, in the fragment below — and no third. The
 parenthesis is right about which near-misses to expect and is not a complete
 partition of what the extraction returns: `"plan"` at
-`crates/grove-loop/src/tree_lifecycle.rs` line 56 and `"finish"` at line 102 of
-the same file are the two slug literals it names. The second is the clearest
-case in the crate: a literal `"finish"` that is a slug rather than a kind and
+`DEFAULT_ROOT_SLUG` in `crates/grove-loop/src/tree_lifecycle.rs` and
+`"finish"` in that file's `finish_slug` are the two slug literals it names.
+The second is the clearest case in the crate: a literal `"finish"` that is a slug rather than a kind and
 reaches `Slug::new` rather than `Kind::new`. Beyond those the extraction also
 returns tokens that are neither — `"done"` and `"relaunch"` in
 `crates/grove-loop/src/complete.rs`, `"shared"` and `"exclusive"` in
@@ -172,12 +173,12 @@ const FINISH: &str = "finish";
 <!-- /fragment -->
 
 `Kind::requirements` is spent once in the crate's production source, at
-`crates/grove-loop/src/tree_lifecycle.rs` line 19 where the lifecycle transition
+`transition_to_current` in `crates/grove-loop/src/tree_lifecycle.rs`, which
 scaffolds a grove for a driver that has no operator to ask; `Kind::finish` is
-spent at lines 72 and 83 of the same file for the teardown sentinel, and at
-`crates/grove-loop/src/loop_driver.rs` line 190 to name the template that leaf
-will need. Chapters 14 and 20 read those. The asymmetry in the implementation
-below follows from that: there is an `is_finish` and no `is_requirements`,
+spent in `materialize_finish` and `new_finish_leaf` for the teardown sentinel,
+and in `drive` in `crates/grove-loop/src/loop_driver.rs` to name its template.
+Chapters 14 and 20 read those. The asymmetry in the implementation below follows
+from that: there is an `is_finish` and no `is_requirements`,
 because grove never has to ask whether a leaf is the one `root-init` laid down —
 that leaf is ordinary work from the moment it exists — and does have to ask
 whether a leaf is the one the driver reserved for itself.
@@ -243,21 +244,18 @@ minimum: one validating constructor that returns the same `TokenError` a `Slug`
 returns, two constructors that cannot fail, and one accessor.
 
 **Seven calls, six functions, and the comment's four categories cover them.**
-Two calls are in selection, at `crates/grove-loop/src/task_tree.rs` lines 537 and
-552 both inside `selected` — and only the second is the ordering, since the
-first refuses a tree holding more than one live `finish` leaf, which is a
-malformed-tree report rather than a sort. One is the creation refusal, at
-`crates/grove-loop/src/task_grow.rs` line 407 reached by `leaf-add`,
-`leaf-insert`, `root-init` and `leaf-decompose`. One is at
-`crates/grove-loop/src/tree_lifecycle.rs` line 166 inside `finish_commit`, which
-is the verb the finish session runs — `crates/grove-loop/src/loop_driver.rs`
-never calls `is_finish` at all, so nothing in the loop driver itself asks. The
-remaining three, at lines 544 757 and 921 of `tree_lifecycle.rs`, refuse to
-decompose, retire or prune a `finish` leaf that already exists. Line 544 is
-provably a separate question from the creation refusal, because `leaf-decompose`
-asks both: line 544 about the leaf it is converting, and line 474's call to
-`refuse_finish_kind` about the kind of the child it is growing. Chapters 7, 10,
-12, 13 and 14 read the seven sites. The licence reaches all of them: every one of
+Two calls are in `selected` in `crates/grove-loop/src/task_tree.rs`: the
+first refuses a tree holding more than one live `finish` leaf; the second
+prefers ordinary work over the sentinel. One is `refuse_finish_kind` in
+`crates/grove-loop/src/task_grow.rs`, reached by `leaf-add`, `leaf-insert`,
+`root-init` and `leaf-decompose`. One is in `finish_commit` in
+`crates/grove-loop/src/tree_lifecycle.rs`, the verb the finish session runs.
+`crates/grove-loop/src/loop_driver.rs` never calls `is_finish` itself.
+The remaining three are in `decomposable`, `retire_parts` and `plan_leaf`, which
+refuse to decompose, retire or prune a `finish` leaf that already exists.
+Decomposition asks two separate questions: `decomposable` checks the existing
+leaf, while `leaf_decompose` calls `refuse_finish_kind` for the child it grows.
+Chapters 7, 10, 12, 13 and 14 read the seven sites. The licence reaches all of them: every one of
 the seven is grove recognising a leaf it wrote itself, and none of them
 interprets what a `finish` session is for.
 
@@ -338,7 +336,7 @@ impl Slug {
 <!-- /fragment -->
 
 That guarantee is spent where a constant would have been easier.
-`crates/grove-loop/src/tree_lifecycle.rs` line 102 builds the `finish` sentinel's
+`finish_slug` in `crates/grove-loop/src/tree_lifecycle.rs` builds the sentinel's
 slug by putting the literal `"finish"` through this constructor and turning a
 failure into an error, rather than holding a validated `Slug` constant — the
 comment there says a constant that goes through the validating constructor is

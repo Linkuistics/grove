@@ -242,9 +242,9 @@ The first composes a title with a key; the second spells the key suffix; the
 third peels that suffix apart. The grammar's punctuation has one owner without
 requiring a directory name to repeat its node-file title.
 `peel_key` and `split_shape` are private free functions in chapter 4's block —
-`peel_key` at lines 949 to 956 returns what precedes a terminal `-k<digits>`
+`peel_key` returns what precedes a terminal `-k<digits>`
 and the digit run, leaving each caller to judge an over-wide key for itself, and
-`split_shape` at lines 918 to 975 splits a task-shaped stem into position digits,
+`split_shape` splits a task-shaped stem into position digits,
 an unexamined middle and key digits by *calling* `peel_key` rather than finding
 the key itself. That call is why the header can say there is one peel.
 

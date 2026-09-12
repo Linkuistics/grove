@@ -39,9 +39,9 @@ the page is where each handler renders `Nothing`.
 
 The chapter's premise is the tree these verbs read, stated once in the form the
 [task-tree scheme](../../../CONTEXT.md#task-tree-scheme) fixes. A node is a
-directory `NN-k<key>/` of numbered children, optionally headed by a
-`_BRIEF.md`; a leaf is a file `NN-<kind>--<slug>-k<key>.md`, and a retired or
-abandoned leaf carries `DONE-` or `ABANDONED-` immediately after its position.
+directory `NN-k<key>/` of numbered children with exactly one `_<slug>.md`
+node file; the root holds `_BRIEF.md`. A leaf is a file
+`NN-<kind>--<slug>-k<key>.md`, and a retired or abandoned leaf carries `DONE-` or `ABANDONED-` immediately after its position.
 The position is per directory and moves under a renumber; the key is permanent
 and unique across the whole tree. That is why every spelling of an entry this
 chapter reads — `[n]`, a bare `n`, `[n]-slug`, the handle `<slug>-k<key>` — is

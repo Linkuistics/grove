@@ -1011,10 +1011,14 @@ one of them, so a missing or malformed `config.kdl` — or an invalid or tracked
 which transition is the [`grove-loop`
 walkthrough](walkthroughs/grove-loop/README.md)'s.
 
-A fresh grove creates a first *leaf*, not just a brief, because `pick` skips
-briefs: a brief-only tree would report "no live leaves" and be indistinguishable
-from a finished one. Creation is working-tree only; the first session's focused
-commit folds in the scaffold.
+A fresh grove creates its root node file and first *leaf* in one store operation,
+so the first session has work to select. The driver refuses a root holding only
+`_BRIEF.md` as taskless before selection; it does not finish that root.
+The helper verbs `grove-llm pick`, `kind` and untargeted `brief-chain` perform
+selection without that lifecycle classification: on a taskless root they report
+"no live leaves; this grove is done". That helper result is not a driver finish
+decision. Creation is working-tree only; the first session's focused commit
+folds in the scaffold.
 
 Task-root absence is the complete fresh-tree discriminator. Grove consults no VCS
 history, abandoned signal channel, or unlocked lease bytes to decide that a

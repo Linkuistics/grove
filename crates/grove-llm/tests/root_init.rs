@@ -11,8 +11,8 @@
 //
 // The initialization invariant: after
 // `root-init`, `grove-llm pick` must return the new leaf — NOT report the
-// grove as done. A root brief with no leaves would look finished; the first
-// leaf is what makes a newborn grove distinguishable from a retired one.
+// grove as done. The charter and first leaf are created together, providing
+// selectable work; the driver refuses a charter-only root as taskless.
 
 use assert_cmd::Command;
 use std::fs;

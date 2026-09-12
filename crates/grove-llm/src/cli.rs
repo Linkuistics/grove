@@ -67,9 +67,9 @@ pub enum Command {
     /// `_BRIEF.md` charter, and lay down a first **requirements** leaf
     /// `01-requirements--<slug>-k1.md` (default slug `plan`) — the kind is fixed, since the
     /// bootstrap session's only input is the human's own words. After this,
-    /// `grove-llm pick` returns the new
-    /// leaf — a fresh grove is no longer indistinguishable from a finished
-    /// one. Refuses if `.grove/` already exists. Working-tree change only —
+    /// `grove-llm pick` returns the new leaf. The charter and leaf are created
+    /// together; the driver refuses a root holding only its charter as taskless.
+    /// Refuses if `.grove/` already exists. Working-tree change only —
     /// no commit. Prints the charter's path, then the leaf's.
     RootInit(RootInitArgs),
     /// Print the absolute path of the next live leaf in this grove's tree — a

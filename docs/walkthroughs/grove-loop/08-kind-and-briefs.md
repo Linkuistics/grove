@@ -666,18 +666,10 @@ what differs between its two halves.
 
 **Missing node files refuse the read.** The two tests remove a file from
 an otherwise valid fixture, once at the root and once at an intermediate node.
-Both assert the level error and its containing path. They establish that the
-chain cannot conceal an incomplete level.
-
-
-The pair tests missing files at both depths. Each requires refusal rather
-than omission or a fabricated path, preventing an implementation from making
-only the root mandatory while silently omitting positioned-node briefs.
-
-
-These are refusal tests: a missing root file and a missing positioned-node
-file both prevent a chain from being returned. The guarded opening validates
-the whole tree before this collection can run.
+Both assert the level error and its containing path, preventing an implementation
+from requiring only the root file while silently omitting a positioned node's
+file. The guarded opening validates the whole tree before collecting a chain,
+so neither test can return an incomplete chain or a fabricated path.
 
 The next pair tests two independent properties and is grouped only by source
 order.

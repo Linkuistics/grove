@@ -10,7 +10,7 @@
 // tree**, built on the name grammar (`src/task_name.rs`) and the grow verbs
 // (`src/task_grow.rs`), both of which run through `ordinal-fs-tree` since the
 // flip (gh issue #13, increment 2). Keeps task-tree-scheme's *semantics* (a fresh grove
-// starts with one live leaf so it is never mistaken for finished; decompose
+// starts with one live leaf ready for its first session; decompose
 // enforces a first child; retire is leaves-only and done-ness is marked in
 // place; prune marks abandonment in place, pruning) and changes the
 // *mechanics* to the filesystem's shape:

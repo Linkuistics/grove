@@ -157,7 +157,7 @@ their doc comment ends and their body begins.
 // tree**, built on the name grammar (`src/task_name.rs`) and the grow verbs
 // (`src/task_grow.rs`), both of which run through `ordinal-fs-tree` since the
 // flip (gh issue #13, increment 2). Keeps task-tree-scheme's *semantics* (a fresh grove
-// starts with one live leaf so it is never mistaken for finished; decompose
+// starts with one live leaf ready for its first session; decompose
 // enforces a first child; retire is leaves-only and done-ness is marked in
 // place; prune marks abandonment in place, pruning) and changes the
 // *mechanics* to the filesystem's shape:
@@ -223,7 +223,7 @@ the crate; chapter 6 adjudicated the one at `task_tree.rs` line 1,077 and
 **The second is a citation, and it is the more interesting of the two.** Line 8
 tags the lifecycle verbs `(task-tree-scheme)`, and line 12 says the module
 *keeps task-tree-scheme's semantics*, listing four: that a fresh grove starts
-with one live leaf so it is never mistaken for finished; that decompose enforces
+with one live leaf ready for its first session; that decompose enforces
 a first child; that retire is leaves-only and done-ness is marked in place; and
 that prune marks abandonment in place. A bare parenthesised word in this crate's
 comments is an anchor citation into `docs/ARCHITECTURE.md`, and that document's
@@ -237,10 +237,10 @@ about retire being leaves-only.
 
 The record for the first of those is a different anchor in the same document —
 `fresh-grove-start-contract`, on *Lifecycle and resumption*, which argues it
-exactly: a fresh grove creates a first leaf and not just a brief, **because
-`pick` skips briefs**, so a brief-only tree would report no live leaves and be
-indistinguishable from a finished one. That is this module's own rule, and the
-comment cites the data model where the contract has its own record two sections
+exactly: a fresh grove creates its root node file and first leaf together,
+ready for its first session. The driver refuses a charter-only root as taskless
+before selection, even though helper selection reports no live leaves there.
+That is this module's own rule, and the comment cites the data model where the contract has its own record two sections
 away. The lesson generalises past this line: a parenthesised word is cheap to
 write and reads like a proof, and the only way to know what it carries is to
 open the section and read it. This is the fourth such citation the book has

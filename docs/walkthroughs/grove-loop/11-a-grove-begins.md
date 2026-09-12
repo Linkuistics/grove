@@ -10,18 +10,16 @@ addressed inside one, chapters 7 to 9 read one, and chapter 10 grew one. This
 chapter is where there is **no tree yet** — a worktree with no `.grove/` in it —
 and the layer has to make the first one.
 
-That sounds like the easiest thing in the file and it is the strictest, because
-of what a grove *means* the moment it exists. `pick` answers the first live leaf
-in walk order, and a tree with no live leaf is a search that matched nothing —
-which is the same answer the driver reads as *there is nothing left to do*. So a
-grove that came into existence holding only its charter would be indistinguishable
-from a grove that had finished. **The first leaf is not a convenience; it is what
-keeps a new grove from looking finished** — so creating it in a *second* step
-would put a finished-looking grove on disk for as long as that step took, visible
-to anything that read the tree in between.
+Initialization must leave work the first session can select. `pick` answers
+the first live leaf in walk order and returns no match when none is live.
+The driver first classifies the root: one holding only `_BRIEF.md` is taskless
+and refused, so it cannot reach finishing through an empty selection.
+**The root node file and first leaf are created together** under one guard.
+Creating the leaf in a second operation would expose a taskless intermediate
+root that another driver would refuse.
 
 > The library beneath grove can create a tree and place entries in it. It has no
-> word for *the entry that must exist for the tree not to read as done*, because
+> word for *the first task a session must select*, because
 > it has no word for *done*. So the obligation to create a grove **whole** is
 > grove's, and the way it is discharged is a store operation grove chose rather
 > than a sequence grove wrote.

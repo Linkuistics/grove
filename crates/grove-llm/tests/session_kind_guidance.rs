@@ -582,7 +582,7 @@ fn the_candidate_scan_offers_every_position_width_to_the_parser() {
 
     // And the widening did not cost the two exclusions the scan is built on: a
     // node directory and a bare position reference carry no `.md` and stay out.
-    for excluded in ["`07-flip-k28/`", "leaf `09-` in that node"] {
+    for excluded in ["`07-k28/`", "leaf `09-` in that node"] {
         assert!(
             candidates_in(excluded).is_empty(),
             "{excluded} is not a filename and must stay out of the sweep"
@@ -706,7 +706,7 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
 
     // The collector's own boundaries: a node directory and a bare position
     // reference are not filenames and must not enter the sweep at all.
-    assert!(candidates_in("a node `NN-<slug>-k<key>/` holding `01-…`, `02-…`").is_empty());
+    assert!(candidates_in("a node `NN-k<key>/` holding `01-…`, `02-…`").is_empty());
     assert_eq!(
         candidates_in("l1[\"01-DONE-design--spec-k2.md — retired\"]"),
         ["01-DONE-design--spec-k2.md"]

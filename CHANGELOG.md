@@ -58,7 +58,10 @@ stood at the graft — a closed record, not part of the versioned sequence above
   brief chains and all tree reads enforce this grammar, with actionable
   refusals for missing, competing or misplaced node files. Install the matching
   Grove binary and `grove` plugin together; the plugin must teach the grammar
-  the binary accepts. The user guide and walkthroughs describe this contract.
+  the binary accepts. Trees with malformed owned names or node-file shapes are
+  refused by name with the canonical form; Grove never converts them. Prepare
+  existing trees for this grammar before opening them with the matching binary.
+  The user guide and walkthroughs describe this contract.
 
 - `ordinal-fs-tree`: validate complete read levels and projected final plans
   before exposure or filesystem effects. Domain errors retain their level path;

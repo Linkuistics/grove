@@ -878,7 +878,10 @@ first variant and a grow verb, so its nine lines sit inside the enum ahead of
 *Reading the tree*'s fifty; the comment fixes the kind at `requirements` and
 promises the load-bearing thing `after_root_init_pick_returns_the_new_leaf_not_done`
 holds — that `pick` returns the new leaf rather than reporting the grove
-finished. It also spells `.grove` for display, the third of the module's three
+finished. The help also states that initialization creates the charter and leaf
+together and that the driver refuses a charter-only root as taskless. This
+lifecycle check belongs to the driver; helper selection does not perform it.
+It also spells `.grove` for display, the third of the module's three
 display spellings after *The grammar and the openings* and *Reading the tree*,
 and none of the three reaches a call.
 
@@ -888,9 +891,9 @@ and none of the three reaches a call.
     /// `_BRIEF.md` charter, and lay down a first **requirements** leaf
     /// `01-requirements--<slug>-k1.md` (default slug `plan`) — the kind is fixed, since the
     /// bootstrap session's only input is the human's own words. After this,
-    /// `grove-llm pick` returns the new
-    /// leaf — a fresh grove is no longer indistinguishable from a finished
-    /// one. Refuses if `.grove/` already exists. Working-tree change only —
+    /// `grove-llm pick` returns the new leaf. The charter and leaf are created
+    /// together; the driver refuses a root holding only its charter as taskless.
+    /// Refuses if `.grove/` already exists. Working-tree change only —
     /// no commit. Prints the charter's path, then the leaf's.
     RootInit(RootInitArgs),
 ````

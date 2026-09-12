@@ -609,7 +609,7 @@ pub(crate) fn leaf_decompose(
 fn decomposable<'a>(entry: &Entry<'a, TaskName>) -> Result<(Kind, &'a Slug)> {
     let name = entry.name();
     let Some(triple) = entry.triple() else {
-        bail!("cannot decompose a brief (it is already a node): {name}")
+        bail!("cannot decompose a node file (it already belongs to a node): {name}")
     };
     match triple.parts {
         Parts::Node => {
@@ -745,7 +745,7 @@ pub(crate) fn leaf_retire(tree: Guard, leaf_path: &Path) -> Result<PathBuf> {
 fn retire_parts(entry: &Entry<'_, TaskName>) -> Result<Parts> {
     let name = entry.name();
     let Some(triple) = entry.triple() else {
-        bail!("cannot retire a brief (briefs are never done): {name}")
+        bail!("cannot retire a node file (node files are never done): {name}")
     };
     match triple.parts {
         Parts::Node => {
@@ -786,7 +786,7 @@ pub struct PruneResult {
 /// `leaf-prune <path>`: mark abandoned work `ABANDONED` in place (pruning).
 /// `path` is a live leaf file **or** a node directory (absolute, or relative to
 /// the grove root):
-///   * given a **leaf**, marks it directly — refuses a brief, an already-`DONE`
+///   * given a **leaf**, marks it directly — refuses a node file, an already-`DONE`
 ///     leaf, and an already-`ABANDONED` leaf;
 ///   * given a **node**, marks every *live* leaf in its subtree (recursively),
 ///     leaving `DONE` leaves untouched — refuses the grove root itself
@@ -849,7 +849,7 @@ fn plan_prune(
 ) -> Result<Vec<Planned>> {
     let name = entry.name();
     let Some(triple) = entry.triple() else {
-        bail!("cannot prune a brief (briefs are never marked): {name}")
+        bail!("cannot prune a node file (node files are never marked): {name}")
     };
     let mut plan = Vec::new();
     match triple.parts {
@@ -1884,7 +1884,7 @@ mod tests {
             Some(a_kind("impl")),
         )
         .unwrap_err();
-        assert!(err.to_string().contains("brief"), "got {err}");
+        assert!(err.to_string().contains("node file"), "got {err}");
     }
 
     #[test]
@@ -2296,7 +2296,7 @@ mod tests {
         let node = mknode(&g, "02-k3", "build-k3");
         commit_all(&g);
         let err = leaf_retire(guard(&g), &node.join("_build.md")).unwrap_err();
-        assert!(err.to_string().contains("brief"), "got {err}");
+        assert!(err.to_string().contains("node file"), "got {err}");
     }
 
     #[test]
@@ -2305,7 +2305,7 @@ mod tests {
         touch(&g, "_BRIEF.md", "root — brief");
         commit_all(&g);
         let err = leaf_retire(guard(&g), Path::new("_BRIEF.md")).unwrap_err();
-        assert!(err.to_string().contains("brief"), "got {err}");
+        assert!(err.to_string().contains("node file"), "got {err}");
     }
 
     #[test]
@@ -2453,7 +2453,7 @@ mod tests {
         let node = mknode(&g, "02-k3", "build-k3");
         commit_all(&g);
         let err = leaf_prune(guard(&g), &node.join("_build.md")).unwrap_err();
-        assert!(err.to_string().contains("brief"), "got {err}");
+        assert!(err.to_string().contains("node file"), "got {err}");
     }
 
     #[test]
@@ -2462,7 +2462,7 @@ mod tests {
         touch(&g, "_BRIEF.md", "root — brief");
         commit_all(&g);
         let err = leaf_prune(guard(&g), Path::new("_BRIEF.md")).unwrap_err();
-        assert!(err.to_string().contains("brief"), "got {err}");
+        assert!(err.to_string().contains("node file"), "got {err}");
     }
 
     #[test]

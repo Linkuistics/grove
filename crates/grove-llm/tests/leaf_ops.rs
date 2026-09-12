@@ -287,10 +287,10 @@ fn decompose_rejects_a_brief() {
         tmp.path(),
         &["leaf-decompose", ".grove/01-k1/_node.md", "x"],
     );
-    assert!(!ok, "decompose must refuse a brief");
+    assert!(!ok, "decompose must refuse a node file");
     assert!(
-        stderr.contains("brief"),
-        "expected brief diagnostic, got {stderr:?}"
+        stderr.contains("node file"),
+        "expected node-file diagnostic, got {stderr:?}"
     );
 }
 
@@ -345,10 +345,10 @@ fn retire_refuses_a_brief() {
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-k1/_node.md"]);
-    assert!(!ok, "retire must refuse a brief");
+    assert!(!ok, "retire must refuse a node file");
     assert!(
-        stderr.contains("brief"),
-        "expected brief diagnostic, got {stderr:?}"
+        stderr.contains("node file"),
+        "expected node-file diagnostic, got {stderr:?}"
     );
 }
 

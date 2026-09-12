@@ -70,13 +70,13 @@ pub enum Command {
     /// `grove-llm pick` returns the new leaf. The charter and leaf are created
     /// together; the driver refuses a root holding only its charter as taskless.
     /// Refuses if `.grove/` already exists. Working-tree change only —
-    /// no commit. Prints the charter's path, then the leaf's.
+    /// no commit. Prints the root node file's path, then the leaf's.
     RootInit(RootInitArgs),
     /// Print the absolute path of the next live leaf in this grove's tree — a
     /// recursive depth-first **pre-order** walk over the directory tree (a node
     /// is a directory of numbered children and exactly one `_<slug>.md` node file),
     /// returning the
-    /// first live leaf and skipping briefs and terminal leaves — retired
+    /// first live leaf and skipping node files and terminal leaves — retired
     /// (`DONE`) and abandoned (`ABANDONED`) alike. Empty stdout
     /// (and a diagnostic on stderr) when the grove has no live leaves.
     Pick,
@@ -211,7 +211,7 @@ pub enum Command {
     /// `01-<kind>--<first-child-slug>-k<new>.md` so the
     /// node is never childless. The first child **inherits the decomposed
     /// leaf's own kind** unless `--kind` overrides it.
-    /// Prints the brief's absolute path then the first child's, one per line.
+    /// Prints the node file's absolute path then the first child's, one per line.
     /// Working-tree change only — no commit.
     LeafDecompose(LeafDecomposeArgs),
     /// Mark a live leaf retired in place by adding a `DONE` infix
@@ -219,7 +219,7 @@ pub enum Command {
     /// `NN-DONE-<kind>--<slug>-k<key>.md`) — no `done/`
     /// directory; the leaf keeps its position and key in its directory, and the
     /// file's contents (its `# <slug>-k<key>` header) are untouched. Refuses a
-    /// brief, an already-retired (`DONE`) leaf, and an already-abandoned
+    /// node file, an already-retired (`DONE`) leaf, and an already-abandoned
     /// (`ABANDONED`) leaf. Prints the retired file's absolute
     /// path on stdout. Task bodies are byte-identical; retirement writes no
     /// launch-routing metadata. Working-tree change only — no commit.
@@ -230,7 +230,7 @@ pub enum Command {
     /// the gate is yours, not the CLI's). `<path>` is a live leaf file **or** a
     /// node directory (absolute, or relative to the grove root):
     ///
-    ///   * given a **leaf**, marks it directly — refuses a brief, an
+    ///   * given a **leaf**, marks it directly — refuses a node file, an
     ///     already-`DONE` leaf, and an already-`ABANDONED` leaf;
     ///   * given a **node**, marks every *live* leaf in its subtree
     ///     (recursively) — leaving `DONE` leaves untouched, since that work

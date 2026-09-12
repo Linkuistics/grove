@@ -178,7 +178,7 @@ gate, one operation, one answer.
 fn retire_parts(entry: &Entry<'_, TaskName>) -> Result<Parts> {
     let name = entry.name();
     let Some(triple) = entry.triple() else {
-        bail!("cannot retire a brief (briefs are never done): {name}")
+        bail!("cannot retire a node file (node files are never done): {name}")
     };
     match triple.parts {
         Parts::Node => {
@@ -303,7 +303,7 @@ citation for the argument will not find one.
 /// `leaf-prune <path>`: mark abandoned work `ABANDONED` in place (pruning).
 /// `path` is a live leaf file **or** a node directory (absolute, or relative to
 /// the grove root):
-///   * given a **leaf**, marks it directly — refuses a brief, an already-`DONE`
+///   * given a **leaf**, marks it directly — refuses a node file, an already-`DONE`
 ///     leaf, and an already-`ABANDONED` leaf;
 ///   * given a **node**, marks every *live* leaf in its subtree (recursively),
 ///     leaving `DONE` leaves untouched — refuses the grove root itself
@@ -435,7 +435,7 @@ fn plan_prune(
 ) -> Result<Vec<Planned>> {
     let name = entry.name();
     let Some(triple) = entry.triple() else {
-        bail!("cannot prune a brief (briefs are never marked): {name}")
+        bail!("cannot prune a node file (node files are never marked): {name}")
     };
     let mut plan = Vec::new();
     match triple.parts {
@@ -937,7 +937,7 @@ leaf for the wrong reason — the tree holds one leaf, so *found it by path* and
         let node = mknode(&g, "02-k3", "build-k3");
         commit_all(&g);
         let err = leaf_retire(guard(&g), &node.join("_build.md")).unwrap_err();
-        assert!(err.to_string().contains("brief"), "got {err}");
+        assert!(err.to_string().contains("node file"), "got {err}");
     }
 
     #[test]
@@ -946,7 +946,7 @@ leaf for the wrong reason — the tree holds one leaf, so *found it by path* and
         touch(&g, "_BRIEF.md", "root — brief");
         commit_all(&g);
         let err = leaf_retire(guard(&g), Path::new("_BRIEF.md")).unwrap_err();
-        assert!(err.to_string().contains("brief"), "got {err}");
+        assert!(err.to_string().contains("node file"), "got {err}");
     }
 
     #[test]
@@ -984,7 +984,7 @@ leaf for the wrong reason — the tree holds one leaf, so *found it by path* and
 
 **Six refusals, and each asserts on a substring rather than on a whole message.**
 That is the deliberate weakness of the group and it is worth stating plainly:
-`contains("node")`, `contains("brief")`, `contains("already")`,
+`contains("node")`, `contains("node file")`, `contains("already")`,
 `contains("abandoned")` and `contains("leaf")` are each satisfied by more than one
 of this module's sentences, so a test in this group establishes *a refusal
 happened and mentioned the right word*, not *the arm I am named for fired*. The
@@ -1237,7 +1237,7 @@ the nested test reads no content.
         let node = mknode(&g, "02-k3", "build-k3");
         commit_all(&g);
         let err = leaf_prune(guard(&g), &node.join("_build.md")).unwrap_err();
-        assert!(err.to_string().contains("brief"), "got {err}");
+        assert!(err.to_string().contains("node file"), "got {err}");
     }
 
     #[test]
@@ -1246,7 +1246,7 @@ the nested test reads no content.
         touch(&g, "_BRIEF.md", "root — brief");
         commit_all(&g);
         let err = leaf_prune(guard(&g), Path::new("_BRIEF.md")).unwrap_err();
-        assert!(err.to_string().contains("brief"), "got {err}");
+        assert!(err.to_string().contains("node file"), "got {err}");
     }
 
     #[test]
@@ -1286,7 +1286,7 @@ stated as a missing test.
 
 - **`prune_leaf_refuses_a_node_brief`** and **`prune_leaf_refuses_the_root_brief`**
   — `plan_prune`'s brief arm, reached at two depths. Same claim as the retire pair,
-  and the same weakness: `contains("brief")` matches both this module's brief
+  and the same weakness: `contains("node file")` matches both this module's node-file
   refusals.
 - **`prune_leaf_refuses_an_already_done_leaf`** — and here the assertion is
   `contains("DONE")` rather than `contains("already")`, which is the mirroring from

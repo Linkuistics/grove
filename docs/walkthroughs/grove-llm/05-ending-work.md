@@ -259,7 +259,7 @@ carries the word shown, not the wording; every wording is the source's.
 
 | Operand | Refusal on stderr | Held by |
 |---|---|---|
-| the node's `_<slug>.md` | `cannot retire a brief (briefs are never done): _topic.md` | `retire_refuses_a_brief` — a refusal naming *brief* |
+| the node's `_<slug>.md` | `cannot retire a node file (node files are never done): _topic.md` | `retire_refuses_a_brief` — a refusal naming *node file* |
 | a `DONE` leaf | `leaf is already retired (DONE): 01-DONE-impl--rate-limit-k3.md` | `retire_refuses_an_already_done_leaf` — a refusal naming *already retired* or *DONE* |
 | an `ABANDONED` leaf | `cannot retire an abandoned (ABANDONED) leaf: …` | no test in this crate |
 | a node directory | `cannot retire a node (nodes are never marked done): 03-k5` | no test in this crate |
@@ -420,7 +420,7 @@ not run, and it is what *prune the enclosing chain to close the whole reviewed
 path* warns about. The left-`DONE` advisory's wording and the
 three refusals of a single-leaf prune — a brief, a `DONE` leaf, an `ABANDONED`
 leaf — are held by the source and no test in this crate. All three were
-measured, as *cannot prune a brief (briefs are never marked)*, *cannot prune a
+measured, as *cannot prune a node file (node files are never marked)*, *cannot prune a
 retired (DONE) leaf* and *leaf is already pruned (ABANDONED)*, each with the
 filename, exit `1`, tree unchanged. The grove root is refused as *cannot prune
 the grove root (abandoning a whole grove is a branch-delete, not a tree mark)*,
@@ -510,7 +510,7 @@ body untouched — and names three refusals.
     /// `NN-DONE-<kind>--<slug>-k<key>.md`) — no `done/`
     /// directory; the leaf keeps its position and key in its directory, and the
     /// file's contents (its `# <slug>-k<key>` header) are untouched. Refuses a
-    /// brief, an already-retired (`DONE`) leaf, and an already-abandoned
+    /// node file, an already-retired (`DONE`) leaf, and an already-abandoned
     /// (`ABANDONED`) leaf. Prints the retired file's absolute
     /// path on stdout. Task bodies are byte-identical; retirement writes no
     /// launch-routing metadata. Working-tree change only — no commit.
@@ -539,7 +539,7 @@ chains.
     /// the gate is yours, not the CLI's). `<path>` is a live leaf file **or** a
     /// node directory (absolute, or relative to the grove root):
     ///
-    ///   * given a **leaf**, marks it directly — refuses a brief, an
+    ///   * given a **leaf**, marks it directly — refuses a node file, an
     ///     already-`DONE` leaf, and an already-`ABANDONED` leaf;
     ///   * given a **node**, marks every *live* leaf in its subtree
     ///     (recursively) — leaving `DONE` leaves untouched, since that work
@@ -577,7 +577,7 @@ are built from.
 | Promise in the help | Verb | Kept at | Held by |
 |---|---|---|---|
 | the `DONE` infix, position and key kept, body untouched | `leaf-retire` | the call, line 788 | `retire_adds_done_infix_in_place` |
-| refuses a brief, a `DONE` leaf, an `ABANDONED` leaf | `leaf-retire` | the call, through `?` on line 788 | `retire_refuses_a_brief`, `retire_refuses_an_already_done_leaf`; the third by no test in this crate |
+| refuses a node file, a `DONE` leaf, an `ABANDONED` leaf | `leaf-retire` | the call, through `?` on line 788 | `retire_refuses_a_brief`, `retire_refuses_an_already_done_leaf`; the third by no test in this crate |
 | the retired path on stdout | `leaf-retire` | line 789 | `retire_names_the_remaining_steps_on_stderr` — exactly one stdout line |
 | no launch-routing metadata written | `leaf-retire` | nothing in the handler writes | `retiring_a_reviewed_producer_changes_only_its_own_filename` |
 | a leaf marked directly; a node's live leaves marked, `DONE` left alone, the root refused | `leaf-prune` | the call, line 798 | `pruning_a_node_marks_every_leaf_the_same_way`, `leaf_prune_marks_a_whole_subtree_abandoned_in_a_jj_native_tree`; the root refusal by no test in this crate |

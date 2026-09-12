@@ -628,7 +628,7 @@ its handler with none.
     /// recursive depth-first **pre-order** walk over the directory tree (a node
     /// is a directory of numbered children and exactly one `_<slug>.md` node file),
     /// returning the
-    /// first live leaf and skipping briefs and terminal leaves — retired
+    /// first live leaf and skipping node files and terminal leaves — retired
     /// (`DONE`) and abandoned (`ABANDONED`) alike. Empty stdout
     /// (and a diagnostic on stderr) when the grove has no live leaves.
     Pick,

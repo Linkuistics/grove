@@ -330,7 +330,7 @@ entry before calling*.
 fn decomposable<'a>(entry: &Entry<'a, TaskName>) -> Result<(Kind, &'a Slug)> {
     let name = entry.name();
     let Some(triple) = entry.triple() else {
-        bail!("cannot decompose a brief (it is already a node): {name}")
+        bail!("cannot decompose a node file (it already belongs to a node): {name}")
     };
     match triple.parts {
         Parts::Node => {
@@ -878,7 +878,7 @@ answer 6 here as well.
             Some(a_kind("impl")),
         )
         .unwrap_err();
-        assert!(err.to_string().contains("brief"), "got {err}");
+        assert!(err.to_string().contains("node file"), "got {err}");
     }
 
     #[test]

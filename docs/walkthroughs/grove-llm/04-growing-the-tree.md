@@ -787,7 +787,7 @@ grow verb. Measured under an external lock, `leaf-decompose` inheriting its
 kind waits on the shared read and completes on release, while `leaf-decompose`
 with an undeclared `--kind` override is refused at once, before either opening —
 the two openings are sequential, never nested. A kind that cannot be read is left
-to the verb: `leaf-decompose` refuses a brief, a retired leaf and a malformed
+to the verb: `leaf-decompose` refuses a node file, a retired leaf and a malformed
 name with its own message, and a presence check that errored on an unreadable
 kind first would replace those refusals with a complaint about configuration.
 `a_verbs_own_refusal_is_not_replaced_by_a_configuration_complaint` in
@@ -894,7 +894,7 @@ and none of the three reaches a call.
     /// `grove-llm pick` returns the new leaf. The charter and leaf are created
     /// together; the driver refuses a root holding only its charter as taskless.
     /// Refuses if `.grove/` already exists. Working-tree change only —
-    /// no commit. Prints the charter's path, then the leaf's.
+    /// no commit. Prints the root node file's path, then the leaf's.
     RootInit(RootInitArgs),
 ````
 <!-- /fragment -->
@@ -1033,7 +1033,7 @@ leaf's kind unless `--kind` overrides it.
     /// `01-<kind>--<first-child-slug>-k<new>.md` so the
     /// node is never childless. The first child **inherits the decomposed
     /// leaf's own kind** unless `--kind` overrides it.
-    /// Prints the brief's absolute path then the first child's, one per line.
+    /// Prints the node file's absolute path then the first child's, one per line.
     /// Working-tree change only — no commit.
     LeafDecompose(LeafDecomposeArgs),
 ````

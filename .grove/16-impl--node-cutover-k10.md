@@ -108,3 +108,182 @@ drivers restart between install and migration. If a prepared preflight reveals
 product defects, insert precise repair work ahead of this leaf before entering
 the cutover window. Any release source edit still owes its book in the same
 commit; a release version edit may affect a manifest reconstructed by a book.
+
+## Decisions (running log)
+
+1. Preparation began on 2026-09-12 under driver 20.2.0, from clean secondary
+   change `mowsyyrq`, parent `9278f021`. No publication approval or confirmation
+   that other loops are stopped has been supplied. This preparation must leave
+   the leaf live and return without a signal.
+2. Reconcile the routed F3 terminology in CLI help, lifecycle refusals and their
+   existing tests/books. Preserve API identifiers and uses of brief for body
+   text. This is string/comment plumbing with no library-version decision.
+3. Prepare version **21.0.0**: the required node-file grammar breaks existing
+   trees, so a major release communicates the compatibility boundary. The
+   default workspace is clean at `f394b9dc`, parent `d91d6df1` (`main`,
+   `v20.2.0`). Release doctor passes all prerequisites (Rust 1.93.1, three
+   target stds, Zig 0.16.0, cargo-zigbuild and GitHub authentication).
+4. Inventory found six current trees, adding `Modaliser` to the four previously
+   known external groves. The default Grove workspace has no `.grove/` yet;
+   release integration will create its seventh copy. Converted scratch copies
+   live at `/tmp/grove-k10-preflight/`, with original bytes, SHA-256 inventories
+   and item-by-item mappings. Five trees preserve their selected leaf filename
+   and pass the candidate's `pick` and `brief-chain` (candidate still reports
+   the source version 20.2.0; it is not installed).
+5. APIAnyware preflight refuses one existing node with no `BRIEF.md`:
+   `11-libapianyware-ocaml-dylib-k10/05-init-and-method-trampolines-k87/04-async-and-throws-reentry-chain-k112`.
+   It contains a child node and two terminal leaves; it is not an empty
+   interrupted decomposition. Do not silently fabricate a brief or weaken the
+   reader. The exact-path jj history query found no recovery candidate. This
+   needs explicit recovery/disposition before the cutover can be approved.
+6. Plugin refresh must address the real directory `~/.codex/skills/grove`,
+   preserving it in the cutover backup before replacing it with a symlink to
+   the default checkout's shipped spine. `grove-impl` already links there.
+   Claude's installed `grove@linkuistics` cache is `d91d6df12172`; refresh with
+   `claude plugin marketplace update linkuistics` then
+   `claude plugin update grove@linkuistics`, and verify installed content.
+   Advancing the default checkout also updates linked kind skills, so defer
+   that advance until the other loops are confirmed stopped.
+7. The 21.0.0 rehearsal cut and all three release archives build successfully
+   using the repository's release script in an isolated colocated checkout at
+   `/tmp/grove-k10-release-rehearsal`. This avoids advancing the default checkout
+   and thereby refreshing linked skills before stop confirmation. Its local-only
+   tag is on `acb1c097732f12d27b80f0ba20ba58d783e8f77b`; do not push that
+   unrelated rehearsal history. It differs from the preparation source only by
+   the intended root workspace version, six lockfile versions and changelog
+   heading. No book reconstructs the root workspace manifest. The actual release
+   cut must still run in the default workspace under `docs/RELEASING.md`.
+8. Recovery evidence is preserved outside the repository at
+   `/Users/antony/.local/share/grove-cutovers/node-cutover-k10-20260912/`:
+   `preflight.tar.gz` holds original trees, mapped scratch copies, per-file hashes,
+   selection/chain results and the one-off conversion script;
+   `api-refusal.json` pins the new reader's missing-file refusal;
+   `rehearsal-dist/` holds inspected archives/formula and `release-build.log`
+   records the successful build. These are preparation snapshots, not a licence
+   to overwrite trees that continue moving. Re-enumerate and snapshot again after
+   stops, comparing each entry rather than just totals.
+9. Both binaries extracted from the macOS rehearsal archive report 21.0.0.
+   That archive's reader preserves each passing selection: InTheLoop k50,
+   Modaliser k44, Writegood k22, this tree k10 and grove.gh-issue-12 k27.
+   APIAnyware's old reader selected k823 during this snapshot; the new reader
+   refuses missing k112 before selection. A projected default-workspace copy
+   passes, and scratch retirement of k10 selects `grove-migration-k11`.
+   No terminal tree was found and no selection was fabricated.
+
+### Prepared publication and cutover plan (approval outstanding)
+
+**Source and version.** Publish the history from `main` at `d91d6df1` through
+`9278f021`, the preparation change `mowsyyrq` (keep k10 live), then the real
+`chore: release v21.0.0` cut. The actual release commit/tag does not yet exist
+in the shared repository: the rehearsal proves the specified version edit and
+build, not that a release has been cut or published. Before execution, snapshot
+this live leaf's final preparation text and record the resulting commit SHA.
+
+**Reviewable artifacts.** Rehearsal SHA-256 values (the final default-workspace
+build must record its own values; archive timestamps can differ):
+
+- `grove-v21.0.0-aarch64-apple-darwin.tar.xz`:
+  `f1935e2a2ef896ca8f1c04f4479be2a66975f80168708bd277bc136dbe62989d`
+- `grove-v21.0.0-aarch64-unknown-linux-gnu.tar.xz`:
+  `49f4b3886ed068809f44f4689999268ecc906efea6dec0b7013b0120a18ad605`
+- `grove-v21.0.0-x86_64-unknown-linux-gnu.tar.xz`:
+  `d50941a42e2fef2ad3fa2ddefdd11d1b092a5d8eae201712ae56ab5ba324bcc4`
+- Generated `grove.rb`:
+  `8f151d29e008e498a3c2f6364df52be500fd36381bfb34b2283d80e558f95858`
+
+Each archive carries `grove`, `grove-llm`, LICENSE and README. The formula names
+21.0.0, all three matching release URLs and checksums. The plugin ships from the
+same source release commit. Changelog's complete Unreleased entry already covers
+the grammar, strict refusals and paired binary/plugin installation.
+
+**Before execution.** Obtain approval for this named 21.0.0 plan and explicit
+confirmation that all other Grove loops are stopped (including newly found
+Modaliser). Resolve APIAnyware k112's missing brief; the human has been asked
+whether to authorize a minimal body identifying the existing review chain or
+provide an original to restore. Neither option has yet been authorized. No
+publication, installation or live conversion occurs until these conditions hold.
+After a preparation stop, restart the installed 20.2.0 `grove` here with this
+leaf still live. That restart is not approval; the resumed session rechecks the
+recorded confirmations and the plan.
+
+**Workspace and publication sequence after approval.** Recheck both workspaces
+and preserve unrelated changes. Snapshot/describe this preparation change without
+retiring k10, then in `~/Development/grove` use `jj new <preparation-SHA>` to
+materialize it on an empty default change. Move `main` to the preparation change;
+run `cargo release major` dry-run, inspect, then the executed cut as documented.
+Verify the real release change contains only root Cargo.toml, six Cargo.lock
+versions and the changelog heading. Inspect imported jj history, move `main` to
+that release, park default's empty working copy on it, and confirm Git HEAD is
+exactly tagged v21.0.0. Run release doctor, full checks and
+`scripts/release-build.sh` there, inspect artifacts and record final hashes.
+Publish `jj git push -b main`, the explicit `git push origin v21.0.0` tag
+exception, and the GitHub Release/archives. The Homebrew tap is itself jj-enabled
+and clean: its `main` is `b2ef6f9f`, current change `susqrnpp`. Use the publish
+script's constituent operations for that tap so its commit/bookmark/push go
+through jj, not the script's raw Git mutation: copy the formula, describe
+`grove v21.0.0`, point `main` to it, seal, then `jj git push -b main`.
+Never rerun an already-successful GitHub Release creation after a later failure.
+
+**Install and plugin refresh.** `brew update`, `brew upgrade grove`; verify
+resolved paths and both versions. Refresh the Claude marketplace/plugin by the
+commands in decision 6. Preserve the real Codex spine directory in the recovery
+folder, replace it with the default checkout's shipped spine link, and run that
+checkout's `plugins/install.sh`; inspect any analogous real-directory conflicts
+and preserve them before replacement. Verify bootstrap/format bytes and the full
+installed Grove skill set against the release source before restarting a harness.
+The install script must run from the default checkout, never with `--force` here.
+
+**This tree's exact renames.** Preserve a fresh original and collision-checked
+mapping. Rename `.grove/BRIEF.md` to `.grove/_BRIEF.md`, rename
+`.grove/08-distinguished-names-k6/BRIEF.md` to `_distinguished-names.md` in that
+directory, then rename its directory to `.grove/08-k6/`. Every leaf name and body,
+node key, heading and order is preserved. The preflight mapping enumerates all
+moved descendant paths as well. Deeper trees use the same file-first,
+bottom-up-directory order. Verified obsolete root FORMAT witnesses are removed
+only with original bytes retained (observed in APIAnyware, Writegood and
+`grove.gh-issue-12`); unrelated contents remain intact.
+
+**Completion boundary.** In this secondary workspace, create an empty change on
+the real release commit (after checking the preparation edits are ancestors),
+perform the authorized conversion, and verify installed-reader handle resolution,
+brief chains and next selection with `GROVE_SIGNAL_FILE` cleared for administrative
+probes. Retire k10 using the installed new binary only after release/install/
+conversion verification. Describe and seal that change with conversion and
+retirement together. Advance the default workspace with `jj new <sealed-cutover>`
+and verify its actual converted tree with the installed reader. The tag stays on
+the release cut. Other trees remain stopped for `grove-migration-k11`, whose
+inventory must include Modaliser and the default copy. This session's mandate is
+20.2.0: after eventual completed cutover, return without a completion signal and
+have the human start the newly installed driver here. At preparation alone,
+leave k10 live, snapshot with `jj status`, and return without signalling.
+
+10. Verification completed: `bash scripts/check.sh` exits 0, all eight principal
+    checks pass, all six books reconstruct fully. The refusal assertion was
+    first observed failing with the old diagnostic, then the updated existing
+    brief-related lifecycle tests passed. Full check output is `check.log` in
+    the recovery folder. A hash manifest of crates, plugins, scripts, docs and
+    root manifests/config/glossaries remained unchanged through the final check.
+    Rehearsal source comparison confirms only CHANGELOG.md, Cargo.lock and
+    Cargo.toml differ from the current source outside the task tree, exactly
+    the version-cut edits. The recovery tar archive was verified file by file
+    against every original-tree digest. It is archived rather than copied into
+    a deeper backup directory because APIAnyware's paths exceed PATH_MAX when
+    that prefix is added; extract it under a short temporary path.
+11. Preparation handoff: no live tree was renamed or retired, no installed
+    binary/plugin was replaced, and nothing was published. Approval, other-loop
+    stop confirmation and k112 brief disposition remain outstanding. Keep this
+    handle live and return without `grove-llm complete`; the next session must
+    revalidate these snapshots because other drivers were still active.
+12. On 2026-09-13 the human replied “yes” to approval of the named 21.0.0
+    cutover plan, confirmation that all other Grove loops are stopped, and
+    authorization for a minimal APIAnyware k112 brief. All three confirmations
+    are now recorded; do not ask again. Revalidate snapshots before execution.
+13. Authorized k112 repair written as a minimal brief identifying existing
+    k113/k114/k115 implementation, review and integration. Refreshed inventory
+    passes all six trees: APIAnyware k870, InTheLoop k50, Modaliser k110,
+    Writegood k22, this tree k10 and grove.gh-issue-12 k27. Every old/new
+    selection matches, and every mapped file digest matches. New snapshots and
+    mapping are in `/tmp/gk10-approved`, archived at
+    `/Users/antony/.local/share/grove-cutovers/node-cutover-k10-20260913/approved-preflight.tar.gz`.
+    Release doctor passes; repository source matches the previously checked
+    source digest manifest. The default and tap workspaces are still empty.

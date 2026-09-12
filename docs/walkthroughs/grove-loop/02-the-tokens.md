@@ -388,7 +388,7 @@ is `a_node_wearing_an_outcome_infix_is_malformed`, below.
 
 `Live`'s own line names the verb the distinction is for. `pick` is grove's answer
 to *what next*: a depth-first pre-order walk that returns the first leaf still
-live, skipping briefs and every leaf marked `DONE` or `ABANDONED`. Chapter 7
+live, skipping node files and every leaf marked `DONE` or `ABANDONED`. Chapter 7
 reads that walk. This enum is the half of it the walk consults, which is why the
 variant that has no infix is the one a verb is documented in terms of.
 

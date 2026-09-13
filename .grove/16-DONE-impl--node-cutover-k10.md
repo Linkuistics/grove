@@ -287,3 +287,47 @@ leave k10 live, snapshot with `jj status`, and return without signalling.
     `/Users/antony/.local/share/grove-cutovers/node-cutover-k10-20260913/approved-preflight.tar.gz`.
     Release doctor passes; repository source matches the previously checked
     source digest manifest. The default and tap workspaces are still empty.
+14. Approved preparation is sealed as `979b37b2171068619f240a6b37ea8390458d31d4`.
+    Default-workspace dry-run and executed `cargo release major` created release
+    `a50b9345000e38c4157854be6c6c6aeaec8462ea`, tagged `v21.0.0`. Inspected diff
+    is exactly the root workspace version, six lockfile versions and changelog
+    heading. Both workspaces now descend from that release; default Git HEAD
+    exactly matches the tag. Full release checks run before publication.
+15. Final archives built in the default workspace with `COPYFILE_DISABLE=1`
+    after inspection exposed macOS `._*` metadata in the first packaging run.
+    Rebuilt archives contain exactly both binaries, LICENSE and README. Both
+    macOS binaries report 21.0.0; that archive's reader passes all seven scratch
+    copies, including the release-created default tree. Final SHA-256 values:
+    macOS `b6b696d27bc0e24e8fb2dac1192f3aa10f2037699647ce77188957b49c21a1fd`;
+    Linux ARM `b98bb50ec8c4ac06be80cde16d39875a52962074e965bc4d834dfdf1e5b9cc16`;
+    Linux x86 `b1072c65299efeb04f97f4539e1252e5d597ec92f5f4cb569a8d96aff91861ad`;
+    formula `519d127f74e2c7f41fb7a0a0e44e6e8d7da23135783daf140d85d47a26c3e202`.
+    The formula carries each matching archive hash. Full filenames, preflight
+    outputs and build log live in the 20260913 recovery folder.
+16. Full checks against release a50b9345 exit 0: all eight principal checks and
+    all six books pass. The source digest manifest remains unchanged before and
+    after the complete run. Evidence is `release-check.log` and
+    `release-checked-source-sha256.json` in the 20260913 recovery folder.
+    Publication proceeds under the approval recorded in decision 12.
+17. Published main and tag v21.0.0 at a50b9345, then created
+    `https://github.com/Linkuistics/grove/releases/tag/v21.0.0` with all three
+    archives. Published the matching Homebrew formula through jj as tap commit
+    `b9fc2167`. These operations succeeded; do not recreate the GitHub Release.
+18. Homebrew install succeeds; `/opt/homebrew/bin/grove` and `grove-llm`
+    resolve into Cellar 21.0.0 and match the published macOS archive byte for
+    byte. GitHub's three asset digests match the final local hashes. Claude's
+    `grove@linkuistics` now records a50b9345; every installed Grove skill file
+    matches release source. Codex and Pi's full Grove skill sets resolve into
+    the default checkout and match too. Both real spine directories were
+    preserved in `installed-skill-backups` before replacement; the default
+    checkout's install script exits 0. Other trees remain stopped for k11.
+19. This workspace's actual tree is converted. `this-tree-before.tar.gz` and
+    `this-tree-mapping.json` in the recovery folder preserve every original byte
+    and mapped path; comparison after conversion is exact. Installed handle
+    resolution finds k10 and node k6; k19's brief chain lists `_BRIEF.md` and
+    `08-k6/_distinguished-names.md`. Installed-reader scratch retirement selects
+    k11. No ADR changes or parent close are needed: migration remains live.
+    Seal conversion and retirement together, then advance and verify the default
+    copy. This mandate is 20.2.0: return without signalling; the human starts
+    installed Grove 21.0.0 here for k11. Include Modaliser and both Grove copies
+    in k11's inventory, with other drivers stopped until their trees verify.

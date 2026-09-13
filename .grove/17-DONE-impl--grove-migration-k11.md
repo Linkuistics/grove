@@ -67,3 +67,58 @@ finish session. Use the normal retirement, jj seal and `grove-llm complete`
 ending here, under the new driver. The cutover leaf's no-signal exception does
 not apply to migration. Retain snapshots until their comparisons succeed;
 temporary workflow files are not a release deliverable.
+
+## Decisions (running log)
+
+1. On 2026-09-13, both installed binaries report 21.0.0. Process inventory
+   shows only this session's Grove driver; cutover decision 12 supplies the
+   retained stop/migration authorization. Fresh discovery finds seven trees:
+   APIAnyware.add-ocaml-target, InTheLoop, Modaliser, Writegood,
+   grove.gh-issue-12, this workspace and the default Grove workspace.
+2. Use an external temporary workflow with fresh per-entry mappings and
+   recoverable archives, checking bytes, file types, keys and sibling positions
+   before and after conversion. Preserve existing external workspace changes
+   in their current jj changes, then create separate migration changes. Both
+   Grove copies already use the installed grammar and need verification only;
+   advance the clean default copy to this leaf's sealed result at the end.
+3. All five external trees match the approved cutover snapshot file by file;
+   no new tree or unexplained change was found. The two Grove copies differ
+   through the recorded cutover and this running log. The temporary preflight
+   preserves existing ordinal gaps in grove.gh-issue-12; migration does not
+   renumber siblings. Scratch probes use canonical paths to account for macOS's
+   `/tmp` alias. Neither workflow adjustment changed a live tree.
+4. Fresh archives, exact mappings, per-entry SHA-256 inventories, installed
+   reader outputs and jj boundaries are retained outside the repository at
+   `/Users/antony/.local/share/grove-cutovers/grove-migration-k11-20260913/`.
+   Every archive was compared with its source, every resulting entry with its
+   mapped original, and sources were rechecked before mutation. Node keys,
+   sibling positions, leaf names/outcomes and every retained file's bytes match.
+   The workflow and input manifest digests stayed fixed during execution.
+   Scratch controls verify partial-file-rename recovery, identity on a second
+   conversion and refusal of competing root files without overwriting them.
+5. Installed 21.0.0 acceptance from each actual workspace, with
+   `GROVE_SIGNAL_FILE` cleared, passes `pick`, deepest-node handle resolution
+   and a descendant's exact root-to-leaf node-file chain:
+
+   | Tree | Next key | Deepest node checked | FORMAT | Migration commit |
+   | --- | --- | --- | --- | --- |
+   | APIAnyware.add-ocaml-target | k870 | l-k795 | obsolete witness removed | b4b83320 |
+   | InTheLoop | k50 | adoption-lifecycle-k36 | absent | d716daef |
+   | Modaliser | k110 | custom-native-storage-semantics-k94 | absent | b6d781f8 |
+   | Writegood | k22 | inspection-pack-k43 | obsolete witness removed | 9bf13a77 |
+   | grove.gh-issue-12 | k27 | persuasion-micro-test-k25 | obsolete witness removed | a86efa40 |
+   | grove (default copy) | k11 | distinguished-names-k6 | absent | already converted |
+   | this workspace | k11 | distinguished-names-k6 | absent | already converted |
+
+   Each removed FORMAT contained exactly `session-kinds-v1` plus newline;
+   originals remain in the archives. No unrelated FORMAT material was found.
+   APIAnyware's longest actual byte path shrank from 1013 to 310, and
+   Modaliser's from 783 to 251, with every descendant accounted for.
+6. External migration changes contain only `.grove/` paths, each directly
+   above its preserved pre-migration change, and are sealed with empty working
+   changes above them. The other drivers remain stopped; operators may now
+   restart these verified groves with 21.0.0. No harness was launched as a
+   probe. No source, book, product parser or ADR change is needed. Retire this
+   root-level leaf normally, seal its acceptance log and retirement together,
+   then advance the clean default copy and verify both copies' terminal reads.
+   The driver owns the subsequent finish session.

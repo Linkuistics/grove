@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -107,11 +106,11 @@ fn capture_once(
         TryReading::Ready(Reading::Vacant) => return Ok(Observation::Vacant),
         TryReading::Ready(Reading::Tree(tree)) => tree,
     };
+    grove_loop::select_snapshot(tree.root(), tree.snapshot(), None)?;
     let root = tree.snapshot().root();
     let brief = root.distinguished().context("root has no brief")?;
     let path = entry_path(tree.root(), brief);
 
-    let mut keys = HashSet::new();
     let mut rows = vec![Row {
         key: None,
         path,
@@ -127,11 +126,6 @@ fn capture_once(
         let Some(triple) = entry.triple() else {
             continue;
         };
-        anyhow::ensure!(
-            keys.insert(triple.key.get()),
-            "duplicate key k{}",
-            triple.key
-        );
         let (path, handle, kind, counts, branch) = match triple.parts {
             Parts::Leaf { outcome, kind, .. } => {
                 let handle = Handle::of_leaf(entry.name()).context("leaf has no handle")?;

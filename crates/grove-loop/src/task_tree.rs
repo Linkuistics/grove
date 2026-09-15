@@ -38,6 +38,7 @@
 // message. Only the wording is chosen here; the refusal itself already
 // happened.
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
@@ -550,7 +551,7 @@ pub(crate) fn pick_in(tree: &Tree) -> Result<Option<PathBuf>> {
 /// sits, and more than one live `finish` leaf is a malformed tree rather than a
 /// choice.
 pub(crate) fn select_in(tree: &Tree) -> Result<Option<Selection>> {
-    selected(tree.root(), tree.snapshot())
+    selected(tree.root(), tree.snapshot(), None)
 }
 
 /// [`select_in`] against a tree held **exclusively**.
@@ -560,12 +561,26 @@ pub(crate) fn select_in(tree: &Tree) -> Result<Option<Selection>> {
 /// and a mutation is on the exclusive guard. Both guards deref to a
 /// [`Snapshot`], so this is the same selection and not a second one.
 pub(crate) fn select_in_write(tree: &Guard) -> Result<Option<Selection>> {
-    selected(tree.root(), tree.snapshot())
+    selected(tree.root(), tree.snapshot(), None)
 }
 
-fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selection>> {
+pub(crate) fn selected(
+    root: &Path,
+    snapshot: &Snapshot<TaskName>,
+    excluded_key: Option<Key>,
+) -> Result<Option<Selection>> {
+    let mut keys = HashMap::new();
     let mut live = Vec::new();
     for entry in snapshot.walk() {
+        if let Some(key) = entry.key() {
+            if let Some(previous) = keys.insert(key, entry) {
+                bail!(
+                    "duplicate key k{key}: {} and {}; restore each item's original permanent identity from version history; never reuse a retired key",
+                    entry_path(root, previous).display(),
+                    entry_path(root, entry).display()
+                );
+            }
+        }
         if let Some((kind, handle)) = live_leaf(&entry) {
             live.push((entry, kind, handle));
         }
@@ -584,10 +599,13 @@ fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selecti
                 .join(", ")
         );
     }
+    // Validate the whole snapshot before excluding any candidate. Excluding a
+    // node's identity must not exclude its children, which have their own keys.
+    live.retain(|(entry, _, _)| entry.key() != excluded_key);
     let selected = live
         .iter()
         .find(|(_, kind, _)| !kind.is_finish())
-        .or_else(|| finish.first().copied());
+        .or_else(|| live.first());
     Ok(selected.map(|(entry, kind, handle)| Selection {
         path: entry_path(root, *entry),
         handle: handle.clone(),

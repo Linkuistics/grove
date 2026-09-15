@@ -192,7 +192,9 @@ Every capture releases its guard before another acquisition. A retained open
 root directory descriptor holds no tree lock; device/inode identity checks
 around capture detect replacement and clear old item state. Root opening is
 nonblocking and directory-only; metadata identifies even unreadable replacements.
-The adapter rejects duplicate keys before selecting content. Permanent keys
+The adapter calls `grove_loop::select_snapshot` before selecting content. The
+loop owns duplicate-key and multiple-live-finish validation for the driver,
+`pick` and viewer; the viewer has no private validity rule. Permanent keys
 preserve selection and branch expansion; disappearance selects the nearest
 surviving ancestor, and moved selections reveal their ancestors.
 
@@ -447,6 +449,15 @@ decision records and the changelog breaks the check rather than passing it, whic
 is the intended direction.
 
 ### Authoritative selection and mandate
+
+`grove_loop::select_snapshot(root, snapshot, excluded_key)` validates an
+already-read snapshot and returns the existing typed `Selection` or none.
+Duplicate permanent keys across all positioned items and multiple live finishes
+refuse before exclusion. It excludes only the named live-leaf candidate, so a
+branch's children remain eligible; it then chooses the first ordinary live leaf
+in depth-first position order, or the sole remaining finish. Both shared and
+exclusive driver paths use that rule with no exclusion. The viewer uses it for
+validation. Selection has no filesystem effects and never creates a sentinel.
 
 **Finish is reserved, not blocking**, and both halves matter. Selection skips
 the driver-owned `finish` leaf while any non-finish leaf is live, so

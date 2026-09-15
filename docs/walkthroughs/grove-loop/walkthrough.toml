@@ -206,7 +206,7 @@ lines = 68
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 396
+lines = 416
 
 [[root]]
 id    = "source-task-name"
@@ -216,7 +216,7 @@ lines = 1675
 [[root]]
 id    = "source-task-tree"
 path  = "crates/grove-loop/src/task_tree.rs"
-lines = 1983
+lines = 2001
 
 [[root]]
 id    = "source-task-grow"
@@ -273,7 +273,7 @@ lines = "1-68"
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-396"
+lines = "1-416"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -333,61 +333,61 @@ lines = "1525-1675"
 id    = "tree-opening"
 root  = "source-task-tree"
 owner = "one-spelling-of-grove"
-lines = "1-302"
+lines = "1-303"
 
 [[block]]
 id    = "paths-and-addressing"
 root  = "source-task-tree"
 owner = "paths-are-built-here"
-lines = "303-530"
+lines = "304-531"
 
 [[block]]
 id    = "walk-selection"
 root  = "source-task-tree"
 owner = "first-live-leaf"
-lines = "531-597"
+lines = "532-615"
 
 [[block]]
 id    = "kind-and-brief-chain"
 root  = "source-task-tree"
 owner = "root-to-leaf"
-lines = "598-700"
+lines = "616-718"
 
 [[block]]
 id    = "resolution"
 root  = "source-task-tree"
 owner = "wider-than-a-key"
-lines = "701-983"
+lines = "719-1001"
 
 [[block]]
 id    = "path-composition-tests"
 root  = "source-task-tree"
 owner = "paths-are-built-here"
-lines = "984-1075"
+lines = "1002-1093"
 
 [[block]]
 id    = "pick-tests"
 root  = "source-task-tree"
 owner = "first-live-leaf"
-lines = "1076-1327"
+lines = "1094-1345"
 
 [[block]]
 id    = "brief-chain-and-kind-tests"
 root  = "source-task-tree"
 owner = "root-to-leaf"
-lines = "1328-1635"
+lines = "1346-1653"
 
 [[block]]
 id    = "resolve-tests"
 root  = "source-task-tree"
 owner = "wider-than-a-key"
-lines = "1636-1956"
+lines = "1654-1974"
 
 [[block]]
 id    = "pick-with-brief-chain-tests"
 root  = "source-task-tree"
 owner = "root-to-leaf"
-lines = "1957-1983"
+lines = "1975-2001"
 
 [[block]]
 id    = "growing-the-tree"

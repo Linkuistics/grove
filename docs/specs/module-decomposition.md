@@ -37,10 +37,12 @@ state and is cited here rather than restated.
 | — | `grove`, `grove-llm` (binaries) | — |
 
 The domain-bound viewer consumes the loop's quiet `try_read` typed reader and canonical
-`entry_path` helper. It owns application state and terminal rendering; its
+`entry_path` helper, and calls the loop's `select_snapshot` for whole-tree
+duplicate-key and live-finish validation. It owns application state and terminal rendering; its
 Ratatui/Crossterm dependencies do not enter grove-loop or grove-llm. The human
-binary dispatches `view` before lifecycle setup. The observation path is not a
-launch-policy selector. See [Read-only viewer](../ARCHITECTURE.md#read-only-viewer).
+binary dispatches `view` before lifecycle setup. The loop owns the shared
+selection rule over an already-read snapshot, including optional permanent-key
+exclusion; the viewer does not reimplement it. See [Read-only viewer](../ARCHITECTURE.md#read-only-viewer).
 The [item-status design](./item-status.md) defines the combined typed
 tree/activity observation interface and full-width interaction. Runtime protocol
 knowledge belongs to the loop; row styling and viewport state belong to the

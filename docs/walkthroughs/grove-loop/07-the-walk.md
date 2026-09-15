@@ -57,7 +57,7 @@ inside it. Two of its steps belong to earlier chapters: `entry.triple()` is the
 library's, and `live_leaf` is chapter 6's — the reading that turns an entry into
 a session kind and a handle, or into `None`.
 
-This chapter owns 319 lines of `task_tree.rs` in 2 blocks.
+This chapter owns 336 lines of `task_tree.rs` in 2 blocks.
 The source index records their current ranges; the fragments below reconstruct
 every owned byte.
 
@@ -65,10 +65,10 @@ every owned byte.
 ## What a launch needs, copied once
 
 The chapter's first ownership block is the production run. It expands, in order,
-to lines 531 through 597 of the file, and the five fragments it names run to the
+to lines 532 through 615 of the file, and the five fragments it names run to the
 end of the next section.
 
-<!-- fragment «walk-selection» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="531-597" parent="source-task-tree" -->
+<!-- fragment «walk-selection» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="532-615" parent="source-task-tree" -->
 <!-- insert «walk-selection-type» -->
 <!-- insert «walk-pick-in» -->
 <!-- insert «walk-select-in» -->
@@ -82,7 +82,7 @@ in the crate's cast at low resolution — the leaf a session was launched to wor
 its path, its identity and its kind — and this is the definition that closes that
 row.
 
-<!-- fragment «walk-selection-type» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="531-539" parent="walk-selection" -->
+<!-- fragment «walk-selection-type» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="532-540" parent="walk-selection" -->
 ````rust
 /// Everything a launch needs about one selected leaf, copied while a single
 /// shared guard is held. Callers never reopen or reparse the tree before launch.
@@ -121,7 +121,7 @@ re-exports the type at the crate root, which is the `Selection` chapter 1 met.
 
 `pick` is this type with two fields dropped, and the file says so in one line.
 
-<!-- fragment «walk-pick-in» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="540-545" parent="walk-selection" -->
+<!-- fragment «walk-pick-in» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="541-546" parent="walk-selection" -->
 ````rust
 /// `pick` against a tree already read. Used by every verb that needs a leaf
 /// and its brief chain from the *same* observation.
@@ -178,7 +178,7 @@ same test module, where it resolves.
 The shared-guard entry point carries the chapter's second rule in its own doc
 comment.
 
-<!-- fragment «walk-select-in» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="546-555" parent="walk-selection" -->
+<!-- fragment «walk-select-in» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="547-556" parent="walk-selection" -->
 ````rust
 /// `select` against a tree already read.
 ///
@@ -187,7 +187,7 @@ comment.
 /// sits, and more than one live `finish` leaf is a malformed tree rather than a
 /// choice.
 pub(crate) fn select_in(tree: &Tree) -> Result<Option<Selection>> {
-    selected(tree.root(), tree.snapshot())
+    selected(tree.root(), tree.snapshot(), None)
 }
 
 ````
@@ -214,15 +214,17 @@ wherever it sits**, which overrides walk order rather than refining it. **More
 than one live finish leaf is malformed**, which is a refusal rather than a choice
 between them.
 
-The body passes two arguments on. `tree.root()` is the path the caller spelled —
+The body passes the snapshot and its path spelling with no exclusion.
+`tree.root()` is the path the caller spelled —
 chapter 5's note that the inherent `root` wins over the snapshot's is what makes
 that the path and not the root level — and `tree.snapshot()` is the observation.
-Both come off one guard, and that is the whole of what `select_in` contributes.
+Both come off one guard. The public `select_snapshot` operation accepts these
+same values with an optional excluded permanent key for read-only consumers.
 
 The exclusive twin is the same call against a different guard, and its comment
 says why that is not a second selection.
 
-<!-- fragment «walk-select-in-write» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="556-565" parent="walk-selection" -->
+<!-- fragment «walk-select-in-write» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="557-566" parent="walk-selection" -->
 ````rust
 /// [`select_in`] against a tree held **exclusively**.
 ///
@@ -231,7 +233,7 @@ says why that is not a second selection.
 /// and a mutation is on the exclusive guard. Both guards deref to a
 /// [`Snapshot`], so this is the same selection and not a second one.
 pub(crate) fn select_in_write(tree: &Guard) -> Result<Option<Selection>> {
-    selected(tree.root(), tree.snapshot())
+    selected(tree.root(), tree.snapshot(), None)
 }
 
 ````
@@ -254,13 +256,28 @@ Both call sites are chapter 14's, in the finish transition:
 between that read and allocation*, and `finish_commit`, which reads all three
 fields of the selection to refuse a finish while live work remains.
 
-The private function both entry points call is the chapter's only real algorithm.
+The crate-internal function behind the guarded entry points and the public
+snapshot operation owns the selection algorithm.
 
-<!-- fragment «walk-selected» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="566-597" parent="walk-selection" -->
+<!-- fragment «walk-selected» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="567-615" parent="walk-selection" -->
 ````rust
-fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selection>> {
+pub(crate) fn selected(
+    root: &Path,
+    snapshot: &Snapshot<TaskName>,
+    excluded_key: Option<Key>,
+) -> Result<Option<Selection>> {
+    let mut keys = HashMap::new();
     let mut live = Vec::new();
     for entry in snapshot.walk() {
+        if let Some(key) = entry.key() {
+            if let Some(previous) = keys.insert(key, entry) {
+                bail!(
+                    "duplicate key k{key}: {} and {}; restore each item's original permanent identity from version history; never reuse a retired key",
+                    entry_path(root, previous).display(),
+                    entry_path(root, entry).display()
+                );
+            }
+        }
         if let Some((kind, handle)) = live_leaf(&entry) {
             live.push((entry, kind, handle));
         }
@@ -279,10 +296,13 @@ fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selecti
                 .join(", ")
         );
     }
+    // Validate the whole snapshot before excluding any candidate. Excluding a
+    // node's identity must not exclude its children, which have their own keys.
+    live.retain(|(entry, _, _)| entry.key() != excluded_key);
     let selected = live
         .iter()
         .find(|(_, kind, _)| !kind.is_finish())
-        .or_else(|| finish.first().copied());
+        .or_else(|| live.first());
     Ok(selected.map(|(entry, kind, handle)| Selection {
         path: entry_path(root, *entry),
         handle: handle.clone(),
@@ -294,18 +314,20 @@ fn selected(root: &Path, snapshot: &Snapshot<TaskName>) -> Result<Option<Selecti
 <!-- /fragment -->
 
 **The actor is grove, the input is a whole snapshot, and the output is at most
-one `Selection` or a refusal.** Four moves in order: collect every live leaf in
-walk order; filter that list down to the finish ones; refuse if there is more than
-one of those; otherwise take the first candidate that is not a finish leaf,
-falling back to the finish leaf when there is nothing else. `entry_path` builds
-the path twice here — once in the refusal and once in the answer — which is two
-of the ten call sites chapter 6 counted.
+one `Selection` or a refusal.** First walk every entry, rejecting a repeated key
+and collecting live leaves. The key map includes terminal leaves and branches;
+a duplicate outside the candidate set is still an ambiguous identity. Then
+refuse multiple live finishes. Only after those checks does `retain` exclude
+the named candidate. It compares each leaf's own key, so excluding a branch
+does not remove its children. Finally, select the first ordinary candidate,
+or the sole finish if no ordinary candidate remains. `entry_path` supplies both
+the answer and the offending paths in diagnostics.
 
 <a id="the-cost-of-the-finish-rule"></a>
 ## Why the walk does not stop at the first live leaf
 
 **`selected` walks the whole tree even when the answer is the first entry it
-sees**, and that is the price of the finish rule rather than an oversight. The
+sees**, because validity and finish eligibility depend on the whole snapshot. The
 loop cannot be *walk until a live leaf, then return it*, because *ordinary work
 outranks a finish leaf wherever it sits* is a claim about entries the walk has not
 reached yet: a finish leaf at position 1 may not be answered until the tree is
@@ -318,45 +340,53 @@ without counting them all.
 | the first live leaf | the whole walk | a finish leaf early in the order may be outranked by work later in it |
 | ordinary work outranks `finish` | one filtering pass over the candidates | rank is not order, and the library supplies only order |
 | two live `finish` leaves refuse | a count over the candidates | malformedness is a fact about the whole tree, not about an entry |
+| every permanent key is unique | a map over all positioned entries | terminal leaves and branches can collide even when no candidate does |
 
 The table is the chapter's account of what grove pays for holding a schedule the
-library cannot hold; read it as three consequences of one rule rather than three
-separate costs. The absolute cost is small — a task tree is a few dozen files —
+library cannot hold. The absolute cost is small — a task tree is a few dozen files —
 and the point is not the expense but that the shape of the computation is dictated
 by a domain rule the layer beneath has no word for.
 
 **The refusal names paths and not handles**, which is why `entry_path` appears
 inside the `bail!`. An operator told that multiple live finish leaves are
-malformed has to go and delete one, and a handle would not tell them which file to
-open. The wording is grove's own throughout, because the library was never asked:
+malformed must restore the intended single sentinel from version history. A
+duplicate key likewise needs the original identities restored, never a reused
+retired key. The wording is grove's own throughout, because the library was never asked:
 from its side, two live finish leaves are two perfectly well-formed entries.
 
-**The fallback is `finish.first().copied()` rather than any other element**, so
-the leaf answered when there is no ordinary work is the first finish leaf in walk
-order — and by the refusal two lines above there is at most one of them. The
+**The fallback is `live.first()` after exclusion.** If no ordinary leaf remains,
+the filtered vector holds at most one finish, because validation already refused
+multiple live finishes before any candidate was removed. The
 `or_else` therefore reads as *the* finish leaf rather than *a* finish leaf, which
 is the property `materialize_finish` depends on when it re-selects under the
 exclusive guard and expects to be handed a sentinel it can reuse.
 
-That is the whole of the production block. Chapters 5, 6 and 7 have now read 637
-of the file's 1,015 production lines; 638 to 1,015 are chapters 8 and 9's.
+Excluding the last ordinary leaf therefore exposes a finish that an ordinary
+pick would have skipped. Excluding the sole finish returns none. Selection
+never materializes a sentinel; that remains the driver's mutation.
+
+The public tests in `crates/grove-loop/tests/selection.rs` exercise these
+boundaries over temporary non-jj trees: ordinary and finish exclusion, terminal
+and branch keys, finish-only remainders, empty candidate sets, DFS ordering,
+and ambiguities that exclusion could hide. Driver and `pick` binary tests and
+the public Viewer tests cover the same duplicate-key refusal through consumers.
+
+That closes the production block. Chapters 8 and 9 read the remaining kind,
+brief-chain and resolution operations.
 
 <a id="nineteen-tests"></a>
 ## The nineteen tests, and what each would still pass under
 
-The chapter's second ownership block is the file's `pick` test section: 255 lines
+The chapter's second ownership block is the file's `pick` test section: 252 lines
 under one section label, carrying nineteen `#[test]` functions — eighteen named
 `pick_*` and one block-opening `select_*`. Two of the file's four blocks that
-hold tests are larger — chapter 8's twenty-three over 307 lines and chapter 9's twenty-one
-over 344 — but of the six chapters that read `task_tree.rs` and `task_grow.rs`,
-this is the most test-heavy by proportion: 255 of its 322 owned lines are tests,
-against chapter 8's 334 of 443 and chapter 9's 344 of 613. The block introduces no fixture of its own — all
+hold tests are larger. The block introduces no fixture of its own — all
 nineteen of its `fn`s are the tests — and every tree below but one is built with
 `grove`, `touch` and `mknode`, three of the fixtures chapter 6 read. The
 exception is the symlink test, which reaches past them to `fs::write` and
 `std::os::unix::fs::symlink` because no fixture makes the object it needs.
 
-<!-- fragment «pick-tests» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1076-1327" parent="source-task-tree" -->
+<!-- fragment «pick-tests» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1094-1345" parent="source-task-tree" -->
 <!-- insert «walk-tests-select-one-observation» -->
 <!-- insert «walk-tests-order» -->
 <!-- insert «walk-tests-terminal-leaves» -->
@@ -401,7 +431,7 @@ nineteen observe a returned path or the absence of one; three observe the text o
 a refusal; this one is the only test in the block that observes a leaf's handle
 and kind at all.
 
-<!-- fragment «walk-tests-select-one-observation» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1076-1100" parent="pick-tests" -->
+<!-- fragment «walk-tests-select-one-observation» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1094-1118" parent="pick-tests" -->
 ````rust
     // ---- pick ---------------------------------------------------------------
 
@@ -458,7 +488,7 @@ the only assertion in `task_tree.rs` that reads either accessor.
 The two ordering tests come next, and only the second of them discriminates
 anything.
 
-<!-- fragment «walk-tests-order» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1101-1126" parent="pick-tests" -->
+<!-- fragment «walk-tests-order» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1119-1144" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_returns_first_live_leaf_in_per_level_order() {
@@ -528,7 +558,7 @@ the first while never touching the second.
 Terminal leaves come next, and the pair has a reading that a substring would
 satisfy.
 
-<!-- fragment «walk-tests-terminal-leaves» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1127-1146" parent="pick-tests" -->
+<!-- fragment «walk-tests-terminal-leaves» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1145-1164" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_skips_done_leaves() {
@@ -589,7 +619,7 @@ it lands.
 Descent is next, and it is the one clause of the library's walk order that is
 visible from grove's side at all.
 
-<!-- fragment «walk-tests-descent» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1147-1170" parent="pick-tests" -->
+<!-- fragment «walk-tests-descent» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1165-1188" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_descends_a_node_in_preorder() {
@@ -658,7 +688,7 @@ promotion supplies `TaskName::NodeFile`.
 Three fall-through tests follow, and together they close the reading the descent
 pair left open.
 
-<!-- fragment «walk-tests-fall-through» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1171-1209" parent="pick-tests" -->
+<!-- fragment «walk-tests-fall-through» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1189-1227" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_falls_through_an_all_done_node_to_a_later_live_leaf() {
@@ -730,7 +760,7 @@ promotion supplies `TaskName::NodeFile`.
 The `None` cases come next, and what they hold is that an empty answer is an
 answer.
 
-<!-- fragment «walk-tests-none» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1210-1239" parent="pick-tests" -->
+<!-- fragment «walk-tests-none» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1228-1257" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_none_when_only_briefs_and_done_leaves() {
@@ -789,7 +819,7 @@ settled. Abandoning is not failing, and grove has no third answer for it.
 Foreign names are next, and this pair tests a leniency grove does not itself
 implement.
 
-<!-- fragment «walk-tests-foreign» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1240-1257" parent="pick-tests" -->
+<!-- fragment «walk-tests-foreign» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1258-1275" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_lenient_on_foreign_files() {
@@ -841,7 +871,7 @@ The contrast with the next two tests is the chapter's cleanest line. A name grov
 disclaims is skipped and costs nothing; a name grove *claims* and finds at the
 wrong species halts everything.
 
-<!-- fragment «walk-tests-species-mismatch» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1258-1286" parent="pick-tests" -->
+<!-- fragment «walk-tests-species-mismatch» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1276-1304" parent="pick-tests" -->
 ````rust
     /// Both species mismatches at a **task-shaped** name are malformed, not
     /// foreign — and a later live leaf must not paper over them. The old answer
@@ -920,7 +950,7 @@ coercion is there for the table, not for the call.
 
 The symlink test is the same rule reaching a case nobody wrote it for.
 
-<!-- fragment «walk-tests-symlink» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1287-1304" parent="pick-tests" -->
+<!-- fragment «walk-tests-symlink» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1305-1322" parent="pick-tests" -->
 ````rust
     /// The species rule reaches symlinks for free, and closing that is the point
     /// rather than a side effect: `DirEntry::file_type` does not follow links, so a
@@ -963,7 +993,7 @@ assertion.
 The last two tests are a pair by position rather than by subject, and each closes
 one edge of the walk.
 
-<!-- fragment «walk-tests-legacy-and-absent-root» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1305-1327" parent="pick-tests" -->
+<!-- fragment «walk-tests-legacy-and-absent-root» owner="first-live-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1323-1345" parent="pick-tests" -->
 ````rust
     #[test]
     fn pick_ignores_a_legacy_done_directory() {
@@ -1024,8 +1054,9 @@ calls `read`, and this test is where that choice becomes observable.
 <a id="what-the-walk-kept"></a>
 ## What the walk kept
 
-The chapter's rule is one sentence and it cost two clauses the library could not
-have written. *Live* is a predicate over a grammar the store does not read, and
+The loop owns validity, eligibility and selection over one snapshot. Whole-tree
+key validation makes permanent identity unambiguous for the driver and viewer,
+before any candidate is excluded. *Live* is a predicate over a grammar the store does not read, and
 it is why `selected` filters rather than simply taking the first entry. *Finish
 is outranked* is a rank the store has no word for, and it is why `selected` walks
 the whole tree before answering. Between them they turn the library's ordering

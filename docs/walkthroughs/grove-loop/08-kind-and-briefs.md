@@ -73,7 +73,7 @@ The chapter's first ownership block is the production run. It expands to lines
 586 through 688 of the file, and the six fragments it names run to the end of the
 section after next.
 
-<!-- fragment «kind-and-brief-chain» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="598-700" parent="source-task-tree" -->
+<!-- fragment «kind-and-brief-chain» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="616-718" parent="source-task-tree" -->
 <!-- insert «kind-in» -->
 <!-- insert «brief-chain-fn» -->
 <!-- insert «leaf-entry-signature» -->
@@ -85,7 +85,7 @@ section after next.
 The two verbs come first and they are both thin. `kind_in` is nineteen lines of
 which six are a refusal the file itself calls unreachable.
 
-<!-- fragment «kind-in» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="598-616" parent="kind-and-brief-chain" -->
+<!-- fragment «kind-in» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="616-634" parent="kind-and-brief-chain" -->
 ````rust
 /// `kind` against a tree already read.
 pub(crate) fn kind_in(tree: &Tree, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
@@ -165,7 +165,7 @@ say otherwise and show they are not read.
 The second verb is the one this chapter is named for, and it is the shortest
 answer to *what could not move* in the book so far.
 
-<!-- fragment «brief-chain-fn» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="617-627" parent="kind-and-brief-chain" -->
+<!-- fragment «brief-chain-fn» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="635-645" parent="kind-and-brief-chain" -->
 ````rust
 /// Every ancestor's node file, root-first, from the guarded snapshot.
 /// Whole-tree validation has already refused any missing or misplaced file.
@@ -239,7 +239,7 @@ this chapter's share of the crate's grammar work sits, because deciding which
 entry a caller meant is a question about names before it is a question about
 paths.
 
-<!-- fragment «leaf-entry-signature» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="628-647" parent="kind-and-brief-chain" -->
+<!-- fragment «leaf-entry-signature» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="646-665" parent="kind-and-brief-chain" -->
 ````rust
 /// The snapshot entry a caller's leaf argument names: absolute, or relative to
 /// the grove root.
@@ -282,7 +282,7 @@ because a directory argument, including the grove root itself, is not a file.
 
 The next clause is the one that makes this grove's rather than the library's.
 
-<!-- fragment «leaf-entry-grammar» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="648-661" parent="kind-and-brief-chain" -->
+<!-- fragment «leaf-entry-grammar» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="666-679" parent="kind-and-brief-chain" -->
 ````rust
     // The grammar itself, rather than a second reading of the filename: a
     // non-canonical or unknown-kind argument gets the domain's own recovery
@@ -331,7 +331,7 @@ list anywhere.
 
 The clause that follows is the one chapter 5 pointed forward to.
 
-<!-- fragment «leaf-entry-compare» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="662-683" parent="kind-and-brief-chain" -->
+<!-- fragment «leaf-entry-compare» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="680-701" parent="kind-and-brief-chain" -->
 ````rust
     // Canonicalised to *compare* and never to report: two spellings of one path
     // name one entry, and the paths this module returns are still built from the
@@ -397,7 +397,7 @@ and the section on the tests says why nothing can.
 
 The last fragment is the walk, and the refusal that closes the function.
 
-<!-- fragment «leaf-entry-walk» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="684-700" parent="kind-and-brief-chain" -->
+<!-- fragment «leaf-entry-walk» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="702-718" parent="kind-and-brief-chain" -->
 ````rust
     for entry in tree.walk() {
         if entry.name().to_string() != name {
@@ -461,13 +461,13 @@ The chapter's second ownership block is the file's `brief-chain` and `kind` test
 sections: 307 lines under two section labels, carrying twenty-three of the file's
 sixty-four `#[test]` functions — eleven and twelve. It is the largest of the four
 blocks in this file that hold tests, ahead of chapter 9's twenty-one over 344
-lines and chapter 7's nineteen over 255. The block introduces one fixture of its
+lines and chapter 7's nineteen over 252. The block introduces one fixture of its
 own, `touch_body`, and otherwise builds every tree with `grove`, `touch` and
 `mknode` and drives both verbs through the `brief_chain_at` and `kind`
 compositions — all five of them chapter 6's, and the first of them the one whose
 comment says production never wants it.
 
-<!-- fragment «brief-chain-and-kind-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1328-1635" parent="source-task-tree" -->
+<!-- fragment «brief-chain-and-kind-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1346-1653" parent="source-task-tree" -->
 <!-- insert «chain-tests-shape» -->
 <!-- insert «chain-tests-siblings» -->
 <!-- insert «chain-tests-skipping» -->
@@ -516,7 +516,7 @@ thirteen fragments below follow source order.
 The section label and the first two chain tests come together, because the second
 is what the first is worth.
 
-<!-- fragment «chain-tests-shape» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1328-1365" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-shape» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1346-1383" parent="brief-chain-and-kind-tests" -->
 ````rust
     // ---- brief-chain --------------------------------------------------------
 
@@ -581,7 +581,7 @@ fixture is a single spine with no branch, so an implementation collecting every
 `_BRIEF.md` anywhere in the tree still passes both. The next test exists for that,
 and it is the only test in the block that could close it.
 
-<!-- fragment «chain-tests-siblings» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1366-1386" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-siblings» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1384-1404" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn brief_chain_only_includes_ancestors_not_sibling_subtrees() {
@@ -624,7 +624,7 @@ thing to have a test for; the honest description is that this test pins the
 The pair that follows provides the block's strongest discrimination because of
 what differs between its two halves.
 
-<!-- fragment «chain-tests-skipping» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1387-1420" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-skipping» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1405-1438" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn brief_chain_refuses_missing_intermediate_node_file() {
@@ -674,7 +674,7 @@ so neither test can return an incomplete chain or a fabricated path.
 The next pair tests two independent properties and is grouped only by source
 order.
 
-<!-- fragment «chain-tests-done-and-relative» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1421-1455" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-done-and-relative» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1439-1473" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn brief_chain_resolves_chain_for_a_done_leaf() {
@@ -743,7 +743,7 @@ again by inserting a test between the two.
 Then the four refusals — the run where the block's names once stopped matching
 its behaviour, and the one `unreachable-root-clause-k152` repaired.
 
-<!-- fragment «chain-tests-refusals» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1456-1505" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «chain-tests-refusals» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1474-1523" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn brief_chain_errors_when_leaf_name_is_not_task_shaped() {
@@ -877,7 +877,7 @@ hold.
 The `kind` section opens with its label and the fixture that makes its central
 claim testable.
 
-<!-- fragment «kind-tests-label-and-fixture» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1506-1515" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-label-and-fixture» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1524-1533" parent="brief-chain-and-kind-tests" -->
 ````rust
     // ---- kind ---------------------------------------------------------------
 
@@ -900,7 +900,7 @@ chapter's blocks define; the rest are chapter 6's.
 
 The first two tests are a smoke test and the claim.
 
-<!-- fragment «kind-tests-two-leaves» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1516-1529" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-two-leaves» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1534-1547" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_reads_an_impl_leaf() {
@@ -934,7 +934,7 @@ and it is the whole difference between a test and an example.
 The third is the section's most interesting test, and its doc comment records why
 it was rewritten.
 
-<!-- fragment «kind-tests-open-token» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1530-1557" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-open-token» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1548-1575" parent="brief-chain-and-kind-tests" -->
 ````rust
     /// The verb reads whatever token the filename carries, including tokens no
     /// methodology declares and none this repo has ever configured.
@@ -998,7 +998,7 @@ to vocabulary, closed as to shape.** grove will carry `spike-2` and will refuse
 The remaining nine tests split into one more disagreement, a defaulting pair, a
 relative path, four more bodies, and a refusal.
 
-<!-- fragment «kind-tests-legacy-label» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1558-1564" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-legacy-label» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1576-1582" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_ignores_a_legacy_work_label_in_the_body() {
@@ -1015,7 +1015,7 @@ methodology retired. It discriminates against a body-reading implementation
 exactly as far as its predecessor does and no further; what it adds is a record
 of which legacy strings were actually met in real task files.
 
-<!-- fragment «kind-tests-default-and-empty» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1565-1582" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-default-and-empty» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1583-1600" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_no_arg_defaults_to_picks_next_leaf() {
@@ -1055,7 +1055,7 @@ comment names the consequence — the CLI renders the *no live leaves* diagnosti
 and this is the same signal chapter 7 read out of `pick`. It is the shape the
 loop needs in order to distinguish a finished grove from a broken one.
 
-<!-- fragment «kind-tests-relative-path» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1583-1592" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-relative-path» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1601-1610" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_accepts_a_grove_root_relative_path() {
@@ -1077,7 +1077,7 @@ grove root finds it. Both verbs share one resolver, so the pair tests one clause
 twice — which is defensible, since the two verbs are separately callable and the
 sharing is an implementation fact rather than a contract.
 
-<!-- fragment «kind-tests-body-ignored» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1593-1624" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-body-ignored» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1611-1642" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_ignores_trailing_commentary_on_a_legacy_kind_line() {
@@ -1145,7 +1145,7 @@ it. That is the residue of the `kind` section, and it is the same shape as the
 residue chapter 7 recorded for its own refusals: a property stated in a doc
 comment and held by nothing.
 
-<!-- fragment «kind-tests-absent-root» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1625-1635" parent="brief-chain-and-kind-tests" -->
+<!-- fragment «kind-tests-absent-root» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1643-1653" parent="brief-chain-and-kind-tests" -->
 ````rust
     #[test]
     fn kind_errors_when_grove_root_absent() {
@@ -1176,7 +1176,7 @@ chapter's rather than chapter 7's because the thing it exercises second is
 `brief_chain`, and it is the only place in the file where two verbs are put in
 front of one tree.
 
-<!-- fragment «pick-with-brief-chain-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1957-1983" parent="source-task-tree" -->
+<!-- fragment «pick-with-brief-chain-tests» owner="root-to-leaf" source="crates/grove-loop/src/task_tree.rs" lines="1975-2001" parent="source-task-tree" -->
 ````rust
     // ---- pick + brief-chain together ----------------------------------------
 

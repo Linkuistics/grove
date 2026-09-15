@@ -43,6 +43,8 @@
 - [The reference grammar's five forms](01-orientation.md#naming-an-entry)
 - [Which form a reference is, decided against the tree](01-orientation.md#naming-an-entry)
 - [`Selection`: the leaf a session was launched to work](01-orientation.md#naming-an-entry)
+- [`select_snapshot`: shared validation and selection over one observation](01-orientation.md#naming-an-entry)
+- [Whole-tree validity before exclusion, and the finish remainder](07-the-walk.md#the-cost-of-the-finish-rule)
 - [Opacity, and the obligation that replaces a taxonomy](01-orientation.md#one-error)
 - [`Debug` as the operator-facing form](01-orientation.md#one-error)
 - [Malformed, never Foreign: the rule a task-shaped name is judged by](02-the-tokens.md#four-verdicts)

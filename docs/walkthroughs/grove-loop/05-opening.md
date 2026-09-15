@@ -61,7 +61,7 @@ not have supplied: **path construction**, because the library returns no paths,
 and **refusal precedence**, because an absent root is a condition grove states in
 its own words.
 
-This chapter owns 302 lines of `task_tree.rs` in 1 block.
+This chapter owns 303 lines of `task_tree.rs` in 1 block.
 The source index records their current ranges; the fragments below reconstruct
 every owned byte.
 
@@ -69,10 +69,10 @@ every owned byte.
 ## The header, and the one place paths are built
 
 The composite below is this chapter's whole ownership block. It expands, in
-order, to lines 1 through 302 of the file, and the seventeen fragments it names
+order, to lines 1 through 303 of the file, and the seventeen fragments it names
 run from here to the end of the chapter.
 
-<!-- fragment «tree-opening» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="1-302" parent="source-task-tree" -->
+<!-- fragment «tree-opening» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="1-303" parent="source-task-tree" -->
 <!-- insert «tree-header-who-owns-the-walk» -->
 <!-- insert «tree-header-paths-here» -->
 <!-- insert «tree-header-no-canonicalising» -->
@@ -246,8 +246,9 @@ section reads the function that discharges it.
 The imports are the seam in one screen, and they carry a name collision worth
 noticing before it confuses a reader two chapters from now.
 
-<!-- fragment «tree-imports» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="41-51" parent="tree-opening" -->
+<!-- fragment «tree-imports» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="41-52" parent="tree-opening" -->
 ````rust
+use std::collections::HashMap;
 use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
@@ -278,7 +279,7 @@ go on meaning what the import says it means.
 The first alias is the read side, and the note about `root` is a genuine
 ambiguity rather than a caution.
 
-<!-- fragment «tree-alias-and-read-count» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="52-64" parent="tree-opening" -->
+<!-- fragment «tree-alias-and-read-count» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="53-65" parent="tree-opening" -->
 ````rust
 /// The task tree, read once under the library's shared lock.
 ///
@@ -326,7 +327,7 @@ own waiting indicator and retry deadline. A successful observer still holds the
 real shared descriptor, so its copied names and file bytes have the same guard
 boundary as the blocking reader.
 
-<!-- fragment «tree-vacant-and-read-or-vacant» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="65-106" parent="tree-opening" -->
+<!-- fragment «tree-vacant-and-read-or-vacant» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="66-107" parent="tree-opening" -->
 ````rust
 /// The whole of what a shared opening found: the tree, or the fact that there is
 /// none — under the lock either way.
@@ -390,7 +391,7 @@ entry points.
 The write side takes three aliases rather than one, and each is named here for a
 different caller.
 
-<!-- fragment «tree-guard-opening-vacancy» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="107-135" parent="tree-opening" -->
+<!-- fragment «tree-guard-opening-vacancy» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="108-136" parent="tree-opening" -->
 ````rust
 /// The task tree, read once under the library's **exclusive** lock — the
 /// surface every mutation is on.
@@ -459,7 +460,7 @@ refusal.
 `read` is the shared refusing arm, and it is a wrapper rather than an
 acquisition.
 
-<!-- fragment «tree-read» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="136-154" parent="tree-opening" -->
+<!-- fragment «tree-read» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="137-155" parent="tree-opening" -->
 ````rust
 /// Read the task tree under a shared lock, refusing a root that holds no tree.
 ///
@@ -498,7 +499,7 @@ purely a re-reading of the same result.
 `write` is the exclusive refusing arm, and unlike `read` it announces in its own
 body.
 
-<!-- fragment «tree-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="155-167" parent="tree-opening" -->
+<!-- fragment «tree-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="156-168" parent="tree-opening" -->
 ````rust
 /// Read the task tree under an exclusive lock, announcing contention first.
 ///
@@ -522,7 +523,7 @@ workstream. That is the failure the split exists to prevent, and it is prevented
 by the *type* rather than by a check, because a caller holding a `Guard` never
 had a vacancy to create anything in.
 
-<!-- fragment «tree-write-or-vacancy» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="168-176" parent="tree-opening" -->
+<!-- fragment «tree-write-or-vacancy» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="169-177" parent="tree-opening" -->
 ````rust
 /// The exclusive opening **with** its vacancy arm, announcing contention first.
 ///
@@ -547,7 +548,7 @@ creating a tree in it is not racing a second creator.
 The fifth `pub(crate)` function is not a fifth opening. It is `write` with the
 diagnostic removed.
 
-<!-- fragment «tree-reopen-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="177-190" parent="tree-opening" -->
+<!-- fragment «tree-reopen-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="178-191" parent="tree-opening" -->
 ````rust
 /// [`write`] without the waiting diagnostic, for the second and later guards of
 /// one verb.
@@ -588,7 +589,7 @@ argued in its own comment and held nowhere.
 And the sixth and last of them is private, which is what makes `reopen_write`
 possible at all.
 
-<!-- fragment «tree-open-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="191-198" parent="tree-opening" -->
+<!-- fragment «tree-open-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="192-199" parent="tree-opening" -->
 ````rust
 /// The exclusive acquisition itself, shared by both write-side entry points.
 fn open_write(grove_root: &Path) -> Result<Opening> {
@@ -614,7 +615,7 @@ takes more than one anyway.
 
 Two of the three error paths are small and neither is a rewording of the store.
 
-<!-- fragment «tree-absent-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="199-211" parent="tree-opening" -->
+<!-- fragment «tree-absent-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="200-212" parent="tree-opening" -->
 ````rust
 /// The diagnostic for a root that holds no tree — **moved, not redesigned**.
 ///
@@ -651,7 +652,7 @@ The surface is wider than this file, besides: `grove-llm` writes the same openin
 words a third time with different advice after them, and nothing holds that one
 to these two either.
 
-<!-- fragment «tree-raised» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="212-222" parent="tree-opening" -->
+<!-- fragment «tree-raised» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="213-223" parent="tree-opening" -->
 ````rust
 /// Turn a library error raised by a *mutation* into Grove's own.
 ///
@@ -681,7 +682,7 @@ The longest item in the chapter is fifty lines, thirty of them comment — the
 highest proportion of argument to code anywhere in the block. It is also the use
 the crate's manifest names first when it explains `libc`.
 
-<!-- fragment «tree-announce-contention» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="223-271" parent="tree-opening" -->
+<!-- fragment «tree-announce-contention» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="224-272" parent="tree-opening" -->
 ````rust
 /// Say that this process is waiting, before it blocks.
 ///
@@ -812,7 +813,7 @@ its diagnostic purpose is stated.
 The last function discharges the header's third claim, and its shape is a
 precedence list rather than a match.
 
-<!-- fragment «tree-restate» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="272-302" parent="tree-opening" -->
+<!-- fragment «tree-restate» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="273-303" parent="tree-opening" -->
 ````rust
 /// Re-state a failed read in the order grove owes its operator.
 ///

@@ -350,6 +350,26 @@ impl fmt::Display for Reference {
 /// kind.
 pub type Selection = task_tree::Selection;
 
+/// Validate and select from an already-read snapshot without filesystem effects.
+///
+/// Duplicate keys across all items and multiple live finishes are refused before
+/// exclusion. Among live leaves other than `excluded_key`, return the first
+/// ordinary leaf in depth-first position order, or the sole remaining finish,
+/// or `None`. Excluding a branch does not exclude its descendants.
+/// `root` supplies the snapshot's path spelling for selections and diagnostics.
+/// This operation never allocates a finish sentinel or acquires another lock.
+///
+/// # Errors
+///
+/// An ambiguous tree, even if exclusion would hide the ambiguity.
+pub fn select_snapshot(
+    root: &Path,
+    snapshot: &ordinal_fs_tree::Snapshot<TaskName>,
+    excluded_key: Option<ordinal_fs_tree::Key>,
+) -> Result<Option<Selection>, Error> {
+    Ok(task_tree::selected(root, snapshot, excluded_key)?)
+}
+
 /// **One error for the whole crate**, opaque by construction.
 ///
 /// It carries the context stack the modules behind it built, and it is under the

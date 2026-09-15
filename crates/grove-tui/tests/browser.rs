@@ -52,6 +52,51 @@ fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
 }
 
 #[test]
+fn shared_validation_refuses_ambiguous_trees_without_writes_and_recovers() {
+    for (names, diagnostic) in [
+        (
+            vec![
+                "01-impl--work-k1.md",
+                "02-DONE-impl--old-k7.md",
+                "03-k7/_branch.md",
+            ],
+            "duplicate key k7",
+        ),
+        (
+            vec!["01-finish--finish-k1.md", "02-finish--again-k2.md"],
+            "multiple live `finish` leaves",
+        ),
+    ] {
+        let work = tempfile::tempdir().unwrap();
+        let root = work.path().join(".grove");
+        put(&root, "_BRIEF.md", "ROOT");
+        for name in &names {
+            put(&root, name, "body");
+        }
+        let before = snapshot(work.path());
+        let mut viewer = Viewer::new(work.path().into());
+        let shown = screen(&mut viewer, 160, 20);
+        assert!(shown.contains(diagnostic), "{shown}");
+        viewer.act(Action::Focus);
+        viewer.act(Action::Down);
+        assert_eq!(snapshot(work.path()), before);
+
+        // Restore an unambiguous shape; no new identity is allocated by viewing.
+        let duplicate = root.join(names.last().unwrap());
+        if duplicate.file_name().unwrap() == "_branch.md" {
+            fs::remove_dir_all(duplicate.parent().unwrap()).unwrap();
+        } else {
+            fs::remove_file(duplicate).unwrap();
+        }
+        let repaired = snapshot(work.path());
+        viewer.act(Action::Refresh);
+        let shown = screen(&mut viewer, 160, 20);
+        assert!(!shown.contains(diagnostic), "{shown}");
+        assert_eq!(snapshot(work.path()), repaired);
+    }
+}
+
+#[test]
 fn full_width_switching_preserves_independent_views_and_poll_deadline() {
     let work = tempfile::tempdir().unwrap();
     let root = work.path().join(".grove");

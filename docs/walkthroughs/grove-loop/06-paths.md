@@ -83,7 +83,7 @@ The composite below is the chapter's first ownership block. It expands, in
 order, to lines 303 through 530 of the file, and the nine fragments it names run
 from here to the end of the section before last.
 
-<!-- fragment «paths-and-addressing» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="303-530" parent="source-task-tree" -->
+<!-- fragment «paths-and-addressing» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="304-531" parent="source-task-tree" -->
 <!-- insert «paths-entry-path» -->
 <!-- insert «paths-target-enum» -->
 <!-- insert «paths-target-fn» -->
@@ -99,7 +99,7 @@ The function is eighteen lines including its doc comment — the fragment below 
 nineteen because it carries the blank line that ends the item — and eight of
 those are the body.
 
-<!-- fragment «paths-entry-path» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="303-321" parent="paths-and-addressing" -->
+<!-- fragment «paths-entry-path» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="304-322" parent="paths-and-addressing" -->
 ````rust
 /// Where an entry of a snapshot lives: the caller's spelling of the root, then
 /// every containing node's name, then its own.
@@ -154,14 +154,11 @@ the boundary where a name enters the snapshot, instead of once per path built.**
 The `#[must_use]` says the only thing a caller can do with the result is use it.
 There is no side effect to want.
 
-**Ten call sites reach it, spread across six of this book's chapters.** Two are
-in this chapter — `target` below, and `addressable_key`'s rendering of the twin
-paths it refuses over. Two are chapter 7's, both inside `selected`, the private
-helper behind that chapter's two selection entry points. Two are chapter 8's, in
-`brief_chain` and in `leaf_entry`. One is chapter 9's, in the resolver. One is
-chapter 13's, in the prune planner's `plan_subtree` (`tree_lifecycle.rs` line
-826). Two are chapter 10's, in `task_grow.rs`. Seven of the ten are in this file.
-That spread is what the header's claim is *for*: every path grove prints, from
+**Addressing, selection and mutation diagnostics share this helper.** This
+chapter uses it in `target` and `addressable_key`; chapter 7's `selected` uses it
+for the chosen leaf, duplicate-key paths and multiple-finish diagnostics.
+Chapters 8 and 9 use it in brief-chain and resolution operations, and chapters
+10 and 13 in grow and prune operations. That spread is what the header's claim is *for*: every path grove prints, from
 `pick`'s single line to a prune's list of what it left alone, comes out of this
 eight-line body, so a change to how grove spells a path is a change in one place.
 
@@ -178,7 +175,7 @@ verbs, not to the chapter that owns the functions.
 Going the other way is the resolver a path-taking verb calls first. Its result
 type comes before it, and the type is where the interesting decision is.
 
-<!-- fragment «paths-target-enum» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="322-334" parent="paths-and-addressing" -->
+<!-- fragment «paths-target-enum» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="323-335" parent="paths-and-addressing" -->
 ````rust
 /// What a caller's path argument names in the tree.
 ///
@@ -241,7 +238,7 @@ sections below.
 
 The resolver itself follows: the function every path-taking verb calls first.
 
-<!-- fragment «paths-target-fn» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="335-387" parent="paths-and-addressing" -->
+<!-- fragment «paths-target-fn» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="336-388" parent="paths-and-addressing" -->
 ````rust
 /// The snapshot entry a caller's path argument names: absolute, or relative to
 /// the grove root, and a leaf file or a node directory alike.
@@ -474,7 +471,7 @@ which is what this section is for.
 The last exit of `target` is a function whose whole job is to say which of three
 things went wrong.
 
-<!-- fragment «paths-unreachable-by-any-walk» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="388-416" parent="paths-and-addressing" -->
+<!-- fragment «paths-unreachable-by-any-walk» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="389-417" parent="paths-and-addressing" -->
 ````rust
 /// Why a path that exists under the grove root names no entry of the snapshot.
 ///
@@ -580,7 +577,7 @@ Resolving an argument to an entry is half of clause 1. The other half is turning
 that entry into the key the library will be called with, and it is where the
 chapter's strongest precondition is enforced.
 
-<!-- fragment «paths-addressable-key» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="417-467" parent="paths-and-addressing" -->
+<!-- fragment «paths-addressable-key» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="418-468" parent="paths-and-addressing" -->
 ````rust
 /// The key by which the library can address this entry, or Grove's refusal that
 /// it cannot.
@@ -717,7 +714,7 @@ addressing is what it does; the evidence is where the verbs are.
 The special refusal has a shape of its own: it is Grove's sentence carrying the
 **library's** recovery advice rather than Grove's.
 
-<!-- fragment «paths-interrupted-promotion» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="468-469" parent="paths-and-addressing" -->
+<!-- fragment «paths-interrupted-promotion» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="469-470" parent="paths-and-addressing" -->
 ````rust
 }
 
@@ -773,7 +770,7 @@ leaf bytes. No mutation or addressable-key lookup is reached.
 
 The last substantial function in the block reads a key that does not exist yet.
 
-<!-- fragment «paths-next-key» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="470-506" parent="paths-and-addressing" -->
+<!-- fragment «paths-next-key» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="471-507" parent="paths-and-addressing" -->
 ````rust
 /// The key the library will give the next entry it creates from this snapshot —
 /// `max + 1` over every name in the tree — or `None` when the keyspace is full.
@@ -887,7 +884,7 @@ The block ends with two short functions. Neither is about paths, and they are
 here because the file is ordered by concern and this is where its addressing
 section ends.
 
-<!-- fragment «paths-live-leaf» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="507-519" parent="paths-and-addressing" -->
+<!-- fragment «paths-live-leaf» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="508-520" parent="paths-and-addressing" -->
 ````rust
 /// A live leaf's session kind and handle, or `None` when the entry is not one.
 fn live_leaf(entry: &Entry<'_, TaskName>) -> Option<(Kind, Handle)> {
@@ -908,9 +905,9 @@ fn live_leaf(entry: &Entry<'_, TaskName>) -> Option<(Kind, Handle)> {
 **One caller, and it is chapter 7's.** `live_leaf` answers *is this entry a leaf
 that is still live, and if so what is its kind and handle* — a `Some` only for a
 `Parts::Leaf` whose outcome is `Outcome::Live`. Everything else, briefs and node
-directories and `DONE` and `ABANDONED` leaves alike, is `None`. It is called once, at line 557 inside
-`selected` — the private helper behind both of chapter 7's selection entry
-points — and it is called on **every** entry of the walk rather than until one
+directories and `DONE` and `ABANDONED` leaves alike, is `None`. It is called inside
+`selected`, the shared validation and selection rule in chapter 7,
+on each entry that passes key validation rather than until one
 matches: `selected` collects the whole live set first, because it has to refuse a
 tree carrying more than one live `finish` leaf and to prefer a non-`finish` leaf
 to one, and neither is decidable from a first hit. This function is the predicate
@@ -919,7 +916,7 @@ matches on and chapter 3 the `Parts` it destructures; this is the two of them
 read together for the first time, and chapter 7 owns what is done with the
 result.
 
-<!-- fragment «paths-entry-outcome» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="520-530" parent="paths-and-addressing" -->
+<!-- fragment «paths-entry-outcome» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="521-531" parent="paths-and-addressing" -->
 ````rust
 /// The outcome `resolve` reports for a matched entry: a leaf's own
 /// live/`DONE`/`ABANDONED` state, or [`Outcome::Live`] for a node — a node
@@ -951,10 +948,9 @@ not, and reading parts is what grove does because the store's `Parts` are opaque
 to it. Both are domain knowledge; only one of them costs a function that could be
 got wrong.
 
-That completes the production block. Chapters 5 and 6 have read 570 of the
-file's 1,015 production lines; 571 to 1,015 are chapters 7, 8 and 9's, and the
-1,008 lines after them are the inline test module, of which this chapter owns the
-first ninety.
+That completes the production block. Chapters 7, 8 and 9 read selection,
+kind, brief-chain and resolution operations. This chapter returns below to the
+inline test module's path-composition fixtures.
 
 <a id="compositions-that-are-the-tests-alone"></a>
 ## The compositions that are the tests' alone
@@ -966,7 +962,7 @@ first is at line 1,066 in chapter 7's block. Sixteen of the book's thirty-nine
 ownership blocks carry `test` in their id and the other fifteen hold between one
 and thirty-two tests each; this is the one that holds none.
 
-<!-- fragment «path-composition-tests» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="984-1075" parent="source-task-tree" -->
+<!-- fragment «path-composition-tests» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1002-1093" parent="source-task-tree" -->
 <!-- insert «paths-tests-module-open» -->
 <!-- insert «paths-tests-composed-verbs» -->
 <!-- insert «paths-tests-a-kind-and-imports» -->
@@ -981,7 +977,7 @@ true for it to pass while that property was broken. There is no reproduced test
 in these ninety lines. What the block needs instead is the question its own
 section comment answers: why is any of this in the test module at all?
 
-<!-- fragment «paths-tests-module-open» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="984-997" parent="path-composition-tests" -->
+<!-- fragment «paths-tests-module-open» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1002-1015" parent="path-composition-tests" -->
 ````rust
 #[cfg(test)]
 pub(crate) mod tests {
@@ -1017,7 +1013,7 @@ fact**, and it is what makes the first composition callable from outside the
 module. The block declares nine functions — four compositions and five fixtures —
 and exactly one of the nine is `pub(crate)`. The next fragment says which.
 
-<!-- fragment «paths-tests-composed-verbs» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="998-1025" parent="path-composition-tests" -->
+<!-- fragment «paths-tests-composed-verbs» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1016-1043" parent="path-composition-tests" -->
 ````rust
     /// `pick`: the first **live leaf** in walk order, or `None` for a grove with no
     /// live work left — the loop's finish signal, which the CLI renders as empty
@@ -1074,7 +1070,7 @@ tests; what is stated here is what they are tests *of*. `kind`'s says the kind i
 read from the filename and never from the body, and that `None` is the same
 signal `pick` gives.
 
-<!-- fragment «paths-tests-a-kind-and-imports» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1026-1036" parent="path-composition-tests" -->
+<!-- fragment «paths-tests-a-kind-and-imports» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1044-1054" parent="path-composition-tests" -->
 ````rust
     /// A [`Kind`] for a test that needs one, by its label.
     ///
@@ -1099,7 +1095,7 @@ somewhere downstream where it would read as a claim about the code under test.
 The two `use` lines that follow it sit mid-module rather than at the top, which
 is where the file's own history put them.
 
-<!-- fragment «paths-tests-brief-chain-at» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1037-1046" parent="path-composition-tests" -->
+<!-- fragment «paths-tests-brief-chain-at» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1055-1064" parent="path-composition-tests" -->
 ````rust
     /// The guard composed with the verb — what a test needs to drive
     /// `brief-chain` standalone. Production never wants it: `llm_cli` holds one
@@ -1134,7 +1130,7 @@ module header at line 42 which chapter 14 owns, its test module at line 1,105
 which chapter 11 owns, and one in the excluded `task_grow/tests.rs`. Both
 chapters will meet it again.
 
-<!-- fragment «paths-tests-fixtures» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1047-1075" parent="path-composition-tests" -->
+<!-- fragment «paths-tests-fixtures» owner="paths-are-built-here" source="crates/grove-loop/src/task_tree.rs" lines="1065-1093" parent="path-composition-tests" -->
 ````rust
     /// Stand up a fresh `.grove/` directory and return `(tempdir, grove_root)`.
     fn grove() -> (TempDir, PathBuf) {

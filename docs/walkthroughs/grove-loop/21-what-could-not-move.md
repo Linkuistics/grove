@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 10,489 lines. The fragment graph closed at
+This chapter owns none of the crate's 10,527 lines. The fragment graph closed at
 the end of [chapter 20](20-the-loop.md), where the last of `loop_driver.rs`'s 615
 lines was reproduced and the last of the book's 39 ownership blocks turned
 `resolved`; the [source index](source-index.md) records that graph in full and
@@ -53,7 +53,7 @@ under their own headings, and the ten before them do not.
 | [4](04-the-name.md) | `format(parse(f)) == f`, or one entity occupies two files. The cost is a conformance kit | The species the stem declares, checked against what the listing found | Refuse rather than normalise — and hand back the spelling the name should have had, or say why there is none |
 | [5](05-opening.md) | Not the grammar, which was chapters 2 to 4: path construction, and refusal precedence stated in grove's own words | A guard is proof the tree was there when it was opened, and no more than that | Which condition an operator is told about first, and a contention probe that announces and never decides |
 | [6](06-paths.md) | — | The library returns no paths, so grove builds them in exactly one place, and canonicalises only to compare, never to report | That a reported path is the caller's own spelling of the root, unaltered |
-| [7](07-the-walk.md) | Met before this chapter's code runs: a species mismatch is chapter 4's grammar observed through chapter 7's verb | The first live leaf in walk order. *Live* is a predicate over a grammar the store does not read, and the finish leaf is outranked | Position in the walk is the only schedule there is — no priority, no grouping, no dependencies |
+| [7](07-the-walk.md) | Met before this chapter's code runs: a species mismatch is chapter 4's grammar observed through chapter 7's verb | Whole-tree key and finish validation before exclusion; the first remaining ordinary live leaf in walk order, or the sole finish | One snapshot rule for driver, pick and viewer; exclusion never makes an ambiguous tree valid |
 | [8](08-kind-and-briefs.md) | `leaf_entry` decides which entry a path argument meant by asking the grammar, not by re-reading the filename | Both verbs take an already-read tree, so the leaf and its context come from one snapshot | The kind is the token in the filename and never anything in the body |
 | [9](09-resolve.md) | The reference grammar: five spellings, deliberately wider than the filename's and deliberately not canonical | A whole walk rather than a short-circuiting `seek`, because ambiguity is a property of the match set | `Ambiguous` is an answer and not an error — the caller re-asks with a handle |
 | [10](10-growing.md) | The reference, resolved before the call rather than by the store | A precondition is worth the snapshot it is checked against: a resolution, a classification and a key prediction all off one `tree.snapshot()` | The task-file template, and the one kind an operator verb may not write |
@@ -438,7 +438,7 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 464 + 373 + 529 + 773 + 302 + 320 + 319 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 514 + 819 + 564 + 358 + 245 + 615 = 10,489 lines across
+**Owned source.** 484 + 373 + 529 + 773 + 303 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 514 + 819 + 564 + 358 + 245 + 615 = 10,527 lines across
 20 source-owning chapters. This closing chapter owns zero lines. The source
 index records the root sizes, block ranges and chapter totals.
 
@@ -541,7 +541,7 @@ sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved, and each of this book's first five
 children ended with thousands of lines legitimately deferred; in final mode a
 defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Thirteen files, 10,489 resolved
+page inventory must match the manifest exactly. Thirteen files, 10,527 resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 ```console
@@ -586,7 +586,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 13 roots, 10,489 lines, 21 chapters, two
+The book is complete: 13 roots, 10,527 lines, 21 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

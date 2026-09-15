@@ -50,3 +50,21 @@ This increment introduces no runtime observation, namespace discovery or activit
 chrome. Its handoff is consistent malformed-tree refusal plus a tested selector.
 If a substantive selection doubt remains, commission review-impl with bare stem
 shared-selection after the artifact exists; integration is created for findings.
+
+## Decisions (running log)
+
+- Expose `grove_loop::select_snapshot(root, snapshot, excluded_key)` over the
+  already-read typed snapshot, returning the existing `Selection` and opaque
+  crate error. Both guarded driver paths use the same internal rule with no
+  exclusion; the viewer calls the public rule to validate its snapshot.
+- Validate every positioned key and all live finishes before filtering live
+  candidates. Exclusion compares only the candidate's permanent key, so it
+  cannot hide malformed input or exclude a branch's descendants.
+- Keep selector contract tests at the public library seam with temporary
+  non-jj trees, and exercise refusal through the actual driver, pick binary
+  and public Viewer. Update the existing walkthrough fragments after source
+  changes, then run the focused suites and `bash scripts/check.sh`.
+- One bounded fresh-context review examined the implementation and public
+  consumer tests for missed validity, exclusion and ordering cases; it reported
+  no actionable findings. No review leaf is needed for a remaining selection
+  doubt. This changes no driver-lease decision and needs no new ADR.

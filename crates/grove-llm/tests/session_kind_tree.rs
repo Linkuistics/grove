@@ -235,6 +235,26 @@ fn pick_refuses_duplicate_live_finish_leaves() {
 }
 
 #[test]
+fn pick_refuses_duplicate_keys_even_outside_live_candidates() {
+    let repository = init_repo();
+    let grove = current_grove(repository.path());
+    write_leaf(&grove, "01-impl--work-k1.md", "work");
+    write_leaf(&grove, "02-DONE-impl--old-k7.md", "old");
+    fs::create_dir(grove.join("03-k7")).unwrap();
+    write_leaf(&grove, "03-k7/_branch.md", "branch");
+
+    let output = grove_llm(repository.path(), &["pick"]);
+
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stderr(&output).contains("duplicate key k7"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(stdout(&output).is_empty());
+}
+
+#[test]
 fn terminal_infixes_preserve_filename_kind_and_stable_resolution() {
     let repository = init_repo();
     let grove = current_grove(repository.path());

@@ -274,7 +274,7 @@ differently in that light.
 <a id="the-library-root"></a>
 ## The library root: five passages, and the chapters they name
 
-`src/lib.rs` is 396 lines. The first fifty are the module's own documentation, in
+`src/lib.rs` is 416 lines. The first fifty are the module's own documentation, in
 five passages — two opening paragraphs and three headed sections — and the
 remaining 327 are the crate's public surface: its modules, its version, its
 exports, the two openings, the reference grammar and the one error. The book reads the whole file here, in nineteen
@@ -282,7 +282,7 @@ fragments, and the five passages are read in the file's own order — which is n
 this book's chapter order, because the header opens on the crate and the book
 opens on the grammar underneath it.
 
-<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-396" parent="source-library-root" -->
+<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-416" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-and-the-driver» -->
 <!-- insert «library-root-opening-mirrors» -->
@@ -1081,12 +1081,41 @@ work, carrying its path, its identity and its kind. It is named here because the
 driver half of the crate returns one and the loop launches from it; chapter 7
 reads the walk that produces it.
 
-<!-- fragment «library-root-selection» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="348-351" parent="library-root" -->
+The public `select_snapshot` operation beside it takes the root path spelling,
+an already-read typed snapshot and an optional permanent key to exclude. It
+returns a `Selection`, no candidate, or the crate's opaque `Error`. The loop owns
+the validation and selection rule; this wrapper exposes it to read-only consumers
+without opening another tree or granting mutation authority. The viewer uses
+this operation to validate before copying rows and selected file content.
+[Chapter 7](07-the-walk.md#the-cost-of-the-finish-rule) explains why validation
+must precede exclusion and how the remaining candidates are ordered.
+
+<!-- fragment «library-root-selection» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="348-371" parent="library-root" -->
 ````rust
 
 /// The leaf a session was launched to work: its path, its identity, and its
 /// kind.
 pub type Selection = task_tree::Selection;
+
+/// Validate and select from an already-read snapshot without filesystem effects.
+///
+/// Duplicate keys across all items and multiple live finishes are refused before
+/// exclusion. Among live leaves other than `excluded_key`, return the first
+/// ordinary leaf in depth-first position order, or the sole remaining finish,
+/// or `None`. Excluding a branch does not exclude its descendants.
+/// `root` supplies the snapshot's path spelling for selections and diagnostics.
+/// This operation never allocates a finish sentinel or acquires another lock.
+///
+/// # Errors
+///
+/// An ambiguous tree, even if exclusion would hide the ambiguity.
+pub fn select_snapshot(
+    root: &Path,
+    snapshot: &ordinal_fs_tree::Snapshot<TaskName>,
+    excluded_key: Option<ordinal_fs_tree::Key>,
+) -> Result<Option<Selection>, Error> {
+    Ok(task_tree::selected(root, snapshot, excluded_key)?)
+}
 ````
 <!-- /fragment -->
 
@@ -1105,7 +1134,7 @@ rule to `keyed-launch`'s and `jj-workspace`'s errors, which is the workspace-wid
 form of it. `Error::msg` is `pub(crate)`, so the only messages this type can
 carry are ones a module of this crate wrote.
 
-<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="352-370" parent="library-root" -->
+<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="372-390" parent="library-root" -->
 ````rust
 
 /// **One error for the whole crate**, opaque by construction.
@@ -1139,7 +1168,7 @@ takes on no dependency of grove's to do it. The `From<anyhow::Error>` is what
 lets every module inside the crate keep stacking context with `?` and have it
 arrive here as one type.
 
-<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="371-396" parent="library-root" -->
+<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="391-416" parent="library-root" -->
 ````rust
 
 impl fmt::Display for Error {

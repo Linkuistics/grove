@@ -317,7 +317,9 @@ than picking one.
 ## Viewer ownership
 
 `crates/grove-tui` shares Grove's task vocabulary and consumes the public typed
-reader. It owns only observation, display and in-memory interaction state.
+reader and `select_snapshot` validation. The loop owns whole-tree key/finish
+validation and exclusion-aware selection. The viewer owns observation, display
+and in-memory interaction state.
 The [viewer architecture](docs/ARCHITECTURE.md#read-only-viewer) names its
 application seam; the [usage guide](docs/USAGE.md#usage-viewing-tree) states the
 current interaction and refresh behavior. The

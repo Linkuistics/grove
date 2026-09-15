@@ -941,6 +941,10 @@ A single unit of work — a file `NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<
 <a id="pick"></a>
 #### Pick (`grove-llm pick`)
 
+Selection first refuses duplicate permanent keys anywhere in the tree and
+multiple live finish leaves. The driver, `pick` and viewer use the loop's
+shared snapshot rule; exclusion never makes an ambiguous tree valid.
+
 The loop's dispatcher: the **first
 eligible live [[Leaf]] in depth-first pre-order** over `.grove/`, read from
 filenames and never from task-file contents. Eligibility has one

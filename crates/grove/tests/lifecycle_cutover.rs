@@ -154,6 +154,36 @@ fn tree_snapshot(root: &Path) -> Vec<(String, Option<Vec<u8>>)> {
 }
 
 #[test]
+fn duplicate_keys_stop_the_driver_before_launch_or_finish_allocation() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(grove.join("03-k7")).unwrap();
+    fs::write(grove.join("_BRIEF.md"), "root").unwrap();
+    fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
+    fs::write(grove.join("02-DONE-impl--old-k7.md"), "old").unwrap();
+    fs::write(grove.join("03-k7/_branch.md"), "branch").unwrap();
+    let log = fixture.path().join("launched");
+    let fake = fixture.path().join("session.sh");
+    write_executable(&fake, "#!/bin/sh\nprintf launched > \"$1\"\n");
+    write_complete_config(
+        &home,
+        &format!("{} {} '${{prompt}}'", shell_quote(&fake), shell_quote(&log)),
+    );
+    let before = tree_snapshot(&grove);
+
+    let output = run_grove(&home, &worktree);
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "{stderr}");
+    assert!(stderr.contains("duplicate key k7"), "{stderr}");
+    assert!(!log.exists(), "an ambiguous tree must not launch a session");
+    assert_eq!(tree_snapshot(&grove), before);
+}
+
+#[test]
 fn bare_grove_launches_the_selected_filename_kind_with_one_mandate_argument() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("personal home");

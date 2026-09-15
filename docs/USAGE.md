@@ -99,8 +99,12 @@ moves and retirement. Decomposing a selected task opens its new branch brief.
 A moved selection reveals its new ancestors. If an item disappears, the viewer
 selects its nearest surviving old ancestor and shows a notice. Replacing or
 removing `.grove` clears saved item state, even if a new tree reuses its keys;
-replacing only `_BRIEF.md` is an ordinary content edit. Duplicate keys show an
-error. Reading positions follow unchanged source lines through insertions and
+replacing only `_BRIEF.md` is an ordinary content edit. Duplicate permanent keys
+anywhere in the tree, including terminal leaves and branches, or multiple live
+`finish` leaves show an error. The driver and `grove-llm pick` refuse the same
+ambiguities. Follow the [selection repair guidance](#reading-the-tree);
+viewing never allocates a finish leaf. Reading positions follow unchanged source
+lines through insertions and
 deletions, including when you return to a file edited while reading another item.
 Repeated lines use surrounding unchanged text, then proximity and source order
 to choose consistently. A deleted line falls back to the nearest surviving old
@@ -471,6 +475,20 @@ driver computes:
 $ grove-llm pick
 /home/you/app/.grove/01-requirements--auth-k1.md
 ```
+
+Before selecting, both `pick` and the driver validate every item's permanent
+key and refuse duplicates, even in DONE or ABANDONED leaves and branches.
+Multiple live `finish` leaves also refuse selection. Ordinary live work comes
+before `finish`, even when the finish leaf appears earlier in the tree.
+
+To repair a duplicate key, stop the driver and inspect version history to
+restore each item's original identity. Undo an accidental copy or interrupted
+rename; do not renumber existing permanent keys or reuse a retired key. If the
+copy represents genuinely new work, preserve its text outside `.grove`, restore
+the valid tree, then use `leaf-add` to allocate a fresh key and restore that text.
+For multiple live finishes, restore the single driver-owned sentinel from
+history rather than inventing another identity. `grove view` reports these same
+errors, retries after repair, and never changes the tree itself.
 
 `kind` prints just that leaf's kind token, and `brief-chain` prints the
 node-file chain root→leaf, one absolute path per line. Both default to `pick`'s

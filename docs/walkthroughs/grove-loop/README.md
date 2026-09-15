@@ -11,7 +11,7 @@ and whose shape is the only state grove keeps. This reader has run a grove, has
 watched `pick` choose a leaf, and has seen a session's commit name a work item by
 its handle.
 
-`crates/grove-loop` is thirteen files and 10,489 lines, and it is the layer that
+`crates/grove-loop` is thirteen files and 10,527 lines, and it is the layer that
 stayed. Three domain-free crates sit underneath it — an ordered filesystem tree,
 a keyed launcher, a version-control workspace — and none of them has a word for a
 *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*. **This is the
@@ -37,7 +37,7 @@ three parts, each with a cost the layer visibly pays.
   beneath it could have defaulted? A chosen value must be stated where a reader
   can find it, and the layer must not restate what the layer above owns.
 
-All three are provable inside these 10,489 lines, and the closing chapter applies
+All three are provable inside these 10,527 lines, and the closing chapter applies
 them to each of the twenty source-owning chapters in turn.
 
 **The book's boundary is this crate's side of every seam it sits on.** Where
@@ -62,7 +62,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and the source index records how those fragments
 reconstruct each in-scope file. During authoring a scoped check proves the
 completed prefix and reports later-owned ranges as deferred; only the final check
-proves complete reconstruction of all thirteen files and 10,489 lines.
+proves complete reconstruction of all thirteen files and 10,527 lines.
 
 <a id="reading-fragments"></a>
 ## Reading fragments

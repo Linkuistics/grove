@@ -1650,6 +1650,161 @@ mod tests {
         }
     }
 
+    #[test]
+    fn witness_epoch_replacement_waits_with_old_bytes_and_idle_viewers() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, mut lease) = started_fixture();
+        let private = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+        lease.launch.take();
+        let epoch_path = lease.control_dir.join(EPOCH_FILE_NAME);
+        let lease_path = lease.lease_path.clone();
+        let epoch_reader = File::open(&epoch_path).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(epoch_reader.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0
+        );
+        let before = contents(work.path());
+        let old_lease = fs::read(&lease_path).unwrap();
+        drop(lease);
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        std::thread::scope(|scope| {
+            let root = work.path();
+            scope.spawn(move || {
+                let result = DriverLease::acquire_with(&Workspace::resolve(root).unwrap(), || {
+                    ready_tx.send(()).unwrap();
+                    release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+                });
+                done_tx.send(result).unwrap();
+            });
+            ready_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+            // The replacement owns the lease, but the old reader still
+            // excludes invalidation. Neither observation witness is held.
+            for path in [&lease_path, &epoch_path] {
+                let file = File::open(path).unwrap();
+                assert_ne!(
+                    unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                    0
+                );
+                assert_eq!(
+                    std::io::Error::last_os_error().raw_os_error(),
+                    Some(libc::EWOULDBLOCK)
+                );
+            }
+            with_continuous_viewers(&vec![root.to_path_buf(); 3], |sample_all| {
+                for _ in 0..8 {
+                    assert_eq!(sample_all(), vec![ActivityObservation::Idle; 3]);
+                }
+            });
+            for path in [root.join(".grove"), private.clone()] {
+                let file = File::open(path).unwrap();
+                assert_eq!(
+                    unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                    0
+                );
+            }
+            assert_eq!(contents(root), before);
+            release_tx.send(()).unwrap();
+            drop(epoch_reader);
+            let replacement = done_rx
+                .recv_timeout(Duration::from_secs(10))
+                .unwrap()
+                .unwrap();
+            assert_ne!(fs::read(&lease_path).unwrap(), old_lease);
+            assert!(!private.exists(), "cleanup follows exclusive invalidation");
+            assert_eq!(sample(root), ActivityObservation::Idle);
+            drop(replacement);
+        });
+    }
+
+    #[test]
+    fn witness_epoch_preparation_cannot_attach_old_mandate_to_reused_tree() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, mut lease, mut directory, private) = release_fixture();
+        let original = running(sample(work.path()));
+        directory.take();
+        fs::remove_dir_all(work.path().join(".grove")).unwrap();
+        fs::create_dir(work.path().join(".grove")).unwrap();
+        fs::write(work.path().join(".grove/_BRIEF.md"), "replacement").unwrap();
+        fs::write(work.path().join(".grove/01-impl--replacement-k1.md"), "new").unwrap();
+        let pin = TreeLifetime::open(work.path()).unwrap().unwrap();
+        let metadata = pin.directory().metadata().unwrap();
+        let epoch_path = lease.control_dir.join(EPOCH_FILE_NAME);
+        // Model numeric reuse, never assert that this host reused an inode.
+        // The retained lease lets the preparation seam see an old active
+        // record; actual replacement acquisition is covered separately above.
+        let record = fs::read_to_string(&epoch_path)
+            .unwrap()
+            .replace(
+                &format!("observation-tree-device={}", original.tree_identity.0 .0),
+                &format!("observation-tree-device={}", metadata.dev()),
+            )
+            .replace(
+                &format!("observation-tree-inode={}", original.tree_identity.0 .1),
+                &format!("observation-tree-inode={}", metadata.ino()),
+            );
+        fs::write(&epoch_path, &record).unwrap();
+        let reader = File::open(&epoch_path).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(reader.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0
+        );
+        let before = contents(work.path());
+        let signal = lease.control_dir.join("signal-replacement");
+        lease
+            .prepare_launch_with(
+                pin,
+                &super::super::tests::witness_selection(),
+                &signal,
+                |path| {
+                    // This callback runs exactly at acquisition, so an early prepare
+                    // mutant has already exposed its new directory witness here.
+                    with_continuous_viewers(&vec![work.path().to_path_buf(); 3], |sample_all| {
+                        for activity in sample_all() {
+                            assert!(matches!(activity, ActivityObservation::Busy(_)),
+                        "early preparation attached old work-k1 to replacement-k1: {activity:?}");
+                        }
+                    });
+                    assert!(NativeWitnessIo.probe(&File::open(work.path().join(".grove"))?)?);
+                    assert_eq!(
+                        contents(work.path()),
+                        before,
+                        "no new private witness before invalidation"
+                    );
+                    let probe = File::open(path)?;
+                    assert_ne!(
+                        unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                        0
+                    );
+                    assert_eq!(
+                        std::io::Error::last_os_error().raw_os_error(),
+                        Some(libc::EWOULDBLOCK)
+                    );
+                    drop(reader);
+                    super::super::acquire_epoch_file(path, LockMode::Exclusive, "test preparation")
+                },
+            )
+            .unwrap();
+        let new_private = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+        assert!(!NativeWitnessIo
+            .probe(&File::open(work.path().join(".grove")).unwrap())
+            .unwrap());
+        assert!(!NativeWitnessIo
+            .probe(&File::open(&new_private).unwrap())
+            .unwrap());
+        assert_ne!(fs::read_to_string(&epoch_path).unwrap(), record);
+        drop(private);
+        lease.launch.take();
+        let after = contents(work.path());
+        assert_observation_releases_guards(work.path(), &new_private);
+        assert_eq!(contents(work.path()), after);
+    }
+
     fn contents(path: &Path) -> Vec<(PathBuf, Vec<u8>)> {
         let mut files = Vec::new();
         for entry in fs::read_dir(path).unwrap() {

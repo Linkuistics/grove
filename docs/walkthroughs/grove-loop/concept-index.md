@@ -667,3 +667,5 @@ in [the guarded selection](20-the-loop.md#picked) and exercised through the
 
 - [Lease-owned witness publication and post-invalidation cleanup](16-the-lease.md#paired-launch-witnesses)
 - [Native witness publication, admission and release controls](17-the-epoch.md#paired-witness-controls)
+
+- [Delayed replacement and the epoch-before-preparation mutation](17-the-epoch.md#epoch-before-witness-preparation)

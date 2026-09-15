@@ -353,8 +353,12 @@ Started bytes and check Idle through the public observer. Continuous viewers
 also span repeated real launches, checking the exact mandate at Started and
 Idle at Reaped without preventing subsequent witness preparation. Concurrent
 filesystem snapshots cover aliases, absent trees, non-jj locations and missing
-namespaces. These host controls do not substitute for the native process-death
-and replacement-ordering evidence required by the item-status spec.
+namespaces. A replacement paused before epoch handoff retains old lease bytes
+while concurrent viewers report released Started bytes as Idle. A separate
+forced numeric/key-reuse control challenges preparation ordering: moving
+preparation before epoch acquisition exposes a new directory witness under the
+old record and falsely attaches the old mandate. This deterministic model does
+not assert host inode reuse; native process-death evidence remains separate.
 
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed

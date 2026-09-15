@@ -137,10 +137,33 @@ impl Workspace {
     /// there proves it, at the moment the answer matters, and a probe would be
     /// a second answer that can already be stale.
     pub fn control_dir(&self, namespace: &str) -> Result<PathBuf, Refusal> {
-        let namespace = validated_namespace(namespace)?;
-        let path = self.root.join(".jj").join(namespace);
+        let path = control_path(&self.root, namespace)?;
         fs::create_dir_all(&path).map_err(|cause| Refusal::control_dir(&path, cause))?;
         Ok(path)
+    }
+
+    /// Discover an existing namespace at this exact location without writing.
+    ///
+    /// Unlike [`Self::resolve`], this neither walks ancestors nor follows a
+    /// secondary workspace's repository pointer, and never invokes jj. Missing
+    /// `.jj` or namespace directories return `None`; inspection failures and
+    /// nondirectories are refused. Workspace aliases produce the same path.
+    /// Namespace validation is identical to [`Self::control_dir`].
+    ///
+    /// This is a path discovery, not an identity pin: a consumer opening files
+    /// here must validate its descriptors against the current paths. No file
+    /// is opened or locked, and no directory or other state is created.
+    pub fn discover_control_dir(
+        location: &Path,
+        namespace: &str,
+    ) -> Result<Option<PathBuf>, Refusal> {
+        let path = control_path(location, namespace)?;
+        for directory in [location.join(".jj"), path] {
+            if !existing_directory(&directory)? {
+                return Ok(None);
+            }
+        }
+        control_path(&canonical(location)?, namespace).map(Some)
     }
 
     /// Does this workspace **track** `path`?
@@ -331,6 +354,28 @@ fn main_repo_of(root: &Path) -> Result<PathBuf, Refusal> {
 fn canonical(path: &Path) -> Result<PathBuf, Refusal> {
     path.canonicalize()
         .map_err(|cause| Refusal::unresolvable_path(path, cause))
+}
+
+fn control_path(root: &Path, namespace: &str) -> Result<PathBuf, Refusal> {
+    Ok(root.join(".jj").join(validated_namespace(namespace)?))
+}
+
+fn existing_directory(path: &Path) -> Result<bool, Refusal> {
+    // lstat distinguishes an absent entry from a broken symlink. Neither stat
+    // operation opens a FIFO or reads any directory contents.
+    match fs::symlink_metadata(path) {
+        Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(cause) => return Err(Refusal::control_dir(path, cause)),
+        Ok(_) => {}
+    }
+    let metadata = fs::metadata(path).map_err(|cause| Refusal::control_dir(path, cause))?;
+    if !metadata.is_dir() {
+        return Err(Refusal::control_dir(
+            path,
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "expected a directory"),
+        ));
+    }
+    Ok(true)
 }
 
 fn validated_namespace(namespace: &str) -> Result<&str, Refusal> {

@@ -273,7 +273,7 @@ that address a path. They are contiguous in the file and they are one argument,
 so the block is declared here and its parts are read in the three sections that
 follow.
 
-<!-- fragment «scope-tracking-and-commit» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="146-290" parent="source-library" -->
+<!-- fragment «scope-tracking-and-commit» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="169-313" parent="source-library" -->
 <!-- insert «tracking-contract» -->
 <!-- insert «tracking-probe» -->
 <!-- insert «commit-contract» -->
@@ -294,7 +294,7 @@ The first sixteen of those lines are a doc comment, and they carry the exception
 to the crate's read discipline. Four paragraphs: what the question is about, why
 that forces the snapshot, how a directory answers, and which paths are refused.
 
-<!-- fragment «tracking-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="146-161" parent="scope-tracking-and-commit" -->
+<!-- fragment «tracking-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="169-184" parent="scope-tracking-and-commit" -->
 ````rust
     /// Does this workspace **track** `path`?
     ///
@@ -368,7 +368,7 @@ and *not mine to say* are different answers and only one of them is true.
 The body is two lines, and the second is the only place in the crate that calls
 the seam's boolean entry point.
 
-<!-- fragment «tracking-probe» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="162-166" parent="scope-tracking-and-commit" -->
+<!-- fragment «tracking-probe» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="185-189" parent="scope-tracking-and-commit" -->
 ````rust
     pub fn is_tracked(&self, path: &Path) -> Result<bool, Refusal> {
         let fileset = self.fileset(path)?;
@@ -422,7 +422,7 @@ every caller path into a fileset, it runs one `jj commit`, and it reads back the
 identity of what it just took. The eleven-line comment above it argues the first
 and the third; the second needs no argument, because it is one command.
 
-<!-- fragment «commit-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="167-177" parent="scope-tracking-and-commit" -->
+<!-- fragment «commit-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="190-200" parent="scope-tracking-and-commit" -->
 ````rust
     /// Take a commit scoped to `paths` and seal the working copy.
     ///
@@ -461,7 +461,7 @@ the world.**
 The comment says exactly that, in two sentences, and the code distinguishes them
 by wrapping one and not the other.
 
-<!-- fragment «commit-scope-guard» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="178-186" parent="scope-tracking-and-commit" -->
+<!-- fragment «commit-scope-guard» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="201-209" parent="scope-tracking-and-commit" -->
 ````rust
     pub fn commit(&self, paths: &[&Path], message: &str) -> Result<Commit, Refusal> {
         if paths.is_empty() {
@@ -489,7 +489,7 @@ argument list borrows from these strings, so they have to outlive it. That is th
 whole reason the collection is materialised, and it is worth naming because a
 reader looking for a lazier form will find the borrow rather than a preference.
 
-<!-- fragment «commit-invocation» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="187-191" parent="scope-tracking-and-commit" -->
+<!-- fragment «commit-invocation» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="210-214" parent="scope-tracking-and-commit" -->
 ````rust
         let mut args = vec!["commit", "-m", message];
         args.extend(filesets.iter().map(String::as_str));
@@ -521,7 +521,7 @@ three things in the message: that the commit is absent, that `jj undo` and
 `jj op log` are named, and that the crate disclaims running any recovery.
 *Refusal* reads the message itself.
 
-<!-- fragment «commit-change-id-read» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="192-206" parent="scope-tracking-and-commit" -->
+<!-- fragment «commit-change-id-read» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="215-229" parent="scope-tracking-and-commit" -->
 ````rust
         // The commit just taken is the working copy's parent: `jj commit` leaves
         // a fresh empty working-copy commit on top of it. Read read-only, so
@@ -561,7 +561,7 @@ command, while `CommitNotRecorded` is a refusal about state. A consumer cannot
 match on either — the type is opaque — but it can print them, and the two messages
 do not say the same thing.
 
-<!-- fragment «commit-return» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="207-211" parent="scope-tracking-and-commit" -->
+<!-- fragment «commit-return» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="230-234" parent="scope-tracking-and-commit" -->
 ````rust
         Ok(Commit {
             change_id: change_id.trim().to_owned(),
@@ -589,7 +589,7 @@ gate canonicalises the workspace root, so every path the crate later compares
 against that root has to be made comparable to a canonical path. Nothing else in
 this chapter is a through-line; this is.
 
-<!-- fragment «fileset-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="212-217" parent="scope-tracking-and-commit" -->
+<!-- fragment «fileset-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="235-240" parent="scope-tracking-and-commit" -->
 ````rust
     /// `path` as a jj fileset rooted at this workspace.
     ///
@@ -611,7 +611,7 @@ seam ever ran a command from a subdirectory, every unprefixed fileset in the
 crate would silently change meaning, and the failure would be a commit scoped to
 the wrong files rather than an error.
 
-<!-- fragment «fileset-quoting» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="218-230" parent="scope-tracking-and-commit" -->
+<!-- fragment «fileset-quoting» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="241-253" parent="scope-tracking-and-commit" -->
 ````rust
     fn fileset(&self, path: &Path) -> Result<String, Refusal> {
         let relative = self.relative(path)?;
@@ -655,7 +655,7 @@ no assertion behind it. The suite's thirty-two interface tests name exactly one
 extraordinary path — the non-UTF-8 one the render section closes — and it is
 refused before the quoting loop is reached, so it holds nothing about quoting.
 
-<!-- fragment «relative-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="231-242" parent="scope-tracking-and-commit" -->
+<!-- fragment «relative-contract» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="254-265" parent="scope-tracking-and-commit" -->
 ````rust
     /// `path` expressed relative to the workspace root, with `/` separators.
     ///
@@ -687,7 +687,7 @@ The second paragraph is a *refusal*, and it is the one sentence of this contract
 that was not here when the crate was first written. It is argued at the site that
 performs the conversion, at the end of this section.
 
-<!-- fragment «relative-absolute» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="243-248" parent="scope-tracking-and-commit" -->
+<!-- fragment «relative-absolute» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="266-271" parent="scope-tracking-and-commit" -->
 ````rust
     fn relative(&self, path: &Path) -> Result<String, Refusal> {
         let absolute = if path.is_absolute() {
@@ -705,7 +705,7 @@ wherever the caller happens to be running, and the crate never consults
 `current_dir` to interpret one. `an_absolute_path_and_a_root_relative_one_answer_alike`
 is the test that the two spellings reach the same answer.
 
-<!-- fragment «relative-strip-or-canonical-parent» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="249-263" parent="scope-tracking-and-commit" -->
+<!-- fragment «relative-strip-or-canonical-parent» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="272-286" parent="scope-tracking-and-commit" -->
 ````rust
         let relative = match absolute.strip_prefix(&self.root) {
             Ok(relative) => relative.to_path_buf(),
@@ -781,7 +781,7 @@ three cases collapsed carelessly. All three mean the caller named a path this
 workspace does not answer for; the message says so and names the root it was
 compared against.
 
-<!-- fragment «relative-root-is-not-a-scope» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="264-268" parent="scope-tracking-and-commit" -->
+<!-- fragment «relative-root-is-not-a-scope» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="287-291" parent="scope-tracking-and-commit" -->
 ````rust
         if relative.as_os_str().is_empty() {
             return Err(Refusal::not_scoped(
@@ -802,7 +802,7 @@ scope, so the second route is argued from the code and closed by no assertion,
 while the first route — the empty slice — is held by
 `a_commit_with_no_paths_is_refused_rather_than_widened`.
 
-<!-- fragment «relative-render» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="269-290" parent="scope-tracking-and-commit" -->
+<!-- fragment «relative-render» owner="no-transactions" source="crates/jj-workspace/src/lib.rs" lines="292-313" parent="scope-tracking-and-commit" -->
 ````rust
         let mut rendered = String::new();
         for component in relative.components() {

@@ -92,7 +92,7 @@ lines = 44
 [[root]]
 id    = "source-library"
 path  = "crates/jj-workspace/src/lib.rs"
-lines = 359
+lines = 404
 
 [[root]]
 id    = "source-subprocess"
@@ -138,25 +138,43 @@ lines = "72-118"
 id    = "namespace-control-dir"
 root  = "source-library"
 owner = "no-consumer-vocabulary"
-lines = "119-145"
+lines = "119-144"
+
+[[block]]
+id    = "namespace-discovery"
+root  = "source-library"
+owner = "no-consumer-vocabulary"
+lines = "145-168"
 
 [[block]]
 id    = "scope-tracking-and-commit"
 root  = "source-library"
 owner = "no-transactions"
-lines = "146-290"
+lines = "169-313"
 
 [[block]]
 id    = "gate-main-repo-and-canonical"
 root  = "source-library"
 owner = "one-lane"
-lines = "291-335"
+lines = "314-358"
+
+[[block]]
+id    = "namespace-path"
+root  = "source-library"
+owner = "no-consumer-vocabulary"
+lines = "359-362"
+
+[[block]]
+id    = "namespace-existing-directory"
+root  = "source-library"
+owner = "no-consumer-vocabulary"
+lines = "363-380"
 
 [[block]]
 id    = "namespace-validation"
 root  = "source-library"
 owner = "no-consumer-vocabulary"
-lines = "336-359"
+lines = "381-404"
 
 [[block]]
 id    = "subprocess-seam-source"

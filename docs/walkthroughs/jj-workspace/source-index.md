@@ -9,21 +9,24 @@
 | Root ID | Source path | Lines |
 |---|---|---|
 | `source-crate-manifest` | `crates/jj-workspace/Cargo.toml` | 44 |
-| `source-library` | `crates/jj-workspace/src/lib.rs` | 359 |
+| `source-library` | `crates/jj-workspace/src/lib.rs` | 404 |
 | `source-subprocess` | `crates/jj-workspace/src/jj.rs` | 81 |
 | `source-refusal` | `crates/jj-workspace/src/refusal.rs` | 268 |
 
 <!-- source-root «source-crate-manifest» source="crates/jj-workspace/Cargo.toml" lines="1-44" -->
 <!-- insert «manifest-no-dependencies» -->
 <!-- /source-root -->
-<!-- source-root «source-library» source="crates/jj-workspace/src/lib.rs" lines="1-359" -->
+<!-- source-root «source-library» source="crates/jj-workspace/src/lib.rs" lines="1-404" -->
 <!-- insert «library-crate-thesis» -->
 <!-- insert «namespace-reserved-names» -->
 <!-- insert «commit-identity» -->
 <!-- insert «workspace-value-and-gate» -->
 <!-- insert «namespace-control-dir» -->
+<!-- insert «namespace-discovery» -->
 <!-- insert «scope-tracking-and-commit» -->
 <!-- insert «gate-main-repo-and-canonical» -->
+<!-- insert «namespace-path» -->
+<!-- insert «namespace-existing-directory» -->
 <!-- insert «namespace-validation» -->
 <!-- /source-root -->
 <!-- source-root «source-subprocess» source="crates/jj-workspace/src/jj.rs" lines="1-81" -->
@@ -43,10 +46,13 @@
 | `namespace-reserved-names` | `source-library` | `no-consumer-vocabulary` | `55-61` | 7 | `resolved` |
 | `commit-identity` | `source-library` | `no-transactions` | `62-71` | 10 | `resolved` |
 | `workspace-value-and-gate` | `source-library` | `one-lane` | `72-118` | 47 | `resolved` |
-| `namespace-control-dir` | `source-library` | `no-consumer-vocabulary` | `119-145` | 27 | `resolved` |
-| `scope-tracking-and-commit` | `source-library` | `no-transactions` | `146-290` | 145 | `resolved` |
-| `gate-main-repo-and-canonical` | `source-library` | `one-lane` | `291-335` | 45 | `resolved` |
-| `namespace-validation` | `source-library` | `no-consumer-vocabulary` | `336-359` | 24 | `resolved` |
+| `namespace-control-dir` | `source-library` | `no-consumer-vocabulary` | `119-144` | 26 | `resolved` |
+| `namespace-discovery` | `source-library` | `no-consumer-vocabulary` | `145-168` | 24 | `resolved` |
+| `scope-tracking-and-commit` | `source-library` | `no-transactions` | `169-313` | 145 | `resolved` |
+| `gate-main-repo-and-canonical` | `source-library` | `one-lane` | `314-358` | 45 | `resolved` |
+| `namespace-path` | `source-library` | `no-consumer-vocabulary` | `359-362` | 4 | `resolved` |
+| `namespace-existing-directory` | `source-library` | `no-consumer-vocabulary` | `363-380` | 18 | `resolved` |
+| `namespace-validation` | `source-library` | `no-consumer-vocabulary` | `381-404` | 24 | `resolved` |
 | `subprocess-seam-source` | `source-subprocess` | `nothing-ambient` | `1-81` | 81 | `resolved` |
 | `refusal-source` | `source-refusal` | `no-remedy-of-its-own` | `1-268` | 268 | `resolved` |
 
@@ -62,7 +68,7 @@
 | `manifest-dev-dependency` | `orientation` | `source-crate-manifest` | `literal` | `no-dependencies` | `20-26` | `manifest-no-dependencies` | `—` |
 | `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `no-dependencies` | `27-29` | `manifest-no-dependencies` | `—` |
 | `manifest-release-lane` | `orientation` | `source-crate-manifest` | `literal` | `no-dependencies` | `30-44` | `manifest-no-dependencies` | `—` |
-| `source-library` | `source-index` | `source-library` | `root` | `—` | `1-359` | `—` | `library-crate-thesis`, `namespace-reserved-names`, `commit-identity`, `workspace-value-and-gate`, `namespace-control-dir`, `scope-tracking-and-commit`, `gate-main-repo-and-canonical`, `namespace-validation` |
+| `source-library` | `source-index` | `source-library` | `root` | `—` | `1-404` | `—` | `library-crate-thesis`, `namespace-reserved-names`, `commit-identity`, `workspace-value-and-gate`, `namespace-control-dir`, `namespace-discovery`, `scope-tracking-and-commit`, `gate-main-repo-and-canonical`, `namespace-path`, `namespace-existing-directory`, `namespace-validation` |
 | `library-purpose-sentence` | `orientation` | `source-library` | `literal` | `no-dependencies` | `1-9` | `library-crate-thesis` | `—` |
 | `library-crate-thesis` | `orientation` | `source-library` | `composite` | `no-dependencies` | `1-54` | `source-library` | `library-purpose-sentence`, `library-thesis-no-consumer`, `library-thesis-no-transactions`, `library-thesis-reads-add-no-history`, `library-module-surface` |
 | `library-thesis-no-consumer` | `orientation` | `source-library` | `literal` | `no-dependencies` | `10-20` | `library-crate-thesis` | `—` |
@@ -82,36 +88,39 @@
 | `gate-root-accessor` | `the-gate` | `source-library` | `literal` | `one-lane` | `106-111` | `workspace-value-and-gate` | `—` |
 | `gate-main-repo-accessor` | `the-gate` | `source-library` | `literal` | `one-lane` | `112-118` | `workspace-value-and-gate` | `—` |
 | `namespace-postcondition` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `119-123` | `namespace-control-dir` | `—` |
-| `namespace-control-dir` | `namespace` | `source-library` | `composite` | `no-consumer-vocabulary` | `119-145` | `source-library` | `namespace-postcondition`, `namespace-placement`, `namespace-shape`, `namespace-no-probe`, `namespace-control-dir-body` |
+| `namespace-control-dir` | `namespace` | `source-library` | `composite` | `no-consumer-vocabulary` | `119-144` | `source-library` | `namespace-postcondition`, `namespace-placement`, `namespace-shape`, `namespace-no-probe`, `namespace-control-dir-body` |
 | `namespace-placement` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `124-129` | `namespace-control-dir` | `—` |
 | `namespace-shape` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `130-134` | `namespace-control-dir` | `—` |
 | `namespace-no-probe` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `135-138` | `namespace-control-dir` | `—` |
-| `namespace-control-dir-body` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `139-145` | `namespace-control-dir` | `—` |
-| `tracking-contract` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `146-161` | `scope-tracking-and-commit` | `—` |
-| `scope-tracking-and-commit` | `scope-and-commit` | `source-library` | `composite` | `no-transactions` | `146-290` | `source-library` | `tracking-contract`, `tracking-probe`, `commit-contract`, `commit-scope-guard`, `commit-invocation`, `commit-change-id-read`, `commit-return`, `fileset-contract`, `fileset-quoting`, `relative-contract`, `relative-absolute`, `relative-strip-or-canonical-parent`, `relative-root-is-not-a-scope`, `relative-render` |
-| `tracking-probe` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `162-166` | `scope-tracking-and-commit` | `—` |
-| `commit-contract` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `167-177` | `scope-tracking-and-commit` | `—` |
-| `commit-scope-guard` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `178-186` | `scope-tracking-and-commit` | `—` |
-| `commit-invocation` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `187-191` | `scope-tracking-and-commit` | `—` |
-| `commit-change-id-read` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `192-206` | `scope-tracking-and-commit` | `—` |
-| `commit-return` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `207-211` | `scope-tracking-and-commit` | `—` |
-| `fileset-contract` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `212-217` | `scope-tracking-and-commit` | `—` |
-| `fileset-quoting` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `218-230` | `scope-tracking-and-commit` | `—` |
-| `relative-contract` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `231-242` | `scope-tracking-and-commit` | `—` |
-| `relative-absolute` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `243-248` | `scope-tracking-and-commit` | `—` |
-| `relative-strip-or-canonical-parent` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `249-263` | `scope-tracking-and-commit` | `—` |
-| `relative-root-is-not-a-scope` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `264-268` | `scope-tracking-and-commit` | `—` |
-| `relative-render` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `269-290` | `scope-tracking-and-commit` | `—` |
-| `gate-main-repo-premise` | `the-gate` | `source-library` | `literal` | `one-lane` | `291-313` | `gate-main-repo-and-canonical` | `—` |
-| `gate-main-repo-and-canonical` | `the-gate` | `source-library` | `composite` | `one-lane` | `291-335` | `source-library` | `gate-main-repo-premise`, `gate-main-repo-probe`, `gate-canonical` |
-| `gate-main-repo-probe` | `the-gate` | `source-library` | `literal` | `one-lane` | `314-329` | `gate-main-repo-and-canonical` | `—` |
-| `gate-canonical` | `the-gate` | `source-library` | `literal` | `one-lane` | `330-335` | `gate-main-repo-and-canonical` | `—` |
-| `namespace-validation-empty` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `336-339` | `namespace-validation` | `—` |
-| `namespace-validation` | `namespace` | `source-library` | `composite` | `no-consumer-vocabulary` | `336-359` | `source-library` | `namespace-validation-empty`, `namespace-validation-path`, `namespace-validation-self-reference`, `namespace-validation-owned`, `namespace-validation-accept` |
-| `namespace-validation-path` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `340-345` | `namespace-validation` | `—` |
-| `namespace-validation-self-reference` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `346-351` | `namespace-validation` | `—` |
-| `namespace-validation-owned` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `352-357` | `namespace-validation` | `—` |
-| `namespace-validation-accept` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `358-359` | `namespace-validation` | `—` |
+| `namespace-control-dir-body` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `139-144` | `namespace-control-dir` | `—` |
+| `namespace-discovery` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `145-168` | `source-library` | `—` |
+| `tracking-contract` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `169-184` | `scope-tracking-and-commit` | `—` |
+| `scope-tracking-and-commit` | `scope-and-commit` | `source-library` | `composite` | `no-transactions` | `169-313` | `source-library` | `tracking-contract`, `tracking-probe`, `commit-contract`, `commit-scope-guard`, `commit-invocation`, `commit-change-id-read`, `commit-return`, `fileset-contract`, `fileset-quoting`, `relative-contract`, `relative-absolute`, `relative-strip-or-canonical-parent`, `relative-root-is-not-a-scope`, `relative-render` |
+| `tracking-probe` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `185-189` | `scope-tracking-and-commit` | `—` |
+| `commit-contract` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `190-200` | `scope-tracking-and-commit` | `—` |
+| `commit-scope-guard` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `201-209` | `scope-tracking-and-commit` | `—` |
+| `commit-invocation` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `210-214` | `scope-tracking-and-commit` | `—` |
+| `commit-change-id-read` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `215-229` | `scope-tracking-and-commit` | `—` |
+| `commit-return` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `230-234` | `scope-tracking-and-commit` | `—` |
+| `fileset-contract` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `235-240` | `scope-tracking-and-commit` | `—` |
+| `fileset-quoting` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `241-253` | `scope-tracking-and-commit` | `—` |
+| `relative-contract` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `254-265` | `scope-tracking-and-commit` | `—` |
+| `relative-absolute` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `266-271` | `scope-tracking-and-commit` | `—` |
+| `relative-strip-or-canonical-parent` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `272-286` | `scope-tracking-and-commit` | `—` |
+| `relative-root-is-not-a-scope` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `287-291` | `scope-tracking-and-commit` | `—` |
+| `relative-render` | `scope-and-commit` | `source-library` | `literal` | `no-transactions` | `292-313` | `scope-tracking-and-commit` | `—` |
+| `gate-main-repo-premise` | `the-gate` | `source-library` | `literal` | `one-lane` | `314-336` | `gate-main-repo-and-canonical` | `—` |
+| `gate-main-repo-and-canonical` | `the-gate` | `source-library` | `composite` | `one-lane` | `314-358` | `source-library` | `gate-main-repo-premise`, `gate-main-repo-probe`, `gate-canonical` |
+| `gate-main-repo-probe` | `the-gate` | `source-library` | `literal` | `one-lane` | `337-352` | `gate-main-repo-and-canonical` | `—` |
+| `gate-canonical` | `the-gate` | `source-library` | `literal` | `one-lane` | `353-358` | `gate-main-repo-and-canonical` | `—` |
+| `namespace-path` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `359-362` | `source-library` | `—` |
+| `namespace-existing-directory` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `363-380` | `source-library` | `—` |
+| `namespace-validation-empty` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `381-384` | `namespace-validation` | `—` |
+| `namespace-validation` | `namespace` | `source-library` | `composite` | `no-consumer-vocabulary` | `381-404` | `source-library` | `namespace-validation-empty`, `namespace-validation-path`, `namespace-validation-self-reference`, `namespace-validation-owned`, `namespace-validation-accept` |
+| `namespace-validation-path` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `385-390` | `namespace-validation` | `—` |
+| `namespace-validation-self-reference` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `391-396` | `namespace-validation` | `—` |
+| `namespace-validation-owned` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `397-402` | `namespace-validation` | `—` |
+| `namespace-validation-accept` | `namespace` | `source-library` | `literal` | `no-consumer-vocabulary` | `403-404` | `namespace-validation` | `—` |
 | `source-subprocess` | `source-index` | `source-subprocess` | `root` | `—` | `1-81` | `—` | `subprocess-seam-source` |
 | `subprocess-seam-purpose` | `subprocess-seam` | `source-subprocess` | `literal` | `nothing-ambient` | `1-6` | `subprocess-seam-source` | `—` |
 | `subprocess-seam-source` | `subprocess-seam` | `source-subprocess` | `composite` | `nothing-ambient` | `1-81` | `source-subprocess` | `subprocess-seam-purpose`, `subprocess-nothing-ambient`, `subprocess-consumer-environment`, `subprocess-imports`, `subprocess-selectors`, `subprocess-output`, `subprocess-produced-output`, `subprocess-raw-output-build`, `subprocess-raw-output-endings`, `subprocess-rendered` |
@@ -149,6 +158,7 @@
 | `refusal-error-source-caused` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `252-258` | `refusal-source` | `—` |
 | `refusal-error-source-uncaused` | `refusal` | `source-refusal` | `literal` | `no-remedy-of-its-own` | `259-268` | `refusal-source` | `—` |
 
+
 <a id="early-uses"></a>
 ## Early uses
 
@@ -163,7 +173,7 @@
 | `jj::output`, `jj::produced_output` | `02-the-gate.md#worked-resolution` | `nothing-ambient` | Every jj invocation the crate makes is built at one seam that fixes the working directory, removes the repository selectors, and separates failure to start from failure to succeed. | `explained` |
 | `Refusal::not_a_workspace`, `Refusal::unresolvable_path` | `02-the-gate.md#worked-resolution` | `no-remedy-of-its-own` | Refusal constructors are crate-internal; the gate's refusal names jj's two initialisation commands and states that nothing was created or changed. | `explained` |
 | `Refusal::not_runnable`, `Refusal::command_failed`, `Refusal::output_not_text` | `03-subprocess-seam.md#worked-invocation` | `no-remedy-of-its-own` | The seam's three refusals: jj could not be started and the remedy is installation; jj started and declined, and the remedy is the stderr it printed; or its output was not text and its answer cannot be read. | `explained` |
-| `Refusal::namespace`, `Refusal::control_dir` | `04-namespace.md#worked-reservation` | `no-remedy-of-its-own` | The namespace's two refusals: a name the crate will not reserve, carrying the name and one short reason with a fixed remedy paragraph; and a directory the filesystem would not create, carrying the path and keeping the `io::Error` as the refusal's `source()`. | `explained` |
+| `Refusal::namespace`, `Refusal::control_dir` | `04-namespace.md#worked-reservation` | `no-remedy-of-its-own` | The namespace's two refusals: a name the crate will not reserve, carrying the name and one short reason with a fixed remedy paragraph; and a directory the filesystem could not create or inspect, carrying the path and keeping the `io::Error` as the refusal's `source()`. | `explained` |
 | `Refusal::not_scoped`, `Refusal::outside_workspace`, `Refusal::commit_not_recorded` | `05-scope-and-commit.md#worked-commit` | `no-remedy-of-its-own` | Scope and commit's three refusals: a path-scoped operation given no scope; a path the workspace does not answer for, naming the root it was compared against; and the one refusal about state rather than about a command, which means the commit is absent and names jj's operation-log repair while keeping the seam's own refusal as its cause. | `explained` |
 | `Refusal::path_not_text` | `05-scope-and-commit.md#the-path-algebra` | `no-remedy-of-its-own` | The refusal for a path that cannot be rendered as a fileset because its name is not valid UTF-8: it carries the path and nothing else, names no jj command because jj will not track such a path, and states the filesystem's remedy instead. | `explained` |
 
@@ -171,7 +181,7 @@
 ## Owned source totals
 
 Every line of the four source roots is credited once, to the slice whose page
-owns it; the table shows how the 752 lines divide across the seven chapters, and
+owns it; the table shows how the 797 lines divide across the seven chapters, and
 its total is what a completed book must account for.
 
 | Slice | Page | Owned lines |
@@ -179,8 +189,8 @@ its total is what a completed book must account for.
 | `no-dependencies` | `01-orientation.md` | 98 |
 | `one-lane` | `02-the-gate.md` | 92 |
 | `nothing-ambient` | `03-subprocess-seam.md` | 81 |
-| `no-consumer-vocabulary` | `04-namespace.md` | 58 |
+| `no-consumer-vocabulary` | `04-namespace.md` | 103 |
 | `no-transactions` | `05-scope-and-commit.md` | 155 |
 | `no-remedy-of-its-own` | `06-refusal.md` | 268 |
 | `assembly` | `07-what-jj-owns.md` | 0 |
-| **Total** | 4 source roots | **752** |
+| **Total** | 4 source roots | **797** |

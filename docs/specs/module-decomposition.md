@@ -477,6 +477,9 @@ impl Workspace {
     /// consumer's filenames are its own and cannot collide with the version
     /// control system's, which is the whole of what the namespace buys.
     pub fn control_dir(&self, namespace: &str) -> Result<PathBuf, Refusal>;
+    /// Read-only discovery at the exact location, without ancestor search or jj.
+    /// Absence is None; the returned path does not pin filesystem identity.
+    pub fn discover_control_dir(location: &Path, namespace: &str) -> Result<Option<PathBuf>, Refusal>;
     pub fn is_tracked(&self, path: &Path) -> Result<bool, Refusal>;
     /// Take a path-scoped commit and seal the working copy.
     pub fn commit(&self, paths: &[&Path], message: &str) -> Result<Commit, Refusal>;

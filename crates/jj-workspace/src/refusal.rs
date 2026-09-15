@@ -181,8 +181,8 @@ impl fmt::Display for Refusal {
             Kind::ControlDir { path, .. } => write!(
                 f,
                 "the control directory {} is not usable\n\n\
-                 It must exist and be writable before anything can coordinate through it. \
-                 Check the permissions on the workspace's `.jj` directory.",
+                 Check its type and the permissions on the workspace's `.jj` directory. \
+                 Creating coordination files also requires write access.",
                 path.display()
             ),
             Kind::OutsideWorkspace { path, root } => write!(

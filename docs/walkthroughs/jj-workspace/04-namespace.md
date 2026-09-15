@@ -368,15 +368,14 @@ does not contain.
 <a id="the-reservation"></a>
 ## The reservation, and the four clauses it promises
 
-`control_dir` is one of `Workspace`'s four operations
-([*Orientation*](01-orientation.md#public-surface) counts the surface), and it
+`control_dir` belongs to `Workspace`'s public surface
+([*Orientation*](01-orientation.md#public-surface)), and it
 sits between the two accessors
 [*The gate*](02-the-gate.md#the-value-and-the-gate) owns and the
-scope-and-commit operations the next chapter owns. Nineteen lines of its
-twenty-seven are comment, and each paragraph of that comment answers a different
+discovery and scope-and-commit operations. Each paragraph of its comment answers a different
 question a reader would otherwise have to ask the tests.
 
-<!-- fragment «namespace-control-dir» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="119-145" parent="source-library" -->
+<!-- fragment «namespace-control-dir» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="119-144" parent="source-library" -->
 <!-- insert «namespace-postcondition» -->
 <!-- insert «namespace-placement» -->
 <!-- insert «namespace-shape» -->
@@ -491,18 +490,17 @@ be unusable is not hidden — `Refusal::control_dir` exists precisely for the
 creation failing — it is only that the crate does not manufacture an occasion for
 it.
 
-The body is four lines, and their order is the whole of what they do:
+The creating operation has three steps:
 `control_dir` turns the caller's namespace string into a path under the
 workspace's `.jj/` that exists by the time it is returned, validating before it
 joins and joining before it creates, which is what keeps a refused name from
 reaching the filesystem at all. It is the first call of the worked example
 above, at the resolution the trace showed.
 
-<!-- fragment «namespace-control-dir-body» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="139-145" parent="namespace-control-dir" -->
+<!-- fragment «namespace-control-dir-body» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="139-144" parent="namespace-control-dir" -->
 ````rust
     pub fn control_dir(&self, namespace: &str) -> Result<PathBuf, Refusal> {
-        let namespace = validated_namespace(namespace)?;
-        let path = self.root.join(".jj").join(namespace);
+        let path = control_path(&self.root, namespace)?;
         fs::create_dir_all(&path).map_err(|cause| Refusal::control_dir(&path, cause))?;
         Ok(path)
     }
@@ -510,24 +508,12 @@ above, at the resolution the trace showed.
 ````
 <!-- /fragment -->
 
-Validation comes first, and its result **shadows the parameter**:
-`let namespace = validated_namespace(namespace)?` rebinds the name, so the
-unvalidated `&str` is not reachable in the two lines that follow. That is a
-deliberate use of shadowing as an enforcement rather than as brevity — the
-function returns `Result<&str, Refusal>` rather than `Result<(), Refusal>` for
-exactly this reason, and the returned reference borrows from the argument, so
-the rebinding costs nothing at runtime and makes the wrong value impossible to
-join by hand. A validator returning `()` would have left the original in scope
-and the ordering would then be a convention.
-
-`self.root.join(".jj").join(namespace)` is the only place in the crate that names
-`.jj` as a path component in an operation rather than in a probe, and it is safe
-in the way this crate cares about because both of its inputs are already
-constrained: `self.root` is canonical — the gate canonicalised it, so there is no
-symlink or `..` left in it to resolve — and `namespace` has been validated to be
-a single component. A `join` of a canonical path and a validated single component
-cannot leave the workspace, which is the *inside the workspace* clause discharged
-by construction rather than by a check on the result.
+Both namespace operations call `control_path`, which validates the supplied
+name before joining it beneath the exact root's `.jj/`. This keeps path
+construction and the reserved-name rule shared as discovery is added. The
+returned path does not pin a directory: the consumer must still check the
+identity of files it opens, and administration-area symlink corruption is not
+prevented by joining validated path components.
 
 `fs::create_dir_all` is what makes *created if absent* idempotent rather than
 merely convenient. It succeeds when the directory already exists, which is the
@@ -552,6 +538,102 @@ as two separate fields is what makes this method's answer right for a secondary
 workspace, and a `control_dir` derived from `main_repo` instead would have handed
 two drivers one lease.
 
+<a id="read-only-discovery"></a>
+## Discovering an existing namespace without reserving it
+
+A read-only consumer starts with a location, before resolving a `Workspace`.
+`Workspace::discover_control_dir(location, "grove")` checks only that location's
+`.jj/` and namespace. A missing directory returns `None`, so browsing a temporary
+non-jj tree cannot create administration state. A subdirectory never borrows an
+ancestor's namespace. Canonicalising the exact root accepts aliases such as
+`/var` and `/private/var` without following `.jj/repo` or invoking jj.
+
+For the carried workspace, discovery returns `/work/atlas/.jj/grove` after the
+reservation above, and `None` before it. The result is a path sample, not a
+workspace value or an ownership guard; a caller opening coordination files must
+validate their descriptors against their current paths. No lock is held here.
+
+<!-- fragment «namespace-discovery» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="145-168" parent="source-library" -->
+````rust
+    /// Discover an existing namespace at this exact location without writing.
+    ///
+    /// Unlike [`Self::resolve`], this neither walks ancestors nor follows a
+    /// secondary workspace's repository pointer, and never invokes jj. Missing
+    /// `.jj` or namespace directories return `None`; inspection failures and
+    /// nondirectories are refused. Workspace aliases produce the same path.
+    /// Namespace validation is identical to [`Self::control_dir`].
+    ///
+    /// This is a path discovery, not an identity pin: a consumer opening files
+    /// here must validate its descriptors against the current paths. No file
+    /// is opened or locked, and no directory or other state is created.
+    pub fn discover_control_dir(
+        location: &Path,
+        namespace: &str,
+    ) -> Result<Option<PathBuf>, Refusal> {
+        let path = control_path(location, namespace)?;
+        for directory in [location.join(".jj"), path] {
+            if !existing_directory(&directory)? {
+                return Ok(None);
+            }
+        }
+        control_path(&canonical(location)?, namespace).map(Some)
+    }
+
+````
+<!-- /fragment -->
+
+The shared `control_path` maps a location and validated namespace to one path.
+Creation supplies an already-resolved root; discovery supplies its exact input
+and later canonicalises it. Neither operation can accidentally use the default
+workspace's repository location to derive the namespace.
+
+<!-- fragment «namespace-path» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="359-362" parent="source-library" -->
+````rust
+fn control_path(root: &Path, namespace: &str) -> Result<PathBuf, Refusal> {
+    Ok(root.join(".jj").join(validated_namespace(namespace)?))
+}
+
+````
+<!-- /fragment -->
+
+`existing_directory` distinguishes absence from corruption. Its first metadata
+query does not follow a final symlink, so a dangling namespace link is present
+and fails the second query rather than silently becoming `None`. The second
+query requires a directory. A regular file or FIFO is refused without opening
+or reading it. Inspection failures retain their operating-system cause in
+`Refusal::control_dir`; the remedy covers types and permissions, with write
+access required only for writers.
+
+<!-- fragment «namespace-existing-directory» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="363-380" parent="source-library" -->
+````rust
+fn existing_directory(path: &Path) -> Result<bool, Refusal> {
+    // lstat distinguishes an absent entry from a broken symlink. Neither stat
+    // operation opens a FIFO or reads any directory contents.
+    match fs::symlink_metadata(path) {
+        Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(cause) => return Err(Refusal::control_dir(path, cause)),
+        Ok(_) => {}
+    }
+    let metadata = fs::metadata(path).map_err(|cause| Refusal::control_dir(path, cause))?;
+    if !metadata.is_dir() {
+        return Err(Refusal::control_dir(
+            path,
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "expected a directory"),
+        ));
+    }
+    Ok(true)
+}
+
+````
+<!-- /fragment -->
+
+The public discovery tests use an invalid secondary-repository pointer: discovery
+still succeeds because it never asks jj to interpret the pointer. They compare
+filesystem entries and bytes, including `.jj`, before and after discovery,
+check aliases and invalid namespaces, and bound the FIFO test with a timeout.
+These tests establish the path operation's read-only behavior; runtime record
+locks and descriptor identity validation belong to the consumer.
+
 <a id="the-validation"></a>
 ## Four refusals, in the order they run
 
@@ -561,7 +643,7 @@ the guards is load-bearing in a way a reader who skims it will miss: the first
 and third are the two that prevent `control_dir` from returning a directory that
 already means something.
 
-<!-- fragment «namespace-validation» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="336-359" parent="source-library" -->
+<!-- fragment «namespace-validation» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="381-404" parent="source-library" -->
 <!-- insert «namespace-validation-empty» -->
 <!-- insert «namespace-validation-path» -->
 <!-- insert «namespace-validation-self-reference» -->
@@ -578,7 +660,7 @@ returning the administrative directory raw. Verified on this crate at jj 0.44.0:
 `Path::new("/work/atlas").join(".jj").join("")` is `/work/atlas/.jj/`, and
 `create_dir_all` on an existing directory succeeds.
 
-<!-- fragment «namespace-validation-empty» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="336-339" parent="namespace-validation" -->
+<!-- fragment «namespace-validation-empty» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="381-384" parent="namespace-validation" -->
 ````rust
 fn validated_namespace(namespace: &str) -> Result<&str, Refusal> {
     if namespace.is_empty() {
@@ -595,7 +677,7 @@ allocation on the accept path at all.
 The second check is the one a reader expects to be the whole function: a name
 containing a separator is a path, not a name.
 
-<!-- fragment «namespace-validation-path» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="340-345" parent="namespace-validation" -->
+<!-- fragment «namespace-validation-path» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="385-390" parent="namespace-validation" -->
 ````rust
     if namespace.contains('/') || namespace.contains('\\') || namespace.contains('\0') {
         return Err(Refusal::namespace(
@@ -626,7 +708,7 @@ The third check is the one whose absence would be silent, and it exists because
 `.` and `..` are names rather than paths — neither contains a separator, so the
 guard above lets both through.
 
-<!-- fragment «namespace-validation-self-reference» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="346-351" parent="namespace-validation" -->
+<!-- fragment «namespace-validation-self-reference» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="391-396" parent="namespace-validation" -->
 ````rust
     if namespace == "." || namespace == ".." {
         return Err(Refusal::namespace(
@@ -655,7 +737,7 @@ is what has to move — and keeping the structural checks ahead of it means a
 malformed name is always reported as malformed rather than as a collision. It is
 also the only guard that consults data rather than the string's own shape.
 
-<!-- fragment «namespace-validation-owned» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="352-357" parent="namespace-validation" -->
+<!-- fragment «namespace-validation-owned» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="397-402" parent="namespace-validation" -->
 ````rust
     if JJ_OWNED_NAMES.contains(&namespace) {
         return Err(Refusal::namespace(
@@ -676,7 +758,7 @@ why it cannot have the word and that no version of its own code will ever get it
 that `.jj/repo` is still a directory afterwards — the refusal must not have
 disturbed jj's own.
 
-<!-- fragment «namespace-validation-accept» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="358-359" parent="namespace-validation" -->
+<!-- fragment «namespace-validation-accept» owner="no-consumer-vocabulary" source="crates/jj-workspace/src/lib.rs" lines="403-404" parent="namespace-validation" -->
 ````rust
     Ok(namespace)
 }

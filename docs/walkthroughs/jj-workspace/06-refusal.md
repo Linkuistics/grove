@@ -260,14 +260,12 @@ of borrowing the cause's, and `NotRunnable`'s now does: it names `PATH` **and**
 runnability, because its `io::Error` separates two cases its message no longer
 can.
 
-**One arm could not make that repair, and pays the cost instead.** `ControlDir`'s
-remedy names permissions, and chapter 4 recorded a reservation where the
-permissions were fine — a `{}`-only consumer used to be handed the wrong remedy
-and the contradicting `io::Error` together, and now gets the remedy alone. *The
-namespace's two*, below, reads that case against the arm itself. What keeps it a
-cost rather than a regression is the hop: the cause is `source()`, and every
-consumer this crate has renders the chain or never prints at all, which is what
-*The consumer's half* below enumerates.
+`ControlDir` covers creation and read-only inspection failures. Its remedy
+names the directory's type and permissions, and requires write access only when
+creating coordination files. The operating-system cause remains available
+through `source()`, so a consumer can distinguish a broken link, a nondirectory
+and an access failure. *The namespace's two*, below, relates these cases to the
+shared refusal.
 
 > **The consumer's half.** grove never names this type. `grove-loop` re-exports
 > `Commit` and `Workspace` from this crate and not `Refusal`
@@ -475,7 +473,7 @@ here and argued in place below:
 | `NotAWorkspace` | gate | `searched_from` | none | `jj git init --colocate` and `jj git init`, both, unconditionally |
 | `UnresolvablePath` | gate | `path`, `io::Error` | the `io::Error` | a diagnosis and no command: a broken symlink, or a directory removed underneath the process |
 | `Namespace` | namespace | `namespace`, `reason` | none | fixed text: a namespace is one plain directory name |
-| `ControlDir` | namespace | `path`, `io::Error` | the `io::Error` | check the permissions on the workspace's `.jj` directory |
+| `ControlDir` | namespace | `path`, `io::Error` | the `io::Error` | check directory type and permissions; write access is needed for creation |
 | `OutsideWorkspace` | scope | `path`, `root` | none | resolve the workspace that contains the path and ask that one |
 | `NotScoped` | scope | `reason` | none | name the paths the operation is about |
 | `PathNotText` | scope | `path` | none | rename the file: the remedy is the filesystem's, because jj will not track the path |
@@ -704,8 +702,8 @@ what this section adds to chapter 4.
             Kind::ControlDir { path, .. } => write!(
                 f,
                 "the control directory {} is not usable\n\n\
-                 It must exist and be writable before anything can coordinate through it. \
-                 Check the permissions on the workspace's `.jj` directory.",
+                 Check its type and the permissions on the workspace's `.jj` directory. \
+                 Creating coordination files also requires write access.",
                 path.display()
             ),
 ````
@@ -718,31 +716,16 @@ rejections, because it is a statement of the rule rather than of the violation.
 The message therefore reads as *what you asked for, why it was refused, what the
 rule is*, and only the middle third is computed.
 
-**`ControlDir`'s remedy names permissions, and chapter 4 recorded the case where
-that was the wrong thing to say.** `control_dir(".gitignore")` used to reach this
-arm rather than the one above it, because `.gitignore` is a name jj writes inside
-`.jj/` of a colocated workspace and the crate's reserved list did not hold it, so
-the refusal a consumer saw suggested checking permissions on a directory that
-already exists — measured on jj 0.44.0 and recorded in
-[*The reserved list*](04-namespace.md#the-reserved-list) and traced to both its
-endings in [*Reserving `grove`*](04-namespace.md#worked-reservation), which is
-also where the third name arrives and sends this call to `Namespace`. The message
-was not wrong about what it observed; `create_dir_all` did refuse. It was wrong about
-what to do, and that is still the shape of defect this arm can have rather than
-one it has had and lost: the remedy is chosen by which constructor was reached,
-so a gap in the validation upstream becomes a misleading remedy here, and closing
-the one gap that was found closes no other.
+`ControlDir` now serves both namespace operations. A reader may inspect a
+read-only directory, while a writer needs permission to create files there, so
+the remedy distinguishes those needs. Its type check also covers a regular file
+or FIFO at the namespace path. The historical `.gitignore` collision described
+in [the reservation example](04-namespace.md#worked-reservation) is refused by
+namespace validation before either operation reaches the filesystem.
 
-**This is the arm the `Display` rule costs most, and it is worth being plain about
-it.** While the message interpolated its `io::Error`, a consumer that printed
-nothing but `{}` was handed *check the permissions* and *File exists (os error
-17)* together, and the two disagreeing was how the defect showed. Now the remedy
-stands alone in the message and the cause is one `source()` hop below it, so the
-contradiction is visible to a consumer that renders the chain and invisible to one
-that does not. That is not an argument for putting the cause back — it was
-duplicated, not merely present, and the chain-rendering consumer is every consumer
-this crate has — but it is the concrete thing the rule bought its tidiness with,
-and it is recorded here rather than left for a reader to notice.
+The displayed remedy cannot identify every operating-system failure; callers
+that need the precise cause still render the `source()` chain. Broadening the
+remedy does not add a new error kind or make the opaque refusal matchable.
 
 <a id="scopes-three"></a>
 ## Scope's three, and reasons written for the condition

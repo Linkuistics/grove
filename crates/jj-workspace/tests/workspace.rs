@@ -341,6 +341,10 @@ fn a_secondary_workspace_gets_its_own_control_directory_not_the_shared_one() {
         .unwrap();
 
     assert_eq!(control, secondary.join(".jj/notekeeper"));
+    assert_eq!(
+        Workspace::discover_control_dir(&secondary, "notekeeper").unwrap(),
+        Some(control)
+    );
     assert!(
         !main.join(".jj/notekeeper").exists(),
         "the shared repository's workspace must be untouched"

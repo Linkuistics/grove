@@ -331,7 +331,7 @@ ahead of the namespace validation *The namespace it will not name* owns. They ar
 forty-five lines, and between them they carry the premise stated above and the
 one refusal the gate has left.
 
-<!-- fragment «gate-main-repo-and-canonical» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="291-335" parent="source-library" -->
+<!-- fragment «gate-main-repo-and-canonical» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="314-358" parent="source-library" -->
 <!-- insert «gate-main-repo-premise» -->
 <!-- insert «gate-main-repo-probe» -->
 <!-- insert «gate-canonical» -->
@@ -345,7 +345,7 @@ followed by jj rather than parsed here, which keeps the format jj's to change.
 The third is the scope of the test, and it is the one a reader is most likely to
 argue with.
 
-<!-- fragment «gate-main-repo-premise» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="291-313" parent="gate-main-repo-and-canonical" -->
+<!-- fragment «gate-main-repo-premise» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="314-336" parent="gate-main-repo-and-canonical" -->
 ````rust
 
 /// The default workspace's root, from a workspace root that is already
@@ -387,7 +387,7 @@ choice is also stated: a damaged repository is reported by jj at the first
 command that needs one, not here, and a consumer that wants an earlier answer
 runs its own jj command for it.
 
-<!-- fragment «gate-main-repo-probe» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="314-329" parent="gate-main-repo-and-canonical" -->
+<!-- fragment «gate-main-repo-probe» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="337-352" parent="gate-main-repo-and-canonical" -->
 ````rust
 fn main_repo_of(root: &Path) -> Result<PathBuf, Refusal> {
     if !root.join(".jj").join("repo").is_file() {
@@ -418,7 +418,7 @@ is a broken symlink or a directory removed underneath the process, and the
 refusal says so. The `io::Error` is kept as the refusal's `source()`, so a
 consumer that walks the chain sees what the operating system said.
 
-<!-- fragment «gate-canonical» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="330-335" parent="gate-main-repo-and-canonical" -->
+<!-- fragment «gate-canonical» owner="one-lane" source="crates/jj-workspace/src/lib.rs" lines="353-358" parent="gate-main-repo-and-canonical" -->
 ````rust
 
 fn canonical(path: &Path) -> Result<PathBuf, Refusal> {

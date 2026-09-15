@@ -43,6 +43,11 @@ interface, [*jj is the only lane*](./docs/adr/jj-is-the-only-lane.md) for the
 refusal. A separate context becomes worth declaring only if it grows terms whose
 meaning departs from grove's.
 
+Read-only namespace discovery belongs to this same seam: it accepts an exact
+location and namespace, returns an existing path or absence, and invokes no jj
+command. Runtime record interpretation and descriptor identity validation
+remain Grove's responsibilities; discovery grants no ownership or admission.
+
 **`crates/keyed-launch` is another crate and, for the same reason, not another
 context — but only because it was named to avoid being one.** Its vocabulary is
 *key*, *template*, *slot*, *argv*, *launch*, *overlay*: a key is an opaque string

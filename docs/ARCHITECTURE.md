@@ -1208,6 +1208,15 @@ without naming whose lease it is. Grove supplies the one word `grove` and
 nothing else about itself. What the crate resolves, refuses and answers is the
 [`jj-workspace` walkthrough](walkthroughs/jj-workspace/README.md)'s.
 
+`Workspace::discover_control_dir` discovers an existing namespace at an exact
+location without creating directories, walking ancestors or resolving a
+secondary workspace's repository pointer. It shares validation and path
+derivation with `control_dir`. Missing `.jj` or namespace directories mean
+absence; inspection errors and nondirectories are refused. The returned path
+is a sample, so a runtime observer must validate opened descriptor identities.
+This discovery primitive is available for the forthcoming typed activity
+observer; the viewer does not yet report idle NEXT or legacy epoch activity.
+
 **jj is the only lane** — a tree without a `.jj/` is refused before any mutation,
 with `jj git init --colocate` named as the remedy ([*jj is the only
 lane*](adr/jj-is-the-only-lane.md)). That one gate states the precondition, and

@@ -1,4 +1,4 @@
-# idle-next-k11
+# idle-next-k11 — brief
 
 
 ## Goal
@@ -101,3 +101,22 @@ independently verifiable seam while retaining this increment's end-to-end exit
 condition. The typed observation change is load-bearing: when its
 artifact exists, commission review-impl with the bare stem idle-next. Keep
 integration adjacent to that review under Grove's normal rule.
+
+## Decomposition
+
+The landed selector is small, but this increment still crosses three distinct
+seams with separate verification: namespace discovery, bounded typed capture,
+and application acceptance/rendering. Complete only the first child in the
+decomposing session. This node keeps every end-to-end condition above.
+
+- discover-namespace-k17 delivers exact read-only namespace discovery through
+  the public workspace seam, with independent filesystem tests and book repair.
+- typed-observation-k18 consumes that discovery and moves capture behind the
+  typed loop operation, including legacy epochs, guard lifetime controls,
+  admission regressions and its source-derived documentation.
+- idle-activity-view-k19 consumes the operation in the viewer, demonstrating
+  idle NEXT, independent consistency, responsive retries and the final chrome.
+
+The typed operation's producer commissions the required `idle-next` review
+after its artifact exists. Node closure requires that review and any integration
+as well as the shipped viewer behavior; discovery alone completes neither.

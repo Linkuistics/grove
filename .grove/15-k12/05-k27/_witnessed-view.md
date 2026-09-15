@@ -1,4 +1,4 @@
-# witnessed-view-k27
+# witnessed-view-k27 — brief
 
 
 ## Goal
@@ -73,3 +73,21 @@ The reviewer re-derives from producer commits; it decides whether findings earn
 an adjacent integration. Do not prewrite integration tasks or transcribe future
 findings. The final close must still check every node criterion, not infer
 completion from these four leaves having retired.
+
+## Decomposition
+
+Source inspection separates ordinary same-tree viewing from exceptional tree
+lifetimes. The former changes selection and rendering together; the latter
+must preserve independent runtime evidence through failures and replacement.
+Both children ship their own application controls and current documentation.
+
+- running-rows-k43 delivers witnessed same-tree RUNNING, exclusion-aware NEXT,
+  lifecycle styling and persistent summaries through real controlled launches.
+  Other running relations remain explicitly unavailable until the next child.
+- running-lifetimes-k44 delivers absent-item/absent-tree/unavailable-tree and
+  previous-tree summaries, replacement state reset and the remaining runtime
+  transition/failure controls. It reconciles the whole node and G6, then
+  commissions the complete protocol review under witnessed-activity-k12.
+
+The original Done when remains the node's full contract. No in-session reviewer
+is used alongside the required eventual protocol review.

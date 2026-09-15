@@ -326,14 +326,17 @@ than picking one.
 exclusion-aware selection, selected-file reads and the opaque TreeLifetime.
 The viewer owns two-capture acceptance, presentation rows, display and in-memory
 interaction state. The loop's private driver_lease observer adds independent
-Idle/Busy/Unavailable runtime evidence after tree capture, sharing mandatory
+Idle/Running/Busy/Unavailable runtime evidence after tree capture, sharing mandatory
 record parsers without session admission or a lease-lock probe. The lease writes
 the versioned selected-mandate extension and Started marker through its paired
-witness owner; active epochs still remain Unavailable to this reader.
-Independent activity acceptance displays idle NEXT
-from the shared selector, with persistent summaries and no retained row activity
+witness owner; directory-before-private probes verify Running and its relation
+to the captured tree. Independent activity acceptance displays idle NEXT and
+same-tree RUNNING with exclusion-aware NEXT from the shared selector, using
+current row identity and persistent summaries, with no retained row activity
 on failed observation. Missing or failing trees withhold NEXT while retaining
-the independently compared runtime summary. Witnessed RUNNING follows next.
+the independently compared runtime summary. Running without a current matching
+item remains unavailable; exceptional-tree identity summaries are the remaining
+presentation increment.
 The [viewer architecture](docs/ARCHITECTURE.md#read-only-viewer) names its
 application seam; the [usage guide](docs/USAGE.md#usage-viewing-tree) states the
 current interaction and refresh behavior. The

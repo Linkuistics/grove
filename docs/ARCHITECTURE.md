@@ -166,9 +166,9 @@ point's own files.
 
 ## Read-only viewer
 
-Full-width Tree/File switching, leading lifecycle cues and idle NEXT are
-implemented below. The remaining [item-status design](specs/item-status.md)
-specifies witnessed RUNNING and exclusion-aware NEXT during a session.
+Full-width Tree/File switching, leading lifecycle cues and same-tree RUNNING/NEXT are
+implemented below. The [item-status design](specs/item-status.md) also specifies
+the remaining exceptional-tree summaries.
 
 `grove view [WORKTREE]` dispatches to the `grove-tui` library before jj workspace
 resolution, driver lease acquisition or launch configuration. Its observation
@@ -232,14 +232,21 @@ compares activity independently across its two captures: a change yields Busy
 without rejecting a consistent tree. Tree errors, missing roots and tree
 contention also retain independently compared activity, including when opening
 the root fails. Accepted Idle and a consistent tree enable the NEXT key obtained
-from `select_snapshot` without exclusion. Busy, Unavailable or Running activity withholds
+from `select_snapshot` without exclusion. Matching Running captures with a verified
+SameTree relation supply the mandate key as the selector's exclusion, after
+whole-tree validation. Only accepted current rows can attach RUNNING by that key;
+the current row supplies the handle and species. Retirement preserves activity,
+and decomposition leaves children eligible for NEXT. Busy or Unavailable activity withholds
 NEXT; failed tree acceptance also clears row activity and makes NEXT unavailable,
 while the RUNNING summary keeps the fresh runtime result. No old activity
 description is retained. The single deadline also retries in File, help and undersized frames.
 The typed observer now verifies Running, including launch-binding identity in
-two-capture equality. Viewer presentation of that variant remains conservative:
-it shows activity unavailable and no row activity or NEXT until witnessed-view
-binding is implemented.
+two-capture equality. Same-tree Running now supplies rows and persistent summaries.
+Running without a current matching row still shows unavailable and withholds NEXT;
+identity-preserving absent-item, absent/unreadable-tree and previous-tree summaries
+remain to be implemented. Real controlled loop launches exercise lifecycle plus
+RUNNING, finish exclusion, rename/move/decomposition, folded/File summaries,
+retained-row clearing under contention/invalid input, and read-only multiple viewers.
 The loop owns duplicate-key and multiple-live-finish validation for the driver,
 `pick` and viewer; the viewer has no private validity rule. Permanent keys
 preserve selection and branch expansion; disappearance selects the nearest
@@ -249,9 +256,10 @@ Observation folds descendant totals in reverse preorder, including hidden leaves
 Both root and branch lifecycle are LIVE if any descendant is live, otherwise
 DONE, otherwise ABANDONED, or EMPTY without leaves. Rendering owns all row text:
 a fixed 22-cell prefix reserves cursor (2), lifecycle marker (2), explicit word
-(10) and activity (8). Only the NEXT word uses bold normal-foreground text;
+(10) and activity (8). The NEXT word uses bold normal-foreground text;
 the rest of an ordinary live row remains normal. DONE marker/word/item spans are
-green, ABANDONED red, and LIVE/EMPTY normal. Ratatui's cursor gutter supplies
+green, ABANDONED red, and LIVE/EMPTY normal. RUNNING overrides only the activity
+and item spans to bold yellow, leaving lifecycle colors intact. Ratatui's cursor gutter supplies
 selection without a row-wide style override; fold markers stay beside the item.
 At 60 columns the bordered tree has 36 cells after the prefix. Indentation is
 capped to retain two fold cells and at least sixteen handle cells, with an
@@ -345,7 +353,7 @@ an extension append failure only diagnoses. Started attempts the sole eight-byte
 failure preserves launch outcome and both witnesses until reap or lease drop.
 The production observer establishes Idle from a released private witness in
 a valid active record and verifies Running from the directory/private protocol.
-The viewer's remaining binding and presentation work consumes that typed
+The viewer's same-tree binding and presentation consume that typed
 relation when attaching activity and excluding the running key from NEXT.
 
 Observer concurrency controls hold compatible shared probes over released
@@ -385,7 +393,7 @@ recovery. Failed spawn emits neither event and unconfirmed reap emits no
 `Reaped`. Callbacks return unit and must return promptly without panicking;
 consumers handle observational failures internally. Ordinary `run(Launch)`
 remains available. Grove uses these events for witness publication and release;
-the writer alone does not make witnessed RUNNING available in the viewer.
+the viewer consumes their verified same-tree evidence for RUNNING and NEXT.
 
 **Presence is per kind and just-in-time**
 (`docs/adr/complete-session-configuration.md`): both documents are validated
@@ -1336,7 +1344,8 @@ derivation with `control_dir`. Missing `.jj` or namespace directories mean
 absence; inspection errors and nondirectories are refused. The returned path
 is a sample, so a runtime observer must validate opened descriptor identities.
 The typed activity observer consumes this discovery primitive. The viewer shows
-idle NEXT and reports legacy active epochs as activity unavailable.
+idle NEXT and witnessed same-tree RUNNING with exclusion-aware NEXT; legacy active
+epochs remain activity unavailable.
 
 **jj is the only lane** — a tree without a `.jj/` is refused before any mutation,
 with `jj git init --colocate` named as the remedy ([*jj is the only

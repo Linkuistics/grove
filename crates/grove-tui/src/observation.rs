@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use grove_loop::{entry_path, ActivityObservation, Handle, Kind, Outcome, Parts, TreeObservation};
+use grove_loop::{
+    entry_path, ActivityObservation, Handle, Kind, Outcome, Parts, TreeObservation, TreeRelation,
+};
 
 #[derive(PartialEq, Eq)]
 pub(crate) struct Row {
@@ -59,8 +61,8 @@ fn capture_with(
         ActivityObservation::Busy("activity changed during observation; retrying".into())
     };
     let tree = (|| {
-        let (first, first_root) = display_capture(first_sample.tree?)?;
-        let (second, second_root) = display_capture(second_sample.tree?)?;
+        let (first, first_root) = display_capture(first_sample.tree?, &activity)?;
+        let (second, second_root) = display_capture(second_sample.tree?, &activity)?;
         if !matches!(second, Observation::Ready(_)) {
             return Ok(second);
         }
@@ -75,13 +77,24 @@ fn capture_with(
 }
 
 /// Build display rows from a loop capture whose tree guard is already released.
-fn display_capture(tree: TreeObservation) -> Result<(DisplayCapture, Option<Root>)> {
+fn display_capture(
+    tree: TreeObservation,
+    activity: &ActivityObservation,
+) -> Result<(DisplayCapture, Option<Root>)> {
     let tree = match tree {
         TreeObservation::Busy => return Ok((Observation::Busy, None)),
         TreeObservation::Vacant => return Ok((Observation::Vacant, None)),
         TreeObservation::Ready(tree) => tree,
     };
-    let next = grove_loop::select_snapshot(tree.root(), tree.snapshot(), None)?
+    // Only matching runtime captures with the observer's verified relation may
+    // exclude a key. The shared selector still validates the entire snapshot.
+    let excluded = match activity {
+        ActivityObservation::Running(mandate) if mandate.relation == TreeRelation::SameTree => {
+            Some(mandate.handle.key())
+        }
+        _ => None,
+    };
+    let next = grove_loop::select_snapshot(tree.root(), tree.snapshot(), excluded)?
         .map(|selection| selection.handle.key().get());
     let root = tree.snapshot().root();
     let brief = root.distinguished().context("root has no brief")?;
@@ -242,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn witnessed_running_keeps_viewer_activity_conservative_in_both_views() {
+    fn witnessed_running_is_visible_in_both_views_without_allocating_finish() {
         use ratatui::{backend::TestBackend, Terminal};
         let (work, _lease, _directory, _witness) = witnessed_fixture();
         let mut viewer = crate::Viewer::new(work.path().into());
@@ -258,11 +271,9 @@ mod tests {
                 .chunks(60)
                 .map(|row| row.iter().map(|cell| cell.symbol()).collect())
                 .collect();
-            assert!(lines[2].contains("RUNNING: unavailable"));
-            assert!(lines[3].contains("NEXT: unavailable"));
-            assert!(!lines[4..]
-                .iter()
-                .any(|line| line.contains("RUNNING") || line.contains("NEXT")));
+            assert!(lines[2].contains("RUNNING: work-k1"));
+            assert!(lines[3].contains("NEXT: none"));
+            assert_eq!(fs::read_dir(work.path().join(".grove")).unwrap().count(), 2);
             viewer.act(crate::Action::Focus);
         }
     }

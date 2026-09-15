@@ -51,13 +51,21 @@ Every row begins with a fixed status area before its indentation and handle:
 text are green; ABANDONED is red; LIVE and EMPTY use normal text. The separate
 `>` cursor marks selection without changing those colors. The `+`/`-` beside a
 branch's name marks folding, so lifecycle, selection and expansion remain
-distinct without color. While idle, the next eligible leaf has a bold **NEXT**
+distinct without color. A witnessed **RUNNING** item uses bold yellow for its
+activity word and item text; its lifecycle marker and word retain their colors.
+A task can therefore show green **✓ DONE** beside **RUNNING** until its session
+ends. The next eligible leaf has a bold **NEXT**
 word in normal text color; selecting it does not highlight the rest of its row.
 
 Both views keep **RUNNING** and **NEXT** summary lines above the body, even when
-the next item is folded or offscreen. Idle shows `RUNNING: none (idle)` and the
+either item is folded or offscreen. Idle shows `RUNNING: none (idle)` and the
 ordinary Grove selection as NEXT: the first live non-finish leaf in depth-first
 position order, or the sole live finish leaf when no ordinary task remains.
+For a witnessed running item in the current tree, NEXT applies that rule after
+excluding its permanent key. Finish can thus be NEXT while the last ordinary
+session is still running. Renaming, moving, retiring or decomposing the running
+item preserves its marker, using its current handle; a running branch's children
+remain eligible. Ancestors do not inherit RUNNING.
 This is a forecast, not a promised launch. No eligible leaf means `NEXT: none`;
 viewing never creates a finish sentinel. Long summary slugs shorten before their
 permanent keys. The location/view, tree observation, RUNNING, NEXT and footer
@@ -69,8 +77,11 @@ verified idle still reads `RUNNING: none (idle)` beside
 supported witness makes activity unavailable; that record alone does not prove
 that a session is alive. A released, validated launch witness establishes idle
 even if an active epoch and Started bytes remain after the session ends.
-While a launch is active, the viewer keeps activity unavailable and withholds
-NEXT. An incomplete Started publication shows activity waiting.
+If a witnessed mandate cannot bind to an item in the accepted current tree,
+the viewer currently shows activity unavailable and withholds NEXT. This includes
+absent items, replaced roots and unreadable trees. Identity-preserving summaries
+for those cases remain pending in the [item-status design](specs/item-status.md).
+An incomplete Started publication shows activity waiting.
 
 The root and branches count all descendant leaves, including folded ones.
 Their status is LIVE if any are live, otherwise DONE if any are done, otherwise
@@ -154,8 +165,9 @@ activity until observation recovers. Failed tree capture also withholds NEXT
 and clears old row activity. Tree diagnostics remain separate from activity
 freshness, so consistent tree updates still appear while activity is changing.
 Legacy active drivers have no supported activity witness and therefore show
-activity unavailable. Identifying a witnessed RUNNING item and forecasting NEXT
-with that item excluded are future behavior in the [item-status design](specs/item-status.md).
+activity unavailable. Current-tree RUNNING and exclusion-aware NEXT require the
+observer's verified same-tree relation; numeric identity or leftover bytes alone
+cannot attach a mandate to a row.
 All advisory guards release before rendering or waiting for input.
 
 A driver handoff overlapping a runtime read can briefly print

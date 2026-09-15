@@ -62,11 +62,13 @@ missing controls or matching inactive records are Idle. The viewer compares tree
 consuming consistent tree results even when activity changes or fails, and
 preserving compared activity when tree reading or root opening fails. Accepted
 Idle displays the shared selector's NEXT key in rows and persistent chrome;
-Busy/Unavailable/Running or failed tree acceptance clears old row activity and withholds
+verified same-tree Running binds the current row by key and excludes that key
+before finish eligibility. Busy/Unavailable or failed tree acceptance clears old row activity and withholds
 NEXT. Tree failure leaves the independent RUNNING summary available. The loop owns selection, while the viewer owns freshness and
 label/key-preserving summary layout. The typed witnessed observer ships;
-the viewer still presents Running conservatively as activity unavailable until
-its row binding and exclusion-aware NEXT increment.
+the viewer displays same-tree RUNNING with independent lifecycle colors and
+key-preserving summaries. Running without a current matching item remains
+unavailable until the exceptional-tree summary increment.
 
 One workspace, one release version, one changelog, one tag. A module is a crate
 so that *testable through its own interface without unrelated modules* is not a

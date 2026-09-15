@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use grove_loop::ActivityObservation;
+use grove_loop::{ActivityObservation, Handle, TreeRelation};
 use ratatui::{
     layout::{Constraint, Layout},
     style::{Color, Modifier, Style},
@@ -46,7 +46,12 @@ pub enum Action {
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 /// The List owns the two cursor cells; spans own the remaining status and item.
-fn tree_item(row: &Row, width: usize, next: Option<u32>) -> ListItem<'static> {
+fn tree_item(
+    row: &Row,
+    width: usize,
+    running: Option<u32>,
+    next: Option<u32>,
+) -> ListItem<'static> {
     let (marker, word, style) = match row.lifecycle {
         Lifecycle::Live => ("  ", "LIVE", Style::default()),
         Lifecycle::Done => ("✓ ", "DONE", Style::default().fg(Color::Green)),
@@ -98,14 +103,23 @@ fn tree_item(row: &Row, width: usize, next: Option<u32>) -> ListItem<'static> {
         &details,
         available.saturating_sub(Line::raw(&handle).width()),
     );
+    let running = running.is_some() && row.key == running;
+    let running_style = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
     ListItem::new(Line::from(vec![
         Span::styled(format!("{marker}{word:10}"), style),
-        if next.is_some() && row.key == next {
+        if running {
+            Span::styled("RUNNING ", running_style)
+        } else if next.is_some() && row.key == next {
             Span::styled("NEXT    ", Style::default().add_modifier(Modifier::BOLD))
         } else {
             Span::raw("        ")
         },
-        Span::styled(format!("{indentation}{fold}{handle}{details}"), style),
+        Span::styled(
+            format!("{indentation}{fold}{handle}{details}"),
+            if running { running_style } else { style },
+        ),
     ]))
 }
 
@@ -126,6 +140,19 @@ fn fit_text(text: &str, width: usize) -> String {
         remaining -= cells;
     }
     result
+}
+
+/// Reserve the label and permanent key before shortening a summary's slug.
+fn activity_summary(label: &str, handle: &Handle, width: usize) -> String {
+    let suffix = format!("-k{}", handle.key());
+    let slug = safe_text(handle.slug().as_str());
+    let budget = width.saturating_sub(label.len() + suffix.len());
+    let slug = if Line::raw(&slug).width() > budget {
+        format!("{}…", fit_text(&slug, budget.saturating_sub(1)))
+    } else {
+        slug
+    };
+    format!("{label}{slug}{suffix}")
 }
 
 #[cfg(test)]
@@ -508,12 +535,14 @@ impl Viewer {
                     .clone()
                     .unwrap_or_else(|| "Read-only | live refresh 500 ms".into());
                 self.set_content(content);
-                self.next = if activity == ActivityObservation::Idle {
+                self.tree_current = true;
+                self.next = if activity == ActivityObservation::Idle
+                    || self.running_row_for(&activity).is_some()
+                {
                     next
                 } else {
                     None
                 };
-                self.tree_current = true;
             }
             Ok(Observation::Busy) => {
                 self.status =
@@ -523,6 +552,23 @@ impl Viewer {
             Err(error) => self.failed(&error),
         }
         self.activity = activity;
+    }
+
+    /// Binding is valid only for accepted current rows and verified same-tree
+    /// evidence. Selection, lifecycle and launch-time label do not identify it.
+    fn running_row_for(&self, activity: &ActivityObservation) -> Option<&Row> {
+        if !self.tree_current {
+            return None;
+        }
+        let ActivityObservation::Running(mandate) = activity else {
+            return None;
+        };
+        if mandate.relation != TreeRelation::SameTree {
+            return None;
+        }
+        self.rows
+            .iter()
+            .find(|row| row.key == Some(mandate.handle.key().get()))
     }
 
     fn clear(&mut self) {
@@ -675,6 +721,7 @@ Escape: close help | ?: toggle help",
         );
         if !self.file_active {
             let visible = self.visible();
+            let running = self.running_row_for(&self.activity).and_then(|row| row.key);
             self.tree_state
                 .select(visible.iter().position(|&i| i == self.selected));
             let items: Vec<_> = visible
@@ -683,6 +730,7 @@ Escape: close help | ?: toggle help",
                     tree_item(
                         &self.rows[i],
                         usize::from(body.width.saturating_sub(2)),
+                        running,
                         self.next,
                     )
                 })
@@ -746,36 +794,33 @@ Escape: close help | ?: toggle help",
             "Tree | Tab: File"
         };
         let location = format!("{view} | {}", self.worktree.join(".grove").display());
+        let next_summary = || {
+            self.next
+                .and_then(|key| self.rows.iter().find(|row| row.key == Some(key)))
+                .and_then(|row| row.handle.as_ref())
+                .map_or_else(
+                    || "NEXT: none".into(),
+                    |handle| activity_summary("NEXT: ", handle, width),
+                )
+        };
         let (running, next) = match &self.activity {
-            ActivityObservation::Idle => {
-                let next = self
-                    .next
-                    .and_then(|key| self.rows.iter().find(|row| row.key == Some(key)))
-                    .and_then(|row| row.handle.as_ref());
-                let next = next.map_or_else(
-                    || "none".into(),
-                    |handle| {
-                        let suffix = format!("-k{}", handle.key());
-                        let slug = safe_text(handle.slug().as_str());
-                        let budget = width.saturating_sub(6 + suffix.len());
-                        let slug = if Line::raw(&slug).width() > budget {
-                            format!("{}…", fit_text(&slug, budget.saturating_sub(1)))
-                        } else {
-                            slug
-                        };
-                        format!("{slug}{suffix}")
-                    },
-                );
-                ("RUNNING: none (idle)".into(), format!("NEXT: {next}"))
-            }
+            ActivityObservation::Idle => ("RUNNING: none (idle)".into(), next_summary()),
             ActivityObservation::Busy(reason) => (
                 format!("RUNNING: WAITING — {reason}"),
                 "NEXT: WAITING — activity not current".into(),
             ),
-            ActivityObservation::Running(_) => (
-                "RUNNING: unavailable — activity not current".into(),
-                "NEXT: unavailable — activity not current".into(),
-            ),
+            ActivityObservation::Running(_) => {
+                match self
+                    .running_row_for(&self.activity)
+                    .and_then(|row| row.handle.as_ref())
+                {
+                    Some(handle) => (activity_summary("RUNNING: ", handle, width), next_summary()),
+                    None => (
+                        "RUNNING: unavailable — no current tree item".into(),
+                        "NEXT: unavailable — activity not current".into(),
+                    ),
+                }
+            }
             ActivityObservation::Unavailable(reason) => (
                 format!("RUNNING: unavailable — {reason}"),
                 "NEXT: unavailable — activity not current".into(),

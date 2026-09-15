@@ -1,0 +1,125 @@
+# grove.make-item-status-obvious-in-tui — brief
+
+## Goal
+
+Make item lifecycle and running/next activity obvious at a glance in `grove view`.
+Use switchable full-width Tree and File views so deep trees and long handles
+have the terminal's available width.
+
+## Requirements
+
+The human explicitly requested both lifecycle state and running/next activity,
+then added pane switching because the side-by-side layout restricts tree depth
+and display width. NEXT means the next eligible task excluding the running one.
+
+The human agreed the following requirements and test seams in `plan-k1`.
+
+### Full-width views
+
+- Start in Tree view. Show one full-width content view at a time. Tab switches
+  between Tree and the selected item's File view; make the active view and the
+  switch key discoverable in the screen chrome and help.
+- Keep tree selection, expansion and viewport when returning from File view.
+  Keep each file's reading position and horizontal offset when switching or
+  revisiting. The selected root/branch opens its brief; a leaf opens its task.
+- Preserve the existing tree navigation and fold/expand keys. Tab opens files
+  for any selected item, including branches; there is no need to repurpose Enter
+  or Space. File navigation, Markdown rendering, help, refresh and quit retain
+  their existing behavior within the active view.
+- Automatic observation continues in either view. Switching and resizing
+  preserve reading position; tree changes preserve selection by permanent key
+  within the same tree lifetime.
+
+### Status visible before the name
+
+- Give each visible row a stable left-hand status area before depth indentation,
+  the handle and the kind. Long names and deep indentation must not clip the
+  lifecycle or activity cue. Bound the remaining indentation as needed to leave
+  recognizable item text at the existing minimum supported terminal size.
+- Keep explicit lifecycle words: LIVE, DONE and ABANDONED for leaves, and the
+  existing aggregate LIVE/DONE/ABANDONED/EMPTY meaning for root and branches.
+  Branch counts still include all descendants, including folded ones.
+- Use color as a secondary cue; text remains sufficient without color. Cursor
+  selection, expansion and activity must be visually distinguishable. The
+  selected row must retain a readable lifecycle and activity indication.
+- RUNNING and NEXT are separate from lifecycle. A task may be DONE while its
+  launched session is still finishing; retain both facts until that session ends.
+
+### Running and next
+
+- RUNNING identifies the item named by the live driver's current session mandate.
+  Do not infer it from cursor selection, the first live leaf, a PID alone, or
+  leftover control-file bytes. The driver's existing lease/epoch ownership
+  contract remains authoritative.
+- At most one item is directly RUNNING. Follow its permanent key through
+  renumbering and renaming; if it becomes a branch through decomposition, the
+  mandate still belongs to that item. Never transfer the indication to a reused
+  key in a replacement tree. If the item is absent, report that fact in the
+  activity summary instead of attaching its activity to another row.
+- At most one leaf is NEXT: compute Grove's selection over the current eligible
+  live leaves with the running item excluded. If no session is running, compute
+  the ordinary next selection. Apply depth-first position order and the finish
+  exception to the remaining candidates, including the case where only finish
+  remains after excluding the last running ordinary task. Recompute on tree
+  changes; this is a forecast from the current tree, not a promised future launch.
+- Keep a concise RUNNING/NEXT summary visible in both views, so folding a branch,
+  scrolling an activity row out of view, or reading a file does not hide activity.
+- Observe start, end, handoff and driver death on the existing live-refresh
+  cadence. When runtime observation is contended or unverifiable, indicate that
+  activity is unavailable or stale and avoid presenting an old RUNNING/NEXT pair
+  as current. Missing runtime metadata must not prevent ordinary tree browsing.
+
+### Observation constraints
+
+The viewer remains read-only and responsive. It must not create a workspace,
+driver lease, control directory, tree file, or persisted viewer state; require
+launch configuration; acquire driver ownership; or wait behind a long driver
+handoff. Continue supporting temporary non-jj trees and multiple viewers.
+Runtime activity is ephemeral observation, with no new outcome infix or durable
+workflow state under `.grove/`.
+
+## Test seams (agreed)
+
+- Reuse the public `Viewer::new`, `act`, `tick` and `render` application seam
+  with temporary trees and Ratatui TestBackend. Check rendered text and styles,
+  wide/deep/long-name trees at the supported minimum width, branch aggregates,
+  full-width view switching, saved selection/reading positions, resize, hidden
+  activity, lifecycle transitions and the read-only filesystem contract.
+- Exercise actual driver/lease behavior through existing controlled-launch and
+  process fixtures. Cover session start/end, failed launch, handoff, killed
+  driver, leftover or malformed records, contention and tree replacement. Assert
+  that observation identifies the launched item and cannot manufacture a current
+  RUNNING indication from stale records or block navigation/quit.
+- Add activity observation behind the highest useful typed Grove seam, shared by
+  production observation and application tests. Prefer adapting existing seams
+  to a second status implementation inside the viewer. Use existing terminal
+  fixtures for the switching key mapping and cleanup where those change.
+
+## Done when
+
+The agreed full-width interaction, lifecycle and RUNNING/NEXT behavior work in
+the shipped viewer, are covered through the agreed seams, and the viewer usage
+and architecture documentation describe the resulting behavior. The runtime
+protocol preserves the existing driver ownership and session-admission guarantees.
+
+## Decomposition
+
+`plan-k1` established the requirements with the human. `item-status-k2` designs
+the runtime-observation and display seams and records the durable behavioral
+contract. Reliable activity crosses driver ownership and read-only viewing, so
+implementation slices are planned after that design makes them concrete.
+
+## Pointers
+
+- `docs/adr/one-live-driver-per-working-tree.md` — driver lease and session epoch.
+- `docs/ARCHITECTURE.md`, Read-only viewer — current application/observation seam.
+- `docs/USAGE.md`, Viewing a tree — current interaction and recovery behavior.
+- Glossary: Leaf, DONE infix, Pruning, Pick, Permanent key, Driver lease and
+  Session epoch in `CONTEXT.md`.
+
+## Notes
+
+Current source builds one plain row label with lifecycle after handle and kind;
+the renderer allocates 55% of the body to the tree and 45% to the file. The
+current epoch record carries a process identity and signal path, but no selected
+item identity. A truthful RUNNING indication therefore requires driver support.

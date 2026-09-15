@@ -8,8 +8,9 @@ lifecycle cues and truthful RUNNING/NEXT behavior.
 
 ## Context
 
-The behavioral contract is `docs/specs/item-status.md`; its cited driver-lease
-ADR owns runtime observation. The producer is `item-status-k2`, and the design
+The behavioral and runtime protocol contract is `docs/specs/item-status.md`;
+its cited driver-lease ADR owns the observation decision and trade-offs.
+The producer is `item-status-k2`, and the design
 review is `item-status-k3`. Read that review and any integration it creates
 before cutting implementation work; findings are evidence to triage, not this
 leaf's charter.

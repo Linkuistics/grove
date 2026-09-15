@@ -16,12 +16,22 @@ view. Activity is a sampled observation, refreshed on the existing 500 ms
 cadence, while lifecycle continues to come from the task tree.
 
 [One live driver owns each working tree](../adr/one-live-driver-per-working-tree.md#read-only-activity-observation)
-owns the session-witness protocol, ownership, freshness and guard lifetimes.
-This spec consumes that contract. Module ownership remains in
+records why session witnesses extend driver ownership. This spec owns their
+protocol, typed results and guard lifetimes. Module ownership remains in
 [module-decomposition](./module-decomposition.md); the
 [glossary](../../CONTEXT.md#tree-lifetime) defines tree lifetime, RUNNING and NEXT.
 
 ## Interfaces and responsibilities
+
+### Unresolved process-death boundary
+
+The protocol below specifies orderly witness/pin release, but does not yet
+establish their relative release order during process death. If kernel cleanup
+releases the driver's root pin before its witness, inode reuse could let an
+observer pin a replacement root and then probe the still-locked old witness.
+Observer pin-before-probe alone does not exclude that interleaving. The required
+no-rebinding guarantee remains unchanged; the death path needs a justified
+lifetime mechanism before this runtime design is ready for implementation.
 
 ### One typed observation operation
 
@@ -33,17 +43,13 @@ as the current reader, plus an opaque `TreeLifetime`. A vacant, busy or invalid
 tree remains distinguishable. Activity failure does not discard a readable tree;
 tree failure does not discard a verifiable mandate.
 
-The guard owns whatever short read guards the operation acquired. Callers copy
-rows and selected bytes, then drop it before another acquisition, layout, input
-or waiting. A retained `TreeLifetime` pins a directory without holding a tree
+The operation copies rows and selected bytes internally and releases all
+advisory guards before returning. `ObservationGuard` owns these captured values
+and the retained `TreeLifetime`, which pins a directory without holding a tree
 or epoch lock. The type grants no session admission or driver ownership. All
 lock attempts are quiet and nonblocking; runtime discovery requires no launch
 configuration, creates nothing, and never attaches an ancestor workspace's
 driver to a tree observed in a subdirectory.
-
-Finalize activity only after the observation has pinned and validated its tree
-lifetime. Row matching uses that same retained identity; never join an earlier
-liveness result to a newly opened task root.
 
 The runtime result has these meanings:
 
@@ -74,6 +80,148 @@ previous row activity is cleared. Any retained activity description is labeled
 STALE, never presented as the current RUNNING/NEXT pair. Both views, help and
 undersized frames continue ticking; at most one retry is pending.
 
+### Mandate and lifetime
+
+Launch preparation retains an open task-root directory descriptor, acquired and
+checked against the selected snapshot under its tree read guard. Its device/inode pair
+is the **tree lifetime**, distinct from the working-tree-root identity in the
+lease. Before publication, launch preparation transfers this pin and the witness
+into one launch-observation value owned by the lease, and checks the pin again
+before publishing the mandate. The ordinary copyable selection remains value
+data; it does not own an OS descriptor. A mismatch before publication
+stops that launch as a changed-tree error; no stale selection is rebound to the
+new tree. No tree or epoch guard survives across spawn.
+
+Active epoch records carry an optional, versioned observation extension:
+permanent key, launch-time handle and kind, task-root identity, and the witness's
+namespace-local name and descriptor identity. The extension is bound to the
+record's existing lease nonce and signal path. The handle's key must agree with
+the explicit key. Missing or unsupported observational fields cannot weaken
+validation of the mandatory admission record and cannot establish RUNNING.
+Admission does not require the extension, including when observation setup fails.
+
+Keeping the task-root descriptor open prevents its inode being reused. Subject
+to the unresolved process-death boundary above, a viewer joining after root replacement
+can therefore reject a reused key without having seen the previous tree. The
+pin adds no persisted generation and takes no tree lock. Replacement after
+publication leaves the mandate attached to the old lifetime; it does not confer
+authority over the replacement or change the existing admission rules.
+
+### Witness publication and release
+
+Each attempted launch allocates a new witness file in Grove's control namespace
+using an independent OS-random 128-bit suffix and exclusive creation. Occupied
+draws are retried with the same bounded policy as fresh signal allocation.
+The driver tries to lock the empty regular file exclusively and nonblocking
+before publishing its identity in the pre-spawn epoch. Contention is an
+observation-only allocation failure: activity is Unavailable and launch proceeds
+with admission intact. This lock is held by the driver alone, on a
+close-on-exec descriptor. Its name is never deliberately reused. The accepted
+random-collision limit is the same as the channel's, without tombstones.
+
+The generic runner exposes launch events to its caller: **Started** after a
+successful spawn and **Reaped** when it confirms that child's reap, including
+escalated termination. These synchronous parent-side notifications introduce no
+Grove vocabulary or child-side acknowledgement. Ordinary callers can run with
+no observer. Notifications are infallible and do not change launch disposition;
+Grove's callbacks take no epoch/tree lock and perform no waiting operation.
+
+On Started, the driver writes the exact eight-byte marker `started` followed by
+a newline to the previously empty witness. This is the file's only publication:
+it is never rewritten to describe another phase, launch or item. Empty or
+incomplete bytes cannot mean started; only the complete exact marker does. A
+reader need not assume write atomicity. On Reaped, the driver releases the
+witness immediately, before terminal recovery, exclusive epoch invalidation or
+signal interpretation. Writing the completion signal and retiring the task do
+not release it. Failed spawn publishes no marker and releases its prepared
+witness before post-attempt invalidation.
+
+The lease owns the launch-observation value until those events release it.
+Its release operation closes the witness first, then the tree pin; lease drop
+invokes that same operation before releasing driver ownership, including on
+unwind. Failed spawn and confirmed reap use the same release order. A
+supervision error without confirmed reap must not invent a Reaped event or drop
+the witness early through a helper's return. Driver exit, unwind or death
+releases both lease and witness through descriptor lifetime; child processes
+cannot keep either lock alive after exec. A helper or iteration returning
+cannot release either member of the lease-owned value. Process death closes
+both descriptors; an observer must already pin its observed root before probing
+the witness, as specified below.
+
+Observation-only allocation failure leaves activity Unavailable. Publication
+failure leaves activity unverified: an empty file or valid marker prefix remains
+Busy, and invalid bytes are Unavailable, until reap or driver exit. Either
+failure emits a diagnostic without changing a successfully launched session's
+authority or outcome. An epoch whose extension could not be prepared is still
+valid for admission. Failure to write the mandatory epoch remains a launch
+failure under the existing protocol. Witness cleanup happens after epoch
+invalidation; a replacement removes abandoned witnesses only after it owns the
+lease and has invalidated the old epoch. Cleanup failure leaves harmless bytes
+and cannot change completion. No observer creates, cleans or repairs controls.
+
+### One bounded observation
+
+The VCS seam discovers an existing namespace in the exact observed workspace,
+sharing path derivation and namespace validation with the creating operation.
+Discovery creates nothing, follows neither a secondary workspace's repository
+link nor an ancestor workspace, and uses no jj command, launch configuration
+or ambient session context. A symlink alias of the exact workspace is allowed.
+
+The loop's observer completes the tree capture before acquiring any epoch guard:
+
+1. Attempt the ordinary quiet, nonblocking tree read. Pin and validate its
+   task-root identity with the snapshot, copy rows and selected-file bytes, then
+   release the tree guard. Retain the descriptor pin. A busy, vacant or invalid
+   tree still permits a runtime summary, but no row attachment. Never open a
+   later tree and join it to activity established by this capture.
+2. Open existing controls read-only, nonblocking and close-on-exec. Require
+   regular files for records and a directory for the namespace. Bound each
+   lease/epoch read to 64 KiB; the witness accepts exactly the eight-byte marker
+   and rejects extra bytes. Resolve the witness only from a plain basename
+   inside this namespace, never an arbitrary path from the record.
+3. Try a shared epoch guard without waiting. Contention returns activity Busy.
+   An absent exact workspace, namespace or lease means Idle at that sample.
+   When a lease exists but its epoch is missing, unreadable or malformed,
+   activity is Unavailable. Under this guard validate the mandatory lease/epoch
+   binding without locking the lease. Compare the observed working-directory
+   descriptor's device/inode with the record's worktree-device/worktree-inode;
+   path spelling is informative only. This accepts aliases such as /var and
+   /private/var without attaching an ancestor's lease. Admission's existing
+   canonical-path checks are unchanged. A matching inactive epoch means Idle;
+   an active epoch requires the versioned observation extension. Invalid or
+   mismatched records mean Unavailable.
+4. Open the named witness and compare descriptor/path identity with the
+   published identity. Missing or mismatched evidence means Unavailable.
+   Read its bounded marker, then probe through an independent descriptor with
+   a nonblocking shared lock attempt. Success is released immediately, before
+   any other work, and means Idle regardless of leftover marker bytes.
+   Contention plus the exact started marker establishes Running; a locked empty
+   file or proper marker prefix means Busy; other bytes/errors mean Unavailable.
+   Other viewers' shared probes cannot cause contention, and no admission
+   operation or replacement driver takes this witness exclusively.
+5. Copy the runtime result and release the epoch guard before returning on every
+   path. It covers only bounded record reads, identity validation and the witness
+   probe: no tree traversal, selected-file read or caller work. Return separate
+   typed tree/runtime results and the retained tree pin, with no advisory locks.
+
+Every control acquisition/probe checks open descriptor identity against the
+current path, with at most the existing eight identity-race attempts and no
+sleep or blocking fallback. Tree and epoch guards are never held together by
+observation. Neither an epoch guard nor a witness lock escapes to the caller.
+
+Pinning before the final probe is load-bearing: reap or driver death can release
+the driver's root pin during observation. A probe made first could be joined to
+a later root whose inode was reused. The already-retained observed root prevents subsequent reuse of that root;
+the process-death boundary above concerns reuse before this pin was acquired.
+
+Running is evidence at the witness probe, not a promise until the next frame.
+Death before the probe releases the witness even while a replacement holds old
+lease bytes; death after it is detected next time. The shared epoch guard blocks
+publication only during the short runtime read, and keeps neither driver nor
+witness alive. The two-capture comparison rejects observed change, not every
+non-cooperating filesystem edit. Arbitrary administration-area corruption
+remains outside the ADR's guarantee.
+
 ### One selection rule
 
 The loop owns a selection operation over an already-read typed snapshot with
@@ -82,7 +230,14 @@ exclusion. The viewer supplies a key only when the witnessed mandate belongs
 to the snapshot's tree lifetime.
 
 First validate the whole tree, including duplicate keys and multiple live finish
-leaves. Exclusion cannot make malformed input valid. Then remove the excluded
+leaves. Exclusion cannot make malformed input valid. This deliberately strengthens
+ordinary driver selection too: duplicate keys anywhere in the snapshot now
+refuse selection with a duplicate-key diagnostic, even with no exclusion and
+even if the duplicates are terminal or branch items. Previously the driver
+could launch from such a tree while the viewer refused it. One validation rule
+avoids an ambiguous mandate or exclusion; valid-tree selection is unchanged.
+Implementation must document this refusal and key-repair guidance in the usage
+guide's selection/viewing sections. Then remove the excluded
 item from the live-leaf candidates, select the first non-finish leaf in
 depth-first position order, or the sole remaining finish leaf when no ordinary
 candidate remains. Return the canonical selection or none. This is selection
@@ -143,12 +298,11 @@ item text; ABANDONED uses red; EMPTY uses the normal neutral foreground. Reserve
 the active highlight for the RUNNING item: its item text and RUNNING word use
 bold yellow, while its lifecycle marker and word retain their own treatment.
 Thus a session that has retired its task still shows a green `✓ DONE` beside
-its highlighted running name. NEXT emphasizes its activity word without
-highlighting the whole row.
+its highlighted running name. NEXT uses bold normal-foreground text in its activity column only.
 
-Selection adds the cursor and emphasis without replacing lifecycle foreground
-colors or the RUNNING highlight with a uniform highlight color or reverse-video
-style. Words, glyphs, cursor and fold indicators remain distinguishable with
+Selection adds the cursor gutter only, with no added row-wide style modifier;
+it preserves lifecycle foreground colors and the RUNNING highlight. It never
+applies a uniform highlight color or reverse-video style. Words, glyphs, cursor and fold indicators remain distinguishable with
 color disabled. Selecting an ordinary LIVE item does not give it the active
 highlight.
 
@@ -180,7 +334,9 @@ Tree keeps the existing selection, parent/child and folding keys, including
 Enter/Space. Tab works on root and branches as well as leaves: their File view
 shows the appropriate brief. File keeps Markdown rendering, line/page movement,
 Home/End and horizontal scrolling of code and tables. File scrolling actions
-apply only while File is active. Help, refresh and quit remain global; the help
+apply only while File is active. Help, refresh and quit remain global.
+Help names the active Tree/File view and
+explains Tab switching to the other full-width view, replacing “switch pane”; the
 overlay pauses navigation, and the existing resize notice applies below
 60 columns or 10 rows.
 
@@ -231,6 +387,12 @@ terminal fixture owns key translation and terminal cleanup checks.
 | Old, missing, malformed, truncated, oversized or mismatched observation records | Typed unavailable/busy state where evidence is missing; readable trees still browse | Typed observer; application |
 | Witness allocation or started-marker write fails | Session authority and outcome are preserved; activity is Unavailable for missing metadata/invalid bytes or Busy for an incomplete marker | Runner/observer fault seam |
 | Control path replaced by a FIFO or a directory; open/lock identity race | Bounded quiet failure/retry, with no blocking read or invented RUNNING | Existing filesystem barriers/process fixtures |
+| Observer paused after tree/file capture, and separately inside runtime read | No epoch guard spans tree/file capture or caller work; runtime suspension alone can reach the documented handoff bound; release permits recovery | Lock barriers and process fixture |
+| Supervision error without confirmed reap; unwind and normal lease drop | Lease-owned witness survives helper return; every orderly release closes witness before root pin and driver ownership | Runner/lease event trace |
+| Duplicate keys with and without running-key exclusion, including terminal/branch duplicates | Driver and viewer refuse before selection/exclusion; valid trees retain ordinary ordering | Typed selection; driver/application |
+| Exact workspace reached through symlink or /var alias | Same directory identity yields same activity; subdirectory observation never borrows ancestor runtime | Typed observer; application |
+| Foreign shared holder of a newly allocated witness | Exclusive acquisition returns promptly; launch/admission proceed and activity is Unavailable | Lock barrier and controlled launch |
+| Help in both views; selected LIVE, DONE, RUNNING and NEXT with color disabled | Active view and Tab destination are named; gutter alone marks selection, NEXT is bold normal text, RUNNING retains its specified styles | Application; terminal fixture |
 | Tree or epoch contention and rapid start/end changes | Current pair is withheld when unverifiable; navigation/quit remain responsive; cadence recovers | Application and process fixtures |
 | Multiple viewers, non-jj location, missing namespace, absent tree | Browsing creates no files/directories or persisted state and never resolves launch configuration | Application filesystem snapshots; typed observer |
 | Ambient old session after rotation; an admitted operation during replacement | Existing admission rejection and handoff semantics still hold; observation grants no authority | Existing lease/admission process fixtures |

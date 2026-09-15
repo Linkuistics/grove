@@ -23,16 +23,6 @@ protocol, typed results and guard lifetimes. Module ownership remains in
 
 ## Interfaces and responsibilities
 
-### Unresolved process-death boundary
-
-The protocol below specifies orderly witness/pin release, but does not yet
-establish their relative release order during process death. If kernel cleanup
-releases the driver's root pin before its witness, inode reuse could let an
-observer pin a replacement root and then probe the still-locked old witness.
-Observer pin-before-probe alone does not exclude that interleaving. The required
-no-rebinding guarantee remains unchanged; the death path needs a justified
-lifetime mechanism before this runtime design is ready for implementation.
-
 ### One typed observation operation
 
 The loop exposes `try_observe` for an exact worktree location. It composes the
@@ -56,7 +46,7 @@ The runtime result has these meanings:
 | Result | Meaning for the viewer |
 |---|---|
 | Idle | The observation establishes no current running session. Select ordinary NEXT from a valid current tree. |
-| Running with mandate | A witnessed launch is current. The mandate carries a permanent key, tree lifetime and launch-time handle/kind for fallback description. |
+| Running with mandate | A witnessed launch is current. The mandate carries a permanent key, launch-time tree identity and handle/kind, and its verified relation to this capture: same tree, previous tree, or no readable tree. |
 | Busy with reason | Publication or observation is in progress, including a launch not yet witnessed as started. Show activity waiting; withhold current RUNNING and NEXT. |
 | Unavailable with reason | Required evidence cannot be established, including unsupported or malformed metadata. Show activity unavailable; withhold current RUNNING and NEXT. |
 
@@ -68,7 +58,8 @@ runtime support must leave temporary non-jj trees fully browsable.
 
 The viewer retains its bounded two-capture consistency check. Each capture
 releases its guards before the next. Compare tree rows and selected bytes as
-before, and compare runtime identities and witness state separately. Changing
+before, and compare runtime identities, witness state and verified tree relation
+separately. Changing
 activity must not reject an otherwise consistent tree. An unstable runtime pair
 produces Busy for activity and retries on the next deadline. A failing tree
 capture suppresses NEXT and all activity attachments to retained rows; a fresh
@@ -85,26 +76,44 @@ undersized frames continue ticking; at most one retry is pending.
 Launch preparation retains an open task-root directory descriptor, acquired and
 checked against the selected snapshot under its tree read guard. Its device/inode pair
 is the **tree lifetime**, distinct from the working-tree-root identity in the
-lease. Before publication, launch preparation transfers this pin and the witness
-into one launch-observation value owned by the lease, and checks the pin again
+lease. On this same open directory description the driver takes an exclusive,
+nonblocking `flock`: the **directory witness**. Before publication, launch
+preparation transfers this pin and the private file witness into one
+launch-observation value owned by the lease, and checks the pin again
 before publishing the mandate. The ordinary copyable selection remains value
 data; it does not own an OS descriptor. A mismatch before publication
 stops that launch as a changed-tree error; no stale selection is rebound to the
-new tree. No tree or epoch guard survives across spawn.
+new tree. No tree access or epoch guard survives across spawn. The directory
+witness remains held; it locks the task-root directory itself, whereas ordinary
+tree access locks its containing directory. It therefore does not serialize
+task reads, mutation, retirement or root deletion.
+
+Every launch may acquire either witness only after the predecessor's epoch has
+been exclusively invalidated and its shared readers have drained. This also
+binds a replacement driver waiting with predecessor lease bytes: it cannot
+prepare a directory witness while the predecessor epoch is still observable.
+Only the preparing driver takes either witness exclusively. Observers use shared
+probes, and admission operations use neither. Failure to acquire the directory
+witness, including contention or unsupported directory locking, releases any
+prepared observation resources and leaves activity Unavailable; launch and
+mandatory admission continue normally. Neither acquisition waits or falls back
+to a different lock primitive.
 
 Active epoch records carry an optional, versioned observation extension:
 permanent key, launch-time handle and kind, task-root identity, and the witness's
 namespace-local name and descriptor identity. The extension is bound to the
 record's existing lease nonce and signal path. The handle's key must agree with
-the explicit key. Missing or unsupported observational fields cannot weaken
-validation of the mandatory admission record and cannot establish RUNNING.
+the explicit key. Its recognized version requires both witnesses to have been
+prepared; a file-witness-only record cannot satisfy that version. Missing or
+unsupported observational fields cannot weaken validation of the mandatory
+admission record and cannot establish RUNNING.
 Admission does not require the extension, including when observation setup fails.
 
-Keeping the task-root descriptor open prevents its inode being reused. Subject
-to the unresolved process-death boundary above, a viewer joining after root replacement
-can therefore reject a reused key without having seen the previous tree. The
-pin adds no persisted generation and takes no tree lock. Replacement after
-publication leaves the mandate attached to the old lifetime; it does not confer
+Keeping the task-root descriptor open prevents its inode being reused. With
+the directory-witness check below, a viewer joining after root replacement
+can reject a reused key without having seen the previous tree. The
+pin and its advisory lock add no persisted generation or task-tree bytes.
+Replacement after publication leaves the mandate attached to the old lifetime; it does not confer
 authority over the replacement or change the existing admission rules.
 
 ### Witness publication and release
@@ -137,16 +146,18 @@ not release it. Failed spawn publishes no marker and releases its prepared
 witness before post-attempt invalidation.
 
 The lease owns the launch-observation value until those events release it.
-Its release operation closes the witness first, then the tree pin; lease drop
-invokes that same operation before releasing driver ownership, including on
+Its release operation closes the private witness first, then the locked tree
+pin; lease drop invokes that same operation before releasing driver ownership, including on
 unwind. Failed spawn and confirmed reap use the same release order. A
 supervision error without confirmed reap must not invent a Reaped event or drop
 the witness early through a helper's return. Driver exit, unwind or death
-releases both lease and witness through descriptor lifetime; child processes
-cannot keep either lock alive after exec. A helper or iteration returning
-cannot release either member of the lease-owned value. Process death closes
-both descriptors; an observer must already pin its observed root before probing
-the witness, as specified below.
+releases the lease and both witnesses through descriptor lifetime; all their
+descriptors are close-on-exec and are never passed to another process. Child
+processes cannot keep them alive after exec. A helper or iteration returning
+cannot release either member of the lease-owned value. Process death may close
+the directory and private witness in either order. Safety depends only on the
+directory lock being removed before that same open description releases its
+root reference, not on which descriptor closes first.
 
 Observation-only allocation failure leaves activity Unavailable. Publication
 failure leaves activity unverified: an empty file or valid marker prefix remains
@@ -190,34 +201,65 @@ The loop's observer completes the tree capture before acquiring any epoch guard:
    canonical-path checks are unchanged. A matching inactive epoch means Idle;
    an active epoch requires the versioned observation extension. Invalid or
    mismatched records mean Unavailable.
-4. Open the named witness and compare descriptor/path identity with the
+4. Compare the captured, still-pinned task-root identity with the mandate's
+   identity. If equal, probe the **captured directory descriptor itself** with
+   a nonblocking shared `flock`; do not reopen its path. A successful probe is
+   unlocked immediately, retaining the descriptor, and records an unverified
+   tree binding. Contention records a verified same-tree binding. Other errors
+   record an unavailable binding. Unequal identities mean previous tree and need
+   no directory probe; no readable tree likewise permits only a summary.
+5. Open the named private witness and compare descriptor/path identity with the
    published identity. Missing or mismatched evidence means Unavailable.
    Read its bounded marker, then probe through an independent descriptor with
    a nonblocking shared lock attempt. Success is released immediately, before
    any other work, and means Idle regardless of leftover marker bytes.
-   Contention plus the exact started marker establishes Running; a locked empty
-   file or proper marker prefix means Busy; other bytes/errors mean Unavailable.
+   Contention plus the exact started marker establishes Running, subject to the
+   binding result: a numerically matching root whose directory probe succeeded
+   makes activity Busy, and a directory-probe error makes it Unavailable. Neither
+   case yields RUNNING or NEXT. A locked empty file or proper marker prefix means
+   Busy; other bytes/errors mean Unavailable.
    Other viewers' shared probes cannot cause contention, and no admission
    operation or replacement driver takes this witness exclusively.
-5. Copy the runtime result and release the epoch guard before returning on every
-   path. It covers only bounded record reads, identity validation and the witness
-   probe: no tree traversal, selected-file read or caller work. Return separate
-   typed tree/runtime results and the retained tree pin, with no advisory locks.
+6. Copy the runtime result, including its tree relation, and release the epoch
+   guard before returning on every path. It covers only bounded record reads,
+   identity validation and the two witness probes: no tree traversal,
+   selected-file read or caller work. Return separate typed tree/runtime results
+   and the retained tree pin, with no advisory locks.
 
-Every control acquisition/probe checks open descriptor identity against the
+Every control-file acquisition/probe checks open descriptor identity against the
 current path, with at most the existing eight identity-race attempts and no
 sleep or blocking fallback. Tree and epoch guards are never held together by
 observation. Neither an epoch guard nor a witness lock escapes to the caller.
 
-Pinning before the final probe is load-bearing: reap or driver death can release
-the driver's root pin during observation. A probe made first could be joined to
-a later root whose inode was reused. The already-retained observed root prevents subsequent reuse of that root;
-the process-death boundary above concerns reuse before this pin was acquired.
+### Process death and tree identity
+
+For a same-tree result the order is: pin the captured root, take the short shared
+epoch guard, validate the records, probe the directory, then probe the private
+witness. The directory probe and the epoch publication rule close the gap that
+pin-before-file-probe alone leaves:
+
+| State when a numerically matching directory is probed | Consequence |
+|---|---|
+| The old directory witness is still exclusive | Its own open description still pins that root. The already-open observer descriptor therefore names the same lifetime; it keeps that identity valid through the final file probe. |
+| The directory witness was released first, while the private witness remains locked | A shared directory probe succeeds. Even if an inode/key was reused before this observer opened the root, the old private witness cannot authorize a row attachment or NEXT exclusion. |
+| The private witness was released first | Its final shared probe succeeds and produces Idle, regardless of an earlier directory-probe result. |
+| A replacement driver owns the lease but old epoch readers remain | It cannot take a new directory witness before exclusive invalidation. Its lock cannot be mistaken for the old launch's lock while this observation holds the shared epoch guard. |
+
+The [driver-lease ADR](../adr/one-live-driver-per-working-tree.md#why-the-directory-witness-survives-process-death)
+provides the Linux and Darwin final-close evidence and the cooperating-process
+boundary. The proof requires no relative cleanup order for separate descriptors.
+The directory witness alone proves no launch; the private witness remains
+necessary for Started evidence and for summaries when the old root is absent or
+has a different identity. An observation backend must provide the stated native
+file/directory lock and open-object lifetime semantics; unsupported semantics
+produce Unavailable, never an identity-only fallback.
 
 Running is evidence at the witness probe, not a promise until the next frame.
-Death before the probe releases the witness even while a replacement holds old
-lease bytes; death after it is detected next time. The shared epoch guard blocks
-publication only during the short runtime read, and keeps neither driver nor
+After process teardown has released the private witness, a probe reports Idle
+even while a replacement holds old lease bytes. Death after the probe is detected
+next time; delivery of a kill signal itself is not evidence that teardown has
+finished. The shared epoch guard blocks publication only during the short runtime
+read, and keeps neither driver nor
 witness alive. The two-capture comparison rejects observed change, not every
 non-cooperating filesystem edit. Arbitrary administration-area corruption
 remains outside the ADR's guarantee.
@@ -226,8 +268,8 @@ remains outside the ADR's guarantee.
 
 The loop owns a selection operation over an already-read typed snapshot with
 an optional excluded permanent key. Ordinary driver selection supplies no
-exclusion. The viewer supplies a key only when the witnessed mandate belongs
-to the snapshot's tree lifetime.
+exclusion. The viewer supplies a key only when the typed observation verified
+that the witnessed mandate belongs to this snapshot's tree lifetime.
 
 First validate the whole tree, including duplicate keys and multiple live finish
 leaves. Exclusion cannot make malformed input valid. This deliberately strengthens
@@ -251,8 +293,10 @@ until the driver materializes one in the tree.
 
 ### Binding a mandate to a row
 
-Resolve a witnessed mandate by permanent key within its tree lifetime. Use its
-current handle and species when present, so renaming, moving, retirement and
+Resolve a witnessed mandate by permanent key only when the typed observation
+reports the same-tree relation. Comparing numeric identities in the viewer is
+not a substitute for that verified relation. Use the item's current handle and
+species when present, so renaming, moving, retirement and
 decomposition preserve RUNNING. Only the directly named item gets the marker;
 ancestors do not inherit it. Its lifecycle still reflects the current tree.
 
@@ -382,7 +426,9 @@ terminal fixture owns key translation and terminal cleanup checks.
 | Multiple observers probe an unlocked started witness while replacement retains old lease bytes | Shared probes do not contend with one another and cannot manufacture RUNNING; observers never lock the driver lease | Process fixture and lock barriers |
 | Replacement holds lease with old bytes while an old epoch guard blocks handoff | Old witness cannot establish RUNNING; viewer attempts return promptly and do not wait for handoff | Process fixture and lock barriers |
 | Root replaced while a session runs, including reused key and first viewer opened after replacement | Old mandate is marked previous tree and never attaches to the new row; new NEXT uses no old-key exclusion | Real launch plus application |
-| Reap or driver death releases the old root pin during observation | The observed tree is pinned before the final witness probe; inode/key reuse cannot receive old RUNNING activity | Observer lock/filesystem barriers |
+| Directory witness closes before the private witness, with forced inode/key reuse before the observer opens the replacement | Numeric equality plus the old locked file witness yields Busy, no RUNNING row and no NEXT exclusion; the missing directory lock is decisive | Observer lock/filesystem barriers |
+| Private witness closes before the directory witness, or both close | The final private probe yields Idle; the old directory lock alone cannot establish RUNNING | Observer lock/filesystem barriers |
+| Root release occurs after the directory probe but before the private probe | The observer's retained pin still binds the captured lifetime; a later directory is never joined to this result | Observer lock/filesystem barriers |
 | Item absent or whole tree removed during a launch | Summary retains the witnessed identity with the appropriate absence qualifier | Application plus real launch |
 | Old, missing, malformed, truncated, oversized or mismatched observation records | Typed unavailable/busy state where evidence is missing; readable trees still browse | Typed observer; application |
 | Witness allocation or started-marker write fails | Session authority and outcome are preserved; activity is Unavailable for missing metadata/invalid bytes or Busy for an incomplete marker | Runner/observer fault seam |
@@ -391,7 +437,8 @@ terminal fixture owns key translation and terminal cleanup checks.
 | Supervision error without confirmed reap; unwind and normal lease drop | Lease-owned witness survives helper return; every orderly release closes witness before root pin and driver ownership | Runner/lease event trace |
 | Duplicate keys with and without running-key exclusion, including terminal/branch duplicates | Driver and viewer refuse before selection/exclusion; valid trees retain ordinary ordering | Typed selection; driver/application |
 | Exact workspace reached through symlink or /var alias | Same directory identity yields same activity; subdirectory observation never borrows ancestor runtime | Typed observer; application |
-| Foreign shared holder of a newly allocated witness | Exclusive acquisition returns promptly; launch/admission proceed and activity is Unavailable | Lock barrier and controlled launch |
+| Foreign shared holder of either the task root or a newly allocated private witness; unsupported directory locking | Exclusive acquisition returns promptly, prepared observation locks are released, launch/admission proceed and activity is Unavailable | Lock barrier and controlled launch |
+| Directory witness held while a session mutates or deletes the root | The containing-directory tree lock remains usable; root replacement remains possible and never inherits the old root's witness | Real filesystem/process fixture |
 | Help in both views; selected LIVE, DONE, RUNNING and NEXT with color disabled | Active view and Tab destination are named; gutter alone marks selection, NEXT is bold normal text, RUNNING retains its specified styles | Application; terminal fixture |
 | Tree or epoch contention and rapid start/end changes | Current pair is withheld when unverifiable; navigation/quit remain responsive; cadence recovers | Application and process fixtures |
 | Multiple viewers, non-jj location, missing namespace, absent tree | Browsing creates no files/directories or persisted state and never resolves launch configuration | Application filesystem snapshots; typed observer |
@@ -403,6 +450,27 @@ sleep. A stale-record rejection needs the positive control that the same
 observer recognizes a genuinely running launch. The tree-replacement control
 starts with the same key in both lifetimes. Render tests inspect semantic text
 and styles, rather than pinning every border cell.
+
+The death controls have two layers. On macOS and Linux, real subprocess fixtures
+hold the two exclusive witnesses, acknowledge readiness through a pipe, and are
+then killed and reaped with `waitpid` before observing the leftover records.
+Use independent read-only descriptors to check both contended probes before
+death and both successful probes afterwards. Rename/remove and recreate the
+root while the original witnesses are held; observers opened afterwards must
+see the replacement as a different lifetime. A separate shared-holder process
+must permit another shared probe and make exclusive preparation fail promptly.
+
+The internal lock/filesystem barrier seam separately permits the two close
+orders and makes a replacement report the old device/inode pair and task key.
+Do not depend on the host allocator reusing an inode in a timeout. Pause once
+between root-pin release and private-witness release, and once after a successful
+directory verification but before the final private probe. These controls model
+kernel interleavings; they are not a claim to have paused kernel teardown.
+The first must reject the replacement with a still-positive private witness;
+disabling the directory check must make that control attach activity wrongly.
+Disabling replacement's epoch-before-directory-acquisition rule must similarly
+expose a new directory witness under an old epoch. Keep the valid running-launch
+control passing in both mutation checks, so blanket unavailability cannot pass.
 
 ## Scope
 

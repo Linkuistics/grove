@@ -141,31 +141,33 @@ launch is running: a replacement driver acquires the lease before it may invalid
 predecessor's epoch, and deliberately preserves the old lease bytes during that
 wait. A viewer must not describe that predecessor as RUNNING.
 
-The witness adds observation evidence without changing authority. The driver
-lease still serializes drivers; the epoch still admits agent operations using
-the worktree, lease nonce and signal path. A viewer neither obtains an admission
-guard nor probes the driver lease lock. Its witness probe is shared, so
-concurrent observers cannot create the exclusive contention that means a live
-driver holds that witness. A successful witness probe is released immediately,
-before validation or other I/O. Agent admission retains its existing protocol.
+The private launch witness and the directory witness add observation evidence
+without changing authority. The driver lease still serializes drivers; the epoch
+still admits agent operations using the worktree, lease nonce and signal path.
+A viewer neither obtains an admission guard nor probes the driver lease lock.
+Its witness probes are shared, so concurrent observers cannot create exclusive
+contention. A successful probe is unlocked immediately, before validation or
+other I/O. Agent admission retains its existing protocol.
 
 Shared probes rely on the compatible shared/incompatible exclusive semantics
 documented by [Apple's flock manual](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/flock.2.html)
 and the [Linux flock manual](https://man7.org/linux/man-pages/man2/flock.2.html).
 The inference that contention names this driver additionally depends on Grove's
-rule that no other participant takes the witness exclusively.
+exclusive-witness ownership rules and the epoch ordering specified below.
 
 The [item-status spec](../specs/item-status.md#mandate-and-lifetime) owns the
 mandate representation, witness publication/release, and bounded observation
-contract. Root pinning avoids persisted generation state, but the spec's
-[unresolved process-death boundary](../specs/item-status.md#unresolved-process-death-boundary)
-identifies a release-order gap that must be resolved before relying on it to
-prevent rebinding across driver death. One lease-owned value holds both resources so helper
-return and supervision failure cannot separate their lifetimes.
+contract. A lock on the same open description as the task-root pin prevents
+rebinding across driver death without persisted generation state. The
+[process-death argument](../specs/item-status.md#process-death-and-tree-identity)
+defines when a captured tree may receive activity. One lease-owned value holds
+both descriptors so helper return and supervision failure cannot release them
+early.
 
-Observation costs one ephemeral witness file and descriptor per launch, a root
-pin, and two generic runner events. The short shared epoch read gives a coherent
-record/witness binding while retaining admission's existing publication model.
+Observation costs one ephemeral witness file and descriptor per launch, an
+exclusive lock on the already-retained root pin, and two generic runner events.
+The short shared epoch read gives a coherent record/witness binding while
+retaining admission's existing publication model.
 Tree capture and file I/O happen outside that guard. This reduces exposure to
 viewer stalls but does not bound lock ownership in wall-clock time: a viewer
 suspended even within the short runtime read can still delay epoch handoff to
@@ -176,8 +178,69 @@ tree mutations to a suspended reader. These are accepted liveness trade-offs;
 nonblocking acquisition guarantees that the viewer does not wait, not that a
 holder can never delay a writer.
 
+## Why the directory witness survives process death
+
+Separate descriptors have separate kernel cleanup. Linux v6.12
+[`close_files`](https://github.com/torvalds/linux/blob/v6.12/fs/file.c#L370-L421)
+walks the descriptor table and can reschedule between closes; XNU
+xnu-11215.1.10
+[`fdfree`](https://github.com/apple-oss-distributions/xnu/blob/xnu-11215.1.10/bsd/kern/kern_descrip.c#L994-L1043)
+walks it in the opposite direction. Neither is the language's drop order, and
+neither makes closing a directory and an independent witness atomic. A protocol
+that allows either descriptor assignment cannot exclude root-pin release before
+private-witness release. The actual inode-reuse opportunity also depends on the
+filesystem; no cross-platform inode-reuse timing is assumed.
+
+The useful guarantee is within **one open object**. Linux v6.12
+[`__fput`](https://github.com/torvalds/linux/blob/v6.12/fs/file_table.c#L378-L416)
+removes file locks before releasing the directory entry and mount references.
+XNU xnu-11215.1.10
+[`vn_closefile`](https://github.com/apple-oss-distributions/xnu/blob/xnu-11215.1.10/bsd/vfs/vfs_vnops.c#L1717-L1750)
+unlocks the fileglob's flock before calling `vn_close`, whose ordinary-vnode path
+[drops its reference afterwards](https://github.com/apple-oss-distributions/xnu/blob/xnu-11215.1.10/bsd/vfs/vfs_vnops.c#L753-L809).
+These paths support the inference that a contended directory witness still
+pins **its own** root, even during teardown. They do not establish the relative
+lifetime of two unrelated objects. The activity backend relies on these native
+local-filesystem lock/lifetime semantics; it must not silently substitute
+network or emulated locking with different guarantees.
+
+Accordingly, the driver exclusively locks the task-root pin as well as its
+private witness. A replacement cannot acquire either until it has exclusively
+invalidated the predecessor epoch. Under the shared epoch guard, an observer
+that already pinned a numerically matching root probes that directory before
+the private witness. The spec's case table states the resulting binding rule.
+The extra lock is on the task root, not on the containing directory used for
+tree access, so sessions can still mutate and remove the tree.
+
+This retains the existing cooperating-process boundary. Only the current
+preparing driver may take observation locks exclusively; observers take only
+shared probes. A foreign holder encountered at preparation causes observation
+setup to fail without blocking launch. Advisory-lock contention cannot
+authenticate its holder: another program taking the directory lock exclusively
+outside this protocol while a dying driver's private witness remains locked is
+outside this protocol, just as impersonating a private witness is. This
+additional reserved lock location is a cost of avoiding persisted tree identity.
+Viewers neither reserve it nor retain a shared probe. Concurrent viewers can
+briefly make driver preparation fail conservatively, leaving activity
+Unavailable for that launch while admission remains intact.
+
 ## Considered options
 
+- **Retain only a private witness and a separate directory pin.** Rejected
+  because orderly close sequencing says nothing about their relative kernel
+  cleanup on process death. Reopen if a supported primitive directly couples
+  those lifetimes. Assigning descriptor numbers or relying on field order is
+  not such a primitive.
+- **Use only the directory witness.** Rejected because a new viewer cannot open
+  a removed or arbitrarily renamed old root to verify a still-running mandate.
+  The private witness preserves that summary and distinguishes successful spawn
+  from preparation. Reopen if summaries for an inaccessible running root cease
+  to be required.
+- **Transfer a live root descriptor through driver IPC.** Rejected for this
+  design because it adds a request-serving lifecycle, message framing and bounded
+  response handling where two nonblocking probes suffice. Reopen if the private
+  namespace cannot remain readable or reserving the directory lock conflicts
+  with another required participant.
 - **Observe without any epoch guard.** Rejected here because lock-free reads of
   the mutable epoch would need a separately justified publication/validation
   contract. Reopen if even the bounded runtime-read window's suspension risk

@@ -115,9 +115,10 @@ the design in `docs/specs/item-status.md` and the driver-lease ADR.
 `item-status-k4` then plans implementation slices. Reliable activity crosses
 driver ownership and read-only viewing, so the design is reviewed before those
 slices are cut. Integration `item-status-k5` applied the original review and
-exposed an unresolved process-death release-order gap. `item-status-k6` repairs
-that guarantee and starts a new design review chain ahead of `item-status-k4`;
-implementation planning waits for that correction.
+exposed a process-death release-order gap. `item-status-k6` specifies a directory
+witness on the task-root pin and a verified tree relation, reviewed by
+`item-status-k7` ahead of `item-status-k4`. Implementation planning consumes that
+reviewed correction and any integration it requires.
 
 ## Pointers
 

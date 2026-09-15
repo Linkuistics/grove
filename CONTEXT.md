@@ -487,7 +487,10 @@ _Avoid_: a persisted grove generation, or the lifetime of the working-tree root.
 
 The ephemeral observation evidence that one live [[Driver lease]] successfully
 launched a particular mandate and has not yet reaped it. It grants no [[Session
-epoch]] admission; see ADR *one-live-driver-per-working-tree*.
+epoch]] admission. A private file witnesses the launch; a **directory witness**
+is an exclusive advisory lock on the same open description that pins its task
+root, used to establish a same-tree activity binding. See ADR
+*one-live-driver-per-working-tree* and [item-status](docs/specs/item-status.md).
 
 <a id="running"></a>
 ### RUNNING

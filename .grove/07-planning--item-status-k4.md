@@ -10,10 +10,12 @@ lifecycle cues and truthful RUNNING/NEXT behavior.
 
 The behavioral and runtime protocol contract is `docs/specs/item-status.md`;
 its cited driver-lease ADR owns the observation decision and trade-offs.
-The producer is `item-status-k2`, and the design
-review is `item-status-k3`. Read that review and any integration it creates
-before cutting implementation work; findings are evidence to triage, not this
-leaf's charter.
+The initial producer is `item-status-k2`, reviewed by `item-status-k3` and
+integrated by `item-status-k5`. The process-death correction is `item-status-k6`,
+reviewed by `item-status-k7`. Read both review chains and any integration of the
+correction before cutting implementation work; findings are evidence to triage,
+not this leaf's charter. Plan against the resulting current spec, including its
+verified tree relation and witness lifetime contract.
 
 The typed observation seam crosses the existing loop, VCS namespace and generic
 runner interfaces. Viewport switching and lifecycle rendering use the public

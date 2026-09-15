@@ -348,6 +348,14 @@ a valid active record and verifies Running from the directory/private protocol.
 The viewer's remaining binding and presentation work consumes that typed
 relation when attaching activity and excluding the running key from NEXT.
 
+Observer concurrency controls hold compatible shared probes over released
+Started bytes and check Idle through the public observer. Continuous viewers
+also span repeated real launches, checking the exact mandate at Started and
+Idle at Reaped without preventing subsequent witness preparation. Concurrent
+filesystem snapshots cover aliases, absent trees, non-jj locations and missing
+namespaces. These host controls do not substitute for the native process-death
+and replacement-ordering evidence required by the item-status spec.
+
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed
 reap, including recovery from a wait error, before token reading and terminal

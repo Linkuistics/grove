@@ -1,4 +1,4 @@
-# witness-replacement-observers-k39
+# witness-replacement-observers-k39 — brief
 
 
 ## Goal
@@ -31,3 +31,29 @@ owns native macOS/Linux process evidence. Reconcile the whole k36 brief before
 closing it; no in-session reviewer alongside k27's scheduled complete review.
 
 ## Notes
+
+## Decomposition
+
+The remaining obligations use three different controls. Each child owns its
+tests, exact-source book repair and principal gate. The original Done when
+remains the node's closure contract.
+
+- witness-concurrent-viewers-k40 covers compatible shared probes of released
+  Started bytes, continuous public observation across repeated real launches,
+  and concurrent read-only snapshots across aliases and missing-tree/control
+  cases. It preserves the existing bounded-handoff and escaped-guard controls.
+- witness-epoch-replacement-k41 covers delayed replacement retaining old lease
+  bytes, no preparation before exclusive invalidation, and the independent
+  epoch-before-preparation mutation with real Running positive and exact
+  restoration/run provenance. It combines replacement with concurrent viewers.
+- witness-foreign-holders-k42 covers separate shared-holder processes for both
+  witnesses, prompt preparation failure with successful launch/admission, and
+  reconciles this node and k36 before closure. Native platform evidence stays
+  k37; complete protocol review stays k27.
+
+## Decisions (running log)
+
+Split at independently executable observer, replacement-ordering and foreign
+process controls. The existing WitnessIo and lease acquisition/preparation
+seams support these without a second status provider. Implement only the
+concurrent-viewer child in this session.

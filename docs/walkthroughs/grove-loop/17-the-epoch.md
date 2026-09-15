@@ -2038,7 +2038,7 @@ private witness establishes Idle even with an active epoch. A held exact Started
 marker establishes Running only after checking the captured directory relation;
 old active records cannot identify a mandate.
 
-<!-- fragment «runtime-observer» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-1523" parent="source-runtime-observation" -->
+<!-- fragment «runtime-observer» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-1717" parent="source-runtime-observation" -->
 <!-- insert «runtime-entry» -->
 <!-- insert «runtime-read» -->
 <!-- insert «runtime-extension» -->
@@ -3014,7 +3014,7 @@ Readiness and release channels suspend the same typed operation after capture an
 
 Replacing the epoch once forces a second attempt; replacing it on every guarded read exhausts exactly eight. Recursive snapshots compare file bytes and directory entries, including the administration area, across idle and legacy-active samples. The final control checks unreadable epochs where permissions apply and rejects a namespace replaced by a regular file. These controls exercise the observer’s own acquisition path rather than a parallel test implementation.
 
-<!-- fragment «runtime-test-races» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="817-1523" parent="runtime-observer" -->
+<!-- fragment «runtime-test-races» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="817-1717" parent="runtime-observer" -->
 <!-- insert «runtime-test-epoch-replacements» -->
 <!-- insert «runtime-test-started-fixture» -->
 <!-- insert «runtime-test-real-launch» -->
@@ -3025,6 +3025,10 @@ Replacing the epoch once forces a second attempt; replacing it on every guarded 
 <!-- insert «runtime-test-directory-release» -->
 <!-- insert «runtime-test-private-replacements» -->
 <!-- insert «runtime-test-release-orders» -->
+<!-- insert «runtime-test-viewer-workers» -->
+<!-- insert «runtime-test-shared-overlap» -->
+<!-- insert «runtime-test-repeated-launches» -->
+<!-- insert «runtime-test-concurrent-snapshots» -->
 <!-- insert «runtime-test-filesystem-preservation» -->
 <!-- /fragment -->
 
@@ -3760,9 +3764,231 @@ establish those properties.
 ````
 <!-- /fragment -->
 
+Continuous workers exercise the public observer between requested checkpoints. Each request receives a fresh observation, and channel disconnection stops the cohort even when an assertion unwinds. Bounded receives detect missing progress without using elapsed time to infer ordering.
+
+<!-- fragment «runtime-test-viewer-workers» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1459-1497" parent="runtime-test-races" -->
+````rust
+    // Workers observe continuously, including between requested checkpoints.
+    // A request is acknowledged only by a fresh public observation after it.
+    fn with_continuous_viewers(
+        paths: &[PathBuf],
+        run: impl FnOnce(&dyn Fn() -> Vec<ActivityObservation>),
+    ) {
+        std::thread::scope(|scope| {
+            let mut viewers = Vec::new();
+            for path in paths {
+                let (request_tx, request_rx) = mpsc::channel();
+                let (result_tx, result_rx) = mpsc::channel();
+                scope.spawn(move || loop {
+                    let requested = match request_rx.try_recv() {
+                        Ok(()) => true,
+                        Err(mpsc::TryRecvError::Empty) => false,
+                        Err(mpsc::TryRecvError::Disconnected) => break,
+                    };
+                    let capture = crate::try_observe(path, &[]);
+                    if requested && result_tx.send(capture.activity).is_err() {
+                        break;
+                    }
+                    std::thread::yield_now();
+                });
+                viewers.push((request_tx, result_rx));
+            }
+            run(&|| {
+                for (request, _) in &viewers {
+                    request.send(()).unwrap();
+                }
+                viewers
+                    .iter()
+                    .map(|(_, result)| result.recv_timeout(Duration::from_secs(10)).unwrap())
+                    .collect()
+            });
+            // Disconnection stops every worker, also on assertion unwind.
+            drop(viewers);
+        });
+    }
+
+````
+<!-- /fragment -->
+
+Independent shared descriptors hold both released witness probe windows open while three public observers read leftover Started bytes. Native exclusive probes first confirm the holders are effective. Every observation must be Idle; after the cohort and holders stop, independent exclusive probes check that returned captures retain no advisory guards.
+
+<!-- fragment «runtime-test-shared-overlap» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1498-1539" parent="runtime-test-races" -->
+````rust
+    #[test]
+    fn witness_concurrent_shared_probes_of_released_started_bytes_stay_idle() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, mut lease) = started_fixture();
+        let private_path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+        lease.launch.take();
+        assert_eq!(fs::read(&private_path).unwrap(), b"started\n");
+        let before = contents(work.path());
+        let mut overlaps = Vec::new();
+        for path in [work.path().join(".grove"), private_path.clone()] {
+            // Hold the tiny successful-probe window open on independent native
+            // descriptors. These are test holders, never returned viewer locks.
+            for _ in 0..3 {
+                let file = File::open(&path).unwrap();
+                assert_eq!(
+                    unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+                    0
+                );
+                overlaps.push(file);
+            }
+            let exclusive = File::open(path).unwrap();
+            assert_ne!(
+                unsafe { libc::flock(exclusive.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                0
+            );
+            assert_eq!(
+                std::io::Error::last_os_error().raw_os_error(),
+                Some(libc::EWOULDBLOCK)
+            );
+        }
+        with_continuous_viewers(&vec![work.path().to_path_buf(); 3], |sample_all| {
+            for _ in 0..16 {
+                assert_eq!(sample_all(), vec![ActivityObservation::Idle; 3]);
+            }
+        });
+        drop(overlaps);
+        assert_observation_releases_guards(work.path(), &private_path);
+        assert_eq!(contents(work.path()), before);
+    }
+
+````
+<!-- /fragment -->
+
+Three continuous observers span four real launches. Each preparation must retain both exclusive witnesses; at the synchronous Started callback every viewer identifies the exact signal and SameTree mandate, and at Reaped every viewer reports Idle. Compatible probes check release while viewers continue; invalidation and the next preparation must still succeed.
+
+<!-- fragment «runtime-test-repeated-launches» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1540-1622" parent="runtime-test-races" -->
+````rust
+    #[test]
+    fn witness_continuous_viewers_allow_repeated_real_launch_preparation() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, mut lease) = fixture();
+        let config = work.path().join("launch.kdl");
+        fs::write(&config, "test \"/bin/sh -c true\"\n").unwrap();
+        let templates =
+            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
+                .unwrap();
+        let argv = templates.expand("test", &[]).unwrap();
+        with_continuous_viewers(&vec![work.path().to_path_buf(); 3], |sample_all| {
+            assert_eq!(sample_all(), vec![ActivityObservation::Idle; 3]);
+            for _ in 0..4 {
+                let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
+                let root = TreeLifetime::open(work.path()).unwrap().unwrap();
+                lease
+                    .prepare_launch(
+                        root,
+                        &super::super::tests::witness_selection(),
+                        channel.path(),
+                    )
+                    .unwrap();
+                let private = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+                for path in [work.path().join(".grove"), private.clone()] {
+                    assert!(!NativeWitnessIo.probe(&File::open(path).unwrap()).unwrap());
+                }
+                let mut events = Vec::new();
+                lease
+                    .supervise_launch(|notify| {
+                        keyed_launch::run_observed(
+                            keyed_launch::Launch {
+                                argv: &argv,
+                                channel: &channel,
+                                channel_var: "GROVE_SIGNAL_FILE",
+                                scrub: &[],
+                                cwd: Some(work.path()),
+                                escalation: keyed_launch::Escalation {
+                                    grace: Duration::ZERO,
+                                    kill_grace: Duration::ZERO,
+                                },
+                            },
+                            &mut |event| {
+                                notify(event);
+                                events.push(event);
+                                let before = contents(work.path());
+                                for activity in sample_all() {
+                                    match event {
+                                        keyed_launch::LaunchEvent::Started => {
+                                            let mandate = running(activity);
+                                            assert_eq!(mandate.handle.to_string(), "work-k1");
+                                            assert_eq!(mandate.relation, TreeRelation::SameTree);
+                                            assert_eq!(mandate.runtime.signal, channel.path());
+                                        }
+                                        keyed_launch::LaunchEvent::Reaped => {
+                                            assert_eq!(activity, ActivityObservation::Idle);
+                                        }
+                                    }
+                                }
+                                assert_eq!(contents(work.path()), before);
+                            },
+                        )
+                    })
+                    .unwrap();
+                assert_eq!(
+                    events,
+                    [
+                        keyed_launch::LaunchEvent::Started,
+                        keyed_launch::LaunchEvent::Reaped
+                    ]
+                );
+                assert!(lease.launch.is_none());
+                // Other viewers may be inside their short shared probe here;
+                // use compatible probes until the worker cohort has stopped.
+                for path in [work.path().join(".grove"), private] {
+                    assert!(NativeWitnessIo.probe(&File::open(path).unwrap()).unwrap());
+                }
+                lease.invalidate_session_epoch().unwrap();
+            }
+        });
+    }
+
+````
+<!-- /fragment -->
+
+Concurrent readers use both the exact worktree path and a symlink alias through absent-tree, non-jj-tree, missing-namespace and jj-without-tree cases. Recursive before/after snapshots and the unchanged alias target show that observation creates neither tree nor administration entries.
+
+<!-- fragment «runtime-test-concurrent-snapshots» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1623-1652" parent="runtime-test-races" -->
+````rust
+    #[test]
+    fn witness_concurrent_read_only_captures_cover_aliases_and_absent_controls() {
+        let parent = TempDir::new().unwrap();
+        let work = parent.path().join("work");
+        fs::create_dir(&work).unwrap();
+        let alias = parent.path().join("alias");
+        std::os::unix::fs::symlink(&work, &alias).unwrap();
+        // Each stage adds only the named prerequisite; observers add nothing.
+        for stage in 0..4 {
+            match stage {
+                1 => {
+                    fs::create_dir(work.join(".grove")).unwrap();
+                    fs::write(work.join(".grove/_BRIEF.md"), "root").unwrap();
+                }
+                2 => fs::create_dir(work.join(".jj")).unwrap(),
+                3 => fs::remove_dir_all(work.join(".grove")).unwrap(),
+                _ => {}
+            }
+            let before = contents(&work);
+            let paths = [work.clone(), alias.clone(), work.clone()];
+            with_continuous_viewers(&paths, |sample_all| {
+                for _ in 0..16 {
+                    assert_eq!(sample_all(), vec![ActivityObservation::Idle; 3]);
+                }
+            });
+            assert_eq!(contents(&work), before);
+            assert_eq!(fs::read_link(&alias).unwrap(), work);
+        }
+    }
+
+````
+<!-- /fragment -->
+
 Recursive snapshots include tree and administration bytes for idle and legacy-active samples, absent controls and non-jj locations. Permission and namespace-type failures remain Unavailable. These existing controls complement the started-launch snapshots without granting observation cleanup or repair authority.
 
-<!-- fragment «runtime-test-filesystem-preservation» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1459-1523" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-filesystem-preservation» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1653-1717" parent="runtime-test-races" -->
 ````rust
     fn contents(path: &Path) -> Vec<(PathBuf, Vec<u8>)> {
         let mut files = Vec::new();

@@ -31,12 +31,19 @@ then make it refresh automatically. Each increment includes its own interface
 tests, usable command and accurate usage documentation. Framework setup and
 library changes belong with the first behavior that consumes them. A planning
 review precedes implementation; the root's full Done when applies after all
-three increments.
+five implementation increments below. The basic browser's temporary limits are
+explicit in its leaf; the following two slices complete the manual browser
+before Markdown and automatic observation land.
 
 1. `tui-k6` reviews this outline and the leaf boundaries before they are built.
-2. `tree-viewer-k3` delivers the runnable manual-refresh tree/file browser.
-3. `markdown-viewer-k4` makes the file pane a formatted Markdown reader.
-4. `live-viewer-k5` adds automatic observation, state preservation and recovery.
+2. `tui-k7` integrates that review into this outline and the leaf boundaries.
+3. `tree-viewer-k3` delivers a basic plain-text browser using the existing
+   blocking reader, manual refresh and minimal navigation.
+4. `responsive-viewer-k8` adds quiet try-read and responsive contention/retry.
+5. `viewer-interaction-k9` completes navigation, resize/help and terminal
+   hardening, with explicit restoration evidence.
+6. `markdown-viewer-k4` makes the file pane a formatted Markdown reader.
+7. `live-viewer-k5` adds automatic observation, state preservation and recovery.
 
 ## Design outline
 
@@ -46,7 +53,10 @@ three increments.
   current directory and means the directory containing `.grove/`; there is no
   ancestor search. Resolve the argument to an absolute path once and keep
   observing that location, including while absent. Help gives examples for the
-  current and another working tree. Bare `grove` retains its existing behavior.
+  current and another working tree. Help explicitly says: from a subdirectory,
+  view observes that subdirectory's `.grove/`; it never searches upward. Bare
+  `grove` retains its workspace resolution and argument-less lifecycle;
+  `view` selects an observation path, never a workstream or launch policy.
 - A `grove-tui` library owns the application, terminal lifetime, display and
   observation. The CLI parses and dispatches before resolving a jj workspace,
   acquiring a driver lease or loading launch configuration. Viewing requires
@@ -71,13 +81,29 @@ three increments.
   blocking APIs and their CLI diagnostics retain their behavior. A preliminary
   unlocked probe followed by a blocking read cannot satisfy this contract.
   No guard or tree reference escapes into long-lived application state.
+- This try-read deliberately revises the no-try/no-timeout rule in
+  `docs/ordinal-fs-tree/ARCHITECTURE.md`, the `fs/mod.rs` and `fs/lock.rs`
+  comments, and `docs/ARCHITECTURE.md`'s Tree access lock section.
+  `responsive-viewer-k8` records the replacement rule there when implementing
+  it: one nonblocking observer read, Busy with no snapshot, and unchanged
+  blocking reads/writes. Production acquisition stays in `task_tree.rs`;
+  the viewer neither calls `flock` nor reaches `ordinal_fs_tree::fs` itself.
+- Selection, expansion, focus and saved reading positions exist only in process
+  memory. No state file, configuration write or cache is created anywhere;
+  quitting discards all viewer state.
 
 ### Interaction
 
 - Show a selectable root row for `_BRIEF.md`, with ordered task/node rows below
   it and a file pane beside it. Initially select the root and expand branches.
   Tasks display their handle, open-token kind and explicit `LIVE`, `DONE` or
-  `ABANDONED` label. Nodes are labeled branches; `LIVE` means unfinished work.
+  `ABANDONED` label. Nodes are labeled branches. Root and branch rows aggregate
+  descendant leaves, including hidden descendants: `LIVE` if any live leaf;
+  otherwise `DONE` if any done leaf; otherwise `ABANDONED` if any abandoned
+  leaf; otherwise `EMPTY`. Show descendant outcome counts beside the aggregate,
+  so mixed terminal subtrees still expose abandoned work. Empty nested branches
+  contribute no leaves. This is display-only; nodes gain no stored outcome and
+  Grove's picker/retirement semantics do not change.
 - Tab switches pane focus. In the tree, Up/Down or j/k moves among visible
   rows; Right/l expands a node or enters its first child, Left/h collapses it
   or moves to its parent, and Enter/Space toggles a branch. Selection immediately
@@ -94,6 +120,13 @@ three increments.
   print an actionable error and exit unsuccessfully. Restore raw mode, alternate
   screen and cursor on quit, input/draw errors, handled termination signals and
   unwinding panic. Fatal errors print after restoration.
+- `viewer-interaction-k9` proves ordinary exits and Ctrl-c/SIGTERM using the
+  actual binary under a PTY, inspecting saved terminal attributes and captured
+  leave-alternate-screen/show-cursor output. A test-only child uses the same
+  production lifetime code and injects partial setup failures, input/draw
+  errors and an actual unwinding panic. Verify cleanup rather than just hook
+  registration; no fault switch ships in the product. A closed PTY is a separate
+  bounded-exit case, not evidence of output delivered after its master closes.
 
 ### Markdown
 
@@ -150,10 +183,15 @@ three increments.
   or discard the last saved reading anchor. Non-cooperating external edits are
   not an atomic transaction: reject inconsistent captures and retry. Recover
   automatically once files/structure become readable and valid again.
-- Before automatic refresh lands, the browser provides `r` and uses the same
-  visible failure states; it retries a busy initial/manual read so contention
+- From `responsive-viewer-k8` until automatic refresh lands, the browser provides
+  `r` and uses the same visible failure states; it retries a busy initial/manual
+  read so contention
   cannot strand an otherwise idle UI. Its documentation calls it a manual
   refresh browser until the final increment lands.
+- `tree-viewer-k3` alone uses the existing blocking reader and diagnostic;
+  startup/selection/manual reload may wait for a writer. Its usage documents
+  this temporary limit. `responsive-viewer-k8` removes it before the full
+  interaction contract and Markdown are added.
 
 ### Dependencies and delivery
 
@@ -173,9 +211,22 @@ Sources were inspected from the corresponding static.crates.io release archives.
 
 The viewer ships inside the existing `grove` executable. Its library inherits
 workspace version, Rust floor and lint settings and has no independent release.
+Set `[package.metadata.release] release = false` in the new crate, retaining
+workspace version inheritance. Reconcile the shipped-package inventory in
+`docs/RELEASING.md` and `release.toml`; book-validation remains a separately
+versioned authoring tool outside that shipped package count.
 Update command-surface assertions, architecture/module descriptions, README,
 usage coverage and release documentation with the increment that changes them.
 Check the existing two-binary archive/install path; no third binary is needed.
+
+Every implementation slice updates `CHANGELOG.md` under `## Unreleased` for its
+delivered behavior. Book-reconstructed source changes carry affected manifests,
+ownership ranges, fragments and explanations in the same commit, with final
+validation of each affected book (`docs/specs/walkthrough-books.md`). The
+overview book owns the human crate; the grove-loop book owns the reader facade;
+the ordinal-fs-tree book owns its fs implementation. Update affected corpus
+count assertions from the new validated corpus, preserving byte-exact checks.
+New `grove-tui` sources do not by themselves require a new walkthrough book.
 
 ## Test seams
 

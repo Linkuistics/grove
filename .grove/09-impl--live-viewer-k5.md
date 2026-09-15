@@ -9,8 +9,9 @@ full observable contract and delivery verification.
 
 ## Context
 
-- `tree-viewer-k3` supplies the runnable application, quiet try-read, lifetime
-  cleanup and main temporary-tree test seam.
+- `tree-viewer-k3` supplies the runnable application and temporary-tree seam;
+  `responsive-viewer-k8` supplies quiet try-read and `viewer-interaction-k9`
+  supplies the full interaction and terminal-restoration evidence.
 - `markdown-viewer-k4` supplies formatted layout with source ranges and scroll
   anchors. Extend that application's observation and reconciliation behavior.
 - The root brief specifies polling, root lifetime, duplicate keys, disappearance,
@@ -58,8 +59,22 @@ full observable contract and delivery verification.
 - README, usage examples/key help, command coverage, architecture and delivery
   documentation describe the completed monitor. Review the root's Done when
   against the delivered evidence and add a precise follow-up only for a real gap.
+- Update CHANGELOG.md under Unreleased. Source edits in the human crate carry
+  docs/walkthroughs/overview/ updates; reader-facade edits carry
+  docs/walkthroughs/grove-loop/ updates; fs changes carry the ordinal-fs-tree
+  book. Change affected manifests, ownership ranges, fragments, explanations
+  and corpus assertions together, with final validation of each affected book.
+  Preserve grove-tui's workspace-version/release=false policy and reconcile
+  release inventory only if delivered package membership changes.
 
 ## Notes
+
+If execution shows this slice is too large, its concrete decomposition seam is
+observation, root lifetime, selection/expansion and missing-item fallback first,
+then content-change anchor reconciliation and the real-clock recovery matrix.
+The first child must remain a runnable live monitor with its temporary reading
+position limitation documented; the second completes this leaf's full contract.
+This sizing note creates no extra leaf until the need is demonstrated.
 
 The clock-triggered refresh and scripted refresh must enter the same application
 operation. Polling is the production change detector, so a test of an injected

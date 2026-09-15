@@ -2,80 +2,73 @@
 
 ## Goal
 
-Deliver a runnable, permanently read-only tree and file browser through
-`grove view [WORKTREE]`. This first increment is useful on its own: navigate
-every task and branch, read their files as plain text, and request a refresh.
-The root brief owns the final UI contract; formatted Markdown and continuous
-observation arrive in the following increments.
+Deliver a basic runnable, permanently read-only plain-text browser through
+`grove view [WORKTREE]`: navigate the tree, read tasks/briefs, and manually
+refresh. This is the first working slice of the root's final contract.
 
 ## Context
 
-- `crates/grove/src/cli.rs`: dispatch currently resolves jj, acquires a lease
-  and loads configuration unconditionally. Its command-surface assertion also
-  assumes no subcommands. Change both for the explicit viewer route.
-- `crates/grove-loop/src/lib.rs`: the public `Reading`/`Tree` interface.
-- `crates/grove-loop/src/task_tree.rs`: the existing reader, contention
-  diagnostic, `entry_path` helper and Grove error restatement.
-- `crates/ordinal-fs-tree/src/fs/{mod,lock}.rs`: shared guard acquisition and
-  snapshot creation. `read` blocks today; keep its behavior for existing users.
-- `crates/ordinal-fs-tree/src/snapshot.rs`: ordered children, node contents and
-  distinguished files. The application must not use `pick` as its tree view.
-- Add the `grove-tui` workspace library, its application/terminal adapter and
-  interface tests. The root brief owns the seam and dependency choices.
-- Reconcile `docs/specs/module-decomposition.md`,
-  `docs/ordinal-fs-tree/ARCHITECTURE.md`, `docs/ARCHITECTURE.md`, `CONTEXT-MAP.md`,
-  `README.md`, `docs/USAGE.md`, `docs/specs/user-guide-coverage.md` and the
-  corresponding command/documentation tests where this increment changes their
-  claims. Check release manifests/docs and `scripts/release-build.sh` for the
-  new library's place in the existing executable delivery.
+- Add the `grove-tui` library with the root's application seam and dependencies.
+  `crates/grove/src/cli.rs` dispatches view before jj, driver lease or launch
+  configuration resolution.
+- Use the existing blocking grove-loop Reading/Tree API and typed snapshot.
+  Reuse canonical path composition; expose only the existing helper if needed.
+  `responsive-viewer-k8` owns quiet try-read. Copy display data/selected bytes
+  and release the guard before layout, input waits and idle time.
+- `docs/walkthroughs/overview/walkthrough.toml` reconstructs the human crate's
+  manifest/main/CLI. Carry affected pages and ranges with source changes. If
+  exposing the path helper changes grove-loop, update its walkthrough too.
 
 ## Done when
 
-- `grove view` opens `./.grove`; an explicit directory selects that directory's
-  `.grove`. It works without jj metadata or launch configuration and alongside
-  a real Grove driver. Bare `grove`, help and version retain their contracts.
-- A root row, all nested nodes and all live/terminal leaves appear in tree
-  order with the agreed labels. Selection opens the correct file or node brief.
-  Tree expansion, pane focus, scrolling, key help, resize and quit work as
-  specified in the root brief. This increment displays literal text safely.
-- A real nonblocking shared acquisition returns busy without printing to the
-  terminal, and uses the existing guarded parser when acquired. Expose it
-  through Grove's public reader and expose/reuse its existing path composition.
-  No snapshot or selected-file bytes are taken on a failed acquisition, and
-  every successful read releases its guard before input waits or rendering.
-- `r` reloads the tree and file; initial/manual busy reads retry without
-  freezing navigation or quit. Show the missing, malformed and file-error
-  states from the root brief, with manual recovery after external repair.
-  This slice may reset selection to the root on a successful manual reload;
-  key-based refresh preservation belongs to `live-viewer-k5`.
-- Through the application seam, temporary-tree fixtures demonstrate nested
-  navigation, all outcomes, open-token kinds, empty documents, brief selection,
-  collapse/expand, scrolling and narrow/zero-sized frames. Compare a recursive
-  manifest of names and file bytes before/after all viewer interactions.
-- A separate process holding the real exclusive tree lock causes a visible busy
-  state while keys/quit still work; release allows a successful read. Conversely
-  a real mutator completes while the browser is idle. These tests must have
-  deadlines and must not deadlock a test process on its own lock.
-- Non-TTY invocation fails before terminal setup. A real PTY smoke check covers
-  keyboard navigation, resize, quit, Ctrl-c, SIGTERM and error/panic restoration.
-  Include cleanup of partial initialization; do not assume a Drop guard handles
-  process termination signals. Capture reproducible observations in this leaf.
-- Usage/help/README describe the currently delivered manual-refresh browser.
-  The new crate inherits workspace version, Rust floor and lint settings and
-  is included transitively when the existing `grove` package is built/installed.
-  `grove-loop` and `grove-llm` keep terminal dependencies out of their dependency
-  graphs.
+- `grove view` observes `./.grove`; its optional argument is the containing
+  directory. Help states there is no upward search and gives both examples.
+  Temporary non-jj directories and concurrent viewers work. Bare grove keeps
+  its lifecycle and no selector arguments; assert exactly `{view}` as the
+  subcommand set and preserve help/version/description coverage.
+- A selectable root and ordered nested branch/task rows include every outcome
+  and open-token kind. Use the root's derived branch labels/counts, including
+  all-done, all-abandoned, mixed terminal and empty subtrees. Initially select
+  root and expand branches; Up/Down or j/k selects rows and Enter toggles a
+  branch. Selection
+  opens the corresponding file/brief as inert plain text. PageUp/PageDown
+  scroll the file so long documents remain readable. q/Ctrl-c exit.
+- `r` reloads tree/content; selection may reset to root. Missing/malformed trees
+  and selected-file errors have visible states and recover on manual refresh.
+  A retained last-good tree is visibly stale after a failed reload. No repair or
+  scaffolding occurs. Usage states the temporary blocking-read/diagnostic limit
+  on startup, selection and reload; this slice does not claim quit remains
+  responsive while waiting for a writer.
+- Non-TTY input/output fails before terminal setup. Basic terminal ownership
+  restores modes, alternate screen and cursor on ordinary quit and returned
+  errors, with fatal messages afterward. An actual-terminal smoke demonstrates
+  navigation, file scrolling, refresh and q/Ctrl-c restoration. Full fault and
+  signal evidence belongs to `viewer-interaction-k9`.
+- Application-seam tests use real temporary trees for nested navigation,
+  collapse/expand, root/node brief selection, labels, safe control characters,
+  empty documents and long-file reading. Rendering is safe at zero/small sizes.
+  Compare names/bytes before and after interactions; viewer state is memory-only.
+- README, docs/USAGE.md and docs/specs/user-guide-coverage.md describe this
+  subset; G4 retains the bare lifecycle's lack of launch-policy selectors.
+  Reconcile docs/specs/module-decomposition.md, docs/ARCHITECTURE.md and
+  CONTEXT-MAP.md for the viewer crate, including touched manifests' obsolete
+  claim that only grove-loop can be domain-bound.
+- The library inherits workspace version, Rust floor and lints, and sets
+  `[package.metadata.release] release = false`. Reconcile docs/RELEASING.md and
+  release.toml's shipped-package inventory. Check scripts/release-build.sh's
+  two-binary delivery: building/installing grove includes the viewer transitively.
+  grove-loop and grove-llm acquire no terminal dependencies.
 
 ## Notes
 
-Use the root's one application seam for behavior tests and only a narrow
-additional store test for the new shared-lock acquisition contract. Set up the
-failing end-to-end browser example first; land the library work together with
-the working browser rather than leaving a reader-only intermediate commit.
+Full pane focus, arrow/hjkl expansion, Home/End, line/horizontal scrolling,
+key help and the too-small/resize state arrive in `viewer-interaction-k9`.
+Markdown and live observation follow. Keep this slice usable without absorbing
+those later leaves to satisfy the root prematurely.
 
-Validate with targeted store/loop/viewer/CLI tests, `cargo test --workspace`,
+Update CHANGELOG.md under Unreleased. Run focused viewer/CLI and changed loop
+tests, affected books' final validation (including ownership/fragments and any
+changed corpus assertions), `cargo test --workspace`,
 `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets`,
-`rustup run 1.85 cargo check --locked --workspace --all-targets`, and an actual
-`grove` executable build. Inspect dependency resolution for the Rust floor;
-upstream manifest floors alone do not prove the lockfile builds. Use installed
-or directly built `grove-llm`, never `cargo run`, for tree verbs.
+`rustup run 1.85 cargo check --locked --workspace --all-targets`, and a real
+grove executable build/smoke. Record commands and results here.

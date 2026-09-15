@@ -8,8 +8,9 @@ and the permanent read-only contract.
 
 ## Context
 
-- `tree-viewer-k3` delivers the application interface, tree adapter, terminal
-  lifetime, command and main test seam.
+- `tree-viewer-k3` delivers the basic application/command; `responsive-viewer-k8`
+  adds quiet reads and `viewer-interaction-k9` completes interaction and terminal
+  hardening. All share the root's application test seam.
 - Extend `grove-tui` behind that interface; add its private Markdown/layout
   module and the pulldown-cmark dependency described by the root brief.
 - The actual parser source exposes `Parser::new_ext`, `Options::ENABLE_TABLES`
@@ -38,6 +39,13 @@ and the permanent read-only contract.
 - Help/usage describe formatted reading and horizontal scrolling, with a
   short terminal smoke demonstration of a representative task and branch brief.
   The crate dependency graph still builds with the workspace's Rust floor.
+- Update CHANGELOG.md under Unreleased. If CLI/manifest changes touch the human
+  crate, update docs/walkthroughs/overview/; reader-facade changes also update
+  docs/walkthroughs/grove-loop/ (and ordinal-fs-tree's book if its source changes).
+  Carry affected manifests, ownership ranges, fragments and explanations with
+  source changes, update changed corpus assertions and run final validation of
+  every affected book. Preserve grove-tui's workspace version and release=false
+  metadata; a private dependency adds no independently released package.
 
 ## Notes
 

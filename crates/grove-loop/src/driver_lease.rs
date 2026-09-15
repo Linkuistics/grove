@@ -260,9 +260,13 @@ impl DriverLease {
         signal_path: &Path,
         acquire: impl FnOnce(&Path) -> Result<File>,
     ) -> Result<()> {
-        self.prepare_launch_using(root, signal_path, acquire, |launch, epoch| {
-            launch.publish(epoch, selected)
-        })
+        self.prepare_launch_using(
+            root,
+            signal_path,
+            acquire,
+            witnesses::LaunchWitnesses::prepare,
+            |launch, epoch| launch.publish(epoch, selected),
+        )
     }
 
     fn prepare_launch_using(
@@ -270,6 +274,7 @@ impl DriverLease {
         root: crate::TreeLifetime,
         signal_path: &Path,
         acquire: impl FnOnce(&Path) -> Result<File>,
+        prepare: impl FnOnce(&mut witnesses::LaunchWitnesses, &Path) -> Result<()>,
         publish: impl FnOnce(&witnesses::LaunchWitnesses, &mut File) -> Result<()>,
     ) -> Result<()> {
         anyhow::ensure!(
@@ -302,7 +307,7 @@ impl DriverLease {
             )?;
             self.clean_witnesses();
             if let Some(launch) = self.launch.as_mut() {
-                if let Err(error) = launch.prepare(&self.control_dir) {
+                if let Err(error) = prepare(launch, &self.control_dir) {
                     eprintln!(
                         "grove: warning: launch observation unavailable; continuing: {error:#}"
                     );
@@ -1062,6 +1067,7 @@ mod tests {
                 root,
                 &signal,
                 |path| acquire_epoch_file(path, LockMode::Exclusive, "test"),
+                witnesses::LaunchWitnesses::prepare,
                 |launch, epoch| {
                     // Exhaust capacity partway through the real extension serializer.
                     struct Limited<'a>(&'a mut File, usize);

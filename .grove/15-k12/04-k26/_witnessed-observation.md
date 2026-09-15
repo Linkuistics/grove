@@ -124,3 +124,39 @@ Idle is independently useful to existing Viewer callers and needs no tree
 attachment inference. A contended witness stays Unavailable in k34; k35 must
 add the directory probe before permitting Running. The complete native and
 mutation evidence remains mandatory under this node.
+
+## Interleaving and observer handoff
+
+witness-interleavings-k36 and witness-replacement-observers-k39 deliver their
+release-order, replacement-order, concurrent-viewer and foreign-process
+controls through k38/k40/k41/k42. k38 records the directory-check mutation;
+k41 records the independent epoch-before-preparation mutation. Both retain
+real Running positives and exact restoration provenance. The current tests
+still use the production observer, with internal synchronization and native
+probes only; forced numeric/key reuse is a model, not host inode-reuse evidence.
+
+k40 covers overlapping shared probes on released Started bytes, repeated real
+launches under continuous viewers, and read-only snapshots across aliases,
+absent trees, non-jj locations and missing namespaces. k42 adds separate
+self-exec shared holders for each witness: acquisition readiness, independent
+shared compatibility, bounded observation-only preparation failure, real
+launch/admission, Unavailable, rollback, actual reap and recovery. Its
+private-file barrier checks the containing-directory mutation lock while the
+root witness is held. Existing reported-error, handoff and escaped-guard
+controls remain green. The k42 task contains the full k39/k36 contract map.
+
+For k37, run both `witness_foreign_directory_holder_preserves_launch_and_admission`
+and `witness_foreign_private_holder_preserves_launch_and_admission` in the
+required `witness_` suite. Their `witness_foreign_shared_holder_process` helper
+returns without work when run alone; the two scenario cases establish process
+evidence by launching it with the private fixture environment. The host run
+here does not discharge k37's exact native macOS/Linux process-death,
+exec-survivor and real replacement evidence. Keep k26 live for that leaf.
+Complete protocol review remains assigned to k27; no competing reviewer was
+used for these controls. No additional ADR decision was needed.
+
+The k42 final gate passed all eight principal checks and six book validations.
+Its full workspace run includes the error-matrix test isolated with the existing
+fork-sensitive wrapper, preventing incidental inherited epoch locks from
+short-circuiting its witness probes. k42 closes k39 and k36; their terminal
+subtree stays in place with the mutation and restoration records.

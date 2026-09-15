@@ -176,8 +176,269 @@ pub(super) fn discard_abandoned(directory: &Path, retained: Option<&Path>) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{BufRead, BufReader, Read};
     use std::os::unix::fs::PermissionsExt;
+    use std::process::{Child, Command, Stdio};
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::{Duration, Instant};
     use tempfile::TempDir;
+
+    const FOREIGN_PATH: &str = "GROVE_TEST_FOREIGN_WITNESS_PATH";
+    const WAIT: Duration = Duration::from_secs(10);
+
+    #[test]
+    fn witness_foreign_shared_holder_process() {
+        let Some(path) = std::env::var_os(FOREIGN_PATH) else {
+            return;
+        };
+        let file = File::open(path).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0
+        );
+        println!("locked");
+        std::io::stdout().flush().unwrap();
+        let mut release = [0];
+        std::io::stdin().read_exact(&mut release).unwrap();
+        assert_eq!(release, [b'x']);
+        drop(file);
+    }
+
+    struct ForeignHolder(Child);
+
+    impl ForeignHolder {
+        fn start(path: &Path) -> Self {
+            let mut holder = Self(
+                Command::new(std::env::current_exe().unwrap())
+                    .args([
+                        "--exact",
+                        "driver_lease::witnesses::tests::witness_foreign_shared_holder_process",
+                        "--nocapture",
+                    ])
+                    .env(FOREIGN_PATH, path)
+                    .env_remove("GROVE_SIGNAL_FILE")
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .unwrap(),
+            );
+            let stdout = holder.0.stdout.take().unwrap();
+            let (ready_tx, ready_rx) = mpsc::channel();
+            thread::spawn(move || {
+                for line in BufReader::new(stdout).lines() {
+                    if line.unwrap() == "locked" {
+                        ready_tx.send(()).unwrap();
+                    }
+                }
+            });
+            ready_rx
+                .recv_timeout(WAIT)
+                .expect("foreign shared lock readiness");
+            holder
+        }
+
+        fn release_and_reap(&mut self) {
+            self.0.stdin.take().unwrap().write_all(b"x").unwrap();
+            let deadline = Instant::now() + WAIT;
+            loop {
+                if let Some(status) = self.0.try_wait().unwrap() {
+                    assert!(status.success(), "foreign holder failed: {status}");
+                    return;
+                }
+                assert!(Instant::now() < deadline, "foreign holder did not exit");
+                thread::yield_now();
+            }
+        }
+    }
+
+    impl Drop for ForeignHolder {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+
+    #[test]
+    fn witness_foreign_directory_holder_preserves_launch_and_admission() {
+        foreign_holder_preserves_launch(false);
+    }
+
+    #[test]
+    fn witness_foreign_private_holder_preserves_launch_and_admission() {
+        foreign_holder_preserves_launch(true);
+    }
+
+    fn foreign_holder_preserves_launch(private: bool) {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        use super::super::{
+            acquire_epoch_file, admit_session, tests::witness_selection, DriverLease, LockMode,
+        };
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        fs::write(temp.path().join(".grove/_BRIEF.md"), "root").unwrap();
+        let workspace = jj_workspace::Workspace::resolve(temp.path()).unwrap();
+        let mut lease = DriverLease::acquire(&workspace).unwrap();
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        let channel = keyed_launch::Channel::allocate(lease.control_dir()).unwrap();
+        let signal = channel.path().to_path_buf();
+        let directory = temp.path().join(".grove");
+        let mut holder = (!private).then(|| ForeignHolder::start(&directory));
+        let (path_tx, path_rx) = mpsc::channel();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let worker = thread::spawn(move || {
+            let mut preparation_error = None;
+            let result = lease.prepare_launch_using(
+                root,
+                &signal,
+                |path| acquire_epoch_file(path, LockMode::Exclusive, "foreign holder test"),
+                |launch, control| {
+                    let result = launch.prepare_with(
+                        control,
+                        random_nonce,
+                        |path, _| {
+                            assert!(private, "directory contention must prevent allocation");
+                            path_tx.send(path.to_path_buf()).unwrap();
+                            ready_rx.recv_timeout(WAIT).unwrap();
+                            Ok(())
+                        },
+                        lock,
+                    );
+                    preparation_error = result.as_ref().err().map(|error| format!("{error:#}"));
+                    result
+                },
+                |launch, epoch| launch.publish(epoch, &witness_selection()),
+            );
+            done_tx.send((lease, result, preparation_error)).unwrap();
+        });
+        let target = if private {
+            let path = path_rx
+                .recv_timeout(WAIT)
+                .expect("private witness allocation");
+            holder = Some(ForeignHolder::start(&path));
+            path
+        } else {
+            directory.clone()
+        };
+        let probe = File::open(&target).unwrap();
+        assert!(
+            shared(&probe),
+            "foreign shared locks permit shared observation"
+        );
+        // Keep the independent probe nonblocking even if production locking regresses.
+        let assert_foreign_lock = || {
+            assert_eq!(
+                unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                -1
+            );
+            assert!(matches!(std::io::Error::last_os_error().raw_os_error(),
+                Some(code) if code == libc::EAGAIN || code == libc::EWOULDBLOCK));
+        };
+        assert_foreign_lock();
+        if private {
+            // Preparation already holds the directory, without blocking mutations
+            // guarded by its containing directory.
+            assert!(!shared(&File::open(&directory).unwrap()));
+            lock(&File::open(temp.path()).unwrap()).unwrap();
+            ready_tx.send(()).unwrap();
+        }
+        let (mut lease, result, error) = done_rx
+            .recv_timeout(WAIT)
+            .expect("preparation must finish before the foreign holder releases");
+        worker.join().unwrap();
+        result.unwrap();
+        let error = error.expect("foreign holder must defeat preparation");
+        assert!(
+            error.contains(if private {
+                "locking private witness"
+            } else {
+                "locking task-root witness"
+            }),
+            "{error}"
+        );
+        assert!(lease.launch.as_ref().unwrap().private.is_none());
+        assert!(lease.launch.as_ref().unwrap().path().is_none());
+        assert!(
+            shared(&File::open(&directory).unwrap()),
+            "partial directory lock rolled back"
+        );
+        lock(&File::open(temp.path()).unwrap()).unwrap();
+
+        let config = temp.path().join("launch.kdl");
+        fs::write(&config, "test \"/bin/sh -c 'echo launched > proof'\"\n").unwrap();
+        let templates =
+            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
+                .unwrap();
+        let argv = templates.expand("test", &[]).unwrap();
+        let mut events = Vec::new();
+        lease
+            .supervise_launch(|observer| {
+                keyed_launch::run_observed(
+                    keyed_launch::Launch {
+                        argv: &argv,
+                        channel: &channel,
+                        channel_var: "GROVE_SIGNAL_FILE",
+                        scrub: &[],
+                        cwd: Some(temp.path()),
+                        escalation: keyed_launch::Escalation {
+                            grace: Duration::ZERO,
+                            kill_grace: Duration::ZERO,
+                        },
+                    },
+                    &mut |event| {
+                        observer(event);
+                        events.push(event);
+                        assert!(admit_session(
+                            temp.path(),
+                            "test",
+                            Some(channel.path().to_path_buf())
+                        )
+                        .is_ok());
+                        assert!(matches!(
+                            crate::try_observe(temp.path(), &[None]).activity,
+                            crate::ActivityObservation::Unavailable(_)
+                        ));
+                        assert!(shared(&probe));
+                        assert_foreign_lock();
+                    },
+                )
+            })
+            .unwrap();
+        assert_eq!(
+            events,
+            [
+                keyed_launch::LaunchEvent::Started,
+                keyed_launch::LaunchEvent::Reaped
+            ]
+        );
+        assert_eq!(fs::read(temp.path().join("proof")).unwrap(), b"launched\n");
+        assert!(lease.launch.is_none());
+        holder.as_mut().unwrap().release_and_reap();
+        lock(&probe).unwrap();
+        drop(probe);
+        lock(&File::open(&directory).unwrap()).unwrap();
+        lease.invalidate_session_epoch().unwrap();
+        if private {
+            assert!(
+                !target.exists(),
+                "invalidation cleans the abandoned private file"
+            );
+        }
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), channel.path())
+            .unwrap();
+        assert!(
+            lease.launch.as_ref().unwrap().private.is_some(),
+            "preparation recovers after reap"
+        );
+        drop(lease);
+        channel.discard().unwrap();
+    }
 
     #[test]
     fn witnessed_started_is_exact_and_never_retried_after_success_or_failure() {

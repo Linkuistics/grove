@@ -1120,6 +1120,9 @@ mod tests {
 
     #[test]
     fn witness_directory_private_and_marker_error_matrix_obeys_final_probe() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, _lease) = started_fixture();
         let pin = TreeLifetime::open(work.path()).unwrap().unwrap();
         for directory in [ProbeResult::Released, ProbeResult::Held, ProbeResult::Error] {

@@ -360,6 +360,15 @@ preparation before epoch acquisition exposes a new directory witness under the
 old record and falsely attaches the old mandate. This deterministic model does
 not assert host inode reuse; native process-death evidence remains separate.
 
+Separate self-exec shared holders cover each witness at preparation. Readiness
+acknowledges lock acquisition; independent shared probes succeed while exclusive
+preparation returns with observation unavailable. Real Started/Reaped launches
+and admission still succeed while the foreign holder remains locked. Reap,
+exclusive reacquisition, partial-setup rollback and subsequent preparation check
+recovery. The private-file barrier also checks that the containing-directory
+mutation lock remains usable while the task-root witness is held. These host
+controls do not substitute for the paired native platform evidence.
+
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed
 reap, including recovery from a wait error, before token reading and terminal

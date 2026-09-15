@@ -93,6 +93,8 @@ impl FileIdentity {
 /// advisory lease; bytes left in the lease file do not carry ownership.
 #[derive(Debug)]
 pub struct DriverLease {
+    // Released explicitly before driver ownership, including on unwind.
+    launch: Option<crate::TreeLifetime>,
     worktree_root: PathBuf,
     control_dir: PathBuf,
     _worktree_directory: File,
@@ -174,6 +176,7 @@ impl DriverLease {
         let nonce = hex_nonce(random_nonce()?)?;
 
         let mut lease = Self {
+            launch: None,
             worktree_root,
             control_dir,
             _worktree_directory: worktree_directory,
@@ -217,12 +220,83 @@ impl DriverLease {
         &self.control_dir
     }
 
+    #[cfg(test)]
     pub(crate) fn activate_session_epoch(&self, signal_path: &Path) -> Result<()> {
         self.write_epoch_record(Some(signal_path), "pre-spawn activation")
     }
 
     pub(crate) fn invalidate_session_epoch(&self) -> Result<()> {
         self.write_epoch_record(None, "post-reap invalidation")
+    }
+
+    /// Transfer the selected pin before publication. The second check occurs
+    /// after the potentially blocking epoch acquisition, with that guard held.
+    pub(crate) fn prepare_launch(
+        &mut self,
+        root: crate::TreeLifetime,
+        signal_path: &Path,
+    ) -> Result<()> {
+        self.prepare_launch_with(root, signal_path, |path| {
+            acquire_epoch_file(path, LockMode::Exclusive, "pre-spawn activation")
+        })
+    }
+
+    fn prepare_launch_with(
+        &mut self,
+        root: crate::TreeLifetime,
+        signal_path: &Path,
+        acquire: impl FnOnce(&Path) -> Result<File>,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            self.launch.is_none(),
+            "previous launch has no confirmed reap"
+        );
+        anyhow::ensure!(
+            root.at(&self.worktree_root)?,
+            "task tree changed before foreground launch"
+        );
+        self.launch = Some(root);
+        let result = (|| {
+            let mut epoch = acquire(&self.control_dir.join(EPOCH_FILE_NAME))?;
+            anyhow::ensure!(
+                self.launch
+                    .as_ref()
+                    .context("selected root missing during preparation")?
+                    .at(&self.worktree_root)?,
+                "task tree changed before foreground launch"
+            );
+            write_epoch_contents(
+                &mut epoch,
+                self.worktree_identity,
+                &self.worktree_root,
+                &self.nonce,
+                Some(signal_path),
+            )
+        })();
+        if result.is_err() {
+            self.launch.take();
+        }
+        result
+    }
+
+    /// Only Started/Reaped evidence changes the lifetime. An unsuccessful wait
+    /// leaves the pin here after the helper returns; epoch invalidation alone
+    /// never releases it. The runner invokes Reaped before terminal recovery.
+    pub(crate) fn supervise_launch<T>(
+        &mut self,
+        run: impl FnOnce(&mut dyn FnMut(keyed_launch::LaunchEvent)) -> T,
+    ) -> T {
+        let mut started = false;
+        let result = run(&mut |event| match event {
+            keyed_launch::LaunchEvent::Started => started = true,
+            keyed_launch::LaunchEvent::Reaped => {
+                self.launch.take();
+            }
+        });
+        if !started {
+            self.launch.take();
+        }
+        result
     }
 
     /// Confirm that the paths still name the descriptors this process owns.
@@ -298,6 +372,12 @@ impl DriverLease {
             &self.worktree_root,
             &self.nonce,
         )
+    }
+}
+
+impl Drop for DriverLease {
+    fn drop(&mut self) {
+        self.launch.take();
     }
 }
 
@@ -825,6 +905,177 @@ fn write_record(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn lease_root_owner_real_spawn_and_preparation_failure_release() {
+        for program in ["/bin/sh", "/no-such-grove-test-program"] {
+            let temp = TempDir::new().unwrap();
+            fs::create_dir(temp.path().join(".jj")).unwrap();
+            fs::create_dir(temp.path().join(".grove")).unwrap();
+            let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
+            let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+            let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
+            lease.prepare_launch(root, channel.path()).unwrap();
+            let config = temp.path().join("launch.kdl");
+            fs::write(&config, format!("test \"{program} -c true\"\n")).unwrap();
+            let templates = keyed_launch::Templates::load(
+                &config,
+                None,
+                keyed_launch::Vocabulary { slots: &[] },
+            )
+            .unwrap();
+            let argv = templates.expand("test", &[]).unwrap();
+            let result = lease.supervise_launch(|observer| {
+                keyed_launch::run_observed(
+                    keyed_launch::Launch {
+                        argv: &argv,
+                        channel: &channel,
+                        channel_var: "GROVE_SIGNAL_FILE",
+                        scrub: &[],
+                        cwd: Some(temp.path()),
+                        escalation: keyed_launch::Escalation {
+                            grace: Duration::ZERO,
+                            kill_grace: Duration::ZERO,
+                        },
+                    },
+                    observer,
+                )
+            });
+            assert_eq!(result.is_ok(), program == "/bin/sh", "{result:?}");
+            assert!(lease.launch.is_none(), "{program}");
+
+            let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+            let result = lease.prepare_launch_with(root, channel.path(), |_| {
+                Err(anyhow::anyhow!("injected epoch acquisition failure"))
+            });
+            assert!(result.is_err());
+            assert!(lease.launch.is_none());
+            let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+            let result = lease.prepare_launch_with(root, channel.path(), |path| {
+                // A read-only descriptor makes the mandatory epoch write fail.
+                Ok(File::open(path)?)
+            });
+            assert!(result.is_err());
+            assert!(lease.launch.is_none());
+            channel.discard().unwrap();
+        }
+    }
+
+    #[test]
+    fn lease_root_owner_unwind_retains_until_lease_drop() {
+        if !fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        let workspace = workspace_at(temp.path());
+        let mut lease = DriverLease::acquire(&workspace).unwrap();
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        let signal = lease.control_dir.join("signal-test");
+        lease.prepare_launch(root, &signal).unwrap();
+        let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            lease.supervise_launch(|observer| {
+                observer(keyed_launch::LaunchEvent::Started);
+                panic!("injected runner unwind");
+            });
+        }));
+        assert!(unwind.is_err());
+        assert!(lease.launch.is_some());
+        let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            lease.supervise_launch(|observer| {
+                observer(keyed_launch::LaunchEvent::Reaped);
+                panic!("failure after confirmed reap, before helper return");
+            });
+        }));
+        assert!(unwind.is_err());
+        assert!(lease.launch.is_none());
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        lease.prepare_launch(root, &signal).unwrap();
+        let original = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        fs::rename(temp.path().join(".grove"), temp.path().join("old")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        let replacement_pin = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        assert!(lease.prepare_launch(replacement_pin, &signal).is_err());
+        assert!(
+            lease.launch.as_ref().unwrap().same(&original).unwrap(),
+            "a second attempt replaced the unreaped pin"
+        );
+        assert!(DriverLease::acquire(&workspace).is_err());
+        drop(lease);
+        assert!(DriverLease::acquire(&workspace).is_ok());
+    }
+
+    #[test]
+    fn lease_root_owner_rechecks_after_epoch_wait() {
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        let signal = lease.control_dir.join("signal-test");
+        let epoch_path = lease.control_dir.join(EPOCH_FILE_NAME);
+        let reader = acquire_epoch_file(&epoch_path, LockMode::Shared, "test reader").unwrap();
+        let (waiting_tx, waiting_rx) = mpsc::channel();
+        let worker = thread::spawn(move || {
+            let result = lease.prepare_launch_with(root, &signal, |path| {
+                acquire_epoch_file_with(
+                    path,
+                    LockMode::Exclusive,
+                    "test preparation",
+                    Duration::from_secs(5),
+                    Instant::now,
+                    thread::yield_now,
+                    |_, _| Ok(()),
+                    |_, _| Ok(()),
+                    || waiting_tx.send(()).unwrap(),
+                )
+            });
+            (lease, result)
+        });
+        waiting_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        fs::rename(temp.path().join(".grove"), temp.path().join("old")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        drop(reader);
+        let (lease, result) = worker.join().unwrap();
+        assert!(format!("{:#}", result.unwrap_err()).contains("task tree changed"));
+        assert!(lease.launch.is_none());
+        assert!(fs::read_to_string(epoch_path)
+            .unwrap()
+            .starts_with("state=inactive\n"));
+    }
+
+    #[test]
+    fn lease_root_owner_retains_unconfirmed_reap_and_releases_other_returns() {
+        for events in [
+            vec![],
+            vec![keyed_launch::LaunchEvent::Started],
+            vec![
+                keyed_launch::LaunchEvent::Started,
+                keyed_launch::LaunchEvent::Reaped,
+            ],
+        ] {
+            let temp = TempDir::new().unwrap();
+            fs::create_dir(temp.path().join(".jj")).unwrap();
+            fs::create_dir(temp.path().join(".grove")).unwrap();
+            let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
+            let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+            let signal = lease.control_dir.join("signal-test");
+            lease.prepare_launch(root, &signal).unwrap();
+            let result: Result<()> = lease.supervise_launch(|observer| {
+                for event in &events {
+                    observer(*event);
+                }
+                Err(anyhow::anyhow!("injected supervisor failure"))
+            });
+            assert!(result.is_err());
+            let unconfirmed = events == [keyed_launch::LaunchEvent::Started];
+            assert_eq!(lease.launch.is_some(), unconfirmed, "{events:?}");
+            // Neither helper return nor epoch invalidation is evidence of reap.
+            lease.invalidate_session_epoch().unwrap();
+            assert_eq!(lease.launch.is_some(), unconfirmed);
+        }
+    }
+
     /// The fixtures below build a `.jj` marker directly and then acquire against
     /// it. Resolving here rather than inside `acquire` is the shape of the
     /// change this leaf made: the lease takes a workspace it did not resolve.

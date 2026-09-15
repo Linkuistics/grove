@@ -660,3 +660,6 @@
 Selected task-root pinning and pre-activation replacement refusal are explained
 in [the guarded selection](20-the-loop.md#picked) and exercised through the
 [configured-launch controls](20-the-loop.md#the-test-block).
+
+- [Lease-owned launch lifetime and epoch recheck](16-the-lease.md#lease-launch-lifetime)
+- [Launch ownership, failure and waiting controls](17-the-epoch.md#launch-owner-controls)

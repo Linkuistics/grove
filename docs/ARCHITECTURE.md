@@ -295,11 +295,14 @@ trackedness rules below. The user-facing grammar and diagnostics are in
 
 The driver retains the selected task-root directory in a separate `TreeLifetime`
 pin, checked under the selection's tree guard. Finish materialization is followed
-by a fresh guarded selection. The launch helper checks the pin before activating
-the epoch and refuses a root that has disappeared or been replaced. The pin
-retains no tree access lock and adds no persisted tree identity. This is the
-selected-root check; lease-owned witness publication remains the next protocol
-increment.
+by a fresh guarded selection. Launch preparation moves the pin into DriverLease,
+checks it before and after exclusive epoch acquisition, then activates the epoch.
+A missing or replaced root refuses the launch. No epoch or tree guard spans
+spawn. The runner's Reaped event releases the pin before terminal recovery; failed
+spawn releases it on return, while an unconfirmed supervision error retains it
+until lease drop. Drop releases the pin before driver ownership, including on
+unwind. Witness locks and publication remain the next protocol increment; active
+records still observe as Unavailable.
 
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed

@@ -192,16 +192,16 @@ pub enum LoopOutcome {
 /// refuses, or a session that could not be spawned.
 pub fn run(
     workspace: &Workspace,
-    lease: DriverLease,
+    mut lease: DriverLease,
     templates: &TemplateSource,
 ) -> Result<LoopOutcome, crate::Error> {
     ignore_interrupts();
-    Ok(drive(workspace, &lease, templates)?)
+    Ok(drive(workspace, &mut lease, templates)?)
 }
 
 fn drive(
     workspace: &Workspace,
-    driver_lease: &DriverLease,
+    driver_lease: &mut DriverLease,
     templates: &TemplateSource,
 ) -> Result<LoopOutcome> {
     // Both taken from the resolution that already happened rather than
@@ -209,7 +209,8 @@ fn drive(
     // repository root* and the very value `${repo}` expands to, so the delta
     // search order cannot drift from the template it selects
     // (`docs/adr/untracked-configuration-delta.md`).
-    let worktree = driver_lease.worktree_root();
+    let worktree_path = driver_lease.worktree_root().to_path_buf();
+    let worktree = worktree_path.as_path();
     let repo_path = workspace.main_repo();
     let name = worktree_name(worktree);
     let config_path = templates.personal_path();
@@ -256,7 +257,7 @@ fn drive(
                 picked_after_finish(worktree)?
             }
         };
-        let selection = &selected.selection;
+        let selection = selected.selection.clone();
 
         let config = templates.load(&delta_roots)?;
         // The file this kind actually resolved from — the personal file, or the
@@ -285,7 +286,7 @@ fn drive(
             .context("allocating a fresh foreground-session signal channel")?;
         let ended = launch_configured_session(
             &argv,
-            &selected,
+            selected,
             &resolved_source,
             worktree,
             &channel,
@@ -377,7 +378,7 @@ fn session_prompt(handle: &Handle, kind: &Kind, workspace: &Workspace) -> String
 }
 
 /// Launch one fresh foreground session owning the real TTY, and hand it to
-/// `keyed_launch::run`, which spawns it directly — no shell — and supervises it
+/// `keyed_launch::run_observed`, which spawns it directly — no shell — and supervises it
 /// until it ends.
 ///
 /// The argv is taken whole from the expanded configuration. Nothing is appended,
@@ -403,11 +404,11 @@ fn session_prompt(handle: &Handle, kind: &Kind, workspace: &Workspace) -> String
 /// refused.
 fn launch_configured_session(
     argv: &Argv,
-    selected: &SelectedTask,
+    selected: SelectedTask,
     resolved_source: &Path,
     worktree: &Path,
     channel: &Channel,
-    driver_lease: &DriverLease,
+    driver_lease: &mut DriverLease,
 ) -> Result<Ended> {
     let selection = &selected.selection;
     eprintln!(
@@ -417,30 +418,32 @@ fn launch_configured_session(
         selection.handle
     );
 
-    ensure!(
-        selected.lifetime.at(worktree)?,
-        "task tree changed before foreground launch; refusing the stale selection"
-    );
     driver_lease
-        .activate_session_epoch(channel.path())
+        .prepare_launch(selected.lifetime, channel.path())
         .context("activating the foreground session epoch before spawn")?;
 
-    keyed_launch::run(Launch {
-        argv,
-        channel,
-        channel_var: CHANNEL_VAR,
-        scrub: &scrub_list(),
-        cwd: Some(worktree),
-        escalation: ESCALATION,
-    })
-    .with_context(|| {
-        format!(
-            "launching configured session kind `{}` via {:?} from {}",
-            selection.kind.label(),
-            argv.program(),
-            resolved_source.display()
-        )
-    })
+    driver_lease
+        .supervise_launch(|observer| {
+            keyed_launch::run_observed(
+                Launch {
+                    argv,
+                    channel,
+                    channel_var: CHANNEL_VAR,
+                    scrub: &scrub_list(),
+                    cwd: Some(worktree),
+                    escalation: ESCALATION,
+                },
+                observer,
+            )
+        })
+        .with_context(|| {
+            format!(
+                "launching configured session kind `{}` via {:?} from {}",
+                selection.kind.label(),
+                argv.program(),
+                resolved_source.display()
+            )
+        })
 }
 
 fn complete_post_reap_epoch_handoff<E, T>(
@@ -596,7 +599,7 @@ mod tests {
             let temp = selected_root_fixture();
             let work = temp.path();
             let workspace = Workspace::resolve(work).unwrap();
-            let lease = DriverLease::acquire(&workspace).unwrap();
+            let mut lease = DriverLease::acquire(&workspace).unwrap();
             let Sought::Match(selection) = picked(work).unwrap() else {
                 panic!("fixture must select work-k1");
             };
@@ -620,7 +623,7 @@ mod tests {
             let argv = templates.expand("impl", &[]).unwrap();
             let channel = Channel::allocate(lease.control_dir()).unwrap();
             let result =
-                launch_configured_session(&argv, &selection, &config, work, &channel, &lease);
+                launch_configured_session(&argv, selection, &config, work, &channel, &mut lease);
             assert_eq!(result.is_ok(), state == "current", "{state}: {result:?}");
             assert_eq!(work.join("launched").exists(), state == "current");
             let epoch = std::fs::read_to_string(lease.control_dir().join("session.epoch")).unwrap();

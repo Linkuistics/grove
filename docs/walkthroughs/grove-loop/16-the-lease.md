@@ -25,15 +25,10 @@ chapter 13's and not this one's is ordering — it is worth having before either
 page needs it, and the earlier page is where it goes. What is left here is the
 mechanism.
 
-**The size, stated once and checkably.** `driver_lease.rs` is 1,383 lines, which
-makes it the **fourth** largest of the thirteen roots, behind `tree_lifecycle.rs`
-at 2,725, `task_tree.rs` at 2,038 and `task_name.rs` at 1,743. Split at its
-`#[cfg(test)]` line it yields this chapter's 819 lines and chapter 17's 564 — and
-819 is the **largest single owned block in the book**, ahead of chapter 13's 808
-and chapter 12's 775. A rank is easy to get wrong here because the root and the
-owned block are two different units and only one of them is 1,383 lines, which is
-why this chapter counts the lines itself rather than carrying a rank in from
-anywhere else.
+The source index owns the current file and fragment totals. This chapter reads
+the production lease and epoch mechanisms; chapter 17 reads their inline test
+module. Launch-root ownership adds the optional retained pin, preparation and
+event adapter to the production portion, with matching controls in chapter 17.
 
 **Say which tree.** The store's vocabulary does not reach this block at all.
 There is no `Entry`, no `Key`, no `Sought`, no ordinal and no position in these
@@ -125,7 +120,7 @@ own items, in file order. Everything below reads them in a different order —
 by mechanism rather than by declaration — so the composite is where the file's
 own shape stays visible.
 
-<!-- fragment «lease-and-epoch» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="1-825" parent="source-driver-lease" -->
+<!-- fragment «lease-and-epoch» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="1-905" parent="source-driver-lease" -->
 <!-- insert «lease-module-header» -->
 <!-- insert «lease-imports» -->
 <!-- insert «lease-namespace» -->
@@ -144,6 +139,7 @@ own shape stays visible.
 <!-- insert «lease-worktree-root» -->
 <!-- insert «lease-control-dir» -->
 <!-- insert «lease-epoch-transitions» -->
+<!-- insert «lease-launch-lifetime» -->
 <!-- insert «lease-revalidate» -->
 <!-- insert «lease-write-epoch-record» -->
 <!-- insert «lease-initialize-epoch-record» -->
@@ -499,7 +495,7 @@ lives in a `File` field, and closing the field is what releases it. The first is
 the lease itself, and its doc comment is the most consequential three sentences
 in the file.
 
-<!-- fragment «lease-driver-lease-type» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="89-104" parent="lease-and-epoch" -->
+<!-- fragment «lease-driver-lease-type» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="89-106" parent="lease-and-epoch" -->
 ````rust
 
 /// Process-scoped ownership of one exact Grove working tree.
@@ -508,6 +504,8 @@ in the file.
 /// advisory lease; bytes left in the lease file do not carry ownership.
 #[derive(Debug)]
 pub struct DriverLease {
+    // Released explicitly before driver ownership, including on unwind.
+    launch: Option<crate::TreeLifetime>,
     worktree_root: PathBuf,
     control_dir: PathBuf,
     _worktree_directory: File,
@@ -551,7 +549,7 @@ replacement driver's epoch is distinguishable from its predecessor's even when
 every other field — device, inode, path — is identical. That is the case that
 matters, since a replacement driver by definition owns the same working tree.
 
-<!-- fragment «lease-session-epoch-guard-type» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="105-110" parent="lease-and-epoch" -->
+<!-- fragment «lease-session-epoch-guard-type» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="107-112" parent="lease-and-epoch" -->
 ````rust
 
 #[derive(Debug)]
@@ -569,7 +567,7 @@ channel that lock admitted. An `admit_session` caller keeps this value alive
 across its own tree access, and that lifetime is the protocol's one
 non-obvious guarantee, argued below.
 
-<!-- fragment «lease-require-signal-path» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="111-135" parent="lease-and-epoch" -->
+<!-- fragment «lease-require-signal-path» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="113-137" parent="lease-and-epoch" -->
 ````rust
 
 impl SessionEpochGuard {
@@ -623,7 +621,7 @@ Acquisition is six steps in one function, and the only thing that makes them
 correct is their order. The public entry is a one-line conversion over the
 private form.
 
-<!-- fragment «lease-acquire» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="136-147" parent="lease-and-epoch" -->
+<!-- fragment «lease-acquire» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="138-149" parent="lease-and-epoch" -->
 ````rust
 
 impl DriverLease {
@@ -655,7 +653,7 @@ widening the production interface.* Every one of them is `pub`-free and called
 with an inert argument from production. What each is *used for* is chapter 17's,
 which owns the tests that pass them.
 
-<!-- fragment «lease-acquire-with» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="148-201" parent="lease-and-epoch" -->
+<!-- fragment «lease-acquire-with» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="150-204" parent="lease-and-epoch" -->
 ````rust
 
     fn acquire_with(
@@ -686,6 +684,7 @@ which owns the tests that pass them.
         let nonce = hex_nonce(random_nonce()?)?;
 
         let mut lease = Self {
+            launch: None,
             worktree_root,
             control_dir,
             _worktree_directory: worktree_directory,
@@ -763,11 +762,11 @@ unusable tool.
 <a id="what-the-lease-hands-out"></a>
 ## What the lease hands out, and to whom
 
-Three small accessors and two one-line transitions. Their interest is entirely in
-who calls them, so they are read together and their call sites enumerated
-afterwards.
+The workspace and control-directory accessors supply the loop. Epoch preparation
+also transfers the selected root into the lease, giving the loop one owner for
+launch lifetime and admission publication.
 
-<!-- fragment «lease-worktree-root» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="202-208" parent="lease-and-epoch" -->
+<!-- fragment «lease-worktree-root» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="205-211" parent="lease-and-epoch" -->
 ````rust
 
     /// The working tree this lease owns, in the spelling the workspace resolved
@@ -782,7 +781,7 @@ afterwards.
 The second hands out the directory the runner allocates in, and restates the
 division of ownership a third time.
 
-<!-- fragment «lease-control-dir» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="209-218" parent="lease-and-epoch" -->
+<!-- fragment «lease-control-dir» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="212-221" parent="lease-and-epoch" -->
 ````rust
 
     /// Grove's control directory inside the workspace's administration area —
@@ -797,17 +796,111 @@ division of ownership a third time.
 ````
 <!-- /fragment -->
 
-The last two are the driver's epoch transitions, and they are one line each.
+The test-only activation helper constructs legacy active epochs for admission
+and observer controls. Production activation goes through `prepare_launch`;
+post-reap invalidation remains a separate operation.
 
-<!-- fragment «lease-epoch-transitions» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="219-226" parent="lease-and-epoch" -->
+<!-- fragment «lease-epoch-transitions» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="222-230" parent="lease-and-epoch" -->
 ````rust
 
+    #[cfg(test)]
     pub(crate) fn activate_session_epoch(&self, signal_path: &Path) -> Result<()> {
         self.write_epoch_record(Some(signal_path), "pre-spawn activation")
     }
 
     pub(crate) fn invalidate_session_epoch(&self) -> Result<()> {
         self.write_epoch_record(None, "post-reap invalidation")
+    }
+````
+<!-- /fragment -->
+
+<a id="lease-launch-lifetime"></a>
+## The lease owns the launch pin across helper returns
+
+`prepare_launch` takes the selected `TreeLifetime` by value. It refuses to
+replace an unreaped launch, checks the current root, transfers the pin to the
+lease, and acquires the exclusive epoch guard. Because acquisition may wait,
+it checks the retained pin again under that guard before writing the active
+record. An acquisition or write error releases the unlaunched pin.
+
+`supervise_launch` adapts the generic runner events to this ownership rule.
+Started keeps the pin; Reaped takes and drops it synchronously. A return without
+Started releases a failed attempt. A Started-only error or unwind leaves the
+pin in the lease, so a helper return cannot masquerade as a confirmed reap.
+Neither method holds a tree guard across spawn, and preparation drops its epoch
+guard before returning. This slice publishes no observation extension.
+
+<!-- fragment «lease-launch-lifetime» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="231-300" parent="lease-and-epoch" -->
+````rust
+
+    /// Transfer the selected pin before publication. The second check occurs
+    /// after the potentially blocking epoch acquisition, with that guard held.
+    pub(crate) fn prepare_launch(
+        &mut self,
+        root: crate::TreeLifetime,
+        signal_path: &Path,
+    ) -> Result<()> {
+        self.prepare_launch_with(root, signal_path, |path| {
+            acquire_epoch_file(path, LockMode::Exclusive, "pre-spawn activation")
+        })
+    }
+
+    fn prepare_launch_with(
+        &mut self,
+        root: crate::TreeLifetime,
+        signal_path: &Path,
+        acquire: impl FnOnce(&Path) -> Result<File>,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            self.launch.is_none(),
+            "previous launch has no confirmed reap"
+        );
+        anyhow::ensure!(
+            root.at(&self.worktree_root)?,
+            "task tree changed before foreground launch"
+        );
+        self.launch = Some(root);
+        let result = (|| {
+            let mut epoch = acquire(&self.control_dir.join(EPOCH_FILE_NAME))?;
+            anyhow::ensure!(
+                self.launch
+                    .as_ref()
+                    .context("selected root missing during preparation")?
+                    .at(&self.worktree_root)?,
+                "task tree changed before foreground launch"
+            );
+            write_epoch_contents(
+                &mut epoch,
+                self.worktree_identity,
+                &self.worktree_root,
+                &self.nonce,
+                Some(signal_path),
+            )
+        })();
+        if result.is_err() {
+            self.launch.take();
+        }
+        result
+    }
+
+    /// Only Started/Reaped evidence changes the lifetime. An unsuccessful wait
+    /// leaves the pin here after the helper returns; epoch invalidation alone
+    /// never releases it. The runner invokes Reaped before terminal recovery.
+    pub(crate) fn supervise_launch<T>(
+        &mut self,
+        run: impl FnOnce(&mut dyn FnMut(keyed_launch::LaunchEvent)) -> T,
+    ) -> T {
+        let mut started = false;
+        let result = run(&mut |event| match event {
+            keyed_launch::LaunchEvent::Started => started = true,
+            keyed_launch::LaunchEvent::Reaped => {
+                self.launch.take();
+            }
+        });
+        if !started {
+            self.launch.take();
+        }
+        result
     }
 ````
 <!-- /fragment -->
@@ -821,38 +914,14 @@ mechanical: nothing outside this crate can allocate in grove's control directory
 or move the epoch, because the type through which one would do it does not expose
 the operations.
 
-The two transitions have no doc comments at all, and they do not need one: each
-is a single call to `write_epoch_record` with the two things that distinguish it,
-a signal path and an operation label. The labels are not decoration — they are
-what the contention diagnostic and every timeout message interpolate, so
-*pre-spawn activation* and *post-reap invalidation* reach a human's terminal
-verbatim.
+The production loop calls `prepare_launch` before `supervise_launch`, then
+invalidates the epoch after terminal recovery. Preparation and invalidation
+write the same mandatory record. The labels *pre-spawn activation* and
+*post-reap invalidation* identify the corresponding wait diagnostics.
+`activate_session_epoch` is only a fixture helper and does not bypass root
+validation in a shipped launch.
 
-**The whole outward surface of this block is nine production call sites, in three
-files, and two of the three are other crates.**
-
-| Operation | Called from | |
-|---|---|---:|
-| `DriverLease::acquire` | `crates/grove/src/cli.rs` | 1 |
-| `worktree_root` | `loop_driver.rs` | 1 |
-| `control_dir` | `loop_driver.rs` | 1 |
-| `revalidate` | `loop_driver.rs` | 2 |
-| `activate_session_epoch` | `loop_driver.rs` | 1 |
-| `invalidate_session_epoch` | `loop_driver.rs` | 1 |
-| `admit_ambient_session` | `crates/grove-llm/src/cli.rs` | 1 |
-| `SessionEpochGuard::require_signal_path` | `crates/grove-llm/src/cli.rs` | 1 |
-
-Eight operations, nine call sites. `crates/grove-loop/tests/driver_lease.rs`
-calls `acquire` fourteen more times, and that file is evidence rather than
-corpus.
-The six `loop_driver.rs` sites are chapter 20's block; the two `grove-llm` sites
-are the `grove-llm` book's. What this table settles is that the block has no
-internal consumer at all: every one of its eight operations exists for a caller
-in another module or another crate, which is why the split between `pub`,
-`pub(crate)` and private here is a statement about the loop rather than about
-encapsulation.
-
-<!-- fragment «lease-revalidate» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="227-267" parent="lease-and-epoch" -->
+<!-- fragment «lease-revalidate» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="301-341" parent="lease-and-epoch" -->
 ````rust
 
     /// Confirm that the paths still name the descriptors this process owns.
@@ -928,7 +997,7 @@ moved.
 Both writers go through one private method, which differs from the transitions
 above only in taking the state and the label as arguments.
 
-<!-- fragment «lease-write-epoch-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="268-279" parent="lease-and-epoch" -->
+<!-- fragment «lease-write-epoch-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="342-353" parent="lease-and-epoch" -->
 ````rust
 
     fn write_epoch_record(&self, signal_path: Option<&Path>, operation: &str) -> Result<()> {
@@ -948,7 +1017,7 @@ above only in taking the state and the label as arguments.
 The third writer is acquisition's own, and it is the one with an ordering
 argument attached.
 
-<!-- fragment «lease-initialize-epoch-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="280-302" parent="lease-and-epoch" -->
+<!-- fragment «lease-initialize-epoch-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="354-382" parent="lease-and-epoch" -->
 ````rust
 
     fn initialize_epoch_record(&mut self) -> Result<()> {
@@ -973,8 +1042,19 @@ argument attached.
         )
     }
 }
+
+impl Drop for DriverLease {
+    fn drop(&mut self) {
+        self.launch.take();
+    }
+}
 ````
 <!-- /fragment -->
+
+`Drop for DriverLease` first takes the optional launch pin. Rust then drops
+the remaining fields, including the driver lease descriptor. This keeps orderly
+release explicit even on unwind; it makes no claim about kernel close order
+on process death.
 
 The record names three write points and gives each a state: *inactive
 immediately after lease acquisition, active immediately before spawn, and
@@ -985,7 +1065,7 @@ block and one chapter ahead:
 | Point | State | Reached by | Label |
 |---|---|---|---|
 | after acquisition | `inactive` | `initialize_epoch_record`, line 281 | `driver acquisition` |
-| before spawn | `active` | `activate_session_epoch` | `pre-spawn activation` |
+| before spawn | `active` | `prepare_launch` | `pre-spawn activation` |
 | after reap | `inactive` | `invalidate_session_epoch` | `post-reap invalidation` |
 
 Each acquires the file, writes, and drops it — the guard is scoped to the
@@ -1013,7 +1093,7 @@ record's own phrasing of the same guarantee is that *an old call admitted before
 exclusive invalidation may finish and block handoff* — may finish, not may be
 cut off — and this write order is what makes the may true.
 
-<!-- fragment «lease-write-epoch-contents» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="303-332" parent="lease-and-epoch" -->
+<!-- fragment «lease-write-epoch-contents» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="383-412" parent="lease-and-epoch" -->
 ````rust
 
 fn write_epoch_contents(
@@ -1075,7 +1155,7 @@ the same function. The lease is taken once and never waited for; the epoch is
 taken repeatedly and is the thing a handoff waits on. Each has a thin production
 wrapper over a form that takes its seams.
 
-<!-- fragment «lease-acquire-lease-file» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="333-336" parent="lease-and-epoch" -->
+<!-- fragment «lease-acquire-lease-file» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="413-416" parent="lease-and-epoch" -->
 ````rust
 
 fn acquire_lease_file(path: &Path, worktree_root: &Path) -> Result<(File, FileIdentity)> {
@@ -1087,7 +1167,7 @@ fn acquire_lease_file(path: &Path, worktree_root: &Path) -> Result<(File, FileId
 The epoch's wrapper fixes six defaults rather than one, because the epoch
 acquisition is the one that can wait.
 
-<!-- fragment «lease-acquire-epoch-file» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="337-352" parent="lease-and-epoch" -->
+<!-- fragment «lease-acquire-epoch-file» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="417-432" parent="lease-and-epoch" -->
 ````rust
 
 fn acquire_epoch_file(path: &Path, mode: LockMode, operation: &str) -> Result<File> {
@@ -1111,7 +1191,7 @@ fn acquire_epoch_file(path: &Path, mode: LockMode, operation: &str) -> Result<Fi
 The message it prints on contention is its own function, so that it can be
 asserted without capturing a stream.
 
-<!-- fragment «lease-contention-diagnostic» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="353-359" parent="lease-and-epoch" -->
+<!-- fragment «lease-contention-diagnostic» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="433-439" parent="lease-and-epoch" -->
 ````rust
 
 fn epoch_contention_diagnostic(mode: LockMode, operation: &str) -> String {
@@ -1135,7 +1215,7 @@ Splitting `epoch_contention_diagnostic` out of the closure is what makes the tex
 assertable without capturing stderr, which is the difference between a message a
 test can pin and a message that drifts.
 
-<!-- fragment «lease-acquire-epoch-file-with» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="360-446" parent="lease-and-epoch" -->
+<!-- fragment «lease-acquire-epoch-file-with» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="440-526" parent="lease-and-epoch" -->
 ````rust
 
 #[allow(clippy::too_many_arguments)]
@@ -1266,7 +1346,7 @@ about today, and a chained rewrite that dropped the explicit `truncate(false)`
 would be silently wrong in exactly the way the next function's comment describes
 at length.
 
-<!-- fragment «lease-acquire-lease-file-with-hook» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="447-500" parent="lease-and-epoch" -->
+<!-- fragment «lease-acquire-lease-file-with-hook» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="527-580" parent="lease-and-epoch" -->
 ````rust
 
 fn acquire_lease_file_with_hook(
@@ -1377,7 +1457,7 @@ The lease's lock is one call and one classification, and it is where a second
 driver meets the only sentence about this whole protocol that a human is ever
 meant to read.
 
-<!-- fragment «lease-lock-exclusively» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="501-518" parent="lease-and-epoch" -->
+<!-- fragment «lease-lock-exclusively» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="581-598" parent="lease-and-epoch" -->
 ````rust
 
 fn lock_exclusively_nonblocking(file: &File, worktree_root: &Path) -> Result<()> {
@@ -1433,7 +1513,7 @@ which is why both take a parameter neither of them reads.
 One helper stands behind every descriptor this block opens, and it is called
 immediately after each open rather than once at the end.
 
-<!-- fragment «lease-close-on-exec» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="519-533" parent="lease-and-epoch" -->
+<!-- fragment «lease-close-on-exec» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="599-613" parent="lease-and-epoch" -->
 ````rust
 
 fn ensure_close_on_exec(descriptor: RawFd) -> Result<()> {
@@ -1497,7 +1577,7 @@ Three encoders and one reader sit between the protocol and the bytes on disk.
 The nonce comes first, in two functions that are together fifteen lines long and
 carry the block's largest unargued decision.
 
-<!-- fragment «lease-random-nonce» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="534-542" parent="lease-and-epoch" -->
+<!-- fragment «lease-random-nonce» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="614-622" parent="lease-and-epoch" -->
 ````rust
 
 fn random_nonce() -> Result<[u8; 16]> {
@@ -1514,7 +1594,7 @@ fn random_nonce() -> Result<[u8; 16]> {
 Its rendering is separate, and is the only spelling the parser below will
 accept.
 
-<!-- fragment «lease-hex-nonce» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="543-550" parent="lease-and-epoch" -->
+<!-- fragment «lease-hex-nonce» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="623-630" parent="lease-and-epoch" -->
 ````rust
 
 fn hex_nonce(nonce: [u8; 16]) -> Result<String> {
@@ -1552,7 +1632,7 @@ identifier under `.grove/` or add it to every stable handle* — which would hav
 made uniqueness exact and put opaque lifecycle state into the artifact tree, in a
 book whose subject is a crate that keeps state out of it.
 
-<!-- fragment «lease-encode-path» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="551-558" parent="lease-and-epoch" -->
+<!-- fragment «lease-encode-path» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="631-638" parent="lease-and-epoch" -->
 ````rust
 
 fn encode_path(path: &Path) -> Result<String> {
@@ -1568,7 +1648,7 @@ fn encode_path(path: &Path) -> Result<String> {
 Decoding is the longer half, because it is the half that reads a file another
 process wrote.
 
-<!-- fragment «lease-decode-path» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="559-571" parent="lease-and-epoch" -->
+<!-- fragment «lease-decode-path» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="639-651" parent="lease-and-epoch" -->
 ````rust
 
 fn decode_path(value: &str) -> Result<PathBuf> {
@@ -1608,7 +1688,7 @@ Three functions read what the two writers wrote, and a fourth composes them into
 the epoch's state machine. The first is the field accessor both records go
 through.
 
-<!-- fragment «lease-record-field» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="572-583" parent="lease-and-epoch" -->
+<!-- fragment «lease-record-field» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="652-663" parent="lease-and-epoch" -->
 ````rust
 
 fn record_field<'a>(record: &'a str, name: &str) -> Result<&'a str> {
@@ -1639,7 +1719,7 @@ deleting or replacing files in the VCS administration area; that is
 repository-control corruption.* Not defending is not the same as not detecting,
 and the difference is the whole of this function.
 
-<!-- fragment «lease-parse-process-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="584-606" parent="lease-and-epoch" -->
+<!-- fragment «lease-parse-process-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="664-686" parent="lease-and-epoch" -->
 ````rust
 
 fn parse_process_record(record: &str) -> Result<ProcessRecord> {
@@ -1681,7 +1761,7 @@ which is the difference between *parsing working-tree device* and *invalid digit
 found in string* in the one place a human is already confused about why their
 loop will not start.
 
-<!-- fragment «lease-read-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="607-615" parent="lease-and-epoch" -->
+<!-- fragment «lease-read-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="687-695" parent="lease-and-epoch" -->
 ````rust
 
 fn read_record(file: &mut File, label: &str) -> Result<String> {
@@ -1707,7 +1787,7 @@ keeps its original unbounded reader; the runtime observer passes separately
 bounded bytes to that same parser. An inactive record still rejects a signal
 path, and mandatory fields keep identical validation in both paths.
 
-<!-- fragment «lease-read-epoch-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="616-641" parent="lease-and-epoch" -->
+<!-- fragment «lease-read-epoch-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="696-721" parent="lease-and-epoch" -->
 ````rust
 
 fn read_epoch_record(file: &mut File) -> Result<EpochRecord> {
@@ -1759,7 +1839,7 @@ in the safe direction: the operation stops, and a human reads why.
 Liveness is asked by trying to take a lock this process does not want. The
 production entry passes an inert hook; the work is in the form below it.
 
-<!-- fragment «lease-probe-live-lease» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="642-645" parent="lease-and-epoch" -->
+<!-- fragment «lease-probe-live-lease» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="722-725" parent="lease-and-epoch" -->
 ````rust
 
 fn probe_live_lease(control_dir: &Path, epoch: &EpochRecord, operation: &str) -> Result<()> {
@@ -1771,7 +1851,7 @@ fn probe_live_lease(control_dir: &Path, epoch: &EpochRecord, operation: &str) ->
 The hooked form is sixty-four lines and one attempt loop, and every line of it is
 ordered against a race.
 
-<!-- fragment «lease-probe-with-hook» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="646-709" parent="lease-and-epoch" -->
+<!-- fragment «lease-probe-with-hook» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="726-789" parent="lease-and-epoch" -->
 ````rust
 
 fn probe_live_lease_with_post_unlock_hook(
@@ -1884,7 +1964,7 @@ Admission is four functions, and the split between the first three is a
 testability argument rather than a decomposition. The public entry resolves the
 ambient context and hands it on.
 
-<!-- fragment «lease-admit-ambient-session» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="710-727" parent="lease-and-epoch" -->
+<!-- fragment «lease-admit-ambient-session» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="790-807" parent="lease-and-epoch" -->
 ````rust
 
 /// Admit one agent-side operation when it carries a live loop-control context.
@@ -1910,7 +1990,7 @@ pub fn admit_ambient_session(
 The resolution itself is one line, and its doc comment explains why it is a
 function at all.
 
-<!-- fragment «lease-ambient-signal-path» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="728-738" parent="lease-and-epoch" -->
+<!-- fragment «lease-ambient-signal-path» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="808-818" parent="lease-and-epoch" -->
 ````rust
 
 /// The loop-control context this process was launched into, if any.
@@ -1929,7 +2009,7 @@ fn ambient_signal_path() -> Option<PathBuf> {
 Classification is separated again, because the value it classifies is one this
 repository deliberately sets to something surprising.
 
-<!-- fragment «lease-signal-path-from» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="739-746" parent="lease-and-epoch" -->
+<!-- fragment «lease-signal-path-from» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="819-826" parent="lease-and-epoch" -->
 ````rust
 
 /// Classify a loop-control value as ambient context or none. Empty is *none*
@@ -1979,7 +2059,7 @@ identical to the control — while deleting the emptiness filter turned exactly
 three tests red at the same total, which is what makes the first zero a reading
 rather than a blind instrument.
 
-<!-- fragment «lease-admit-session» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="747-802" parent="lease-and-epoch" -->
+<!-- fragment «lease-admit-session» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="827-882" parent="lease-and-epoch" -->
 ````rust
 
 /// Admission proper, with the ambient context already resolved.
@@ -2089,7 +2169,7 @@ return value.
 The lease's own serialiser closes the file, and its position there is not
 alphabetical.
 
-<!-- fragment «lease-write-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="803-825" parent="lease-and-epoch" -->
+<!-- fragment «lease-write-record» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease.rs" lines="883-905" parent="lease-and-epoch" -->
 ````rust
 
 fn write_record(

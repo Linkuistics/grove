@@ -1,4 +1,4 @@
-# witness-owner-k29
+# witness-owner-k29 — brief
 
 
 ## Goal
@@ -28,6 +28,16 @@ unconfirmed-reap error. Keep Selection descriptor-free.
   scripts/check.sh pass. The parent node closes only against its full contract.
 
 ## Notes
+
+## Decomposition
+
+Source inspection separated an independently verifiable ownership/handoff step
+from witness allocation and publication. lease-root-owner-k30 transfers the
+selected pin to DriverLease, checks it after epoch acquisition, and wires
+parent-side events. witness-publication-k31 completes both witness locks,
+optional record fields, marker, cleanup and the remaining fault matrix. This
+node retains every original writer criterion; the first child publishes no
+observation extension and cannot establish RUNNING.
 
 The selected-root slice checks before calling activate_session_epoch. When
 reworking publication, recheck the lease-owned pin after obtaining the exclusive

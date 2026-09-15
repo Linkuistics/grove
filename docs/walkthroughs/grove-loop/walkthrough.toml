@@ -245,7 +245,7 @@ lines = 96
 [[root]]
 id    = "source-driver-lease"
 path  = "crates/grove-loop/src/driver_lease.rs"
-lines = 1389
+lines = 1640
 
 [[root]]
 id    = "source-session-config"
@@ -260,7 +260,7 @@ lines = 245
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 742
+lines = 745
 
 [[root]]
 id = "source-observation"
@@ -475,13 +475,13 @@ lines = "1-96"
 id    = "lease-and-epoch"
 root  = "source-driver-lease"
 owner = "one-per-working-tree"
-lines = "1-825"
+lines = "1-905"
 
 [[block]]
 id    = "lease-tests"
 root  = "source-driver-lease"
 owner = "which-calls-are-admitted"
-lines = "826-1389"
+lines = "906-1640"
 
 [[block]]
 id    = "whose-file"
@@ -499,7 +499,7 @@ lines = "1-245"
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-742"
+lines = "1-745"
 
 [[block]]
 id = "observation-tree"

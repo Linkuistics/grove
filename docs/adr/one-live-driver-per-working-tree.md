@@ -181,10 +181,10 @@ holder can never delay a writer.
 ## Why the directory witness survives process death
 
 Separate descriptors have separate kernel cleanup. Linux v6.12
-[`close_files`](https://github.com/torvalds/linux/blob/v6.12/fs/file.c#L370-L421)
+[`close_files`](https://github.com/torvalds/linux/blob/v6.12/fs/file.c#L398-L428)
 walks the descriptor table and can reschedule between closes; XNU
 xnu-11215.1.10
-[`fdfree`](https://github.com/apple-oss-distributions/xnu/blob/xnu-11215.1.10/bsd/kern/kern_descrip.c#L994-L1043)
+[`fdt_invalidate`](https://github.com/apple-oss-distributions/xnu/blob/xnu-11215.1.10/bsd/kern/kern_descrip.c#L1018-L1061)
 walks it in the opposite direction. Neither is the language's drop order, and
 neither makes closing a directory and an independent witness atomic. A protocol
 that allows either descriptor assignment cannot exclude root-pin release before
@@ -192,17 +192,25 @@ private-witness release. The actual inode-reuse opportunity also depends on the
 filesystem; no cross-platform inode-reuse timing is assumed.
 
 The useful guarantee is within **one open object**. Linux v6.12
-[`__fput`](https://github.com/torvalds/linux/blob/v6.12/fs/file_table.c#L378-L416)
+[`__fput`](https://github.com/torvalds/linux/blob/v6.12/fs/file_table.c#L405-L445)
 removes file locks before releasing the directory entry and mount references.
 XNU xnu-11215.1.10
-[`vn_closefile`](https://github.com/apple-oss-distributions/xnu/blob/xnu-11215.1.10/bsd/vfs/vfs_vnops.c#L1717-L1750)
+[`vn_closefile`](https://github.com/apple-oss-distributions/xnu/blob/xnu-11215.1.10/bsd/vfs/vfs_vnops.c#L1814-L1850)
 unlocks the fileglob's flock before calling `vn_close`, whose ordinary-vnode path
-[drops its reference afterwards](https://github.com/apple-oss-distributions/xnu/blob/xnu-11215.1.10/bsd/vfs/vfs_vnops.c#L753-L809).
+[drops its reference afterwards](https://github.com/apple-oss-distributions/xnu/blob/xnu-11215.1.10/bsd/vfs/vfs_vnops.c#L795-L850).
 These paths support the inference that a contended directory witness still
 pins **its own** root, even during teardown. They do not establish the relative
 lifetime of two unrelated objects. The activity backend relies on these native
 local-filesystem lock/lifetime semantics; it must not silently substitute
 network or emulated locking with different guarantees.
+Reported preparation lock errors leave activity Unavailable; observer probe
+errors follow the spec's result precedence. These semantics are a backend
+precondition, not a runtime capability detection guarantee: a backend that
+silently accepts incompatible locks can yield Idle during a live launch and is
+outside the supported boundary. No preparation-time self-check is added; a
+successful exclusion check alone would not establish open-object lifetime or
+process-death ordering. Reopen capability detection if support for another
+backend is required.
 
 Accordingly, the driver exclusively locks the task-root pin as well as its
 private witness. A replacement cannot acquire either until it has exclusively
@@ -220,9 +228,11 @@ authenticate its holder: another program taking the directory lock exclusively
 outside this protocol while a dying driver's private witness remains locked is
 outside this protocol, just as impersonating a private witness is. This
 additional reserved lock location is a cost of avoiding persisted tree identity.
-Viewers neither reserve it nor retain a shared probe. Concurrent viewers can
-briefly make driver preparation fail conservatively, leaving activity
-Unavailable for that launch while admission remains intact.
+Viewers neither reserve it nor retain a shared probe. Viewer probes cannot
+overlap preparation: exclusive epoch invalidation drains earlier observers,
+and the inactive epoch prevents later observers from probing until publication,
+after preparation. A foreign holder can make preparation fail conservatively,
+leaving activity Unavailable for that launch while admission remains intact.
 
 ## Considered options
 

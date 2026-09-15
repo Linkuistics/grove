@@ -94,7 +94,7 @@ binds a replacement driver waiting with predecessor lease bytes: it cannot
 prepare a directory witness while the predecessor epoch is still observable.
 Only the preparing driver takes either witness exclusively. Observers use shared
 probes, and admission operations use neither. Failure to acquire the directory
-witness, including contention or unsupported directory locking, releases any
+witness, including contention or a reported directory-locking error, releases any
 prepared observation resources and leaves activity Unavailable; launch and
 mandatory admission continue normally. Neither acquisition waits or falls back
 to a different lock primitive.
@@ -109,7 +109,10 @@ unsupported observational fields cannot weaken validation of the mandatory
 admission record and cannot establish RUNNING.
 Admission does not require the extension, including when observation setup fails.
 
-Keeping the task-root descriptor open prevents its inode being reused. With
+Keeping the task-root descriptor open prevents its inode being reused. This
+rests on the native open-object lifetime assumption supported by the
+[ADR's final-close sources](../adr/one-live-driver-per-working-tree.md#why-the-directory-witness-survives-process-death);
+the replacement control below does not separately test inode non-reuse. With
 the directory-witness check below, a viewer joining after root replacement
 can reject a reused key without having seen the previous tree. The
 pin and its advisory lock add no persisted generation or task-tree bytes.
@@ -251,8 +254,12 @@ boundary. The proof requires no relative cleanup order for separate descriptors.
 The directory witness alone proves no launch; the private witness remains
 necessary for Started evidence and for summaries when the old root is absent or
 has a different identity. An observation backend must provide the stated native
-file/directory lock and open-object lifetime semantics; unsupported semantics
-produce Unavailable, never an identity-only fallback.
+file/directory lock and open-object lifetime semantics. Reported preparation
+errors leave activity Unavailable; observation handles probe errors as specified
+above, never by an identity-only fallback. Silently ineffective locking is
+outside this boundary and is not detected by the protocol: if both shared
+probes succeed despite a live launch, step 5 yields Idle and ordinary NEXT may
+select the running item. No runtime capability self-check is specified.
 
 Running is evidence at the witness probe, not a promise until the next frame.
 After process teardown has released the private witness, a probe reports Idle
@@ -437,7 +444,7 @@ terminal fixture owns key translation and terminal cleanup checks.
 | Supervision error without confirmed reap; unwind and normal lease drop | Lease-owned witness survives helper return; every orderly release closes witness before root pin and driver ownership | Runner/lease event trace |
 | Duplicate keys with and without running-key exclusion, including terminal/branch duplicates | Driver and viewer refuse before selection/exclusion; valid trees retain ordinary ordering | Typed selection; driver/application |
 | Exact workspace reached through symlink or /var alias | Same directory identity yields same activity; subdirectory observation never borrows ancestor runtime | Typed observer; application |
-| Foreign shared holder of either the task root or a newly allocated private witness; unsupported directory locking | Exclusive acquisition returns promptly, prepared observation locks are released, launch/admission proceed and activity is Unavailable | Lock barrier and controlled launch |
+| Foreign shared holder of either the task root or a newly allocated private witness; reported directory-locking error | Exclusive acquisition returns promptly, prepared observation locks are released, launch/admission proceed and activity is Unavailable | Lock barrier and controlled launch |
 | Directory witness held while a session mutates or deletes the root | The containing-directory tree lock remains usable; root replacement remains possible and never inherits the old root's witness | Real filesystem/process fixture |
 | Help in both views; selected LIVE, DONE, RUNNING and NEXT with color disabled | Active view and Tab destination are named; gutter alone marks selection, NEXT is bold normal text, RUNNING retains its specified styles | Application; terminal fixture |
 | Tree or epoch contention and rapid start/end changes | Current pair is withheld when unverifiable; navigation/quit remain responsive; cadence recovers | Application and process fixtures |
@@ -457,8 +464,11 @@ then killed and reaped with `waitpid` before observing the leftover records.
 Use independent read-only descriptors to check both contended probes before
 death and both successful probes afterwards. Rename/remove and recreate the
 root while the original witnesses are held; observers opened afterwards must
-see the replacement as a different lifetime. A separate shared-holder process
-must permit another shared probe and make exclusive preparation fail promptly.
+see the replacement as a different lifetime. This checks identity comparison
+and activity binding, not whether the pin prevents inode reuse; a host that
+does not reuse inode numbers can pass it without a working pin. A separate
+shared-holder process must permit another shared probe and make exclusive
+preparation fail promptly.
 
 The internal lock/filesystem barrier seam separately permits the two close
 orders and makes a replacement report the old device/inode pair and task key.

@@ -1872,4 +1872,268 @@ mod tests {
             ActivityObservation::Unavailable(_)
         ));
     }
+
+    // These helpers only act when explicitly launched by the native scenarios.
+    const NATIVE_WORK: &str = "GROVE_TEST_NATIVE_WITNESS_WORK";
+    const NATIVE_WAIT: Duration = Duration::from_secs(15);
+
+    #[test]
+    fn witness_native_exec_child() {
+        use std::os::unix::net::UnixStream;
+        let Some(work) = std::env::var_os(NATIVE_WORK) else {
+            return;
+        };
+        let mut stream = UnixStream::connect(Path::new(&work).join("child.sock")).unwrap();
+        stream.set_read_timeout(Some(NATIVE_WAIT)).unwrap();
+        stream.write_all(b"ready").unwrap();
+        let mut byte = [0];
+        while stream.read(&mut byte).unwrap() != 0 {
+            stream.write_all(&byte).unwrap();
+        }
+    }
+
+    #[test]
+    fn witness_native_holder_process() {
+        let Some(work) = std::env::var_os(NATIVE_WORK) else {
+            return;
+        };
+        let work = Path::new(&work);
+        let workspace = Workspace::resolve(work).unwrap();
+        let mut lease = DriverLease::acquire(&workspace).unwrap();
+        let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
+        lease
+            .prepare_launch(
+                TreeLifetime::open(work).unwrap().unwrap(),
+                &super::super::tests::witness_selection(),
+                channel.path(),
+            )
+            .unwrap();
+        // The executable is a template slot, so spaces in host paths remain one argv.
+        let config = work.join("launch.kdl");
+        fs::write(
+            &config,
+            "test \"/usr/bin/env ${exe} --exact driver_lease::observation::tests::witness_native_exec_child --nocapture\"\n",
+        )
+        .unwrap();
+        let templates = keyed_launch::Templates::load(
+            &config,
+            None,
+            keyed_launch::Vocabulary {
+                slots: &[keyed_launch::SlotRule {
+                    name: "exe",
+                    requirement: keyed_launch::Requirement::ExactlyOnce,
+                }],
+            },
+        )
+        .unwrap();
+        let exe = std::env::current_exe().unwrap();
+        let argv = templates
+            .expand(
+                "test",
+                &[keyed_launch::Slot {
+                    name: "exe",
+                    value: exe.as_os_str(),
+                }],
+            )
+            .unwrap();
+        lease
+            .supervise_launch(|notify| {
+                keyed_launch::run_observed(
+                    keyed_launch::Launch {
+                        argv: &argv,
+                        channel: &channel,
+                        channel_var: "GROVE_SIGNAL_FILE",
+                        scrub: &[],
+                        cwd: Some(work),
+                        escalation: keyed_launch::Escalation {
+                            grace: Duration::ZERO,
+                            kill_grace: Duration::ZERO,
+                        },
+                    },
+                    &mut |event| {
+                        notify(event);
+                        if event == keyed_launch::LaunchEvent::Started {
+                            println!("holder-ready");
+                            std::io::stdout().flush().unwrap();
+                        }
+                    },
+                )
+            })
+            .unwrap();
+    }
+
+    struct NativeHolder(std::process::Child);
+
+    impl NativeHolder {
+        fn kill_and_reap(&mut self) {
+            use std::os::unix::process::ExitStatusExt;
+            self.0.kill().unwrap();
+            let deadline = std::time::Instant::now() + NATIVE_WAIT;
+            loop {
+                if let Some(status) = self.0.try_wait().unwrap() {
+                    assert_eq!(status.signal(), Some(libc::SIGKILL));
+                    return;
+                }
+                assert!(std::time::Instant::now() < deadline, "holder reap timeout");
+                std::thread::yield_now();
+            }
+        }
+    }
+
+    impl Drop for NativeHolder {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+
+    fn native_process_evidence(replace: bool) {
+        use std::io::{BufRead, BufReader};
+        use std::os::unix::net::UnixListener;
+        use std::process::{Command, Stdio};
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let work = TempDir::new().unwrap();
+        fs::create_dir(work.path().join(".jj")).unwrap();
+        let root = work.path().join(".grove");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("_BRIEF.md"), "original").unwrap();
+        fs::write(root.join("01-impl--work-k1.md"), "original task").unwrap();
+        let listener = UnixListener::bind(work.path().join("child.sock")).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let mut holder = NativeHolder(
+            Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "driver_lease::observation::tests::witness_native_holder_process",
+                    "--nocapture",
+                ])
+                .env(NATIVE_WORK, work.path())
+                .env_remove("GROVE_SIGNAL_FILE")
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .spawn()
+                .unwrap(),
+        );
+        let stdout = holder.0.stdout.take().unwrap();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let reader = std::thread::spawn(move || {
+            for line in BufReader::new(stdout).lines() {
+                if line.unwrap() == "holder-ready" {
+                    let _ = ready_tx.send(());
+                }
+            }
+        });
+        ready_rx
+            .recv_timeout(NATIVE_WAIT)
+            .expect("Started readiness");
+        let deadline = std::time::Instant::now() + NATIVE_WAIT;
+        let mut child = loop {
+            match listener.accept() {
+                Ok((stream, _)) => break stream,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    assert!(
+                        std::time::Instant::now() < deadline,
+                        "exec readiness timeout"
+                    );
+                    std::thread::yield_now();
+                }
+                Err(error) => panic!("accepting exec child: {error}"),
+            }
+        };
+        // Accepted sockets inherit nonblocking mode on macOS; use bounded
+        // blocking protocol reads consistently on both native platforms.
+        // https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/accept.2.html
+        child.set_nonblocking(false).unwrap();
+        child.set_read_timeout(Some(NATIVE_WAIT)).unwrap();
+        child.set_write_timeout(Some(NATIVE_WAIT)).unwrap();
+        let mut ready = [0; 5];
+        child.read_exact(&mut ready).unwrap();
+        assert_eq!(&ready, b"ready");
+        let mandate = running(sample(work.path()));
+        assert_eq!(mandate.handle.to_string(), "work-k1");
+        assert_eq!(mandate.relation, TreeRelation::SameTree);
+        let control = Workspace::discover_control_dir(work.path(), CONTROL_NAMESPACE)
+            .unwrap()
+            .unwrap();
+        let witness = fs::read_dir(&control)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("witness-")
+            })
+            .unwrap();
+        let directory_probe = File::open(&root).unwrap();
+        let private_probe = File::open(&witness).unwrap();
+        let shared = |file: &File| {
+            let result = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) };
+            if result == 0 {
+                assert_eq!(unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) }, 0);
+                true
+            } else {
+                let error = std::io::Error::last_os_error();
+                assert!(
+                    matches!(error.raw_os_error(), Some(code) if code == libc::EWOULDBLOCK || code == libc::EAGAIN),
+                    "{error}"
+                );
+                false
+            }
+        };
+        assert!(
+            !shared(&directory_probe),
+            "directory witness must be exclusive"
+        );
+        assert!(!shared(&private_probe), "private witness must be exclusive");
+        assert_eq!(fs::read(&witness).unwrap(), b"started\n");
+        if replace {
+            let old = work.path().join("old-root");
+            fs::rename(&root, &old).unwrap();
+            assert_eq!(
+                running(crate::try_observe(work.path(), &[]).activity).relation,
+                TreeRelation::NoReadableTree
+            );
+            fs::create_dir(&root).unwrap();
+            fs::write(root.join("_BRIEF.md"), "replacement").unwrap();
+            fs::write(root.join("01-impl--replacement-k1.md"), "reused key").unwrap();
+            fs::remove_dir_all(&old).unwrap();
+            let fresh = running(crate::try_observe(work.path(), &[]).activity);
+            assert_eq!(fresh.handle.to_string(), "work-k1");
+            assert_eq!(fresh.relation, TreeRelation::PreviousTree);
+            assert!(shared(&File::open(&root).unwrap()));
+            assert!(!shared(&directory_probe));
+            assert!(!shared(&private_probe));
+        }
+        holder.kill_and_reap();
+        // The exec'd child is alive after confirmed holder death. If either
+        // descriptor leaked through exec, these independent probes would fail.
+        child.write_all(b"p").unwrap();
+        let mut pong = [0];
+        child.read_exact(&mut pong).unwrap();
+        assert_eq!(&pong, b"p");
+        assert!(shared(&directory_probe));
+        assert!(shared(&private_probe));
+        assert_eq!(fs::read(&witness).unwrap(), b"started\n");
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        child.shutdown(std::net::Shutdown::Write).unwrap();
+        assert_eq!(
+            child.read(&mut pong).unwrap(),
+            0,
+            "child exited its protocol"
+        );
+        reader.join().unwrap();
+    }
+
+    #[test]
+    fn witness_native_killed_holder_releases_both_locks_with_exec_survivor() {
+        native_process_evidence(false);
+    }
+
+    #[test]
+    fn witness_native_replaced_root_reports_previous_tree_to_new_observer() {
+        native_process_evidence(true);
+    }
 }

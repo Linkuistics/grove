@@ -366,8 +366,17 @@ preparation returns with observation unavailable. Real Started/Reaped launches
 and admission still succeed while the foreign holder remains locked. Reap,
 exclusive reacquisition, partial-setup rollback and subsequent preparation check
 recovery. The private-file barrier also checks that the containing-directory
-mutation lock remains usable while the task-root witness is held. These host
-controls do not substitute for the paired native platform evidence.
+mutation lock remains usable while the task-root witness is held.
+
+Native macOS/APFS and Linux/overlayfs subprocess controls exercise the production
+observer after a real launch. Independent shared probes contend on both witnesses
+after Started and exec-child readiness. SIGKILL and actual holder reap release
+both locks while the exec'd child still answers a socket ping; leftover Started
+bytes then yield Idle. Renaming/removing the held root and recreating it with a
+reused key yields PreviousTree to a fresh observation. Separate descriptor-leak
+mutations make the corresponding post-reap probe fail. These controls establish
+the tested native behavior, not host inode reuse or detection of silently
+ineffective backend locks; the ADR's native-locking and suspension limits remain.
 
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed

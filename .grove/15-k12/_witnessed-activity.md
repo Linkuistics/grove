@@ -245,3 +245,29 @@ Tests may replace internal lock/filesystem operations and observe runner events
 through the real seam; they may not create a viewer-only status provider. The
 root requirements remain the close condition after this node; name and cut any
 missing work before finishing.
+
+## Native observer evidence handoff
+
+witness-platforms-k37 completes the native evidence for witnessed-observation-k26:
+the same frozen source and 29 explicitly enumerated witness-suite entries pass
+on Darwin 25.6.0 arm64/APFS and Linux 6.10.14-linuxkit aarch64/overlayfs. The
+k37 task records per-case results, commands, source/image fingerprints and
+unchanged before/after file digests. Separate self-exec holders launch through
+the real runner; both independent shared probes contend after readiness and
+succeed after SIGKILL/actual holder reap while an exec survivor answers a ping.
+Started leftovers yield Idle. A new observation of a recreated root with reused
+key k1 reports PreviousTree. Independent directory/private descriptor-leak
+mutations fail the matching post-reap probes and were exactly restored.
+
+The k26 acceptance map is in k37. k34/k35 supply parsing, typed relation and
+probe precedence; k38/k40/k41/k42 supply release schedules, order mutations,
+concurrency and foreign holders. Native results neither claim host inode reuse
+nor detect silently ineffective advisory locking; ADR backend and suspension
+limitations remain. No production behavior changed in k37. k27 still owns
+public viewer binding/presentation, G6's remaining witnessed-view deferral and
+commissioning/resolving complete protocol review before k12 closes.
+
+k37's final gate passed all eight principal checks and all six book validations
+with every input digest unchanged. The k26 reconciliation holds, so
+witnessed-observation-k26 closes with k37; its terminal subtree retains the
+parser, mutation, concurrency and native evidence. k12 remains live for k27.

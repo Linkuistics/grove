@@ -671,3 +671,5 @@ in [the guarded selection](20-the-loop.md#picked) and exercised through the
 - [Delayed replacement and the epoch-before-preparation mutation](17-the-epoch.md#epoch-before-witness-preparation)
 
 - [Foreign shared processes preserve launch and admission](17-the-epoch.md#foreign-shared-processes)
+
+- [Native process death, exec survivors and replaced roots](17-the-epoch.md#native-witness-processes)

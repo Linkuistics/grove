@@ -296,13 +296,21 @@ trackedness rules below. The user-facing grammar and diagnostics are in
 The driver retains the selected task-root directory in a separate `TreeLifetime`
 pin, checked under the selection's tree guard. Finish materialization is followed
 by a fresh guarded selection. Launch preparation moves the pin into DriverLease,
-checks it before and after exclusive epoch acquisition, then activates the epoch.
+checks it before and after exclusive epoch acquisition, then invalidates the old
+epoch before preparing two exclusive nonblocking witnesses: the selected root's
+own directory descriptor and a freshly created private file. The private name
+uses an independent OS-random 128-bit suffix with eight collision retries.
+Both descriptors are close-on-exec. Observation setup failure releases partial
+locks and diagnoses the failure while mandatory epoch activation still proceeds.
 A missing or replaced root refuses the launch. No epoch or tree guard spans
-spawn. The runner's Reaped event releases the pin before terminal recovery; failed
-spawn releases it on return, while an unconfirmed supervision error retains it
-until lease drop. Drop releases the pin before driver ownership, including on
-unwind. Witness locks and publication remain the next protocol increment; active
-records still observe as Unavailable.
+spawn. The runner's Reaped event closes the private witness before the directory
+pin, before terminal recovery. Failed spawn uses the same release order on
+return; an unconfirmed supervision error retains the pair until lease drop.
+Drop releases both before driver ownership, including on unwind. Witness cleanup
+follows epoch invalidation and skips a still-owned launch; replacement cleanup
+also follows initial epoch handoff. Cleanup errors are diagnostic only. The
+optional mandate extension and Started marker remain the next protocol step;
+active records still observe as Unavailable.
 
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed

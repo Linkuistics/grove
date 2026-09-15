@@ -663,3 +663,6 @@ in [the guarded selection](20-the-loop.md#picked) and exercised through the
 
 - [Lease-owned launch lifetime and epoch recheck](16-the-lease.md#lease-launch-lifetime)
 - [Launch ownership, failure and waiting controls](17-the-epoch.md#launch-owner-controls)
+
+- [Lease-owned paired witnesses and post-invalidation cleanup](16-the-lease.md#paired-launch-witnesses)
+- [Native paired-witness fault and release controls](17-the-epoch.md#paired-witness-controls)

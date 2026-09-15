@@ -1,4 +1,4 @@
-# witness-publication-k31
+# witness-publication-k31 — brief
 
 
 ## Goal
@@ -26,3 +26,13 @@ and event adapter introduced by lease-root-owner-k30.
   with witnessed-observation-k26. Close ancestors only against full contracts.
 
 ## Notes
+
+## Decomposition
+
+paired-witness-owner-k32 makes actual launches acquire and release the two
+exclusive witnesses, including bounded allocation, failed-setup rollback and
+post-invalidation cleanup. This is independently observable through native lock
+probes while records remain legacy and activity remains Unavailable.
+witnessed-epoch-k33 then binds selected identity into the optional epoch
+extension and publishes Started, completing the original writer fault matrix.
+All original Done when criteria remain here; this node cannot close on locks alone.

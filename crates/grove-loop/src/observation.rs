@@ -15,6 +15,10 @@ use crate::{entry_path, Error, Parts, Reading, TaskName, TryReading};
 pub struct TreeLifetime(File);
 
 impl TreeLifetime {
+    pub(crate) fn directory(&self) -> &File {
+        &self.0
+    }
+
     /// Open the exact task-root directory without creating or locking anything.
     ///
     /// # Errors

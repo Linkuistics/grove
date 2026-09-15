@@ -903,7 +903,7 @@ The item-status observation design in `docs/specs/item-status.md` separates
 this capture from a subsequent runtime sample. Its independent result can
 establish Idle; witnessed Running remains a later protocol increment.
 
-<!-- fragment «observation-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="1-177" parent="source-observation" -->
+<!-- fragment «observation-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="1-181" parent="source-observation" -->
 <!-- insert «observation-imports» -->
 <!-- insert «observation-lifetime» -->
 <!-- insert «observation-values» -->
@@ -938,7 +938,7 @@ it. Metadata failures remain errors; a missing or nondirectory root opens as
 None. The viewer also uses these operations around capture to discard stale
 item state even when a writer is busy.
 
-<!-- fragment «observation-lifetime» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="12-62" parent="observation-tree" -->
+<!-- fragment «observation-lifetime» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="12-66" parent="observation-tree" -->
 ````rust
 /// A retained directory descriptor prevents inode reuse while a capture lives.
 /// This value holds no tree lock, epoch guard or driver authority.
@@ -946,6 +946,10 @@ item state even when a writer is busy.
 pub struct TreeLifetime(File);
 
 impl TreeLifetime {
+    pub(crate) fn directory(&self) -> &File {
+        &self.0
+    }
+
     /// Open the exact task-root directory without creating or locking anything.
     ///
     /// # Errors
@@ -1001,7 +1005,7 @@ error. A failed selected file therefore leaves the names available for browsing.
 The consuming `ReadGuard::into_snapshot` operation supplies owned names without
 cloning, reparsing or retaining the store's lock.
 
-<!-- fragment «observation-values» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="63-93" parent="observation-tree" -->
+<!-- fragment «observation-values» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="67-97" parent="observation-tree" -->
 ````rust
 /// The tree portion of one quiet observation. Errors remain a separate Result.
 pub enum TreeObservation {
@@ -1061,7 +1065,7 @@ of that independent result. The viewer accepts activity separately across two
 captures and shows the shared selector's NEXT only for accepted Idle; changing
 activity withholds the pair without discarding a consistent tree.
 
-<!-- fragment «observation-capture» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="94-177" parent="observation-tree" -->
+<!-- fragment «observation-capture» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="98-181" parent="observation-tree" -->
 ````rust
 /// Runtime evidence at this sample. Legacy active records cannot identify a mandate.
 #[derive(Clone, Debug, PartialEq, Eq)]

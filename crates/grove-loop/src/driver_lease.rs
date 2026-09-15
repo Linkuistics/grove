@@ -9,6 +9,7 @@
 //! — so a second resolution here could only disagree with the first.
 
 pub(crate) mod observation;
+mod witnesses;
 
 use anyhow::{bail, Context, Result};
 use jj_workspace::Workspace;
@@ -94,7 +95,7 @@ impl FileIdentity {
 #[derive(Debug)]
 pub struct DriverLease {
     // Released explicitly before driver ownership, including on unwind.
-    launch: Option<crate::TreeLifetime>,
+    launch: Option<witnesses::LaunchWitnesses>,
     worktree_root: PathBuf,
     control_dir: PathBuf,
     _worktree_directory: File,
@@ -189,6 +190,7 @@ impl DriverLease {
         lease.revalidate_inner()?;
         before_initial_epoch_handoff();
         lease.initialize_epoch_record()?;
+        lease.clean_witnesses();
         // Only after this lease owns the workspace, and after the replacement
         // driver's inactive epoch record is installed: cleaning first would
         // remove a live predecessor's channel. The grammar of an abandoned
@@ -226,7 +228,16 @@ impl DriverLease {
     }
 
     pub(crate) fn invalidate_session_epoch(&self) -> Result<()> {
-        self.write_epoch_record(None, "post-reap invalidation")
+        self.write_epoch_record(None, "post-reap invalidation")?;
+        self.clean_witnesses();
+        Ok(())
+    }
+
+    fn clean_witnesses(&self) {
+        let retained = self.launch.as_ref().and_then(|launch| launch.path());
+        if let Err(error) = witnesses::discard_abandoned(&self.control_dir, retained) {
+            eprintln!("grove: warning: could not clean abandoned witnesses; continuing: {error:#}");
+        }
     }
 
     /// Transfer the selected pin before publication. The second check occurs
@@ -255,16 +266,34 @@ impl DriverLease {
             root.at(&self.worktree_root)?,
             "task tree changed before foreground launch"
         );
-        self.launch = Some(root);
+        self.launch = Some(witnesses::LaunchWitnesses::new(root));
         let result = (|| {
             let mut epoch = acquire(&self.control_dir.join(EPOCH_FILE_NAME))?;
             anyhow::ensure!(
                 self.launch
                     .as_ref()
                     .context("selected root missing during preparation")?
+                    .root
                     .at(&self.worktree_root)?,
                 "task tree changed before foreground launch"
             );
+            // Drain predecessor readers and invalidate before either exclusive
+            // witness can become visible under an old record.
+            write_epoch_contents(
+                &mut epoch,
+                self.worktree_identity,
+                &self.worktree_root,
+                &self.nonce,
+                None,
+            )?;
+            self.clean_witnesses();
+            if let Some(launch) = self.launch.as_mut() {
+                if let Err(error) = launch.prepare(&self.control_dir) {
+                    eprintln!(
+                        "grove: warning: launch observation unavailable; continuing: {error:#}"
+                    );
+                }
+            }
             write_epoch_contents(
                 &mut epoch,
                 self.worktree_identity,
@@ -906,7 +935,174 @@ fn write_record(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn paired_witness_failure_preserves_real_launch_and_admission() {
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        fs::write(temp.path().join(".grove/_BRIEF.md"), "root").unwrap();
+        let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
+        let directory = File::open(temp.path().join(".grove")).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0
+        );
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
+        lease.prepare_launch(root, channel.path()).unwrap();
+        assert!(lease.launch.as_ref().unwrap().path().is_none());
+        assert!(admit_session(temp.path(), "test", ambient(channel.path())).is_ok());
+        assert!(matches!(
+            crate::try_observe(temp.path(), &[None]).activity,
+            crate::ActivityObservation::Unavailable(_)
+        ));
+        let config = temp.path().join("launch.kdl");
+        fs::write(&config, "test \"/bin/sh -c 'echo launched > proof'\"\n").unwrap();
+        let templates =
+            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
+                .unwrap();
+        let argv = templates.expand("test", &[]).unwrap();
+        lease
+            .supervise_launch(|observer| {
+                keyed_launch::run_observed(
+                    keyed_launch::Launch {
+                        argv: &argv,
+                        channel: &channel,
+                        channel_var: "GROVE_SIGNAL_FILE",
+                        scrub: &[],
+                        cwd: Some(temp.path()),
+                        escalation: keyed_launch::Escalation {
+                            grace: Duration::ZERO,
+                            kill_grace: Duration::ZERO,
+                        },
+                    },
+                    observer,
+                )
+            })
+            .unwrap();
+        assert_eq!(fs::read(temp.path().join("proof")).unwrap(), b"launched\n");
+        assert!(lease.launch.is_none());
+        lease.invalidate_session_epoch().unwrap();
+        channel.discard().unwrap();
+    }
+
+    #[test]
+    fn paired_witness_lease_drop_releases_both_before_replacement_cleanup() {
+        if !fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        for unwind in [false, true] {
+            let temp = TempDir::new().unwrap();
+            fs::create_dir(temp.path().join(".jj")).unwrap();
+            fs::create_dir(temp.path().join(".grove")).unwrap();
+            let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
+            let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+            let signal = lease.control_dir.join("signal-test");
+            lease.prepare_launch(root, &signal).unwrap();
+            let path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+            let directory = File::open(temp.path().join(".grove")).unwrap();
+            let private = File::open(&path).unwrap();
+            lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Started));
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+                let _lease = lease;
+                assert!(!unwind, "injected lease unwind");
+            }));
+            assert_eq!(result.is_err(), unwind);
+            for file in [&directory, &private] {
+                assert_eq!(
+                    unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+                    0
+                );
+            }
+            assert!(path.exists());
+            let replacement = DriverLease::acquire_with(&workspace_at(temp.path()), || {
+                assert!(
+                    path.exists(),
+                    "replacement cannot clean before epoch handoff"
+                );
+            })
+            .unwrap();
+            assert!(!path.exists());
+            assert!(
+                fs::read_to_string(replacement.control_dir.join(EPOCH_FILE_NAME))
+                    .unwrap()
+                    .starts_with("state=inactive\n")
+            );
+        }
+    }
+
+    #[test]
+    fn paired_witnesses_are_owned_until_reap() {
+        if !fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        fs::write(temp.path().join(".grove/_BRIEF.md"), "root").unwrap();
+        let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        let signal = lease.control_dir.join("signal-test");
+        lease.prepare_launch(root, &signal).unwrap();
+        let directory = File::open(temp.path().join(".grove")).unwrap();
+        assert_ne!(
+            unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0,
+            "prepared directory must be exclusively witnessed"
+        );
+        let path = fs::read_dir(&lease.control_dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("witness-")
+            })
+            .expect("a fresh private witness");
+        let private = File::open(&path).unwrap();
+        assert_ne!(
+            unsafe { libc::flock(private.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0
+        );
+        assert!(fs::read(&path).unwrap().is_empty());
+        assert!(matches!(
+            crate::try_observe(temp.path(), &[None]).activity,
+            crate::ActivityObservation::Unavailable(_)
+        ));
+        // The directory witness must not take the containing-directory tree lock.
+        assert!(matches!(
+            crate::try_read(temp.path()).unwrap(),
+            crate::TryReading::Ready(_)
+        ));
+        lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Started));
+        lease.invalidate_session_epoch().unwrap();
+        assert!(
+            path.exists(),
+            "unconfirmed reap retains witness even across invalidation"
+        );
+        assert_ne!(
+            unsafe { libc::flock(private.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0
+        );
+        lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Reaped));
+        assert_eq!(
+            unsafe { libc::flock(private.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0
+        );
+        assert_eq!(
+            unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0
+        );
+        assert!(path.exists(), "reap must not clean before invalidation");
+        lease.invalidate_session_epoch().unwrap();
+        assert!(!path.exists());
+    }
+
+    #[test]
     fn lease_root_owner_real_spawn_and_preparation_failure_release() {
+        if !fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         for program in ["/bin/sh", "/no-such-grove-test-program"] {
             let temp = TempDir::new().unwrap();
             fs::create_dir(temp.path().join(".jj")).unwrap();
@@ -915,6 +1111,9 @@ mod tests {
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
             let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
             lease.prepare_launch(root, channel.path()).unwrap();
+            let directory = File::open(temp.path().join(".grove")).unwrap();
+            let private_path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+            let private = File::open(&private_path).unwrap();
             let config = temp.path().join("launch.kdl");
             fs::write(&config, format!("test \"{program} -c true\"\n")).unwrap();
             let templates = keyed_launch::Templates::load(
@@ -937,11 +1136,35 @@ mod tests {
                             kill_grace: Duration::ZERO,
                         },
                     },
-                    observer,
+                    &mut |event| {
+                        observer(event);
+                        for file in [&directory, &private] {
+                            let result = unsafe {
+                                libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB)
+                            };
+                            if event == keyed_launch::LaunchEvent::Started {
+                                assert_ne!(result, 0);
+                            } else {
+                                assert_eq!(result, 0, "Reaped releases before returning to runner");
+                                assert_eq!(
+                                    unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) },
+                                    0
+                                );
+                            }
+                        }
+                    },
                 )
             });
             assert_eq!(result.is_ok(), program == "/bin/sh", "{result:?}");
             assert!(lease.launch.is_none(), "{program}");
+            for file in [&directory, &private] {
+                assert_eq!(
+                    unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+                    0
+                );
+                assert_eq!(unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) }, 0);
+            }
+            assert!(fs::read(&private_path).unwrap().is_empty());
 
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
             let result = lease.prepare_launch_with(root, channel.path(), |_| {
@@ -997,7 +1220,7 @@ mod tests {
         let replacement_pin = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         assert!(lease.prepare_launch(replacement_pin, &signal).is_err());
         assert!(
-            lease.launch.as_ref().unwrap().same(&original).unwrap(),
+            lease.launch.as_ref().unwrap().root.same(&original).unwrap(),
             "a second attempt replaced the unreaped pin"
         );
         assert!(DriverLease::acquire(&workspace).is_err());
@@ -1033,6 +1256,23 @@ mod tests {
             (lease, result)
         });
         waiting_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let directory = File::open(temp.path().join(".grove")).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0,
+            "preparation waiting on an old epoch must not acquire the directory witness"
+        );
+        assert_eq!(
+            unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_UN) },
+            0
+        );
+        assert!(fs::read_dir(temp.path().join(".jj/grove"))
+            .unwrap()
+            .all(|entry| !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("witness-")));
         fs::rename(temp.path().join(".grove"), temp.path().join("old")).unwrap();
         fs::create_dir(temp.path().join(".grove")).unwrap();
         drop(reader);
@@ -1103,7 +1343,7 @@ mod tests {
         Some(path.to_path_buf())
     }
 
-    fn fork_sensitive_driver_lease_test_body_runs_here() -> bool {
+    pub(super) fn fork_sensitive_driver_lease_test_body_runs_here() -> bool {
         let current_thread = thread::current();
         let test_name = current_thread
             .name()

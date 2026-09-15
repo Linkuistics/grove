@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.1.0
+
 - Cover live monitoring with real-clock recovery tests and an actual-binary
   terminal test for wide Markdown, interrupted edits and concurrent Grove
   retirement; document verification through the existing two-binary install.

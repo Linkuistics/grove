@@ -360,6 +360,9 @@ mod tests {
 
     #[test]
     fn witness_started_public_observation_identifies_the_prepared_launch() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, mut lease) = fixture();
         let root = crate::TreeLifetime::open(work.path()).unwrap().unwrap();
         lease
@@ -425,6 +428,9 @@ mod tests {
 
     #[test]
     fn idle_legacy_active_contention_and_recovery_preserve_tree_and_admission() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         assert_eq!(sample(work.path()), ActivityObservation::Idle);
         let signal = lease.control_dir.join("signal-first");
@@ -610,6 +616,9 @@ mod tests {
 
     #[test]
     fn absent_controls_are_idle_but_missing_or_bad_records_are_unavailable() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         let epoch = lease.control_dir.join(EPOCH_FILE_NAME);
         let original = fs::read(&epoch).unwrap();
@@ -666,6 +675,9 @@ mod tests {
 
     #[test]
     fn aliases_match_by_identity_and_subdirectories_do_not_borrow_runtime() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         let alias_parent = TempDir::new().unwrap();
         let alias = alias_parent.path().join("alias");
@@ -724,6 +736,9 @@ mod tests {
 
     #[test]
     fn capture_pause_and_returned_values_hold_no_epoch_or_tree_lock() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         let (ready_tx, ready_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
@@ -766,6 +781,9 @@ mod tests {
 
     #[test]
     fn paused_runtime_reader_allows_shared_observers_and_bounds_driver_handoff() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         let (ready_tx, ready_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
@@ -816,6 +834,9 @@ mod tests {
     }
     #[test]
     fn identity_replacements_retry_and_stop_after_eight_attempts() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         let epoch = lease.control_dir.join(EPOCH_FILE_NAME);
         let bytes = fs::read(&epoch).unwrap();
@@ -935,6 +956,9 @@ mod tests {
 
     #[test]
     fn witness_private_open_and_identity_io_errors_release_the_epoch_guard() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         struct FailingIo {
             fail_at: usize,
             calls: usize,
@@ -983,6 +1007,9 @@ mod tests {
 
     #[test]
     fn witness_capture_uses_accepted_pin_after_root_path_replacement() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, _lease) = started_fixture();
         let original = running(sample(work.path()));
         let captured = crate::observation::observe_with(
@@ -1009,6 +1036,9 @@ mod tests {
 
     #[test]
     fn witness_tree_absence_failure_and_contention_preserve_runtime_identity() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, _lease) = started_fixture();
         let original = running(sample(work.path()));
         let check = || {
@@ -1854,6 +1884,9 @@ mod tests {
 
     #[test]
     fn unreadable_epoch_and_nondirectory_namespace_are_unavailable() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         use std::os::unix::fs::PermissionsExt;
         let (work, lease) = fixture();
         let epoch = lease.control_dir.join(EPOCH_FILE_NAME);

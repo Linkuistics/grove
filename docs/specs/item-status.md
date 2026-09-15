@@ -213,9 +213,10 @@ The loop's observer completes the tree capture before acquiring any epoch guard:
    no directory probe; no readable tree likewise permits only a summary.
 5. Open the named private witness and compare descriptor/path identity with the
    published identity. Missing or mismatched evidence means Unavailable.
-   Read its bounded marker, then probe through an independent descriptor with
-   a nonblocking shared lock attempt. Success is released immediately, before
-   any other work, and means Idle regardless of leftover marker bytes.
+   Read its bounded marker, then probe that same validated descriptor with
+   a nonblocking shared lock attempt. The observer opens this descriptor
+   independently of the driver's descriptor. Success is released immediately,
+   before any other work, and means Idle regardless of leftover marker bytes.
    Contention plus the exact started marker establishes Running, subject to the
    binding result: a numerically matching root whose directory probe succeeded
    makes activity Busy, and a directory-probe error makes it Unavailable. Neither

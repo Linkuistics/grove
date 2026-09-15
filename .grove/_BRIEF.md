@@ -209,3 +209,30 @@ or after copying have source-order checks but no deterministic injection tests.
 The guarded replacement window and eight-attempt bound are tested. F4's duplicate
 selector call is retained; both calls use the same snapshot and shared rule.
 Neither finding leaves a repair obligation for witnessed-activity-k13.
+
+### Witnessed activity closure
+
+witnessed-activity-k12 closes with integration witnessed-activity-k46. k24 and
+k28/k30/k32/k33 deliver launch events and lease-owned paired witnesses;
+k34/k35/k38/k40/k41/k42 deliver bounded typed observation and interleaving,
+replacement and concurrency controls. k37 records the exact 29-case native
+macOS/Linux evidence, including killed/reaped holders, both locks and surviving
+exec children. k43/k44 deliver public Viewer binding, lifetime handling,
+exclusion-aware NEXT, presentation and current usage/architecture/G6 docs.
+Their acceptance maps and k46's full reconciliation remain in the terminal tree.
+
+The complete adversarial review k45 is resolved by k46. Eleven observer tests
+now use the existing subprocess isolation against incidental sibling-fork lock
+inheritance; the spec requires the private probe to use its validated descriptor.
+The reader's plain-basename acceptance is an explicit retained limitation:
+a corrupted epoch naming a matching control file could cause a shared probe
+there and briefly interfere with replacement acquisition. Cooperating writers
+emit only random witness names. The existing ADR excludes control corruption;
+reopen the grammar decision if that becomes supported input. Production protocol
+bytes remain unchanged, preserving k37's native evidence scope.
+
+The final k46 principal gate passes all eight checks and six exact-source book
+validations, with every one of its 1,800 input digests unchanged. The root's
+full-width, lifecycle, RUNNING/NEXT, documentation and ownership requirements are
+satisfied by the delivered increments. No implementation leaf is missing;
+whole-grove finishing remains the driver's separate session.

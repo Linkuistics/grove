@@ -2039,7 +2039,7 @@ private witness establishes Idle even with an active epoch. A held exact Started
 marker establishes Running only after checking the captured directory relation;
 old active records cannot identify a mandate.
 
-<!-- fragment «runtime-observer» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-2139" parent="source-runtime-observation" -->
+<!-- fragment «runtime-observer» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-2172" parent="source-runtime-observation" -->
 <!-- insert «runtime-entry» -->
 <!-- insert «runtime-read» -->
 <!-- insert «runtime-extension» -->
@@ -2501,12 +2501,15 @@ mod tests {
 
 ### Released evidence overrides leftover bytes
 
-The first public try_observe control identifies the prepared launch's handle/key, kind, nonce and SameTree relation, and compares a second sample for equality. The release control likewise starts with Running. Releasing the lease-owned pair leaves the active epoch intact. Empty, partial, exact and extra marker bytes must then all yield Idle without changing tree or administration bytes. An independent exclusive probe after each capture checks that no observer lock escaped. The release fixture runs in the existing isolated test process to avoid incidental fork inheritance from parallel tests.
+The first public try_observe control identifies the prepared launch's handle/key, kind, nonce and SameTree relation, and compares a second sample for equality. The release control likewise starts with Running. Releasing the lease-owned pair leaves the active epoch intact. Empty, partial, exact and extra marker bytes must then all yield Idle without changing tree or administration bytes. An independent exclusive probe after each capture checks that no observer lock escaped. Controls that require an uncontended epoch after fixture creation or an exclusive epoch operation run in the existing isolated test process. A sibling fork could otherwise retain that exclusive descriptor until exec and produce incidental Busy activity. Each wrapper runs before fixture creation and preserves the original assertions.
 
-<!-- fragment «runtime-test-release» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="361-425" parent="runtime-observer" -->
+<!-- fragment «runtime-test-release» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="361-428" parent="runtime-observer" -->
 ````rust
     #[test]
     fn witness_started_public_observation_identifies_the_prepared_launch() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, mut lease) = fixture();
         let root = crate::TreeLifetime::open(work.path()).unwrap().unwrap();
         lease
@@ -2577,10 +2580,13 @@ The first public try_observe control identifies the prepared launch's handle/key
 
 A real lease moves from inactive to active, admits a shared session operation, contends with an exclusive epoch writer and rotates its signal. Legacy active records remain unavailable, and old admission fails after rotation.
 
-<!-- fragment «runtime-test-legacy» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="426-457" parent="runtime-observer" -->
+<!-- fragment «runtime-test-legacy» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="429-463" parent="runtime-observer" -->
 ````rust
     #[test]
     fn idle_legacy_active_contention_and_recovery_preserve_tree_and_admission() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         assert_eq!(sample(work.path()), ActivityObservation::Idle);
         let signal = lease.control_dir.join("signal-first");
@@ -2618,7 +2624,7 @@ A real lease moves from inactive to active, admits a shared session operation, c
 
 Preparation supplies an authentic version-1 record and an unlocked witness. The tests enumerate every published observation field, remove it, duplicate it and corrupt it, then restore the valid Idle control between cases. Admission must continue accepting the same mandatory record. Additional cases challenge versions, canonical keys, typed handle/kind text, integer bounds, descriptor identity and basename traversal. Blanket Unavailable fails the positive controls.
 
-<!-- fragment «runtime-test-extension» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="458-559" parent="runtime-observer" -->
+<!-- fragment «runtime-test-extension» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="464-565" parent="runtime-observer" -->
 ````rust
     fn released_fixture() -> (TempDir, DriverLease, PathBuf, PathBuf, String) {
         let (work, mut lease) = fixture();
@@ -2729,7 +2735,7 @@ Preparation supplies an authentic version-1 record and an unlocked witness. The 
 
 An existing compatible shared holder still permits Idle. The same fixture then makes the witness unreadable, removes it, replaces it with a different regular file, and substitutes a directory and FIFO. Each unavailable result comes through try_observe. Retaining the original descriptor prevents the replacement control from depending on inode reuse; restoring its name restores Idle. Access refusal is checked only for a non-root test process.
 
-<!-- fragment «runtime-test-substitution» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="560-610" parent="runtime-observer" -->
+<!-- fragment «runtime-test-substitution» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="566-616" parent="runtime-observer" -->
 ````rust
     #[test]
     fn witness_missing_replaced_and_nonregular_evidence_is_unavailable() {
@@ -2789,10 +2795,13 @@ An existing compatible shared holder still permits Idle. The same fixture then m
 
 These retained controls reject malformed, oversized, invalid UTF-8, missing, directory and FIFO records. They also check aliases and exact-workspace isolation. Descriptor flag checks and bounded reads exercise both sides of the 64 KiB record limit.
 
-<!-- fragment «runtime-test-controls» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="611-724" parent="runtime-observer" -->
+<!-- fragment «runtime-test-controls» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="617-736" parent="runtime-observer" -->
 ````rust
     #[test]
     fn absent_controls_are_idle_but_missing_or_bad_records_are_unavailable() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         let epoch = lease.control_dir.join(EPOCH_FILE_NAME);
         let original = fs::read(&epoch).unwrap();
@@ -2849,6 +2858,9 @@ These retained controls reject malformed, oversized, invalid UTF-8, missing, dir
 
     #[test]
     fn aliases_match_by_identity_and_subdirectories_do_not_borrow_runtime() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         let alias_parent = TempDir::new().unwrap();
         let alias = alias_parent.path().join("alias");
@@ -2914,10 +2926,13 @@ These retained controls reject malformed, oversized, invalid UTF-8, missing, dir
 
 Readiness and release channels suspend the same typed operation after capture and inside the epoch guard. A driver and tree writer proceed during the first pause. During the second, other shared observers and tree writers still proceed, while exclusive handoff reaches the existing 30-second bound through the driver loop’s deterministic clock seam and reports contention once. Releasing the observer permits handoff while captured values remain alive. Ten-second channel timeouts bound broken barriers; the test does not wait thirty wall-clock seconds.
 
-<!-- fragment «runtime-test-guards» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="725-816" parent="runtime-observer" -->
+<!-- fragment «runtime-test-guards» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="737-834" parent="runtime-observer" -->
 ````rust
     #[test]
     fn capture_pause_and_returned_values_hold_no_epoch_or_tree_lock() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         let (ready_tx, ready_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
@@ -2960,6 +2975,9 @@ Readiness and release channels suspend the same typed operation after capture an
 
     #[test]
     fn paused_runtime_reader_allows_shared_observers_and_bounds_driver_handoff() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         let (ready_tx, ready_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
@@ -3015,7 +3033,7 @@ Readiness and release channels suspend the same typed operation after capture an
 
 Replacing the epoch once forces a second attempt; replacing it on every guarded read exhausts exactly eight. Recursive snapshots compare file bytes and directory entries, including the administration area, across idle and legacy-active samples. The final control checks unreadable epochs where permissions apply and rejects a namespace replaced by a regular file. These controls exercise the observer’s own acquisition path rather than a parallel test implementation.
 
-<!-- fragment «runtime-test-races» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="817-2139" parent="runtime-observer" -->
+<!-- fragment «runtime-test-races» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="835-2172" parent="runtime-observer" -->
 <!-- insert «runtime-test-epoch-replacements» -->
 <!-- insert «runtime-test-started-fixture» -->
 <!-- insert «runtime-test-real-launch» -->
@@ -3041,10 +3059,13 @@ Replacing the epoch once forces a second attempt; replacing it on every guarded 
 
 This control replaces the epoch under the runtime pause seam. One replacement recovers on the next attempt; eight replacements exhaust the bound. It exercises the production outer retry loop independently of private-file replacement.
 
-<!-- fragment «runtime-test-epoch-replacements» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="817-847" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-epoch-replacements» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="835-868" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn identity_replacements_retry_and_stop_after_eight_attempts() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, lease) = fixture();
         let epoch = lease.control_dir.join(EPOCH_FILE_NAME);
         let bytes = fs::read(&epoch).unwrap();
@@ -3079,7 +3100,7 @@ This control replaces the epoch under the runtime pause seam. One replacement re
 
 The shared fixture prepares a real lease-owned pair and publishes Started. The assertion helper requires a typed Running result; conservative blanket unavailability cannot satisfy the following controls.
 
-<!-- fragment «runtime-test-started-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="848-868" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-started-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="869-889" parent="runtime-test-races" -->
 ````rust
     fn started_fixture() -> (TempDir, DriverLease) {
         let (work, mut lease) = fixture();
@@ -3107,7 +3128,7 @@ The shared fixture prepares a real lease-owned pair and publishes Started. The a
 
 The generic runner actually spawns and reaps a shell. Its parent callbacks first notify the lease and then sample the public observer: Started must report the prepared handle and SameTree, while Reaped must report Idle. Filesystem snapshots around each sample show that observing changes no bytes. This host control is not the cross-platform killed-holder and exec-survivor evidence owned by the later native-process leaf.
 
-<!-- fragment «runtime-test-real-launch» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="869-935" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-real-launch» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="890-956" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_real_launch_started_and_reaped_reach_public_observation() {
@@ -3181,10 +3202,13 @@ The generic runner actually spawns and reaps a shell. Its parent callbacks first
 
 Injected errors at private open and each path-identity read must return through the production runtime error path and release the epoch guard. A subsequent native positive sample must still identify the live launch. The injection changes filesystem operations, not the returned activity provider.
 
-<!-- fragment «runtime-test-io-errors» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="936-983" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-io-errors» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="957-1007" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_private_open_and_identity_io_errors_release_the_epoch_guard() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         struct FailingIo {
             fail_at: usize,
             calls: usize,
@@ -3236,10 +3260,13 @@ Injected errors at private open and each path-identity read must return through 
 
 Replacing the path after tree capture must preserve SameTree for the already-captured old directory; reopening the path here would return the wrong relation. A new observer instead reports PreviousTree with the original runtime identity. Separate busy, duplicate-key and removed-tree cases require NoReadableTree while preserving the launch identity for a summary.
 
-<!-- fragment «runtime-test-tree-binding» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="984-1034" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-tree-binding» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1008-1064" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_capture_uses_accepted_pin_after_root_path_replacement() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, _lease) = started_fixture();
         let original = running(sample(work.path()));
         let captured = crate::observation::observe_with(
@@ -3266,6 +3293,9 @@ Replacing the path after tree capture must preserve SameTree for the already-cap
 
     #[test]
     fn witness_tree_absence_failure_and_contention_preserve_runtime_identity() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let (work, _lease) = started_fixture();
         let original = running(sample(work.path()));
         let check = || {
@@ -3294,7 +3324,7 @@ Replacing the path after tree capture must preserve SameTree for the already-cap
 
 Every proper prefix of the eight-byte marker is Busy under the real private lock. Invalid bytes, a trailing byte and an oversized file are Unavailable; the bounded read consumes only nine bytes. Releasing the owner makes the same oversized leftovers Idle. The isolated test process prevents unrelated forks from extending its descriptors.
 
-<!-- fragment «runtime-test-markers» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1035-1082" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-markers» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1065-1112" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_marker_prefixes_invalid_bytes_and_release_have_exact_precedence() {
@@ -3354,7 +3384,7 @@ epoch probes must not be inherited by a concurrently forking test. Otherwise a
 brief inherited lock can make runtime observation return Busy before the matrix
 reaches any witness probe. Isolation retains every precedence assertion.
 
-<!-- fragment «runtime-test-probe-precedence» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1083-1164" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-probe-precedence» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1113-1194" parent="runtime-test-races" -->
 ````rust
     #[derive(Clone, Copy, Debug)]
     enum ProbeResult {
@@ -3443,7 +3473,7 @@ reaches any witness probe. Isolation retains every precedence assertion.
 
 A real matching directory is explicitly unlocked while its private witness remains held. The public capture must be Busy. Independent exclusive probes succeed while returned captures remain alive, proving that successful directory, private and epoch probes did not escape as advisory guards. The captures still retain their directory pins.
 
-<!-- fragment «runtime-test-directory-release» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1165-1200" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-directory-release» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1195-1230" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_unlocked_matching_directory_is_busy_and_probes_escape_no_locks() {
@@ -3486,7 +3516,7 @@ A real matching directory is explicitly unlocked while its private witness remai
 
 The replacement backend moves actual private-file paths after open or after the native shared probe. A stable wrong object is rejected; restoring the published object allows recovery; continued replacement stops after eight attempts. Both objects remain alive throughout, so the control depends on descriptor identity rather than inode reuse. It also checks that observation did not rewrite the epoch.
 
-<!-- fragment «runtime-test-private-replacements» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1201-1300" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-private-replacements» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1231-1330" parent="runtime-test-races" -->
 ````rust
     #[derive(Clone, Copy, Debug)]
     enum ReplacementPoint {
@@ -3613,7 +3643,7 @@ snapshots show that these observations write nothing. Replacement epoch ordering
 and concurrent observers have their own controls; these release cases do not
 establish those properties.
 
-<!-- fragment «runtime-test-release-orders» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1301-1461" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-release-orders» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1331-1491" parent="runtime-test-races" -->
 ````rust
     /// Reproduce independent descriptor teardown with real native locks. The
     /// epoch/marker come from DriverLease; only the holders are test-controlled.
@@ -3781,7 +3811,7 @@ establish those properties.
 
 Continuous workers exercise the public observer between requested checkpoints. Each request receives a fresh observation, and channel disconnection stops the cohort even when an assertion unwinds. Bounded receives detect missing progress without using elapsed time to infer ordering.
 
-<!-- fragment «runtime-test-viewer-workers» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1462-1500" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-viewer-workers» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1492-1530" parent="runtime-test-races" -->
 ````rust
     // Workers observe continuously, including between requested checkpoints.
     // A request is acknowledged only by a fresh public observation after it.
@@ -3827,7 +3857,7 @@ Continuous workers exercise the public observer between requested checkpoints. E
 
 Independent shared descriptors hold both released witness probe windows open while three public observers read leftover Started bytes. Native exclusive probes first confirm the holders are effective. Every observation must be Idle; after the cohort and holders stop, independent exclusive probes check that returned captures retain no advisory guards.
 
-<!-- fragment «runtime-test-shared-overlap» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1501-1542" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-shared-overlap» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1531-1572" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_concurrent_shared_probes_of_released_started_bytes_stay_idle() {
@@ -3876,7 +3906,7 @@ Independent shared descriptors hold both released witness probe windows open whi
 
 Three continuous observers span four real launches. Each preparation must retain both exclusive witnesses; at the synchronous Started callback every viewer identifies the exact signal and SameTree mandate, and at Reaped every viewer reports Idle. Compatible probes check release while viewers continue; invalidation and the next preparation must still succeed.
 
-<!-- fragment «runtime-test-repeated-launches» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1543-1625" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-repeated-launches» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1573-1655" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_continuous_viewers_allow_repeated_real_launch_preparation() {
@@ -3966,7 +3996,7 @@ Three continuous observers span four real launches. Each preparation must retain
 
 Concurrent readers use both the exact worktree path and a symlink alias through absent-tree, non-jj-tree, missing-namespace and jj-without-tree cases. Recursive before/after snapshots and the unchanged alias target show that observation creates neither tree nor administration entries.
 
-<!-- fragment «runtime-test-concurrent-snapshots» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1626-1655" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-concurrent-snapshots» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1656-1685" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_concurrent_read_only_captures_cover_aliases_and_absent_controls() {
@@ -4006,7 +4036,7 @@ Concurrent readers use both the exact worktree path and a symlink alias through 
 
 A replacement may own the lease while an old reader still holds the shared epoch guard. The first control pauses real `DriverLease::acquire_with` at its handoff boundary. Independent nonblocking probes establish lease ownership and epoch exclusion; three continuous public observers read released Started bytes as Idle. Both witness locations remain exclusively acquirable, and the filesystem snapshot retains the old lease and epoch bytes. Releasing the reader permits invalidation and cleanup; no elapsed delay is used to infer ordering.
 
-<!-- fragment «runtime-test-delayed-replacement» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1656-1725" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-delayed-replacement» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1686-1755" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_epoch_replacement_waits_with_old_bytes_and_idle_viewers() {
@@ -4085,7 +4115,7 @@ The preparation control supplies the separate old-record hazard. It releases the
 
 At the acquisition callback, a shared epoch reader still excludes invalidation. Concurrent public observers must report Busy, the new directory must be unlocked, and no private witness may have been created. Moving the production `launch.prepare` block before acquisition makes those observers attach the old mandate as SameTree Running to the new tree. The independent real-launch positive still passes under that mutation. With production restored, the callback releases the reader, preparation acquires both witnesses, and returned observations retain no locks or filesystem changes.
 
-<!-- fragment «runtime-test-preparation-order» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1726-1810" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-preparation-order» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1756-1840" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_epoch_preparation_cannot_attach_old_mandate_to_reused_tree() {
@@ -4177,7 +4207,7 @@ At the acquisition callback, a shared epoch reader still excludes invalidation. 
 
 Recursive snapshots include tree and administration bytes for idle and legacy-active samples, absent controls and non-jj locations. Permission and namespace-type failures remain Unavailable. These existing controls complement the started-launch snapshots without granting observation cleanup or repair authority.
 
-<!-- fragment «runtime-test-filesystem-preservation» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1811-1874" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-filesystem-preservation» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1841-1907" parent="runtime-test-races" -->
 ````rust
     fn contents(path: &Path) -> Vec<(PathBuf, Vec<u8>)> {
         let mut files = Vec::new();
@@ -4225,6 +4255,9 @@ Recursive snapshots include tree and administration bytes for idle and legacy-ac
 
     #[test]
     fn unreadable_epoch_and_nondirectory_namespace_are_unavailable() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         use std::os::unix::fs::PermissionsExt;
         let (work, lease) = fixture();
         let epoch = lease.control_dir.join(EPOCH_FILE_NAME);
@@ -4871,7 +4904,7 @@ locks remain held. The real-launch marker failure keeps both locks until Reaped.
 
 The exec child acknowledges startup over a Unix socket and echoes a later ping. That response proves the launched executable remains alive after the supervising holder is killed; leftover process identifiers alone cannot establish this.
 
-<!-- fragment «runtime-native-exec» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1875-1894" parent="runtime-test-races" -->
+<!-- fragment «runtime-native-exec» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1908-1927" parent="runtime-test-races" -->
 ````rust
 
     // These helpers only act when explicitly launched by the native scenarios.
@@ -4898,7 +4931,7 @@ The exec child acknowledges startup over a Unix socket and echoes a later ping. 
 
 The separate holder uses the real lease, preparation and runner callbacks. Started publishes the witness marker before the holder acknowledges readiness. The configured executable then waits for the observer to finish, so holder death and child exit can be controlled independently.
 
-<!-- fragment «runtime-native-holder» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1895-1963" parent="runtime-test-races" -->
+<!-- fragment «runtime-native-holder» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1928-1996" parent="runtime-test-races" -->
 ````rust
     #[test]
     fn witness_native_holder_process() {
@@ -4974,7 +5007,7 @@ The separate holder uses the real lease, preparation and runner callbacks. Start
 
 The scenario owns the holder as a child process. SIGKILL is followed by a bounded try_wait loop and a checked signal status. Drop also kills and reaps on assertion failure, so the test never treats signal delivery as completed teardown.
 
-<!-- fragment «runtime-native-reap» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1964-1988" parent="runtime-test-races" -->
+<!-- fragment «runtime-native-reap» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1997-2021" parent="runtime-test-races" -->
 ````rust
 
     struct NativeHolder(std::process::Child);
@@ -5006,7 +5039,7 @@ The scenario owns the holder as a child process. SIGKILL is followed by a bounde
 
 The native scenarios open independent descriptors and prove both shared probes contend after readiness. After actual holder reap, both succeed while the exec child still answers and Started bytes remain; the production observer must report Idle. The replacement scenario first removes the root path, then creates a new tree with reused key k1 and unlinks the old root. A fresh observation must report PreviousTree. This tests real open-object binding, not forced numeric identity reuse. Socket and reap waits use failure deadlines; no elapsed sleep supplies evidence.
 
-<!-- fragment «runtime-native-scenarios» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1989-2139" parent="runtime-test-races" -->
+<!-- fragment «runtime-native-scenarios» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="2022-2172" parent="runtime-test-races" -->
 ````rust
 
     fn native_process_evidence(replace: bool) {

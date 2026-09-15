@@ -22,7 +22,7 @@
 | `source-prompt` | `crates/grove-loop/src/prompt.rs` | 245 |
 | `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 752 |
 | `source-observation` | `crates/grove-loop/src/observation.rs` | 218 |
-| `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 2,139 |
+| `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 2,172 |
 | `source-witnesses` | `crates/grove-loop/src/driver_lease/witnesses.rs` | 722 |
 
 
@@ -95,7 +95,7 @@
 <!-- source-root «source-observation» source="crates/grove-loop/src/observation.rs" lines="1-218" -->
 <!-- insert «observation-tree» -->
 <!-- /source-root -->
-<!-- source-root «source-runtime-observation» source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-2139" -->
+<!-- source-root «source-runtime-observation» source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-2172" -->
 <!-- insert «runtime-observer» -->
 <!-- /source-root -->
 
@@ -149,7 +149,7 @@
 | `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-245` | 245 | `resolved` |
 | `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-752` | 752 | `resolved` |
 | `observation-tree` | `source-observation` | `one-spelling-of-grove` | `1-218` | 218 | `resolved` |
-| `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-2139` | 2,139 | `resolved` |
+| `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-2172` | 2,172 | `resolved` |
 | `launch-witnesses-production` | `source-witnesses` | `one-per-working-tree` | `1-175` | 175 | `resolved` |
 | `witness-tests` | `source-witnesses` | `which-calls-are-admitted` | `176-722` | 547 | `resolved` |
 
@@ -690,9 +690,9 @@
 | `observation-activity` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `98-138` | `observation-capture` | `—` |
 | `observation-capture` | `opening` | `source-observation` | `composite` | `one-spelling-of-grove` | `98-218` | `observation-tree` | `observation-activity`, `observation-operation` |
 | `observation-operation` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `139-218` | `observation-capture` | `—` |
-| `source-runtime-observation` | `source-index` | `source-runtime-observation` | `root` | `—` | `1-2139` | `—` | `runtime-observer` |
+| `source-runtime-observation` | `source-index` | `source-runtime-observation` | `root` | `—` | `1-2172` | `—` | `runtime-observer` |
 | `runtime-entry` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1-19` | `runtime-observer` | `—` |
-| `runtime-observer` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `1-2139` | `source-runtime-observation` | `runtime-entry`, `runtime-read`, `runtime-extension`, `runtime-private-probe`, `runtime-files`, `runtime-test-fixture`, `runtime-test-release`, `runtime-test-legacy`, `runtime-test-extension`, `runtime-test-substitution`, `runtime-test-controls`, `runtime-test-guards`, `runtime-test-races` |
+| `runtime-observer` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `1-2172` | `source-runtime-observation` | `runtime-entry`, `runtime-read`, `runtime-extension`, `runtime-private-probe`, `runtime-files`, `runtime-test-fixture`, `runtime-test-release`, `runtime-test-legacy`, `runtime-test-extension`, `runtime-test-substitution`, `runtime-test-controls`, `runtime-test-guards`, `runtime-test-races` |
 | `runtime-read` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `20-106` | `runtime-observer` | `—` |
 | `runtime-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `107-168` | `runtime-observer` | `—` |
 | `runtime-witness-io` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `169-211` | `runtime-private-probe` | `—` |
@@ -701,34 +701,34 @@
 | `runtime-witness-verdict` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `235-287` | `runtime-private-probe` | `—` |
 | `runtime-files` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `288-335` | `runtime-observer` | `—` |
 | `runtime-test-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `336-360` | `runtime-observer` | `—` |
-| `runtime-test-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `361-425` | `runtime-observer` | `—` |
-| `runtime-test-legacy` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `426-457` | `runtime-observer` | `—` |
-| `runtime-test-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `458-559` | `runtime-observer` | `—` |
-| `runtime-test-substitution` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `560-610` | `runtime-observer` | `—` |
-| `runtime-test-controls` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `611-724` | `runtime-observer` | `—` |
-| `runtime-test-guards` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `725-816` | `runtime-observer` | `—` |
-| `runtime-test-epoch-replacements` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `817-847` | `runtime-test-races` | `—` |
-| `runtime-test-races` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `817-2139` | `runtime-observer` | `runtime-test-epoch-replacements`, `runtime-test-started-fixture`, `runtime-test-real-launch`, `runtime-test-io-errors`, `runtime-test-tree-binding`, `runtime-test-markers`, `runtime-test-probe-precedence`, `runtime-test-directory-release`, `runtime-test-private-replacements`, `runtime-test-release-orders`, `runtime-test-viewer-workers`, `runtime-test-shared-overlap`, `runtime-test-repeated-launches`, `runtime-test-concurrent-snapshots`, `runtime-test-delayed-replacement`, `runtime-test-preparation-order`, `runtime-test-filesystem-preservation`, `runtime-native-exec`, `runtime-native-holder`, `runtime-native-reap`, `runtime-native-scenarios` |
-| `runtime-test-started-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `848-868` | `runtime-test-races` | `—` |
-| `runtime-test-real-launch` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `869-935` | `runtime-test-races` | `—` |
-| `runtime-test-io-errors` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `936-983` | `runtime-test-races` | `—` |
-| `runtime-test-tree-binding` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `984-1034` | `runtime-test-races` | `—` |
-| `runtime-test-markers` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1035-1082` | `runtime-test-races` | `—` |
-| `runtime-test-probe-precedence` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1083-1164` | `runtime-test-races` | `—` |
-| `runtime-test-directory-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1165-1200` | `runtime-test-races` | `—` |
-| `runtime-test-private-replacements` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1201-1300` | `runtime-test-races` | `—` |
-| `runtime-test-release-orders` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1301-1461` | `runtime-test-races` | `—` |
-| `runtime-test-viewer-workers` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1462-1500` | `runtime-test-races` | `—` |
-| `runtime-test-shared-overlap` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1501-1542` | `runtime-test-races` | `—` |
-| `runtime-test-repeated-launches` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1543-1625` | `runtime-test-races` | `—` |
-| `runtime-test-concurrent-snapshots` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1626-1655` | `runtime-test-races` | `—` |
-| `runtime-test-delayed-replacement` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1656-1725` | `runtime-test-races` | `—` |
-| `runtime-test-preparation-order` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1726-1810` | `runtime-test-races` | `—` |
-| `runtime-test-filesystem-preservation` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1811-1874` | `runtime-test-races` | `—` |
-| `runtime-native-exec` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1875-1894` | `runtime-test-races` | `—` |
-| `runtime-native-holder` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1895-1963` | `runtime-test-races` | `—` |
-| `runtime-native-reap` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1964-1988` | `runtime-test-races` | `—` |
-| `runtime-native-scenarios` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1989-2139` | `runtime-test-races` | `—` |
+| `runtime-test-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `361-428` | `runtime-observer` | `—` |
+| `runtime-test-legacy` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `429-463` | `runtime-observer` | `—` |
+| `runtime-test-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `464-565` | `runtime-observer` | `—` |
+| `runtime-test-substitution` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `566-616` | `runtime-observer` | `—` |
+| `runtime-test-controls` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `617-736` | `runtime-observer` | `—` |
+| `runtime-test-guards` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `737-834` | `runtime-observer` | `—` |
+| `runtime-test-epoch-replacements` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `835-868` | `runtime-test-races` | `—` |
+| `runtime-test-races` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `835-2172` | `runtime-observer` | `runtime-test-epoch-replacements`, `runtime-test-started-fixture`, `runtime-test-real-launch`, `runtime-test-io-errors`, `runtime-test-tree-binding`, `runtime-test-markers`, `runtime-test-probe-precedence`, `runtime-test-directory-release`, `runtime-test-private-replacements`, `runtime-test-release-orders`, `runtime-test-viewer-workers`, `runtime-test-shared-overlap`, `runtime-test-repeated-launches`, `runtime-test-concurrent-snapshots`, `runtime-test-delayed-replacement`, `runtime-test-preparation-order`, `runtime-test-filesystem-preservation`, `runtime-native-exec`, `runtime-native-holder`, `runtime-native-reap`, `runtime-native-scenarios` |
+| `runtime-test-started-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `869-889` | `runtime-test-races` | `—` |
+| `runtime-test-real-launch` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `890-956` | `runtime-test-races` | `—` |
+| `runtime-test-io-errors` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `957-1007` | `runtime-test-races` | `—` |
+| `runtime-test-tree-binding` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1008-1064` | `runtime-test-races` | `—` |
+| `runtime-test-markers` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1065-1112` | `runtime-test-races` | `—` |
+| `runtime-test-probe-precedence` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1113-1194` | `runtime-test-races` | `—` |
+| `runtime-test-directory-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1195-1230` | `runtime-test-races` | `—` |
+| `runtime-test-private-replacements` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1231-1330` | `runtime-test-races` | `—` |
+| `runtime-test-release-orders` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1331-1491` | `runtime-test-races` | `—` |
+| `runtime-test-viewer-workers` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1492-1530` | `runtime-test-races` | `—` |
+| `runtime-test-shared-overlap` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1531-1572` | `runtime-test-races` | `—` |
+| `runtime-test-repeated-launches` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1573-1655` | `runtime-test-races` | `—` |
+| `runtime-test-concurrent-snapshots` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1656-1685` | `runtime-test-races` | `—` |
+| `runtime-test-delayed-replacement` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1686-1755` | `runtime-test-races` | `—` |
+| `runtime-test-preparation-order` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1756-1840` | `runtime-test-races` | `—` |
+| `runtime-test-filesystem-preservation` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1841-1907` | `runtime-test-races` | `—` |
+| `runtime-native-exec` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1908-1927` | `runtime-test-races` | `—` |
+| `runtime-native-holder` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1928-1996` | `runtime-test-races` | `—` |
+| `runtime-native-reap` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1997-2021` | `runtime-test-races` | `—` |
+| `runtime-native-scenarios` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `2022-2172` | `runtime-test-races` | `—` |
 | `source-witnesses` | `source-index` | `source-witnesses` | `root` | `—` | `1-722` | `—` | `launch-witnesses-production`, `witness-tests` |
 | `witness-owner-type` | `the-lease` | `source-witnesses` | `literal` | `one-per-working-tree` | `1-22` | `launch-witnesses-production` | `—` |
 | `launch-witnesses-production` | `the-lease` | `source-witnesses` | `composite` | `one-per-working-tree` | `1-175` | `source-witnesses` | `witness-owner-type`, `witness-preparation`, `witness-release`, `witness-cleanup` |
@@ -802,7 +802,7 @@
 ## Owned source totals
 
 Each source line is credited once to its owning slice. The tables above record
-the roots and fragment relationships; this rollup totals 14,444 lines across
+the roots and fragment relationships; this rollup totals 14,477 lines across
 the declared corpus.
 
 | Slice | Page | Owned lines |
@@ -823,10 +823,10 @@ the declared corpus.
 | `the-tree-deletes-itself` | `14-finishing.md` | 521 |
 | `twelve-not-fourteen` | `15-the-verbs.md` | 514 |
 | `one-per-working-tree` | `16-the-lease.md` | 1,149 |
-| `which-calls-are-admitted` | `17-the-epoch.md` | 3,791 |
+| `which-calls-are-admitted` | `17-the-epoch.md` | 3,824 |
 | `whose-file-and-whether` | `18-which-files.md` | 358 |
 | `too-late-to-say-later` | `19-the-core.md` | 245 |
 | `four-things-a-runner-cannot-choose` | `20-the-loop.md` | 752 |
 | `assembly` | `21-what-could-not-move.md` | 0 |
-| **Total** | 16 source roots | **14,444** |
+| **Total** | 16 source roots | **14,477** |
 

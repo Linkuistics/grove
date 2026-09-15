@@ -117,8 +117,9 @@ driver ownership and read-only viewing, so the design is reviewed before those
 slices are cut. Integration `item-status-k5` applied the original review and
 exposed a process-death release-order gap. `item-status-k6` specifies a directory
 witness on the task-root pin and a verified tree relation, reviewed by
-`item-status-k7` ahead of `item-status-k4`. Implementation planning consumes that
-reviewed correction and any integration it requires.
+`item-status-k7` ahead of `item-status-k4`. That review found the protocol
+sound and cut `item-status-k8` to integrate its findings on evidence anchors and
+boundary wording. Implementation planning consumes the integrated correction.
 
 ## Pointers
 

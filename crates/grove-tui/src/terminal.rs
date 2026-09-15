@@ -15,6 +15,39 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 
 use crate::{Action, Viewer};
 
+impl Action {
+    /// Decode the same terminal key events used by the interactive driver.
+    pub fn from_key(key: event::KeyEvent) -> Option<Self> {
+        if key.kind == KeyEventKind::Release {
+            return None;
+        }
+        match key.code {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Some(Self::Quit),
+            KeyCode::Char('q') => Some(Self::Quit),
+            KeyCode::Char('r') => Some(Self::Refresh),
+            KeyCode::Up | KeyCode::Char('k') => Some(Self::Up),
+            KeyCode::Down | KeyCode::Char('j') => Some(Self::Down),
+            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                Some(Self::PageUp)
+            }
+            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                Some(Self::PageDown)
+            }
+            KeyCode::Left | KeyCode::Char('h') => Some(Self::Left),
+            KeyCode::Right | KeyCode::Char('l') => Some(Self::Right),
+            KeyCode::Home => Some(Self::Home),
+            KeyCode::End => Some(Self::End),
+            KeyCode::Tab => Some(Self::Focus),
+            KeyCode::Char('?') => Some(Self::Help),
+            KeyCode::Esc => Some(Self::Dismiss),
+            KeyCode::Enter | KeyCode::Char(' ') => Some(Self::Toggle),
+            KeyCode::PageUp => Some(Self::PageUp),
+            KeyCode::PageDown => Some(Self::PageDown),
+            _ => None,
+        }
+    }
+}
+
 /// View a worktree without resolving a workspace or loading launch policy.
 /// Requires interactive stdin/stdout before any terminal state changes.
 pub fn run(worktree: &Path) -> Result<()> {
@@ -42,22 +75,7 @@ fn drive(viewer: &mut Viewer) -> Result<()> {
             }
         }
         if let Event::Key(key) = event::read()? {
-            if key.kind == KeyEventKind::Release {
-                continue;
-            }
-            let action = match key.code {
-                KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                    Some(Action::Quit)
-                }
-                KeyCode::Char('q') => Some(Action::Quit),
-                KeyCode::Char('r') => Some(Action::Refresh),
-                KeyCode::Up | KeyCode::Char('k') => Some(Action::Up),
-                KeyCode::Down | KeyCode::Char('j') => Some(Action::Down),
-                KeyCode::Enter => Some(Action::Toggle),
-                KeyCode::PageUp => Some(Action::PageUp),
-                KeyCode::PageDown => Some(Action::PageDown),
-                _ => None,
-            };
+            let action = Action::from_key(key);
             if action.is_some_and(|action| viewer.act(action)) {
                 return Ok(());
             }

@@ -340,3 +340,160 @@ fn removing_the_observed_worktree_clears_the_previous_display() {
     assert!(missing.contains("Missing"));
     assert!(!missing.contains("DELETED CHARTER"));
 }
+
+fn key(viewer: &mut Viewer, code: crossterm::event::KeyCode) -> bool {
+    use crossterm::event::{KeyEvent, KeyModifiers};
+    Action::from_key(KeyEvent::new(code, KeyModifiers::NONE))
+        .is_some_and(|action| viewer.act(action))
+}
+
+#[test]
+fn keys_navigate_visible_rows_and_parents_and_keep_selection_visible() {
+    use crossterm::event::KeyCode::*;
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    put(&root, "01-k1/_branch.md", "BRANCH BODY");
+    put(&root, "01-k1/01-impl--child-k2.md", "CHILD BODY");
+    for n in 2..30 {
+        put(
+            &root,
+            &format!("{n:02}-impl--task-k{}.md", n + 1),
+            &format!("BODY {n:02}"),
+        );
+    }
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    assert!(screen(&mut viewer, 160, 12).contains("Tree [focus]"));
+    key(&mut viewer, Right);
+    assert!(screen(&mut viewer, 160, 12).contains("BRANCH BODY"));
+    key(&mut viewer, Char('h'));
+    assert!(!screen(&mut viewer, 160, 12).contains("child-k2"));
+    key(&mut viewer, Char('j'));
+    assert!(screen(&mut viewer, 160, 12).contains("BODY 02"));
+    key(&mut viewer, Char('k'));
+    key(&mut viewer, Char('l'));
+    assert!(screen(&mut viewer, 160, 12).contains("BRANCH BODY"));
+    key(&mut viewer, Right);
+    assert!(screen(&mut viewer, 160, 12).contains("CHILD BODY"));
+    key(&mut viewer, Left);
+    assert!(screen(&mut viewer, 160, 12).contains("BRANCH BODY"));
+    key(&mut viewer, Char(' '));
+    assert!(!screen(&mut viewer, 160, 12).contains("child-k2"));
+    key(&mut viewer, Enter);
+    assert!(screen(&mut viewer, 160, 12).contains("child-k2"));
+    key(&mut viewer, End);
+    let last = screen(&mut viewer, 160, 12);
+    assert!(
+        last.lines()
+            .any(|line| line.contains('>') && line.contains("task-k30")),
+        "{last}"
+    );
+    assert!(last.contains("BODY 29"));
+    key(&mut viewer, Home);
+    assert!(screen(&mut viewer, 160, 12).contains("ROOT BODY"));
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn focused_file_keys_scroll_lines_pages_and_unicode_columns() {
+    use crossterm::event::{KeyCode::*, KeyEvent, KeyModifiers};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let content = (0..50)
+        .map(|n| format!("line {n:02}\n"))
+        .collect::<String>();
+    put(&root, "_BRIEF.md", &content);
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    screen(&mut viewer, 100, 15); // ten file rows
+    key(&mut viewer, Tab);
+    key(&mut viewer, Down);
+    let line = screen(&mut viewer, 100, 15);
+    assert!(line.contains("File [focus]"));
+    assert!(!line.contains("line 00"));
+    assert!(line.contains("line 01"));
+    key(&mut viewer, Up);
+    assert!(screen(&mut viewer, 100, 15).contains("line 00"));
+    for (code, expected) in [('d', "line 10"), ('u', "line 00")] {
+        let action = Action::from_key(KeyEvent::new(Char(code), KeyModifiers::CONTROL)).unwrap();
+        viewer.act(action);
+        assert!(screen(&mut viewer, 100, 15).contains(expected));
+    }
+    key(&mut viewer, End);
+    assert!(screen(&mut viewer, 100, 15).contains("line 49"));
+    let taller = screen(&mut viewer, 100, 25);
+    assert!(taller.contains("line 30"));
+    assert!(taller.contains("line 49"));
+    key(&mut viewer, Home);
+    assert!(screen(&mut viewer, 100, 15).contains("line 00"));
+    assert_eq!(snapshot(work.path()), before);
+
+    put(
+        &root,
+        "_BRIEF.md",
+        &format!("界e\u{301}{}TAIL", "界".repeat(40)),
+    );
+    key(&mut viewer, Char('r'));
+    for _ in 0..200 {
+        key(&mut viewer, Right);
+    }
+    let wide = screen(&mut viewer, 100, 15);
+    assert!(wide.contains("TAIL"), "{wide}");
+    for _ in 0..200 {
+        key(&mut viewer, Left);
+    }
+    let start = screen(&mut viewer, 100, 15);
+    // TestBackend stores an empty continuation cell after the wide character.
+    assert!(start.contains("界 e\u{301}"), "{start}");
+    key(&mut viewer, Right); // begins inside a two-cell character
+    assert!(screen(&mut viewer, 100, 15).contains(" e\u{301}"));
+}
+
+#[test]
+fn help_and_small_frames_preserve_navigation_and_allow_global_actions() {
+    use crossterm::event::{KeyCode::*, KeyEvent, KeyModifiers};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    put(
+        &root,
+        "01-impl--task-k1.md",
+        &(0..40)
+            .map(|n| format!("task line {n:02}\n"))
+            .collect::<String>(),
+    );
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    screen(&mut viewer, 100, 15);
+    key(&mut viewer, Down);
+    key(&mut viewer, Tab);
+    key(&mut viewer, PageDown);
+    let saved = screen(&mut viewer, 100, 15);
+    key(&mut viewer, Char('?'));
+    let help = screen(&mut viewer, 60, 10);
+    for expected in ["Key help", "Ctrl-u", "Escape"] {
+        assert!(help.contains(expected), "{help}");
+    }
+    key(&mut viewer, Home);
+    key(&mut viewer, Tab);
+    key(&mut viewer, Esc);
+    assert_eq!(screen(&mut viewer, 100, 15), saved);
+    for (w, h) in [(0, 0), (1, 1), (59, 10), (60, 9)] {
+        let small = screen(&mut viewer, w, h);
+        if w > 1 {
+            assert!(small.contains("Resize"));
+        }
+        key(&mut viewer, Home);
+        key(&mut viewer, Tab);
+        assert_eq!(screen(&mut viewer, 100, 15), saved);
+    }
+    key(&mut viewer, Char('?'));
+    assert!(key(&mut viewer, Char('q')));
+    assert!(viewer.act(Action::from_key(KeyEvent::new(Char('c'), KeyModifiers::CONTROL)).unwrap()));
+    screen(&mut viewer, 59, 9);
+    key(&mut viewer, Char('r'));
+    key(&mut viewer, Esc);
+    assert!(screen(&mut viewer, 100, 15).contains("ROOT BODY"));
+    assert_eq!(snapshot(work.path()), before);
+}

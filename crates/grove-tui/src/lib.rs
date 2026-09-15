@@ -24,6 +24,13 @@ pub use terminal::run;
 pub enum Action {
     Up,
     Down,
+    Left,
+    Right,
+    Home,
+    End,
+    Focus,
+    Help,
+    Dismiss,
     Toggle,
     PageUp,
     PageDown,
@@ -47,6 +54,12 @@ pub struct Viewer {
     tree_state: ListState,
     content: Vec<String>,
     scroll: usize,
+    horizontal: usize,
+    content_width: usize,
+    page_width: usize,
+    file_focus: bool,
+    help: bool,
+    small: bool,
     page_height: usize,
     status: String,
     pending: Option<(Request, Instant)>,
@@ -63,6 +76,12 @@ impl Viewer {
             tree_state: ListState::default(),
             content: Vec::new(),
             scroll: 0,
+            horizontal: 0,
+            content_width: 0,
+            page_width: 1,
+            file_focus: false,
+            help: false,
+            small: false,
             page_height: 1,
             status: String::new(),
             pending: None,
@@ -75,7 +94,37 @@ impl Viewer {
     pub fn act(&mut self, action: Action) -> bool {
         match action {
             Action::Quit => return true,
-            Action::Refresh => self.refresh(),
+            Action::Refresh => {
+                self.refresh();
+                return false;
+            }
+            Action::Dismiss => {
+                self.help = false;
+                return false;
+            }
+            _ => {}
+        }
+        if self.small {
+            return false;
+        }
+        if matches!(action, Action::Help) {
+            self.help = !self.help;
+            return false;
+        }
+        if self.help {
+            return false;
+        }
+        match action {
+            Action::Quit | Action::Refresh | Action::Help | Action::Dismiss => {}
+            Action::Focus => self.file_focus = !self.file_focus,
+            Action::Up | Action::Down if self.file_focus => {
+                self.scroll = if matches!(action, Action::Up) {
+                    self.scroll.saturating_sub(1)
+                } else {
+                    self.scroll.saturating_add(1)
+                };
+                self.clamp_scroll();
+            }
             Action::Up | Action::Down => {
                 let visible = self.visible();
                 if let Some(at) = visible.iter().position(|&row| row == self.selected) {
@@ -85,16 +134,46 @@ impl Viewer {
                         (at + 1).min(visible.len() - 1)
                     };
                     if at != next {
-                        self.selected = visible[next];
-                        self.scroll = 0;
-                        self.load_selected(Instant::now());
+                        self.select(visible[next]);
                     }
                 }
             }
             Action::Toggle => {
+                if self.file_focus {
+                    return false;
+                }
                 if let Some(row) = self.rows.get_mut(self.selected) {
                     if row.branch {
                         row.expanded = !row.expanded;
+                    }
+                }
+            }
+            Action::Left | Action::Right if self.file_focus => {
+                self.horizontal = if matches!(action, Action::Left) {
+                    self.horizontal.saturating_sub(1)
+                } else {
+                    self.horizontal.saturating_add(1)
+                };
+                self.clamp_scroll();
+            }
+            Action::Left | Action::Right => self.tree_horizontal(matches!(action, Action::Right)),
+            Action::Home | Action::End => {
+                if self.file_focus {
+                    self.scroll = if matches!(action, Action::Home) {
+                        0
+                    } else {
+                        self.content.len()
+                    };
+                    self.clamp_scroll();
+                } else {
+                    let visible = self.visible();
+                    let target = if matches!(action, Action::Home) {
+                        visible.first()
+                    } else {
+                        visible.last()
+                    };
+                    if let Some(&target) = target {
+                        self.select(target);
                     }
                 }
             }
@@ -105,6 +184,43 @@ impl Viewer {
             }
         }
         false
+    }
+
+    fn select(&mut self, target: usize) {
+        if self.selected != target {
+            self.selected = target;
+            self.scroll = 0;
+            self.horizontal = 0;
+            self.load_selected(Instant::now());
+        }
+    }
+
+    fn tree_horizontal(&mut self, right: bool) {
+        let Some(row) = self.rows.get_mut(self.selected) else {
+            return;
+        };
+        let depth = row.depth;
+        if right {
+            if !row.branch {
+                return;
+            }
+            if !row.expanded {
+                row.expanded = true;
+            } else if self
+                .rows
+                .get(self.selected + 1)
+                .is_some_and(|child| child.depth > depth)
+            {
+                self.select(self.selected + 1);
+            }
+        } else if row.branch && row.expanded {
+            row.expanded = false;
+        } else if let Some(parent) = self.rows[..self.selected]
+            .iter()
+            .rposition(|row| row.depth < depth)
+        {
+            self.select(parent);
+        }
     }
 
     fn refresh(&mut self) {
@@ -119,6 +235,7 @@ impl Viewer {
                 self.rows = rows;
                 self.selected = 0;
                 self.scroll = 0;
+                self.horizontal = 0;
                 self.tree_state = ListState::default();
                 self.status = "Read-only | manual refresh".into();
                 self.set_content(content);
@@ -161,6 +278,8 @@ impl Viewer {
         self.content.clear();
         self.selected = 0;
         self.scroll = 0;
+        self.horizontal = 0;
+        self.content_width = 0;
         self.status = "Missing .grove — press r to retry".into();
     }
 
@@ -212,6 +331,12 @@ impl Viewer {
             Err(error) => format!("File error: {} — press r to retry", safe_text(&error)),
         };
         self.content = text.lines().map(str::to_owned).collect();
+        self.content_width = self
+            .content
+            .iter()
+            .map(|line| Line::raw(line.as_str()).width())
+            .max()
+            .unwrap_or(0);
     }
 
     fn visible(&self) -> Vec<usize> {
@@ -237,10 +362,39 @@ impl Viewer {
         self.scroll = self
             .scroll
             .min(self.content.len().saturating_sub(self.page_height));
+        self.horizontal = self
+            .horizontal
+            .min(self.content_width.saturating_sub(self.page_width));
     }
 
     /// Draw the same application into a real terminal or Ratatui `TestBackend`.
     pub fn render(&mut self, frame: &mut Frame) {
+        self.small = frame.area().width < 60 || frame.area().height < 10;
+        if self.small {
+            frame.render_widget(
+                Paragraph::new(
+                    "Resize to at least 60 columns × 10 rows\nr refresh | q/Ctrl-c quit",
+                ),
+                frame.area(),
+            );
+            return;
+        }
+        if self.help {
+            frame.render_widget(
+                Paragraph::new(
+                    "Tab: switch pane | r: refresh | q/Ctrl-c: quit\n\
+Tree: Up/Down j/k select | Home/End first/last\n\
+Right/l expand/enter | Left/h collapse/parent\n\
+Enter/Space: toggle branch\n\
+File: Up/Down j/k line | Left/Right h/l column\n\
+PageUp/PageDown Ctrl-u/Ctrl-d: page | Home/End: top/end\n\
+Escape: close help | ?: toggle help",
+                )
+                .block(Block::bordered().title("Key help")),
+                frame.area(),
+            );
+            return;
+        }
         let [header, body, footer] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Min(0),
@@ -285,32 +439,65 @@ impl Viewer {
         // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.List.html
         frame.render_stateful_widget(
             List::new(items)
-                .block(Block::bordered().title("Tree"))
+                .block(Block::bordered().title(if self.file_focus {
+                    "Tree"
+                } else {
+                    "Tree [focus]"
+                }))
                 .highlight_symbol("> ")
                 .highlight_style(Style::default().add_modifier(Modifier::REVERSED)),
             tree_area,
             &mut self.tree_state,
         );
         self.page_height = usize::from(file_area.height.saturating_sub(2)).max(1);
+        self.page_width = usize::from(file_area.width.saturating_sub(2)).max(1);
         self.clamp_scroll();
         let lines: Vec<Line<'_>> = self
             .content
             .iter()
             .skip(self.scroll)
             .take(self.page_height)
-            .map(|line| Line::raw(line.as_str()))
+            .map(|line| Line::raw(clip_columns(line, self.horizontal, self.page_width)))
             .collect();
         // Unwrapped plain text preserves source lines; slicing avoids u16 scroll limits.
         // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.Paragraph.html
         frame.render_widget(
-            Paragraph::new(lines).block(Block::bordered().title("File (plain text)")),
+            Paragraph::new(lines).block(Block::bordered().title(if self.file_focus {
+                "File [focus] (plain text)"
+            } else {
+                "File (plain text)"
+            })),
             file_area,
         );
         frame.render_widget(
-            Paragraph::new(
-                "↑/↓ j/k select | Enter fold | PgUp/PgDn file | r refresh | q/Ctrl-c quit",
-            ),
+            Paragraph::new("Tab focus | ? help | r refresh | q/Ctrl-c quit"),
             footer,
         );
     }
+}
+
+/// Clip terminal columns without splitting graphemes or narrowing offsets to u16.
+fn clip_columns(text: &str, offset: usize, width: usize) -> String {
+    let line = Line::raw(text);
+    let mut column: usize = 0;
+    let mut output = String::new();
+    // Ratatui's graphemes preserve combining sequences; Line measures display width.
+    // https://docs.rs/ratatui/0.29.0/ratatui/text/struct.Line.html#method.styled_graphemes
+    for grapheme in line.styled_graphemes(Style::default()) {
+        let start = column;
+        column += Line::raw(grapheme.symbol).width();
+        if column <= offset {
+            continue;
+        }
+        if start >= offset.saturating_add(width) {
+            break;
+        }
+        if start < offset || column > offset.saturating_add(width) {
+            let cells = column.min(offset.saturating_add(width)) - start.max(offset);
+            output.extend(std::iter::repeat_n(' ', cells));
+        } else {
+            output.push_str(grapheme.symbol);
+        }
+    }
+    output
 }

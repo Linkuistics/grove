@@ -51,6 +51,10 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Complete manual viewer navigation with Tab pane focus, arrows/hjkl,
+  branch/parent traversal, Home/End, line/page and Unicode horizontal scrolling,
+  modal key help and state retention while the terminal is too small.
+
 - Add `grove view [WORKTREE]`, a permanently read-only terminal browser with
   nested tree navigation, outcome counts, task/brief reading as plain text,
   file paging and manual refresh. It works outside jj workspaces and needs no

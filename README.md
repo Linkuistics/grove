@@ -46,9 +46,10 @@ Run `grove view` for the current directory's `.grove`, or
 `grove view /path/to/worktree` for another tree. The browser is permanently
 read-only and needs no jj workspace, launch configuration or installed skills.
 It never searches parent directories. This first version displays plain text
-and refreshes with `r`; use Up/Down or j/k, Enter to fold branches,
-PageUp/PageDown to read files, and q or Ctrl-c to quit.
-Reads can temporarily block behind a writer, including during navigation.
+and refreshes with `r`. Tab switches between tree navigation and file scrolling;
+use arrows or hjkl, Enter/Space to fold branches, Home/End to jump,
+PageUp/PageDown to read files, `?` for key help, and q or Ctrl-c to quit.
+While a writer holds the tree, reads show WAITING and retry without blocking input.
 See [Viewing a tree](docs/USAGE.md#usage-viewing-tree) for details and recovery.
 
 ## Install the skill plugins

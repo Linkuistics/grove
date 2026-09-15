@@ -50,22 +50,32 @@ leaves. Counts expose mixed terminal branches.
 
 | Key | Action |
 |---|---|
-| Up/Down or k/j | Select the previous/next visible tree row and read its file |
-| Enter | Fold or expand the selected root/branch |
-| PageUp/PageDown | Scroll the file by one page |
+| Tab | Switch tree/file focus; the focused pane is labeled `[focus]` |
+| Up/Down or k/j | In the tree, select the previous/next visible row; in the file, scroll one line |
+| Right or l | In the tree, expand a branch or enter its first child; in the file, scroll right |
+| Left or h | In the tree, collapse a branch or select its parent; in the file, scroll left |
+| Enter or Space | In the tree, fold or expand the selected root/branch |
+| Home/End | First/last visible tree row, or beginning/end of the file, according to focus |
+| PageUp/PageDown or Ctrl-u/Ctrl-d | Scroll the file by one page |
+| ? | Show key help; navigation pauses until help is dismissed |
+| Escape | Dismiss help |
 | r | Reload the tree and root brief; selection and scroll reset to root/top |
-| q or Ctrl-c | Quit |
+| q or Ctrl-c | Quit from either pane or help |
 
 Files are inert **plain text** in this increment: Markdown formatting and
 automatic updates are not available yet. Long lines are clipped at the pane
-edge; vertical paging reads long files. No links, code or control characters
-execute. The footer keeps the basic keys visible.
+edge; horizontal scrolling reveals them, preserving Unicode characters, and
+vertical paging reads long files. No links, code or control characters execute.
+The selected tree row stays visible. The footer points to key help.
 
 A missing tree shows its observed path and a Missing message. A malformed or
 unreadable reload shows an error; a retained previous tree is explicitly STALE.
 A selected-file failure is shown in the file pane. Fix the external problem,
 then press `r` to reload; the viewer never repairs it. An empty document has an
-empty pane. Terminal sizes too small to read can be enlarged without quitting.
+empty pane. Resize clamps file scroll without changing selection. Below 60
+columns or 10 rows, a resize message replaces the panes; navigation pauses and
+state is retained until they fit again. Quit and refresh still work, including
+while help is open. Refresh deliberately resets selection and scroll as above.
 
 Startup, selection and reload use a quiet nonblocking reader. While a writer
 holds the tree, the viewer shows WAITING and retains its previous display;

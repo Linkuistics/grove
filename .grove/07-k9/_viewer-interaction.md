@@ -1,4 +1,4 @@
-# viewer-interaction-k9
+# viewer-interaction-k9 — brief
 
 ## Goal
 
@@ -52,3 +52,11 @@ Run focused application/terminal/CLI tests, affected books' final validation,
 `cargo test --workspace`, format/clippy checks, the locked Rust 1.85 workspace
 check after dependency changes, and a real executable build/terminal smoke.
 Headless frame assertions do not prove terminal cleanup.
+
+## Decomposition
+
+Application input/layout and process terminal lifetime are independently
+verifiable seams. `viewer-navigation-k10` completes navigation, focus, help,
+resize, application tests and usage in the existing manual plain-text browser.
+`viewer-terminal-k11` hardens terminal lifetime and supplies the actual-binary
+and fault-child PTY evidence required above before Markdown work begins.

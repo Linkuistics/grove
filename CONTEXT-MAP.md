@@ -320,4 +320,6 @@ than picking one.
 reader. It owns only observation, display and in-memory interaction state.
 The [viewer architecture](docs/ARCHITECTURE.md#read-only-viewer) names its
 application seam; the [usage guide](docs/USAGE.md#usage-viewing-tree) states the
-current manual-refresh and blocking-read limits.
+current interaction and refresh behavior. The
+[item-status design](docs/specs/item-status.md) owns the full-width interaction
+and typed activity contract; the loop owns runtime protocol knowledge.

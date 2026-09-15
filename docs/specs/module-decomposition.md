@@ -41,6 +41,10 @@ The domain-bound viewer consumes the loop's quiet `try_read` typed reader and ca
 Ratatui/Crossterm dependencies do not enter grove-loop or grove-llm. The human
 binary dispatches `view` before lifecycle setup. The observation path is not a
 launch-policy selector. See [Read-only viewer](../ARCHITECTURE.md#read-only-viewer).
+The [item-status design](./item-status.md) defines the combined typed
+tree/activity observation interface and full-width interaction. Runtime protocol
+knowledge belongs to the loop; row styling and viewport state belong to the
+viewer.
 
 One workspace, one release version, one changelog, one tag. A module is a crate
 so that *testable through its own interface without unrelated modules* is not a

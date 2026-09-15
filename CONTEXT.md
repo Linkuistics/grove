@@ -474,6 +474,35 @@ edits, commits, or forged signal writes. See ADR
 _Avoid_: a durable **grove generation** in `.grove/` or in a [[Work-item handle]]. Epoch rotation is stronger and catches stale sessions between every launch as well as after finish plus root recreation; stable handles remain identities within one task tree.
 _Avoid_: inferring authority from the existence or bytes of a control file. The live kernel locks bind the record; unlocked leftovers mean nothing.
 
+<a id="tree-lifetime"></a>
+### Tree lifetime
+
+The identity of one task-root directory, within which [[Permanent key]]s name
+items; replacing that directory begins a different lifetime even at the same
+path with the same keys. See [item-status](docs/specs/item-status.md).
+_Avoid_: a persisted grove generation, or the lifetime of the working-tree root.
+
+<a id="session-witness"></a>
+### Session witness
+
+The ephemeral observation evidence that one live [[Driver lease]] successfully
+launched a particular mandate and has not yet reaped it. It grants no [[Session
+epoch]] admission; see ADR *one-live-driver-per-working-tree*.
+
+<a id="running"></a>
+### RUNNING
+
+The item named by the live driver's witnessed mandate, identified by its
+[[Permanent key]] and [[Tree lifetime]], independently of lifecycle outcome or
+cursor selection. There is at most one direct RUNNING item.
+
+<a id="next"></a>
+### NEXT
+
+The [[Pick]] forecast over the current tree after excluding the [[RUNNING]]
+item in that same [[Tree lifetime]], with finish eligibility applied to the
+remaining leaves. It is at most one leaf and is not a promised future launch.
+
 <a id="session-kind"></a>
 ### Session kind
 

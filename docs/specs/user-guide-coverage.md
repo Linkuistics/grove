@@ -71,7 +71,7 @@ show a real invocation, not merely name the command.
 | G4 | Bare lifecycle has no launch-policy selectors | Stated: bare `grove` takes no tree argument and no confirmation step; its enclosing working tree selects the workstream. The viewer path only selects an observation location. |
 | G5 | Exit status | Stated: `0` for a clean finish or a session that ended without signalling; `128 + N` when killed, because the driver dies of the same signal. |
 
-| G6 | `grove view [WORKTREE]` | Worked for current and explicit worktree; no upward search, read-only plain text, manual refresh, pane focus, tree/parent navigation, line/page/Unicode horizontal scrolling, help, resize state retention, responsive contention/retry, error recovery and non-TTY refusal. Full signal/panic restoration evidence follows separately. |
+| G6 | `grove view [WORKTREE]` | Current and explicit worktree; no upward search, read-only Markdown, automatic/manual refresh, tree/parent navigation, line/page/Unicode horizontal scrolling, help, resize state retention, responsive contention/retry, error recovery and non-TTY refusal. The [item-status design](./item-status.md) adds full-width Tree/File switching, leading lifecycle glyphs/words/colors and persistent RUNNING/NEXT summaries; document these with the implementation. Full signal/panic restoration evidence follows separately. |
 
 Rows G1–G3 come from `grove --help`. G4 and G5 are behaviours no help text
 states: G4 is the absence of lifecycle selector arguments, and G5 is verified

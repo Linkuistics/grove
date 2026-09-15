@@ -106,9 +106,9 @@ Nor does Grove defend against another process deleting or replacing files in
 the VCS administration area; that is repository-control corruption, and no
 claim is made that open/lock identity revalidation survives unlink/recreate
 outside an acquisition window.
-The fixed lease and epoch files are untracked coordination locations whose bytes
-have meaning only while their kernel locks are held; `.grove/` remains the only
-durable workflow state.
+The fixed lease and epoch files, and the session witnesses defined below, are
+untracked coordination locations whose bytes have meaning only with live lock
+evidence; `.grove/` remains the only durable workflow state.
 
 Consequently, at a driver lifecycle transition an absent `.grove/` is always a
 fresh-tree fact, never an implicit finish receipt. If a finish session
@@ -132,8 +132,190 @@ tree. That tree may reuse keys such as `plan-k1`; epoch rotation, rather than
 global key uniqueness, rejects the old cooperating session's `grove-llm`
 operations.
 
+## Read-only activity observation
+
+An observer reports a current mandate only with a **session witness** in
+addition to matching lease and epoch records. A matching active epoch plus a
+contended lease is an admission liveness hint, not enough to establish which
+launch is running: a replacement driver acquires the lease before it may invalidate the
+predecessor's epoch, and deliberately preserves the old lease bytes during that
+wait. A viewer must not describe that predecessor as RUNNING.
+
+The witness adds observation evidence without changing authority. The driver
+lease still serializes drivers; the epoch still admits agent operations using
+the worktree, lease nonce and signal path. A viewer neither obtains an admission
+guard nor probes the driver lease lock. Its witness probe is shared, so
+concurrent observers cannot create the exclusive contention that means a live
+driver holds that witness. A successful witness probe is released immediately,
+before validation or other I/O. Agent admission retains its existing protocol.
+
+Shared probes rely on the compatible shared/incompatible exclusive semantics
+documented by [Apple's flock manual](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/flock.2.html)
+and the [Linux flock manual](https://man7.org/linux/man-pages/man2/flock.2.html).
+The inference that contention names this driver additionally depends on Grove's
+rule that no other participant takes the witness exclusively.
+
+### Mandate and lifetime
+
+Selection retains an open task-root directory descriptor, acquired and checked
+against the selected snapshot under its tree read guard. Its device/inode pair
+is the **tree lifetime**, distinct from the working-tree-root identity in the
+lease. The driver retains this pin through the session witness's lifetime and
+checks it again before publishing the mandate. A mismatch before publication
+stops that launch as a changed-tree error; no stale selection is rebound to the
+new tree. No tree or epoch guard survives across spawn.
+
+Active epoch records carry an optional, versioned observation extension:
+permanent key, launch-time handle and kind, task-root identity, and the witness's
+namespace-local name and descriptor identity. The extension is bound to the
+record's existing lease nonce and signal path. The handle's key must agree with
+the explicit key. Missing or unsupported observational fields cannot weaken
+validation of the mandatory admission record and cannot establish RUNNING.
+Admission does not require the extension, including when observation setup fails.
+
+Keeping the task-root descriptor open prevents its inode being reused while its
+mandate can still be observed as current. A viewer joining after root replacement
+can therefore reject a reused key without having seen the previous tree. The
+pin adds no persisted generation and takes no tree lock. Replacement after
+publication leaves the mandate attached to the old lifetime; it does not confer
+authority over the replacement or change the existing admission rules.
+
+### Witness publication and release
+
+Each attempted launch allocates a new witness file in Grove's control namespace
+using an independent OS-random 128-bit suffix and exclusive creation. Occupied
+draws are retried with the same bounded policy as fresh signal allocation.
+The driver locks the empty regular file exclusively before publishing its
+identity in the pre-spawn epoch. This lock is held by the driver alone, on a
+close-on-exec descriptor. Its name is never deliberately reused. The accepted
+random-collision limit is the same as the channel's, without tombstones.
+
+The generic runner exposes launch events to its caller: **Started** after a
+successful spawn and **Reaped** when it confirms that child's reap, including
+escalated termination. These synchronous parent-side notifications introduce no
+Grove vocabulary or child-side acknowledgement. Ordinary callers can run with
+no observer. Notifications are infallible and do not change launch disposition;
+Grove's callbacks take no epoch/tree lock and perform no waiting operation.
+
+On Started, the driver writes the exact eight-byte marker `started` followed by
+a newline to the previously empty witness. This is the file's only publication:
+it is never rewritten to describe another phase, launch or item. Empty or
+incomplete bytes cannot mean started; only the complete exact marker does. A
+reader need not assume write atomicity. On Reaped, the driver releases the
+witness immediately, before terminal recovery, exclusive epoch invalidation or
+signal interpretation. Writing the completion signal and retiring the task do
+not release it. Failed spawn publishes no marker and releases its prepared
+witness before post-attempt invalidation.
+
+The lease owns the witness until those events release it, and releases the
+witness before releasing driver ownership on every orderly drop path. A
+supervision error without confirmed reap must not invent a Reaped event or drop
+the witness early through a helper's return. Driver exit, unwind or death
+releases both lease and witness through descriptor lifetime; child processes
+cannot keep either lock alive after exec. The driver keeps the tree pin for at
+least as long as that witness.
+
+Observation-only allocation failure leaves activity Unavailable. Publication
+failure leaves activity unverified: an empty file or valid marker prefix remains
+Busy, and invalid bytes are Unavailable, until reap or driver exit. Either
+failure emits a diagnostic without changing a successfully launched session's
+authority or outcome. An epoch whose extension could not be prepared is still
+valid for admission. Failure to write the mandatory epoch remains a launch
+failure under the existing protocol. Witness cleanup happens after epoch
+invalidation; a replacement removes abandoned witnesses only after it owns the
+lease and has invalidated the old epoch. Cleanup failure leaves harmless bytes
+and cannot change completion. No observer creates, cleans or repairs controls.
+
+### One bounded observation
+
+The VCS seam provides read-only discovery of an existing namespace in the exact
+observed workspace, sharing path derivation and namespace validation with the
+creating operation. It neither creates directories nor follows the secondary
+workspace's repository link or an ancestor's workspace to find activity. No jj
+command, launch configuration or ambient session context participates.
+
+The loop's typed observer uses this protocol:
+
+1. Open existing controls read-only, nonblocking and close-on-exec. Require
+   regular files for records and a directory for the namespace. Bound each
+   lease/epoch read to 64 KiB; the witness accepts exactly the eight-byte marker
+   and rejects extra bytes. Resolve the witness only from a plain basename
+   inside this namespace, never an arbitrary path from the record.
+2. Try a shared epoch guard without waiting. Contention returns activity Busy.
+   An absent exact workspace, namespace or lease means Idle at that sample.
+   When a lease file exists but the epoch is missing, unreadable or malformed,
+   activity is Unavailable; bytes alone cannot establish that the driver ended.
+   If shared acquisition fails, ordinary nonblocking tree observation may still
+   proceed.
+3. With the epoch guard held, validate the worktree and the matching mandatory
+   lease/epoch records without locking the lease file. A matching inactive epoch
+   means Idle: no new launch can activate it while this shared guard is held.
+   An active epoch needs its observation extension. Invalid or mismatched
+   records mean Unavailable. A valid witness's exclusive ownership supplies the
+   live-driver evidence, because only its owning lease may hold that witness.
+4. Open the named witness and compare its descriptor/path identity with the
+   published identity. Missing or mismatched evidence means Unavailable.
+   Prepare its bounded read, but do not finalize Running yet.
+5. Acquire the tree's shared guard only by a nonblocking attempt, after the
+   epoch guard where one exists. Pin and validate the observed task-root
+   identity with its snapshot before the final witness probe. A busy, vacant
+   or invalid tree still permits a runtime summary, but no row attachment.
+6. Probe the witness through an independent descriptor with a nonblocking
+   shared lock attempt. Success is released immediately and means Idle for a
+   matching witness, regardless of leftover marker bytes. Contention plus the
+   exact started marker establishes Running; a locked empty file or proper
+   marker prefix means Busy; other bytes/errors mean Unavailable. Other viewers'
+   shared probes cannot cause contention. No admission operation or replacement
+   driver acquires this old witness exclusively.
+
+Return separate typed tree and runtime results even if one is unavailable.
+After the caller's short capture, release tree then epoch guards, before any
+second capture, rendering or input wait. Retain the accepted tree identity pin
+with the copied observation. Pinning before the final probe is load-bearing:
+the driver can release its old root pin on reap or death, even while the viewer
+holds a shared epoch guard. A probe done first could be joined to a later root
+whose inode was reused after that release. The observed root's pin must already
+exist when Running is established.
+
+Every control acquisition/probe checks open descriptor identity against the
+current path, with at most the existing eight identity-race attempts and no
+sleep or blocking fallback. A successful witness probe releases its lock
+before any further work. The observer never returns that lock to its caller.
+Retained root pins hold no advisory locks. Multiple viewers may share a short
+epoch/tree read; none holds an epoch guard while waiting for a busy tree.
+
+Running is evidence at the witness probe, not a promise until the next frame.
+If the driver dies before that probe, its witness lock is gone, including while
+a replacement holds the old lease bytes. If it dies after the probe, the next
+observation detects the loss. A shared epoch guard prevents a new mandate being
+published during the capture, but never keeps the old driver or witness alive.
+Comparing two bounded captures can reject observed change; it does not promise
+atomic observation of non-cooperating filesystem edits. The existing exclusion
+of arbitrary administration-area corruption still applies.
+
+This costs one ephemeral file and descriptor per launch and two generic runner
+events. It avoids turning admission's deliberately preserved predecessor bytes
+into false runtime status. The [viewer spec](../specs/item-status.md) owns the
+presentation and acceptance scenarios, including real process-death, pre-spawn,
+reap-before-handoff and tree-replacement controls.
+
 ## Considered options
 
+- **Read RUNNING from the existing epoch and lease alone.** Rejected because
+  an observer cannot distinguish the predecessor from a replacement waiting
+  for epoch handoff. Reopen only if the ownership protocol no longer preserves
+  predecessor records or supplies an equivalent kernel-backed launch witness.
+- **Publish RUNNING immediately before spawn.** Rejected because a failed
+  spawn would briefly claim a running session. Reopen only if the product
+  meaning changes to include attempted launches.
+- **Let the child publish or retain the witness.** Rejected because an opaque
+  harness need not acknowledge startup and can outlive its driver; the displayed
+  mandate belongs to the live driver. Reopen if Grove's ownership model moves to
+  the launched job rather than its supervising driver.
+- **Make the viewer join independent tree and activity reads.** Rejected
+  because callers would each own the epoch/tree ordering and lifetime check.
+  Reopen if independent consumers need uncorrelated runtime telemetry rather
+  than an item observation.
 - **Keep the status quo with no lifetime owner.** Rejected because two bare
   drivers can select and launch the same work or consume one another's completion
   signals. Reopen only if launch becomes externally serialized by a stronger

@@ -166,6 +166,11 @@ point's own files.
 
 ## Read-only viewer
 
+The [item-status design](specs/item-status.md) specifies full-width view
+switching and lifecycle/activity display, including the typed observation
+extension to the driver protocol. The implementation described below is its
+starting application seam.
+
 `grove view [WORKTREE]` dispatches to the `grove-tui` library before jj workspace
 resolution, driver lease acquisition or launch configuration. Its observation
 path is the specified directory's `.grove`; it never searches upward.

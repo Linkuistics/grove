@@ -42,6 +42,11 @@ The human agreed the following requirements and test seams in `plan-k1`.
 - Use color as a secondary cue; text remains sufficient without color. Cursor
   selection, expansion and activity must be visually distinguishable. The
   selected row must retain a readable lifecycle and activity indication.
+- Use a tick (✓) for DONE and a cross (✗) for ABANDONED, alongside distinct
+  text colors for DONE and ABANDONED. Ordinary LIVE items use normal text;
+  highlight the currently RUNNING item. Put the tick/cross at the start of the
+  label, before the lifecycle word, indentation and item name. Keep the explicit
+  words and the separate cursor-selection cue.
 - RUNNING and NEXT are separate from lifecycle. A task may be DONE while its
   launched session is still finishing; retain both facts until that session ends.
 
@@ -104,14 +109,18 @@ protocol preserves the existing driver ownership and session-admission guarantee
 
 ## Decomposition
 
-`plan-k1` established the requirements with the human. `item-status-k2` designs
-the runtime-observation and display seams and records the durable behavioral
-contract. Reliable activity crosses driver ownership and read-only viewing, so
-implementation slices are planned after that design makes them concrete.
+`plan-k1` established the requirements with the human. `item-status-k2` records
+the design in `docs/specs/item-status.md` and the driver-lease ADR.
+`item-status-k3` reviews that design, followed by any integration it needs;
+`item-status-k4` then plans implementation slices. Reliable activity crosses
+driver ownership and read-only viewing, so the design is reviewed before those
+slices are cut.
 
 ## Pointers
 
 - `docs/adr/one-live-driver-per-working-tree.md` — driver lease and session epoch.
+- `docs/specs/item-status.md` — viewer behavior, typed observation and acceptance
+  scenarios, including the human's leading tick/cross and text-color refinement.
 - `docs/ARCHITECTURE.md`, Read-only viewer — current application/observation seam.
 - `docs/USAGE.md`, Viewing a tree — current interaction and recovery behavior.
 - Glossary: Leaf, DONE infix, Pruning, Pick, Permanent key, Driver lease and
@@ -119,7 +128,7 @@ implementation slices are planned after that design makes them concrete.
 
 ## Notes
 
-Current source builds one plain row label with lifecycle after handle and kind;
-the renderer allocates 55% of the body to the tree and 45% to the file. The
-current epoch record carries a process identity and signal path, but no selected
+The source at the design handoff builds one plain row label with lifecycle after
+handle and kind; the renderer allocates 55% of the body to the tree and 45% to the
+file. The current epoch record carries a process identity and signal path, but no selected
 item identity. A truthful RUNNING indication therefore requires driver support.

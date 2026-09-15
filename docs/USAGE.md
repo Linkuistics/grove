@@ -59,7 +59,7 @@ leaves. Counts expose mixed terminal branches.
 | PageUp/PageDown or Ctrl-u/Ctrl-d | Scroll the file by one page |
 | ? | Show key help; navigation pauses until help is dismissed |
 | Escape | Dismiss help |
-| r | Reload the tree and root brief; selection and scroll reset to root/top |
+| r | Refresh immediately, preserving the selected item and reading position |
 | q or Ctrl-c | Quit from either pane or help |
 
 Files render as **formatted Markdown**: headings, emphasis, nested lists,
@@ -68,26 +68,38 @@ Prose wraps to the pane width. Code keeps its indentation and tables keep their
 columns; Left/Right scrolls those wide blocks without shifting prose. Links show
 labels and destinations, images show alt text, and HTML is inert text. Nothing
 opens a link, fetches an image, runs code or executes terminal control characters.
-Syntax highlighting is not provided. Updates still require `r`.
+Syntax highlighting is not provided. The tree and selected bytes refresh every
+500 ms, including same-size edits; `r` refreshes immediately.
 
 Resize preserves the reading location through prose reflow, clamping near the
 end of a file. Returning to a previously selected file restores its reading
 position, including horizontal scroll. These positions live only in memory.
 The selected tree row stays visible. The footer points to key help.
 
+Selection and expansion follow permanent keys across renumbering, renaming,
+moves and retirement. Decomposing a selected task opens its new branch brief.
+A moved selection reveals its new ancestors. If an item disappears, the viewer
+selects its nearest surviving old ancestor and shows a notice. Replacing or
+removing `.grove` clears saved item state, even if a new tree reuses its keys;
+replacing only `_BRIEF.md` is an ordinary content edit. Duplicate keys show an
+error. Reading positions currently retain source offsets, so text inserted or
+deleted above the visible passage can shift it; edit-aware mapping follows in
+the next increment.
+
 A missing tree shows its observed path and a Missing message. A malformed or
 unreadable reload shows an error; a retained previous tree is explicitly STALE.
-A selected-file failure is shown in the file pane. Fix the external problem,
-then press `r` to reload; the viewer never repairs it. An empty document has an
+A selected-file failure is shown in the file pane. Fix the external problem;
+the viewer retries automatically and never repairs it. An empty document has an
 empty pane. Resize keeps the selected item. Below 60
 columns or 10 rows, a resize message replaces the panes; navigation pauses and
 state is retained until they fit again. Quit and refresh still work, including
-while help is open. Refresh deliberately resets selection and scroll as above.
+while help is open. Refresh retains the selected item while the panes are hidden.
 
 Startup, selection and reload use a quiet nonblocking reader. While a writer
 holds the tree, the viewer shows WAITING and retains its previous display;
 navigation and quit remain responsive. It retries the pending read every 500 ms
-until contention ends. Other external changes and repairs still require `r`.
+until contention ends. Other external changes and repairs are observed on the
+same deadline, with at most one pending observation.
 The shared guard is released before rendering or waiting for input.
 
 Run directly with interactive stdin and stdout; piping either is refused before
@@ -119,7 +131,7 @@ Grove: hierarchical workstream tool for AI agents
 Usage: grove [COMMAND]
 
 Commands:
-  view  Browse a .grove task tree read-only with manual refresh
+  view  Browse a .grove task tree read-only with automatic refresh
 
 Options:
   -h, --help     Print help

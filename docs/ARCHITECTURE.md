@@ -179,8 +179,17 @@ typed snapshot, derives labels through `Parts`, `Outcome` and `Handle`, and
 uses the public `entry_path` helper for canonical file paths. It copies rows
 and selected bytes under a short shared guard and drops it before layout or
 input. There is no persisted viewer state. Busy retains the previous display
-with a waiting indicator and one pending retry every 500 ms; input polling uses
-that deadline. Other changes and repairs require manual refresh.
+with a waiting indicator. A single 500 ms deadline drives automatic observation
+and error recovery; selection and explicit refresh enter the same operation.
+Two bounded typed captures compare rows and selected bytes, rejecting observed
+inconsistency from non-cooperating edits without claiming an atomic transaction.
+Every capture releases its guard before another acquisition. A retained open
+root directory descriptor holds no tree lock; device/inode identity checks
+around capture detect replacement and clear old item state. Root opening is
+nonblocking and directory-only; metadata identifies even unreadable replacements.
+The adapter rejects duplicate keys before selecting content. Permanent keys
+preserve selection and branch expansion; disappearance selects the nearest
+surviving ancestor, and moved selections reveal their ancestors.
 
 The private Markdown module consumes pulldown-cmark events with source offsets.
 It sanitizes rendered text after entity decoding and lays out styled prose by
@@ -189,9 +198,12 @@ prose reflows. Each rendered line keeps its source range, allowing width changes
 to map the top reading anchor into a new layout. A rendered offset within
 transformed events distinguishes wrapped inline code and link destinations.
 Ordinary revisits save source
-anchors and horizontal columns by observed file path, bounded to the current
-snapshot. Manual refresh resets to the root; identity across moves and content
-edit reconciliation are not yet implemented. The renderer performs no I/O.
+anchors and horizontal columns by permanent key, bounded to the current
+root lifetime and accepted snapshot. Unchanged content keeps its layout and
+reading position. Content edits currently retain the source offset and clamp;
+mapping anchors to unchanged text across edits is the next increment.
+File errors retain the saved anchor and display a diagnostic separately.
+The renderer performs no I/O.
 
 ## Session configuration
 

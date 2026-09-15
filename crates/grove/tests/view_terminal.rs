@@ -78,3 +78,43 @@ fn termination_interrupts_an_incomplete_escape_sequence() {
     assert!(pty.wait().success());
     pty.assert_restored();
 }
+
+#[test]
+fn actual_binary_observes_selected_bytes_without_input() {
+    use std::time::{Duration, Instant};
+    let directory = tempfile::tempdir().unwrap();
+    let tree = directory.path().join(".grove");
+    std::fs::create_dir(&tree).unwrap();
+    std::fs::write(tree.join("_BRIEF.md"), "ROOT_CONTENT").unwrap();
+    let file = tree.join("01-impl--probe-k1.md");
+    std::fs::write(&file, "AAAAAAAAAAAA").unwrap();
+    let mut pty = Pty::spawn(
+        Command::new(env!("CARGO_BIN_EXE_grove"))
+            .arg("view")
+            .arg(directory.path()),
+    );
+    pty.until("ROOT_CONTENT");
+    pty.send(b"j");
+    pty.until("AAAAAAAAAAAA");
+    pty.output.clear();
+    let modified = std::fs::metadata(&file).unwrap().modified().unwrap();
+    let start = Instant::now();
+    std::fs::write(&file, "ZZZZZZZZZZZZ").unwrap();
+    std::fs::File::options()
+        .write(true)
+        .open(&file)
+        .unwrap()
+        .set_times(std::fs::FileTimes::new().set_modified(modified))
+        .unwrap();
+    pty.until("ZZZZZZZZZZZZ");
+    assert!(start.elapsed() < Duration::from_secs(1));
+    pty.send(b"q");
+    assert!(pty.wait().success());
+    pty.assert_restored();
+    assert_eq!(std::fs::read_to_string(file).unwrap(), "ZZZZZZZZZZZZ");
+    assert_eq!(
+        std::fs::read_to_string(tree.join("_BRIEF.md")).unwrap(),
+        "ROOT_CONTENT"
+    );
+    assert_eq!(std::fs::read_dir(tree).unwrap().count(), 2);
+}

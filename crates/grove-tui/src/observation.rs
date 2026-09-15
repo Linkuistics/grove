@@ -1,9 +1,14 @@
+use std::collections::HashSet;
+use std::fs::File;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use grove_loop::{entry_path, Handle, Outcome, Parts, Reading, TryReading};
 
+#[derive(PartialEq, Eq)]
 pub(crate) struct Row {
+    pub key: Item,
     pub path: PathBuf,
     pub label: String,
     pub depth: usize,
@@ -12,15 +17,81 @@ pub(crate) struct Row {
     counts: [usize; 3],
 }
 
+/// Root has its own identity, separate from permanent task keys.
+pub(crate) type Item = Option<u32>;
+
+/// A retained descriptor prevents inode reuse while an old lifetime is visible.
+/// It never carries Grove's tree lock.
+pub(crate) struct Root(File);
+
+impl Root {
+    pub fn open(worktree: &Path) -> std::io::Result<Option<Self>> {
+        use rustix::fs::{open, Mode, OFlags};
+        // Reject a raced-in nondirectory (including FIFOs) without blocking.
+        // https://docs.rs/crate/rustix/0.38.44/source/src/fs/abs.rs
+        match open(
+            worktree.join(".grove"),
+            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NONBLOCK | OFlags::CLOEXEC,
+            Mode::empty(),
+        ) {
+            Ok(fd) => Ok(Some(Self(File::from(fd)))),
+            Err(rustix::io::Errno::NOENT | rustix::io::Errno::NOTDIR) => Ok(None),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    pub fn at(&self, worktree: &Path) -> std::io::Result<bool> {
+        let current = match std::fs::metadata(worktree.join(".grove")) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(error),
+        };
+        let old = self.0.metadata()?;
+        Ok(current.is_dir() && old.dev() == current.dev() && old.ino() == current.ino())
+    }
+
+    pub fn same(&self, other: &Self) -> std::io::Result<bool> {
+        let a = self.0.metadata()?;
+        let b = other.0.metadata()?;
+        // Device + inode identify an open object on supported Unix targets.
+        // https://doc.rust-lang.org/std/os/unix/fs/trait.MetadataExt.html
+        Ok(a.dev() == b.dev() && a.ino() == b.ino())
+    }
+}
+
 type Content = Result<Vec<u8>, String>;
+#[derive(PartialEq, Eq)]
 pub(crate) enum Observation<T> {
     Ready(T),
     Vacant,
     Busy,
 }
 
-/// Copy rows and root bytes while guarded. No guard escapes this function.
-pub(crate) fn capture(worktree: &Path) -> Result<Observation<(Vec<Row>, Content)>> {
+/// Two bounded captures detect visible non-cooperating edits without claiming
+/// atomicity. Each drops its guard before another acquisition. Never loop until
+/// stable here: busy/changing trees must leave input and quit responsive.
+pub(crate) fn capture(
+    worktree: &Path,
+    candidates: &[Item],
+) -> Result<Observation<(Vec<Row>, usize, Content)>> {
+    let first = capture_once(worktree, candidates)?;
+    if !matches!(first, Observation::Ready(_)) {
+        return Ok(first);
+    }
+    let second = capture_once(worktree, candidates)?;
+    // Contention on the verification read is still Busy, not malformed data.
+    if !matches!(second, Observation::Ready(_)) {
+        return Ok(second);
+    }
+    anyhow::ensure!(first == second, "tree changed during observation; retrying");
+    Ok(second)
+}
+
+/// Copy rows and selected bytes while guarded. No guard escapes this function.
+fn capture_once(
+    worktree: &Path,
+    candidates: &[Item],
+) -> Result<Observation<(Vec<Row>, usize, Content)>> {
     let tree = match grove_loop::try_read(worktree)? {
         TryReading::Busy => return Ok(Observation::Busy),
         TryReading::Ready(Reading::Vacant) => return Ok(Observation::Vacant),
@@ -29,8 +100,10 @@ pub(crate) fn capture(worktree: &Path) -> Result<Observation<(Vec<Row>, Content)
     let root = tree.snapshot().root();
     let brief = root.distinguished().context("root has no brief")?;
     let path = entry_path(tree.root(), brief);
-    let content = read_file(&path);
+
+    let mut keys = HashSet::new();
     let mut rows = vec![Row {
+        key: None,
         path,
         label: "root".into(),
         depth: 0,
@@ -42,6 +115,11 @@ pub(crate) fn capture(worktree: &Path) -> Result<Observation<(Vec<Row>, Content)
         let Some(triple) = entry.triple() else {
             continue;
         };
+        anyhow::ensure!(
+            keys.insert(triple.key.get()),
+            "duplicate key k{}",
+            triple.key
+        );
         let (path, label, counts, branch) = match triple.parts {
             Parts::Leaf { outcome, kind, .. } => {
                 let handle = Handle::of_leaf(entry.name()).context("leaf has no handle")?;
@@ -75,6 +153,7 @@ pub(crate) fn capture(worktree: &Path) -> Result<Observation<(Vec<Row>, Content)
             }
         };
         rows.push(Row {
+            key: Some(triple.key.get()),
             path,
             label,
             depth: entry.depth(),
@@ -120,25 +199,12 @@ pub(crate) fn capture(worktree: &Path) -> Result<Observation<(Vec<Row>, Content)
             );
         }
     }
-    Ok(Observation::Ready((rows, content)))
-}
-
-/// Re-open under the quiet observer reader. A stale row cannot redirect to
-/// an arbitrary path: require its file still to belong to this typed snapshot.
-pub(crate) fn read_selected(worktree: &Path, path: &Path) -> Result<Observation<Content>> {
-    let tree = match grove_loop::try_read(worktree)? {
-        TryReading::Busy => return Ok(Observation::Busy),
-        TryReading::Ready(Reading::Vacant) => return Ok(Observation::Vacant),
-        TryReading::Ready(Reading::Tree(tree)) => tree,
-    };
-    let content = tree
-        .walk()
-        .find(|entry| entry_path(tree.root(), *entry) == path)
-        .map_or_else(
-            || Err("selected file disappeared; refresh the tree".into()),
-            |entry| read_file(&entry_path(tree.root(), entry)),
-        );
-    Ok(Observation::Ready(content))
+    let selected = candidates
+        .iter()
+        .find_map(|key| rows.iter().position(|row| row.key == *key))
+        .unwrap_or(0);
+    let content = read_file(&rows[selected].path);
+    Ok(Observation::Ready((rows, selected, content)))
 }
 
 fn read_file(path: &Path) -> Content {

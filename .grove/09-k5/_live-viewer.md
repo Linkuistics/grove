@@ -1,4 +1,4 @@
-# live-viewer-k5
+# live-viewer-k5 — brief
 
 ## Goal
 
@@ -67,14 +67,17 @@ full observable contract and delivery verification.
   Preserve grove-tui's workspace-version/release=false policy and reconcile
   release inventory only if delivered package membership changes.
 
+## Decomposition
+
+Inspection found refresh resets the entire view, positions use paths, and the
+Markdown anchor has no source edit mapping. live-observation-k12 delivers the
+first runnable live monitor; live-reading-k13 completes content edit mapping and
+the full real-clock recovery/delivery matrix. The parent contract remains whole.
+
 ## Notes
 
-If execution shows this slice is too large, its concrete decomposition seam is
-observation, root lifetime, selection/expansion and missing-item fallback first,
-then content-change anchor reconciliation and the real-clock recovery matrix.
-The first child must remain a runnable live monitor with its temporary reading
-position limitation documented; the second completes this leaf's full contract.
-This sizing note creates no extra leaf until the need is demonstrated.
+The first child remains a runnable live monitor with its temporary source-offset
+reading-position limitation documented; the second completes the full contract.
 
 The clock-triggered refresh and scripted refresh must enter the same application
 operation. Polling is the production change detector, so a test of an injected

@@ -89,7 +89,7 @@ fn nested_browser_selects_briefs_and_tasks_without_writing() {
     viewer.act(Action::Down);
     assert!(screen(&mut viewer, 180, 24).contains("FIRST BODY"));
     viewer.act(Action::Refresh);
-    assert!(screen(&mut viewer, 180, 24).contains("ROOT CHARTER"));
+    assert!(screen(&mut viewer, 180, 24).contains("FIRST BODY"));
     assert!(viewer.act(Action::Quit));
     assert_eq!(snapshot(work.path()), before);
 }
@@ -141,7 +141,7 @@ fn reload_reports_stale_missing_and_malformed_states_and_recovers() {
 }
 
 #[test]
-fn file_errors_do_not_silently_select_a_different_file() {
+fn disappearance_selects_root_with_an_explicit_notice() {
     let work = tempfile::tempdir().unwrap();
     let root = work.path().join(".grove");
     put(&root, "_BRIEF.md", "ROOT BODY");
@@ -150,8 +150,8 @@ fn file_errors_do_not_silently_select_a_different_file() {
     fs::remove_file(root.join("01-impl--task-k1.md")).unwrap();
     viewer.act(Action::Down);
     let text = screen(&mut viewer, 180, 24);
-    assert!(text.contains("File error"), "{text}");
-    assert!(!text.contains("ROOT BODY"));
+    assert!(text.contains("disappeared"), "{text}");
+    assert!(text.contains("ROOT BODY"));
     put(&root, "01-impl--task-k1.md", "RECOVERED BODY");
     viewer.act(Action::Refresh);
     viewer.act(Action::Down);
@@ -283,16 +283,19 @@ fn busy_selection_retries_the_latest_file_without_an_event_backlog() {
     drop(release);
     viewer.tick(deadline + Duration::from_secs(1));
     assert!(screen(&mut viewer, 140, 20).contains("SECOND FILE"));
-    assert_eq!(viewer.retry_after(deadline), None);
-    put(&root, "02-impl--second-k2.md", "MANUAL ONLY");
+    assert_eq!(
+        viewer.retry_after(deadline + Duration::from_secs(1)),
+        Some(Duration::from_millis(500))
+    );
+    put(&root, "02-impl--second-k2.md", "AUTOMATIC EDIT");
     viewer.tick(deadline + Duration::from_secs(20));
-    assert!(screen(&mut viewer, 140, 20).contains("SECOND FILE"));
+    assert!(screen(&mut viewer, 140, 20).contains("AUTOMATIC EDIT"));
     fs::write(root.join("02-impl--second-k2.md"), "SECOND FILE").unwrap();
     assert_eq!(snapshot(work.path()), before);
 }
 
 #[test]
-fn busy_refresh_recovers_and_nonbusy_errors_wait_for_manual_repair() {
+fn busy_refresh_and_nonbusy_errors_recover_automatically() {
     use std::time::{Duration, Instant};
     let work = tempfile::tempdir().unwrap();
     let root = work.path().join(".grove");
@@ -314,10 +317,10 @@ fn busy_refresh_recovers_and_nonbusy_errors_wait_for_manual_repair() {
     put(&root, "01-bad.md", "malformed");
     viewer.act(Action::Refresh);
     assert!(screen(&mut viewer, 140, 20).contains("STALE"));
-    assert_eq!(viewer.retry_after(Instant::now()), None);
+    assert!(viewer.retry_after(Instant::now()).is_some());
     fs::remove_file(root.join("01-bad.md")).unwrap();
     viewer.tick(Instant::now() + Duration::from_secs(5));
-    assert!(screen(&mut viewer, 140, 20).contains("STALE"));
+    assert!(!screen(&mut viewer, 140, 20).contains("STALE"));
     viewer.act(Action::Refresh);
     assert!(!screen(&mut viewer, 140, 20).contains("STALE"));
     fs::remove_dir_all(root).unwrap();
@@ -494,7 +497,7 @@ fn help_and_small_frames_preserve_navigation_and_allow_global_actions() {
     screen(&mut viewer, 59, 9);
     key(&mut viewer, Char('r'));
     key(&mut viewer, Esc);
-    assert!(screen(&mut viewer, 100, 15).contains("ROOT BODY"));
+    assert_eq!(screen(&mut viewer, 100, 15), saved);
     assert_eq!(snapshot(work.path()), before);
 }
 
@@ -708,4 +711,215 @@ fn transformed_markdown_and_blank_code_lines_keep_reading_anchors() {
         );
         assert!(screen(&mut viewer, 70, 20).contains("UNIQUE-MARKER"));
     }
+}
+
+#[test]
+fn live_ticks_follow_keys_and_reveal_a_moved_selection() {
+    use std::time::{Duration, Instant};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    put(&root, "01-k1/_branch.md", "BRANCH BODY");
+    put(&root, "01-k1/01-impl--hidden-k2.md", "HIDDEN BODY");
+    put(&root, "02-impl--chosen-k3.md", "CHOSEN BODY");
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Down);
+    viewer.act(Action::Toggle);
+    viewer.act(Action::Down);
+    viewer.act(Action::Focus);
+    assert!(screen(&mut viewer, 180, 24).contains("CHOSEN BODY"));
+    fs::rename(
+        root.join("02-impl--chosen-k3.md"),
+        root.join("01-k1/02-DONE-impl--renamed-k3.md"),
+    )
+    .unwrap();
+    let expected = snapshot(work.path());
+    viewer.tick(Instant::now() + Duration::from_secs(1));
+    let shown = screen(&mut viewer, 180, 24);
+    assert!(shown.contains("renamed-k3 impl DONE"), "{shown}");
+    assert!(shown.contains("CHOSEN BODY"), "{shown}");
+    assert!(!shown.contains("HIDDEN BODY"));
+    assert!(
+        shown.contains("hidden-k2"),
+        "moved selection must reveal ancestor: {shown}"
+    );
+    assert!(shown.contains("File [focus]"));
+    assert_eq!(snapshot(work.path()), expected);
+    fs::remove_file(root.join("01-k1/02-DONE-impl--renamed-k3.md")).unwrap();
+    viewer.act(Action::Refresh);
+    let shown = screen(&mut viewer, 180, 24);
+    assert!(shown.contains("disappeared"), "{shown}");
+    assert!(shown.contains("BRANCH BODY"), "{shown}");
+}
+
+#[test]
+fn live_root_replacement_clears_reused_key_state_but_brief_edits_do_not() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "OLD ROOT");
+    put(&root, "01-impl--chosen-k1.md", "OLD ITEM");
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Down);
+    put(&root, "replacement", "EDITED ROOT");
+    fs::rename(root.join("replacement"), root.join("_BRIEF.md")).unwrap();
+    viewer.act(Action::Refresh);
+    assert!(screen(&mut viewer, 160, 20).contains("OLD ITEM"));
+    fs::rename(&root, work.path().join("old-tree")).unwrap();
+    put(&root, "_BRIEF.md", "NEW ROOT");
+    put(&root, "01-impl--chosen-k1.md", "NEW ITEM");
+    let expected = snapshot(work.path());
+    viewer.act(Action::Refresh);
+    let shown = screen(&mut viewer, 160, 20);
+    assert!(shown.contains("NEW ROOT"), "{shown}");
+    assert!(!shown.contains("NEW ITEM"));
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn live_decomposition_and_duplicate_key_recovery() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    put(&root, "01-impl--chosen-k1.md", "CHOSEN BODY");
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Down);
+    fs::create_dir(root.join("01-k1")).unwrap();
+    fs::rename(
+        root.join("01-impl--chosen-k1.md"),
+        root.join("01-k1/_chosen.md"),
+    )
+    .unwrap();
+    viewer.act(Action::Refresh);
+    let shown = screen(&mut viewer, 160, 20);
+    assert!(shown.contains("CHOSEN BODY"), "{shown}");
+    assert!(shown.contains(">   - chosen-k1"), "{shown}");
+    put(&root, "02-impl--duplicate-k1.md", "WRONG BODY");
+    viewer.act(Action::Refresh);
+    let shown = screen(&mut viewer, 180, 20);
+    assert!(shown.contains("duplicate key"), "{shown}");
+    assert!(shown.contains("STALE"));
+    assert!(!shown.contains("WRONG BODY"));
+    fs::remove_file(root.join("02-impl--duplicate-k1.md")).unwrap();
+    viewer.tick(std::time::Instant::now() + std::time::Duration::from_secs(1));
+    assert!(!screen(&mut viewer, 180, 20).contains("STALE"));
+}
+
+#[test]
+fn live_unchanged_ticks_keep_reading_position_and_selected_bytes_are_reread() {
+    use std::time::{Duration, Instant};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    let text: String = (0..100).map(|n| format!("ROW {n:03}\n\n")).collect();
+    put(&root, "01-impl--chosen-k1.md", &text);
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Down);
+    screen(&mut viewer, 160, 20);
+    viewer.act(Action::Focus);
+    viewer.act(Action::PageDown);
+    let before = screen(&mut viewer, 160, 20);
+    viewer.tick(Instant::now() + Duration::from_secs(1));
+    assert_eq!(screen(&mut viewer, 160, 20), before);
+    let file = root.join("01-impl--chosen-k1.md");
+    let modified = fs::metadata(&file).unwrap().modified().unwrap();
+    fs::write(&file, text.replace("ROW", "NEW")).unwrap();
+    fs::File::options()
+        .write(true)
+        .open(&file)
+        .unwrap()
+        .set_times(fs::FileTimes::new().set_modified(modified))
+        .unwrap();
+    let expected = snapshot(work.path());
+    viewer.tick(Instant::now() + Duration::from_secs(2));
+    assert!(screen(&mut viewer, 160, 20).contains("NEW"));
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn live_unreadable_replacement_discards_the_previous_lifetime() {
+    use std::os::unix::fs::PermissionsExt;
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "PRIVATE OLD ROOT");
+    let mut viewer = Viewer::new(work.path().into());
+    fs::rename(&root, work.path().join("old")).unwrap();
+    put(&root, "_BRIEF.md", "REPLACEMENT ROOT");
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o0)).unwrap();
+    let denied = fs::File::open(&root).is_err();
+    viewer.act(Action::Refresh);
+    let shown = screen(&mut viewer, 180, 20);
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
+    assert!(!shown.contains("PRIVATE OLD ROOT"), "{shown}");
+    if denied {
+        assert!(shown.contains("Error"), "{shown}");
+    }
+    viewer.act(Action::Refresh);
+    assert!(screen(&mut viewer, 180, 20).contains("REPLACEMENT ROOT"));
+}
+
+#[test]
+fn live_fifo_replacement_cannot_block_observation() {
+    use std::time::{Duration, Instant};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "OLD ROOT");
+    let mut viewer = Viewer::new(work.path().into());
+    fs::remove_dir_all(&root).unwrap();
+    use std::os::unix::ffi::OsStrExt;
+    let fifo_name = std::ffi::CString::new(root.as_os_str().as_bytes()).unwrap();
+    // SAFETY: a live NUL-terminated path and ordinary owner read/write mode.
+    assert_eq!(unsafe { libc::mkfifo(fifo_name.as_ptr(), 0o600) }, 0);
+    // Bound the old blocking implementation so this regression fails instead
+    // of hanging the suite. RDWR opens a FIFO without waiting for a peer.
+    let fifo = root.clone();
+    let release = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(400));
+        fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(fifo)
+            .unwrap()
+    });
+    let start = Instant::now();
+    viewer.act(Action::Refresh);
+    let elapsed = start.elapsed();
+    let writer = release.join().unwrap();
+    drop(writer);
+    assert!(
+        elapsed < Duration::from_millis(200),
+        "blocked for {elapsed:?}"
+    );
+    assert!(!screen(&mut viewer, 160, 20).contains("OLD ROOT"));
+    assert!(viewer.act(Action::Quit));
+}
+
+#[test]
+fn live_file_read_errors_keep_the_tree_and_recover_the_saved_anchor() {
+    use std::os::unix::fs::PermissionsExt;
+    use std::time::{Duration, Instant};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    let text: String = (0..100).map(|n| format!("LINE {n:03}\n\n")).collect();
+    put(&root, "01-impl--chosen-k1.md", &text);
+    let file = root.join("01-impl--chosen-k1.md");
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Down);
+    screen(&mut viewer, 180, 24);
+    viewer.act(Action::Focus);
+    viewer.act(Action::PageDown);
+    let before = screen(&mut viewer, 180, 24);
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o0)).unwrap();
+    let denied = fs::read(&file).is_err();
+    viewer.act(Action::Refresh);
+    let error = screen(&mut viewer, 180, 24);
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
+    if denied {
+        assert!(error.contains("File error"), "{error}");
+        assert!(error.contains("chosen-k1"));
+        assert!(error.contains("denied"), "{error}");
+        assert!(!error.contains("ROOT BODY"));
+    }
+    viewer.tick(Instant::now() + Duration::from_secs(1));
+    assert_eq!(screen(&mut viewer, 180, 24), before);
 }

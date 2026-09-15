@@ -15,12 +15,12 @@ use ratatui::{
     layout::{Constraint, Layout},
     style::{Modifier, Style},
     text::Line,
-    widgets::{Block, List, ListItem, ListState, Paragraph},
+    widgets::{Block, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
 };
 
 use markdown::{Anchor, Document};
-use observation::{capture, read_selected, safe_text, Observation, Row};
+use observation::{capture, safe_text, Item, Observation, Root, Row};
 pub use terminal::run;
 
 /// Inputs shared by the terminal driver and application tests.
@@ -41,13 +41,7 @@ pub enum Action {
     Quit,
 }
 
-#[derive(Clone, Copy)]
-enum Request {
-    Refresh,
-    Selected,
-}
-
-const RETRY_INTERVAL: Duration = Duration::from_millis(500);
+const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 /// An in-memory view of one worktree's `.grove`, with no persistence.
 pub struct Viewer {
@@ -57,7 +51,7 @@ pub struct Viewer {
     tree_state: ListState,
     source: String,
     content: Document,
-    positions: HashMap<PathBuf, (Anchor, usize)>,
+    positions: HashMap<Item, (Anchor, usize)>,
     restore_anchor: Option<Anchor>,
     scroll: usize,
     horizontal: usize,
@@ -68,7 +62,11 @@ pub struct Viewer {
     small: bool,
     page_height: usize,
     status: String,
-    pending: Option<(Request, Instant)>,
+    next_poll: Instant,
+    root: Option<Root>,
+    source_item: Option<Item>,
+    file_error: Option<String>,
+    notice: Option<String>,
 }
 
 impl Viewer {
@@ -93,7 +91,11 @@ impl Viewer {
             small: false,
             page_height: 1,
             status: String::new(),
-            pending: None,
+            next_poll: Instant::now(),
+            root: None,
+            source_item: None,
+            file_error: None,
+            notice: None,
         };
         viewer.refresh();
         viewer
@@ -195,26 +197,35 @@ impl Viewer {
         false
     }
 
+    fn save_position(&mut self) {
+        if let Some(row) = self.rows.get(self.selected) {
+            if self.source_item == Some(row.key) && self.restore_anchor.is_none() {
+                self.positions
+                    .insert(row.key, (self.content.anchor(self.scroll), self.horizontal));
+            }
+        }
+    }
+
     fn select(&mut self, target: usize) {
         if self.selected != target {
-            if let Some(row) = self.rows.get(self.selected) {
-                self.positions.insert(
-                    row.path.clone(),
-                    (self.content.anchor(self.scroll), self.horizontal),
-                );
-            }
+            self.save_position();
             self.selected = target;
-            let (anchor, horizontal) = self
-                .rows
-                .get(target)
-                .and_then(|row| self.positions.get(&row.path))
-                .copied()
-                .unwrap_or_default();
-            self.restore_anchor = Some(anchor);
-            self.scroll = 0;
-            self.horizontal = horizontal;
-            self.load_selected(Instant::now());
+            self.notice = None;
+            self.restore_position();
+            self.refresh();
         }
+    }
+
+    fn restore_position(&mut self) {
+        let position = self
+            .rows
+            .get(self.selected)
+            .and_then(|row| self.positions.get(&row.key))
+            .copied()
+            .unwrap_or_default();
+        self.restore_anchor = Some(position.0);
+        self.scroll = 0;
+        self.horizontal = position.1;
     }
 
     fn tree_horizontal(&mut self, right: bool) {
@@ -246,120 +257,194 @@ impl Viewer {
     }
 
     fn refresh(&mut self) {
-        self.pending = None;
         self.refresh_at(Instant::now());
     }
 
-    fn refresh_at(&mut self, now: Instant) {
-        match capture(&self.worktree) {
-            Ok(Observation::Ready((rows, content))) => {
-                self.pending = None;
-                self.positions
-                    .retain(|path, _| rows.iter().any(|row| &row.path == path));
-                self.restore_anchor = Some(Anchor::default());
-                self.rows = rows;
-                self.selected = 0;
-                self.scroll = 0;
-                self.horizontal = 0;
-                self.tree_state = ListState::default();
-                self.status = "Read-only | manual refresh".into();
-                self.set_content(content);
-            }
-            Ok(Observation::Busy) => self.waiting(Request::Refresh, now),
-            Ok(Observation::Vacant) => self.missing(),
-            Err(error) => self.failed(&error),
-        }
-    }
-
-    fn load_selected(&mut self, now: Instant) {
-        let Some(row) = self.rows.get(self.selected) else {
-            return;
+    /// Observe root identity outside the tree guard, even when a writer is busy.
+    fn sync_root(&mut self) -> anyhow::Result<bool> {
+        // Metadata remains available when the new directory cannot be opened.
+        // Discard the old lifetime before attempting that fallible open.
+        let removed = match &self.root {
+            Some(root) => !root.at(&self.worktree)?,
+            None => false,
         };
-        match read_selected(&self.worktree, &row.path) {
-            Ok(Observation::Ready(content)) => {
-                // A selection does not discard a pending whole-tree refresh.
-                if !matches!(self.pending, Some((Request::Refresh, _))) {
-                    self.pending = None;
-                    self.status = "Read-only | manual refresh".into();
+        if removed {
+            self.clear();
+            self.root = None;
+        }
+        let current = Root::open(&self.worktree)?;
+        let changed = match (&self.root, &current) {
+            (Some(old), Some(new)) => !old.same(new)?,
+            (None, None) => false,
+            _ => true,
+        };
+        if changed {
+            self.clear();
+            self.root = current;
+        }
+        Ok(changed || removed)
+    }
+
+    fn refresh_at(&mut self, now: Instant) {
+        // A single deadline coalesces all selection/manual/timed observations.
+        self.next_poll = now + POLL_INTERVAL;
+        if let Err(error) = self.sync_root() {
+            self.failed(&error);
+            return;
+        }
+        if self.root.is_none() {
+            self.missing();
+            return;
+        }
+        self.save_position();
+        let old_key = self.rows.get(self.selected).map(|row| row.key);
+        let mut candidates = Vec::new();
+        if let Some(row) = self.rows.get(self.selected) {
+            candidates.push(row.key);
+            let mut depth = row.depth;
+            for ancestor in self.rows[..self.selected].iter().rev() {
+                if ancestor.depth < depth {
+                    candidates.push(ancestor.key);
+                    depth = ancestor.depth;
                 }
+            }
+        }
+        let observation = capture(&self.worktree, &candidates);
+        // A replacement during capture invalidates even an otherwise valid tree.
+        match self.sync_root() {
+            Ok(true) => {
+                self.status = "WAITING — root changed during observation; retrying".into();
+                return;
+            }
+            Err(error) => {
+                self.failed(&error);
+                return;
+            }
+            Ok(false) => {}
+        }
+        match observation {
+            Ok(Observation::Ready((mut rows, selected, content))) => {
+                let old: HashMap<_, _> = self
+                    .rows
+                    .iter()
+                    .filter(|row| row.branch)
+                    .map(|row| (row.key, row.expanded))
+                    .collect();
+                for row in &mut rows {
+                    if row.branch {
+                        row.expanded = old.get(&row.key).copied().unwrap_or(true);
+                    }
+                }
+                // Only reveal ancestors when selection changed location or is now
+                // hidden. Other collapsed branches keep the user's choice.
+                let mut depth = rows[selected].depth;
+                for row in rows[..selected].iter_mut().rev() {
+                    if row.depth < depth {
+                        row.expanded = true;
+                        depth = row.depth;
+                    }
+                }
+                let key = rows[selected].key;
+                if old_key.is_some_and(|old| old != key) {
+                    let disappeared = self
+                        .rows
+                        .get(self.selected)
+                        .map(|row| row.label.clone())
+                        .unwrap_or_default();
+                    self.notice = Some(format!(
+                        "{disappeared} disappeared; selected surviving ancestor"
+                    ));
+                }
+                self.positions
+                    .retain(|key, _| rows.iter().any(|row| &row.key == key));
+                self.rows = rows;
+                self.selected = selected;
+                if old_key != Some(key) {
+                    self.restore_position();
+                } else if self.restore_anchor.is_none() {
+                    self.restore_anchor = Some(self.content.anchor(self.scroll));
+                }
+                self.status = self
+                    .notice
+                    .clone()
+                    .unwrap_or_else(|| "Read-only | live refresh 500 ms".into());
                 self.set_content(content);
             }
-            Ok(Observation::Busy) => self.waiting(Request::Selected, now),
+            Ok(Observation::Busy) => {
+                self.status =
+                    "WAITING for tree writer — previous display retained; retrying".into();
+            }
             Ok(Observation::Vacant) => self.missing(),
             Err(error) => self.failed(&error),
         }
     }
 
-    fn waiting(&mut self, request: Request, now: Instant) {
-        if self.pending.is_none() {
-            self.pending = Some((request, now + RETRY_INTERVAL));
-        }
-        self.status = "WAITING for tree writer — previous display retained; retrying".into();
-    }
-
-    fn missing(&mut self) {
-        self.pending = None;
+    fn clear(&mut self) {
         self.rows.clear();
         self.source.clear();
         self.content = Document::default();
         self.positions.clear();
         self.restore_anchor = None;
+        self.source_item = None;
+        self.file_error = None;
+        self.notice = None;
         self.selected = 0;
         self.scroll = 0;
         self.horizontal = 0;
         self.content_width = 0;
-        self.status = "Missing .grove — press r to retry".into();
+        self.tree_state = ListState::default();
+        self.file_focus = false;
+    }
+
+    fn missing(&mut self) {
+        self.clear();
+        self.root = None;
+        self.status = "Missing .grove — WAITING; retrying automatically".into();
     }
 
     fn failed(&mut self, error: &anyhow::Error) {
-        // Acquisition already failed. An absent observation directory has no
-        // lock to take and no old tree to retain; other I/O errors stay visible.
-        if std::fs::metadata(&self.worktree)
-            .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
-        {
-            self.missing();
-            return;
-        }
-        self.pending = None;
         let state = if self.rows.is_empty() {
             "Error"
         } else {
             "STALE"
         };
         self.status = format!(
-            "{state}: {} — press r to retry",
+            "{state}: {} — retrying automatically",
             safe_text(&error.to_string())
         );
     }
 
-    /// Deliver the current time. Only a busy request is retried, at most once.
+    /// Deliver current time; perform at most one observation, without backlog.
     pub fn tick(&mut self, now: Instant) {
-        let Some((request, deadline)) = self.pending else {
-            return;
-        };
-        if now < deadline {
-            return;
-        }
-        self.pending = Some((request, now + RETRY_INTERVAL));
-        match request {
-            Request::Refresh => self.refresh_at(now),
-            Request::Selected => self.load_selected(now),
+        if now >= self.next_poll {
+            self.refresh_at(now);
         }
     }
 
-    /// Time until the pending retry, or no deadline for an idle manual browser.
+    /// Time until the next automatic observation (also used after errors).
     pub fn retry_after(&self, now: Instant) -> Option<Duration> {
-        self.pending
-            .map(|(_, deadline)| deadline.saturating_duration_since(now))
+        Some(self.next_poll.saturating_duration_since(now))
     }
 
     fn set_content(&mut self, content: Result<Vec<u8>, String>) {
-        self.source = match content {
-            Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
-            Err(error) => format!("File error: {} — press r to retry", safe_text(&error)),
+        let bytes = match content {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                self.file_error = Some(format!(
+                    "File error: {} — retrying automatically",
+                    safe_text(&error)
+                ));
+                return;
+            }
         };
-        self.content = Document::layout(&self.source, self.page_width);
-        self.content_width = self.content.width();
+        self.file_error = None;
+        let source = String::from_utf8_lossy(&bytes);
+        if self.source != source {
+            self.source = source.into_owned();
+            self.content = Document::layout(&self.source, self.page_width);
+            self.content_width = self.content.width();
+        }
+        self.source_item = self.rows.get(self.selected).map(|row| row.key);
         if let Some(anchor) = self.restore_anchor.take() {
             self.scroll = self.content.row_for(anchor);
         }
@@ -416,7 +501,7 @@ File: Up/Down j/k line | Left/Right h/l code/table\n\
 PageUp/PageDown Ctrl-u/Ctrl-d: page | Home/End: top/end\n\
 Escape: close help | ?: toggle help",
                 )
-                .block(Block::bordered().title("Key help — Markdown reader")),
+                .block(Block::bordered().title("Key help — live Markdown monitor")),
                 frame.area(),
             );
             return;
@@ -493,10 +578,17 @@ Escape: close help | ?: toggle help",
             .take(self.page_height)
             .map(|line| markdown::clip(line, self.horizontal, self.page_width))
             .collect();
+        let paragraph = if let Some(error) = &self.file_error {
+            // Diagnostics wrap independently of the saved document/scroll state.
+            // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.Paragraph.html#method.wrap
+            Paragraph::new(error.as_str()).wrap(Wrap { trim: false })
+        } else {
+            Paragraph::new(lines)
+        };
         // Layout already wraps prose; slicing avoids u16 scroll limits.
         // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.Paragraph.html
         frame.render_widget(
-            Paragraph::new(lines).block(Block::bordered().title(if self.file_focus {
+            paragraph.block(Block::bordered().title(if self.file_focus {
                 "File [focus] (Markdown)"
             } else {
                 "File (Markdown)"

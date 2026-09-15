@@ -51,6 +51,13 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Refresh `grove view` automatically every 500 ms, retaining selection by
+  permanent key across moves, renames, retirement and decomposition. Preserve
+  expansion and unchanged-file reading positions, reveal moved selections and
+  report disappearance. Detect root replacement, reject duplicate keys and
+  retry busy, missing and malformed trees automatically. Content edits retain
+  source offsets for now; edit-aware anchor mapping follows separately.
+
 - Render task and brief files as formatted Markdown in `grove view`, including
   nested lists, code blocks and aligned tables. Prose reflows on resize while
   retaining the reading location; revisits restore saved positions. Wide code
@@ -67,7 +74,7 @@ stood at the graft — a closed record, not part of the versioned sequence above
 - Add `grove view [WORKTREE]`, a permanently read-only terminal browser with
   nested tree navigation, outcome counts, task/brief reading, file paging and
   manual refresh. It works outside jj workspaces and needs no launch
-  configuration. Automatic refresh follows separately.
+  configuration. Automatic refresh is now available as described above.
 - Keep `grove view` responsive during tree mutations: quiet nonblocking reads
   show WAITING, retain the previous display and retry every 500 ms. Ordinary
   blocking reads/writes and their CLI waiting diagnostics remain unchanged.

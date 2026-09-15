@@ -117,9 +117,9 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Browse a .grove task tree read-only with manual refresh.
+    /// Browse a .grove task tree read-only with automatic refresh.
     #[command(
-        long_about = "Browse WORKTREE/.grove read-only with manual refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or launch configuration is needed.",
+        long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or launch configuration is needed.",
         after_help = "Examples:\n  grove view\n  grove view /path/to/another/worktree"
     )]
     View {

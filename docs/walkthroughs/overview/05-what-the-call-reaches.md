@@ -64,11 +64,12 @@ The viewer consumes that typed reader rather than parsing filenames itself.
 It copies display rows and selected file bytes while holding a short shared
 read guard, then drops it before rendering or waiting for input.
 
-The viewer's `Viewer::new`, `act` and `render` methods are its application seam.
+The viewer's `Viewer::new`, `act`, `tick` and `render` methods are its application seam.
 Production keyboard input supplies actions; tests supply the same actions and
 render through Ratatui's TestBackend. Selection opens a leaf file or branch
-brief. Manual refresh can reset to root; folded branches retain aggregate
-counts for all descendants. Missing and failed reads become visible states.
+brief. Automatic refresh follows permanent keys across moves and retirement;
+folded branches retain aggregate counts for all descendants. Missing and failed
+reads become visible states and retry automatically.
 
 <a id="the-boundary"></a>
 ## Where the overview stops
@@ -77,9 +78,10 @@ This book reconstructs the human crate's manifest and Rust source, including
 its parser tests. Viewer and loop internals are outside its corpus. The
 [usage guide](../../USAGE.md#usage-viewing-tree) owns the delivered interaction
 contract; `docs/ARCHITECTURE.md` names the seams.
-Plain text and manual refresh are current behavior. Automatic observation,
-Markdown layout and complete terminal fault/signal handling belong to later
-increments and are not guarantees of this source.
+The viewer renders Markdown and observes changes automatically, with terminal
+restoration on handled exits. Source-offset reading positions survive unchanged
+refreshes; mapping anchors across content edits remains a subsequent increment.
+Those internals are owned by the viewer crate, not reconstructed in this book.
 
 <a id="the-test-applied-back"></a>
 ## Apply the thin-entry-point test

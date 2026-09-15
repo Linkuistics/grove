@@ -204,6 +204,13 @@ The resolved lockfile still needs a Rust 1.85 build, since transitive dependency
 versions can raise that floor. Preserve the floor or document and resolve a real
 conflict rather than upgrading it implicitly.
 
+The completed manual viewer uses Crossterm's `use-dev-tty` input backend to
+avoid its default backend's EOF loop. Its terminal owner makes stdin nonblocking
+only during input polling/reading, restores descriptor flags before drawing,
+and caps input waits at 100 ms for handled termination. Preserve this lifetime
+boundary when adding Markdown and observation. Live PTY cleanup tests cover the
+shipped binary and a separate cfg(test) fault child.
+
 Published source references: [Ratatui 0.29.0](https://docs.rs/crate/ratatui/0.29.0/source/),
 [Crossterm 0.28.1](https://docs.rs/crate/crossterm/0.28.1/source/), and
 [pulldown-cmark 0.13.0](https://docs.rs/crate/pulldown-cmark/0.13.0/source/).

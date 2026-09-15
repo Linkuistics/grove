@@ -50,6 +50,8 @@ and refreshes with `r`. Tab switches between tree navigation and file scrolling;
 use arrows or hjkl, Enter/Space to fold branches, Home/End to jump,
 PageUp/PageDown to read files, `?` for key help, and q or Ctrl-c to quit.
 While a writer holds the tree, reads show WAITING and retry without blocking input.
+Quit, handled termination signals and errors restore the terminal; unwinding
+panics restore it before printing their diagnostic.
 See [Viewing a tree](docs/USAGE.md#usage-viewing-tree) for details and recovery.
 
 ## Install the skill plugins

@@ -13,7 +13,12 @@ grove-loop = { path = "../grove-loop" }
 # Cargo.lock keeps instability at 0.3.7 for the workspace's Rust 1.85 floor.
 # Its published manifest: https://docs.rs/crate/instability/0.3.7/source/Cargo.toml
 ratatui = { version = "0.29", default-features = false, features = ["crossterm"] }
-crossterm = "0.28.1"
+# The poll-based input backend returns on EOF; the default Mio backend can
+# spin inside its read loop after a PTY closes, defeating even timed poll.
+# https://docs.rs/crate/crossterm/0.28.1/source/src/event/source/unix/tty.rs
+crossterm = { version = "0.28.1", features = ["use-dev-tty"] }
+signal-hook = "0.3.18"
+rustix = { version = "0.38.44", features = ["fs"] }
 
 [dev-dependencies]
 tempfile = "3.10"

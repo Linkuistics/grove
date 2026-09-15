@@ -51,6 +51,10 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Restore the viewer terminal on partial setup and input/draw failures,
+  SIGINT/SIGTERM/SIGHUP and unwinding panics, before fatal diagnostics.
+  Handle a closed PTY without hanging; exercise cleanup with live PTY tests.
+
 - Complete manual viewer navigation with Tab pane focus, arrows/hjkl,
   branch/parent traversal, Home/End, line/page and Unicode horizontal scrolling,
   modal key help and state retention while the terminal is too small.
@@ -58,8 +62,7 @@ stood at the graft — a closed record, not part of the versioned sequence above
 - Add `grove view [WORKTREE]`, a permanently read-only terminal browser with
   nested tree navigation, outcome counts, task/brief reading as plain text,
   file paging and manual refresh. It works outside jj workspaces and needs no
-  launch configuration. Automatic refresh,
-  formatted Markdown and full terminal hardening follow separately.
+  launch configuration. Automatic refresh and formatted Markdown follow separately.
 - Keep `grove view` responsive during tree mutations: quiet nonblocking reads
   show WAITING, retain the previous display and retry every 500 ms. Ordinary
   blocking reads/writes and their CLI waiting diagnostics remain unchanged.

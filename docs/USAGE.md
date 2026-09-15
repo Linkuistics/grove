@@ -84,9 +84,12 @@ until contention ends. Other external changes and repairs still require `r`.
 The shared guard is released before rendering or waiting for input.
 
 Run directly with interactive stdin and stdout; piping either is refused before
-terminal setup. Ordinary quit and returned errors restore raw mode, alternate
-screen and cursor before an error is printed. Full signal/panic hardening is a
-later increment.
+terminal setup. Quit, Ctrl-c, SIGINT, SIGTERM and SIGHUP restore raw mode,
+alternate screen and cursor. Signal handlers only request an exit; cleanup runs
+on the viewer thread. Partial setup failures and input/draw errors restore the
+terminal before an error is printed, as do unwinding panics before their panic
+diagnostic. A disconnected terminal causes the viewer to exit; cleanup output
+cannot be delivered to a closed endpoint.
 
 <a id="usage-running-grove"></a>
 ## Running Grove: start, resume, and finish

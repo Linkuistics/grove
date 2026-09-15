@@ -1204,3 +1204,239 @@ fn live_file_read_errors_keep_the_tree_and_recover_the_saved_anchor() {
     viewer.tick(Instant::now() + Duration::from_secs(1));
     assert_eq!(screen(&mut viewer, 180, 24), before);
 }
+
+/// Drive exactly the production clock/deadline seam; never advance synthetic
+/// time or deliver Refresh. A broken detector fails at a bounded screen check.
+fn await_live(
+    viewer: &mut Viewer,
+    started: std::time::Instant,
+    expected: impl Fn(&str) -> bool,
+) -> String {
+    use std::time::{Duration, Instant};
+    let deadline = started + Duration::from_secs(1);
+    loop {
+        viewer.tick(Instant::now());
+        let frame = screen(viewer, 140, 24);
+        let matches = expected(&frame);
+        assert!(Instant::now() < deadline, "live update timed out:\n{frame}");
+        if matches {
+            return frame;
+        }
+        std::thread::sleep(
+            viewer
+                .retry_after(Instant::now())
+                .unwrap()
+                .min(Duration::from_millis(10)),
+        );
+    }
+}
+
+#[test]
+fn production_clock_observes_nested_additions_and_deletions_without_writes() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT");
+    let mut viewer = Viewer::new(work.path().into());
+    let started = std::time::Instant::now();
+    put(&root, "01-k1/_branch.md", "BRANCH");
+    put(&root, "01-k1/01-impl--added-k2.md", "ADDED");
+    let expected = snapshot(work.path());
+    await_live(&mut viewer, started, |s| s.contains("added-k2"));
+    assert_eq!(snapshot(work.path()), expected);
+    viewer.act(Action::Down);
+    viewer.act(Action::Down);
+    let started = std::time::Instant::now();
+    fs::remove_file(root.join("01-k1/01-impl--added-k2.md")).unwrap();
+    let expected = snapshot(work.path());
+    let frame = await_live(&mut viewer, started, |s| s.contains("disappeared"));
+    assert!(frame.contains("BRANCH"), "{frame}");
+    assert_eq!(snapshot(work.path()), expected);
+    let started = std::time::Instant::now();
+    fs::remove_dir_all(root.join("01-k1")).unwrap();
+    let expected = snapshot(work.path());
+    await_live(&mut viewer, started, |s| {
+        s.contains("ROOT") && !s.contains("│BRANCH")
+    });
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn production_clock_reads_same_length_bytes_with_restored_mtime() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT");
+    put(&root, "01-impl--selected-k1.md", "AAAAAAAAAAAA");
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Down);
+    let file = root.join("01-impl--selected-k1.md");
+    let modified = fs::metadata(&file).unwrap().modified().unwrap();
+    let started = std::time::Instant::now();
+    fs::write(&file, "ZZZZZZZZZZZZ").unwrap();
+    fs::File::options()
+        .write(true)
+        .open(&file)
+        .unwrap()
+        .set_times(fs::FileTimes::new().set_modified(modified))
+        .unwrap();
+    let expected = snapshot(work.path());
+    await_live(&mut viewer, started, |s| s.contains("ZZZZZZZZZZZZ"));
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn production_clock_coalesces_rapid_bursts_to_current_content() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "INITIAL");
+    let mut viewer = Viewer::new(work.path().into());
+    let started = std::time::Instant::now();
+    for n in 0..30 {
+        put(&root, "_BRIEF.md", &format!("BURST_{n:02}"));
+        let expected = snapshot(work.path());
+        viewer.tick(std::time::Instant::now());
+        screen(&mut viewer, 140, 24);
+        assert_eq!(snapshot(work.path()), expected);
+    }
+    let expected = snapshot(work.path());
+    await_live(&mut viewer, started, |s| s.contains("BURST_29"));
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn production_clock_recovers_from_interrupted_decomposition_and_duplicate_keys() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT");
+    put(&root, "01-impl--selected-k1.md", "SELECTED");
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Down);
+    let started = std::time::Instant::now();
+    fs::create_dir(root.join("01-k1")).unwrap();
+    let expected = snapshot(work.path());
+    let frame = await_live(&mut viewer, started, |s| s.contains("STALE"));
+    assert!(frame.contains("SELECTED"));
+    assert_eq!(snapshot(work.path()), expected);
+    let started = std::time::Instant::now();
+    fs::rename(
+        root.join("01-impl--selected-k1.md"),
+        root.join("01-k1/_selected.md"),
+    )
+    .unwrap();
+    let expected = snapshot(work.path());
+    await_live(&mut viewer, started, |s| {
+        s.contains("selected-k1 branch") && !s.contains("STALE")
+    });
+    assert_eq!(snapshot(work.path()), expected);
+    let started = std::time::Instant::now();
+    put(&root, "02-impl--duplicate-k1.md", "WRONG");
+    let expected = snapshot(work.path());
+    let frame = await_live(&mut viewer, started, |s| s.contains("duplicate key"));
+    assert!(frame.contains("SELECTED") && !frame.contains("WRONG"));
+    assert_eq!(snapshot(work.path()), expected);
+    let started = std::time::Instant::now();
+    fs::remove_file(root.join("02-impl--duplicate-k1.md")).unwrap();
+    let expected = snapshot(work.path());
+    await_live(&mut viewer, started, |s| {
+        s.contains("SELECTED") && !s.contains("STALE")
+    });
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn production_clock_replacement_between_polls_resets_reused_keys() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "OLD_ROOT");
+    put(&root, "01-impl--selected-k1.md", "OLD_SELECTION");
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Down);
+    let started = std::time::Instant::now();
+    fs::rename(&root, work.path().join("old-root")).unwrap();
+    put(&root, "_BRIEF.md", "REPLACEMENT_ROOT");
+    put(&root, "01-impl--selected-k1.md", "REUSED_SELECTION");
+    let expected = snapshot(work.path());
+    let frame = await_live(&mut viewer, started, |s| s.contains("REPLACEMENT_ROOT"));
+    assert!(!frame.contains("OLD_SELECTION") && !frame.contains("REUSED_SELECTION"));
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn production_clock_removal_and_delayed_recreation_clear_the_old_view() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "OLD_ROOT");
+    let mut viewer = Viewer::new(work.path().into());
+    let started = std::time::Instant::now();
+    fs::remove_dir_all(&root).unwrap();
+    let expected = snapshot(work.path());
+    let frame = await_live(&mut viewer, started, |s| s.contains("WAITING"));
+    assert!(!frame.contains("OLD_ROOT"));
+    assert_eq!(snapshot(work.path()), expected);
+    // Stay absent across another real observation deadline.
+    std::thread::sleep(viewer.retry_after(std::time::Instant::now()).unwrap());
+    viewer.tick(std::time::Instant::now());
+    assert_eq!(snapshot(work.path()), expected);
+    let started = std::time::Instant::now();
+    put(&root, "_BRIEF.md", "RECREATED_ROOT");
+    let expected = snapshot(work.path());
+    await_live(&mut viewer, started, |s| s.contains("RECREATED_ROOT"));
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn production_clock_recovers_from_busy_and_unreadable_selected_content() {
+    use std::os::unix::fs::PermissionsExt;
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT");
+    put(&root, "01-impl--selected-k1.md", "SELECTED_CONTENT");
+    let file = root.join("01-impl--selected-k1.md");
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Down);
+    let started = std::time::Instant::now();
+    let writer = hold_writer(work.path());
+    let expected = snapshot(work.path());
+    let frame = await_live(&mut viewer, started, |s| s.contains("WAITING"));
+    assert!(frame.contains("SELECTED_CONTENT"));
+    assert!(screen(&mut viewer, 40, 8).contains("Resize"));
+    let started = std::time::Instant::now();
+    drop(writer);
+    await_live(&mut viewer, started, |s| {
+        s.contains("SELECTED_CONTENT") && !s.contains("WAITING")
+    });
+    assert_eq!(snapshot(work.path()), expected);
+
+    // Keep an open descriptor to compare bytes while pathname permissions deny
+    // the viewer's fresh open; changing permissions is solely the test's work.
+    let mut readable = fs::File::open(&file).unwrap();
+    let started = std::time::Instant::now();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o0)).unwrap();
+    if fs::read(&file).is_err() {
+        let frame = await_live(&mut viewer, started, |s| s.contains("File error"));
+        assert!(frame.contains("selected-k1") && !frame.contains("│ROOT"));
+        assert_eq!(fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0);
+        use std::io::Read;
+        let mut bytes = Vec::new();
+        readable.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, expected[".grove/01-impl--selected-k1.md"]);
+    }
+    let started = std::time::Instant::now();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
+    await_live(&mut viewer, started, |s| {
+        s.contains("SELECTED_CONTENT") && !s.contains("File error")
+    });
+    assert_eq!(snapshot(work.path()), expected);
+
+    let started = std::time::Instant::now();
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o0)).unwrap();
+    if fs::read_dir(&root).is_err() {
+        let frame = await_live(&mut viewer, started, |s| s.contains("STALE"));
+        assert!(frame.contains("SELECTED_CONTENT"));
+    }
+    let started = std::time::Instant::now();
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
+    await_live(&mut viewer, started, |s| {
+        s.contains("SELECTED_CONTENT") && !s.contains("STALE")
+    });
+    assert_eq!(snapshot(work.path()), expected);
+}

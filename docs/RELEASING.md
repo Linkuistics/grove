@@ -281,3 +281,10 @@ Confirm that the reported version matches the tag and that the GitHub Release
 contains all three archives. For a behavioral smoke test of the installed
 binary, use the isolated harness procedure documented in
 `scripts/release-publish.sh`.
+
+The read-only monitor ships inside `grove`; the archive and formula still install
+only `grove` and `grove-llm`. Check `grove view --help` from the installed pair,
+then run `grove view /path/to/worktree` in a terminal and edit a scratch tree
+externally to check automatic updates. The viewer needs no launch configuration,
+jj workspace or skill installation. Its binary PTY regression tests cover live
+edits, wide Markdown, resize, recovery and terminal restoration.

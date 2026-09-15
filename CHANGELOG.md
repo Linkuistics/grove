@@ -51,6 +51,10 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Cover live monitoring with real-clock recovery tests and an actual-binary
+  terminal test for wide Markdown, interrupted edits and concurrent Grove
+  retirement; document verification through the existing two-binary install.
+
 - Refresh `grove view` automatically every 500 ms, retaining selection by
   permanent key across moves, renames, retirement and decomposition. Preserve
   expansion and unchanged-file reading positions, reveal moved selections and

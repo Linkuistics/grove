@@ -278,3 +278,14 @@ launching the viewer against one tree, navigation and scrolling, refresh timing,
 handling a selected item that disappears, unreadable or temporarily malformed
 trees, and recovery when the tree returns. These are implementation/design work
 under the agreed contract, not grounds to repeat the requirements interview.
+
+## Delivery evidence
+
+The complete live monitor is covered through the public Viewer application seam
+and the shipped binary's PTY tests. Real-clock filesystem fixtures check recovery
+within one second and recursive names/bytes preservation; the binary also permits
+Grove retirement while open. Source-edit anchors preserve current and saved
+reading positions. The release candidate's extracted two-binary installation
+passes the same terminal suite. `live-delivery-k15` records the final workspace,
+Rust 1.85, formatting/lint, six-book and package evidence, completing
+live-reading-k13 and live-viewer-k5 against this brief's full contract.

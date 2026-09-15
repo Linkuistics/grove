@@ -35,3 +35,19 @@ Viewer new/act/tick/render seam and shared select_snapshot rule.
 ## Notes
 The witnessed-activity node follows this one. This child must not claim its
 witness protocol or real RUNNING acceptance scenarios have already shipped.
+
+## Decisions (running log)
+
+- Consume each real `try_observe` result once per capture and compare activity
+  independently of rows/content/lifetime. Withhold activity on failed tree
+  acceptance; discard old activity rather than retaining a stale description.
+- Keep NEXT selection in the loop's snapshot selector and carry its selected
+  key into display state. Rendering only formats that accepted identity.
+- Implement and verify inline: public Viewer regressions first, capture and
+  chrome changes, real runtime/lock transitions, shipped-behavior documentation,
+  focused crate tests, then the principal check. The scheduled k22 review owns
+  adversarial review; this producer adds no competing reviewer.
+- Preserve the PTY cleanup check across the new header: acknowledge help on
+  its previously blank Escape line, then resize for a full frame before looking
+  for its title. Differential output can reuse an existing character and is
+  not a contiguous screen-text representation.

@@ -52,6 +52,198 @@ fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
 }
 
 #[test]
+fn idle_next_survives_folding_file_view_and_minimum_chrome() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    put(&root, "01-finish--finish-k1.md", "");
+    put(&root, "02-k2/_branch.md", "BRANCH BODY");
+    put(&root, "02-k2/01-impl--forecast-k3.md", "TASK BODY");
+    put(&root, "03-impl--later-k4.md", "");
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    for file in [false, true] {
+        if file {
+            viewer.act(Action::Focus);
+        }
+        let shown = screen(&mut viewer, 60, 10);
+        assert!(
+            shown.lines().nth(2).unwrap().contains("RUNNING: none"),
+            "{shown}"
+        );
+        assert!(
+            shown.lines().nth(3).unwrap().contains("NEXT: forecast-k3"),
+            "{shown}"
+        );
+        assert!(shown.lines().nth(4).unwrap().ends_with('┐'), "{shown}");
+        assert!(shown.lines().nth(8).unwrap().ends_with('┘'), "{shown}");
+    }
+    viewer.act(Action::Focus);
+    viewer.act(Action::Toggle); // Fold the root; NEXT remains in chrome.
+    let shown = screen(&mut viewer, 60, 10);
+    assert!(shown.contains("NEXT: forecast-k3"), "{shown}");
+    assert!(!shown
+        .lines()
+        .skip(4)
+        .any(|line| line.contains("forecast-k3")));
+    assert_eq!(snapshot(work.path()), before);
+
+    fs::remove_file(root.join("02-k2/01-impl--forecast-k3.md")).unwrap();
+    fs::remove_file(root.join("03-impl--later-k4.md")).unwrap();
+    viewer.act(Action::Refresh);
+    assert!(screen(&mut viewer, 60, 10).contains("NEXT: finish-k1"));
+    fs::remove_file(root.join("01-finish--finish-k1.md")).unwrap();
+    let empty = snapshot(work.path());
+    viewer.act(Action::Refresh);
+    assert!(screen(&mut viewer, 60, 10).contains("NEXT: none"));
+    assert_eq!(snapshot(work.path()), empty); // Never allocate finish.
+}
+
+// Legacy records use the admission grammar, read by the real typed observer.
+fn runtime_records(work: &Path, active: bool) {
+    use std::os::unix::{ffi::OsStrExt, fs::MetadataExt};
+    let metadata = fs::metadata(work).unwrap();
+    let encoded: String = work
+        .as_os_str()
+        .as_bytes()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    let process = format!("worktree-device={}\nworktree-inode={}\nworktree-path-hex={encoded}\nnonce=0123456789abcdef0123456789abcdef\n", metadata.dev(), metadata.ino());
+    put(work, ".jj/grove/driver.lease", &process);
+    let state = if active {
+        "state=active\nsignal-path-hex=2f746d702f7369676e616c\n"
+    } else {
+        "state=inactive\n"
+    };
+    put(
+        work,
+        ".jj/grove/session.epoch",
+        &format!("{process}{state}"),
+    );
+}
+
+#[test]
+fn real_runtime_transitions_clear_next_and_retry_in_both_views() {
+    use std::time::{Duration, Instant};
+    for file in [false, true] {
+        let work = tempfile::tempdir().unwrap();
+        put(work.path(), ".grove/_BRIEF.md", "READABLE ROOT");
+        put(work.path(), ".grove/01-impl--next-k1.md", "READABLE TASK");
+        runtime_records(work.path(), false);
+        let mut viewer = Viewer::new(work.path().into());
+        if file {
+            viewer.act(Action::Focus);
+        }
+        assert!(screen(&mut viewer, 100, 15).contains("NEXT: next-k1"));
+        runtime_records(work.path(), true);
+        let before = snapshot(work.path());
+        viewer.act(Action::Help);
+        viewer.tick(Instant::now() + Duration::from_secs(1));
+        viewer.act(Action::Dismiss);
+        let shown = screen(&mut viewer, 100, 15);
+        assert!(shown.contains("RUNNING: unavailable"), "{shown}");
+        assert!(shown.contains("NEXT: unavailable"), "{shown}");
+        assert!(!shown.contains("NEXT: next-k1"));
+        assert!(shown.contains(if file { "READABLE ROOT" } else { "next-k1" }));
+        assert!(!shown.contains("STALE")); // Runtime failure did not reject the tree.
+        assert!(!shown.lines().skip(4).any(|line| line.contains("NEXT")));
+        assert_eq!(snapshot(work.path()), before);
+
+        screen(&mut viewer, 20, 5);
+        runtime_records(work.path(), false);
+        let before = snapshot(work.path());
+        viewer.tick(Instant::now() + Duration::from_secs(2));
+        assert!(screen(&mut viewer, 60, 10).contains("NEXT: next-k1"));
+        assert_eq!(snapshot(work.path()), before);
+
+        let holder = hold_writer(&work.path().join(".jj/grove/session.epoch"));
+        let start = Instant::now();
+        viewer.tick(start + Duration::from_secs(3));
+        let shown = screen(&mut viewer, 100, 15);
+        assert!(shown.contains("RUNNING: WAITING"), "{shown}");
+        assert!(shown.contains("NEXT: WAITING"), "{shown}");
+        assert!(!shown.lines().skip(4).any(|line| line.contains("NEXT")));
+        assert!(start.elapsed() < Duration::from_secs(1));
+        assert!(viewer.act(Action::Quit));
+        drop(holder);
+        viewer.tick(Instant::now() + Duration::from_secs(4));
+        assert!(screen(&mut viewer, 100, 15).contains("NEXT: next-k1"));
+
+        put(work.path(), ".grove/02-impl--duplicate-k1.md", "");
+        viewer.act(Action::Refresh);
+        let shown = screen(&mut viewer, 100, 15);
+        assert!(shown.contains("duplicate key k1"), "{shown}");
+        assert!(shown.contains("NEXT: unavailable"));
+        assert!(!shown.lines().skip(4).any(|line| line.contains("NEXT")));
+    }
+}
+
+#[test]
+fn aliases_and_multiple_viewers_only_read_exact_workspace_administration() {
+    let work = tempfile::tempdir().unwrap();
+    put(work.path(), ".grove/_BRIEF.md", "ROOT");
+    put(work.path(), ".grove/01-impl--next-k1.md", "");
+    runtime_records(work.path(), false);
+    let alias_dir = tempfile::tempdir().unwrap();
+    let alias = alias_dir.path().join("alias");
+    std::os::unix::fs::symlink(work.path(), &alias).unwrap();
+    let before = snapshot(work.path());
+    let mut first = Viewer::new(work.path().into());
+    let mut second = Viewer::new(alias);
+    for viewer in [&mut first, &mut second] {
+        assert!(screen(viewer, 60, 10).contains("NEXT: next-k1"));
+        viewer.act(Action::Focus);
+        viewer.act(Action::Refresh);
+        assert!(screen(viewer, 60, 10).contains("ROOT"));
+    }
+    assert_eq!(snapshot(work.path()), before);
+    runtime_records(work.path(), true);
+    put(work.path(), "sub/.grove/_BRIEF.md", "SUB ROOT");
+    put(work.path(), "sub/.grove/01-impl--sub-k2.md", "");
+    let before = snapshot(work.path());
+    let mut sub = Viewer::new(work.path().join("sub"));
+    assert!(screen(&mut sub, 60, 10).contains("NEXT: sub-k2"));
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn long_next_keeps_its_key_offscreen_and_tree_contention_clears_activity() {
+    let work = tempfile::tempdir().unwrap();
+    put(work.path(), ".grove/_BRIEF.md", "ROOT");
+    let name = format!(".grove/01-impl--{}-k4294967295.md", "long-name".repeat(12));
+    put(work.path(), &name, "NEXT BODY");
+    for key in 1..8 {
+        put(
+            work.path(),
+            &format!(".grove/{:02}-impl--later-k{key}.md", key + 1),
+            "",
+        );
+    }
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::End);
+    let shown = screen(&mut viewer, 60, 10);
+    let summary = shown.lines().nth(3).unwrap();
+    assert!(summary.starts_with("NEXT: long-name"), "{shown}");
+    assert!(summary.contains("…-k4294967295"), "{shown}");
+    assert!(!shown
+        .lines()
+        .skip(4)
+        .any(|line| line.contains("k4294967295")));
+    let before = snapshot(work.path());
+    let holder = hold_writer(work.path());
+    viewer.act(Action::Refresh);
+    let shown = screen(&mut viewer, 60, 10);
+    assert!(shown.lines().nth(1).unwrap().contains("WAITING"));
+    assert!(shown.lines().nth(3).unwrap().starts_with("NEXT: WAITING"));
+    assert!(!shown.lines().skip(4).any(|line| line.contains("NEXT")));
+    drop(holder);
+    viewer.act(Action::Refresh);
+    assert!(screen(&mut viewer, 60, 10).contains("…-k4294967295"));
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
 fn shared_validation_refuses_ambiguous_trees_without_writes_and_recovers() {
     for (names, diagnostic) in [
         (
@@ -128,7 +320,7 @@ fn full_width_switching_preserves_independent_views_and_poll_deadline() {
     assert!(file.contains("Tab: Tree"));
     assert!(file.contains("ROW 000"));
     assert!(!file.contains("task-k29"));
-    assert_eq!(file.lines().nth(2).unwrap().chars().last(), Some('┐'));
+    assert_eq!(file.lines().nth(4).unwrap().chars().last(), Some('┐'));
     viewer.act(Action::PageDown);
     for _ in 0..12 {
         viewer.act(Action::Right);
@@ -173,11 +365,11 @@ fn hidden_file_edits_and_resizes_keep_the_source_anchor() {
     viewer.act(Action::Focus);
     let narrow = screen(&mut viewer, 60, 10);
     assert!(
-        narrow.lines().nth(3).unwrap().contains("MARKER"),
+        narrow.lines().nth(5).unwrap().contains("MARKER"),
         "{narrow}"
     );
     let wide = screen(&mut viewer, 180, 24);
-    assert!(wide.lines().nth(3).unwrap().contains("MARKER"), "{wide}");
+    assert!(wide.lines().nth(5).unwrap().contains("MARKER"), "{wide}");
     assert_eq!(snapshot(work.path()), expected);
 
     // Switching must not itself reload selected bytes.
@@ -300,14 +492,24 @@ fn lifecycle_prefix_and_colors_survive_cursor_selection() {
         .into_iter()
         .enumerate()
         {
-            let cells = &buffer.content[(index + 3) * 100..(index + 4) * 100];
+            let cells = &buffer.content[(index + 5) * 100..(index + 6) * 100];
             let text: String = cells.iter().map(|cell| cell.symbol()).collect();
             assert_eq!(cells[1].symbol(), if selected == index { ">" } else { " " });
             assert_eq!(
                 cells[3..15].iter().map(|c| c.symbol()).collect::<String>(),
                 prefix
             );
-            assert!(cells[15..23].iter().all(|cell| cell.symbol() == " "));
+            assert_eq!(
+                cells[15..23]
+                    .iter()
+                    .map(|cell| cell.symbol())
+                    .collect::<String>(),
+                if index == 1 { "NEXT    " } else { "        " }
+            );
+            for cell in &cells[15..23] {
+                assert_eq!(cell.fg, Color::Reset);
+                assert_eq!(cell.modifier.contains(Modifier::BOLD), index == 1);
+            }
             let name_at = text[..text.find(name).unwrap()].chars().count();
             for cell in cells[3..15]
                 .iter()
@@ -315,7 +517,7 @@ fn lifecycle_prefix_and_colors_survive_cursor_selection() {
             {
                 assert_eq!(cell.fg, color, "{text}");
             }
-            assert!(cells.iter().all(|cell| !cell
+            assert!(cells[..15].iter().chain(&cells[23..]).all(|cell| !cell
                 .modifier
                 .intersects(Modifier::REVERSED | Modifier::BOLD)));
         }
@@ -618,7 +820,10 @@ fn keys_navigate_visible_rows_and_parents_and_keep_selection_visible() {
     key(&mut viewer, Right);
     assert!(visit_file(&mut viewer, 160, 12).contains("BRANCH BODY"));
     key(&mut viewer, Char('h'));
-    assert!(!screen(&mut viewer, 160, 12).contains("child-k2"));
+    assert!(!screen(&mut viewer, 160, 12)
+        .lines()
+        .skip(4)
+        .any(|line| line.contains("child-k2")));
     key(&mut viewer, Char('j'));
     assert!(visit_file(&mut viewer, 160, 12).contains("BODY 02"));
     key(&mut viewer, Char('k'));
@@ -629,7 +834,10 @@ fn keys_navigate_visible_rows_and_parents_and_keep_selection_visible() {
     key(&mut viewer, Left);
     assert!(visit_file(&mut viewer, 160, 12).contains("BRANCH BODY"));
     key(&mut viewer, Char(' '));
-    assert!(!screen(&mut viewer, 160, 12).contains("child-k2"));
+    assert!(!screen(&mut viewer, 160, 12)
+        .lines()
+        .skip(4)
+        .any(|line| line.contains("child-k2")));
     key(&mut viewer, Enter);
     assert!(screen(&mut viewer, 160, 12).contains("child-k2"));
     key(&mut viewer, End);
@@ -656,7 +864,7 @@ fn focused_file_keys_scroll_lines_pages_and_unicode_columns() {
     put(&root, "_BRIEF.md", &format!("```\n{content}```"));
     let before = snapshot(work.path());
     let mut viewer = Viewer::new(work.path().into());
-    screen(&mut viewer, 100, 15); // ten file rows
+    screen(&mut viewer, 100, 15); // eight file rows
     key(&mut viewer, Tab);
     screen(&mut viewer, 100, 15);
     key(&mut viewer, Down);
@@ -674,7 +882,7 @@ fn focused_file_keys_scroll_lines_pages_and_unicode_columns() {
     key(&mut viewer, End);
     assert!(screen(&mut viewer, 100, 15).contains("line 49"));
     let taller = screen(&mut viewer, 100, 25);
-    assert!(taller.contains("line 30"));
+    assert!(taller.contains("line 32"));
     assert!(taller.contains("line 49"));
     key(&mut viewer, Home);
     assert!(screen(&mut viewer, 100, 15).contains("line 00"));
@@ -855,14 +1063,14 @@ fn markdown_reflow_and_revisits_keep_the_visible_source_marker() {
     // Put the marker at the top, not merely at an arbitrary visible row.
     for _ in 0..200 {
         let view = screen(&mut viewer, 160, 15);
-        if view.lines().nth(3).unwrap().contains("UNIQUE-MARKER") {
+        if view.lines().nth(5).unwrap().contains("UNIQUE-MARKER") {
             break;
         }
         viewer.act(Action::Down);
     }
     assert!(screen(&mut viewer, 160, 15)
         .lines()
-        .nth(3)
+        .nth(5)
         .unwrap()
         .contains("UNIQUE-MARKER"));
     assert!(screen(&mut viewer, 60, 15).contains("UNIQUE-MARKER"));
@@ -878,7 +1086,7 @@ fn scroll_to(viewer: &mut Viewer, marker: &str) {
     for _ in 0..300 {
         if screen(viewer, 160, 15)
             .lines()
-            .nth(3)
+            .nth(5)
             .unwrap()
             .contains(marker)
         {
@@ -923,7 +1131,7 @@ fn edited_reading_positions_follow_source_on_refresh_and_revisit() {
             viewer.act(Action::Refresh);
         }
         let view = screen(&mut viewer, 160, 15);
-        assert!(view.lines().nth(3).unwrap().contains("MARKER"), "{view}");
+        assert!(view.lines().nth(5).unwrap().contains("MARKER"), "{view}");
         assert!(screen(&mut viewer, 70, 15).contains("MARKER"));
         assert_eq!(snapshot(work.path()), expected);
     }
@@ -948,7 +1156,7 @@ fn edited_duplicate_lines_follow_their_surrounding_passage() {
     viewer.act(Action::Down);
     assert!(screen(&mut viewer, 160, 15)
         .lines()
-        .nth(3)
+        .nth(5)
         .unwrap()
         .contains("DUPLICATE"));
     // Change both ends so matching cannot rely on an unchanged suffix alone.
@@ -964,9 +1172,9 @@ fn edited_duplicate_lines_follow_their_surrounding_passage() {
     viewer.act(Action::Refresh);
     for _ in 0..2 {
         let view = screen(&mut viewer, 160, 15);
-        assert!(view.lines().nth(3).unwrap().contains("DUPLICATE"), "{view}");
+        assert!(view.lines().nth(5).unwrap().contains("DUPLICATE"), "{view}");
         assert!(
-            view.lines().nth(4).unwrap().contains("second continuation"),
+            view.lines().nth(6).unwrap().contains("second continuation"),
             "{view}"
         );
         viewer.act(Action::Refresh);
@@ -998,7 +1206,7 @@ fn deleted_reading_line_uses_nearest_survivor_then_empty_content_clamps() {
     viewer.act(Action::Refresh);
     let view = screen(&mut viewer, 160, 15);
     assert!(
-        view.lines().nth(3).unwrap().contains("NEXT SURVIVOR"),
+        view.lines().nth(5).unwrap().contains("NEXT SURVIVOR"),
         "{view}"
     );
     assert_eq!(snapshot(work.path()), expected);
@@ -1007,7 +1215,7 @@ fn deleted_reading_line_uses_nearest_survivor_then_empty_content_clamps() {
         let expected = snapshot(work.path());
         viewer.act(Action::Refresh);
         let view = screen(&mut viewer, 160, 15);
-        let shown = view.lines().nth(3).unwrap().replace(' ', "");
+        let shown = view.lines().nth(5).unwrap().replace(' ', "");
         assert!(shown.contains(&replacement.replace(' ', "")), "{view}");
         assert!(!view.contains("NEXT SURVIVOR"));
         assert_eq!(snapshot(work.path()), expected);
@@ -1032,7 +1240,7 @@ fn edited_repeated_block_keeps_its_relative_reading_position() {
         viewer.act(Action::Up);
     }
     let before = screen(&mut viewer, 160, 15);
-    assert!(before.lines().nth(10).unwrap().contains("END MARKER"));
+    assert!(before.lines().nth(12).unwrap().contains("END MARKER"));
     put(
         &root,
         "_BRIEF.md",
@@ -1063,7 +1271,7 @@ fn deleted_duplicate_does_not_steal_an_unchanged_occurrence() {
     viewer.act(Action::Refresh);
     let view = screen(&mut viewer, 160, 15);
     assert!(
-        view.lines().nth(3).unwrap().contains("C SURVIVOR"),
+        view.lines().nth(5).unwrap().contains("C SURVIVOR"),
         "{view}"
     );
     assert_eq!(snapshot(work.path()), expected);
@@ -1106,7 +1314,7 @@ fn edited_file_errors_keep_the_saved_source_until_recovery_and_revisit() {
     viewer.act(Action::Up);
     viewer.act(Action::Focus);
     let view = screen(&mut viewer, 160, 15);
-    assert!(view.lines().nth(3).unwrap().contains("MARKER"), "{view}");
+    assert!(view.lines().nth(5).unwrap().contains("MARKER"), "{view}");
     assert_eq!(snapshot(work.path()), expected);
 }
 
@@ -1187,7 +1395,7 @@ fn transformed_markdown_and_blank_code_lines_keep_reading_anchors() {
         let mut found = false;
         for _ in 0..250 {
             let view = screen(&mut viewer, 100, 15);
-            if view.lines().nth(3).unwrap().contains("UNIQUE-MARKER") {
+            if view.lines().nth(5).unwrap().contains("UNIQUE-MARKER") {
                 found = true;
                 break;
             }
@@ -1203,7 +1411,7 @@ fn transformed_markdown_and_blank_code_lines_keep_reading_anchors() {
         viewer.act(Action::Refresh);
         let edited = screen(&mut viewer, 100, 15);
         assert!(
-            edited.lines().nth(3).unwrap().contains("UNIQUE-MARKER"),
+            edited.lines().nth(5).unwrap().contains("UNIQUE-MARKER"),
             "{edited}"
         );
         viewer.act(Action::Focus);
@@ -1213,7 +1421,7 @@ fn transformed_markdown_and_blank_code_lines_keep_reading_anchors() {
         viewer.act(Action::Focus);
         let revisited = screen(&mut viewer, 100, 15);
         assert!(
-            revisited.lines().nth(3).unwrap().contains("UNIQUE-MARKER"),
+            revisited.lines().nth(5).unwrap().contains("UNIQUE-MARKER"),
             "{revisited}"
         );
         assert!(screen(&mut viewer, 70, 20).contains("UNIQUE-MARKER"));

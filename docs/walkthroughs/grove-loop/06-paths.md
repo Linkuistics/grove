@@ -7,8 +7,9 @@
 
 The public crate root now re-exports `entry_path` for the read-only viewer.
 It composes a snapshot entry's canonical path; it acquires no lock and reads no
-file itself. The viewer holds its `Tree` while copying selected bytes, then
-releases the guard before rendering or waiting. The path algorithm is unchanged.
+file itself. The loop copies selected bytes under its `Tree` guard, then
+releases that guard before returning the captured snapshot to the viewer.
+The viewer uses the same helper for row paths. The path algorithm is unchanged.
 
 Chapter 5 ended holding a `Tree` — one snapshot of the whole task tree, taken
 under the store's shared lock. Everything a read verb answers with has to be

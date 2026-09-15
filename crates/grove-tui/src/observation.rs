@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use grove_loop::{entry_path, Handle, Kind, Outcome, Parts, TreeObservation};
+use grove_loop::{entry_path, ActivityObservation, Handle, Kind, Outcome, Parts, TreeObservation};
 
 #[derive(PartialEq, Eq)]
 pub(crate) struct Row {
@@ -30,7 +30,7 @@ pub(crate) type Item = Option<u32>;
 pub(crate) use grove_loop::TreeLifetime as Root;
 
 type Content = Result<Vec<u8>, String>;
-type DisplayCapture = Observation<(Vec<Row>, usize, Content)>;
+type DisplayCapture = Observation<(Vec<Row>, usize, Content, Option<u32>)>;
 #[derive(PartialEq, Eq)]
 pub(crate) enum Observation<T> {
     Ready(T),
@@ -41,31 +41,49 @@ pub(crate) enum Observation<T> {
 /// Two bounded captures detect visible non-cooperating edits without claiming
 /// atomicity. Each drops its guard before another acquisition. Never loop until
 /// stable here: busy/changing trees must leave input and quit responsive.
-pub(crate) fn capture(worktree: &Path, candidates: &[Item]) -> Result<DisplayCapture> {
-    let (first, first_root) = capture_once(worktree, candidates)?;
+pub(crate) fn capture(
+    worktree: &Path,
+    candidates: &[Item],
+) -> Result<(DisplayCapture, ActivityObservation)> {
+    capture_with(|| grove_loop::try_observe(worktree, candidates))
+}
+
+fn capture_with(
+    mut observe: impl FnMut() -> grove_loop::ObservationGuard,
+) -> Result<(DisplayCapture, ActivityObservation)> {
+    let first_sample = observe();
+    let (first, first_root) = display_capture(first_sample.tree?)?;
     if !matches!(first, Observation::Ready(_)) {
-        return Ok(first);
+        return Ok((first, first_sample.activity));
     }
-    let (second, second_root) = capture_once(worktree, candidates)?;
+    let second_sample = observe();
+    let (second, second_root) = display_capture(second_sample.tree?)?;
     // Contention on the verification read is still Busy, not malformed data.
     if !matches!(second, Observation::Ready(_)) {
-        return Ok(second);
+        return Ok((second, second_sample.activity));
     }
     anyhow::ensure!(
         matches!((&first_root, &second_root), (Some(a), Some(b)) if a.same(b)?),
         "root changed during observation; retrying"
     );
     anyhow::ensure!(first == second, "tree changed during observation; retrying");
-    Ok(second)
+    let activity = if first_sample.activity == second_sample.activity {
+        second_sample.activity
+    } else {
+        ActivityObservation::Busy("activity changed during observation; retrying".into())
+    };
+    Ok((second, activity))
 }
 
 /// Build display rows from a loop capture whose tree guard is already released.
-fn capture_once(worktree: &Path, candidates: &[Item]) -> Result<(DisplayCapture, Option<Root>)> {
-    let tree = match grove_loop::try_observe(worktree, candidates).tree? {
+fn display_capture(tree: TreeObservation) -> Result<(DisplayCapture, Option<Root>)> {
+    let tree = match tree {
         TreeObservation::Busy => return Ok((Observation::Busy, None)),
         TreeObservation::Vacant => return Ok((Observation::Vacant, None)),
         TreeObservation::Ready(tree) => tree,
     };
+    let next = grove_loop::select_snapshot(tree.root(), tree.snapshot(), None)?
+        .map(|selection| selection.handle.key().get());
     let root = tree.snapshot().root();
     let brief = root.distinguished().context("root has no brief")?;
     let path = entry_path(tree.root(), brief);
@@ -161,7 +179,7 @@ fn capture_once(worktree: &Path, candidates: &[Item]) -> Result<(DisplayCapture,
         .position(|row| row.key == tree.selected)
         .unwrap_or(0);
     Ok((
-        Observation::Ready((rows, selected, tree.content)),
+        Observation::Ready((rows, selected, tree.content, next)),
         Some(tree.lifetime),
     ))
 }
@@ -177,4 +195,37 @@ pub(crate) fn safe_text(text: &str) -> String {
             ch => vec![ch],
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn changing_runtime_preserves_a_consistent_tree_and_bounds_captures() {
+        let work = tempfile::tempdir().unwrap();
+        fs::create_dir(work.path().join(".grove")).unwrap();
+        fs::write(work.path().join(".grove/_BRIEF.md"), "root bytes").unwrap();
+        fs::write(work.path().join(".grove/01-impl--next-k1.md"), "").unwrap();
+        let mut calls = 0;
+        let (tree, activity) = capture_with(|| {
+            calls += 1;
+            let observed = grove_loop::try_observe(work.path(), &[]);
+            if calls == 1 {
+                fs::create_dir_all(work.path().join(".jj/grove")).unwrap();
+                fs::write(work.path().join(".jj/grove/driver.lease"), "bad").unwrap();
+            }
+            observed
+        })
+        .unwrap();
+        assert_eq!(calls, 2);
+        let Observation::Ready((rows, _, content, next)) = tree else {
+            panic!("tree discarded")
+        };
+        assert_eq!(rows.len(), 2);
+        assert_eq!(content.unwrap(), b"root bytes");
+        assert_eq!(next, Some(1));
+        assert!(matches!(activity, ActivityObservation::Busy(_)));
+    }
 }

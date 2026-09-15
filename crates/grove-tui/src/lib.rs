@@ -12,9 +12,10 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
+use grove_loop::ActivityObservation;
 use ratatui::{
     layout::{Constraint, Layout},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
@@ -45,7 +46,7 @@ pub enum Action {
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 /// The List owns the two cursor cells; spans own the remaining status and item.
-fn tree_item(row: &Row, width: usize) -> ListItem<'static> {
+fn tree_item(row: &Row, width: usize, next: Option<u32>) -> ListItem<'static> {
     let (marker, word, style) = match row.lifecycle {
         Lifecycle::Live => ("  ", "LIVE", Style::default()),
         Lifecycle::Done => ("✓ ", "DONE", Style::default().fg(Color::Green)),
@@ -99,7 +100,11 @@ fn tree_item(row: &Row, width: usize) -> ListItem<'static> {
     );
     ListItem::new(Line::from(vec![
         Span::styled(format!("{marker}{word:10}"), style),
-        Span::raw("        "),
+        if next.is_some() && row.key == next {
+            Span::styled("NEXT    ", Style::default().add_modifier(Modifier::BOLD))
+        } else {
+            Span::raw("        ")
+        },
         Span::styled(format!("{indentation}{fold}{handle}{details}"), style),
     ]))
 }
@@ -175,6 +180,8 @@ pub struct Viewer {
     source_item: Option<Item>,
     file_error: Option<String>,
     notice: Option<String>,
+    activity: ActivityObservation,
+    next: Option<u32>,
 }
 
 impl Viewer {
@@ -204,6 +211,8 @@ impl Viewer {
             source_item: None,
             file_error: None,
             notice: None,
+            activity: ActivityObservation::Unavailable("tree unavailable".into()),
+            next: None,
         };
         viewer.refresh();
         viewer
@@ -405,6 +414,8 @@ impl Viewer {
     fn refresh_at(&mut self, now: Instant) {
         // A single deadline coalesces all selection/manual/timed observations.
         self.next_poll = now + POLL_INTERVAL;
+        self.next = None;
+        self.activity = ActivityObservation::Unavailable("tree unavailable".into());
         if let Err(error) = self.sync_root() {
             self.failed(&error);
             return;
@@ -440,7 +451,7 @@ impl Viewer {
             Ok(false) => {}
         }
         match observation {
-            Ok(Observation::Ready((mut rows, selected, content))) => {
+            Ok((Observation::Ready((mut rows, selected, content, next)), activity)) => {
                 let old: HashMap<_, _> = self
                     .rows
                     .iter()
@@ -490,17 +501,26 @@ impl Viewer {
                     .clone()
                     .unwrap_or_else(|| "Read-only | live refresh 500 ms".into());
                 self.set_content(content);
+                self.next = if activity == ActivityObservation::Idle {
+                    next
+                } else {
+                    None
+                };
+                self.activity = activity;
             }
-            Ok(Observation::Busy) => {
+            Ok((Observation::Busy, _)) => {
+                self.activity = ActivityObservation::Busy("tree observation waiting".into());
                 self.status =
                     "WAITING for tree writer — previous display retained; retrying".into();
             }
-            Ok(Observation::Vacant) => self.missing(),
+            Ok((Observation::Vacant, _)) => self.missing(),
             Err(error) => self.failed(&error),
         }
     }
 
     fn clear(&mut self) {
+        self.next = None;
+        self.activity = ActivityObservation::Unavailable("tree unavailable".into());
         self.rows.clear();
         self.source = Rc::default();
         self.content = Document::default();
@@ -636,17 +656,13 @@ Escape: close help | ?: toggle help",
             return;
         }
         let [header, body, footer] = Layout::vertical([
-            Constraint::Length(2),
+            Constraint::Length(4),
             Constraint::Min(0),
             Constraint::Length(1),
         ])
         .areas(frame.area());
         frame.render_widget(
-            Paragraph::new(format!(
-                "{}\n{}",
-                safe_text(&self.worktree.join(".grove").display().to_string()),
-                self.status
-            )),
+            Paragraph::new(self.chrome(usize::from(header.width))),
             header,
         );
         if !self.file_active {
@@ -655,7 +671,13 @@ Escape: close help | ?: toggle help",
                 .select(visible.iter().position(|&i| i == self.selected));
             let items: Vec<_> = visible
                 .iter()
-                .map(|&i| tree_item(&self.rows[i], usize::from(body.width.saturating_sub(2))))
+                .map(|&i| {
+                    tree_item(
+                        &self.rows[i],
+                        usize::from(body.width.saturating_sub(2)),
+                        self.next,
+                    )
+                })
                 .collect();
             // Stateful List keeps the selection visible; the state owns no tree data.
             // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.List.html
@@ -707,5 +729,49 @@ Escape: close help | ?: toggle help",
             }),
             footer,
         );
+    }
+
+    fn chrome(&self, width: usize) -> Vec<Line<'static>> {
+        let view = if self.file_active {
+            "File | Tab: Tree"
+        } else {
+            "Tree | Tab: File"
+        };
+        let location = format!("{view} | {}", self.worktree.join(".grove").display());
+        let (running, next) = match &self.activity {
+            ActivityObservation::Idle => {
+                let next = self
+                    .next
+                    .and_then(|key| self.rows.iter().find(|row| row.key == Some(key)))
+                    .and_then(|row| row.handle.as_ref());
+                let next = next.map_or_else(
+                    || "none".into(),
+                    |handle| {
+                        let suffix = format!("-k{}", handle.key());
+                        let slug = safe_text(handle.slug().as_str());
+                        let budget = width.saturating_sub(6 + suffix.len());
+                        let slug = if Line::raw(&slug).width() > budget {
+                            format!("{}…", fit_text(&slug, budget.saturating_sub(1)))
+                        } else {
+                            slug
+                        };
+                        format!("{slug}{suffix}")
+                    },
+                );
+                ("RUNNING: none (idle)".into(), format!("NEXT: {next}"))
+            }
+            ActivityObservation::Busy(reason) => (
+                format!("RUNNING: WAITING — {reason}"),
+                "NEXT: WAITING — activity not current".into(),
+            ),
+            ActivityObservation::Unavailable(reason) => (
+                format!("RUNNING: unavailable — {reason}"),
+                "NEXT: unavailable — activity not current".into(),
+            ),
+        };
+        [location, self.status.clone(), running, next]
+            .into_iter()
+            .map(|line| Line::raw(fit_text(&line, width)))
+            .collect()
     }
 }

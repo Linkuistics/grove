@@ -1057,7 +1057,9 @@ No callback is exposed to viewers. `ActivityObservation` can establish Idle,
 report a contended epoch as Busy, or withhold evidence as Unavailable. The
 [current runtime reader](17-the-epoch.md#runtime-observation) explains why an
 older active epoch cannot establish RUNNING. Browsing consumes `tree` regardless
-of that independent result; activity display is a later increment.
+of that independent result. The viewer accepts activity separately across two
+captures and shows the shared selector's NEXT only for accepted Idle; changing
+activity withholds the pair without discarding a consistent tree.
 
 <!-- fragment «observation-capture» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="94-177" parent="observation-tree" -->
 ````rust

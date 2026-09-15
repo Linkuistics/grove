@@ -53,8 +53,12 @@ viewer. The shipped capture returns independent tree and activity results. Its p
 `driver_lease::observation` module reuses mandatory parsers and identity logic,
 with read-only bounded acquisition and a runtime-only shared epoch guard.
 Legacy active records are Unavailable; missing controls or matching inactive
-records are Idle. The viewer consumes tree results even when activity fails;
-activity rendering and witnessed RUNNING remain subsequent increments.
+records are Idle. The viewer compares tree and activity consistency separately,
+consuming consistent tree results even when activity changes or fails. Accepted
+Idle displays the shared selector's NEXT key in rows and persistent chrome;
+Busy/Unavailable or failed tree acceptance clears old row activity and withholds
+the current pair. The loop owns selection, while the viewer owns freshness and
+label/key-preserving summary layout. Witnessed RUNNING remains a subsequent increment.
 
 One workspace, one release version, one changelog, one tag. A module is a crate
 so that *testable through its own interface without unrelated modules* is not a

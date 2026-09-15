@@ -166,9 +166,9 @@ point's own files.
 
 ## Read-only viewer
 
-Full-width Tree/File switching and leading lifecycle cues are implemented below.
-The remaining [item-status design](specs/item-status.md) specifies activity
-display, including the typed observation extension to the driver protocol.
+Full-width Tree/File switching, leading lifecycle cues and idle NEXT are
+implemented below. The remaining [item-status design](specs/item-status.md)
+specifies witnessed RUNNING and exclusion-aware NEXT during a session.
 
 `grove view [WORKTREE]` dispatches to the `grove-tui` library before jj workspace
 resolution, driver lease acquisition or launch configuration. Its observation
@@ -205,8 +205,12 @@ legacy active, malformed, mismatched or unreadable records mean Unavailable.
 Read-only, nonblocking, close-on-exec opens require directory/regular-file types,
 validate descriptor/path identities, bound records to 64 KiB and retry identity
 races at most eight times. Workspace aliases match by device/inode. The viewer
-currently consumes the independent tree result; visible activity and its separate
-two-capture acceptance remain the next increment, followed by witnessed RUNNING.
+compares activity independently across its two captures: a change yields Busy
+without rejecting a consistent tree. Accepted Idle enables the NEXT key obtained
+from `select_snapshot` without exclusion. Busy, Unavailable or failed tree
+acceptance clears the current pair and row activity; no old activity description
+is retained. The single deadline also retries in File, help and undersized frames.
+Witnessed RUNNING remains a subsequent increment.
 The loop owns duplicate-key and multiple-live-finish validation for the driver,
 `pick` and viewer; the viewer has no private validity rule. Permanent keys
 preserve selection and branch expansion; disappearance selects the nearest
@@ -216,7 +220,8 @@ Observation folds descendant totals in reverse preorder, including hidden leaves
 Both root and branch lifecycle are LIVE if any descendant is live, otherwise
 DONE, otherwise ABANDONED, or EMPTY without leaves. Rendering owns all row text:
 a fixed 22-cell prefix reserves cursor (2), lifecycle marker (2), explicit word
-(10) and future activity (8, currently blank). DONE marker/word/item spans are
+(10) and activity (8). Only the NEXT word uses bold normal-foreground text;
+the rest of an ordinary live row remains normal. DONE marker/word/item spans are
 green, ABANDONED red, and LIVE/EMPTY normal. Ratatui's cursor gutter supplies
 selection without a row-wide style override; fold markers stay beside the item.
 At 60 columns the bordered tree has 36 cells after the prefix. Indentation is
@@ -224,6 +229,11 @@ capped to retain two fold cells and at least sixteen handle cells, with an
 ellipsis for compressed depth. Slugs elide before their key suffix; kinds and
 counts fit afterward. Fitting uses Ratatui's grapheme iterator and display width,
 with inert control text. Valid handles and kinds remain ASCII by Grove's grammar.
+
+Chrome reserves one location/view line, one tree-observation line, RUNNING and
+NEXT summary lines, and a footer. At 60 × 10 the bordered body retains three
+content rows. Summaries survive folding and scrolling; labels and freshness
+precede elided handles, whose permanent keys are preserved before slug text.
 
 The viewer starts in Tree; Tab switches the entire body to the selected File
 and back without reloading or changing the observation deadline. Only the
@@ -1229,8 +1239,8 @@ secondary workspace's repository pointer. It shares validation and path
 derivation with `control_dir`. Missing `.jj` or namespace directories mean
 absence; inspection errors and nondirectories are refused. The returned path
 is a sample, so a runtime observer must validate opened descriptor identities.
-This discovery primitive is available for the forthcoming typed activity
-observer; the viewer does not yet report idle NEXT or legacy epoch activity.
+The typed activity observer consumes this discovery primitive. The viewer shows
+idle NEXT and reports legacy active epochs as activity unavailable.
 
 **jj is the only lane** — a tree without a `.jj/` is refused before any mutation,
 with `jj git init --colocate` named as the remedy ([*jj is the only

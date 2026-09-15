@@ -51,7 +51,17 @@ Every row begins with a fixed status area before its indentation and handle:
 text are green; ABANDONED is red; LIVE and EMPTY use normal text. The separate
 `>` cursor marks selection without changing those colors. The `+`/`-` beside a
 branch's name marks folding, so lifecycle, selection and expansion remain
-distinct without color. Running and next-session activity are not displayed yet.
+distinct without color. While idle, the next eligible leaf has a bold **NEXT**
+word in normal text color; selecting it does not highlight the rest of its row.
+
+Both views keep **RUNNING** and **NEXT** summary lines above the body, even when
+the next item is folded or offscreen. Idle shows `RUNNING: none (idle)` and the
+ordinary Grove selection as NEXT: the first live non-finish leaf in depth-first
+position order, or the sole live finish leaf when no ordinary task remains.
+This is a forecast, not a promised launch. No eligible leaf means `NEXT: none`;
+viewing never creates a finish sentinel. Long summary slugs shorten before their
+permanent keys. The location/view, tree observation, RUNNING, NEXT and footer
+lines leave three bordered content rows at the minimum 60 × 10 size.
 
 The root and branches count all descendant leaves, including folded ones.
 Their status is LIVE if any are live, otherwise DONE if any are done, otherwise
@@ -128,8 +138,15 @@ navigation and quit remain responsive. It retries the pending read every 500 ms
 until contention ends. Other external changes and repairs are observed on the
 same deadline, with at most one pending observation.
 Tree capture releases its shared guard before a separate, nonblocking runtime
-read. Runtime failure does not prevent browsing; this release does not yet show
-RUNNING/NEXT activity. Legacy active drivers have no supported activity witness.
+read. Runtime failure does not prevent browsing. Epoch contention or changing
+activity shows WAITING; unsupported, missing or malformed evidence beside a
+lease shows activity unavailable. Both suppress the current pair and clear row
+activity until observation recovers. Failed tree capture also withholds NEXT
+and clears old row activity. Tree diagnostics remain separate from activity
+freshness, so consistent tree updates still appear while activity is changing.
+Legacy active drivers have no supported activity witness and therefore show
+activity unavailable. Identifying a witnessed RUNNING item and forecasting NEXT
+with that item excluded are future behavior in the [item-status design](specs/item-status.md).
 All advisory guards release before rendering or waiting for input.
 
 A driver handoff overlapping a runtime read can briefly print

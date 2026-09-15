@@ -4,9 +4,8 @@
 ## Goal
 
 Ship an honest NEXT forecast when no session is running, with typed and
-read-only activity observation and shared validated selection. This third
-working increment consumes full-width-view-k9 and lifecycle-rows-k10. It also
-makes the driver refuse ambiguous duplicate keys consistently with the viewer.
+read-only activity observation using shared validated selection. This working
+increment consumes full-width-view-k9, lifecycle-rows-k10 and shared-selection-k16.
 
 
 
@@ -18,12 +17,9 @@ Older active epochs with no supported observation metadata must be Unavailable;
 do not infer running or idle from PID, cursor, first live leaf or lease bytes.
 Witnessed RUNNING is the next increment, witnessed-activity-k12.
 
-The existing `selected` helper in `crates/grove-loop/src/task_tree.rs` serves
-`select_in` and `select_in_write` but only checks multiple live finishes. The
-viewer has its own duplicate-key check in `crates/grove-tui/src/observation.rs`.
-Move whole-tree validation and selection to the highest useful typed loop seam,
-with an optional excluded permanent key, and use it for ordinary driver selection
-and the viewer's forecast. The renderer must not own another pick algorithm.
+Consume shared-selection-k16's landed typed selector for the viewer's forecast.
+Read that predecessor's implementation and any review/integration; do not
+recreate validation or selection. The renderer must not own a pick algorithm.
 
 `Workspace::control_dir` in `crates/jj-workspace/src/lib.rs` creates a namespace;
 add exact-workspace read-only discovery sharing its derivation/validation.
@@ -35,16 +31,10 @@ acceptance and in-memory UI state remain viewer responsibilities.
 
 ## Done when
 
-- The common selector validates every key, including terminal and branch items,
-  and multiple live finishes before exclusion. It then removes only the named
-  candidate key, takes the first remaining ordinary leaf in depth-first position
-  order, or the sole remaining finish. A running branch's children remain
-  eligible. No ordinary driver ordering changes on valid trees, and no viewing
-  operation allocates a finish sentinel.
-- Selection tests cover no exclusion, excluded ordinary/finish/terminal/branch
-  keys, finish-only remainder, early finish with later ordinary work, no
-  candidates, duplicate finishes and duplicate keys that exclusion might hide.
-  Driver and application tests show the same duplicate-key refusal.
+- Idle NEXT uses the landed common selector without exclusion, preserves its
+  validation and finish ordering, and never allocates a finish sentinel.
+  Application tests demonstrate its forecast and malformed-tree refusal;
+  shared-selection-k16 owns the full selector test matrix and driver refusal.
 - The production `try_observe` seam returns independent typed tree/activity
   results and captured selected-file bytes with a retained opaque TreeLifetime;
   all advisory guards are released before return. Tree/file capture finishes
@@ -79,11 +69,25 @@ acceptance and in-memory UI state remain viewer responsibilities.
   epoch transitions, contention/recovery, multi-viewer shared reads, aliases,
   no-configuration launch bypass and all read-only cases above. Current driver
   fixtures still reject stale admission after rotation.
-- Update selection and viewing guidance in `docs/USAGE.md`, including how to
-  repair accidental duplicate keys without reusing permanent identity. Update
+- Pause the observer after tree/file capture and separately inside the runtime
+  epoch guard, using readiness/lock barriers and bounded failure timeouts.
+  Establish that no epoch guard spans capture or caller work; only suspension
+  inside runtime read can reach the documented driver handoff bound, and release
+  permits recovery. This control lands here and k12 retains it as a regression.
+- Update viewing guidance in `docs/USAGE.md`, preserving the predecessor's
+  duplicate-key repair guidance. Explain ordinary overlap's waiting diagnostic,
+  a suspended runtime reader's 30-second handoff failure bound, and restarting
+  the driver after that holder releases its guard. Update
   `docs/ARCHITECTURE.md`, `docs/specs/module-decomposition.md` and
   `CONTEXT-MAP.md` for the landed seam and its legacy-active Unavailable behavior.
+  Reconcile G6 in `docs/specs/user-guide-coverage.md` for shipped idle activity,
+  retaining the remaining witnessed-activity obligation.
   Keep the full witnessed protocol documented as the next increment.
+- Update affected explained fragments, source/concept indexes and manifests in
+  `docs/walkthroughs/grove-loop/` and `docs/walkthroughs/jj-workspace/` in the
+  same change, following their authoring rules. Include every newly added
+  grove-loop source file matched by the corpus; budget this work with namespace
+  discovery and observation rather than leaving it to a later cleanup.
 - Run focused tests for grove-tui, grove-loop and jj-workspace, then the root
   brief's principal checks. This increment must demonstrate visible idle NEXT
   and preserve working browsing while a current older driver is active.
@@ -94,6 +98,6 @@ This is a complete compatibility behavior, not a test-only activity provider.
 Do not add unconsumed witness records, fake RUNNING rows or a second production
 observation implementation. If the work exceeds one session, decompose at an
 independently verifiable seam while retaining this increment's end-to-end exit
-condition. The typed observation and selector change is load-bearing: when its
+condition. The typed observation change is load-bearing: when its
 artifact exists, commission review-impl with the bare stem idle-next. Keep
 integration adjacent to that review under Grove's normal rule.

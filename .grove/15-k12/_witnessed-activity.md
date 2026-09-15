@@ -4,7 +4,7 @@
 ## Goal
 
 Deliver witnessed RUNNING and exclusion-aware NEXT through the real driver and
-viewer. This is the fourth working increment, after idle-next-k11 supplies the
+viewer. This working increment follows idle-next-k11, which supplies the
 shared typed observation, selector and activity chrome. Publication and its
 consumer belong to this one increment, which is larger than one session.
 
@@ -64,6 +64,8 @@ identity comparison. Preserve that design while finding session-sized leaves.
   An exec'd surviving child cannot retain the driver's witnesses. Positive
   running controls prevent blanket unavailability from passing stale rejection.
   Record platform results precisely; a macOS run is not Linux evidence.
+  The planner resolves the execution route before implementation as specified
+  below; missing Linux results keep the evidence-owning leaf live.
 - Barrier controls independently force directory-first release with reused
   numeric identity/key, private-first release, both released, and release after
   directory verification but before the final private probe. A replacement
@@ -81,7 +83,8 @@ identity comparison. Preserve that design while finding session-sized leaves.
 - Fault and liveness controls cover allocation/publication failure,
   malformed/truncated/oversized/mismatched records, old observation versions,
   FIFO/directory replacement and open/lock races. Pause separately outside and
-  inside the runtime guard to show only the latter can delay epoch handoff.
+  inside the runtime guard to show only the latter can delay epoch handoff,
+  retaining idle-next-k11's control and user-facing liveness guidance.
   Confirm supervision error, unwind, normal drop and failed spawn release rules.
   Use readiness/reap/lock events and failure timeouts, never elapsed sleeps as
   proof. The real replacement test proves binding, not inode non-reuse; retain
@@ -92,20 +95,38 @@ identity comparison. Preserve that design while finding session-sized leaves.
   rotation, root replacement and previously admitted operations during handoff.
 - Usage, architecture, module and context-map summaries describe shipped
   behavior and ownership. Reconcile spec/glossary/ADR citations and affected
-  source-derived walkthroughs using their existing validation gates. Principal
-  checks pass, and adversarial review of the implemented protocol has been
-  resolved before closing this node.
+  source-derived walkthroughs using their existing validation gates. Reconcile
+  G6 in docs/specs/user-guide-coverage.md for the shipped witnessed activity,
+  removing its implementation deferral
+  while preserving unrelated signal/panic-restoration evidence obligations.
+  Principal checks pass, and adversarial review of the implemented protocol
+  has been resolved before closing this node.
 
 ## Decomposition
 
 witnessed-activity-k13 plans this increment against the landed predecessor.
 It cuts concrete implementation leaves at independently verifiable seams and
 keeps sessions bounded. Publishing metadata with no useful reader is not a
-completed product increment. Review leaves are commissioned after artifacts
-exist; integrations are created only for actionable findings, where the
+completed product increment. Individual leaves may be independently testable
+protocol steps whose product behavior arrives with the last step; each must
+pass its own tests and documentation gates, and partial metadata must continue
+to yield Unavailable. The node retains the end-to-end product exit condition.
+Review leaves are commissioned after artifacts exist; integrations are created
+only for actionable findings, where the
 directory-local walk reaches them next. The final implementation producer must
 commission review-impl for the complete protocol and its controls before this
 node can close.
+
+Before cutting implementation, k13 checks for an available authorized Linux
+host or VM and records the execution pointer in this brief (personal environment
+details belong here, not in product documentation). If no route is available,
+explicitly arrange a human Linux run and name that dependency in the evidence
+owner's task. That owner prepares a runnable command against an exact revision,
+the fixture prerequisites and recorded macOS result before requesting the run;
+ask for the Linux command's result and platform details, not a generic approval.
+Keep the owner live until both platform results are obtained. No cross-build,
+macOS result or prose validation substitutes for native Linux execution, and
+the node must not reach closure with this obligation silently deferred.
 
 ## Pointers
 

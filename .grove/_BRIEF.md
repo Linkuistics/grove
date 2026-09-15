@@ -132,6 +132,7 @@ children when its predecessor lands.
 |---|---|
 | full-width-view-k9 | Full-width Tree/File switching preserves both viewports. |
 | lifecycle-rows-k10 | Typed leading lifecycle cues and bounded indentation stay readable at 60 × 10. |
+| shared-selection-k16 | Driver, pick and viewer share malformed-tree refusal and a validated selector. |
 | idle-next-k11 | Shared validated selection and read-only observation show honest NEXT while idle; legacy active epochs show activity unavailable. |
 | witnessed-activity-k12 | Real driver witnesses deliver RUNNING and exclusion-aware NEXT through the same observer and viewer. |
 
@@ -140,6 +141,18 @@ against the landed idle observer. Its node brief already owns all process,
 mutation, application and documentation obligations. There is no standalone
 schema publication milestone or separate docs/test catch-up stage. Each producer
 documents the behavior it ships; the design remains the final contract.
+
+Integration item-status-k15 split shared-selection-k16 out before idle-next-k11
+to bound selection and book repair separately from observation. Each increment
+reconciles its shipped portion of G6 in docs/specs/user-guide-coverage.md,
+including lifecycle rows; only future behavior remains deferred. idle-next owns
+the epoch-guard pause controls and waiting/handoff-bound/restart guidance when
+it introduces that behavior; witnessed activity retains them as regressions.
+The witnessed node's leaves may be independently verified protocol steps; the
+node closes only on complete product behavior. witnessed-activity-k13 resolves
+the Linux execution route before implementation, with an explicit human run
+handoff if no authorized route is available. Missing platform evidence keeps
+its owning leaf live and cannot satisfy node closure.
 
 item-status-k14 reviews the decomposition before consumption. Later implementation reviews
 are lazy: a producer cuts one after its artifact exists; a reviewer with findings

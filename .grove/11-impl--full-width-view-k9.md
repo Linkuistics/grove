@@ -50,7 +50,9 @@ to the new visible view. Key mapping and terminal cleanup belong to
   tree filesystem snapshots remain unchanged by viewing.
 - Update Viewing a tree in `docs/USAGE.md` and Read-only viewer in
   `docs/ARCHITECTURE.md` for the shipped interaction, retaining the pointer to
-  future activity work. Run `cargo test --locked -p grove-tui`, then the root
+  future activity work. Reconcile G6 in `docs/specs/user-guide-coverage.md` for
+  the shipped switching behavior, retaining lifecycle/activity obligations.
+  Run `cargo test --locked -p grove-tui`, then the root
   brief's principal verification command after all edits.
 
 ## Notes

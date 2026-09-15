@@ -45,7 +45,9 @@ verify APIs from the locked dependency source before choosing rendering helpers.
   renaming, retirement and decomposition. Existing navigation and saved file
   positions still pass; viewing creates no filesystem state.
 - Update the viewer usage and architecture sections to describe the shipped
-  rows. Run `cargo test --locked -p grove-tui` and the root brief's principal
+  rows. Reconcile G6 in `docs/specs/user-guide-coverage.md` for shipped lifecycle
+  cues, retaining outstanding selection/activity obligations.
+  Run `cargo test --locked -p grove-tui` and the root brief's principal
   checks after edits, including any affected source-derived documentation.
 
 ## Notes

@@ -25,15 +25,25 @@ Existing process controls are in `crates/grove-loop/tests/driver_lease.rs` and
 
 ## Done when
 
+- Before cutting implementation, resolve an authorized Linux execution route
+  under the node brief's procedure. If none is available, arrange the explicit
+  human-run handoff early and assign its concrete command/revision, prerequisites,
+  macOS result and Linux evidence to a named leaf. That leaf stays live until
+  both platform results exist; do not defer discovery to node closure.
 - Ordered implementation leaves carry precise acceptance scenarios, production
   consumers and existing seams. Each can be demonstrated or verified without
   waiting for a sibling and fits a focused session. Together they supply
   end-to-end witnessed RUNNING/NEXT.
+  Individually tested protocol steps are allowed even when their product
+  behavior arrives only with the last step; partial metadata stays Unavailable
+  and every step carries its own tests and source-derived book updates.
 - Every scenario in the node brief and spec has an owner, including Linux/macOS
   real process results, forced-reuse mutation controls, multi-viewer and handoff
   races, unconfirmed reap and close order, read-only observation, tree identity,
   selection/finish, presentation and documentation.
 - Producers include their own behavior tests and current documentation. Tests
+  and documentation ownership includes G6 reconciliation in
+  docs/specs/user-guide-coverage.md as each behavior ships. Tests
   use the production typed observer. Runner API changes preserve domain-free
   vocabulary and ordinary callers; unused witness metadata is not an independent
   product increment.

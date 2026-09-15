@@ -58,3 +58,48 @@ Do not reopen the integrated kernel design without contradictory evidence or
 weaken the node exit condition to make a split fit. If inspection reveals a
 smaller useful product increment, name its working handoff and preserve the
 successor's inherited requirements.
+
+## Decisions (running log)
+
+- Linux execution is available through this machine's running Docker Desktop
+  Linux VM. A disposable cached `rust:1.85` container reported Linux
+  6.10.14-linuxkit aarch64, Rust/Cargo 1.85.1 and overlayfs. The route uses copied
+  source and container-local fixture directories, never a macOS bind mount for
+  locks. Its immutable image digest and execution prerequisites belong in the
+  node brief. This is route evidence only; no future witness test has run.
+- Keep one product increment: runner notifications, lease-owned publication,
+  verified runtime observation, then viewer binding. The earlier protocol
+  leaves have real production consumers and independent process/test seams,
+  while unsupported or partial activity remains unavailable. A schema-only
+  milestone would deliver no working behavior. Preserve the node's complete
+  exit condition, including both platform results and adversarial review.
+- Graph project matches this workspace; generation is 2026-09-15T11:44:22Z.
+  Targeted search and launch call tracing completed without pagination. Coverage
+  marks loop_driver and keyed-launch current, but the new loop observation
+  files are not tracked by that generation and viewer/lease/workspace files
+  have changed. Current source reads ground those seams. idle-next-k23 already
+  repaired independent runtime summaries; its accepted F3/F4 limits create no
+  new repair task here.
+- The native Linux route also built grove-loop and passed the existing exact
+  test `driver_lease::observation::tests::descriptor_flags_and_bounded_reads_are_enforced`
+  (one passed, zero failed/ignored), under uid/gid 1000:1000. Runtime source is
+  unchanged from revision `720f525547a3359d1a1443d2b3ec3ac01c0815de`;
+  the copied tracked-source archive's SHA-256 is
+  `fb7a4db86fafe053a39bf22286f69d3659f1a7259269d0a372ad48147f35849c`.
+  This confirms the route and locked dependencies compile natively. It is no
+  evidence for the unimplemented witness controls that k26 must run.
+- One in-session adversarial planning reviewer checked acceptance ownership,
+  intermediate compatibility, session scope and the Linux route. Its sole
+  finding was low severity: plain `docker run` could follow a changed ambient
+  daemon. Classified valid/actionable; the recipe now explicitly selects
+  `--context desktop-linux`. This is a mechanical command correction with no
+  further review needed. k27 still commissions the required complete-protocol
+  review after implementation; no competing review is scheduled for this plan.
+- Final validation: the four implementation handles resolve and their brief
+  chain is the root plus witnessed-activity-k12. `bash scripts/check.sh` passed
+  all eight principal checks, including workspace tests and six final book
+  validations. SHA-256 checks confirm all 1,750 tracked files outside `.grove/`
+  were unchanged across the run; no implementation or durable design changed.
+  Retire this planner only. witnessed-activity-k12 retains four live children,
+  its complete acceptance contract and the later review obligation, so no
+  parent-chain node closes in this session.

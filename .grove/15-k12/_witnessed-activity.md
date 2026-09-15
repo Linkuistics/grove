@@ -105,12 +105,41 @@ identity comparison. Preserve that design while finding session-sized leaves.
 ## Decomposition
 
 witnessed-activity-k13 plans this increment against the landed predecessor.
-It cuts concrete implementation leaves at independently verifiable seams and
-keeps sessions bounded. Publishing metadata with no useful reader is not a
-completed product increment. Individual leaves may be independently testable
-protocol steps whose product behavior arrives with the last step; each must
-pass its own tests and documentation gates, and partial metadata must continue
-to yield Unavailable. The node retains the end-to-end product exit condition.
+The resulting dependency order is below. Keep the independently testable
+protocol steps in this one product increment: each has a production consumer,
+its own tests and current documentation. Publishing metadata alone is not a
+completed product increment; active evidence the current consumer cannot verify
+continues to yield Unavailable. The node retains its end-to-end exit condition.
+
+| Leaf | Independently verifiable handoff |
+|---|---|
+| launch-events-k24 | Generic callers observe real spawn and confirmed reap, with no-observer compatibility. |
+| launch-witnesses-k25 | Real launches hold both witnesses through the correct lifetime and publish bound metadata; admission survives observation failure. |
+| witnessed-observation-k26 | Production observation verifies Running and tree relation; native macOS/Linux and forced-reuse controls challenge the inference. Viewer activity stays conservative until binding lands. |
+| witnessed-view-k27 | Public viewing attaches RUNNING and forecasts NEXT from accepted evidence, completing presentation and G6. |
+
+### Acceptance ownership
+
+These rows assign the remaining contract, not a substitute for the spec's
+scenario table. Each owner keeps its behavior green and documents what ships.
+
+| Contract/scenarios | Owner |
+|---|---|
+| Started/Reaped; immediate/failed spawn; grace/escalation; confirmed/unconfirmed wait errors; notification ordering; no-observer API | launch-events-k24; lease consequences in launch-witnesses-k25 |
+| Selected-root capture/recheck; finish preparation; lease ownership; epoch-before-either-witness; no guard across spawn; orderly/unwind/helper lifetime | launch-witnesses-k25 |
+| OS-random exclusive allocation; extension/admission separation; marker failure; private-before-directory release; cleanup after invalidation | launch-witnesses-k25 |
+| Foreign shared holders/lock errors; containing-directory mutation remains usable; stale admission and handoff controls | launch-witnesses-k25; independent shared-holder and repeated-viewer controls in witnessed-observation-k26 |
+| Bounded read-only runtime; directory-before-private precedence; typed relation; old/malformed/mismatched metadata; FIFO/open/lock/path races | witnessed-observation-k26 |
+| macOS and Linux positive/kill/reap/leftover/exec-survivor controls; real replacement and first arriving observer | witnessed-observation-k26 |
+| Both teardown orders/both released/post-directory release; forced numeric/key reuse; directory-check and epoch-preparation mutations with positive controls | witnessed-observation-k26 |
+| Multiple shared viewers, old-epoch-delayed replacement, repeated launches; capture/runtime pauses, handoff bound/restart; no escaped guards | witnessed-observation-k26 |
+| Row binding/current species, moves/renames/renumbering, lifecycle plus RUNNING, branch children, item/tree absence, replacement/reused keys | witnessed-view-k27; typed relation in witnessed-observation-k26 |
+| Exclusion before finish eligibility and after validation; no viewing allocation; independent two-capture acceptance and stale-row clearing | witnessed-view-k27 |
+| Highlight/lifecycle/cursor separation; 60 × 10 summaries/qualifiers; folded/offscreen/File; Unicode, resize, saved state and color-disabled regressions | witnessed-view-k27 |
+| Read-only absent/non-jj/aliases/missing namespace/multiple observers | witnessed-observation-k26 and public Viewer controls in witnessed-view-k27 |
+| Usage/architecture/module/context-map and source-derived books; G6 current-state reconciliation | Each producer for its shipped seam; witnessed-view-k27 removes witnessed-view deferral |
+| Adversarial review of complete implementation and platform/mutation evidence, with actionable findings resolved before close | witnessed-view-k27 commissions it after the artifact exists |
+
 Review leaves are commissioned after artifacts exist; integrations are created
 only for actionable findings, where the
 directory-local walk reaches them next. The final implementation producer must
@@ -127,6 +156,57 @@ ask for the Linux command's result and platform details, not a generic approval.
 Keep the owner live until both platform results are obtained. No cross-build,
 macOS result or prose validation substitutes for native Linux execution, and
 the node must not reach closure with this obligation silently deferred.
+
+### Resolved Linux execution route
+
+Planning verified the running local Docker Desktop `desktop-linux` context.
+A disposable container executed natively on Linux 6.10.14-linuxkit aarch64
+with overlayfs and Rust/Cargo 1.85.1. The cached image is
+`rust@sha256:e51d0265072d2d9d5d320f6a44dde6b9ef13653b035098febd68cce8fa7c0bc4`.
+This uses the existing authorized local Linux VM and requires no remote host,
+new CI service or human-run dependency. Kernel-backed fixture paths must live
+inside its Linux filesystem, with source copied in; a macOS bind mount is not
+the locking subject. Native macOS remains a separate run on the host.
+
+witnessed-observation-k26 owns the complete platform result. Put the native
+process controls in the grove-loop library's private test seam, using real
+self-spawned holders and configured child launches with temporary `.jj` markers;
+these controls need neither a real jj command nor personal configuration.
+Name the required cases with `witness_` in their test names so the same bounded
+suite can be listed and executed on both hosts. Other process integration
+regressions still run through the repository's ordinary principal gate.
+
+Prerequisites: the running local Docker engine and cached digest above, a source
+archive containing exact tracked files (including `.cargo/config.toml` and
+Cargo.lock), locked dependencies downloadable or cached, `/bin/sh` and the
+image's native C compiler. Record the source/image fingerprint and explicit
+required test-name list before execution; zero selected tests cannot pass.
+Planning also verified Rust/Cargo and writable overlayfs as uid/gid 1000:1000.
+Run under that identity so access-failure controls do not become root-only
+skips. Use writable `/tmp` for source, build output, Cargo cache and lock
+fixtures; mount no host administration directory and pass no loop-control
+environment.
+
+For a prepared `source.tar`, the Linux execution shape is:
+
+```sh
+docker --context desktop-linux run --rm -i --user 1000:1000 --env CARGO_HOME=/tmp/cargo \
+  --env TMPDIR=/tmp --workdir /tmp \
+  rust@sha256:e51d0265072d2d9d5d320f6a44dde6b9ef13653b035098febd68cce8fa7c0bc4 \
+  sh -ec 'mkdir work; tar -xf - -C work; cd work;
+    uname -srm; rustc --version; cargo --version; stat -f -c %T .;
+    cargo test --locked -p grove-loop --lib witness_ -- --list;
+    cargo test --locked -p grove-loop --lib witness_ -- --nocapture --test-threads=1' \
+  < source.tar
+```
+
+This is the route, not a claim that future tests exist or pass. k26 must freeze
+the final source, identify its jj revision plus any tested diff and archive
+digest, enumerate required cases, compare each platform's actual results, and
+preserve the macOS result beside the Linux one. If toolchain/dependencies change,
+verify the replacement image rather than using a moving tag. If this route
+becomes unavailable, use the explicit human-run fallback above; that does not
+relax this node or its owner's exit.
 
 ## Pointers
 

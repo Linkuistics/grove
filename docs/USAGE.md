@@ -41,31 +41,33 @@ directories and concurrent viewers work; viewing uses no driver lease or launch
 configuration. It never creates, repairs, renames or writes tree files, and all
 selection, expansion and scrolling state disappears on exit.
 
-The root row opens `_BRIEF.md`; branch rows open their named node brief and
-task rows open the task file. Branches start expanded. Rows show canonical
-handles, open-token kinds and LIVE, DONE or ABANDONED outcomes. A branch counts
+The viewer starts in full-width **Tree** view. **Tab** switches to the selected
+item’s full-width **File** view and back; the title and footer name the active
+view and Tab destination. The root opens `_BRIEF.md`, a branch opens its named
+node brief, and a task opens its task file. Branches start expanded. Rows show
+canonical handles, open-token kinds and LIVE, DONE or ABANDONED outcomes. A branch counts
 all descendant leaves, including folded ones: its label is LIVE if any are
 live, otherwise DONE if any are done, otherwise ABANDONED, or EMPTY with no
 leaves. Counts expose mixed terminal branches.
 
 | Key | Action |
 |---|---|
-| Tab | Switch tree/file focus; the focused pane is labeled `[focus]` |
+| Tab | Switch full-width Tree/File views; the visible view is labeled `[active]` |
 | Up/Down or k/j | In the tree, select the previous/next visible row; in the file, scroll one line |
 | Right or l | In the tree, expand a branch or enter its first child; in the file, scroll right |
 | Left or h | In the tree, collapse a branch or select its parent; in the file, scroll left |
 | Enter or Space | In the tree, fold or expand the selected root/branch |
-| Home/End | First/last visible tree row, or beginning/end of the file, according to focus |
-| PageUp/PageDown or Ctrl-u/Ctrl-d | Scroll the file by one page |
+| Home/End | First/last visible tree row, or beginning/end of the file, according to the active view |
+| PageUp/PageDown or Ctrl-u/Ctrl-d | In File view, scroll by one page |
 | ? | Show key help; navigation pauses until help is dismissed |
 | Escape | Dismiss help |
 | r | Refresh immediately, preserving the selected item and reading position |
-| q or Ctrl-c | Quit from either pane or help |
+| q or Ctrl-c | Quit from either view or help |
 
 Files render as **formatted Markdown**: headings, emphasis, nested lists,
 quotes, rules, inline code, fenced/indented code blocks and aligned tables.
-Prose wraps to the pane width. Code keeps its indentation and tables keep their
-columns; Left/Right scrolls those wide blocks without shifting prose. Links show
+Prose wraps to the full view width. Code keeps its indentation and tables keep
+their columns; Left/Right scrolls those wide blocks without shifting prose. Links show
 labels and destinations, images show alt text, and HTML is inert text. Nothing
 opens a link, fetches an image, runs code or executes terminal control characters.
 Syntax highlighting is not provided. The tree and selected bytes refresh every
@@ -74,7 +76,12 @@ Syntax highlighting is not provided. The tree and selected bytes refresh every
 Resize preserves the reading location through prose reflow, clamping near the
 end of a file. Returning to a previously selected file restores its reading
 position, including horizontal scroll. These positions live only in memory.
-The selected tree row stays visible. The footer points to key help.
+Switching preserves tree selection, expansion and viewport, as well as each
+file’s reading position. Hidden views keep their saved dimensions until shown;
+returning to Tree adjusts its viewport only as needed to keep selection visible.
+Switching does not force a reload or restart the refresh deadline. Automatic
+observation continues in both views, in help and during the resize notice.
+The footer points to key help.
 
 Selection and expansion follow permanent keys across renumbering, renaming,
 moves and retirement. Decomposing a selected task opens its new branch brief.
@@ -91,12 +98,12 @@ Saved reading positions survive file errors until readable content returns.
 
 A missing tree shows its observed path and a Missing message. A malformed or
 unreadable reload shows an error; a retained previous tree is explicitly STALE.
-A selected-file failure is shown in the file pane. Fix the external problem;
+A selected-file failure is shown in File view. Fix the external problem;
 the viewer retries automatically and never repairs it. An empty document has an
-empty pane. Resize keeps the selected item. Below 60
-columns or 10 rows, a resize message replaces the panes; navigation pauses and
-state is retained until they fit again. Quit and refresh still work, including
-while help is open. Refresh retains the selected item while the panes are hidden.
+empty File view. Resize keeps the selected item. Below 60
+columns or 10 rows, a resize message replaces the view; navigation pauses and
+state is retained until the view fits again. Quit and refresh still work, including
+while help is open. Refresh retains the selected item while the views are hidden.
 
 Startup, selection and reload use a quiet nonblocking reader. While a writer
 holds the tree, the viewer shows WAITING and retains its previous display;

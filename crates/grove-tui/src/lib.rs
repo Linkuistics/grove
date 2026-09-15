@@ -65,7 +65,7 @@ pub struct Viewer {
     horizontal: usize,
     content_width: usize,
     page_width: usize,
-    file_focus: bool,
+    file_active: bool,
     help: bool,
     small: bool,
     page_height: usize,
@@ -94,7 +94,7 @@ impl Viewer {
             horizontal: 0,
             content_width: 0,
             page_width: 1,
-            file_focus: false,
+            file_active: false,
             help: false,
             small: false,
             page_height: 1,
@@ -135,8 +135,8 @@ impl Viewer {
         }
         match action {
             Action::Quit | Action::Refresh | Action::Help | Action::Dismiss => {}
-            Action::Focus => self.file_focus = !self.file_focus,
-            Action::Up | Action::Down if self.file_focus => {
+            Action::Focus => self.file_active = !self.file_active,
+            Action::Up | Action::Down if self.file_active => {
                 self.scroll = if matches!(action, Action::Up) {
                     self.scroll.saturating_sub(1)
                 } else {
@@ -158,7 +158,7 @@ impl Viewer {
                 }
             }
             Action::Toggle => {
-                if self.file_focus {
+                if self.file_active {
                     return false;
                 }
                 if let Some(row) = self.rows.get_mut(self.selected) {
@@ -167,7 +167,7 @@ impl Viewer {
                     }
                 }
             }
-            Action::Left | Action::Right if self.file_focus => {
+            Action::Left | Action::Right if self.file_active => {
                 self.horizontal = if matches!(action, Action::Left) {
                     self.horizontal.saturating_sub(1)
                 } else {
@@ -177,7 +177,7 @@ impl Viewer {
             }
             Action::Left | Action::Right => self.tree_horizontal(matches!(action, Action::Right)),
             Action::Home | Action::End => {
-                if self.file_focus {
+                if self.file_active {
                     self.scroll = if matches!(action, Action::Home) {
                         0
                     } else {
@@ -196,11 +196,14 @@ impl Viewer {
                     }
                 }
             }
-            Action::PageUp => self.scroll = self.scroll.saturating_sub(self.page_height),
-            Action::PageDown => {
+            Action::PageUp if self.file_active => {
+                self.scroll = self.scroll.saturating_sub(self.page_height);
+            }
+            Action::PageDown if self.file_active => {
                 self.scroll = self.scroll.saturating_add(self.page_height);
                 self.clamp_scroll();
             }
+            Action::PageUp | Action::PageDown => {}
         }
         false
     }
@@ -407,7 +410,7 @@ impl Viewer {
         self.horizontal = 0;
         self.content_width = 0;
         self.tree_state = ListState::default();
-        self.file_focus = false;
+        self.file_active = false;
     }
 
     fn missing(&mut self) {
@@ -511,7 +514,7 @@ impl Viewer {
         if self.help {
             frame.render_widget(
                 Paragraph::new(
-                    "Tab: switch pane | r: refresh | q/Ctrl-c: quit\n\
+                    "Tab: switch full-width view | r: refresh | q/Ctrl-c: quit\n\
 Tree: Up/Down j/k select | Home/End first/last\n\
 Right/l expand/enter | Left/h collapse/parent\n\
 Enter/Space: toggle branch\n\
@@ -519,7 +522,11 @@ File: Up/Down j/k line | Left/Right h/l code/table\n\
 PageUp/PageDown Ctrl-u/Ctrl-d: page | Home/End: top/end\n\
 Escape: close help | ?: toggle help",
                 )
-                .block(Block::bordered().title("Key help — live Markdown monitor")),
+                .block(Block::bordered().title(if self.file_active {
+                    "Key help — File active | Tab: Tree"
+                } else {
+                    "Key help — Tree active | Tab: File"
+                })),
                 frame.area(),
             );
             return;
@@ -538,83 +545,79 @@ Escape: close help | ?: toggle help",
             )),
             header,
         );
-        let [tree_area, file_area] =
-            Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)])
-                .areas(body);
-        let visible = self.visible();
-        self.tree_state
-            .select(visible.iter().position(|&i| i == self.selected));
-        let items: Vec<_> = visible
-            .iter()
-            .map(|&i| {
-                let row = &self.rows[i];
-                let marker = if row.branch {
-                    if row.expanded {
-                        "-"
+        if !self.file_active {
+            let visible = self.visible();
+            self.tree_state
+                .select(visible.iter().position(|&i| i == self.selected));
+            let items: Vec<_> = visible
+                .iter()
+                .map(|&i| {
+                    let row = &self.rows[i];
+                    let marker = if row.branch {
+                        if row.expanded {
+                            "-"
+                        } else {
+                            "+"
+                        }
                     } else {
-                        "+"
-                    }
-                } else {
-                    " "
-                };
-                ListItem::new(format!(
-                    "{}{marker} {}",
-                    "  ".repeat(row.depth.min(100)),
-                    row.label
-                ))
-            })
-            .collect();
-        // Stateful List keeps the selection visible; the state owns no tree data.
-        // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.List.html
-        frame.render_stateful_widget(
-            List::new(items)
-                .block(Block::bordered().title(if self.file_focus {
-                    "Tree"
-                } else {
-                    "Tree [focus]"
-                }))
-                .highlight_symbol("> ")
-                .highlight_style(Style::default().add_modifier(Modifier::REVERSED)),
-            tree_area,
-            &mut self.tree_state,
-        );
-        self.page_height = usize::from(file_area.height.saturating_sub(2)).max(1);
-        let width = usize::from(file_area.width.saturating_sub(2)).max(1);
-        if self.page_width != width {
-            let anchor = self.content.anchor(self.scroll);
-            self.page_width = width;
-            self.content = Document::layout(&self.source, width);
-            self.content_width = self.content.width();
-            self.scroll = self.content.row_for(anchor);
-        }
-        self.clamp_scroll();
-        let lines: Vec<Line<'_>> = self
-            .content
-            .lines
-            .iter()
-            .skip(self.scroll)
-            .take(self.page_height)
-            .map(|line| markdown::clip(line, self.horizontal, self.page_width))
-            .collect();
-        let paragraph = if let Some(error) = &self.file_error {
-            // Diagnostics wrap independently of the saved document/scroll state.
-            // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.Paragraph.html#method.wrap
-            Paragraph::new(error.as_str()).wrap(Wrap { trim: false })
+                        " "
+                    };
+                    ListItem::new(format!(
+                        "{}{marker} {}",
+                        "  ".repeat(row.depth.min(100)),
+                        row.label
+                    ))
+                })
+                .collect();
+            // Stateful List keeps the selection visible; the state owns no tree data.
+            // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.List.html
+            frame.render_stateful_widget(
+                List::new(items)
+                    .block(Block::bordered().title("Tree [active] | Tab: File"))
+                    .highlight_symbol("> ")
+                    .highlight_style(Style::default().add_modifier(Modifier::REVERSED)),
+                body,
+                &mut self.tree_state,
+            );
         } else {
-            Paragraph::new(lines)
-        };
-        // Layout already wraps prose; slicing avoids u16 scroll limits.
-        // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.Paragraph.html
-        frame.render_widget(
-            paragraph.block(Block::bordered().title(if self.file_focus {
-                "File [focus] (Markdown)"
+            self.page_height = usize::from(body.height.saturating_sub(2)).max(1);
+            let width = usize::from(body.width.saturating_sub(2)).max(1);
+            if self.page_width != width {
+                let anchor = self.content.anchor(self.scroll);
+                self.page_width = width;
+                self.content = Document::layout(&self.source, width);
+                self.content_width = self.content.width();
+                self.scroll = self.content.row_for(anchor);
+            }
+            self.clamp_scroll();
+            let lines: Vec<Line<'_>> = self
+                .content
+                .lines
+                .iter()
+                .skip(self.scroll)
+                .take(self.page_height)
+                .map(|line| markdown::clip(line, self.horizontal, self.page_width))
+                .collect();
+            let paragraph = if let Some(error) = &self.file_error {
+                // Diagnostics wrap independently of the saved document/scroll state.
+                // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.Paragraph.html#method.wrap
+                Paragraph::new(error.as_str()).wrap(Wrap { trim: false })
             } else {
-                "File (Markdown)"
-            })),
-            file_area,
-        );
+                Paragraph::new(lines)
+            };
+            // Layout already wraps prose; slicing avoids u16 scroll limits.
+            // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.Paragraph.html
+            frame.render_widget(
+                paragraph.block(Block::bordered().title("File [active] (Markdown) | Tab: Tree")),
+                body,
+            );
+        }
         frame.render_widget(
-            Paragraph::new("Tab focus | ? help | r refresh | q/Ctrl-c quit"),
+            Paragraph::new(if self.file_active {
+                "File | Tab: Tree | ? help | r refresh | q/Ctrl-c quit"
+            } else {
+                "Tree | Tab: File | ? help | r refresh | q/Ctrl-c quit"
+            }),
             footer,
         );
     }

@@ -61,3 +61,28 @@ Keep this increment independent of runtime metadata. Lifecycle words remain
 visible under the existing format until lifecycle-rows-k10. If a substantive
 viewport doubt remains after validation, cut a review-impl leaf with the bare
 stem full-width-view after producing the artifact; do not pre-create integration.
+
+## Implementation plan
+
+1. Add public Viewer regression tests for full-width switching, independent
+   viewports, hidden-file edits and unchanged polling deadlines; observe failures.
+2. Gate body rendering and file page actions on the existing active-view state
+   in `crates/grove-tui/src/lib.rs`; preserve observation and Markdown anchors.
+3. Adapt browser/key tests to explicitly open File and return to Tree, retaining
+   their existing filesystem, source-position and terminal-cleanup assertions.
+4. Update the usage, architecture and G6 coverage documents; run the focused
+   crate suite and `bash scripts/check.sh`, then retire and seal this leaf.
+
+## Decisions (running log)
+
+- Keep the existing boolean view state and independent ListState/file reading
+  state. Render only the active body; hidden File retains its last dimensions
+  until it is displayed, when existing source-anchor reflow applies. Switching
+  itself performs no observation and leaves the poll deadline untouched.
+- Browser assertions now visit File explicitly; production PTY fixtures use
+  Tab for root/task reading and return to Tree to observe retirement. The long
+  link fixture keeps enough trailing content for its marker to reach the top
+  at full width, preserving the existing transformed-source anchor assertion.
+- The single in-session adversarial review found a test adaptation inspecting
+  an old WAITING frame instead of the current STALE frame. Classified actionable
+  and restored the current-frame binding; no production defect was reported.

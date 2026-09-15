@@ -22,8 +22,10 @@ fn actual_binary_restores_terminal_on_quit_interrupt_and_termination() {
         std::fs::write(tree.join("_BRIEF.md"), "ROOT_CONTENT").unwrap();
         std::fs::write(tree.join("01-impl--probe-k1.md"), "SELECTED_CONTENT").unwrap();
         let mut pty = Pty::spawn(binary().arg("view").arg(directory.path()));
+        pty.until("[active]");
+        pty.send(b"\t");
         pty.until("ROOT_CONTENT");
-        pty.send(b"j");
+        pty.send(b"\tj\t");
         pty.until("SELECTED_CONTENT");
         pty.resize(8, 40);
         pty.until("Resize");
@@ -85,8 +87,10 @@ fn actual_binary_observes_selected_bytes_without_input() {
     let file = tree.join("01-impl--probe-k1.md");
     std::fs::write(&file, "AAAAAAAAAAAA").unwrap();
     let mut pty = Pty::spawn(binary().arg("view").arg(directory.path()));
+    pty.until("[active]");
+    pty.send(b"\t");
     pty.until("ROOT_CONTENT");
-    pty.send(b"j");
+    pty.send(b"\tj\t");
     pty.until("AAAAAAAAAAAA");
     pty.output.clear();
     let modified = std::fs::metadata(&file).unwrap().modified().unwrap();
@@ -119,7 +123,7 @@ fn actual_binary_reads_wide_markdown_recovers_and_allows_grove_retirement() {
     fs::create_dir(&tree).unwrap();
     fs::write(tree.join("_BRIEF.md"), "ROOT_CONTENT").unwrap();
     let file = tree.join("01-impl--probe-k1.md");
-    let markdown = format!("```text\n{}WIDE_MARKER\n```\n", "x".repeat(70));
+    let markdown = format!("```text\n{}WIDE_MARKER\n```\n", "x".repeat(130));
     fs::write(&file, &markdown).unwrap();
     let snapshot = || -> BTreeMap<String, Vec<u8>> {
         fs::read_dir(&tree)
@@ -135,8 +139,10 @@ fn actual_binary_reads_wide_markdown_recovers_and_allows_grove_retirement() {
     };
     let initial = snapshot();
     let mut pty = Pty::spawn(binary().arg("view").arg(directory.path()));
+    pty.until("[active]");
+    pty.send(b"\t");
     pty.until("ROOT_CONTENT");
-    pty.send(b"j\t");
+    pty.send(b"\tj\t");
     pty.until("xxxxxxxxxxxx");
     assert!(!String::from_utf8_lossy(&pty.output).contains("WIDE_MARKER"));
     for _ in 0..80 {
@@ -162,6 +168,10 @@ fn actual_binary_reads_wide_markdown_recovers_and_allows_grove_retirement() {
     pty.resize(30, 120);
     pty.until("RECOVERED_CONTENT");
     assert_eq!(snapshot(), recovered);
+
+    // Observe the lifecycle change in Tree; File no longer renders tree rows.
+    pty.send(b"\t");
+    pty.until("probe-k1 impl LIVE");
 
     // Use Grove's real write admission and retirement, bounded independently of
     // the viewer. A viewer retaining a read lock cannot satisfy this deadline.

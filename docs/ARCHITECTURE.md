@@ -166,10 +166,10 @@ point's own files.
 
 ## Read-only viewer
 
-The [item-status design](specs/item-status.md) specifies full-width view
-switching and lifecycle/activity display, including the typed observation
-extension to the driver protocol. The implementation described below is its
-starting application seam.
+Full-width Tree/File switching is implemented below. The remaining
+[item-status design](specs/item-status.md) specifies leading lifecycle cues and
+activity display, including the typed observation extension to the driver
+protocol.
 
 `grove view [WORKTREE]` dispatches to the `grove-tui` library before jj workspace
 resolution, driver lease acquisition or launch configuration. Its observation
@@ -195,6 +195,15 @@ nonblocking and directory-only; metadata identifies even unreadable replacements
 The adapter rejects duplicate keys before selecting content. Permanent keys
 preserve selection and branch expansion; disappearance selects the nearest
 surviving ancestor, and moved selections reveal their ancestors.
+
+The viewer starts in Tree; Tab switches the entire body to the selected File
+and back without reloading or changing the observation deadline. Only the
+active view renders. Tree owns its `ListState`; File retains its layout width,
+page height, source anchor and horizontal offset while hidden. File reflows for
+new dimensions and clamps only when shown; Tree adjusts only to keep its
+selection visible. Page actions apply only in File, and help pauses navigation.
+Titles, footer and help identify the active view and Tab destination.
+Observation continues independently in either view, help and undersized frames.
 
 The private Markdown module consumes pulldown-cmark events with source offsets.
 It sanitizes rendered text after entity decoding and lays out styled prose by

@@ -21,6 +21,14 @@ fn screen(viewer: &mut Viewer, width: u16, height: u16) -> String {
         .join("\n")
 }
 
+// Visit the selected file and return to Tree without changing selection.
+fn visit_file(viewer: &mut Viewer, width: u16, height: u16) -> String {
+    viewer.act(Action::Focus);
+    let file = screen(viewer, width, height);
+    viewer.act(Action::Focus);
+    file
+}
+
 fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
     fn visit(base: &Path, path: &Path, out: &mut BTreeMap<String, Vec<u8>>) {
         for item in fs::read_dir(path).unwrap() {
@@ -44,6 +52,105 @@ fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
 }
 
 #[test]
+fn full_width_switching_preserves_independent_views_and_poll_deadline() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let text = format!(
+        "```\n{}```",
+        (0..80)
+            .map(|n| format!("ROW {n:03} {} TAIL\n", "wide ".repeat(30)))
+            .collect::<String>()
+    );
+    put(&root, "_BRIEF.md", &text);
+    for n in 1..30 {
+        put(&root, &format!("{n:02}-impl--task-k{n}.md"), &text);
+    }
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    let tree = screen(&mut viewer, 60, 10);
+    assert!(tree.contains("Tree [active]"), "{tree}");
+    assert!(tree.contains("Tab: File"));
+    assert!(!tree.contains("ROW 000"));
+    viewer.act(Action::End);
+    let tree = screen(&mut viewer, 60, 10);
+    let now = std::time::Instant::now();
+    let deadline = viewer.retry_after(now);
+    viewer.act(Action::PageDown); // Tree must not move the hidden file.
+    viewer.act(Action::Focus);
+    assert_eq!(viewer.retry_after(now), deadline);
+    let file = screen(&mut viewer, 60, 10);
+    assert!(file.contains("File [active]"), "{file}");
+    assert!(file.contains("Tab: Tree"));
+    assert!(file.contains("ROW 000"));
+    assert!(!file.contains("task-k29"));
+    assert_eq!(file.lines().nth(2).unwrap().chars().last(), Some('┐'));
+    viewer.act(Action::PageDown);
+    for _ in 0..12 {
+        viewer.act(Action::Right);
+    }
+    let saved = screen(&mut viewer, 60, 10);
+    viewer.act(Action::Focus);
+    viewer.act(Action::PageUp); // Tree must not scroll the saved File either.
+    assert_eq!(screen(&mut viewer, 60, 10), tree);
+    // Hidden File must not be clamped to the wider Tree dimensions.
+    screen(&mut viewer, 220, 30);
+    screen(&mut viewer, 60, 10);
+    viewer.act(Action::Focus);
+    assert_eq!(screen(&mut viewer, 60, 10), saved);
+    assert_eq!(viewer.retry_after(now), deadline);
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn hidden_file_edits_and_resizes_keep_the_source_anchor() {
+    use std::time::{Duration, Instant};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let text = format!(
+        "{}MARKER reading position\n\n{}",
+        "before words fill a paragraph that wraps at narrow widths\n\n".repeat(25),
+        "after\n\n".repeat(30)
+    );
+    put(&root, "_BRIEF.md", &text);
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Focus);
+    scroll_to(&mut viewer, "MARKER");
+    viewer.act(Action::Focus);
+    screen(&mut viewer, 60, 10);
+    put(
+        &root,
+        "_BRIEF.md",
+        &format!("{}{}", "inserted\n\n".repeat(20), text),
+    );
+    let expected = snapshot(work.path());
+    // Observe in Tree; opening File reflows to the new viewport width.
+    viewer.tick(Instant::now() + Duration::from_secs(1));
+    viewer.act(Action::Focus);
+    let narrow = screen(&mut viewer, 60, 10);
+    assert!(
+        narrow.lines().nth(3).unwrap().contains("MARKER"),
+        "{narrow}"
+    );
+    let wide = screen(&mut viewer, 180, 24);
+    assert!(wide.lines().nth(3).unwrap().contains("MARKER"), "{wide}");
+    assert_eq!(snapshot(work.path()), expected);
+
+    // Switching must not itself reload selected bytes.
+    viewer.act(Action::Focus);
+    put(&root, "_BRIEF.md", "NEW CONTENT");
+    viewer.act(Action::Focus);
+    assert!(screen(&mut viewer, 180, 24).contains("MARKER"));
+    viewer.act(Action::Help);
+    viewer.tick(Instant::now() + Duration::from_secs(2));
+    viewer.act(Action::Dismiss);
+    assert!(screen(&mut viewer, 180, 24).contains("NEW CONTENT"));
+    screen(&mut viewer, 20, 5);
+    put(&root, "_BRIEF.md", "SMALL FRAME EDIT");
+    viewer.tick(Instant::now() + Duration::from_secs(3));
+    assert!(screen(&mut viewer, 60, 10).contains("SMALL FRAME EDIT"));
+}
+
+#[test]
 fn nested_browser_selects_briefs_and_tasks_without_writing() {
     let work = tempfile::tempdir().unwrap();
     let root = work.path().join(".grove");
@@ -64,7 +171,6 @@ fn nested_browser_selects_briefs_and_tasks_without_writing() {
     let mut viewer = Viewer::new(work.path().into());
     let initial = screen(&mut viewer, 180, 24);
     for text in [
-        "ROOT CHARTER",
         "branch-k1",
         "first-k2",
         "unusual-kind",
@@ -75,21 +181,22 @@ fn nested_browser_selects_briefs_and_tasks_without_writing() {
     ] {
         assert!(initial.contains(text), "missing {text}: {initial}");
     }
+    assert!(visit_file(&mut viewer, 180, 24).contains("ROOT CHARTER"));
     viewer.act(Action::Down);
-    assert!(screen(&mut viewer, 180, 24).contains("BRANCH CHARTER"));
+    assert!(visit_file(&mut viewer, 180, 24).contains("BRANCH CHARTER"));
     viewer.act(Action::Toggle);
     let collapsed = screen(&mut viewer, 180, 24);
     assert!(!collapsed.contains("first-k2"));
     assert!(collapsed.contains("DONE 1"));
     assert!(collapsed.contains("ABANDONED 1"));
     viewer.act(Action::Down);
-    assert!(screen(&mut viewer, 180, 24).contains("THIRD BODY"));
+    assert!(visit_file(&mut viewer, 180, 24).contains("THIRD BODY"));
     viewer.act(Action::Up);
     viewer.act(Action::Toggle);
     viewer.act(Action::Down);
-    assert!(screen(&mut viewer, 180, 24).contains("FIRST BODY"));
+    assert!(visit_file(&mut viewer, 180, 24).contains("FIRST BODY"));
     viewer.act(Action::Refresh);
-    assert!(screen(&mut viewer, 180, 24).contains("FIRST BODY"));
+    assert!(visit_file(&mut viewer, 180, 24).contains("FIRST BODY"));
     assert!(viewer.act(Action::Quit));
     assert_eq!(snapshot(work.path()), before);
 }
@@ -126,7 +233,7 @@ fn reload_reports_stale_missing_and_malformed_states_and_recovers() {
     assert!(!root.exists());
     put(&root, "_BRIEF.md", "VALID ROOT");
     viewer.act(Action::Refresh);
-    assert!(screen(&mut viewer, 150, 20).contains("VALID ROOT"));
+    assert!(visit_file(&mut viewer, 150, 20).contains("VALID ROOT"));
     put(&root, "01-bad.md", "bad");
     viewer.act(Action::Refresh);
     assert!(screen(&mut viewer, 150, 20).contains("STALE"));
@@ -151,11 +258,11 @@ fn disappearance_selects_root_with_an_explicit_notice() {
     viewer.act(Action::Down);
     let text = screen(&mut viewer, 180, 24);
     assert!(text.contains("disappeared"), "{text}");
-    assert!(text.contains("ROOT BODY"));
+    assert!(visit_file(&mut viewer, 180, 24).contains("ROOT BODY"));
     put(&root, "01-impl--task-k1.md", "RECOVERED BODY");
     viewer.act(Action::Refresh);
     viewer.act(Action::Down);
-    assert!(screen(&mut viewer, 180, 24).contains("RECOVERED BODY"));
+    assert!(visit_file(&mut viewer, 180, 24).contains("RECOVERED BODY"));
 }
 
 #[test]
@@ -171,6 +278,7 @@ fn page_scroll_reaches_long_files_and_sanitizes_terminal_controls() {
         &format!("\u{1b}[2J\u{7}\u{9}SAFE\u{9b}31m\n{content}"),
     );
     let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Focus);
     let first = screen(&mut viewer, 120, 15);
     assert!(first.contains("SAFE"));
     assert!(!first.contains('\u{1b}'));
@@ -271,6 +379,7 @@ fn busy_selection_retries_the_latest_file_without_an_event_backlog() {
     viewer.act(Action::Down);
     viewer.act(Action::Down);
     assert!(start.elapsed() < Duration::from_secs(1));
+    viewer.act(Action::Focus);
     let waiting = screen(&mut viewer, 140, 20);
     assert!(waiting.contains("WAITING"));
     assert!(waiting.contains("CHARTER"));
@@ -304,16 +413,16 @@ fn busy_refresh_and_nonbusy_errors_recover_automatically() {
     let mut viewer = Viewer::new(work.path().into());
     drop(release);
     viewer.tick(Instant::now() + Duration::from_secs(1));
-    assert!(screen(&mut viewer, 140, 20).contains("OLD CHARTER"));
+    assert!(visit_file(&mut viewer, 140, 20).contains("OLD CHARTER"));
     let release = hold_writer(work.path());
     let start = Instant::now();
     viewer.act(Action::Refresh);
     assert!(start.elapsed() < Duration::from_secs(1));
-    assert!(screen(&mut viewer, 140, 20).contains("OLD CHARTER"));
+    assert!(visit_file(&mut viewer, 140, 20).contains("OLD CHARTER"));
     put(&root, "_BRIEF.md", "NEW CHARTER");
     drop(release);
     viewer.tick(Instant::now() + Duration::from_secs(1));
-    assert!(screen(&mut viewer, 140, 20).contains("NEW CHARTER"));
+    assert!(visit_file(&mut viewer, 140, 20).contains("NEW CHARTER"));
     put(&root, "01-bad.md", "malformed");
     viewer.act(Action::Refresh);
     assert!(screen(&mut viewer, 140, 20).contains("STALE"));
@@ -336,7 +445,7 @@ fn removing_the_observed_worktree_clears_the_previous_display() {
     let work = parent.path().join("work");
     put(&work.join(".grove"), "_BRIEF.md", "DELETED CHARTER");
     let mut viewer = Viewer::new(work.clone());
-    assert!(screen(&mut viewer, 140, 20).contains("DELETED CHARTER"));
+    assert!(visit_file(&mut viewer, 140, 20).contains("DELETED CHARTER"));
     fs::remove_dir_all(work).unwrap();
     viewer.act(Action::Refresh);
     let missing = screen(&mut viewer, 140, 20);
@@ -367,20 +476,20 @@ fn keys_navigate_visible_rows_and_parents_and_keep_selection_visible() {
     }
     let before = snapshot(work.path());
     let mut viewer = Viewer::new(work.path().into());
-    assert!(screen(&mut viewer, 160, 12).contains("Tree [focus]"));
+    assert!(screen(&mut viewer, 160, 12).contains("Tree [active]"));
     key(&mut viewer, Right);
-    assert!(screen(&mut viewer, 160, 12).contains("BRANCH BODY"));
+    assert!(visit_file(&mut viewer, 160, 12).contains("BRANCH BODY"));
     key(&mut viewer, Char('h'));
     assert!(!screen(&mut viewer, 160, 12).contains("child-k2"));
     key(&mut viewer, Char('j'));
-    assert!(screen(&mut viewer, 160, 12).contains("BODY 02"));
+    assert!(visit_file(&mut viewer, 160, 12).contains("BODY 02"));
     key(&mut viewer, Char('k'));
     key(&mut viewer, Char('l'));
-    assert!(screen(&mut viewer, 160, 12).contains("BRANCH BODY"));
+    assert!(visit_file(&mut viewer, 160, 12).contains("BRANCH BODY"));
     key(&mut viewer, Right);
-    assert!(screen(&mut viewer, 160, 12).contains("CHILD BODY"));
+    assert!(visit_file(&mut viewer, 160, 12).contains("CHILD BODY"));
     key(&mut viewer, Left);
-    assert!(screen(&mut viewer, 160, 12).contains("BRANCH BODY"));
+    assert!(visit_file(&mut viewer, 160, 12).contains("BRANCH BODY"));
     key(&mut viewer, Char(' '));
     assert!(!screen(&mut viewer, 160, 12).contains("child-k2"));
     key(&mut viewer, Enter);
@@ -392,9 +501,9 @@ fn keys_navigate_visible_rows_and_parents_and_keep_selection_visible() {
             .any(|line| line.contains('>') && line.contains("task-k30")),
         "{last}"
     );
-    assert!(last.contains("BODY 29"));
+    assert!(visit_file(&mut viewer, 160, 12).contains("BODY 29"));
     key(&mut viewer, Home);
-    assert!(screen(&mut viewer, 160, 12).contains("ROOT BODY"));
+    assert!(visit_file(&mut viewer, 160, 12).contains("ROOT BODY"));
     assert_eq!(snapshot(work.path()), before);
 }
 
@@ -411,9 +520,10 @@ fn focused_file_keys_scroll_lines_pages_and_unicode_columns() {
     let mut viewer = Viewer::new(work.path().into());
     screen(&mut viewer, 100, 15); // ten file rows
     key(&mut viewer, Tab);
+    screen(&mut viewer, 100, 15);
     key(&mut viewer, Down);
     let line = screen(&mut viewer, 100, 15);
-    assert!(line.contains("File [focus]"));
+    assert!(line.contains("File [active]"));
     assert!(!line.contains("line 00"));
     assert!(line.contains("line 01"));
     key(&mut viewer, Up);
@@ -435,7 +545,7 @@ fn focused_file_keys_scroll_lines_pages_and_unicode_columns() {
     put(
         &root,
         "_BRIEF.md",
-        &format!("```\n界e\u{301}{}TAIL\n```", "界".repeat(40)),
+        &format!("```\n界e\u{301}{}TAIL\n```", "界".repeat(80)),
     );
     key(&mut viewer, Char('r'));
     for _ in 0..200 {
@@ -471,11 +581,19 @@ fn help_and_small_frames_preserve_navigation_and_allow_global_actions() {
     screen(&mut viewer, 100, 15);
     key(&mut viewer, Down);
     key(&mut viewer, Tab);
+    screen(&mut viewer, 100, 15);
     key(&mut viewer, PageDown);
     let saved = screen(&mut viewer, 100, 15);
     key(&mut viewer, Char('?'));
     let help = screen(&mut viewer, 60, 10);
-    for expected in ["Key help", "Ctrl-u", "Escape"] {
+    for expected in [
+        "Key help",
+        "File active",
+        "Tab: Tree",
+        "full-width",
+        "Ctrl-u",
+        "Escape",
+    ] {
         assert!(help.contains(expected), "{help}");
     }
     key(&mut viewer, Home);
@@ -515,6 +633,7 @@ fn markdown_formats_real_task_and_branch_documents_without_writes() {
     let mut viewer = Viewer::new(work.path().into());
     for _ in 0..2 {
         viewer.act(Action::Down);
+        viewer.act(Action::Focus);
         let text = screen(&mut viewer, 220, 55);
         for expected in [
             "Heading",
@@ -573,6 +692,7 @@ fn markdown_formats_real_task_and_branch_documents_without_writes() {
         ] {
             assert!(text.contains(row), "unaligned table: {text}");
         }
+        viewer.act(Action::Focus);
     }
     assert_eq!(snapshot(work.path()), before);
 }
@@ -610,9 +730,9 @@ fn markdown_reflow_and_revisits_keep_the_visible_source_marker() {
     assert!(screen(&mut viewer, 60, 15).contains("UNIQUE-MARKER"));
     viewer.act(Action::Focus);
     viewer.act(Action::Down);
-    assert!(screen(&mut viewer, 60, 15).contains("other document"));
+    assert!(visit_file(&mut viewer, 60, 15).contains("other document"));
     viewer.act(Action::Up);
-    assert!(screen(&mut viewer, 120, 15).contains("UNIQUE-MARKER"));
+    assert!(visit_file(&mut viewer, 120, 15).contains("UNIQUE-MARKER"));
     assert_eq!(snapshot(work.path()), before);
 }
 
@@ -650,7 +770,7 @@ fn edited_reading_positions_follow_source_on_refresh_and_revisit() {
         if revisit {
             viewer.act(Action::Focus);
             viewer.act(Action::Down);
-            assert!(screen(&mut viewer, 160, 15).contains("other document"));
+            assert!(visit_file(&mut viewer, 160, 15).contains("other document"));
         }
         put(
             &root,
@@ -660,6 +780,7 @@ fn edited_reading_positions_follow_source_on_refresh_and_revisit() {
         let expected = snapshot(work.path());
         if revisit {
             viewer.act(Action::Up);
+            viewer.act(Action::Focus);
         } else {
             viewer.act(Action::Refresh);
         }
@@ -845,6 +966,7 @@ fn edited_file_errors_keep_the_saved_source_until_recovery_and_revisit() {
     );
     let expected = snapshot(work.path());
     viewer.act(Action::Up);
+    viewer.act(Action::Focus);
     let view = screen(&mut viewer, 160, 15);
     assert!(view.lines().nth(3).unwrap().contains("MARKER"), "{view}");
     assert_eq!(snapshot(work.path()), expected);
@@ -909,7 +1031,7 @@ fn transformed_markdown_and_blank_code_lines_keep_reading_anchors() {
         format!(
             "[label](https://example.test/{}UNIQUE-MARKER/{})",
             "part/".repeat(147),
-            "tail/".repeat(150)
+            "tail/".repeat(300)
         ),
         format!(
             "```\nalpha\n{}UNIQUE-MARKER\n{}\n```",
@@ -950,6 +1072,7 @@ fn transformed_markdown_and_blank_code_lines_keep_reading_anchors() {
         viewer.act(Action::Down);
         screen(&mut viewer, 100, 15);
         viewer.act(Action::Up);
+        viewer.act(Action::Focus);
         let revisited = screen(&mut viewer, 100, 15);
         assert!(
             revisited.lines().nth(3).unwrap().contains("UNIQUE-MARKER"),
@@ -981,7 +1104,7 @@ fn edited_wide_code_preserves_horizontal_offset_and_item_positions() {
     assert!(!before.contains("WIDE 020"));
     viewer.act(Action::Focus);
     viewer.act(Action::Down);
-    assert!(screen(&mut viewer, 160, 15).contains("other starts at top"));
+    assert!(visit_file(&mut viewer, 160, 15).contains("other starts at top"));
     put(
         &root,
         "_BRIEF.md",
@@ -1017,14 +1140,17 @@ fn live_ticks_follow_keys_and_reveal_a_moved_selection() {
     let expected = snapshot(work.path());
     viewer.tick(Instant::now() + Duration::from_secs(1));
     let shown = screen(&mut viewer, 180, 24);
-    assert!(shown.contains("renamed-k3 impl DONE"), "{shown}");
+    viewer.act(Action::Focus);
+    let tree = screen(&mut viewer, 180, 24);
+    viewer.act(Action::Focus);
+    assert!(tree.contains("renamed-k3 impl DONE"), "{tree}");
     assert!(shown.contains("CHOSEN BODY"), "{shown}");
     assert!(!shown.contains("HIDDEN BODY"));
     assert!(
-        shown.contains("hidden-k2"),
+        tree.contains("hidden-k2"),
         "moved selection must reveal ancestor: {shown}"
     );
-    assert!(shown.contains("File [focus]"));
+    assert!(shown.contains("File [active]"));
     assert_eq!(snapshot(work.path()), expected);
     fs::remove_file(root.join("01-k1/02-DONE-impl--renamed-k3.md")).unwrap();
     viewer.act(Action::Refresh);
@@ -1044,13 +1170,13 @@ fn live_root_replacement_clears_reused_key_state_but_brief_edits_do_not() {
     put(&root, "replacement", "EDITED ROOT");
     fs::rename(root.join("replacement"), root.join("_BRIEF.md")).unwrap();
     viewer.act(Action::Refresh);
-    assert!(screen(&mut viewer, 160, 20).contains("OLD ITEM"));
+    assert!(visit_file(&mut viewer, 160, 20).contains("OLD ITEM"));
     fs::rename(&root, work.path().join("old-tree")).unwrap();
     put(&root, "_BRIEF.md", "NEW ROOT");
     put(&root, "01-impl--chosen-k1.md", "NEW ITEM");
     let expected = snapshot(work.path());
     viewer.act(Action::Refresh);
-    let shown = screen(&mut viewer, 160, 20);
+    let shown = visit_file(&mut viewer, 160, 20);
     assert!(shown.contains("NEW ROOT"), "{shown}");
     assert!(!shown.contains("NEW ITEM"));
     assert_eq!(snapshot(work.path()), expected);
@@ -1072,7 +1198,10 @@ fn live_decomposition_and_duplicate_key_recovery() {
     .unwrap();
     viewer.act(Action::Refresh);
     let shown = screen(&mut viewer, 160, 20);
-    assert!(shown.contains("CHOSEN BODY"), "{shown}");
+    assert!(
+        visit_file(&mut viewer, 160, 20).contains("CHOSEN BODY"),
+        "{shown}"
+    );
     assert!(shown.contains(">   - chosen-k1"), "{shown}");
     put(&root, "02-impl--duplicate-k1.md", "WRONG BODY");
     viewer.act(Action::Refresh);
@@ -1097,6 +1226,7 @@ fn live_unchanged_ticks_keep_reading_position_and_selected_bytes_are_reread() {
     viewer.act(Action::Down);
     screen(&mut viewer, 160, 20);
     viewer.act(Action::Focus);
+    screen(&mut viewer, 160, 20);
     viewer.act(Action::PageDown);
     let before = screen(&mut viewer, 160, 20);
     viewer.tick(Instant::now() + Duration::from_secs(1));
@@ -1135,7 +1265,7 @@ fn live_unreadable_replacement_discards_the_previous_lifetime() {
         assert!(shown.contains("Error"), "{shown}");
     }
     viewer.act(Action::Refresh);
-    assert!(screen(&mut viewer, 180, 20).contains("REPLACEMENT ROOT"));
+    assert!(visit_file(&mut viewer, 180, 20).contains("REPLACEMENT ROOT"));
 }
 
 #[test]
@@ -1188,6 +1318,7 @@ fn live_file_read_errors_keep_the_tree_and_recover_the_saved_anchor() {
     viewer.act(Action::Down);
     screen(&mut viewer, 180, 24);
     viewer.act(Action::Focus);
+    screen(&mut viewer, 180, 24);
     viewer.act(Action::PageDown);
     let before = screen(&mut viewer, 180, 24);
     fs::set_permissions(&file, fs::Permissions::from_mode(0o0)).unwrap();
@@ -1249,7 +1380,11 @@ fn production_clock_observes_nested_additions_and_deletions_without_writes() {
     fs::remove_file(root.join("01-k1/01-impl--added-k2.md")).unwrap();
     let expected = snapshot(work.path());
     let frame = await_live(&mut viewer, started, |s| s.contains("disappeared"));
-    assert!(frame.contains("BRANCH"), "{frame}");
+    assert!(
+        visit_file(&mut viewer, 140, 24).contains("BRANCH"),
+        "{frame}"
+    );
+    viewer.act(Action::Focus);
     assert_eq!(snapshot(work.path()), expected);
     let started = std::time::Instant::now();
     fs::remove_dir_all(root.join("01-k1")).unwrap();
@@ -1268,6 +1403,7 @@ fn production_clock_reads_same_length_bytes_with_restored_mtime() {
     put(&root, "01-impl--selected-k1.md", "AAAAAAAAAAAA");
     let mut viewer = Viewer::new(work.path().into());
     viewer.act(Action::Down);
+    viewer.act(Action::Focus);
     let file = root.join("01-impl--selected-k1.md");
     let modified = fs::metadata(&file).unwrap().modified().unwrap();
     let started = std::time::Instant::now();
@@ -1289,6 +1425,7 @@ fn production_clock_coalesces_rapid_bursts_to_current_content() {
     let root = work.path().join(".grove");
     put(&root, "_BRIEF.md", "INITIAL");
     let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Focus);
     let started = std::time::Instant::now();
     for n in 0..30 {
         put(&root, "_BRIEF.md", &format!("BURST_{n:02}"));
@@ -1313,8 +1450,8 @@ fn production_clock_recovers_from_interrupted_decomposition_and_duplicate_keys()
     let started = std::time::Instant::now();
     fs::create_dir(root.join("01-k1")).unwrap();
     let expected = snapshot(work.path());
-    let frame = await_live(&mut viewer, started, |s| s.contains("STALE"));
-    assert!(frame.contains("SELECTED"));
+    await_live(&mut viewer, started, |s| s.contains("STALE"));
+    assert!(visit_file(&mut viewer, 140, 24).contains("SELECTED"));
     assert_eq!(snapshot(work.path()), expected);
     let started = std::time::Instant::now();
     fs::rename(
@@ -1330,14 +1467,15 @@ fn production_clock_recovers_from_interrupted_decomposition_and_duplicate_keys()
     let started = std::time::Instant::now();
     put(&root, "02-impl--duplicate-k1.md", "WRONG");
     let expected = snapshot(work.path());
-    let frame = await_live(&mut viewer, started, |s| s.contains("duplicate key"));
-    assert!(frame.contains("SELECTED") && !frame.contains("WRONG"));
+    await_live(&mut viewer, started, |s| s.contains("duplicate key"));
+    let file = visit_file(&mut viewer, 140, 24);
+    assert!(file.contains("SELECTED") && !file.contains("WRONG"));
     assert_eq!(snapshot(work.path()), expected);
     let started = std::time::Instant::now();
     fs::remove_file(root.join("02-impl--duplicate-k1.md")).unwrap();
     let expected = snapshot(work.path());
     await_live(&mut viewer, started, |s| {
-        s.contains("SELECTED") && !s.contains("STALE")
+        s.contains("selected-k1") && !s.contains("STALE")
     });
     assert_eq!(snapshot(work.path()), expected);
 }
@@ -1355,7 +1493,11 @@ fn production_clock_replacement_between_polls_resets_reused_keys() {
     put(&root, "_BRIEF.md", "REPLACEMENT_ROOT");
     put(&root, "01-impl--selected-k1.md", "REUSED_SELECTION");
     let expected = snapshot(work.path());
-    let frame = await_live(&mut viewer, started, |s| s.contains("REPLACEMENT_ROOT"));
+    await_live(&mut viewer, started, |s| {
+        s.lines().any(|row| row.contains("> - root"))
+    });
+    let frame = visit_file(&mut viewer, 140, 24);
+    assert!(frame.contains("REPLACEMENT_ROOT"));
     assert!(!frame.contains("OLD_SELECTION") && !frame.contains("REUSED_SELECTION"));
     assert_eq!(snapshot(work.path()), expected);
 }
@@ -1379,7 +1521,8 @@ fn production_clock_removal_and_delayed_recreation_clear_the_old_view() {
     let started = std::time::Instant::now();
     put(&root, "_BRIEF.md", "RECREATED_ROOT");
     let expected = snapshot(work.path());
-    await_live(&mut viewer, started, |s| s.contains("RECREATED_ROOT"));
+    await_live(&mut viewer, started, |s| !s.contains("WAITING"));
+    assert!(visit_file(&mut viewer, 140, 24).contains("RECREATED_ROOT"));
     assert_eq!(snapshot(work.path()), expected);
 }
 
@@ -1393,6 +1536,7 @@ fn production_clock_recovers_from_busy_and_unreadable_selected_content() {
     let file = root.join("01-impl--selected-k1.md");
     let mut viewer = Viewer::new(work.path().into());
     viewer.act(Action::Down);
+    viewer.act(Action::Focus);
     let started = std::time::Instant::now();
     let writer = hold_writer(work.path());
     let expected = snapshot(work.path());

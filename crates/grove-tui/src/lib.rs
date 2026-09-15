@@ -1,7 +1,8 @@
 //! A read-only browser over Grove's typed tree reader.
 //!
 //! `Viewer` owns display data only. Every action attempts a quiet read and
-//! drops the shared guard before rendering or waiting for input.
+//! drops the shared guard before rendering or waiting for input. Fresh witnessed
+//! activity survives tree failures; only accepted same-tree rows bind RUNNING.
 
 mod markdown;
 mod observation;
@@ -142,9 +143,13 @@ fn fit_text(text: &str, width: usize) -> String {
     result
 }
 
-/// Reserve the label and permanent key before shortening a summary's slug.
-fn activity_summary(label: &str, handle: &Handle, width: usize) -> String {
-    let suffix = format!("-k{}", handle.key());
+/// Reserve the label, permanent key and qualifier before shortening the slug.
+fn activity_summary(label: &str, handle: &Handle, qualifier: &str, width: usize) -> String {
+    let suffix = if qualifier.is_empty() {
+        format!("-k{}", handle.key())
+    } else {
+        format!("-k{} ({qualifier})", handle.key())
+    };
     let slug = safe_text(handle.slug().as_str());
     let budget = width.saturating_sub(label.len() + suffix.len());
     let slug = if Line::raw(&slug).width() > budget {
@@ -208,6 +213,7 @@ pub struct Viewer {
     file_error: Option<String>,
     notice: Option<String>,
     activity: ActivityObservation,
+    tree_absent: bool,
     next: Option<u32>,
     tree_current: bool,
 }
@@ -240,6 +246,7 @@ impl Viewer {
             file_error: None,
             notice: None,
             activity: ActivityObservation::Unavailable("tree unavailable".into()),
+            tree_absent: false,
             next: None,
             tree_current: false,
         };
@@ -445,6 +452,7 @@ impl Viewer {
         self.next_poll = now + POLL_INTERVAL;
         self.next = None;
         self.tree_current = false;
+        self.tree_absent = false;
         let initial_root = self.sync_root();
         self.save_position();
         let old_key = self.rows.get(self.selected).map(|row| row.key);
@@ -536,8 +544,9 @@ impl Viewer {
                     .unwrap_or_else(|| "Read-only | live refresh 500 ms".into());
                 self.set_content(content);
                 self.tree_current = true;
-                self.next = if activity == ActivityObservation::Idle
-                    || self.running_row_for(&activity).is_some()
+                self.next = if matches!(&activity, ActivityObservation::Idle)
+                    || matches!(&activity, ActivityObservation::Running(mandate)
+                        if matches!(mandate.relation, TreeRelation::SameTree | TreeRelation::PreviousTree))
                 {
                     next
                 } else {
@@ -593,6 +602,7 @@ impl Viewer {
 
     fn missing(&mut self) {
         self.clear();
+        self.tree_absent = true;
         self.root = None;
         self.status = "Missing .grove — WAITING; retrying automatically".into();
     }
@@ -800,7 +810,7 @@ Escape: close help | ?: toggle help",
                 .and_then(|row| row.handle.as_ref())
                 .map_or_else(
                     || "NEXT: none".into(),
-                    |handle| activity_summary("NEXT: ", handle, width),
+                    |handle| activity_summary("NEXT: ", handle, "", width),
                 )
         };
         let (running, next) = match &self.activity {
@@ -809,17 +819,26 @@ Escape: close help | ?: toggle help",
                 format!("RUNNING: WAITING — {reason}"),
                 "NEXT: WAITING — activity not current".into(),
             ),
-            ActivityObservation::Running(_) => {
-                match self
+            ActivityObservation::Running(mandate) => {
+                let (handle, qualifier) = match self
                     .running_row_for(&self.activity)
                     .and_then(|row| row.handle.as_ref())
                 {
-                    Some(handle) => (activity_summary("RUNNING: ", handle, width), next_summary()),
+                    Some(handle) => (handle, ""),
                     None => (
-                        "RUNNING: unavailable — no current tree item".into(),
-                        "NEXT: unavailable — activity not current".into(),
+                        &mandate.handle,
+                        match mandate.relation {
+                            TreeRelation::PreviousTree => "previous tree",
+                            _ if self.tree_absent => "tree absent",
+                            TreeRelation::SameTree if self.tree_current => "item absent",
+                            _ => "tree unavailable",
+                        },
                     ),
-                }
+                };
+                (
+                    activity_summary("RUNNING: ", handle, qualifier, width),
+                    next_summary(),
+                )
             }
             ActivityObservation::Unavailable(reason) => (
                 format!("RUNNING: unavailable — {reason}"),

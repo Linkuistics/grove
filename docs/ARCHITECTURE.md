@@ -166,9 +166,9 @@ point's own files.
 
 ## Read-only viewer
 
-Full-width Tree/File switching, leading lifecycle cues and same-tree RUNNING/NEXT are
-implemented below. The [item-status design](specs/item-status.md) also specifies
-the remaining exceptional-tree summaries.
+Full-width Tree/File switching, leading lifecycle cues and witnessed RUNNING/NEXT
+implement the [item-status design](specs/item-status.md), including exceptional
+tree lifetimes and independently fresh runtime summaries.
 
 `grove view [WORKTREE]` dispatches to the `grove-tui` library before jj workspace
 resolution, driver lease acquisition or launch configuration. Its observation
@@ -240,13 +240,19 @@ and decomposition leaves children eligible for NEXT. Busy or Unavailable activit
 NEXT; failed tree acceptance also clears row activity and makes NEXT unavailable,
 while the RUNNING summary keeps the fresh runtime result. No old activity
 description is retained. The single deadline also retries in File, help and undersized frames.
-The typed observer now verifies Running, including launch-binding identity in
-two-capture equality. Same-tree Running now supplies rows and persistent summaries.
-Running without a current matching row still shows unavailable and withholds NEXT;
-identity-preserving absent-item, absent/unreadable-tree and previous-tree summaries
-remain to be implemented. Real controlled loop launches exercise lifecycle plus
-RUNNING, finish exclusion, rename/move/decomposition, folded/File summaries,
-retained-row clearing under contention/invalid input, and read-only multiple viewers.
+The typed observer includes launch-binding identity in two-capture equality.
+An absent same-tree item uses its launch handle with `item absent`, retaining
+NEXT over the remaining candidates. A PreviousTree mandate uses `previous tree`
+and excludes no key from the accepted new tree. NoReadableTree or rejected rows
+use `tree unavailable`, except confirmed root absence uses `tree absent`.
+These summaries preserve the launch handle independently of root-sync failure;
+labels, keys and qualifiers receive space before the slug is shortened.
+Real controlled loop launches exercise lifecycle plus RUNNING, finish exclusion,
+rename/move/decomposition, folded/File summaries, absent items/roots, replacement
+and first-arriving viewers, failed/immediate launch, signal-before-reap, handoff
+and killed drivers with surviving children. Read-only snapshots cover aliases
+and multiple viewers. Replacement clears old selection, folds and reading state;
+same-root brief edits preserve it.
 The loop owns duplicate-key and multiple-live-finish validation for the driver,
 `pick` and viewer; the viewer has no private validity rule. Permanent keys
 preserve selection and branch expansion; disappearance selects the nearest

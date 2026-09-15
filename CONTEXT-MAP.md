@@ -334,9 +334,11 @@ to the captured tree. Independent activity acceptance displays idle NEXT and
 same-tree RUNNING with exclusion-aware NEXT from the shared selector, using
 current row identity and persistent summaries, with no retained row activity
 on failed observation. Missing or failing trees withhold NEXT while retaining
-the independently compared runtime summary. Running without a current matching
-item remains unavailable; exceptional-tree identity summaries are the remaining
-presentation increment.
+the independently compared runtime summary. Missing items retain their launch
+handle with `item absent`; missing or unreadable trees use `tree absent` or
+`tree unavailable`. Replacements report `previous tree`, attach no old RUNNING
+row and exclude no reused key from NEXT. Replacement resets saved interaction
+state; same-root brief edits preserve it.
 The [viewer architecture](docs/ARCHITECTURE.md#read-only-viewer) names its
 application seam; the [usage guide](docs/USAGE.md#usage-viewing-tree) states the
 current interaction and refresh behavior. The

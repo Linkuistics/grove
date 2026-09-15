@@ -91,3 +91,29 @@ Both children ship their own application controls and current documentation.
 
 The original Done when remains the node's full contract. No in-session reviewer
 is used alongside the required eventual protocol review.
+
+## Acceptance reconciliation
+
+- k43's observation unit controls compare runtime identity even when the tree
+  fails; Viewer clears attachments/NEXT before every refresh. k44 preserves
+  fresh summaries through rejected rows and root-sync errors.
+- k43's real launches cover rename/move/renumber, terminal lifecycle plus
+  RUNNING, branch decomposition/children and finish after exclusion. Its invalid
+  tree case covers terminal/branch duplicate keys and multiple finishes before
+  exclusion; k44 requires the fresh unavailable-tree summary there too.
+- k44's real launches cover item/root absence, root-open failure, replacement
+  with reused handle/key and first arrivals. Alias and multiple-viewer snapshots
+  remain read-only. Replacement resets selection, folds and file offsets while
+  same-root brief edits preserve them; no viewer allocates finish.
+- k43's style controls cover independent lifecycle/cursor/RUNNING/NEXT cues,
+  folded/offscreen/File summaries and minimum width. k44 reserves qualifiers
+  with long launch slugs and keys in both views. Existing browser cases retain
+  Unicode, resize, saved-state, aggregates, help, contention and retry.
+- k44 covers failed/immediate launches, acknowledged signal before reap,
+  handoff and killed driver with a responding surviving child. Observation
+  controls retain runtime-change comparison on tree errors; browser controls
+  retain legacy epochs and absent/non-jj/missing namespaces.
+- Usage, architecture, module summary, context map and G6 describe the shipped
+  contract. No source-derived book corpus changes in either viewer child.
+  Complete protocol review is witnessed-activity-k45 under k12; k37 already
+  records native macOS/Linux evidence. k12 remains live.

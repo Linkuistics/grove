@@ -271,3 +271,23 @@ k37's final gate passed all eight principal checks and all six book validations
 with every input digest unchanged. The k26 reconciliation holds, so
 witnessed-observation-k26 closes with k37; its terminal subtree retains the
 parser, mutation, concurrency and native evidence. k12 remains live for k27.
+
+## Viewer handoff
+
+running-lifetimes-k44 completes witnessed-view-k27 after running-rows-k43.
+Public Viewer now renders fresh witnessed identity for same-tree rows, missing
+items/roots, failed tree reads and previous-tree mandates. Only accepted same-tree
+evidence binds/excludes a key; valid replacement trees get ordinary NEXT even
+when their handles are reused. Replacement clears saved state; brief edits do
+not. k27's brief maps its full acceptance contract to the two producers and
+existing application regressions. Usage, architecture, context map, module
+summary and G6 describe the shipped behavior. Source-derived book corpora are
+unchanged by the viewer work.
+
+The real-launch application suite covers lifecycle/current species, absent and
+replaced roots, aliases, first arrivals, signals before reap, handoff, failed and
+immediate spawn, and killed drivers with responding surviving sessions. These
+macOS application results supplement k37's frozen native protocol evidence;
+they do not substitute for its Linux run. witnessed-activity-k45 is the required
+complete protocol review. k12 remains live until that review and any actionable
+integration are resolved.

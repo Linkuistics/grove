@@ -37,9 +37,12 @@ fn driver_helper() {
         &workspace,
         lease,
         &TemplateSource::under(root.join("config")),
-    )
-    .unwrap();
-    assert_eq!(outcome, grove_loop::LoopOutcome::Stopped);
+    );
+    if root.join("expect-spawn-error").exists() {
+        assert!(outcome.is_err());
+    } else {
+        assert_eq!(outcome.unwrap(), grove_loop::LoopOutcome::Stopped);
+    }
 }
 
 #[test]
@@ -52,13 +55,28 @@ fn session_helper() {
     stream.set_read_timeout(Some(LIMIT)).unwrap();
     stream.write_all(b"ready").unwrap();
     let mut command = [0];
-    stream.read_exact(&mut command).unwrap();
-    assert_eq!(command, *b"x");
+    loop {
+        stream.read_exact(&mut command).unwrap();
+        match command[0] {
+            b'x' => return,
+            b's' => {
+                fs::write(
+                    std::env::var_os("GROVE_SIGNAL_FILE").unwrap(),
+                    b"relaunch\n",
+                )
+                .unwrap();
+                stream.write_all(b"s").unwrap();
+            }
+            b'p' => stream.write_all(b"p").unwrap(),
+            other => panic!("unexpected session command {other}"),
+        }
+    }
 }
 
 struct Launch {
     driver: Child,
     session: Option<UnixStream>,
+    listener: UnixListener,
 }
 
 impl Launch {
@@ -93,26 +111,33 @@ impl Launch {
         let mut launch = Self {
             driver,
             session: None,
+            listener,
         };
+        launch.accept_session(root);
+        launch
+    }
+
+    fn accept_session(&mut self, root: &Path) {
         let deadline = Instant::now() + LIMIT;
         let mut stream = loop {
-            match listener.accept() {
+            match self.listener.accept() {
                 Ok((stream, _)) => break stream,
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
                 Err(error) => panic!("accept session: {error}"),
             }
             assert!(
-                launch.driver.try_wait().unwrap().is_none(),
+                self.driver.try_wait().unwrap().is_none(),
                 "driver exited before readiness"
             );
             assert!(Instant::now() < deadline, "session readiness timed out");
             std::thread::sleep(Duration::from_millis(2));
         };
+        stream.set_nonblocking(false).unwrap();
         stream.set_read_timeout(Some(LIMIT)).unwrap();
         let mut ready = [0; 5];
         stream.read_exact(&mut ready).unwrap();
         assert_eq!(&ready, b"ready");
-        launch.session = Some(stream);
+        self.session = Some(stream);
         // Child readiness can precede the parent's Started callback. Wait for
         // production witness evidence, never infer publication from elapsed time.
         loop {
@@ -120,11 +145,19 @@ impl Launch {
                 grove_loop::try_observe(root, &[]).activity,
                 ActivityObservation::Running(_)
             ) {
-                return launch;
+                return;
             }
             assert!(Instant::now() < deadline, "Started publication timed out");
             std::thread::sleep(Duration::from_millis(2));
         }
+    }
+
+    fn exchange(&mut self, command: u8) {
+        let stream = self.session.as_mut().unwrap();
+        stream.write_all(&[command]).unwrap();
+        let mut response = [0];
+        stream.read_exact(&mut response).unwrap();
+        assert_eq!(response, [command]);
     }
 
     fn finish(mut self) {
@@ -195,7 +228,9 @@ fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
     let mut files = BTreeMap::new();
     // The fixture's socket is outside these two observation-owned surfaces.
     for name in [".grove", ".jj"] {
-        visit(root, &root.join(name), &mut files);
+        if root.join(name).exists() {
+            visit(root, &root.join(name), &mut files);
+        }
     }
     files
 }
@@ -385,6 +420,11 @@ fn real_launch_never_attaches_to_retained_rows_or_selects_an_invalid_tree() {
         assert!(text.contains("STALE"), "{text}");
         assert!(text.contains("NEXT: unavailable"), "{text}");
         assert!(
+            text.lines().nth(2).unwrap().contains("tree unavailable"),
+            "{text}"
+        );
+        assert!(text.lines().nth(2).unwrap().contains("work-k1"), "{text}");
+        assert!(
             !text
                 .lines()
                 .skip(4)
@@ -398,4 +438,328 @@ fn real_launch_never_attaches_to_retained_rows_or_selects_an_invalid_tree() {
     }
     viewer.act(Action::Refresh);
     assert!(screen(&mut viewer, 60, 10).0.contains("RUNNING: work-k1"));
+}
+
+#[test]
+fn real_launch_preserves_absent_item_and_tree_identity_at_minimum_width() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let slug = "a-very-long-launched-item-that-must-retain-its-key-and-qualifier";
+    let name = format!("01-impl--{slug}-k1.md");
+    put(&root, "_BRIEF.md", "root");
+    put(&root, &name, "work");
+    put(&root, "02-finish--finish-k2.md", "finish");
+    let launch = Launch::start(work.path());
+    let aliases = tempfile::tempdir().unwrap();
+    let alias = aliases.path().join("alias");
+    std::os::unix::fs::symlink(work.path(), &alias).unwrap();
+    let mut viewer = Viewer::new(work.path().into());
+    assert!(screen(&mut viewer, 60, 10)
+        .0
+        .lines()
+        .nth(2)
+        .unwrap()
+        .contains("-k1"));
+    fs::remove_file(root.join(name)).unwrap();
+    for absent_tree in [false, true] {
+        if absent_tree {
+            fs::remove_dir_all(&root).unwrap();
+        }
+        let before = snapshot(work.path());
+        viewer.act(Action::Refresh);
+        let mut arriving = Viewer::new(work.path().into());
+        let mut aliased = Viewer::new(alias.clone());
+        for current in [&mut viewer, &mut arriving, &mut aliased] {
+            for _ in 0..2 {
+                let (text, _) = screen(current, 60, 10);
+                let running = text.lines().nth(2).unwrap();
+                assert!(running.starts_with("RUNNING: a-very-long"), "{text}");
+                assert!(running.contains("-k1"), "{text}");
+                assert!(
+                    running.contains(if absent_tree {
+                        "tree absent"
+                    } else {
+                        "item absent"
+                    }),
+                    "{text}"
+                );
+                assert!(
+                    text.lines().nth(3).unwrap().contains(if absent_tree {
+                        "NEXT: unavailable"
+                    } else {
+                        "NEXT: finish-k2"
+                    }),
+                    "{text}"
+                );
+                assert!(
+                    !text.lines().skip(4).any(|line| line.contains("RUNNING")),
+                    "{text}"
+                );
+                current.act(Action::Focus);
+            }
+        }
+        assert_eq!(snapshot(work.path()), before);
+    }
+    launch.finish();
+}
+
+#[test]
+fn witnessed_replacement_resets_folds_and_reading_positions_but_brief_edit_preserves_them() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let content = format!(
+        "```\n{}\n```",
+        (0..30)
+            .map(|n| format!("LINE{n:02} {}", "abcdefghij".repeat(12)))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    put(&root, "_BRIEF.md", "OLD ROOT");
+    put(&root, "01-k2/_branch.md", "branch");
+    put(&root, "01-k2/01-impl--work-k1.md", &content);
+    let _launch = Launch::start(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::End);
+    viewer.act(Action::Focus);
+    screen(&mut viewer, 60, 10);
+    viewer.act(Action::PageDown);
+    viewer.act(Action::Right);
+    let old_file = screen(&mut viewer, 60, 10).0;
+    put(&root, "replacement", "EDITED ROOT");
+    fs::rename(root.join("replacement"), root.join("_BRIEF.md")).unwrap();
+    viewer.act(Action::Refresh);
+    assert_eq!(screen(&mut viewer, 60, 10).0, old_file);
+    viewer.act(Action::Focus);
+    viewer.act(Action::Home);
+    viewer.act(Action::Down);
+    viewer.act(Action::Toggle);
+    let folded = screen(&mut viewer, 60, 10).0;
+    assert!(!folded.lines().skip(4).any(|line| line.contains("work-k1")));
+    put(&root, "_BRIEF.md", "ANOTHER ROOT EDIT");
+    viewer.act(Action::Refresh);
+    assert_eq!(screen(&mut viewer, 60, 10).0, folded);
+    fs::rename(&root, work.path().join("old-tree")).unwrap();
+    put(&root, "_BRIEF.md", "NEW ROOT");
+    put(&root, "01-k2/_branch.md", "branch");
+    put(&root, "01-k2/01-impl--work-k1.md", &content);
+    viewer.act(Action::Refresh);
+    let tree = screen(&mut viewer, 60, 10).0;
+    assert!(
+        tree.lines().skip(4).any(|line| line.contains("work-k1")),
+        "{tree}"
+    );
+    viewer.act(Action::Focus);
+    assert!(screen(&mut viewer, 60, 10).0.contains("NEW ROOT"));
+    viewer.act(Action::Focus);
+    viewer.act(Action::End);
+    viewer.act(Action::Focus);
+    let fresh_file = screen(&mut viewer, 60, 10).0;
+    assert!(fresh_file.contains("LINE00"), "{fresh_file}");
+    assert!(fresh_file.contains("previous tree"), "{fresh_file}");
+}
+
+#[test]
+fn real_launch_replacement_does_not_attach_or_exclude_reused_key() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let name = "01-impl--a-very-long-launched-item-that-needs-key-and-qualifier-space-k1.md";
+    put(&root, "_BRIEF.md", "OLD ROOT");
+    put(&root, name, "OLD ITEM");
+    let _launch = Launch::start(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::Down);
+    viewer.act(Action::Focus);
+    fs::rename(&root, work.path().join("old-tree")).unwrap();
+    put(&root, "_BRIEF.md", "NEW ROOT");
+    put(&root, name, "NEW ITEM");
+    let before = snapshot(work.path());
+    viewer.act(Action::Refresh);
+    let mut arriving = Viewer::new(work.path().into());
+    for current in [&mut viewer, &mut arriving] {
+        let (text, _) = screen(current, 60, 10);
+        assert!(text.contains("previous tree"), "{text}");
+        assert!(
+            text.lines().nth(2).unwrap().contains("-k1 (previous tree)"),
+            "{text}"
+        );
+        assert!(
+            text.lines()
+                .nth(3)
+                .unwrap()
+                .starts_with("NEXT: a-very-long"),
+            "{text}"
+        );
+        assert!(
+            text.lines().nth(3).unwrap().trim_end().ends_with("-k1"),
+            "{text}"
+        );
+        assert!(
+            !text.lines().skip(4).any(|line| line.contains("RUNNING")),
+            "{text}"
+        );
+        current.act(Action::Focus);
+        let (text, _) = screen(current, 60, 10);
+        assert!(
+            text.contains("NEW ROOT") && !text.contains("NEW ITEM"),
+            "{text}"
+        );
+        assert!(
+            text.contains("previous tree") && text.contains("NEXT: a-very-long"),
+            "{text}"
+        );
+    }
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn real_launch_signal_keeps_running_until_reap_then_hands_off() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "root");
+    put(&root, "01-impl--first-k1.md", "first");
+    put(&root, "02-impl--second-k2.md", "second");
+    let mut launch = Launch::start(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    assert!(screen(&mut viewer, 60, 10).0.contains("RUNNING: first-k1"));
+    fs::rename(
+        root.join("01-impl--first-k1.md"),
+        root.join("01-DONE-impl--first-k1.md"),
+    )
+    .unwrap();
+    launch.exchange(b's'); // Acknowledged signal; the child still awaits exit.
+    viewer.act(Action::Refresh);
+    let (text, _) = screen(&mut viewer, 60, 10);
+    assert!(
+        text.contains("RUNNING: first-k1") && text.contains("NEXT: second-k2"),
+        "{text}"
+    );
+    launch.exchange(b'p');
+    launch.session.take().unwrap().write_all(b"x").unwrap();
+    launch.accept_session(work.path()); // Next launch requires predecessor reap.
+    viewer.tick(Instant::now() + Duration::from_secs(1));
+    let (text, _) = screen(&mut viewer, 60, 10);
+    assert!(
+        text.contains("RUNNING: second-k2") && text.contains("NEXT: none"),
+        "{text}"
+    );
+    launch.finish();
+    viewer.act(Action::Refresh);
+    assert!(screen(&mut viewer, 60, 10)
+        .0
+        .contains("RUNNING: none (idle)"));
+}
+
+#[test]
+fn killed_driver_clears_running_despite_started_bytes_and_live_session() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "root");
+    put(&root, "01-impl--work-k1.md", "work");
+    let mut launch = Launch::start(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    assert!(screen(&mut viewer, 60, 10).0.contains("RUNNING: work-k1"));
+    let before = snapshot(work.path());
+    launch.driver.kill().unwrap();
+    assert!(!launch.driver.wait().unwrap().success());
+    launch.exchange(b'p'); // The configured child demonstrably outlives its driver.
+    viewer.tick(Instant::now() + Duration::from_secs(1));
+    let (text, _) = screen(&mut viewer, 60, 10);
+    assert!(
+        text.contains("RUNNING: none (idle)") && text.contains("NEXT: work-k1"),
+        "{text}"
+    );
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn real_launch_root_open_failure_retains_summary_and_recovers() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "root");
+    put(&root, "01-impl--work-k1.md", "work");
+    let _launch = Launch::start(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    assert!(screen(&mut viewer, 60, 10).0.contains("RUNNING: work-k1"));
+    fs::rename(&root, work.path().join("old-tree")).unwrap();
+    std::os::unix::fs::symlink(".grove", &root).unwrap();
+    let mut arriving = Viewer::new(work.path().into());
+    viewer.act(Action::Refresh);
+    for current in [&mut viewer, &mut arriving] {
+        let (text, _) = screen(current, 60, 10);
+        assert!(
+            text.contains("RUNNING: work-k1 (tree unavailable)"),
+            "{text}"
+        );
+        assert!(text.contains("NEXT: unavailable"), "{text}");
+        assert!(
+            !text.lines().skip(4).any(|line| line.contains("RUNNING")),
+            "{text}"
+        );
+        assert!(current.retry_after(Instant::now()).unwrap() <= Duration::from_millis(500));
+        current.act(Action::Help);
+        current.tick(Instant::now() + Duration::from_secs(1));
+        screen(current, 40, 5);
+        assert!(current.act(Action::Quit));
+        current.act(Action::Dismiss);
+    }
+    fs::remove_file(&root).unwrap();
+    fs::rename(work.path().join("old-tree"), &root).unwrap();
+    viewer.act(Action::Refresh);
+    assert!(screen(&mut viewer, 60, 10).0.contains("RUNNING: work-k1"));
+}
+
+#[test]
+fn failed_and_immediate_launches_leave_no_running_attachment() {
+    for failed in [false, true] {
+        let work = tempfile::tempdir().unwrap();
+        let root = work.path().join(".grove");
+        put(&root, "_BRIEF.md", "root");
+        put(&root, "01-impl--work-k1.md", "work");
+        fs::create_dir(work.path().join(".jj")).unwrap();
+        let command = if failed {
+            "/missing-grove-test-executable"
+        } else {
+            "/usr/bin/true"
+        };
+        put(
+            work.path(),
+            "config/.config/grove/config.kdl",
+            &format!("impl \"{command} '${{prompt}}'\"\n"),
+        );
+        if failed {
+            put(work.path(), "expect-spawn-error", "");
+        }
+        let mut driver = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "driver_helper", "--ignored", "--nocapture"])
+            .current_dir(work.path())
+            .env("GROVE_TEST_TUI_PROCESS", "1")
+            .env_remove("GROVE_SIGNAL_FILE")
+            .env_remove("GROVE_HARNESS_PID")
+            .env_remove("GROVE_CLAUDE_PID")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + LIMIT;
+        loop {
+            if let Some(status) = driver.try_wait().unwrap() {
+                assert!(status.success());
+                break;
+            }
+            if Instant::now() >= deadline {
+                driver.kill().unwrap();
+                driver.wait().unwrap();
+                panic!("driver did not return after failed/immediate launch");
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let before = snapshot(work.path());
+        let mut viewer = Viewer::new(work.path().into());
+        let (text, _) = screen(&mut viewer, 60, 10);
+        assert!(
+            text.contains("RUNNING: none (idle)") && text.contains("NEXT: work-k1"),
+            "{text}"
+        );
+        assert_eq!(snapshot(work.path()), before);
+    }
 }

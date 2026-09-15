@@ -77,10 +77,15 @@ verified idle still reads `RUNNING: none (idle)` beside
 supported witness makes activity unavailable; that record alone does not prove
 that a session is alive. A released, validated launch witness establishes idle
 even if an active epoch and Started bytes remain after the session ends.
-If a witnessed mandate cannot bind to an item in the accepted current tree,
-the viewer currently shows activity unavailable and withholds NEXT. This includes
-absent items, replaced roots and unreadable trees. Identity-preserving summaries
-for those cases remain pending in the [item-status design](specs/item-status.md).
+If the running item disappears, its launch handle remains in the summary with
+`item absent`; NEXT still selects from the current tree. Removing the root shows
+`tree absent`, and failed or stale tree reads show `tree unavailable`, with no
+row attachment or NEXT. Replacing the root shows `previous tree`: the old mandate
+attaches to no new row and excludes no reused key from NEXT. Replacement clears
+old selection, folds and file positions; edits to the same root's brief preserve
+them. Summary qualifiers and permanent keys survive shortened slugs at 60 × 10.
+The completion signal alone does not clear RUNNING; it remains until the driver
+reaps the session. Driver death releases the evidence even if a child survives.
 An incomplete Started publication shows activity waiting.
 
 The root and branches count all descendant leaves, including folded ones.

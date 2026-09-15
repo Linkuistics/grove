@@ -51,6 +51,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Add `grove view [WORKTREE]`, a permanently read-only terminal browser with
+  nested tree navigation, outcome counts, task/brief reading as plain text,
+  file paging and manual refresh. It works outside jj workspaces and needs no
+  launch configuration. This increment uses blocking reads; automatic refresh,
+  formatted Markdown and full terminal hardening follow separately.
+
 ## v21.0.0
 
 - **Grove node files and directories.** Each node directory is `NN-k<key>/`

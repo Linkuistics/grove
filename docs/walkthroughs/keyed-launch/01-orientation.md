@@ -172,7 +172,7 @@ release ships. One workspace, one release version.
 # (`docs/specs/module-decomposition.md`, decision 1).
 #
 # **This crate is not published on its own, and that is settled**
-# (`docs/RELEASING.md`, *One release, six packages, one tag*): it ships inside
+# (`docs/RELEASING.md`, *One release, seven packages, one tag*): it ships inside
 # grove's cut, wearing grove's version, and no library member has a release lane
 # of its own. Removing this line does not reopen the question — it corrupts the
 # cut, which was measured rather than assumed.
@@ -183,7 +183,7 @@ release = false
 
 The comment's second paragraph states that this is an answered question rather
 than an open one, and names where the answer lives: `docs/RELEASING.md`, under
-*One release, six packages, one tag*, which settles that no library member of
+*One release, seven packages, one tag*, which settles that no library member of
 this workspace has a release lane of its own. That matters to a reader of this
 book in one specific way. A crate whose publication was undecided would have an
 argument for a stable, documented error taxonomy, because downstream users

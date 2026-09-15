@@ -77,8 +77,7 @@ rust-version.workspace = true
 <!-- /fragment -->
 
 The second fragment is the chapter's evidence, and its comment is the crate's
-own statement of the permission this book is about: **this crate is the one that
-is allowed to be domain-bound**, and `docs/specs/module-decomposition.md`,
+own statement of the permission this book is about: **this crate and the viewer are domain-bound**, and `docs/specs/module-decomposition.md`,
 decision 1, marks it *not domain-free* for that reason. The comment then accounts
 for the dependency table beneath it as three modules the crate composes —
 `jj-workspace`, `keyed-launch` and `ordinal-fs-tree` — plus `anyhow` and `libc`,
@@ -95,7 +94,7 @@ them so.
 <!-- fragment «manifest-dependencies» owner="allowed-to-mean" source="crates/grove-loop/Cargo.toml" lines="11-39" parent="manifest-domain-bound" -->
 ````toml
 
-# **This crate is the one that is allowed to be domain-bound.** The other three
+# **This crate and grove-tui are domain-bound.** The three reusable
 # library crates say nothing about grove; this one is grove — kind, handle, brief
 # chain, outcome, finishing — and `docs/specs/module-decomposition.md`, decision
 # 1, marks it *not domain-free* for exactly that reason.
@@ -257,7 +256,7 @@ question rather than an open one, and names where the answer lives.
 # (`docs/specs/module-decomposition.md`, decision 1).
 #
 # **This crate is not published on its own, and that is settled**
-# (`docs/RELEASING.md`, *One release, six packages, one tag*): it ships inside
+# (`docs/RELEASING.md`, *One release, seven packages, one tag*): it ships inside
 # grove's cut, wearing grove's version, and no library member has a release lane
 # of its own. Removing this line does not reopen the question — it corrupts the
 # cut, which was measured rather than assumed.
@@ -306,21 +305,19 @@ opens on the grammar underneath it.
 <!-- /fragment -->
 
 The first fragment is the spine, and every chapter of this book is a reading of
-it. It states the permission — the one library crate in the workspace allowed to
-be domain-bound — and then it states the boundary by enumeration: the other three
+it. It states the permission — a domain-bound library alongside the read-only viewer — and then it states the boundary by enumeration: the other three
 crates have a tree, a key and a template, and a workspace and a commit, and none
 of them has a word for a kind, a brief chain, an outcome, a handle or finishing.
 The last clause is the crate's own count of its surface, and chapter 15 is where
 twelve is checked against the fourteen functions `verbs` declares.
 
-<!-- fragment «library-root-thesis» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-10" parent="library-root" -->
+<!-- fragment «library-root-thesis» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-9" parent="library-root" -->
 ````rust
 //! **Grove's loop: the task tree in grove's own vocabulary, and the verbs a
 //! session invokes over it.**
 //!
-//! This is the one library crate in the workspace that is allowed to be
-//! domain-bound (`docs/specs/module-decomposition.md`, decision 1). The other
-//! three say nothing about grove — `ordinal-fs-tree` has an ordered tree,
+//! Grove vocabulary lives here and in the read-only `grove-tui` viewer.
+//! Its reusable seams are domain-free: `ordinal-fs-tree` has an ordered tree,
 //! `keyed-launch` has a key and a template, `jj-workspace` has a workspace and a
 //! commit — and none of them has a word for a *kind*, a *brief chain*, an
 //! *outcome*, a *handle* or *finishing*. Those are here, and so are the twelve
@@ -336,7 +333,7 @@ audience, each a command-line surface over what is in here, and those binaries
 are the overview's book and the `grove-llm` book rather than this one. Chapters
 16 to 20 are this paragraph; chapters 2 to 15 are the rest of the crate.
 
-<!-- fragment «library-root-and-the-driver» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="11-15" parent="library-root" -->
+<!-- fragment «library-root-and-the-driver» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="10-14" parent="library-root" -->
 ````rust
 //!
 //! Since `loop-crate-driver-k22` it is also the **driver**: the one-driver-per
@@ -360,7 +357,7 @@ caller could spell `<worktree>/.grove` a second way — and *[the two
 openings](#the-two-openings)* below reads the function, counts the callers that
 do, and says what the corrected wording claims instead.
 
-<!-- fragment «library-root-opening-mirrors» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="16-30" parent="library-root" -->
+<!-- fragment «library-root-opening-mirrors» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="15-29" parent="library-root" -->
 ````rust
 //!
 //! # Opening mirrors the store's, one level up
@@ -390,7 +387,7 @@ caller is a session that has to name them in a commit message it writes by hand.
 The third bullet is the one that only makes sense from outside the crate: the
 caller is an LLM session, and the paths are what it has to name.
 
-<!-- fragment «library-root-three-shapes» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="31-41" parent="library-root" -->
+<!-- fragment «library-root-three-shapes» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="30-40" parent="library-root" -->
 ````rust
 //!
 //! # Three shapes recur across [`verbs`], and each is deliberate
@@ -413,7 +410,7 @@ with context stacked on them, and stops at this boundary — which is the manife
 dependency argument restated from the consumer's side. The obligation the type
 carries is the runner's: every message names what is wrong **and** what fixes it.
 
-<!-- fragment «library-root-one-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="42-50" parent="library-root" -->
+<!-- fragment «library-root-one-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="41-49" parent="library-root" -->
 ````rust
 //!
 //! # One error for the whole crate
@@ -509,7 +506,7 @@ convention inside it. The four public modules are `driver`, `prompt`,
 holds two tree operations the loop calls directly, and chapter 15 reads why
 putting them beside the twelve would misstate the size of the surface.
 
-<!-- fragment «library-root-modules» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="51-63" parent="library-root" -->
+<!-- fragment «library-root-modules» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="50-62" parent="library-root" -->
 ````rust
 
 mod complete;
@@ -532,7 +529,7 @@ pub mod verbs;
 argues that reading one constant makes their agreement a fact about a single
 definition rather than about several manifests staying in step.
 
-<!-- fragment «library-root-version» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="64-73" parent="library-root" -->
+<!-- fragment «library-root-version» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="63-72" parent="library-root" -->
 ````rust
 
 /// The version this repository ships, and the only one.
@@ -548,9 +545,9 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 <!-- /fragment -->
 
 The comment quantifies over the crates an operator installs rather than over the
-workspace's members, and the two sets differ by one crate. Six of the seven
+workspace's members, and the two sets differ by one crate. Seven of the eight
 workspace members take `version.workspace = true` — the two binaries and the
-four libraries an operator's install is built from. The seventh,
+five libraries an operator's install is built from. The eighth,
 `book-validation`, is the authoring tool behind this book: it carries a
 `version = "0.1.0"` of its own, nothing an operator installs reads it, and the
 workspace root's manifest records that it does not inherit deliberately, because
@@ -573,7 +570,7 @@ it preserves — undoing the signal handler is the runner's, because the runner
 installed it, while *whether* to die of the signal is the binary's, and
 `LoopOutcome::Interrupted` is how the loop says it may.
 
-<!-- fragment «library-root-imports-and-exports» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="74-92" parent="library-root" -->
+<!-- fragment «library-root-imports-and-exports» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="73-92" parent="library-root" -->
 ````rust
 
 use std::cell::RefCell;
@@ -594,6 +591,7 @@ pub use ordinal_fs_tree::Sought;
 pub use prompt::{compose, Mandate};
 pub use session_config::{SessionConfig, TemplateSource};
 pub use task_name::{Handle, HandleError, Kind, Outcome, Parts, Slug, TaskName, TokenError};
+pub use task_tree::entry_path;
 ````
 <!-- /fragment -->
 

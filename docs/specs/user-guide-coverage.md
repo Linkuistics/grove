@@ -61,18 +61,20 @@ show a real invocation, not merely name the command.
 
 ### `grove` — the human binary
 
-`Usage: grove` — no subcommands, no positional arguments.
+`Usage: grove [COMMAND]` — bare lifecycle plus `view [WORKTREE]`.
 
 | Row | Surface | Obligation |
 |---|---|---|
 | G1 | `grove` (no arguments) | Worked. All three dispatch outcomes: no `.grove/` ⇒ `root-init` plus a first `requirements` leaf; live leaves ⇒ launch the first in tree order; no live leaves ⇒ materialize the `finish` leaf. |
 | G2 | `-h`, `--help` | Named, with the fact that it stops before touching a repository. |
 | G3 | `-V`, `--version` | Named, same stop-before-touching guarantee. |
-| G4 | The working directory as the only selector | Stated: there is no tree argument and no confirmation step, so the enclosing working tree is the whole of the selection. |
+| G4 | Bare lifecycle has no launch-policy selectors | Stated: bare `grove` takes no tree argument and no confirmation step; its enclosing working tree selects the workstream. The viewer path only selects an observation location. |
 | G5 | Exit status | Stated: `0` for a clean finish or a session that ended without signalling; `128 + N` when killed, because the driver dies of the same signal. |
 
+| G6 | `grove view [WORKTREE]` | Worked for current and explicit worktree; no upward search, read-only plain text, manual refresh, navigation/scroll keys, error recovery, non-TTY refusal and temporary blocking-read limit. |
+
 Rows G1–G3 come from `grove --help`. G4 and G5 are behaviours no help text
-states: G4 is the absence of any argument in the usage line, and G5 is verified
+states: G4 is the absence of lifecycle selector arguments, and G5 is verified
 in the source — `grove` re-raises the signal it was killed by
 (`keyed_launch::reraise`), which is what makes `128 + N` observable to a wrapper.
 

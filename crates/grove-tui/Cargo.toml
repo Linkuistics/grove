@@ -1,0 +1,24 @@
+[package]
+name = "grove-tui"
+description = "Read-only terminal viewer for Grove task trees"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow = "1.0"
+grove-loop = { path = "../grove-loop" }
+ratatui = { version = "0.29", default-features = false, features = ["crossterm"] }
+crossterm = "0.28.1"
+
+[dev-dependencies]
+tempfile = "3.10"
+libc = "0.2"
+
+[lints]
+workspace = true
+
+[package.metadata.release]
+release = false

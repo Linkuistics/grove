@@ -26,6 +26,57 @@ row of it.
 Every transcript below is real output with the working tree rewritten to
 `/home/you/app`.
 
+<a id="usage-viewing-tree"></a>
+## Viewing a tree
+
+```console
+$ grove view
+$ grove view /path/to/another/worktree
+```
+
+The argument is the directory containing `.grove`. It defaults to the current
+working directory, with **no upward search**: from a subdirectory, view observes
+that subdirectory's `.grove`. The path is made absolute once. Temporary non-jj
+directories and concurrent viewers work; viewing uses no driver lease or launch
+configuration. It never creates, repairs, renames or writes tree files, and all
+selection, expansion and scrolling state disappears on exit.
+
+The root row opens `_BRIEF.md`; branch rows open their named node brief and
+task rows open the task file. Branches start expanded. Rows show canonical
+handles, open-token kinds and LIVE, DONE or ABANDONED outcomes. A branch counts
+all descendant leaves, including folded ones: its label is LIVE if any are
+live, otherwise DONE if any are done, otherwise ABANDONED, or EMPTY with no
+leaves. Counts expose mixed terminal branches.
+
+| Key | Action |
+|---|---|
+| Up/Down or k/j | Select the previous/next visible tree row and read its file |
+| Enter | Fold or expand the selected root/branch |
+| PageUp/PageDown | Scroll the file by one page |
+| r | Reload the tree and root brief; selection and scroll reset to root/top |
+| q or Ctrl-c | Quit |
+
+Files are inert **plain text** in this increment: Markdown formatting and
+automatic updates are not available yet. Long lines are clipped at the pane
+edge; vertical paging reads long files. No links, code or control characters
+execute. The footer keeps the basic keys visible.
+
+A missing tree shows its observed path and a Missing message. A malformed or
+unreadable reload shows an error; a retained previous tree is explicitly STALE.
+A selected-file failure is shown in the file pane. Fix the external problem,
+then press `r` to reload; the viewer never repairs it. An empty document has an
+empty pane. Terminal sizes too small to read can be enlarged without quitting.
+
+**Temporary contention limit:** startup, selection and reload use Grove's
+existing blocking reader. They may wait for a writer and may print
+`waiting for active Grove tree operation`. Quit is not responsive during that
+wait. The shared guard is released before rendering or waiting for input.
+
+Run directly with interactive stdin and stdout; piping either is refused before
+terminal setup. Ordinary quit and returned errors restore raw mode, alternate
+screen and cursor before an error is printed. Full signal/panic hardening is a
+later increment.
+
 <a id="usage-running-grove"></a>
 ## Running Grove: start, resume, and finish
 
@@ -36,22 +87,25 @@ $ grove
 grove: launching requirements with configured "claude" — plan-k1
 ```
 
-That is the whole human command surface. There are no subcommands and no
-lifecycle flags — `grove --help` and `grove --version` are the only other
-arguments, and both stop before Grove touches a repository:
+Bare `grove` is the lifecycle command, with no launch-policy flags.
+`grove view [WORKTREE]` opens the read-only browser described below.
+`grove --help` and `grove --version` stop before touching a repository:
 
 ```console
 $ grove --help
 Grove: hierarchical workstream tool for AI agents
 
-Usage: grove
+Usage: grove [COMMAND]
+
+Commands:
+  view  Browse a .grove task tree read-only with manual refresh
 
 Options:
   -h, --help     Print help
   -V, --version  Print version
 
 $ grove --version
-grove 20.1.0
+grove 21.0.0
 ```
 
 Bare `grove` inspects the filesystem and does the appropriate next thing:
@@ -75,7 +129,7 @@ grove: session ended without a completion signal — status exit status: 0, elap
 A session that signalled the grove's *end* rather than one task's prints
 `grove: grove finished — loop complete.` instead.
 
-Because `grove` takes no arguments, **the working directory is the only thing
+For bare `grove`, **the working directory is the only thing
 that selects a workstream**. There is no tree to name and no confirmation step:
 Grove scaffolds and commits against whichever working tree encloses the
 directory you ran it from. That is what makes the command short, and it is worth
@@ -871,6 +925,7 @@ added to the inventory and forgotten here is a test failure rather than a silenc
 | G2 | [Running Grove](#usage-running-grove) |
 | G3 | [Running Grove](#usage-running-grove) |
 | G4 | [Running Grove](#usage-running-grove) |
+| G6 | [Viewing a tree](#usage-viewing-tree) |
 | G5 | [Stopping the loop](#stopping-the-loop) |
 | L1 | [Growing the tree](#growing-the-tree) |
 | L2 | [Reading the tree](#reading-the-tree) |

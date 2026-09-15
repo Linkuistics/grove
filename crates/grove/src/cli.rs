@@ -1,10 +1,10 @@
-use clap::Parser;
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand};
 use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
 
-/// The complete human command surface: bare `grove`, plus clap's own `--help`
-/// and `--version`. There are no subcommands and no flags — the driver reads
-/// the task tree for what to do and `~/.config/grove/config.kdl` for how to
-/// launch it, so there is nothing left for an argument to select.
+/// Bare `grove` drives the lifecycle; `view` observes a path without launching.
+/// Launch policy stays in configuration rather than command-line selectors.
 #[derive(Parser)]
 #[command(
     name = "grove",
@@ -14,11 +14,28 @@ use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
     // `grove --version` and `grove-llm --version` cannot skew — which is
     // exactly what an operator reaches for them to diagnose.
     version = grove_loop::VERSION,
-    about = "Grove: hierarchical workstream tool for AI agents"
+    about = "Grove: hierarchical workstream tool for AI agents",
+    disable_help_subcommand = true
 )]
-pub struct Cli {}
+pub struct Cli {
+    #[command(subcommand)]
+    command: Option<Command>,
+}
 
-/// Resolve, lease, run.
+#[derive(Subcommand)]
+enum Command {
+    /// Browse a .grove task tree read-only with manual refresh.
+    #[command(
+        long_about = "Browse WORKTREE/.grove read-only with manual refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or launch configuration is needed.",
+        after_help = "Examples:\n  grove view\n  grove view /path/to/another/worktree"
+    )]
+    View {
+        /// Directory containing .grove (defaults to the current directory).
+        worktree: Option<PathBuf>,
+    },
+}
+
+/// Dispatch the viewer, or resolve, lease and run the lifecycle.
 ///
 /// The workspace is resolved **here**, once, and handed to both the lease and
 /// the loop. That is the shape `loop-crate-driver-k22` gave the seam: the lease
@@ -38,10 +55,13 @@ pub struct Cli {}
 /// # Errors
 ///
 /// A working tree that is not a jj workspace, a lease another driver holds, or
-/// anything the loop refuses.
+/// anything the loop refuses, or a viewer terminal setup/input/draw failure.
 pub fn run() -> anyhow::Result<()> {
-    let _cli = Cli::parse();
+    let cli = Cli::parse();
     let cwd = std::env::current_dir()?;
+    if let Some(Command::View { worktree }) = cli.command {
+        return grove_tui::run(&worktree.unwrap_or(cwd));
+    }
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
     let templates = TemplateSource::from_env()?;
@@ -111,17 +131,16 @@ mod tests {
     }
 
     /// Stated as a closure property rather than as a list of rejected verbs: the
-    /// human CLI has *nothing* to select. That subsumes `do` / `migrate` /
-    /// `retire` / `--harness` / `--no-launch` without naming them, and it fails
-    /// on the next flag too — which a list of five rejected argument vectors
-    /// would not.
+    /// bare lifecycle has no launch-policy selectors. The only subcommand is
+    /// `view`, which observes a path. A new command or lifecycle argument fails
+    /// this closed-set assertion without being named in a rejection list.
     #[test]
     fn the_human_command_surface_has_nothing_left_to_select() {
         let command = Cli::command();
         let subcommands: Vec<&str> = command.get_subcommands().map(|s| s.get_name()).collect();
         assert!(
-            subcommands.is_empty(),
-            "bare `grove` is the whole human lifecycle; it has subcommands: {subcommands:?}"
+            subcommands == ["view"],
+            "only view complements the bare lifecycle: {subcommands:?}"
         );
         let arguments: Vec<String> = command
             .get_arguments()

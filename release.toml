@@ -99,7 +99,7 @@ pre-release-commit-message = "chore: release v{{version}}"
 
 # **This value is not a choice, and the setting is not what excludes a member
 # from the cut.** cargo-release 1.1.2 forces `consolidate-commits = true` on
-# every package it resolves a `shared-version` group for, and the six crates the
+# every package it resolves a `shared-version` group for, and the seven crates the
 # release ships all take `version.workspace = true` — so they are one such group
 # and this key cannot move them. Writing `false` here does not make the cut
 # per-crate; it makes the cut *refuse*, with `error: inconsistent

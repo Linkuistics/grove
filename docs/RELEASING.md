@@ -33,20 +33,20 @@ git -C "${GROVE_TAP_DIR:-$HOME/Development/homebrew-taps}" status --short --bran
 The doctor checks the pinned Rust toolchain, all release targets, Zig,
 `cargo-zigbuild`, and GitHub authentication. It installs nothing.
 
-## One release, six packages, one tag
+## One release, seven packages, one tag
 
 Every crate this release ships takes `version.workspace = true`, so a cut
-rewrites one field and moves all six versions together — one workspace, one
+rewrites one field and moves all seven versions together — one workspace, one
 release version, one changelog, one tag
 (`docs/specs/module-decomposition.md`, decision 1). Only `crates/grove` is
-*released*: it is the human's binary and the thing the tag names. The other five
+*released*: it is the human's binary and the thing the tag names. The other six
 carry `[package.metadata.release] release = false`.
 
-The workspace has a seventh member the cut does not ship.
+The workspace has an eighth member the cut does not ship.
 `crates/book-validation` is the authoring tool behind `docs/walkthroughs/`, not
 part of the shipped system; it sets `publish = false` and carries a
 `version = "0.1.0"` of its own rather than inheriting. Read every claim on this
-page as a claim about the six, not about workspace membership.
+page as a claim about the seven, not about workspace membership.
 
 **It does need a `release = false` line, and until v20.2.0 it did not have one.**
 This page used to say the opposite — that carrying its own version was enough to
@@ -60,7 +60,7 @@ makes that heading absurd rather than merely duplicated.
 
 Its exclusion is also what makes the cut *run at all*. cargo-release forces
 `consolidate-commits = true` on every package in a `shared-version` group, which
-the six inheriting crates form and `book-validation` — carrying its own version —
+the seven inheriting crates form and `book-validation` — carrying its own version —
 does not; a `release.toml` asking for `false` therefore reached only that one
 crate, and the cut refused with `error: inconsistent `consolidate-commits`
 setting` rather than releasing anything. `release.toml` records the measurement
@@ -140,7 +140,7 @@ cargo release patch --execute
 ```
 
 The first `cargo release` is a dry run. The executed command bumps the root
-`Cargo.toml`'s `[workspace.package] version` — the one field all six inherit,
+`Cargo.toml`'s `[workspace.package] version` — the one field all seven inherit,
 so they move together — and `Cargo.lock`, closes the changelog's
 `## Unreleased` section, creates a `chore: release v<version>` commit, and
 creates the corresponding `v<version>` tag. Use `minor` or `major` instead of `patch` when appropriate.
@@ -174,11 +174,11 @@ Do the three edits `cargo release` would have made, then let jj and git make the
 two artifacts it would have created:
 
 ```sh
-# 1. the version — ONE field, the workspace's. All six shipped crates take
+# 1. the version — ONE field, the workspace's. All seven shipped crates take
 #    `version.workspace = true`, so editing `[workspace.package] version` in the
-#    root `Cargo.toml` moves all six together; no member manifest is touched.
+#    root `Cargo.toml` moves all seven together; no member manifest is touched.
 #    Edit `version = "<old>"` → "<new>" there, then:
-cargo check                                  # rewrites Cargo.lock's six entries
+cargo check                                  # rewrites Cargo.lock's seven entries
 # 2. close the changelog heading, exactly as pre-release-replacements would:
 #    insert `## v<new>` two lines under the standing `## Unreleased`
 # 3. the release change, the bookmark, and git's HEAD

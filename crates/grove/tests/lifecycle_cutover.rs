@@ -1075,7 +1075,7 @@ exit 0
 }
 
 #[test]
-fn cli_metadata_exposes_only_the_bare_entrypoint_and_writes_no_skill_directory() {
+fn cli_metadata_exposes_view_and_writes_no_skill_directory() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -1099,7 +1099,8 @@ fn cli_metadata_exposes_only_the_bare_entrypoint_and_writes_no_skill_directory()
     assert!(help.status.success());
     let help = String::from_utf8(help.stdout).unwrap();
     assert!(help.contains("Usage: grove"), "{help}");
-    assert!(!help.contains("Commands:"), "{help}");
+    assert!(help.contains("Commands:"), "{help}");
+    assert!(help.contains("view"), "{help}");
     assert!(!help.contains("grove do"), "{help}");
     assert!(version.status.success());
     assert_eq!(

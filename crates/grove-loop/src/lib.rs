@@ -1,9 +1,8 @@
 //! **Grove's loop: the task tree in grove's own vocabulary, and the verbs a
 //! session invokes over it.**
 //!
-//! This is the one library crate in the workspace that is allowed to be
-//! domain-bound (`docs/specs/module-decomposition.md`, decision 1). The other
-//! three say nothing about grove — `ordinal-fs-tree` has an ordered tree,
+//! Grove vocabulary lives here and in the read-only `grove-tui` viewer.
+//! Its reusable seams are domain-free: `ordinal-fs-tree` has an ordered tree,
 //! `keyed-launch` has a key and a template, `jj-workspace` has a workspace and a
 //! commit — and none of them has a word for a *kind*, a *brief chain*, an
 //! *outcome*, a *handle* or *finishing*. Those are here, and so are the twelve
@@ -90,6 +89,7 @@ pub use ordinal_fs_tree::Sought;
 pub use prompt::{compose, Mandate};
 pub use session_config::{SessionConfig, TemplateSource};
 pub use task_name::{Handle, HandleError, Kind, Outcome, Parts, Slug, TaskName, TokenError};
+pub use task_tree::entry_path;
 
 /// The task tree, read once under the store's **shared** lock.
 ///

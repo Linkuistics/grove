@@ -25,7 +25,7 @@
 # `crates/grove-loop` is grove's loop (decision 9): the task tree in grove's own
 # vocabulary, the twelve verbs a session invokes over it, and — since this leaf —
 # the driver, its lease, the prompt it composes and the launch configuration it
-# reads. It is the one library crate allowed to be domain-bound.
+# reads. It shares domain vocabulary with the read-only grove-tui viewer.
 #
 # `crates/ordinal-fs-tree` is the tree library grove's own tree modules were
 # extracted into (gh issue #13); grove's side of that is a domain implementation
@@ -53,6 +53,7 @@ members = [
     "crates/grove",
     "crates/grove-llm",
     "crates/grove-loop",
+    "crates/grove-tui",
     "crates/jj-workspace",
     "crates/keyed-launch",
     "crates/ordinal-fs-tree",

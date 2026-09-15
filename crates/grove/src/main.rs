@@ -1,9 +1,9 @@
-//! The human's binary: bare `grove`, and nothing else.
+//! The human's binary: lifecycle execution and read-only observation.
 //!
-//! Three steps, and every one of them is something the loop cannot do for
-//! itself — parse the human's (empty) command line, resolve the working tree it
-//! was invoked in, and take the one-driver lease over it. The loop is
-//! [`grove_loop::run`], and everything after the call below is behind it
+//! The CLI dispatches `view` to the viewer before lifecycle setup. Bare `grove`
+//! resolves the working tree and takes the one-driver lease before calling
+//! [`grove_loop::run`]. Both application lifetimes sit behind public library
+//! entry points; main only propagates the result
 //! (`docs/specs/module-decomposition.md`, decision 9).
 
 mod cli;

@@ -40,7 +40,7 @@ refusals.
 
 Two candidate outcomes were rejected, and one of them by fact rather than by
 preference. *Take this crate as a dependency* is not available:
-[`RELEASING.md`](../RELEASING.md), *One release, six packages, one tag*, settles
+[`RELEASING.md`](../RELEASING.md), *One release, seven packages, one tag*, settles
 that only `crates/grove` is released and that the five library members ship
 inside grove's cut with no release lane of their own, so this crate has exactly
 one consumer and it is in this repository. *Rely on it without reading it* was

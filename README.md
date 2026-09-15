@@ -9,7 +9,7 @@ also contains a separately installed collection of agent skills.
 
 | Product | Source | Purpose |
 |---|---|---|
-| Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over four library crates, the loop that launches one session per task among them. |
+| Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over five library crates, the loop that launches one session per task among them. |
 | Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, the Linkuistics coding/design skills, and the Testanyware GUI-testing skill. |
 
 The products share a repository but have separate installation paths, and Grove
@@ -33,12 +33,23 @@ read.
 Grove needs one personal configuration file, `~/.config/grove/config.kdl`, giving
 each session kind you use a complete command template. Grove holds no list of
 kinds and enforces no schema: it asks whether a kind is declared at the moment it
-needs one. It will not start without the file at all — see
+needs one. The lifecycle will not start without the file at all — see
 [Configuration](docs/CONFIGURATION.md).
 
 Grove's methodology uses two Linkuistics skills: `decision-records` for ADR
 discipline and `codebase-design` for testable module seams. Install the
 Linkuistics plugin separately using the instructions below.
+
+## Browse a task tree
+
+Run `grove view` for the current directory's `.grove`, or
+`grove view /path/to/worktree` for another tree. The browser is permanently
+read-only and needs no jj workspace, launch configuration or installed skills.
+It never searches parent directories. This first version displays plain text
+and refreshes with `r`; use Up/Down or j/k, Enter to fold branches,
+PageUp/PageDown to read files, and q or Ctrl-c to quit.
+Reads can temporarily block behind a writer, including during navigation.
+See [Viewing a tree](docs/USAGE.md#usage-viewing-tree) for details and recovery.
 
 ## Install the skill plugins
 

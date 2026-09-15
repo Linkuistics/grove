@@ -16,7 +16,7 @@ rust-version.workspace = true
 # binary target inside `grove-loop` that compiled the library's modules into
 # itself could name the items that library keeps private, so *the binary is
 # thin* would stop being compiler-enforced. Here the compiler holds it:
-# everything `main.rs` can reach is something `grove-loop` chose to publish.
+# main reaches only the public loop and viewer interfaces.
 #
 # **There is no `[lib]`.** The package is one binary target, so `cli.rs` is a
 # module of the binary and its clap model is asserted by the binary's own unit
@@ -28,9 +28,10 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
-# The loop. This binary's only grove dependency, and the reason there is
-# nothing else in it.
+# Public loop and read-only viewer entry points; terminal dependencies stay
+# behind grove-tui.
 grove-loop = { path = "../grove-loop" }
+grove-tui = { path = "../grove-tui" }
 
 # **The repository-surface tests live here**, and that is deliberate rather than
 # incidental. `tests/reference_navigation.rs`, `tests/plugin_fallback.rs`,

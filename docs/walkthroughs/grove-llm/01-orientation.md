@@ -285,7 +285,7 @@ rather than linked.
 # `cargo release` cuts *grove* (`crates/grove`) and nothing else. This binary
 # takes `version.workspace = true` and ships inside that cut; `release = false`
 # buys it no tag, no changelog section and no publish of its own, not a frozen
-# version (`docs/RELEASING.md`, *One release, six packages, one tag*).
+# version (`docs/RELEASING.md`, *One release, seven packages, one tag*).
 [package.metadata.release]
 release = false
 ````

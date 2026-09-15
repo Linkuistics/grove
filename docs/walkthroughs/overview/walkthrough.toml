@@ -74,7 +74,7 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove/Cargo.toml"
-lines = 54
+lines = 55
 
 [[root]]
 id    = "source-entry-point"
@@ -84,13 +84,13 @@ lines = 13
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove/src/cli.rs"
-lines = 137
+lines = 156
 
 [[block]]
 id    = "manifest-thin-by-construction"
 root  = "source-crate-manifest"
 owner = "compiler-held"
-lines = "1-54"
+lines = "1-55"
 
 [[block]]
 id    = "entry-point-three-steps"
@@ -102,19 +102,19 @@ lines = "1-13"
 id    = "surface-grammar"
 root  = "source-command-surface"
 owner = "no-arguments"
-lines = "1-19"
+lines = "1-36"
 
 [[block]]
 id    = "surface-resolve-lease-run"
 root  = "source-command-surface"
 owner = "one-call"
-lines = "20-53"
+lines = "37-73"
 
 [[block]]
 id    = "surface-closure-tests"
 root  = "source-command-surface"
 owner = "closure-proved"
-lines = "54-137"
+lines = "74-156"
 
 [[early-use]]
 symbols   = "`grove_loop::run`"
@@ -148,7 +148,7 @@ statement = "A resolved jj working tree, produced once here and handed to both t
 
 [guide]
 path    = "docs/USAGE.md"
-anchors = ["usage-running-grove", "usage-tree-verbs", "usage-driver-lease", "usage-session-lifecycle"]
+anchors = ["usage-viewing-tree", "usage-running-grove", "usage-tree-verbs", "usage-driver-lease", "usage-session-lifecycle"]
 
 [[glossary]]
 path    = "CONTEXT.md"

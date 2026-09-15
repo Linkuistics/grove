@@ -5,6 +5,11 @@
 <a id="paths-are-built-here"></a>
 ## The rule: the library returns no paths, so grove builds them
 
+The public crate root now re-exports `entry_path` for the read-only viewer.
+It composes a snapshot entry's canonical path; it acquires no lock and reads no
+file itself. The viewer holds its `Tree` while copying selected bytes, then
+releases the guard before rendering or waiting. The path algorithm is unchanged.
+
 Chapter 5 ended holding a `Tree` — one snapshot of the whole task tree, taken
 under the store's shared lock. Everything a read verb answers with has to be
 computed from that snapshot, and the one thing the snapshot will not give up is
@@ -104,7 +109,7 @@ those are the body.
 /// algebra, so this is the consumer's half of that decision — and every later
 /// flip leaf calls it rather than writing a second one.
 #[must_use]
-pub(crate) fn entry_path(root: &Path, entry: Entry<'_, TaskName>) -> PathBuf {
+pub fn entry_path(root: &Path, entry: Entry<'_, TaskName>) -> PathBuf {
     let mut path = root.to_path_buf();
     for container in entry.ancestors() {
         if let Some(node) = container.entry() {

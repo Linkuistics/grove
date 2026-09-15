@@ -15,7 +15,7 @@ its handle.
 stayed. Three domain-free crates sit underneath it — an ordered filesystem tree,
 a keyed launcher, a version-control workspace — and none of them has a word for a
 *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*. **This is the
-one library crate in the workspace that is allowed to be domain-bound**, and each
+library that owns the domain alongside the read-only viewer**, and each
 chapter opens on what this module kept when the domain-free crates took the rest,
 and on why that part could not move.
 

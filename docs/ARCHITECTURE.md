@@ -164,6 +164,23 @@ items it keeps private, and a separate package cannot do that without a
 `#[path]` attribute pointing outside itself, where it is visible in the entry
 point's own files.
 
+## Read-only viewer
+
+`grove view [WORKTREE]` dispatches to the `grove-tui` library before jj workspace
+resolution, driver lease acquisition or launch configuration. Its observation
+path is the specified directory's `.grove`; it never searches upward.
+`grove-tui` owns the terminal lifetime, application state and Ratatui rendering.
+Only the human binary depends on it. `grove-loop` and `grove-llm` have no terminal
+UI dependencies.
+
+`Viewer::new`, `act` and `render` form the application seam shared by the real
+terminal and TestBackend fixtures. The adapter uses `grove_loop::read` and its
+typed snapshot, derives labels through `Parts`, `Outcome` and `Handle`, and
+uses the public `entry_path` helper for canonical file paths. It copies rows
+and selected bytes under a short shared guard and drops it before layout or
+input. There is no persisted viewer state. This slice uses blocking reads and
+manual refresh; the contention diagnostic and wait behavior remain unchanged.
+
 ## Session configuration
 
 `~/.config/grove/config.kdl` carries user launch policy: a flat map of session

@@ -8,7 +8,7 @@ in lockstep, which is why they live together (see
 `ordinal-fs-tree`, is declared on vocabulary alone: it has a glossary whose terms
 mean something else in grove's, and its crate ships by no path of its own — it
 rides inside grove's cut, wearing grove's version, and is not published
-separately (`docs/RELEASING.md`, *One release, six packages, one tag*).
+separately (`docs/RELEASING.md`, *One release, seven packages, one tag*).
 
 ## Contexts
 
@@ -92,7 +92,7 @@ the plugin carries a fifth, and no word is owned twice:
 | `ordinal-fs-tree` | *entry*, *leaf*, *node*, *ordinal*, *key*, *distinguished child*, *snapshot*, *guard*, *refusal*, *sought*, *promote* | [`docs/ordinal-fs-tree/CONTEXT.md`](./docs/ordinal-fs-tree/CONTEXT.md) |
 | `keyed-launch` | *key*, *template*, *slot*, *argv*, *launch*, *channel*, *token*, *escalation*, *overlay* | none — its words are its own interface's, and none of them collides |
 | `jj-workspace` | *workspace*, *main repo*, *control directory*, *namespace*, *tracked*, *commit*, *change id* | none — the words are Jujutsu's, with Jujutsu's meanings |
-| `grove-loop`, with `grove` and `grove-llm` over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
+| `grove-loop`, with `grove`, `grove-llm` and the `grove-tui` reader over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
 | the `grove` plugin | **Spine skill**, **Kind skill**, **Composed loaded path**, **Condition** / **procedure**, **Loop-step reference file** | [`CONTEXT.md`](./CONTEXT.md) for the terms, [`plugins/CONTEXT.md`](./plugins/CONTEXT.md) for packaging and delivery |
 
 The two middle rows are the ones that had to be *bought*: `keyed-launch` avoids
@@ -277,7 +277,7 @@ consumer names, and no call site passes one where the other is expected.
   and its trade-off, and neither states the five interfaces as a set a consumer
   builds against. Four
   artifacts link into it, and its decisions are cited *by number* from source
-  comments, `Cargo.toml` headers and tests across all six packages, so the
+  comments, `Cargo.toml` headers and tests across the shipped packages, so the
   numbering is part of the contract. It was rewritten to current state instead,
   losing its `## Problem`, its *what changes* framing and its ADR-reconciliation
   table — the transient halves — and keeping the decisions, the requirements and
@@ -313,3 +313,11 @@ A skill's *subject matter* belongs to neither glossary — jj's model lives in
 [VCS seam](docs/ARCHITECTURE.md#symmetric-vcs-rule), Testanyware's VM vocabulary
 in `using-testanyware`. If a topic seems to need both glossaries, say so rather
 than picking one.
+
+## Viewer ownership
+
+`crates/grove-tui` shares Grove's task vocabulary and consumes the public typed
+reader. It owns only observation, display and in-memory interaction state.
+The [viewer architecture](docs/ARCHITECTURE.md#read-only-viewer) names its
+application seam; the [usage guide](docs/USAGE.md#usage-viewing-tree) states the
+current manual-refresh and blocking-read limits.

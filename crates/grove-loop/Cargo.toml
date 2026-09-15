@@ -9,7 +9,7 @@ repository.workspace = true
 # locked dependency graph cannot be parsed by a cargo below 1.85.
 rust-version.workspace = true
 
-# **This crate is the one that is allowed to be domain-bound.** The other three
+# **This crate and grove-tui are domain-bound.** The three reusable
 # library crates say nothing about grove; this one is grove — kind, handle, brief
 # chain, outcome, finishing — and `docs/specs/module-decomposition.md`, decision
 # 1, marks it *not domain-free* for exactly that reason.
@@ -60,7 +60,7 @@ workspace = true
 # (`docs/specs/module-decomposition.md`, decision 1).
 #
 # **This crate is not published on its own, and that is settled**
-# (`docs/RELEASING.md`, *One release, six packages, one tag*): it ships inside
+# (`docs/RELEASING.md`, *One release, seven packages, one tag*): it ships inside
 # grove's cut, wearing grove's version, and no library member has a release lane
 # of its own. Removing this line does not reopen the question — it corrupts the
 # cut, which was measured rather than assumed.

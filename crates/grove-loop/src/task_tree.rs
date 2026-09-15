@@ -296,7 +296,7 @@ fn restate(grove_root: &Path, error: &Error<TaskName>) -> anyhow::Error {
 /// algebra, so this is the consumer's half of that decision — and every later
 /// flip leaf calls it rather than writing a second one.
 #[must_use]
-pub(crate) fn entry_path(root: &Path, entry: Entry<'_, TaskName>) -> PathBuf {
+pub fn entry_path(root: &Path, entry: Entry<'_, TaskName>) -> PathBuf {
     let mut path = root.to_path_buf();
     for container in entry.ancestors() {
         if let Some(node) = container.entry() {

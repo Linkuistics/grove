@@ -8,9 +8,10 @@
 `grove` is the human's command. Typed bare at any directory inside a Jujutsu
 working tree, it resolves that tree, takes the one-driver lease over it, and
 calls the loop; the loop is everything else — which task runs next, which
-command launches it, and when the grove is done. The binary parses no argument
-that selects anything. Its whole source is three files and 204 lines, and 92 of
-those lines are comments.
+command launches it, and when the grove is done. The bare lifecycle takes no
+launch-policy selectors. The `view` subcommand
+observes a supplied directory without entering that lifecycle. Its complete
+source remains three files: manifest, main and CLI.
 
 This book is the system's overview, and `crates/grove` is its corpus, because
 that crate is where the system is entered and nothing else is decided. Each
@@ -23,7 +24,8 @@ behind the call is named on those pages and explained on none of them, and
 The chapter's thesis is the manifest's own: **the binary is thin, and the
 compiler holds it so.** `grove` is a crate rather than a `[[bin]]` target inside
 the library it calls, so everything its two Rust files can reach is something
-`grove-loop` chose to publish. A binary that merely looks thin is held by
+the loop and viewer libraries chose to publish. A binary that merely looks thin
+is held by
 review — someone reads the entry point and finds no logic in it, and the next
 commit is free to add some. This one is held by a package boundary, which is the
 first of three mechanisms this book names. The other two are a property a test
@@ -59,7 +61,7 @@ lines of it, in eight fragments that follow the file's own order. It is read
 first because the first mechanism is declared there rather than argued anywhere
 else: the package is a crate, and the crate has no library.
 
-<!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-54" parent="source-crate-manifest" -->
+<!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-55" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
 <!-- insert «manifest-human-binary» -->
 <!-- insert «manifest-crate-not-a-bin» -->
@@ -129,7 +131,8 @@ personal configuration, `~/.config/grove/config.kdl`, which maps each session
 kind to one complete command template. With both facts on disk, an argument
 that selected either would be a second source for a fact that already has one.
 *The surface* reads the grammar that results, and *Proving a negative* reads the
-test that keeps it empty.
+test that keeps the bare lifecycle free of selectors and the subcommand set
+at `{view}`.
 
 <a id="crate-not-a-bin"></a>
 ## A crate, not a `[[bin]]` target
@@ -164,9 +167,9 @@ package, and three of this repository's test targets do exactly that — but
 that from here it has to, and the two Rust files visibly do not carry one. The
 move is made visible rather than unavailable. Inside `grove-loop`'s package,
 *the binary is thin* would be a fact about which of the two shapes the current
-commit uses, held by whoever reviews the next one. As a separate crate the
-entry point sees exactly the items `crates/grove-loop/src/lib.rs` re-exports
-and nothing else, and a `use` of anything further is a compile error. That is
+commit uses, held by whoever reviews the next one. Through its loop dependency
+the entry point sees public items from `crates/grove-loop/src/lib.rs`; naming a
+private item is a compile error. That is
 the whole of the first mechanism: the boundary is the compiler's, and no test
 is needed to assert it, which is also why it is the mechanism a reader is most
 likely to take on trust. The check is one line: every `grove_loop::` path the
@@ -183,7 +186,7 @@ section is where the shape it excludes is spelled out.
 # binary target inside `grove-loop` that compiled the library's modules into
 # itself could name the items that library keeps private, so *the binary is
 # thin* would stop being compiler-enforced. Here the compiler holds it:
-# everything `main.rs` can reach is something `grove-loop` chose to publish.
+# main reaches only the public loop and viewer interfaces.
 ````
 <!-- /fragment -->
 
@@ -194,7 +197,7 @@ inspects the clap model could live there. This package has no `[lib]`: it is one
 binary target, `cli.rs` is a module of that target, and a clap model declared
 inside a binary is reachable only from inside it. So the tests that hold the
 grammar closed are a `#[cfg(test)] mod tests` at the bottom of `cli.rs` — the
-same file, 84 of its 137 lines — rather than a file under `tests/`. The
+same file as the production parser — rather than a file under `tests/`. The
 alternative, a `[lib]` that exists only so a test can reach the model, would
 give the binary a library to reach into, and that is the property the second
 comment made this a crate to keep. The `[[bin]]` table that follows is the one
@@ -213,40 +216,29 @@ path = "src/main.rs"
 <!-- /fragment -->
 
 <a id="one-dependency"></a>
-## One grove dependency
+## Two public application seams
 
-Three dependencies, and one of them is grove. `anyhow` supplies the error type
-the entry point returns — both Rust files end their one function in
-`anyhow::Result<()>`, so a refusal from any of the three steps reaches the top
-as a printed error and a non-zero exit. `clap` with `derive` supplies the
-grammar, which *The surface* reads. `grove-loop`, by path, is the only grove
-dependency, and the comment says why the binary is short: the loop is behind
-it. Three other workspace crates are reached from here — the VCS seam that
-resolves the working tree, the runner that spawns the session, the tree
-store — and none is named in this manifest: what the binary takes from two
-of them arrives as a `grove-loop` re-export, and it takes nothing from the
-third. The
-type that `cli.rs` calls `Workspace` is the VCS seam's own type, published
-through the loop's root; *Three steps* reads that line.
+The binary depends on `anyhow` for returned errors and `clap` for parsing.
+Two domain libraries provide its entry paths: `grove-loop` owns the lifecycle,
+and `grove-tui` owns observation. Only the viewer pulls in Ratatui and
+Crossterm. `Workspace` still arrives through the loop's re-export; the human
+binary never opens a store lock itself. The manifest therefore records two
+public entry seams without importing their private implementation modules.
 
-The comment names no count, and the source is why it cannot. Outside the test
-module at the bottom of `cli.rs` the crate defines two functions — `main`, and
-the `run` it calls — while the helper and the two tests below take that to three
-or to five depending on where a reader stops counting. Any number in the comment
-would be right for one of those readings and wrong for the other two. *The
-reason there is nothing else in it* is the same claim without the arithmetic,
-and there is nothing left in it to go stale. The comment is part of the frozen
-corpus and is reproduced as written.
+The dependency comment names the two public entry points and places terminal
+dependencies behind the viewer. That keeps display concerns out of the loop
+and agent binary; the exact manifest fragment below records those edges.
 
-<!-- fragment «manifest-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="27-33" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="27-34" parent="manifest-thin-by-construction" -->
 ````toml
 
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
-# The loop. This binary's only grove dependency, and the reason there is
-# nothing else in it.
+# Public loop and read-only viewer entry points; terminal dependencies stay
+# behind grove-tui.
 grove-loop = { path = "../grove-loop" }
+grove-tui = { path = "../grove-tui" }
 ````
 <!-- /fragment -->
 
@@ -277,7 +269,7 @@ five are later repository-surface tests and the two fixture files, and every
 one of them is evidence for this book rather than corpus — `tests/`
 directories are cited and never reproduced.
 
-<!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="34-45" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="35-46" parent="manifest-thin-by-construction" -->
 ````toml
 
 # **The repository-surface tests live here**, and that is deliberate rather than
@@ -305,7 +297,7 @@ path — the driver dying of the signal it was sent — is *Three steps*' second
 ending, and this line is the first trace of it in the corpus. `tempfile`
 supplies the temporary trees.
 
-<!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="46-51" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="47-52" parent="manifest-thin-by-construction" -->
 ````toml
 [dev-dependencies]
 book-validation = { path = "../book-validation" }
@@ -319,7 +311,7 @@ tempfile = "3.10"
 The lint configuration is inherited for the same reason `version` is: one
 workspace, one standard, and nothing crate-specific to add.
 
-<!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="52-54" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="53-55" parent="manifest-thin-by-construction" -->
 ````toml
 
 [lints]
@@ -374,7 +366,7 @@ $ grove
   -> run returns Ok(()); the process exits 0
 ```
 
-Three of those lines are the binary's whole job, and each is the subject of a
+Three of those lines are the bare lifecycle's setup, and each is the subject of a
 later page. *Resolve* is a filesystem walk that ends at the nearest `.jj/`, and
 it refuses a tree with none. *Lease* takes the
 [driver lease](../../../CONTEXT.md#driver-lease) — the one-driver-per-working-tree
@@ -404,12 +396,12 @@ job is the invocation itself.
 | 1 | A package boundary: the entry point can reach only what the library publishes | the compiler | Orientation |
 | — | The grammar that results, and the agent surface beside it | — | The surface |
 | — | The three calls, and the signal path | — | Three steps |
-| 2 | A closure property: the human surface has nothing left to select | `the_human_command_surface_has_nothing_left_to_select` | Proving a negative |
+| 2 | A closure property: bare lifecycle selectors are absent and only view is a subcommand | `the_human_command_surface_has_nothing_left_to_select` | Proving a negative |
 | 3 | A convention, checked: every option the binary lists is described | `the_human_facing_binary_describes_every_option_it_lists` | Proving a negative |
 | — | The module map, and the boundary of this book | — | What the call reaches |
 
 Mechanism 1 is this chapter's, and it is now fully read: a separate crate, no
-`[lib]`, one target, one grove dependency, and a manifest whose comments state
+`[lib]`, one target, two grove dependencies, and a manifest whose comments state
 each of those as a decision rather than a default. The remaining two are
 asserted by tests in the file the grammar lives in, and the grammar is read
 next.

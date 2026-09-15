@@ -18,7 +18,7 @@ vendor chosen before it exists, and be told to load the methodology.
 
 This document describes how the module boundaries work. The decisions below are
 numbered, and the numbering is load-bearing: source comments, `Cargo.toml`
-headers and tests across all six packages cite them as *decision N*. What each
+headers and tests across the shipped packages cite them as *decision N*. What each
 one *cost* is in [`docs/adr/`](../adr/), which describes the design's current
 state and is cited here rather than restated.
 
@@ -32,13 +32,20 @@ state and is cited here rather than restated.
 | runner | `keyed-launch` | yes |
 | VCS seam | `jj-workspace` | yes |
 | loop | `grove-loop` | no |
+| read-only viewer | `grove-tui` | no |
 | skills | the `grove` plugin | no |
 | — | `grove`, `grove-llm` (binaries) | — |
 
+The domain-bound viewer consumes the loop's public typed reader and canonical
+`entry_path` helper. It owns application state and terminal rendering; its
+Ratatui/Crossterm dependencies do not enter grove-loop or grove-llm. The human
+binary dispatches `view` before lifecycle setup. The observation path is not a
+launch-policy selector. See [Read-only viewer](../ARCHITECTURE.md#read-only-viewer).
+
 One workspace, one release version, one changelog, one tag. A module is a crate
-so that *testable through its own interface without the other four* is not a
+so that *testable through its own interface without unrelated modules* is not a
 discipline held by review but a fact the compiler enforces: the three domain-free
-crates take no path dependency on any of the other five, and each carries its own
+crates take no path dependency on the domain crates, and each carries its own
 suites.
 
 The skills module has **no crate**: its artifact is markdown that ships by an

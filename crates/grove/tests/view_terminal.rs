@@ -171,7 +171,7 @@ fn actual_binary_reads_wide_markdown_recovers_and_allows_grove_retirement() {
 
     // Observe the lifecycle change in Tree; File no longer renders tree rows.
     pty.send(b"\t");
-    pty.until("probe-k1 impl LIVE");
+    pty.until("probe-k1");
 
     // Use Grove's real write admission and retirement, bounded independently of
     // the viewer. A viewer retaining a read lock cannot satisfy this deadline.
@@ -190,11 +190,12 @@ fn actual_binary_reads_wide_markdown_recovers_and_allows_grove_retirement() {
         .expect("Grove mutation blocked");
     worker.join().unwrap();
     assert!(pty.child.try_wait().unwrap().is_none());
-    // Ratatui emits only changed cells: LIVE -> DONE sends "DON", retaining E.
-    pty.until("DON");
+    // Retirement introduces the leading tick even in Ratatui's differential output.
+    pty.until("✓");
     pty.output.clear();
     pty.resize(31, 121);
-    pty.until("probe-k1 impl DONE");
+    pty.until("✓ DONE");
+    pty.until("probe-k1");
     let mut expected = recovered;
     let body = expected.remove("01-impl--probe-k1.md").unwrap();
     expected.insert("01-DONE-impl--probe-k1.md".into(), body);

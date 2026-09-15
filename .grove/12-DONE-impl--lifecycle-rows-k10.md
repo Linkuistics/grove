@@ -57,3 +57,17 @@ belong to the activity consumers, which can use these typed fields without a
 second row model. This leaf does not manufacture those statuses. A remaining
 substantive rendering doubt earns a review-impl leaf with stem lifecycle-rows
 once this artifact exists.
+
+## Decisions (running log)
+
+- Keep Grove's typed `Handle` in each non-root row, with lifecycle and counts
+  separate from rendering. Derive aggregate lifecycle from the existing reverse
+  preorder totals, preserving folded descendants and key-based state.
+- Render lifecycle and item spans independently; let Ratatui's two-cell cursor
+  gutter retain viewport behavior with its default, non-overriding highlight
+  style. Use its locked 0.29.0 grapheme iterator and display-width calculation
+  to fit the item after the fixed prefix, preserving the key suffix.
+- Grove's current token grammar rejects Unicode/control-bearing slugs and kinds.
+  Keep that contract: the minimum-size tree fixture uses valid ASCII with a
+  maximum-width u32 key; the fitting seam exercises combining/emoji graphemes
+  and inert controls directly alongside existing Markdown Unicode tests.

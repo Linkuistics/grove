@@ -166,10 +166,9 @@ point's own files.
 
 ## Read-only viewer
 
-Full-width Tree/File switching is implemented below. The remaining
-[item-status design](specs/item-status.md) specifies leading lifecycle cues and
-activity display, including the typed observation extension to the driver
-protocol.
+Full-width Tree/File switching and leading lifecycle cues are implemented below.
+The remaining [item-status design](specs/item-status.md) specifies activity
+display, including the typed observation extension to the driver protocol.
 
 `grove view [WORKTREE]` dispatches to the `grove-tui` library before jj workspace
 resolution, driver lease acquisition or launch configuration. Its observation
@@ -180,7 +179,8 @@ UI dependencies.
 
 `Viewer::new`, `act`, `tick` and `render` form the application seam shared by the real
 terminal and TestBackend fixtures. The adapter uses `grove_loop::try_read` and its
-typed snapshot, derives labels through `Parts`, `Outcome` and `Handle`, and
+typed snapshot, retains identity, `Handle`, `Kind`, lifecycle, depth, expansion
+and descendant totals as separate row data, and
 uses the public `entry_path` helper for canonical file paths. It copies rows
 and selected bytes under a short shared guard and drops it before layout or
 input. There is no persisted viewer state. Busy retains the previous display
@@ -195,6 +195,19 @@ nonblocking and directory-only; metadata identifies even unreadable replacements
 The adapter rejects duplicate keys before selecting content. Permanent keys
 preserve selection and branch expansion; disappearance selects the nearest
 surviving ancestor, and moved selections reveal their ancestors.
+
+Observation folds descendant totals in reverse preorder, including hidden leaves.
+Both root and branch lifecycle are LIVE if any descendant is live, otherwise
+DONE, otherwise ABANDONED, or EMPTY without leaves. Rendering owns all row text:
+a fixed 22-cell prefix reserves cursor (2), lifecycle marker (2), explicit word
+(10) and future activity (8, currently blank). DONE marker/word/item spans are
+green, ABANDONED red, and LIVE/EMPTY normal. Ratatui's cursor gutter supplies
+selection without a row-wide style override; fold markers stay beside the item.
+At 60 columns the bordered tree has 36 cells after the prefix. Indentation is
+capped to retain two fold cells and at least sixteen handle cells, with an
+ellipsis for compressed depth. Slugs elide before their key suffix; kinds and
+counts fit afterward. Fitting uses Ratatui's grapheme iterator and display width,
+with inert control text. Valid handles and kinds remain ASCII by Grove's grammar.
 
 The viewer starts in Tree; Tab switches the entire body to the selected File
 and back without reloading or changing the observation deadline. Only the

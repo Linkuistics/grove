@@ -220,8 +220,101 @@ fn branch_aggregates_include_hidden_leaves_and_empty_branches() {
         ("empty-k5", "EMPTY"),
     ] {
         let row = text.lines().find(|row| row.contains(handle)).unwrap();
-        assert!(row.contains(&format!("branch {status}")), "{row}");
+        assert_eq!(
+            row.chars().skip(5).take(10).collect::<String>().trim(),
+            status,
+            "{row}"
+        );
+        assert!(row.contains("branch"), "{row}");
     }
+}
+
+#[test]
+fn lifecycle_prefix_and_colors_survive_cursor_selection() {
+    use ratatui::style::{Color, Modifier};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "");
+    put(&root, "01-impl--live-k1.md", "");
+    put(&root, "02-DONE-impl--done-k2.md", "");
+    put(&root, "03-ABANDONED-impl--gone-k3.md", "");
+    put(&root, "04-k4/_empty.md", "");
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    for selected in 0..5 {
+        let mut terminal = Terminal::new(TestBackend::new(100, 14)).unwrap();
+        terminal.draw(|frame| viewer.render(frame)).unwrap();
+        let buffer = terminal.backend().buffer();
+        for (index, (prefix, color, name)) in [
+            ("  LIVE      ", Color::Reset, "root"),
+            ("  LIVE      ", Color::Reset, "live-k1"),
+            ("✓ DONE      ", Color::Green, "done-k2"),
+            ("✗ ABANDONED ", Color::Red, "gone-k3"),
+            ("  EMPTY     ", Color::Reset, "empty-k4"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let cells = &buffer.content[(index + 3) * 100..(index + 4) * 100];
+            let text: String = cells.iter().map(|cell| cell.symbol()).collect();
+            assert_eq!(cells[1].symbol(), if selected == index { ">" } else { " " });
+            assert_eq!(
+                cells[3..15].iter().map(|c| c.symbol()).collect::<String>(),
+                prefix
+            );
+            assert!(cells[15..23].iter().all(|cell| cell.symbol() == " "));
+            let name_at = text[..text.find(name).unwrap()].chars().count();
+            for cell in cells[3..15]
+                .iter()
+                .chain(&cells[name_at..name_at + name.len()])
+            {
+                assert_eq!(cell.fg, color, "{text}");
+            }
+            assert!(cells.iter().all(|cell| !cell
+                .modifier
+                .intersects(Modifier::REVERSED | Modifier::BOLD)));
+        }
+        viewer.act(Action::Down);
+    }
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn deep_rows_keep_status_and_key_at_minimum_size() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "");
+    let mut parent = root.clone();
+    for key in 1..=15 {
+        parent = parent.join(format!("01-k{key}"));
+        put(&parent, "_branch.md", "");
+    }
+    let slug = "recognizable-long-name".repeat(6);
+    put(
+        &parent,
+        &format!("01-ABANDONED-impl--{slug}-k4294967295.md"),
+        "",
+    );
+    let mut viewer = Viewer::new(work.path().into());
+    viewer.act(Action::End);
+    let mut terminal = Terminal::new(TestBackend::new(60, 10)).unwrap();
+    terminal.draw(|frame| viewer.render(frame)).unwrap();
+    let cells = terminal
+        .backend()
+        .buffer()
+        .content
+        .chunks(60)
+        .find(|row| row[1].symbol() == ">")
+        .unwrap_or_else(|| panic!("{}", screen(&mut viewer, 60, 10)));
+    assert_eq!(
+        cells[3..15].iter().map(|c| c.symbol()).collect::<String>(),
+        "✗ ABANDONED "
+    );
+    assert!(cells[15..23].iter().all(|c| c.symbol() == " "));
+    let item: String = cells[23..59].iter().map(|c| c.symbol()).collect();
+    assert!(item.starts_with('…'), "{item}");
+    assert!(item.contains("…-k4294967295"), "{item}");
+    assert!(item.contains("rec…-k4294967295"), "{item}");
 }
 
 #[test]
@@ -1143,7 +1236,11 @@ fn live_ticks_follow_keys_and_reveal_a_moved_selection() {
     viewer.act(Action::Focus);
     let tree = screen(&mut viewer, 180, 24);
     viewer.act(Action::Focus);
-    assert!(tree.contains("renamed-k3 impl DONE"), "{tree}");
+    let row = tree
+        .lines()
+        .find(|row| row.contains("renamed-k3 impl"))
+        .unwrap();
+    assert!(row.starts_with("│> ✓ DONE"), "{tree}");
     assert!(shown.contains("CHOSEN BODY"), "{shown}");
     assert!(!shown.contains("HIDDEN BODY"));
     assert!(
@@ -1202,7 +1299,12 @@ fn live_decomposition_and_duplicate_key_recovery() {
         visit_file(&mut viewer, 160, 20).contains("CHOSEN BODY"),
         "{shown}"
     );
-    assert!(shown.contains(">   - chosen-k1"), "{shown}");
+    let row = shown
+        .lines()
+        .find(|row| row.contains("chosen-k1 branch"))
+        .unwrap();
+    assert!(row.starts_with("│>   EMPTY"), "{shown}");
+    assert!(row.contains("- chosen-k1"), "{shown}");
     put(&root, "02-impl--duplicate-k1.md", "WRONG BODY");
     viewer.act(Action::Refresh);
     let shown = screen(&mut viewer, 180, 20);
@@ -1494,7 +1596,8 @@ fn production_clock_replacement_between_polls_resets_reused_keys() {
     put(&root, "01-impl--selected-k1.md", "REUSED_SELECTION");
     let expected = snapshot(work.path());
     await_live(&mut viewer, started, |s| {
-        s.lines().any(|row| row.contains("> - root"))
+        s.lines()
+            .any(|row| row.starts_with("│> ") && row.contains("- root"))
     });
     let frame = visit_file(&mut viewer, 140, 24);
     assert!(frame.contains("REPLACEMENT_ROOT"));

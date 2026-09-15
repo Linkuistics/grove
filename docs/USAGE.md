@@ -44,11 +44,22 @@ selection, expansion and scrolling state disappears on exit.
 The viewer starts in full-width **Tree** view. **Tab** switches to the selected
 item’s full-width **File** view and back; the title and footer name the active
 view and Tab destination. The root opens `_BRIEF.md`, a branch opens its named
-node brief, and a task opens its task file. Branches start expanded. Rows show
-canonical handles, open-token kinds and LIVE, DONE or ABANDONED outcomes. A branch counts
-all descendant leaves, including folded ones: its label is LIVE if any are
-live, otherwise DONE if any are done, otherwise ABANDONED, or EMPTY with no
-leaves. Counts expose mixed terminal branches.
+node brief, and a task opens its task file. Branches start expanded.
+
+Every row begins with a fixed status area before its indentation and handle:
+**LIVE**, **✓ DONE**, **✗ ABANDONED**, or **EMPTY**. DONE markers, words and item
+text are green; ABANDONED is red; LIVE and EMPTY use normal text. The separate
+`>` cursor marks selection without changing those colors. The `+`/`-` beside a
+branch's name marks folding, so lifecycle, selection and expansion remain
+distinct without color. Running and next-session activity are not displayed yet.
+
+The root and branches count all descendant leaves, including folded ones.
+Their status is LIVE if any are live, otherwise DONE if any are done, otherwise
+ABANDONED, or EMPTY with no leaves. Separate LIVE/DONE/ABANDONED totals expose
+mixed terminal branches. Handles come before kinds and counts. At narrow widths,
+deep indentation compresses to an ellipsis and long slugs are shortened before
+their `-k<key>` suffix; trailing kinds and counts use the remaining space.
+The lifecycle stays visible even at the supported minimum of 60 × 10.
 
 | Key | Action |
 |---|---|

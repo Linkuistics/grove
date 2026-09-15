@@ -4,17 +4,27 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use grove_loop::{entry_path, Handle, Outcome, Parts, Reading, TryReading};
+use grove_loop::{entry_path, Handle, Kind, Outcome, Parts, Reading, TryReading};
 
 #[derive(PartialEq, Eq)]
 pub(crate) struct Row {
     pub key: Item,
     pub path: PathBuf,
-    pub label: String,
+    pub handle: Option<Handle>,
+    pub kind: Option<Kind>,
+    pub lifecycle: Lifecycle,
     pub depth: usize,
     pub branch: bool,
     pub expanded: bool,
-    counts: [usize; 3],
+    pub counts: [usize; 3],
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Lifecycle {
+    Live,
+    Done,
+    Abandoned,
+    Empty,
 }
 
 /// Root has its own identity, separate from permanent task keys.
@@ -105,7 +115,9 @@ fn capture_once(
     let mut rows = vec![Row {
         key: None,
         path,
-        label: "root".into(),
+        handle: None,
+        kind: None,
+        lifecycle: Lifecycle::Empty,
         depth: 0,
         branch: true,
         expanded: true,
@@ -120,19 +132,20 @@ fn capture_once(
             "duplicate key k{}",
             triple.key
         );
-        let (path, label, counts, branch) = match triple.parts {
+        let (path, handle, kind, counts, branch) = match triple.parts {
             Parts::Leaf { outcome, kind, .. } => {
                 let handle = Handle::of_leaf(entry.name()).context("leaf has no handle")?;
-                let (status, index) = match outcome {
-                    Outcome::Live => ("LIVE", 0),
-                    Outcome::Done => ("DONE", 1),
-                    Outcome::Abandoned => ("ABANDONED", 2),
+                let index = match outcome {
+                    Outcome::Live => 0,
+                    Outcome::Done => 1,
+                    Outcome::Abandoned => 2,
                 };
                 let mut counts = [0; 3];
                 counts[index] = 1;
                 (
                     entry_path(tree.root(), entry),
-                    format!("{handle} {} {status}", kind.label()),
+                    handle,
+                    Some(kind.clone()),
                     counts,
                     false,
                 )
@@ -144,18 +157,15 @@ fn capture_once(
                     .context("branch has no brief")?;
                 let handle =
                     Handle::of_node(entry.name(), brief.name()).context("branch has no handle")?;
-                (
-                    entry_path(tree.root(), brief),
-                    handle.to_string(),
-                    [0; 3],
-                    true,
-                )
+                (entry_path(tree.root(), brief), handle, None, [0; 3], true)
             }
         };
         rows.push(Row {
             key: Some(triple.key.get()),
             path,
-            label,
+            handle: Some(handle),
+            kind,
+            lifecycle: Lifecycle::Empty,
             depth: entry.depth(),
             branch,
             expanded: true,
@@ -182,22 +192,16 @@ fn capture_once(
         }
     }
     for row in &mut rows {
-        if row.branch {
-            let [live, done, abandoned] = row.counts;
-            let status = if live > 0 {
-                "LIVE"
-            } else if done > 0 {
-                "DONE"
-            } else if abandoned > 0 {
-                "ABANDONED"
-            } else {
-                "EMPTY"
-            };
-            row.label = format!(
-                "{} branch {status} [LIVE {live} DONE {done} ABANDONED {abandoned}]",
-                row.label
-            );
-        }
+        let [live, done, abandoned] = row.counts;
+        row.lifecycle = if live > 0 {
+            Lifecycle::Live
+        } else if done > 0 {
+            Lifecycle::Done
+        } else if abandoned > 0 {
+            Lifecycle::Abandoned
+        } else {
+            Lifecycle::Empty
+        };
     }
     let selected = candidates
         .iter()

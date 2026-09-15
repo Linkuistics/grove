@@ -14,14 +14,14 @@ use std::time::{Duration, Instant};
 
 use ratatui::{
     layout::{Constraint, Layout},
-    style::{Modifier, Style},
-    text::Line,
+    style::{Color, Style},
+    text::{Line, Span},
     widgets::{Block, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
 };
 
 use markdown::{Anchor, Document};
-use observation::{capture, safe_text, Item, Observation, Root, Row};
+use observation::{capture, safe_text, Item, Lifecycle, Observation, Root, Row};
 pub use terminal::run;
 
 /// Inputs shared by the terminal driver and application tests.
@@ -43,6 +43,106 @@ pub enum Action {
 }
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// The List owns the two cursor cells; spans own the remaining status and item.
+fn tree_item(row: &Row, width: usize) -> ListItem<'static> {
+    let (marker, word, style) = match row.lifecycle {
+        Lifecycle::Live => ("  ", "LIVE", Style::default()),
+        Lifecycle::Done => ("✓ ", "DONE", Style::default().fg(Color::Green)),
+        Lifecycle::Abandoned => ("✗ ", "ABANDONED", Style::default().fg(Color::Red)),
+        Lifecycle::Empty => ("  ", "EMPTY", Style::default()),
+    };
+    let item_width = width.saturating_sub(22);
+    // Preserve two fold cells and at least sixteen handle cells at 60 columns.
+    let indent = row
+        .depth
+        .saturating_mul(2)
+        .min(item_width.saturating_sub(18));
+    let indentation = if indent < row.depth.saturating_mul(2) && indent > 0 {
+        format!("…{}", " ".repeat(indent - 1))
+    } else {
+        " ".repeat(indent)
+    };
+    let fold = if row.branch {
+        if row.expanded {
+            "- "
+        } else {
+            "+ "
+        }
+    } else {
+        "  "
+    };
+    let available = item_width.saturating_sub(indent + 2);
+    let handle = row.handle.as_ref().map_or_else(
+        || "root".into(),
+        |handle| {
+            let suffix = format!("-k{}", handle.key());
+            let slug = safe_text(handle.slug().as_str());
+            let budget = available.saturating_sub(suffix.len());
+            let slug = if Line::raw(&slug).width() > budget {
+                format!("{}…", fit_text(&slug, budget.saturating_sub(1)))
+            } else {
+                slug
+            };
+            format!("{slug}{suffix}")
+        },
+    );
+    let details = if let Some(kind) = &row.kind {
+        format!(" {}", kind.label())
+    } else {
+        let [live, done, abandoned] = row.counts;
+        format!(" branch [LIVE {live} DONE {done} ABANDONED {abandoned}]")
+    };
+    let details = fit_text(
+        &details,
+        available.saturating_sub(Line::raw(&handle).width()),
+    );
+    ListItem::new(Line::from(vec![
+        Span::styled(format!("{marker}{word:10}"), style),
+        Span::raw("        "),
+        Span::styled(format!("{indentation}{fold}{handle}{details}"), style),
+    ]))
+}
+
+/// Fit a single-line terminal field without splitting a grapheme.
+fn fit_text(text: &str, width: usize) -> String {
+    let clean = safe_text(text).replace('\n', "�");
+    let line = Line::raw(clean);
+    let mut remaining = width;
+    let mut result = String::new();
+    // Same locked grapheme/display-width seam as Markdown clipping.
+    // https://docs.rs/ratatui/0.29.0/ratatui/text/struct.Line.html#method.styled_graphemes
+    for grapheme in line.styled_graphemes(Style::default()) {
+        let cells = Line::raw(grapheme.symbol).width();
+        if cells > remaining {
+            break;
+        }
+        result.push_str(grapheme.symbol);
+        remaining -= cells;
+    }
+    result
+}
+
+#[cfg(test)]
+mod row_text_tests {
+    use super::fit_text;
+
+    #[test]
+    fn fitting_preserves_graphemes_and_neutralizes_controls() {
+        for (width, expected) in [
+            (0, ""),
+            (1, ""),
+            (2, "界"),
+            (3, "界e\u{301}"),
+            (4, "界e\u{301}"),
+            (5, "界e\u{301}👩‍💻"),
+            (6, "界e\u{301}👩‍💻x"),
+        ] {
+            assert_eq!(fit_text("界e\u{301}👩‍💻x", width), expected);
+        }
+        assert_eq!(fit_text("a\n\u{1b}\u{9b}\tend", 20), "a���    end");
+    }
+}
 
 #[derive(Clone, Default)]
 struct ReadingPosition {
@@ -366,7 +466,11 @@ impl Viewer {
                     let disappeared = self
                         .rows
                         .get(self.selected)
-                        .map(|row| row.label.clone())
+                        .map(|row| {
+                            row.handle
+                                .as_ref()
+                                .map_or_else(|| "root".into(), ToString::to_string)
+                        })
                         .unwrap_or_default();
                     self.notice = Some(format!(
                         "{disappeared} disappeared; selected surviving ancestor"
@@ -551,31 +655,14 @@ Escape: close help | ?: toggle help",
                 .select(visible.iter().position(|&i| i == self.selected));
             let items: Vec<_> = visible
                 .iter()
-                .map(|&i| {
-                    let row = &self.rows[i];
-                    let marker = if row.branch {
-                        if row.expanded {
-                            "-"
-                        } else {
-                            "+"
-                        }
-                    } else {
-                        " "
-                    };
-                    ListItem::new(format!(
-                        "{}{marker} {}",
-                        "  ".repeat(row.depth.min(100)),
-                        row.label
-                    ))
-                })
+                .map(|&i| tree_item(&self.rows[i], usize::from(body.width.saturating_sub(2))))
                 .collect();
             // Stateful List keeps the selection visible; the state owns no tree data.
             // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.List.html
             frame.render_stateful_widget(
                 List::new(items)
                     .block(Block::bordered().title("Tree [active] | Tab: File"))
-                    .highlight_symbol("> ")
-                    .highlight_style(Style::default().add_modifier(Modifier::REVERSED)),
+                    .highlight_symbol("> "),
                 body,
                 &mut self.tree_state,
             );

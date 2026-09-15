@@ -293,6 +293,14 @@ is what is left of grove's side: the personal file's path, the four slots (`prom
 trackedness rules below. The user-facing grammar and diagnostics are in
 [CONFIGURATION.md](CONFIGURATION.md).
 
+The driver retains the selected task-root directory in a separate `TreeLifetime`
+pin, checked under the selection's tree guard. Finish materialization is followed
+by a fresh guarded selection. The launch helper checks the pin before activating
+the epoch and refuses a root that has disappeared or been replaced. The pin
+retains no tree access lock and adds no persisted tree identity. This is the
+selected-root check; lease-owned witness publication remains the next protocol
+increment.
+
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed
 reap, including recovery from a wait error, before token reading and terminal

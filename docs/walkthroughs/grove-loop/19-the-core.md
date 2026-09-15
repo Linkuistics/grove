@@ -953,7 +953,7 @@ those terms. That citation holds.
 The book's three questions, asked of the smallest root in Part V. That ranking
 is an enumeration rather than an impression, and it is worth writing down because
 the unit is the trap that caught chapter 16: Part V's roots run `driver_lease.rs`
-1,383, `loop_driver.rs` 615, `session_config.rs` 358 and `prompt.rs` **245**,
+1,383, `loop_driver.rs` 742, `session_config.rs` 358 and `prompt.rs` **245**,
 and its owned blocks run 819, 615, 564, 358 and 245. `prompt.rs` is last in both
 lists, and because chapters 18 and 19 each own a whole unsplit root there is no
 unit under which that changes.

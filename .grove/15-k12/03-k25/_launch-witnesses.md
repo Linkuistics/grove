@@ -1,4 +1,4 @@
-# launch-witnesses-k25
+# launch-witnesses-k25 — brief
 
 
 ## Goal
@@ -69,9 +69,25 @@ route, though witnessed-observation-k26 owns the complete two-platform evidence.
   and G6 retain the witnessed-view deferral. Run focused loop/runner/process
   tests and `bash scripts/check.sh` after all edits.
 
+## Decomposition
+
+Source inspection found that selection and finish materialization return only
+value data, while launch preparation starts later in a different module. Split
+at the independently testable stale-root refusal:
+
+- selected-root-k28 pins the selected snapshot, rechecks it before epoch
+  activation, and proves changed roots cannot launch. Finish materialization
+  is followed by a fresh guarded selection. No witness is published yet.
+- witness-owner-k29 completes the remaining writer contract above: move the pin
+  into the lease-owned pair, prepare after epoch invalidation, publish the optional
+  extension, connect runner events, and verify lifetime/fault/cleanup behavior.
+
+The node remains live until the full original Done when holds. The observer and
+platform evidence remain owned by witnessed-observation-k26.
+
 ## Notes
 
-This leaf owns the writer and resource lifetime, not the observer's liveness
+This node owns the writer and resource lifetime, not the observer's liveness
 inference. Use one production ownership seam in fault/process tests. k26 adds
 native macOS/Linux kill/reap and exec-survivor evidence through the actual
 observer, plus forced-reuse mutations; do not preclaim those results here.

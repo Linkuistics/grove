@@ -656,3 +656,7 @@
 - [A ledger the validator refuses to let be false](21-what-could-not-move.md#the-closed-ledgers)
 - [An early-use manifest as a floor rather than a set](21-what-could-not-move.md#the-closed-ledgers)
 - [The first session of twenty-one for which the repository gate passes](21-what-could-not-move.md#final-verification)
+
+Selected task-root pinning and pre-activation replacement refusal are explained
+in [the guarded selection](20-the-loop.md#picked) and exercised through the
+[configured-launch controls](20-the-loop.md#the-test-block).

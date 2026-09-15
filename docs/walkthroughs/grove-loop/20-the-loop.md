@@ -187,7 +187,7 @@ loop, then the four chosen values are declared **before** anything uses them,
 then the outcome type, then the loop itself, then the five helpers it calls, and
 last the two tests that hold the one ordering the loop cannot get wrong.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-615" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-742" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-worktree-name» -->
@@ -330,8 +330,8 @@ the workspace's other crates, and six from `std`.
 ````rust
 use crate::driver_lease::DriverLease;
 use crate::session_config::{DeltaRoots, ExpansionContext, TemplateSource};
-use crate::{interpret, Disposition, Handle, Kind, Reading, Selection, Sought};
-use anyhow::{Context, Result};
+use crate::{interpret, Disposition, Handle, Kind, Reading, Selection, Sought, TreeLifetime};
+use anyhow::{ensure, Context, Result};
 use jj_workspace::Workspace;
 use keyed_launch::{Argv, Channel, End, Ended, Escalation, Launch};
 use std::ffi::OsStr;
@@ -811,10 +811,10 @@ guarding — a lease revalidation and a configuration load, immediately before
 
 **And this is the first of the two configuration reads.**
 
-<!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="243-259" parent="loop-driver" -->
+<!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="243-260" parent="loop-driver" -->
 ````rust
         crate::driver::transition_to_current(worktree)?;
-        let selection = match picked(worktree)? {
+        let selected = match picked(worktree)? {
             Sought::Match(selection) => selection,
             Sought::Nothing => {
                 // The finish sentinel is a leaf grove writes itself, so the
@@ -826,9 +826,10 @@ guarding — a lease revalidation and a configuration load, immediately before
                 pre_transition_config
                     .require(Kind::finish().label())
                     .context("materializing the driver-owned finish leaf")?;
-                crate::driver::materialize_finish(worktree)?
+                picked_after_finish(worktree)?
             }
         };
+        let selection = &selected.selection;
 
 ````
 <!-- /fragment -->
@@ -844,13 +845,13 @@ in it is wrong, and the refutation is on this page. Here it is, against the byte
 `template-source-read-count-k86` corrected the count from this page's evidence.
 
 `templates.load(&delta_roots)` is called **twice** in one pass of the loop body,
-at line 241 and again at line 260, with `transition_to_current` and the whole of
+before transition and again after selection, with `transition_to_current` and the whole of
 the walk between them. They are two reads for two reasons:
 
-| | Line | Bound to | Read *before* | Asked for |
-|---:|---:|---|---|---|
-| 1 | 241 | `pre_transition_config` | `transition_to_current` | whether a `finish` template exists at all |
-| 2 | 260 | `config` | the launch | the selected kind's template, expanded |
+| | Bound to | Read *before* | Asked for |
+|---:|---|---|---|
+| 1 | `pre_transition_config` | `transition_to_current` | whether a `finish` template exists at all |
+| 2 | `config` | the launch | the selected kind's template, expanded |
 
 **The first read is a snapshot taken deliberately early.** The finish sentinel is
 a leaf grove writes itself, so — as the comment says — the just-in-time presence
@@ -863,7 +864,7 @@ the answer describes the configuration as it stood before anything was mutated,
 so a session cannot be blamed for a template that appeared or vanished during its
 own transition. `docs/adr/complete-session-configuration.md` is the record.
 
-**The second read is deliberately late for the mirror-image reason.** By line 260
+**The second read is deliberately late for the mirror-image reason.** By then
 the leaf is chosen, and the launch should expand the template from the document as
 it stands *now* — which is what makes `relaunch_reloads_config_and_uses_the_new_filename_kind`
 possible, and what `TemplateSource`'s own *a source rather than a snapshot*
@@ -952,7 +953,7 @@ read as though the operations had many callers. Chapter 15 recorded the
 `transition_to_current` half of this; the pair is enumerated here because this is
 the page where both are reached.
 
-<!-- fragment «loop-drive-expand» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="260-279" parent="loop-driver" -->
+<!-- fragment «loop-drive-expand» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="261-280" parent="loop-driver" -->
 ````rust
         let config = templates.load(&delta_roots)?;
         // The file this kind actually resolved from — the personal file, or the
@@ -991,7 +992,7 @@ to `session_prompt`. One guarded selection reaches four consumers, so the prompt
 and the command a session receives cannot disagree about what kind it is. That is
 `session_prompt`'s doc comment's claim, and this block is where it is true.
 
-<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="280-307" parent="loop-driver" -->
+<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="281-308" parent="loop-driver" -->
 ````rust
         driver_lease
             .revalidate()
@@ -1000,7 +1001,7 @@ and the command a session receives cannot disagree about what kind it is. That i
             .context("allocating a fresh foreground-session signal channel")?;
         let ended = launch_configured_session(
             &argv,
-            &selection,
+            &selected,
             &resolved_source,
             worktree,
             &channel,
@@ -1048,7 +1049,7 @@ what the two inline tests can then assert without a session, a channel or a
 child. That is the whole reason this block is shaped the way it is, and the tests
 at the end of the file are its proof.
 
-<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="308-313" parent="loop-driver" -->
+<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="309-314" parent="loop-driver" -->
 ````rust
         if let Err(error) = channel.discard() {
             eprintln!(
@@ -1067,7 +1068,7 @@ a completed grove's `Finished` because a file could not be unlinked would be a
 worse failure than the leftover. `a_signal_removal_failure_does_not_override_a_done_disposition`
 is the test that holds it.
 
-<!-- fragment «loop-drive-interrupted» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="314-318" parent="loop-driver" -->
+<!-- fragment «loop-drive-interrupted» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="315-319" parent="loop-driver" -->
 ````rust
         if let End::Interrupted { signal } = ended.end {
             eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
@@ -1080,7 +1081,7 @@ is the test that holds it.
 And the last statement in the loop body is the one that decides whether there is
 another iteration.
 
-<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="319-344" parent="loop-driver" -->
+<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="320-345" parent="loop-driver" -->
 ````rust
         match signal {
             Some(Disposition::Relaunch) => continue,
@@ -1135,7 +1136,7 @@ session that happened to signal turn a `timeout(1)` into a clean finish.
 
 The first of the five helpers `drive` calls, and the one that reaches chapter 19.
 
-<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="345-377" parent="loop-driver" -->
+<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="346-378" parent="loop-driver" -->
 ````rust
 /// The whole `${prompt}`: the guaranteed core, composed for the launched kind.
 ///
@@ -1210,7 +1211,7 @@ side.
 
 Twenty-five lines of contract, then a signature and a single diagnostic line.
 
-<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="378-417" parent="loop-driver" -->
+<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="379-423" parent="loop-driver" -->
 ````rust
 /// Launch one fresh foreground session owning the real TTY, and hand it to
 /// `keyed_launch::run`, which spawns it directly — no shell — and supervises it
@@ -1239,12 +1240,13 @@ Twenty-five lines of contract, then a signature and a single diagnostic line.
 /// refused.
 fn launch_configured_session(
     argv: &Argv,
-    selection: &Selection,
+    selected: &SelectedTask,
     resolved_source: &Path,
     worktree: &Path,
     channel: &Channel,
     driver_lease: &DriverLease,
 ) -> Result<Ended> {
+    let selection = &selected.selection;
     eprintln!(
         "grove: launching {} with configured {:?} — {}",
         selection.kind.label(),
@@ -1252,6 +1254,10 @@ fn launch_configured_session(
         selection.handle
     );
 
+    ensure!(
+        selected.lifetime.at(worktree)?,
+        "task tree changed before foreground launch; refusing the stale selection"
+    );
 ````
 <!-- /fragment -->
 
@@ -1270,7 +1276,7 @@ under `leaf-insert`, while the handle does not. This is chapter 3's
 handle-not-position rule arriving at the one place where a human reads it back,
 and it is why the loop's log is legible after a tree has been reordered under it.
 
-<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="418-439" parent="loop-driver" -->
+<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="424-445" parent="loop-driver" -->
 ````rust
     driver_lease
         .activate_session_epoch(channel.path())
@@ -1326,7 +1332,7 @@ the record behind the process-group half of it, named here and cited nowhere.
 
 The only function in the file with no doc comment at all.
 
-<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="440-457" parent="loop-driver" -->
+<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="446-463" parent="loop-driver" -->
 ````rust
 fn complete_post_reap_epoch_handoff<E, T>(
     ended: Result<E>,
@@ -1383,7 +1389,7 @@ still on disk with a token in it, which the next driver will find.
 
 Two durations, and eight lines saying where each number came from.
 
-<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="458-470" parent="loop-driver" -->
+<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="464-476" parent="loop-driver" -->
 ````rust
 /// The kill escalation the runner applies once the completion channel appears.
 ///
@@ -1422,7 +1428,7 @@ restate* instruction appearing inside the source it applies to.
 Thirteen lines of comment over eighteen of code, and the comment is entirely
 about the second of the function's two early returns.
 
-<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="471-502" parent="loop-driver" -->
+<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="477-508" parent="loop-driver" -->
 ````rust
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
@@ -1494,7 +1500,7 @@ succeeded.
 
 The other half of what `run` does before it delegates.
 
-<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="503-533" parent="loop-driver" -->
+<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="509-539" parent="loop-driver" -->
 ````rust
 /// Ignore SIGINT in the driver so a terminal Ctrl-C does not kill the loop. The
 /// driver must survive the interrupt to reach the relaunch-vs-stop decision.
@@ -1565,11 +1571,17 @@ the runner caught during one.
 `crates/grove/tests/loop_driver.rs`'s rather than this block's.
 
 <a id="picked"></a>
-## `picked`: an arm the transition makes unreachable
+## `picked`: retain the selected root without retaining its lock
 
-The last production item in the file, and the smallest.
+The driver needs both selection data and a descriptor that keeps its task root
+alive. `picked` opens a `TreeLifetime` before reading the snapshot, then checks
+that pin while the snapshot's tree guard is held. The shared selector still
+validates the tree. `SelectedTask` carries the resulting value and pin separately;
+returning it releases the tree guard. `picked_after_finish` discards the value
+returned by materialization and selects again under a fresh guard, so concurrent
+changes supply a new selection rather than an identity attached to old names.
 
-<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="534-546" parent="loop-driver" -->
+<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="540-579" parent="loop-driver" -->
 ````rust
 /// The driver's own `pick`, over the worktree it is driving.
 ///
@@ -1577,48 +1589,173 @@ The last production item in the file, and the smallest.
 /// vacant arm is unreachable in practice — but it is an arm of [`crate::read`],
 /// and answering it as *no live leaves* is the same thing
 /// the transition would have made true a moment earlier.
-fn picked(worktree: &Path) -> anyhow::Result<Sought<Selection>> {
+fn picked(worktree: &Path) -> anyhow::Result<Sought<SelectedTask>> {
+    // Open before snapshot acquisition and check while its tree guard is held.
+    // A root replaced during the read must not lend its identity to old names.
+    let lifetime = TreeLifetime::open(worktree)?;
     match crate::read(worktree)? {
-        Reading::Tree(tree) => Ok(crate::verbs::pick(&tree)?),
+        Reading::Tree(tree) => {
+            let lifetime = lifetime.context("task tree changed during selection")?;
+            ensure!(lifetime.at(worktree)?, "task tree changed during selection");
+            Ok(crate::verbs::pick(&tree)?.map(|selection| SelectedTask {
+                selection,
+                lifetime,
+            }))
+        }
         Reading::Vacant => Ok(Sought::Nothing),
+    }
+}
+
+/// Selection remains value data; only this driver's pending launch owns the pin.
+#[derive(Debug)]
+struct SelectedTask {
+    selection: Selection,
+    lifetime: TreeLifetime,
+}
+
+fn picked_after_finish(worktree: &Path) -> Result<SelectedTask> {
+    crate::driver::materialize_finish(worktree)?;
+    // Materialization releases its write guard. Select again under a fresh read
+    // guard, so a concurrent edit supplies both the mandate and its pinned root.
+    match picked(worktree)? {
+        Sought::Match(selected) => Ok(selected),
+        Sought::Nothing => anyhow::bail!("task tree changed after finish materialization"),
     }
 }
 
 ````
 <!-- /fragment -->
 
-The file's last production item, and it is six lines that exist to turn two
-readings into one `Sought`.
-
-**The comment makes a reachability claim and hedges it correctly.** *The
-transition above has already brought the worktree to a grove, so the vacant arm
-is unreachable in practice — but it is an arm of `crate::read`.* Both halves are
-right, and the second is the one that matters: `read` returns `Reading::Vacant`
-whether or not this caller can produce it, so the arm has to be written. What the
-comment declines to do is claim the arm is dead — it says *in practice*, and then
-gives the answer it would produce anyway, which is *the same thing the transition
-would have made true a moment earlier*.
-
-That hedge is the difference chapters 16 and 17 kept insisting on, made by the
-source itself: an arm no fixture can reach through this path is not the same as an
-arm that could not exist. The mutation below measures which it is.
+A vacant read still returns `Sought::Nothing`. For a populated read, a missing
+or replaced pin is an error. Before activating the epoch, the launch helper
+checks that this same directory still occupies `.grove/`; a mismatch prevents
+spawn. A change after that check remains outside this check's guarantee. The
+witness writer will own its publication-time recheck and lease lifetime.
 
 <a id="the-test-block"></a>
-## The inline test block — sixty-nine lines, two tests, one claim
+## The inline tests: root identity and handoff ordering
 
-**The prose obligation changes here, inside this chapter.** Everything above
-takes *do not restate*: the production half is 51.5% comment prose, the comments
-already argue, and the fragments quote them verbatim. The 69 lines below are 8.7%
-comment prose, and they take *supply the claim* — for each reproduced test, the
-property it establishes **and what would have to be true for it to pass while the
-property was broken**. Chapter 20 is the last of the thirteen chapters on that
-list, and the only one where the two instructions meet on one page.
+The root fixture uses a real temporary tree, `.jj` marker, lease, configured
+shell command and completion channel. The launch control compares a current
+root with a removed root and a replacement carrying the same handle and key.
+Only the current root may create the child's output file or activate the epoch.
+Removing the launch identity check makes this control fail; refusing every
+launch also fails its positive case.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="547-556" parent="loop-driver" -->
+The pin control obtains an independent exclusive lock on the containing
+directory while the selection is retained, then replaces the task root. It
+checks both the pin's current-path relation and its distinction from the new
+root. Retaining the tree guard would fail the nonblocking lock attempt.
+
+The finish control retires the only ordinary task, materializes finish, then
+adds ordinary work and selects through that path again. It catches loss of
+finish eligibility and failure to prefer newly available ordinary work.
+A duplicate-key addition must fail the shared selector's validation. These
+controls do not establish witness liveness or process-death ordering.
+
+The remaining tests hold the separate handoff invariant: completion
+interpretation stays behind successful epoch invalidation, and a failed handoff
+preserves the preceding launch failure.
+
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="580-683" parent="loop-driver" -->
 ````rust
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn selected_root_fixture() -> tempfile::TempDir {
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::create_dir(temp.path().join(".jj")).unwrap();
+        std::fs::create_dir(temp.path().join(".grove")).unwrap();
+        std::fs::write(temp.path().join(".grove/_BRIEF.md"), "brief").unwrap();
+        std::fs::write(temp.path().join(".grove/01-impl--work-k1.md"), "task").unwrap();
+        temp
+    }
+
+    #[test]
+    fn selected_root_launches_only_while_its_directory_is_current() {
+        for state in ["current", "removed", "replaced"] {
+            let temp = selected_root_fixture();
+            let work = temp.path();
+            let workspace = Workspace::resolve(work).unwrap();
+            let lease = DriverLease::acquire(&workspace).unwrap();
+            let Sought::Match(selection) = picked(work).unwrap() else {
+                panic!("fixture must select work-k1");
+            };
+            if state != "current" {
+                std::fs::rename(work.join(".grove"), work.join("old")).unwrap();
+            }
+            if state == "replaced" {
+                std::fs::create_dir(work.join(".grove")).unwrap();
+                std::fs::write(work.join(".grove/_BRIEF.md"), "replacement").unwrap();
+                std::fs::write(work.join(".grove/01-impl--work-k1.md"), "reused key").unwrap();
+            }
+            let config = work.join("launch.kdl");
+            std::fs::write(&config, "impl \"/bin/sh child.sh\"\n").unwrap();
+            std::fs::write(work.join("child.sh"), "touch launched\n").unwrap();
+            let templates = keyed_launch::Templates::load(
+                &config,
+                None,
+                keyed_launch::Vocabulary { slots: &[] },
+            )
+            .unwrap();
+            let argv = templates.expand("impl", &[]).unwrap();
+            let channel = Channel::allocate(lease.control_dir()).unwrap();
+            let result =
+                launch_configured_session(&argv, &selection, &config, work, &channel, &lease);
+            assert_eq!(result.is_ok(), state == "current", "{state}: {result:?}");
+            assert_eq!(work.join("launched").exists(), state == "current");
+            let epoch = std::fs::read_to_string(lease.control_dir().join("session.epoch")).unwrap();
+            assert_eq!(
+                epoch.starts_with("state=active\n"),
+                state == "current",
+                "{epoch}"
+            );
+        }
+    }
+
+    #[test]
+    fn selected_root_pin_releases_tree_guard_and_survives_path_replacement() {
+        use std::os::fd::AsRawFd;
+        let temp = selected_root_fixture();
+        let work = temp.path();
+        let Sought::Match(selected) = picked(work).unwrap() else {
+            panic!("fixture must select work-k1");
+        };
+        let writer = std::fs::File::open(work).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(writer.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+            0,
+            "selection retained the containing-directory tree guard"
+        );
+        std::fs::rename(work.join(".grove"), work.join("old")).unwrap();
+        std::fs::create_dir(work.join(".grove")).unwrap();
+        let replacement = TreeLifetime::open(work).unwrap().unwrap();
+        assert!(!selected.lifetime.same(&replacement).unwrap());
+        assert!(!selected.lifetime.at(work).unwrap());
+    }
+
+    #[test]
+    fn selected_root_finish_and_validation_use_the_shared_selector() {
+        let temp = selected_root_fixture();
+        let work = temp.path();
+        std::fs::rename(
+            work.join(".grove/01-impl--work-k1.md"),
+            work.join(".grove/01-DONE-impl--work-k1.md"),
+        )
+        .unwrap();
+        assert!(matches!(picked(work).unwrap(), Sought::Nothing));
+        let finish = picked_after_finish(work).unwrap();
+        assert_eq!(finish.selection.kind, Kind::finish());
+        assert!(finish.lifetime.at(work).unwrap());
+        // If ordinary work appears, materialization returns it instead of adding
+        // another finish. The fresh guarded pick must preserve that behavior.
+        std::fs::write(work.join(".grove/03-impl--other-k3.md"), "task").unwrap();
+        let ordinary = picked_after_finish(work).unwrap();
+        assert_eq!(ordinary.selection.handle.to_string(), "other-k3");
+        std::fs::write(work.join(".grove/04-impl--duplicate-k3.md"), "task").unwrap();
+        assert!(picked(work).is_err(), "duplicate keys bypassed validation");
+    }
 
     /// The two `complete_post_reap_epoch_handoff` cases below drive that
     /// ordering with a stand-in for the launch result, because what the
@@ -1639,7 +1776,7 @@ end-to-end behaviour is `crates/keyed-launch/tests/launch.rs`'s, against a fake
 child, and the comment says so rather than leaving the gap to be read as an
 omission.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="557-592" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="684-719" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1709,7 +1846,7 @@ things, and they are different in kind.
   so the pair of assertions together does reach this arm, though neither does
   alone.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="593-615" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="720-742" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {

@@ -49,7 +49,7 @@ kinds involve a human are the plugin's and the guide's, and the crate knows only
 that a kind is a token and that two of them are reserved.
 
 The corpus is the crate's own manifest and every Rust file under `src/`.
-**It includes 3,984 lines of inline `#[cfg(test)] mod tests`,
+**It includes the inline `#[cfg(test)] mod tests`,
 and none of that is excluded**: those tests are owned, reconstructed and explained
 by the chapter whose concept each proves, because a test is where several of this
 crate's claims are actually held. One file is excluded, `src/task_grow/tests.rs`,
@@ -60,7 +60,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and the source index records how those fragments
 reconstruct each in-scope file. During authoring a scoped check proves the
 completed prefix and reports later-owned ranges as deferred; only the final check
-proves complete reconstruction of all fourteen files and 10,685 lines.
+proves complete reconstruction of the current corpus listed in the source index.
 
 <a id="reading-fragments"></a>
 ## Reading fragments

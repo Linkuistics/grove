@@ -55,8 +55,8 @@
 
 use crate::driver_lease::DriverLease;
 use crate::session_config::{DeltaRoots, ExpansionContext, TemplateSource};
-use crate::{interpret, Disposition, Handle, Kind, Reading, Selection, Sought};
-use anyhow::{Context, Result};
+use crate::{interpret, Disposition, Handle, Kind, Reading, Selection, Sought, TreeLifetime};
+use anyhow::{ensure, Context, Result};
 use jj_workspace::Workspace;
 use keyed_launch::{Argv, Channel, End, Ended, Escalation, Launch};
 use std::ffi::OsStr;
@@ -241,7 +241,7 @@ fn drive(
         let pre_transition_config = templates.load(&delta_roots)?;
 
         crate::driver::transition_to_current(worktree)?;
-        let selection = match picked(worktree)? {
+        let selected = match picked(worktree)? {
             Sought::Match(selection) => selection,
             Sought::Nothing => {
                 // The finish sentinel is a leaf grove writes itself, so the
@@ -253,9 +253,10 @@ fn drive(
                 pre_transition_config
                     .require(Kind::finish().label())
                     .context("materializing the driver-owned finish leaf")?;
-                crate::driver::materialize_finish(worktree)?
+                picked_after_finish(worktree)?
             }
         };
+        let selection = &selected.selection;
 
         let config = templates.load(&delta_roots)?;
         // The file this kind actually resolved from — the personal file, or the
@@ -284,7 +285,7 @@ fn drive(
             .context("allocating a fresh foreground-session signal channel")?;
         let ended = launch_configured_session(
             &argv,
-            &selection,
+            &selected,
             &resolved_source,
             worktree,
             &channel,
@@ -402,12 +403,13 @@ fn session_prompt(handle: &Handle, kind: &Kind, workspace: &Workspace) -> String
 /// refused.
 fn launch_configured_session(
     argv: &Argv,
-    selection: &Selection,
+    selected: &SelectedTask,
     resolved_source: &Path,
     worktree: &Path,
     channel: &Channel,
     driver_lease: &DriverLease,
 ) -> Result<Ended> {
+    let selection = &selected.selection;
     eprintln!(
         "grove: launching {} with configured {:?} — {}",
         selection.kind.label(),
@@ -415,6 +417,10 @@ fn launch_configured_session(
         selection.handle
     );
 
+    ensure!(
+        selected.lifetime.at(worktree)?,
+        "task tree changed before foreground launch; refusing the stale selection"
+    );
     driver_lease
         .activate_session_epoch(channel.path())
         .context("activating the foreground session epoch before spawn")?;
@@ -537,16 +543,137 @@ fn ignore_interrupts() {
 /// vacant arm is unreachable in practice — but it is an arm of [`crate::read`],
 /// and answering it as *no live leaves* is the same thing
 /// the transition would have made true a moment earlier.
-fn picked(worktree: &Path) -> anyhow::Result<Sought<Selection>> {
+fn picked(worktree: &Path) -> anyhow::Result<Sought<SelectedTask>> {
+    // Open before snapshot acquisition and check while its tree guard is held.
+    // A root replaced during the read must not lend its identity to old names.
+    let lifetime = TreeLifetime::open(worktree)?;
     match crate::read(worktree)? {
-        Reading::Tree(tree) => Ok(crate::verbs::pick(&tree)?),
+        Reading::Tree(tree) => {
+            let lifetime = lifetime.context("task tree changed during selection")?;
+            ensure!(lifetime.at(worktree)?, "task tree changed during selection");
+            Ok(crate::verbs::pick(&tree)?.map(|selection| SelectedTask {
+                selection,
+                lifetime,
+            }))
+        }
         Reading::Vacant => Ok(Sought::Nothing),
+    }
+}
+
+/// Selection remains value data; only this driver's pending launch owns the pin.
+#[derive(Debug)]
+struct SelectedTask {
+    selection: Selection,
+    lifetime: TreeLifetime,
+}
+
+fn picked_after_finish(worktree: &Path) -> Result<SelectedTask> {
+    crate::driver::materialize_finish(worktree)?;
+    // Materialization releases its write guard. Select again under a fresh read
+    // guard, so a concurrent edit supplies both the mandate and its pinned root.
+    match picked(worktree)? {
+        Sought::Match(selected) => Ok(selected),
+        Sought::Nothing => anyhow::bail!("task tree changed after finish materialization"),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn selected_root_fixture() -> tempfile::TempDir {
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::create_dir(temp.path().join(".jj")).unwrap();
+        std::fs::create_dir(temp.path().join(".grove")).unwrap();
+        std::fs::write(temp.path().join(".grove/_BRIEF.md"), "brief").unwrap();
+        std::fs::write(temp.path().join(".grove/01-impl--work-k1.md"), "task").unwrap();
+        temp
+    }
+
+    #[test]
+    fn selected_root_launches_only_while_its_directory_is_current() {
+        for state in ["current", "removed", "replaced"] {
+            let temp = selected_root_fixture();
+            let work = temp.path();
+            let workspace = Workspace::resolve(work).unwrap();
+            let lease = DriverLease::acquire(&workspace).unwrap();
+            let Sought::Match(selection) = picked(work).unwrap() else {
+                panic!("fixture must select work-k1");
+            };
+            if state != "current" {
+                std::fs::rename(work.join(".grove"), work.join("old")).unwrap();
+            }
+            if state == "replaced" {
+                std::fs::create_dir(work.join(".grove")).unwrap();
+                std::fs::write(work.join(".grove/_BRIEF.md"), "replacement").unwrap();
+                std::fs::write(work.join(".grove/01-impl--work-k1.md"), "reused key").unwrap();
+            }
+            let config = work.join("launch.kdl");
+            std::fs::write(&config, "impl \"/bin/sh child.sh\"\n").unwrap();
+            std::fs::write(work.join("child.sh"), "touch launched\n").unwrap();
+            let templates = keyed_launch::Templates::load(
+                &config,
+                None,
+                keyed_launch::Vocabulary { slots: &[] },
+            )
+            .unwrap();
+            let argv = templates.expand("impl", &[]).unwrap();
+            let channel = Channel::allocate(lease.control_dir()).unwrap();
+            let result =
+                launch_configured_session(&argv, &selection, &config, work, &channel, &lease);
+            assert_eq!(result.is_ok(), state == "current", "{state}: {result:?}");
+            assert_eq!(work.join("launched").exists(), state == "current");
+            let epoch = std::fs::read_to_string(lease.control_dir().join("session.epoch")).unwrap();
+            assert_eq!(
+                epoch.starts_with("state=active\n"),
+                state == "current",
+                "{epoch}"
+            );
+        }
+    }
+
+    #[test]
+    fn selected_root_pin_releases_tree_guard_and_survives_path_replacement() {
+        use std::os::fd::AsRawFd;
+        let temp = selected_root_fixture();
+        let work = temp.path();
+        let Sought::Match(selected) = picked(work).unwrap() else {
+            panic!("fixture must select work-k1");
+        };
+        let writer = std::fs::File::open(work).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(writer.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+            0,
+            "selection retained the containing-directory tree guard"
+        );
+        std::fs::rename(work.join(".grove"), work.join("old")).unwrap();
+        std::fs::create_dir(work.join(".grove")).unwrap();
+        let replacement = TreeLifetime::open(work).unwrap().unwrap();
+        assert!(!selected.lifetime.same(&replacement).unwrap());
+        assert!(!selected.lifetime.at(work).unwrap());
+    }
+
+    #[test]
+    fn selected_root_finish_and_validation_use_the_shared_selector() {
+        let temp = selected_root_fixture();
+        let work = temp.path();
+        std::fs::rename(
+            work.join(".grove/01-impl--work-k1.md"),
+            work.join(".grove/01-DONE-impl--work-k1.md"),
+        )
+        .unwrap();
+        assert!(matches!(picked(work).unwrap(), Sought::Nothing));
+        let finish = picked_after_finish(work).unwrap();
+        assert_eq!(finish.selection.kind, Kind::finish());
+        assert!(finish.lifetime.at(work).unwrap());
+        // If ordinary work appears, materialization returns it instead of adding
+        // another finish. The fresh guarded pick must preserve that behavior.
+        std::fs::write(work.join(".grove/03-impl--other-k3.md"), "task").unwrap();
+        let ordinary = picked_after_finish(work).unwrap();
+        assert_eq!(ordinary.selection.handle.to_string(), "other-k3");
+        std::fs::write(work.join(".grove/04-impl--duplicate-k3.md"), "task").unwrap();
+        assert!(picked(work).is_err(), "duplicate keys bypassed validation");
+    }
 
     /// The two `complete_post_reap_epoch_handoff` cases below drive that
     /// ordering with a stand-in for the launch result, because what the

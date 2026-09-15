@@ -7,7 +7,7 @@ subject = "crates/grove-loop"
 
 # The bare rule, with one exception. Six roots carry a `#[cfg(test)] mod tests`,
 # and five of those modules are inline — `tree_lifecycle.rs`, `task_tree.rs`,
-# `task_name.rs`, `driver_lease.rs` and `loop_driver.rs`, 3,984 lines in all —
+# `task_name.rs`, `driver_lease.rs` and `loop_driver.rs` —
 # and none of the five is excluded: a root is `src/**/*.rs`, so those lines are owned, reconstructed
 # and explained like any other. The one exclusion is
 # `src/task_grow/tests.rs`, whose file name is `tests.rs` and whose class the
@@ -260,7 +260,7 @@ lines = 245
 [[root]]
 id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
-lines = 615
+lines = 742
 
 [[root]]
 id = "source-observation"
@@ -499,7 +499,7 @@ lines = "1-245"
 id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
-lines = "1-615"
+lines = "1-742"
 
 [[block]]
 id = "observation-tree"

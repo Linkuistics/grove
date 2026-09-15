@@ -551,8 +551,8 @@ that review has become tree-sized work. The architecture's [task-kind
 taxonomy](docs/ARCHITECTURE.md#task-kind-taxonomy) holds the reasoning and
 `docs/specs/doubt-grove-review-mechanics.md` the ownership predicate.
 _Avoid_: justifying any part of the tree scheme by what a grove-controlled
-renderer would show. Grove ships no viewer; a claim that depends on one is a claim
-about a component that does not exist.
+renderer would show. `grove view` observes the tree; the tree's structure must
+remain legible in its files without the viewer.
 _Avoid_: using many in-session doubt reviewers as a substitute for cutting a
 review leaf; once review itself is substantial work, externalise it to the tree.
 _Avoid_: letting the doubt skill launch a competing cross-model review after the

@@ -616,6 +616,240 @@ fn markdown_reflow_and_revisits_keep_the_visible_source_marker() {
     assert_eq!(snapshot(work.path()), before);
 }
 
+fn scroll_to(viewer: &mut Viewer, marker: &str) {
+    for _ in 0..300 {
+        if screen(viewer, 160, 15)
+            .lines()
+            .nth(3)
+            .unwrap()
+            .contains(marker)
+        {
+            return;
+        }
+        viewer.act(Action::Down);
+    }
+    panic!("marker never reached top: {marker}");
+}
+
+#[test]
+fn edited_reading_positions_follow_source_on_refresh_and_revisit() {
+    for revisit in [false, true] {
+        let work = tempfile::tempdir().unwrap();
+        let root = work.path().join(".grove");
+        let text = format!(
+            "{}MARKER here\n\n{}",
+            "before\n\n".repeat(25),
+            "after\n\n".repeat(30)
+        );
+        put(&root, "_BRIEF.md", &text);
+        put(&root, "01-impl--other-k1.md", "other document");
+        let mut viewer = Viewer::new(work.path().into());
+        screen(&mut viewer, 160, 15);
+        viewer.act(Action::Focus);
+        scroll_to(&mut viewer, "MARKER");
+        if revisit {
+            viewer.act(Action::Focus);
+            viewer.act(Action::Down);
+            assert!(screen(&mut viewer, 160, 15).contains("other document"));
+        }
+        put(
+            &root,
+            "_BRIEF.md",
+            &format!("{}{}", "inserted\n\n".repeat(20), text),
+        );
+        let expected = snapshot(work.path());
+        if revisit {
+            viewer.act(Action::Up);
+        } else {
+            viewer.act(Action::Refresh);
+        }
+        let view = screen(&mut viewer, 160, 15);
+        assert!(view.lines().nth(3).unwrap().contains("MARKER"), "{view}");
+        assert!(screen(&mut viewer, 70, 15).contains("MARKER"));
+        assert_eq!(snapshot(work.path()), expected);
+    }
+}
+
+#[test]
+fn edited_duplicate_lines_follow_their_surrounding_passage() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let first = "first context\nDUPLICATE\nfirst continuation\n";
+    let second = "second context\nDUPLICATE\nsecond continuation\n";
+    let tail = "tail\n".repeat(30);
+    put(
+        &root,
+        "_BRIEF.md",
+        &format!("```\n{first}{}{second}{tail}```", "gap\n".repeat(20)),
+    );
+    let mut viewer = Viewer::new(work.path().into());
+    screen(&mut viewer, 160, 15);
+    viewer.act(Action::Focus);
+    scroll_to(&mut viewer, "second context");
+    viewer.act(Action::Down);
+    assert!(screen(&mut viewer, 160, 15)
+        .lines()
+        .nth(3)
+        .unwrap()
+        .contains("DUPLICATE"));
+    // Change both ends so matching cannot rely on an unchanged suffix alone.
+    put(
+        &root,
+        "_BRIEF.md",
+        &format!(
+            "```\nnew start\n{first}{}{second}{tail}new end\n```",
+            "gap\n".repeat(60)
+        ),
+    );
+    let expected = snapshot(work.path());
+    viewer.act(Action::Refresh);
+    for _ in 0..2 {
+        let view = screen(&mut viewer, 160, 15);
+        assert!(view.lines().nth(3).unwrap().contains("DUPLICATE"), "{view}");
+        assert!(
+            view.lines().nth(4).unwrap().contains("second continuation"),
+            "{view}"
+        );
+        viewer.act(Action::Refresh);
+    }
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn deleted_reading_line_uses_nearest_survivor_then_empty_content_clamps() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let prefix = "before\n".repeat(25);
+    let tail = "after\n".repeat(30);
+    put(
+        &root,
+        "_BRIEF.md",
+        &format!("```\n{prefix}DELETE ME\nNEXT SURVIVOR\n{tail}```"),
+    );
+    let mut viewer = Viewer::new(work.path().into());
+    screen(&mut viewer, 160, 15);
+    viewer.act(Action::Focus);
+    scroll_to(&mut viewer, "DELETE ME");
+    put(
+        &root,
+        "_BRIEF.md",
+        &format!("```\nnew\n{prefix}NEXT SURVIVOR\n{tail}```"),
+    );
+    let expected = snapshot(work.path());
+    viewer.act(Action::Refresh);
+    let view = screen(&mut viewer, 160, 15);
+    assert!(
+        view.lines().nth(3).unwrap().contains("NEXT SURVIVOR"),
+        "{view}"
+    );
+    assert_eq!(snapshot(work.path()), expected);
+    for replacement in ["", "短い新規文書", "short replacement"] {
+        put(&root, "_BRIEF.md", replacement);
+        let expected = snapshot(work.path());
+        viewer.act(Action::Refresh);
+        let view = screen(&mut viewer, 160, 15);
+        let shown = view.lines().nth(3).unwrap().replace(' ', "");
+        assert!(shown.contains(&replacement.replace(' ', "")), "{view}");
+        assert!(!view.contains("NEXT SURVIVOR"));
+        assert_eq!(snapshot(work.path()), expected);
+    }
+}
+
+#[test]
+fn edited_repeated_block_keeps_its_relative_reading_position() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let text = format!(
+        "```\nSTART\n{}END MARKER\n{}old ending\n```",
+        "repeat\n".repeat(30),
+        "tail\n".repeat(30)
+    );
+    put(&root, "_BRIEF.md", &text);
+    let mut viewer = Viewer::new(work.path().into());
+    screen(&mut viewer, 160, 15);
+    viewer.act(Action::Focus);
+    scroll_to(&mut viewer, "END MARKER");
+    for _ in 0..7 {
+        viewer.act(Action::Up);
+    }
+    let before = screen(&mut viewer, 160, 15);
+    assert!(before.lines().nth(10).unwrap().contains("END MARKER"));
+    put(
+        &root,
+        "_BRIEF.md",
+        &format!("inserted\n\n{}", text.replace("old ending", "new ending")),
+    );
+    let expected = snapshot(work.path());
+    viewer.act(Action::Refresh);
+    assert_eq!(screen(&mut viewer, 160, 15), before);
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn deleted_duplicate_does_not_steal_an_unchanged_occurrence() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let text = format!(
+        "```\nA\nDUPLICATE\nB\nDUPLICATE\nC SURVIVOR\n{}```",
+        "tail\n".repeat(30)
+    );
+    put(&root, "_BRIEF.md", &text);
+    let mut viewer = Viewer::new(work.path().into());
+    screen(&mut viewer, 160, 15);
+    viewer.act(Action::Focus);
+    scroll_to(&mut viewer, "C SURVIVOR");
+    viewer.act(Action::Up);
+    put(&root, "_BRIEF.md", &text.replace("B\nDUPLICATE\n", "B\n"));
+    let expected = snapshot(work.path());
+    viewer.act(Action::Refresh);
+    let view = screen(&mut viewer, 160, 15);
+    assert!(
+        view.lines().nth(3).unwrap().contains("C SURVIVOR"),
+        "{view}"
+    );
+    assert_eq!(snapshot(work.path()), expected);
+}
+
+#[test]
+fn edited_file_errors_keep_the_saved_source_until_recovery_and_revisit() {
+    use std::os::unix::fs::PermissionsExt;
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let text = format!(
+        "{}MARKER here\n\n{}",
+        "before\n\n".repeat(25),
+        "after\n\n".repeat(30)
+    );
+    put(&root, "_BRIEF.md", &text);
+    put(&root, "01-impl--other-k1.md", "other document");
+    let mut viewer = Viewer::new(work.path().into());
+    screen(&mut viewer, 160, 15);
+    viewer.act(Action::Focus);
+    scroll_to(&mut viewer, "MARKER");
+    let file = root.join("_BRIEF.md");
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o0)).unwrap();
+    let denied = fs::read(&file).is_err();
+    viewer.act(Action::Refresh);
+    let error = screen(&mut viewer, 160, 15);
+    screen(&mut viewer, 70, 15);
+    viewer.act(Action::Focus);
+    viewer.act(Action::Down);
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
+    if denied {
+        assert!(error.contains("File error"), "{error}");
+    }
+    put(
+        &root,
+        "_BRIEF.md",
+        &format!("{}{}", "inserted\n\n".repeat(20), text),
+    );
+    let expected = snapshot(work.path());
+    viewer.act(Action::Up);
+    let view = screen(&mut viewer, 160, 15);
+    assert!(view.lines().nth(3).unwrap().contains("MARKER"), "{view}");
+    assert_eq!(snapshot(work.path()), expected);
+}
+
 #[test]
 fn markdown_wide_blocks_partial_edits_unicode_and_empty_files_are_readable() {
     let work = tempfile::tempdir().unwrap();
@@ -700,6 +934,18 @@ fn transformed_markdown_and_blank_code_lines_keep_reading_anchors() {
             viewer.act(Action::Down);
         }
         assert!(found, "marker not reachable: {body}");
+        put(
+            &root,
+            "_BRIEF.md",
+            &format!("{}{}", "inserted\n\n".repeat(20), body),
+        );
+        let expected = snapshot(work.path());
+        viewer.act(Action::Refresh);
+        let edited = screen(&mut viewer, 100, 15);
+        assert!(
+            edited.lines().nth(3).unwrap().contains("UNIQUE-MARKER"),
+            "{edited}"
+        );
         viewer.act(Action::Focus);
         viewer.act(Action::Down);
         screen(&mut viewer, 100, 15);
@@ -710,7 +956,42 @@ fn transformed_markdown_and_blank_code_lines_keep_reading_anchors() {
             "{revisited}"
         );
         assert!(screen(&mut viewer, 70, 20).contains("UNIQUE-MARKER"));
+        assert_eq!(snapshot(work.path()), expected);
     }
+}
+
+#[test]
+fn edited_wide_code_preserves_horizontal_offset_and_item_positions() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let lines: String = (0..80)
+        .map(|n| format!("WIDE {n:03} {} TAIL {n:03}\n", "wide ".repeat(30)))
+        .collect();
+    let body = format!("```\n{lines}```");
+    put(&root, "_BRIEF.md", &body);
+    put(&root, "01-impl--other-k1.md", "other starts at top");
+    let mut viewer = Viewer::new(work.path().into());
+    screen(&mut viewer, 160, 15);
+    viewer.act(Action::Focus);
+    scroll_to(&mut viewer, "WIDE 020");
+    for _ in 0..15 {
+        viewer.act(Action::Right);
+    }
+    let before = screen(&mut viewer, 160, 15);
+    assert!(!before.contains("WIDE 020"));
+    viewer.act(Action::Focus);
+    viewer.act(Action::Down);
+    assert!(screen(&mut viewer, 160, 15).contains("other starts at top"));
+    put(
+        &root,
+        "_BRIEF.md",
+        &format!("{}{}", "inserted\n\n".repeat(20), body),
+    );
+    let expected = snapshot(work.path());
+    viewer.act(Action::Up);
+    viewer.act(Action::Focus);
+    assert_eq!(screen(&mut viewer, 160, 15), before);
+    assert_eq!(snapshot(work.path()), expected);
 }
 
 #[test]

@@ -9,6 +9,7 @@ mod terminal;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use ratatui::{
@@ -43,15 +44,22 @@ pub enum Action {
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
+#[derive(Clone, Default)]
+struct ReadingPosition {
+    source: Rc<str>,
+    anchor: Anchor,
+    horizontal: usize,
+}
+
 /// An in-memory view of one worktree's `.grove`, with no persistence.
 pub struct Viewer {
     worktree: PathBuf,
     rows: Vec<Row>,
     selected: usize,
     tree_state: ListState,
-    source: String,
+    source: Rc<str>,
     content: Document,
-    positions: HashMap<Item, (Anchor, usize)>,
+    positions: HashMap<Item, ReadingPosition>,
     restore_anchor: Option<Anchor>,
     scroll: usize,
     horizontal: usize,
@@ -78,7 +86,7 @@ impl Viewer {
             rows: Vec::new(),
             selected: 0,
             tree_state: ListState::default(),
-            source: String::new(),
+            source: Rc::default(),
             content: Document::default(),
             positions: HashMap::new(),
             restore_anchor: None,
@@ -200,8 +208,14 @@ impl Viewer {
     fn save_position(&mut self) {
         if let Some(row) = self.rows.get(self.selected) {
             if self.source_item == Some(row.key) && self.restore_anchor.is_none() {
-                self.positions
-                    .insert(row.key, (self.content.anchor(self.scroll), self.horizontal));
+                self.positions.insert(
+                    row.key,
+                    ReadingPosition {
+                        source: Rc::clone(&self.source),
+                        anchor: self.content.anchor(self.scroll),
+                        horizontal: self.horizontal,
+                    },
+                );
             }
         }
     }
@@ -221,11 +235,11 @@ impl Viewer {
             .rows
             .get(self.selected)
             .and_then(|row| self.positions.get(&row.key))
-            .copied()
+            .cloned()
             .unwrap_or_default();
-        self.restore_anchor = Some(position.0);
+        self.restore_anchor = Some(position.anchor);
         self.scroll = 0;
-        self.horizontal = position.1;
+        self.horizontal = position.horizontal;
     }
 
     fn tree_horizontal(&mut self, right: bool) {
@@ -381,7 +395,7 @@ impl Viewer {
 
     fn clear(&mut self) {
         self.rows.clear();
-        self.source.clear();
+        self.source = Rc::default();
         self.content = Document::default();
         self.positions.clear();
         self.restore_anchor = None;
@@ -439,8 +453,12 @@ impl Viewer {
         };
         self.file_error = None;
         let source = String::from_utf8_lossy(&bytes);
-        if self.source != source {
-            self.source = source.into_owned();
+        let key = self.rows.get(self.selected).map(|row| row.key);
+        if let Some(position) = key.and_then(|key| self.positions.get(&key)) {
+            self.restore_anchor = Some(position.anchor.remap(&position.source, &source));
+        }
+        if self.source.as_ref() != source {
+            self.source = Rc::from(source.as_ref());
             self.content = Document::layout(&self.source, self.page_width);
             self.content_width = self.content.width();
         }

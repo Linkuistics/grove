@@ -1,5 +1,5 @@
 //! Inert Markdown layout. Source offsets stay attached through terminal reflow.
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
 
 use pulldown_cmark::{Alignment, Event, Options, Parser, Tag, TagEnd};
 use ratatui::{
@@ -16,6 +16,151 @@ use crate::observation::safe_text;
 pub(crate) struct Anchor {
     byte: usize,
     within: usize,
+}
+
+impl Anchor {
+    /// Follow an unchanged source line, retaining its byte/renderer coordinates.
+    /// Common prefixes/suffixes disambiguate unchanged runs. Inside an edited
+    /// region, prefer matching neighbours, then proximity, then source order.
+    /// This is linear in source size, including entirely repetitive documents;
+    /// it deliberately does not construct a quadratic whole-document diff.
+    pub fn remap(self, old: &str, new: &str) -> Self {
+        if old == new {
+            return self;
+        }
+        fn lines(source: &str) -> Vec<(usize, &str)> {
+            let mut offset = 0;
+            source
+                .split_inclusive('\n')
+                .map(move |line| {
+                    let start = offset;
+                    offset += line.len();
+                    (start, line)
+                })
+                .collect::<Vec<_>>()
+        }
+        let old_lines = lines(old);
+        let new_lines = lines(new);
+        if old_lines.is_empty() || new_lines.is_empty() {
+            return Self::default();
+        }
+        let target = old_lines
+            .partition_point(|(start, _)| *start <= self.byte)
+            .saturating_sub(1);
+        let prefix = old_lines
+            .iter()
+            .zip(&new_lines)
+            .take_while(|(a, b)| a.1 == b.1)
+            .count();
+        let suffix = old_lines[prefix..]
+            .iter()
+            .rev()
+            .zip(new_lines[prefix..].iter().rev())
+            .take_while(|(a, b)| a.1 == b.1)
+            .count();
+        let mut occurrences: HashMap<&str, Vec<usize>> = HashMap::new();
+        // Prefix/suffix occurrences already belong to preserved old lines;
+        // deleted duplicates must not reuse them or repeatedly scan them.
+        for (index, (_, text)) in new_lines
+            .iter()
+            .enumerate()
+            .take(new_lines.len() - suffix)
+            .skip(prefix)
+        {
+            occurrences.entry(text).or_default().push(index);
+        }
+        let locate = |index: usize| -> Option<usize> {
+            if index < prefix {
+                return Some(index);
+            }
+            if index >= old_lines.len() - suffix {
+                return Some(new_lines.len() - (old_lines.len() - index));
+            }
+            let candidates = occurrences.get(old_lines[index].1)?;
+            let after: Vec<_> = old_lines[index..].iter().map(|line| line.1).collect();
+            let before: Vec<_> = old_lines[..index].iter().rev().map(|line| line.1).collect();
+            let forward: Vec<_> = new_lines.iter().map(|line| line.1).collect();
+            let backward: Vec<_> = forward.iter().rev().copied().collect();
+            let right = prefix_matches(&after, &forward);
+            let left = prefix_matches(&before, &backward);
+            candidates.iter().copied().min_by_key(|&candidate| {
+                let context = right[candidate]
+                    + if candidate == 0 {
+                        0
+                    } else {
+                        left[new_lines.len() - candidate]
+                    };
+                (
+                    std::cmp::Reverse(context),
+                    candidate.abs_diff(index),
+                    candidate,
+                )
+            })
+        };
+        // The following line wins equidistant fallback ties. Preserve an
+        // intra-line offset only when the original line itself survived.
+        for distance in 0..old_lines.len() {
+            for index in [
+                target
+                    .checked_add(distance)
+                    .filter(|i| *i < old_lines.len()),
+                target.checked_sub(distance),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                if let Some(mapped) = locate(index) {
+                    return Self {
+                        byte: new_lines[mapped].0
+                            + if index == target {
+                                self.byte
+                                    .saturating_sub(old_lines[target].0)
+                                    .min(new_lines[mapped].1.len())
+                            } else {
+                                0
+                            },
+                        within: if index == target { self.within } else { 0 },
+                    };
+                }
+            }
+        }
+        // No unchanged line exists. Keep the nearest source byte, on a UTF-8
+        // boundary; layout's row lookup and viewport clamp finish the fallback.
+        let mut byte = self.byte.min(new.len());
+        while !new.is_char_boundary(byte) {
+            byte -= 1;
+        }
+        Self { byte, within: 0 }
+    }
+}
+
+/// Longest pattern prefix at every text position, using a Z window: comparisons
+/// inside the known matching window are reused instead of rescanning each run.
+fn prefix_matches(pattern: &[&str], text: &[&str]) -> Vec<usize> {
+    let sequence: Vec<_> = pattern
+        .iter()
+        .copied()
+        .map(Some)
+        .chain(std::iter::once(None))
+        .chain(text.iter().copied().map(Some))
+        .collect();
+    let mut matches = vec![0; sequence.len()];
+    let (mut left, mut right) = (0, 0);
+    for index in 1..sequence.len() {
+        if index < right {
+            matches[index] = matches[index - left].min(right - index);
+        }
+        while index + matches[index] < sequence.len()
+            && sequence[matches[index]] == sequence[index + matches[index]]
+        {
+            matches[index] += 1;
+        }
+        if index + matches[index] > right {
+            left = index;
+            right = index + matches[index];
+        }
+    }
+    matches[pattern.len() + 1..].to_vec()
 }
 
 pub(crate) struct SourceLine {

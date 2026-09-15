@@ -53,8 +53,9 @@ PageUp/PageDown to read files, Left/Right to scroll wide code and tables,
 `?` for key help, and q or Ctrl-c to quit. Resize reflows prose while retaining
 the reading location; returning to a file restores its saved position.
 Selection follows permanent keys across renames, moves and retirement. Replacing
-the root starts a fresh view. Reading positions currently retain source offsets:
-inserting or deleting text above the visible passage can shift that passage.
+the root starts a fresh view. Reading positions follow unchanged source passages
+through edits, including on revisit; deleted passages fall back to nearby surviving
+text. Identical passages use source context and proximity to choose consistently.
 While a writer holds the tree, reads show WAITING and retry without blocking input.
 Quit, handled termination signals and errors restore the terminal; unwinding
 panics restore it before printing their diagnostic.

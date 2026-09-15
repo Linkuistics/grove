@@ -197,11 +197,18 @@ terminal grapheme width. Code and tables retain columns and scroll horizontally;
 prose reflows. Each rendered line keeps its source range, allowing width changes
 to map the top reading anchor into a new layout. A rendered offset within
 transformed events distinguishes wrapped inline code and link destinations.
-Ordinary revisits save source
-anchors and horizontal columns by permanent key, bounded to the current
-root lifetime and accepted snapshot. Unchanged content keeps its layout and
-reading position. Content edits currently retain the source offset and clamp;
-mapping anchors to unchanged text across edits is the next increment.
+Ordinary revisits save source anchors, shared immutable source text and horizontal
+columns by permanent key, bounded to the current root lifetime and accepted
+snapshot. Unchanged content keeps its layout and reading position. Successful
+captures map from that item's saved source; unselected items map on revisit.
+Edit mapping retains common source-line prefixes/suffixes, then chooses the
+matching line with the longest contiguous unchanged context, breaking ties by
+proximity and source order. Preserved prefixes/suffixes cannot be reused to
+impersonate deleted duplicates. Linear prefix-match windows avoid a quadratic
+diff on repeated lines. A deleted anchor falls back to the nearest surviving old
+line, preferring the following line on ties, then clamps to the current viewport.
+When no line survives, the source byte clamps to a UTF-8 boundary before layout.
+Only surviving target lines retain their intra-line and transformed-event offsets.
 File errors retain the saved anchor and display a diagnostic separately.
 The renderer performs no I/O.
 

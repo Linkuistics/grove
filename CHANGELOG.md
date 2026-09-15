@@ -55,8 +55,10 @@ stood at the graft — a closed record, not part of the versioned sequence above
   permanent key across moves, renames, retirement and decomposition. Preserve
   expansion and unchanged-file reading positions, reveal moved selections and
   report disappearance. Detect root replacement, reject duplicate keys and
-  retry busy, missing and malformed trees automatically. Content edits retain
-  source offsets for now; edit-aware anchor mapping follows separately.
+  retry busy, missing and malformed trees automatically. Reading positions follow
+  unchanged source passages through edits and revisits, retaining saved anchors
+  through file errors. Repeated passages match by source context and proximity;
+  deleted passages fall back to nearby surviving text and clamp.
 
 - Render task and brief files as formatted Markdown in `grove view`, including
   nested lists, code blocks and aligned tables. Prose reflows on resize while

@@ -1,4 +1,4 @@
-# live-reading-k13
+# live-reading-k13 — brief
 
 ## Goal
 
@@ -30,3 +30,11 @@ and offset within a transformed event, with no source edit mapping.
 
 Keep the parent's full acceptance list authoritative. No injected notification
 or direct Refresh action substitutes for the production-clock integration tests.
+
+## Decomposition
+
+- edit-anchors-k14 delivers source-edit mapping through the application seam,
+  including focused regression tests and accurate reading-position documentation.
+- live-delivery-k15 completes the parent's production-clock recovery matrix,
+  workspace/Rust-floor/book checks, real binary terminal smoke and package/install
+  evidence. It checks every parent/root acceptance clause before closure.

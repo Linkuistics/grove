@@ -82,9 +82,12 @@ A moved selection reveals its new ancestors. If an item disappears, the viewer
 selects its nearest surviving old ancestor and shows a notice. Replacing or
 removing `.grove` clears saved item state, even if a new tree reuses its keys;
 replacing only `_BRIEF.md` is an ordinary content edit. Duplicate keys show an
-error. Reading positions currently retain source offsets, so text inserted or
-deleted above the visible passage can shift it; edit-aware mapping follows in
-the next increment.
+error. Reading positions follow unchanged source lines through insertions and
+deletions, including when you return to a file edited while reading another item.
+Repeated lines use surrounding unchanged text, then proximity and source order
+to choose consistently. A deleted line falls back to the nearest surviving old
+line (the following line wins a tie), or a clamped position if none survives.
+Saved reading positions survive file errors until readable content returns.
 
 A missing tree shows its observed path and a Missing message. A malformed or
 unreadable reload shows an error; a retained previous tree is explicitly STALE.

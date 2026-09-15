@@ -205,7 +205,7 @@ lines = 68
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 418
+lines = 420
 
 [[root]]
 id    = "source-task-name"
@@ -245,7 +245,7 @@ lines = 96
 [[root]]
 id    = "source-driver-lease"
 path  = "crates/grove-loop/src/driver_lease.rs"
-lines = 1383
+lines = 1389
 
 [[root]]
 id    = "source-session-config"
@@ -265,7 +265,7 @@ lines = 615
 [[root]]
 id = "source-observation"
 path = "crates/grove-loop/src/observation.rs"
-lines = 156
+lines = 177
 
 [[block]]
 id    = "manifest-domain-bound"
@@ -277,7 +277,7 @@ lines = "1-68"
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-418"
+lines = "1-420"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -475,13 +475,13 @@ lines = "1-96"
 id    = "lease-and-epoch"
 root  = "source-driver-lease"
 owner = "one-per-working-tree"
-lines = "1-819"
+lines = "1-825"
 
 [[block]]
 id    = "lease-tests"
 root  = "source-driver-lease"
 owner = "which-calls-are-admitted"
-lines = "820-1383"
+lines = "826-1389"
 
 [[block]]
 id    = "whose-file"
@@ -505,7 +505,7 @@ lines = "1-615"
 id = "observation-tree"
 root = "source-observation"
 owner = "one-spelling-of-grove"
-lines = "1-156"
+lines = "1-177"
 
 [[early-use]]
 symbols   = "`TaskName`, `TaskNameError`, `Verdict`, `verdict`, `entry`, `malformed`"
@@ -547,3 +547,14 @@ anchors = [
   "loop-control-channel",
   "task-commit-boundary",
 ]
+
+[[root]]
+id = "source-runtime-observation"
+path = "crates/grove-loop/src/driver_lease/observation.rs"
+lines = 504
+
+[[block]]
+id = "runtime-observer"
+root = "source-runtime-observation"
+owner = "which-calls-are-admitted"
+lines = "1-504"

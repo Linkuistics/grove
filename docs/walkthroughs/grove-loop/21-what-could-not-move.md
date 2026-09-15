@@ -7,9 +7,9 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 10,685 lines. The fragment graph spans
+This chapter owns none of the crate's 11,218 lines. The fragment graph spans
 [chapter 1](01-orientation.md) through [chapter 20](20-the-loop.md),
-including the captured observer in chapter 5. Its 40 ownership blocks are
+including the captured observer in chapter 5. Its 41 ownership blocks are
 `resolved`; the [source index](source-index.md) records that graph in full and
 gives this page a row whose owned-line count is zero. The row exists to be zero.
 
@@ -415,8 +415,8 @@ rather than by this page's say-so.
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-owned-by» of="allowed-to-mean" -->
 <!-- rollup «ownership-blocks-not-owned-by» of="allowed-to-mean" -->
-**Ownership.** 40 top-level blocks over 14 source roots, every one
-`resolved`. [Chapter 1](01-orientation.md) owns 2 blocks; the other 38 belong to
+**Ownership.** 41 top-level blocks over 15 source roots, every one
+`resolved`. [Chapter 1](01-orientation.md) owns 2 blocks; the other 39 belong to
 later chapters. The captured observer joins chapter 5 as a resolved block. No `defer` remains anywhere in the book, and none may — `F003`
 reports any defer at all in final mode, so *every reservation has become an
 insertion* is something the validator refuses to let be false rather than
@@ -436,7 +436,7 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 486 + 373 + 529 + 773 + 459 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 514 + 819 + 564 + 358 + 245 + 615 = 10,685 lines across
+**Owned source.** 488 + 373 + 529 + 773 + 480 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 514 + 825 + 1,068 + 358 + 245 + 615 = 11,218 lines across
 20 source-owning chapters. This closing chapter owns zero lines. The source
 index records the root sizes, block ranges and chapter totals.
 
@@ -519,7 +519,7 @@ on their own pages and are not in it, wherever they fall.
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces and neither is part of the reading order. The source index
 is the authoritative record of how the fragment graph reconstructs each of the
-14 files; the concept index is curated navigation into the arguments and
+15 files; the concept index is curated navigation into the arguments and
 makes no completeness claim.
 
 <a id="final-verification"></a>
@@ -531,7 +531,7 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/grove-loop --final --check all
-valid: 14 files, 10685 resolved lines, 0 deferred lines, final=true
+valid: 15 files, 10685 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what separates this from every scoped run the twenty drafting
@@ -539,7 +539,7 @@ sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved, and each of this book's first five
 children ended with thousands of lines legitimately deferred; in final mode a
 defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Fourteen files, 10,685 resolved
+page inventory must match the manifest exactly. Fifteen files, 11,218 resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 ```console
@@ -549,7 +549,7 @@ $ bash scripts/check.sh
   book-check docs/walkthroughs/grove-llm
 valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/grove-loop
-valid: 14 files, 10685 resolved lines, 0 deferred lines, final=true
+valid: 15 files, 10685 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
 valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/keyed-launch
@@ -584,7 +584,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 14 roots, 10,685 lines, 21 chapters, two
+The book is complete: 15 roots, 11,218 lines, 21 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

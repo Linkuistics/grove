@@ -195,9 +195,19 @@ Every capture releases its guard before another acquisition. The loop owns
 lock; device/inode identity checks around capture detect replacement and clear old item state. Root opening is
 nonblocking and directory-only; metadata identifies even unreadable replacements.
 The loop capture calls `select_snapshot` before selecting content.
-`try_observe` currently returns the tree portion only (Ready, Vacant, Busy or an
-error); the runtime increment will add its independent activity result. The
-loop owns duplicate-key and multiple-live-finish validation for the driver,
+`try_observe` returns an `ObservationGuard` with independent tree and activity
+results. Tree capture finishes before runtime takes a quiet shared epoch lock;
+all advisory locks release before return. Runtime uses exact-workspace namespace
+discovery and admission's mandatory record grammar, without probing the lease
+lock or requiring launch configuration. Missing workspace, namespace or lease
+means Idle; matching inactive records mean Idle; epoch contention means Busy;
+legacy active, malformed, mismatched or unreadable records mean Unavailable.
+Read-only, nonblocking, close-on-exec opens require directory/regular-file types,
+validate descriptor/path identities, bound records to 64 KiB and retry identity
+races at most eight times. Workspace aliases match by device/inode. The viewer
+currently consumes the independent tree result; visible activity and its separate
+two-capture acceptance remain the next increment, followed by witnessed RUNNING.
+The loop owns duplicate-key and multiple-live-finish validation for the driver,
 `pick` and viewer; the viewer has no private validity rule. Permanent keys
 preserve selection and branch expansion; disappearance selects the nearest
 surviving ancestor, and moved selections reveal their ancestors.

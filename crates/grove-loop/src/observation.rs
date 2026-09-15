@@ -91,16 +91,37 @@ impl CapturedTree {
     }
 }
 
-/// Capture the exact worktree's tree and selected file without waiting for a writer.
+/// Runtime evidence at this sample. Legacy active records cannot identify a mandate.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ActivityObservation {
+    Idle,
+    Busy(String),
+    Unavailable(String),
+}
+
+/// Independent results, captured values and a tree pin; no advisory lock escapes.
+pub struct ObservationGuard {
+    pub tree: Result<TreeObservation, Error>,
+    pub activity: ActivityObservation,
+}
+
+/// Capture the tree and selected bytes, release its guard, then sample runtime.
 /// Candidate keys are ordered by preference; None requests the root brief.
-/// No launch configuration, session admission or runtime controls are consulted.
-/// This tree-only stage is extended by the runtime-observation increment.
-///
-/// # Errors
-/// Invalid/unreadable trees, ambiguous selection or a root changed during capture.
-/// Selected-file errors remain in CapturedTree::content so browsing can continue.
-pub fn try_observe(worktree: &Path, candidates: &[Option<u32>]) -> Result<TreeObservation, Error> {
-    capture(worktree, candidates).map_err(Error::from)
+/// Runtime failures preserve the tree. Neither operation grants session authority.
+pub fn try_observe(worktree: &Path, candidates: &[Option<u32>]) -> ObservationGuard {
+    observe_with(worktree, candidates, || {}, || {})
+}
+
+pub(crate) fn observe_with(
+    worktree: &Path,
+    candidates: &[Option<u32>],
+    after_capture: impl FnOnce(),
+    in_epoch: impl FnMut(),
+) -> ObservationGuard {
+    let tree = capture(worktree, candidates).map_err(Error::from);
+    after_capture();
+    let activity = crate::driver_lease::observation::observe(worktree, in_epoch);
+    ObservationGuard { tree, activity }
 }
 
 fn capture(worktree: &Path, candidates: &[Option<u32>]) -> anyhow::Result<TreeObservation> {

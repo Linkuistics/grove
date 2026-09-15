@@ -325,7 +325,10 @@ than picking one.
 `try_observe` capture. The loop owns whole-tree key/finish validation,
 exclusion-aware selection, selected-file reads and the opaque TreeLifetime.
 The viewer owns two-capture acceptance, presentation rows, display and in-memory
-interaction state. Runtime observation is the next extension to the capture.
+interaction state. The loop's private driver_lease observer adds independent
+Idle/Busy/Unavailable runtime evidence after tree capture, sharing mandatory
+record parsers without session admission or a lease-lock probe. Legacy active
+epochs remain Unavailable. Visible activity and witnessed RUNNING follow next.
 The [viewer architecture](docs/ARCHITECTURE.md#read-only-viewer) names its
 application seam; the [usage guide](docs/USAGE.md#usage-viewing-tree) states the
 current interaction and refresh behavior. The

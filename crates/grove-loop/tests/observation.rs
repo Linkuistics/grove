@@ -15,7 +15,7 @@ fn fixture() -> tempfile::TempDir {
 }
 
 fn ready(work: &Path, candidates: &[Option<u32>]) -> grove_loop::CapturedTree {
-    match try_observe(work, candidates).unwrap() {
+    match try_observe(work, candidates).tree.unwrap() {
         TreeObservation::Ready(tree) => tree,
         _ => panic!("expected a captured tree"),
     }
@@ -53,7 +53,7 @@ fn captures_release_the_tree_lock_and_pin_distinct_root_lifetimes() {
         0
     );
     assert!(matches!(
-        try_observe(work.path(), &[]).unwrap(),
+        try_observe(work.path(), &[]).tree.unwrap(),
         TreeObservation::Busy
     ));
     drop(directory);
@@ -71,7 +71,7 @@ fn captures_release_the_tree_lock_and_pin_distinct_root_lifetimes() {
 fn vacant_and_invalid_trees_are_distinct_and_capture_creates_nothing() {
     let work = tempfile::tempdir().unwrap();
     assert!(matches!(
-        try_observe(work.path(), &[]).unwrap(),
+        try_observe(work.path(), &[]).tree.unwrap(),
         TreeObservation::Vacant
     ));
     assert_eq!(fs::read_dir(work.path()).unwrap().count(), 0);
@@ -81,6 +81,23 @@ fn vacant_and_invalid_trees_are_distinct_and_capture_creates_nothing() {
         "duplicate",
     )
     .unwrap();
-    let error = try_observe(work.path(), &[]).err().unwrap().to_string();
+    let error = try_observe(work.path(), &[])
+        .tree
+        .err()
+        .unwrap()
+        .to_string();
     assert!(error.contains("duplicate"), "{error}");
+}
+
+#[test]
+fn runtime_is_independent_of_a_missing_or_invalid_tree() {
+    let work = tempfile::tempdir().unwrap();
+    let observation = try_observe(work.path(), &[]);
+    assert_eq!(observation.activity, grove_loop::ActivityObservation::Idle);
+    assert!(matches!(observation.tree.unwrap(), TreeObservation::Vacant));
+    fs::create_dir(work.path().join(".grove")).unwrap();
+    fs::write(work.path().join(".grove/invalid"), "bad").unwrap();
+    let observation = try_observe(work.path(), &[]);
+    assert!(observation.tree.is_err());
+    assert_eq!(observation.activity, grove_loop::ActivityObservation::Idle);
 }

@@ -61,7 +61,7 @@ pub(crate) fn capture(worktree: &Path, candidates: &[Item]) -> Result<DisplayCap
 
 /// Build display rows from a loop capture whose tree guard is already released.
 fn capture_once(worktree: &Path, candidates: &[Item]) -> Result<(DisplayCapture, Option<Root>)> {
-    let tree = match grove_loop::try_observe(worktree, candidates)? {
+    let tree = match grove_loop::try_observe(worktree, candidates).tree? {
         TreeObservation::Busy => return Ok((Observation::Busy, None)),
         TreeObservation::Vacant => return Ok((Observation::Vacant, None)),
         TreeObservation::Ready(tree) => tree,

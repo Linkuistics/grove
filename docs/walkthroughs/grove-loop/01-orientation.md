@@ -275,7 +275,7 @@ fragments, and the five passages are read in the file's own order — which is n
 this book's chapter order, because the header opens on the crate and the book
 opens on the grammar underneath it.
 
-<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-418" parent="source-library-root" -->
+<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-420" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-and-the-driver» -->
 <!-- insert «library-root-opening-mirrors» -->
@@ -569,7 +569,7 @@ after releasing the shared guard. [Chapter 5](05-opening.md#captured-observation
 owns that capture and the opaque directory lifetime; activity remains a later
 extension to the same operation.
 
-<!-- fragment «library-root-imports-and-exports» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="74-94" parent="library-root" -->
+<!-- fragment «library-root-imports-and-exports» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="74-96" parent="library-root" -->
 ````rust
 
 use std::cell::RefCell;
@@ -586,7 +586,9 @@ pub use jj_workspace::{Commit, Workspace};
 /// binary's, and [`LoopOutcome::Interrupted`] is how the loop says it may.
 pub use keyed_launch::reraise;
 pub use loop_driver::{run, LoopOutcome};
-pub use observation::{try_observe, CapturedTree, TreeLifetime, TreeObservation};
+pub use observation::{
+    try_observe, ActivityObservation, CapturedTree, ObservationGuard, TreeLifetime, TreeObservation,
+};
 pub use ordinal_fs_tree::Sought;
 pub use prompt::{compose, Mandate};
 pub use session_config::{SessionConfig, TemplateSource};
@@ -641,7 +643,7 @@ its comment states the consequence this crate relies on everywhere else — beca
 `verbs::root_init` consumes one, there is no check against clobbering an existing
 grove, since there is no way to call the verb.
 
-<!-- fragment «library-root-tree-and-vacancy» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="95-109" parent="library-root" -->
+<!-- fragment «library-root-tree-and-vacancy» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="97-111" parent="library-root" -->
 ````rust
 
 /// The task tree, read once under the store's **shared** lock.
@@ -674,7 +676,7 @@ Busy contains no guard or snapshot. Public `try_read` below delegates to the
 same `task_tree` acquisition owner and prints nothing, leaving a viewer free to
 render waiting state and retry without blocking terminal input.
 
-<!-- fragment «library-root-reading-and-writing» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="110-134" parent="library-root" -->
+<!-- fragment «library-root-reading-and-writing» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="112-136" parent="library-root" -->
 ````rust
 
 /// What [`read`] found.
@@ -718,7 +720,7 @@ call would block against this process forever. The gap between one guard closing
 and the next opening is the gap `docs/adr/bulk-marks-are-not-atomic.md` records,
 and chapter 13 is where a subtree prune spends *N* guards for *N* marks.
 
-<!-- fragment «library-root-tree-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="135-190" parent="library-root" -->
+<!-- fragment «library-root-tree-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="137-192" parent="library-root" -->
 ````rust
 
 /// **The right to be the writer** — the surface every mutating verb is on.
@@ -794,7 +796,7 @@ than fail to compile. The process-level property this care is spent on is held b
 `one_process_creating_and_reading_a_grove_never_waits_on_itself`, an inline test
 inside `src/tree_lifecycle.rs` that chapter 11 owns and reproduces.
 
-<!-- fragment «library-root-tree-write-impl» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="191-243" parent="library-root" -->
+<!-- fragment «library-root-tree-write-impl» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="193-245" parent="library-root" -->
 ````rust
 
 impl TreeWrite {
@@ -859,7 +861,7 @@ each is four lines over a `task_tree` call. Both take a worktree and join
 lock is taken either way, so a refusal from `write` has already waited for
 whatever else held it.
 
-<!-- fragment «library-root-read-and-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="244-287" parent="library-root" -->
+<!-- fragment «library-root-read-and-write» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="246-289" parent="library-root" -->
 ````rust
 
 /// Open the grove at `worktree` for reading, or find that there is none.
@@ -977,7 +979,7 @@ counts, so no ownership range moved, no ledger row changed and no other book was
 touched — which is the cheapest shape a source fix can take while the corpus is
 frozen.
 
-<!-- fragment «library-root-grove-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="288-292" parent="library-root" -->
+<!-- fragment «library-root-grove-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="290-294" parent="library-root" -->
 ````rust
 
 /// `<worktree>/.grove`, for [`read`] and [`write`]. Not the crate's only join.
@@ -1006,7 +1008,7 @@ there is something to look for, and the one thing it refuses is an empty or blan
 reference — a refusal whose message names all five spellings, which is the
 crate-wide obligation that every error say what fixes it.
 
-<!-- fragment «library-root-reference» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="293-343" parent="library-root" -->
+<!-- fragment «library-root-reference» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="295-345" parent="library-root" -->
 ````rust
 
 /// How a session names an existing entry.
@@ -1065,7 +1067,7 @@ impl Reference {
 `Display` writes the text back unchanged, which is what lets a diagnostic quote a
 session's own spelling rather than a normalised form of it.
 
-<!-- fragment «library-root-reference-display» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="344-349" parent="library-root" -->
+<!-- fragment «library-root-reference-display» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="346-351" parent="library-root" -->
 ````rust
 
 impl fmt::Display for Reference {
@@ -1090,7 +1092,7 @@ this operation to validate before copying rows and selected file content.
 [Chapter 7](07-the-walk.md#the-cost-of-the-finish-rule) explains why validation
 must precede exclusion and how the remaining candidates are ordered.
 
-<!-- fragment «library-root-selection» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="350-373" parent="library-root" -->
+<!-- fragment «library-root-selection» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="352-375" parent="library-root" -->
 ````rust
 
 /// The leaf a session was launched to work: its path, its identity, and its
@@ -1134,7 +1136,7 @@ rule to `keyed-launch`'s and `jj-workspace`'s errors, which is the workspace-wid
 form of it. `Error::msg` is `pub(crate)`, so the only messages this type can
 carry are ones a module of this crate wrote.
 
-<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="374-392" parent="library-root" -->
+<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="376-394" parent="library-root" -->
 ````rust
 
 /// **One error for the whole crate**, opaque by construction.
@@ -1168,7 +1170,7 @@ takes on no dependency of grove's to do it. The `From<anyhow::Error>` is what
 lets every module inside the crate keep stacking context with `?` and have it
 arrive here as one type.
 
-<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="393-418" parent="library-root" -->
+<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="395-420" parent="library-root" -->
 ````rust
 
 impl fmt::Display for Error {

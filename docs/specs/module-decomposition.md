@@ -49,8 +49,12 @@ exclusion; the viewer does not reimplement it. See [Read-only viewer](../ARCHITE
 The [item-status design](./item-status.md) defines the combined typed
 tree/activity observation interface and full-width interaction. Runtime protocol
 knowledge belongs to the loop; row styling and viewport state belong to the
-viewer. The shipped capture currently returns only tree results; independent
-runtime results remain part of the next implementation increment.
+viewer. The shipped capture returns independent tree and activity results. Its private
+`driver_lease::observation` module reuses mandatory parsers and identity logic,
+with read-only bounded acquisition and a runtime-only shared epoch guard.
+Legacy active records are Unavailable; missing controls or matching inactive
+records are Idle. The viewer consumes tree results even when activity fails;
+activity rendering and witnessed RUNNING remain subsequent increments.
 
 One workspace, one release version, one changelog, one tag. A module is a crate
 so that *testable through its own interface without unrelated modules* is not a

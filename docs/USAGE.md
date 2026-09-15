@@ -127,7 +127,18 @@ holds the tree, the viewer shows WAITING and retains its previous display;
 navigation and quit remain responsive. It retries the pending read every 500 ms
 until contention ends. Other external changes and repairs are observed on the
 same deadline, with at most one pending observation.
-The shared guard is released before rendering or waiting for input.
+Tree capture releases its shared guard before a separate, nonblocking runtime
+read. Runtime failure does not prevent browsing; this release does not yet show
+RUNNING/NEXT activity. Legacy active drivers have no supported activity witness.
+All advisory guards release before rendering or waiting for input.
+
+A driver handoff overlapping a runtime read can briefly print
+`waiting for exclusive session epoch lock` with its operation name. Ordinary
+reads finish promptly. If an observer is suspended while holding that runtime
+guard, the driver fails the handoff after 30 seconds; resume or stop the suspended
+holder so its guard releases, then restart the driver. Pausing after tree capture
+or while displaying a captured result holds no epoch guard. Do not delete the
+control files to bypass a waiting reader.
 
 Run directly with interactive stdin and stdout; piping either is refused before
 terminal setup. Quit, Ctrl-c, SIGINT, SIGTERM and SIGHUP restore raw mode,

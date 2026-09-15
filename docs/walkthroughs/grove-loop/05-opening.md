@@ -899,11 +899,11 @@ A viewer needs to keep displaying a tree after allowing its next mutation.
 keys. It returns names, the selected file's bytes and a retained `TreeLifetime`;
 all advisory locks have gone before the caller builds rows. `grove-tui` compares
 two such captures and owns folds, lifecycle totals and reading positions.
-This is the shipped tree portion of the item-status observation design in `docs/specs/item-status.md`:
-typed runtime activity is a subsequent extension, and this operation makes no
-Idle or Running claim.
+The item-status observation design in `docs/specs/item-status.md` separates
+this capture from a subsequent runtime sample. Its independent result can
+establish Idle; witnessed Running remains a later protocol increment.
 
-<!-- fragment «observation-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="1-156" parent="source-observation" -->
+<!-- fragment «observation-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="1-177" parent="source-observation" -->
 <!-- insert «observation-imports» -->
 <!-- insert «observation-lifetime» -->
 <!-- insert «observation-values» -->
@@ -1050,18 +1050,48 @@ do not make arbitrary filesystem edits atomic. `grove-tui` additionally compares
 the two retained lifetimes alongside rows and bytes. Cooperating writers use the
 tree lock, which spans this capture's selected-file read but no caller work.
 
-<!-- fragment «observation-capture» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="94-156" parent="observation-tree" -->
+`ObservationGuard` now separates tree failure from runtime failure. The loop
+finishes `capture` and releases its tree guard before entering runtime observation;
+the two private callbacks mark those boundaries for deterministic lock tests.
+No callback is exposed to viewers. `ActivityObservation` can establish Idle,
+report a contended epoch as Busy, or withhold evidence as Unavailable. The
+[current runtime reader](17-the-epoch.md#runtime-observation) explains why an
+older active epoch cannot establish RUNNING. Browsing consumes `tree` regardless
+of that independent result; activity display is a later increment.
+
+<!-- fragment «observation-capture» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="94-177" parent="observation-tree" -->
 ````rust
-/// Capture the exact worktree's tree and selected file without waiting for a writer.
+/// Runtime evidence at this sample. Legacy active records cannot identify a mandate.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ActivityObservation {
+    Idle,
+    Busy(String),
+    Unavailable(String),
+}
+
+/// Independent results, captured values and a tree pin; no advisory lock escapes.
+pub struct ObservationGuard {
+    pub tree: Result<TreeObservation, Error>,
+    pub activity: ActivityObservation,
+}
+
+/// Capture the tree and selected bytes, release its guard, then sample runtime.
 /// Candidate keys are ordered by preference; None requests the root brief.
-/// No launch configuration, session admission or runtime controls are consulted.
-/// This tree-only stage is extended by the runtime-observation increment.
-///
-/// # Errors
-/// Invalid/unreadable trees, ambiguous selection or a root changed during capture.
-/// Selected-file errors remain in CapturedTree::content so browsing can continue.
-pub fn try_observe(worktree: &Path, candidates: &[Option<u32>]) -> Result<TreeObservation, Error> {
-    capture(worktree, candidates).map_err(Error::from)
+/// Runtime failures preserve the tree. Neither operation grants session authority.
+pub fn try_observe(worktree: &Path, candidates: &[Option<u32>]) -> ObservationGuard {
+    observe_with(worktree, candidates, || {}, || {})
+}
+
+pub(crate) fn observe_with(
+    worktree: &Path,
+    candidates: &[Option<u32>],
+    after_capture: impl FnOnce(),
+    in_epoch: impl FnMut(),
+) -> ObservationGuard {
+    let tree = capture(worktree, candidates).map_err(Error::from);
+    after_capture();
+    let activity = crate::driver_lease::observation::observe(worktree, in_epoch);
+    ObservationGuard { tree, activity }
 }
 
 fn capture(worktree: &Path, candidates: &[Option<u32>]) -> anyhow::Result<TreeObservation> {

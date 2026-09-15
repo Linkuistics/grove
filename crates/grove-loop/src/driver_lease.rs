@@ -8,6 +8,8 @@
 //! path itself. The caller has already resolved the workspace — `run` takes one
 //! — so a second resolution here could only disagree with the first.
 
+pub(crate) mod observation;
+
 use anyhow::{bail, Context, Result};
 use jj_workspace::Workspace;
 use std::ffi::OsString;
@@ -614,8 +616,12 @@ fn read_record(file: &mut File, label: &str) -> Result<String> {
 
 fn read_epoch_record(file: &mut File) -> Result<EpochRecord> {
     let record = read_record(file, "session epoch record")?;
-    let process = parse_process_record(&record)?;
-    let signal_path = match record_field(&record, "state")? {
+    parse_epoch_record(&record)
+}
+
+fn parse_epoch_record(record: &str) -> Result<EpochRecord> {
+    let process = parse_process_record(record)?;
+    let signal_path = match record_field(record, "state")? {
         "inactive" => {
             if record
                 .lines()
@@ -625,7 +631,7 @@ fn read_epoch_record(file: &mut File) -> Result<EpochRecord> {
             }
             None
         }
-        "active" => Some(decode_path(record_field(&record, "signal-path-hex")?)?),
+        "active" => Some(decode_path(record_field(record, "signal-path-hex")?)?),
         state => bail!("unknown session epoch state {state:?}"),
     };
     Ok(EpochRecord {

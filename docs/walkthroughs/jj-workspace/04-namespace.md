@@ -632,7 +632,10 @@ still succeeds because it never asks jj to interpret the pointer. They compare
 filesystem entries and bytes, including `.jj`, before and after discovery,
 check aliases and invalid namespaces, and bound the FIFO test with a timeout.
 These tests establish the path operation's read-only behavior; runtime record
-locks and descriptor identity validation belong to the consumer.
+locks and descriptor identity validation belong to the consumer. Grove's
+runtime observer now pins its worktree before discovery, validates the returned
+namespace and record descriptors against their paths, and takes only a bounded
+shared epoch guard. The workspace seam still supplies no lock or authority.
 
 <a id="the-validation"></a>
 ## Four refusals, in the order they run

@@ -120,3 +120,20 @@ decomposing session. This node keeps every end-to-end condition above.
 The typed operation's producer commissions the required `idle-next` review
 after its artifact exists. Node closure requires that review and any integration
 as well as the shipped viewer behavior; discovery alone completes neither.
+
+## Landed typed observation
+
+captured-tree-k20 and bounded-runtime-k21 close typed-observation-k18.
+`grove_loop::try_observe` now returns `ObservationGuard { tree, activity }`;
+`tree` retains the previous Ready/Vacant/Busy/error capture and opaque lifetime.
+`activity` independently returns Idle, Busy(reason) or Unavailable(reason).
+Tree capture releases its guard before the runtime-only shared epoch read,
+and no advisory guard escapes. The viewer currently consumes `.tree` only.
+idle-activity-view-k19 owns activity acceptance and visible idle NEXT; the
+required idle-next-k22 review follows it and owns any integration.
+
+Runtime compatibility, descriptor/type/size/race bounds, concurrent observers,
+after-capture and in-epoch barriers, handoff timeout/recovery, and stale admission
+are exercised through the typed operation and existing driver seams. The timeout
+control advances the driver's clock seam to 30 seconds rather than waiting in
+wall time. Preserve these controls when adding witnessed activity.

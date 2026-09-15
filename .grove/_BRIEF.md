@@ -121,6 +121,49 @@ witness on the task-root pin and a verified tree relation, reviewed by
 sound and cut `item-status-k8` to integrate its findings on evidence anchors and
 boundary wording. Implementation planning consumes the integrated correction.
 
+### Working increments
+
+These independent handoffs keep the viewer useful after each increment and
+limit how many interfaces a session invents at once. A one-session increment
+stays a leaf; the larger witnessed increment has its own node and grows its
+children when its predecessor lands.
+
+| Increment | Working behavior at handoff |
+|---|---|
+| full-width-view-k9 | Full-width Tree/File switching preserves both viewports. |
+| lifecycle-rows-k10 | Typed leading lifecycle cues and bounded indentation stay readable at 60 × 10. |
+| idle-next-k11 | Shared validated selection and read-only observation show honest NEXT while idle; legacy active epochs show activity unavailable. |
+| witnessed-activity-k12 | Real driver witnesses deliver RUNNING and exclusion-aware NEXT through the same observer and viewer. |
+
+witnessed-activity-k13 plans the last increment's session-sized implementation
+against the landed idle observer. Its node brief already owns all process,
+mutation, application and documentation obligations. There is no standalone
+schema publication milestone or separate docs/test catch-up stage. Each producer
+documents the behavior it ships; the design remains the final contract.
+
+item-status-k14 reviews the decomposition before consumption. Later implementation reviews
+are lazy: a producer cuts one after its artifact exists; a reviewer with findings
+places integration where the walk reaches it next. The witnessed protocol must
+receive adversarial implementation review before its node closes. Do not add an
+in-session reviewer alongside scheduled review.
+
+### Verification and source-derived documentation
+
+Use the public Viewer seam for presentation and observation; the generic runner,
+driver/lease and internal lock/filesystem barriers for lifetime and concurrency.
+Tests and production share one typed loop observer. Assertions use readiness,
+actual reap and lock transitions with bounded failure timeouts. The witnessed
+increment requires live positive and forced-reuse mutation controls.
+
+Run focused crate tests while implementing, then `bash scripts/check.sh` after
+all edits and before describing each change. This repository principal gate
+includes source-derived walkthrough validation. Changes to grove-loop,
+jj-workspace or keyed-launch can affect books under `docs/walkthroughs/`; update
+affected explained fragments, source/concept indexes and manifests in the same
+behavior leaf, using their authoring and validation rules. Do not strand book
+repair in later cleanup. No runtime-test claim follows from prose validation
+in the planning session.
+
 ## Pointers
 
 - `docs/adr/one-live-driver-per-working-tree.md` — driver lease and session epoch.

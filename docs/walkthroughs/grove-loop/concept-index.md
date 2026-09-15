@@ -6,7 +6,7 @@
 <a id="concepts"></a>
 ## Concepts
 
-- [Bounded runtime evidence without admission](17-the-epoch.md#runtime-observation)
+- [Bounded runtime evidence and released witnesses without admission](17-the-epoch.md#runtime-observation)
 - [Captured names, selected bytes and a lock-free lifetime pin](05-opening.md#captured-observation)
 
 - [Fragment notation](README.md#reading-fragments)

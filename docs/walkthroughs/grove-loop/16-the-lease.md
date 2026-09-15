@@ -2342,7 +2342,7 @@ the same work.
 
 The lease owns epoch ordering; this private module owns both observation
 resources and publishes the selected mandate and Started evidence. The current
-reader still returns Unavailable for active epochs. The writer establishes the
+reader establishes Idle for released private witnesses and keeps held witnesses Unavailable. The writer establishes the
 evidence that a later reader must verify; record bytes alone establish no liveness.
 
 <!-- fragment «launch-witnesses-production» owner="one-per-working-tree" source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="1-175" parent="source-witnesses" -->

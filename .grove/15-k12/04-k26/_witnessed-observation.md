@@ -1,4 +1,4 @@
-# witnessed-observation-k26
+# witnessed-observation-k26 — brief
 
 
 ## Goal
@@ -89,3 +89,38 @@ replace private lock/filesystem operations, never the public status provider.
 If the verified route becomes unavailable, prepare the exact runnable source,
 command, prerequisites and macOS result before asking for a Linux result under
 the parent brief's fallback. Lack of Linux evidence cannot retire this leaf.
+
+## Decomposition
+
+The observer, deterministic interleavings and native process evidence exceed
+one focused session. The original Done when remains this node's close condition.
+
+- released-witness-k34 validates the versioned extension and privately probes
+  released witnesses through production observation: Idle despite leftover bytes,
+  conservative Unavailable while contended. It owns parser and ordinary witness
+  acquisition rejection tests and the corresponding current documentation.
+- witnessed-binding-k35 adds the typed mandate/relation and directory-before-
+  private precedence, public observer positive controls and conservative Viewer
+  handling. It owns marker states, directory errors, accepted-pin plumbing and
+  new witness open/lock/probe replacement barriers with the eight-attempt bound.
+- witness-interleavings-k36 owns forced numeric/key reuse, all release orders,
+  both independent mutations with Running positive controls, epoch-before-
+  preparation, delayed replacement and continuous observers/foreign shared holders.
+- witness-platforms-k37 owns the real launched process controls and exact native
+  macOS/Linux evidence, exec survivors and real root replacement. It preserves
+  the parent brief's Docker route and keeps this node live until both hosts pass.
+
+Every child updates its affected books and runs the principal gate. k35 preserves
+the existing capture/runtime pause, no-escaped-guard and read-only controls;
+k36 expands concurrent read-only snapshots; k37 reconciles the complete evidence
+against this brief before node closure. G6's witnessed-view deferral remains for
+k27, which commissions complete protocol review. No child closes this node by
+substituting staged behavior for its inherited final contract.
+
+## Decisions (running log)
+
+Decompose at the production observer's released-private-witness seam. Proving
+Idle is independently useful to existing Viewer callers and needs no tree
+attachment inference. A contended witness stays Unavailable in k34; k35 must
+add the directory probe before permitting Running. The complete native and
+mutation evidence remains mandatory under this node.

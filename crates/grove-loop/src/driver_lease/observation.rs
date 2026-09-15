@@ -67,7 +67,8 @@ fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityO
         // File drop releases the shared flock on every return/retry/error path.
         let result = (|| {
             let lease_record = parse_process_record(&bounded_record(&mut lease)?)?;
-            let epoch_record = parse_epoch_record(&bounded_record(&mut epoch)?)?;
+            let epoch_bytes = bounded_record(&mut epoch)?;
+            let epoch_record = parse_epoch_record(&epoch_bytes)?;
             anyhow::ensure!(
                 lease_record == epoch_record.process,
                 "lease and epoch records do not match"
@@ -79,9 +80,7 @@ fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityO
             Ok(if epoch_record.signal_path.is_none() {
                 ActivityObservation::Idle
             } else {
-                ActivityObservation::Unavailable(
-                    "active epoch record has no supported observation witness".into(),
-                )
+                observe_private(&namespace, &epoch_bytes)?
             })
         })();
         if current(&root, worktree)?
@@ -93,6 +92,84 @@ fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityO
         }
     }
     bail!("runtime paths changed during all {IDENTITY_RETRY_LIMIT} observation attempts")
+}
+
+/// Validate the entire extension before trusting even evidence of release.
+fn observation_witness(record: &str) -> Result<(PathBuf, FileIdentity)> {
+    anyhow::ensure!(
+        record_field(record, "observation-version")
+            .context("active epoch record has no supported observation witness")?
+            == "1",
+        "active epoch record has no supported observation witness"
+    );
+    let text = |name| -> Result<String> {
+        decode_path(record_field(record, name)?)?
+            .into_os_string()
+            .into_string()
+            .map_err(|_| anyhow::anyhow!("{name} is not UTF-8"))
+    };
+    let handle = crate::Handle::parse(&text("observation-handle-hex")?)?;
+    anyhow::ensure!(
+        record_field(record, "observation-key")? == handle.key().to_string(),
+        "observation key does not match its handle"
+    );
+    crate::Kind::new(&text("observation-kind-hex")?)?;
+    for name in ["observation-tree-device", "observation-tree-inode"] {
+        record_field(record, name)?
+            .parse::<u64>()
+            .with_context(|| format!("parsing {name}"))?;
+    }
+    let name = text("observation-witness-name-hex")?;
+    anyhow::ensure!(
+        !name.is_empty()
+            && name != "."
+            && name != ".."
+            && !name.contains('/')
+            && !name.contains('\0'),
+        "observation witness name is not a plain basename"
+    );
+    let identity = FileIdentity {
+        device: record_field(record, "observation-witness-device")?.parse()?,
+        inode: record_field(record, "observation-witness-inode")?.parse()?,
+    };
+    Ok((PathBuf::from(name), identity))
+}
+
+fn observe_private(namespace: &Path, record: &str) -> Result<ActivityObservation> {
+    let (name, expected) = observation_witness(record)?;
+    let path = namespace.join(name);
+    for _ in 0..IDENTITY_RETRY_LIMIT {
+        let file = open(&path, false)?;
+        if !current(&file, &path)? {
+            continue;
+        }
+        anyhow::ensure!(
+            FileIdentity::from_metadata(&file.metadata()?) == expected,
+            "private witness identity does not match the epoch"
+        );
+        // Shared probes cannot contend with one another. Unlock before all I/O.
+        // https://man7.org/linux/man-pages/man2/flock.2.html
+        let locked = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) };
+        let error = (locked != 0).then(std::io::Error::last_os_error);
+        if locked == 0 && unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) } != 0 {
+            return Err(std::io::Error::last_os_error()).context("releasing shared witness probe");
+        }
+        if !current(&file, &path)? {
+            continue;
+        }
+        return match error {
+            None => Ok(ActivityObservation::Idle),
+            Some(error) if matches!(error.raw_os_error(), Some(code) if code == libc::EWOULDBLOCK || code == libc::EAGAIN) =>
+            {
+                // Contention alone cannot bind a mandate to the captured tree.
+                Ok(ActivityObservation::Unavailable(
+                    "launch witness is not verified".into(),
+                ))
+            }
+            Some(error) => Err(error).context("probing shared private witness"),
+        };
+    }
+    bail!("private witness changed during all {IDENTITY_RETRY_LIMIT} observation attempts")
 }
 
 fn missing(error: &anyhow::Error) -> bool {
@@ -169,6 +246,47 @@ mod tests {
     }
 
     #[test]
+    fn witness_released_active_epoch_is_idle_despite_leftover_bytes() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, mut lease) = fixture();
+        let root = crate::TreeLifetime::open(work.path()).unwrap().unwrap();
+        lease
+            .prepare_launch(
+                root,
+                &super::super::tests::witness_selection(),
+                &lease.control_dir.join("signal-test"),
+            )
+            .unwrap();
+        let witness = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+        lease.launch.as_mut().unwrap().started().unwrap();
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        lease.launch.take();
+        for marker in [
+            b"started\n".as_slice(),
+            b"",
+            b"sta",
+            b"invalid",
+            b"started\nextra",
+        ] {
+            fs::write(&witness, marker).unwrap();
+            let before = contents(work.path());
+            assert_eq!(sample(work.path()), ActivityObservation::Idle);
+            assert_eq!(contents(work.path()), before);
+            // No successful observer probe may escape into the returned value.
+            let file = File::open(&witness).unwrap();
+            assert_eq!(
+                unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                0
+            );
+        }
+    }
+
+    #[test]
     fn idle_legacy_active_contention_and_recovery_preserve_tree_and_admission() {
         let (work, lease) = fixture();
         assert_eq!(sample(work.path()), ActivityObservation::Idle);
@@ -198,6 +316,159 @@ mod tests {
             .activate_session_epoch(&lease.control_dir.join("signal-second"))
             .unwrap();
         assert!(admit_session(work.path(), "old session", Some(signal)).is_err());
+    }
+
+    fn released_fixture() -> (TempDir, DriverLease, PathBuf, PathBuf, String) {
+        let (work, mut lease) = fixture();
+        let signal = lease.control_dir.join("signal-test");
+        let root = crate::TreeLifetime::open(work.path()).unwrap().unwrap();
+        lease
+            .prepare_launch(root, &super::super::tests::witness_selection(), &signal)
+            .unwrap();
+        let witness = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+        lease.launch.take();
+        let epoch = lease.control_dir.join(EPOCH_FILE_NAME);
+        let record = fs::read_to_string(&epoch).unwrap();
+        (work, lease, witness, epoch, record)
+    }
+
+    #[test]
+    fn witness_extension_validation_cannot_be_replaced_by_blanket_unavailability() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, lease, _, epoch, original) = released_fixture();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        // Enumerate the writer's extension: every published field is mandatory
+        // and unique for observation, while admission ignores the extension.
+        for line in original
+            .lines()
+            .filter(|line| line.starts_with("observation-"))
+        {
+            let (name, _) = line.split_once('=').unwrap();
+            for invalid in [
+                original.replace(&format!("{line}\n"), ""),
+                format!("{original}{line}\n"),
+                original.replace(line, &format!("{name}=invalid")),
+            ] {
+                fs::write(&epoch, invalid).unwrap();
+                assert!(
+                    matches!(sample(work.path()), ActivityObservation::Unavailable(_)),
+                    "{name}"
+                );
+                assert!(admit_session(
+                    work.path(),
+                    "test",
+                    Some(lease.control_dir.join("signal-test"))
+                )
+                .is_ok());
+                fs::write(&epoch, &original).unwrap();
+                assert_eq!(sample(work.path()), ActivityObservation::Idle);
+            }
+        }
+        for (name, value) in [
+            ("observation-version", "0"),
+            ("observation-version", "2"),
+            ("observation-key", "2"),
+            ("observation-key", "01"),
+            ("observation-key", "0"),
+            ("observation-handle-hex", "776f726b2d6b3031"), // work-k01
+            ("observation-handle-hex", "ff"),
+            ("observation-kind-hex", "49"), // I
+            ("observation-tree-device", "18446744073709551616"),
+            ("observation-witness-device", "18446744073709551615"),
+            ("observation-witness-inode", "0"),
+        ] {
+            let old = record_field(&original, name).unwrap();
+            fs::write(
+                &epoch,
+                original.replace(&format!("{name}={old}"), &format!("{name}={value}")),
+            )
+            .unwrap();
+            assert!(
+                matches!(sample(work.path()), ActivityObservation::Unavailable(_)),
+                "{name}={value}"
+            );
+        }
+        let name_field = "observation-witness-name-hex";
+        let old = record_field(&original, name_field).unwrap();
+        for name in [
+            "",
+            ".",
+            "..",
+            "../witness",
+            "/tmp/witness",
+            "sub/witness",
+            "witness/",
+            "witness\0",
+        ] {
+            let encoded = encode_path(Path::new(name)).unwrap();
+            fs::write(
+                &epoch,
+                original.replace(
+                    &format!("{name_field}={old}"),
+                    &format!("{name_field}={encoded}"),
+                ),
+            )
+            .unwrap();
+            assert!(
+                matches!(sample(work.path()), ActivityObservation::Unavailable(_)),
+                "{name:?}"
+            );
+        }
+        fs::write(&epoch, &original).unwrap();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+    }
+
+    #[test]
+    fn witness_missing_replaced_and_nonregular_evidence_is_unavailable() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        use std::os::unix::fs::PermissionsExt;
+        let (work, _lease, witness, _, _) = released_fixture();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        let retained = File::open(&witness).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(retained.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0
+        );
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        fs::set_permissions(&witness, fs::Permissions::from_mode(0o0)).unwrap();
+        if unsafe { libc::geteuid() } != 0 {
+            assert!(matches!(
+                sample(work.path()),
+                ActivityObservation::Unavailable(_)
+            ));
+        }
+        fs::set_permissions(&witness, fs::Permissions::from_mode(0o600)).unwrap();
+        let saved = witness.with_extension("saved");
+        fs::rename(&witness, &saved).unwrap();
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        fs::write(&witness, "started\n").unwrap();
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        fs::remove_file(&witness).unwrap();
+        fs::create_dir(&witness).unwrap();
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        fs::remove_dir(&witness).unwrap();
+        let path = std::ffi::CString::new(witness.as_os_str().as_bytes()).unwrap();
+        assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o600) }, 0);
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        fs::remove_file(&witness).unwrap();
+        fs::rename(saved, &witness).unwrap();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
     }
 
     #[test]

@@ -22,7 +22,7 @@
 | `source-prompt` | `crates/grove-loop/src/prompt.rs` | 245 |
 | `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 752 |
 | `source-observation` | `crates/grove-loop/src/observation.rs` | 181 |
-| `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 504 |
+| `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 775 |
 | `source-witnesses` | `crates/grove-loop/src/driver_lease/witnesses.rs` | 461 |
 
 
@@ -95,7 +95,7 @@
 <!-- source-root «source-observation» source="crates/grove-loop/src/observation.rs" lines="1-181" -->
 <!-- insert «observation-tree» -->
 <!-- /source-root -->
-<!-- source-root «source-runtime-observation» source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-504" -->
+<!-- source-root «source-runtime-observation» source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-775" -->
 <!-- insert «runtime-observer» -->
 <!-- /source-root -->
 
@@ -149,7 +149,7 @@
 | `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-245` | 245 | `resolved` |
 | `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-752` | 752 | `resolved` |
 | `observation-tree` | `source-observation` | `one-spelling-of-grove` | `1-181` | 181 | `resolved` |
-| `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-504` | 504 | `resolved` |
+| `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-775` | 775 | `resolved` |
 | `launch-witnesses-production` | `source-witnesses` | `one-per-working-tree` | `1-175` | 175 | `resolved` |
 | `witness-tests` | `source-witnesses` | `which-calls-are-admitted` | `176-461` | 286 | `resolved` |
 
@@ -688,15 +688,21 @@
 | `observation-lifetime` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `12-66` | `observation-tree` | `—` |
 | `observation-values` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `67-97` | `observation-tree` | `—` |
 | `observation-capture` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `98-181` | `observation-tree` | `—` |
-| `source-runtime-observation` | `source-index` | `source-runtime-observation` | `root` | `—` | `1-504` | `—` | `runtime-observer` |
+| `source-runtime-observation` | `source-index` | `source-runtime-observation` | `root` | `—` | `1-775` | `—` | `runtime-observer` |
 | `runtime-entry` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1-14` | `runtime-observer` | `—` |
-| `runtime-observer` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `1-504` | `source-runtime-observation` | `runtime-entry`, `runtime-read`, `runtime-files`, `runtime-test-fixture`, `runtime-test-compatibility`, `runtime-test-guards`, `runtime-test-races` |
-| `runtime-read` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `15-97` | `runtime-observer` | `—` |
-| `runtime-files` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `98-145` | `runtime-observer` | `—` |
-| `runtime-test-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `146-170` | `runtime-observer` | `—` |
-| `runtime-test-compatibility` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `171-316` | `runtime-observer` | `—` |
-| `runtime-test-guards` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `317-408` | `runtime-observer` | `—` |
-| `runtime-test-races` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `409-504` | `runtime-observer` | `—` |
+| `runtime-observer` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `1-775` | `source-runtime-observation` | `runtime-entry`, `runtime-read`, `runtime-extension`, `runtime-private-probe`, `runtime-files`, `runtime-test-fixture`, `runtime-test-release`, `runtime-test-legacy`, `runtime-test-extension`, `runtime-test-substitution`, `runtime-test-controls`, `runtime-test-guards`, `runtime-test-races` |
+| `runtime-read` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `15-96` | `runtime-observer` | `—` |
+| `runtime-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `97-137` | `runtime-observer` | `—` |
+| `runtime-private-probe` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `138-174` | `runtime-observer` | `—` |
+| `runtime-files` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `175-222` | `runtime-observer` | `—` |
+| `runtime-test-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `223-247` | `runtime-observer` | `—` |
+| `runtime-test-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `248-288` | `runtime-observer` | `—` |
+| `runtime-test-legacy` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `289-320` | `runtime-observer` | `—` |
+| `runtime-test-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `321-422` | `runtime-observer` | `—` |
+| `runtime-test-substitution` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `423-473` | `runtime-observer` | `—` |
+| `runtime-test-controls` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `474-587` | `runtime-observer` | `—` |
+| `runtime-test-guards` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `588-679` | `runtime-observer` | `—` |
+| `runtime-test-races` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `680-775` | `runtime-observer` | `—` |
 | `source-witnesses` | `source-index` | `source-witnesses` | `root` | `—` | `1-461` | `—` | `launch-witnesses-production`, `witness-tests` |
 | `witness-owner-type` | `the-lease` | `source-witnesses` | `literal` | `one-per-working-tree` | `1-22` | `launch-witnesses-production` | `—` |
 | `launch-witnesses-production` | `the-lease` | `source-witnesses` | `composite` | `one-per-working-tree` | `1-175` | `source-witnesses` | `witness-owner-type`, `witness-preparation`, `witness-release`, `witness-cleanup` |
@@ -788,9 +794,9 @@ the declared corpus.
 | `the-tree-deletes-itself` | `14-finishing.md` | 521 |
 | `twelve-not-fourteen` | `15-the-verbs.md` | 514 |
 | `one-per-working-tree` | `16-the-lease.md` | 1,144 |
-| `which-calls-are-admitted` | `17-the-epoch.md` | 1,894 |
+| `which-calls-are-admitted` | `17-the-epoch.md` | 2,165 |
 | `whose-file-and-whether` | `18-which-files.md` | 358 |
 | `too-late-to-say-later` | `19-the-core.md` | 245 |
 | `four-things-a-runner-cannot-choose` | `20-the-loop.md` | 752 |
 | `assembly` | `21-what-could-not-move.md` | 0 |
-| **Total** | 16 source roots | **12,504** |
+| **Total** | 16 source roots | **12,775** |

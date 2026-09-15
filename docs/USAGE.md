@@ -67,7 +67,9 @@ summary continues to report independently observed runtime activity. For example
 verified idle still reads `RUNNING: none (idle)` beside
 `NEXT: unavailable — tree unavailable`. An active legacy epoch record without a
 supported witness makes activity unavailable; that record alone does not prove
-that a session is alive.
+that a session is alive. A released, validated launch witness establishes idle
+even if an active epoch and Started bytes remain after the session ends.
+Unverified held witnesses keep activity unavailable.
 
 The root and branches count all descendant leaves, including folded ones.
 Their status is LIVE if any are live, otherwise DONE if any are done, otherwise

@@ -551,13 +551,13 @@ anchors = [
 [[root]]
 id = "source-runtime-observation"
 path = "crates/grove-loop/src/driver_lease/observation.rs"
-lines = 504
+lines = 775
 
 [[block]]
 id = "runtime-observer"
 root = "source-runtime-observation"
 owner = "which-calls-are-admitted"
-lines = "1-504"
+lines = "1-775"
 
 [[root]]
 id = "source-witnesses"

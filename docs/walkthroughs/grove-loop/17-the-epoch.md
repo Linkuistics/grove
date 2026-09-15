@@ -2033,15 +2033,22 @@ prove it.
 
 A viewer needs evidence without acquiring authority. Tree capture has already
 released its guard when this private child of driver_lease runs. It returns
-Idle, Busy or Unavailable independently of tree readability. Witnessed RUNNING
-is the next protocol increment; old active records cannot identify a mandate.
+Idle, Busy or Unavailable independently of tree readability. A released private
+witness now establishes Idle even with an active epoch. Held witnesses remain
+unverified; old active records cannot identify a mandate.
 
-<!-- fragment «runtime-observer» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-504" parent="source-runtime-observation" -->
+<!-- fragment «runtime-observer» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-775" parent="source-runtime-observation" -->
 <!-- insert «runtime-entry» -->
 <!-- insert «runtime-read» -->
+<!-- insert «runtime-extension» -->
+<!-- insert «runtime-private-probe» -->
 <!-- insert «runtime-files» -->
 <!-- insert «runtime-test-fixture» -->
-<!-- insert «runtime-test-compatibility» -->
+<!-- insert «runtime-test-release» -->
+<!-- insert «runtime-test-legacy» -->
+<!-- insert «runtime-test-extension» -->
+<!-- insert «runtime-test-substitution» -->
+<!-- insert «runtime-test-controls» -->
 <!-- insert «runtime-test-guards» -->
 <!-- insert «runtime-test-races» -->
 <!-- /fragment -->
@@ -2071,7 +2078,7 @@ pub(crate) fn observe(worktree: &Path, in_epoch: impl FnMut()) -> ActivityObserv
 
 ### One bounded runtime sample
 
-Discovery names an exact existing namespace. The root is pinned before namespace discovery so a retargeted alias cannot mix workspaces. Each attempt opens the namespace, lease and epoch, then tries a shared epoch lock without waiting. Path identities are checked after acquisition and again after copying records. Only matching inactive records establish Idle; an active legacy epoch has no witness and remains Unavailable. A vanished lease is Idle only after checking the pinned directories. The eight-attempt limit bounds replacement races; descriptor drop releases every successful lock before a retry or return.
+Discovery names an exact existing namespace. The root is pinned before namespace discovery so a retargeted alias cannot mix workspaces. Each attempt opens the namespace, lease and epoch, then tries a shared epoch lock without waiting. Path identities are checked after acquisition and again after copying records. Matching inactive records or a validated released private witness establish Idle; an active legacy epoch has no witness and remains Unavailable. A vanished lease is Idle only after checking the pinned directories. The eight-attempt limit bounds replacement races; descriptor drop releases every successful lock before a retry or return.
 
 The active-record diagnostic names only the epoch record: without a witness it
 cannot establish that a session is alive. The replacement checks cover alias
@@ -2080,7 +2087,7 @@ after copying. Those three windows are justified by the following source order;
 the deterministic replacement test below injects only inside the epoch guard,
 before copying. It does not exercise those other windows.
 
-<!-- fragment «runtime-read» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="15-97" parent="runtime-observer" -->
+<!-- fragment «runtime-read» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="15-96" parent="runtime-observer" -->
 ````rust
 fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityObservation> {
     // Pin before discovery so a retargeted workspace alias cannot mix namespaces.
@@ -2137,7 +2144,8 @@ fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityO
         // File drop releases the shared flock on every return/retry/error path.
         let result = (|| {
             let lease_record = parse_process_record(&bounded_record(&mut lease)?)?;
-            let epoch_record = parse_epoch_record(&bounded_record(&mut epoch)?)?;
+            let epoch_bytes = bounded_record(&mut epoch)?;
+            let epoch_record = parse_epoch_record(&epoch_bytes)?;
             anyhow::ensure!(
                 lease_record == epoch_record.process,
                 "lease and epoch records do not match"
@@ -2149,9 +2157,7 @@ fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityO
             Ok(if epoch_record.signal_path.is_none() {
                 ActivityObservation::Idle
             } else {
-                ActivityObservation::Unavailable(
-                    "active epoch record has no supported observation witness".into(),
-                )
+                observe_private(&namespace, &epoch_bytes)?
             })
         })();
         if current(&root, worktree)?
@@ -2168,11 +2174,108 @@ fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityO
 ````
 <!-- /fragment -->
 
+### Validate a release claim
+
+An active epoch must carry a complete version-1 extension before its witness can establish even Idle. The observer reuses the canonical Handle and Kind grammar, checks the explicit key, parses both tree coordinates, and permits only a plain witness basename. The enclosing mandatory record already binds this extension to the lease nonce and signal path; admission still ignores these optional fields.
+
+<!-- fragment «runtime-extension» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="97-137" parent="runtime-observer" -->
+````rust
+/// Validate the entire extension before trusting even evidence of release.
+fn observation_witness(record: &str) -> Result<(PathBuf, FileIdentity)> {
+    anyhow::ensure!(
+        record_field(record, "observation-version")
+            .context("active epoch record has no supported observation witness")?
+            == "1",
+        "active epoch record has no supported observation witness"
+    );
+    let text = |name| -> Result<String> {
+        decode_path(record_field(record, name)?)?
+            .into_os_string()
+            .into_string()
+            .map_err(|_| anyhow::anyhow!("{name} is not UTF-8"))
+    };
+    let handle = crate::Handle::parse(&text("observation-handle-hex")?)?;
+    anyhow::ensure!(
+        record_field(record, "observation-key")? == handle.key().to_string(),
+        "observation key does not match its handle"
+    );
+    crate::Kind::new(&text("observation-kind-hex")?)?;
+    for name in ["observation-tree-device", "observation-tree-inode"] {
+        record_field(record, name)?
+            .parse::<u64>()
+            .with_context(|| format!("parsing {name}"))?;
+    }
+    let name = text("observation-witness-name-hex")?;
+    anyhow::ensure!(
+        !name.is_empty()
+            && name != "."
+            && name != ".."
+            && !name.contains('/')
+            && !name.contains('\0'),
+        "observation witness name is not a plain basename"
+    );
+    let identity = FileIdentity {
+        device: record_field(record, "observation-witness-device")?.parse()?,
+        inode: record_field(record, "observation-witness-inode")?.parse()?,
+    };
+    Ok((PathBuf::from(name), identity))
+}
+
+````
+<!-- /fragment -->
+
+### Prove that the private witness is released
+
+The observer opens an independent read-only descriptor, checks its identity against both the published witness and current path, then tries a shared lock. Success unlocks immediately, before the second path check, and returns Idle regardless of leftover marker bytes. Contention remains Unavailable because this reader does not yet verify a tree relation; it cannot claim Running from the private lock alone. Replacement retries are bounded to eight, and other open or lock errors become Unavailable. This is the private-release part of the observation algorithm in `docs/specs/item-status.md`, One bounded observation.
+
+<!-- fragment «runtime-private-probe» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="138-174" parent="runtime-observer" -->
+````rust
+fn observe_private(namespace: &Path, record: &str) -> Result<ActivityObservation> {
+    let (name, expected) = observation_witness(record)?;
+    let path = namespace.join(name);
+    for _ in 0..IDENTITY_RETRY_LIMIT {
+        let file = open(&path, false)?;
+        if !current(&file, &path)? {
+            continue;
+        }
+        anyhow::ensure!(
+            FileIdentity::from_metadata(&file.metadata()?) == expected,
+            "private witness identity does not match the epoch"
+        );
+        // Shared probes cannot contend with one another. Unlock before all I/O.
+        // https://man7.org/linux/man-pages/man2/flock.2.html
+        let locked = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) };
+        let error = (locked != 0).then(std::io::Error::last_os_error);
+        if locked == 0 && unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) } != 0 {
+            return Err(std::io::Error::last_os_error()).context("releasing shared witness probe");
+        }
+        if !current(&file, &path)? {
+            continue;
+        }
+        return match error {
+            None => Ok(ActivityObservation::Idle),
+            Some(error) if matches!(error.raw_os_error(), Some(code) if code == libc::EWOULDBLOCK || code == libc::EAGAIN) =>
+            {
+                // Contention alone cannot bind a mandate to the captured tree.
+                Ok(ActivityObservation::Unavailable(
+                    "launch witness is not verified".into(),
+                ))
+            }
+            Some(error) => Err(error).context("probing shared private witness"),
+        };
+    }
+    bail!("private witness changed during all {IDENTITY_RETRY_LIMIT} observation attempts")
+}
+
+````
+<!-- /fragment -->
+
+
 ### Opening and copying controls
 
 The filesystem helpers distinguish absence from inspection errors, use read-only nonblocking close-on-exec descriptors, reject wrong file types, and compare descriptor and path identities. The extra byte in the bounded read distinguishes an exactly 64 KiB record from an oversized one. These helpers perform no lease-lock probe, write or cleanup.
 
-<!-- fragment «runtime-files» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="98-145" parent="runtime-observer" -->
+<!-- fragment «runtime-files» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="175-222" parent="runtime-observer" -->
 ````rust
 fn missing(error: &anyhow::Error) -> bool {
     error
@@ -2229,7 +2332,7 @@ fn bounded_record(file: &mut File) -> Result<String> {
 
 The fixture creates an exact temporary workspace and acquires a real driver lease. Its sample helper uses the public try_observe operation and requires a readable tree even when activity is unavailable. Fixture writes belong to tests, not observation.
 
-<!-- fragment «runtime-test-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="146-170" parent="runtime-observer" -->
+<!-- fragment «runtime-test-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="223-247" parent="runtime-observer" -->
 ````rust
 #[cfg(test)]
 mod tests {
@@ -2259,11 +2362,61 @@ mod tests {
 ````
 <!-- /fragment -->
 
-### Compatibility and invalid evidence
+### Released evidence overrides leftover bytes
 
-These controls move a real lease from inactive to active, hold an exclusive epoch lock, release it, and rotate the signal path. Shared admission and observation coexist; stale admission fails after rotation. The next cases substitute malformed, oversized, invalid UTF-8, missing, directory and FIFO records, then check aliases and exact-workspace isolation. Flag checks inspect the actual file descriptors; bounded reads exercise both sides of the 64 KiB boundary.
+This public try_observe control first publishes a held Started witness and confirms that activity is unavailable. Releasing the lease-owned pair leaves the active epoch intact. Empty, partial, exact and extra marker bytes must then all yield Idle without changing tree or administration bytes. An independent exclusive probe after each capture checks that no observer lock escaped. The fixture runs in the existing isolated test process to avoid incidental fork inheritance from parallel tests.
 
-<!-- fragment «runtime-test-compatibility» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="171-316" parent="runtime-observer" -->
+<!-- fragment «runtime-test-release» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="248-288" parent="runtime-observer" -->
+````rust
+    #[test]
+    fn witness_released_active_epoch_is_idle_despite_leftover_bytes() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, mut lease) = fixture();
+        let root = crate::TreeLifetime::open(work.path()).unwrap().unwrap();
+        lease
+            .prepare_launch(
+                root,
+                &super::super::tests::witness_selection(),
+                &lease.control_dir.join("signal-test"),
+            )
+            .unwrap();
+        let witness = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+        lease.launch.as_mut().unwrap().started().unwrap();
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        lease.launch.take();
+        for marker in [
+            b"started\n".as_slice(),
+            b"",
+            b"sta",
+            b"invalid",
+            b"started\nextra",
+        ] {
+            fs::write(&witness, marker).unwrap();
+            let before = contents(work.path());
+            assert_eq!(sample(work.path()), ActivityObservation::Idle);
+            assert_eq!(contents(work.path()), before);
+            // No successful observer probe may escape into the returned value.
+            let file = File::open(&witness).unwrap();
+            assert_eq!(
+                unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                0
+            );
+        }
+    }
+
+````
+<!-- /fragment -->
+
+### Legacy records retain their refusal
+
+A real lease moves from inactive to active, admits a shared session operation, contends with an exclusive epoch writer and rotates its signal. Legacy active records remain unavailable, and old admission fails after rotation.
+
+<!-- fragment «runtime-test-legacy» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="289-320" parent="runtime-observer" -->
 ````rust
     #[test]
     fn idle_legacy_active_contention_and_recovery_preserve_tree_and_admission() {
@@ -2297,6 +2450,186 @@ These controls move a real lease from inactive to active, hold an exclusive epoc
         assert!(admit_session(work.path(), "old session", Some(signal)).is_err());
     }
 
+````
+<!-- /fragment -->
+
+### Invalid extensions cannot masquerade as release
+
+Preparation supplies an authentic version-1 record and an unlocked witness. The tests enumerate every published observation field, remove it, duplicate it and corrupt it, then restore the valid Idle control between cases. Admission must continue accepting the same mandatory record. Additional cases challenge versions, canonical keys, typed handle/kind text, integer bounds, descriptor identity and basename traversal. Blanket Unavailable fails the positive controls.
+
+<!-- fragment «runtime-test-extension» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="321-422" parent="runtime-observer" -->
+````rust
+    fn released_fixture() -> (TempDir, DriverLease, PathBuf, PathBuf, String) {
+        let (work, mut lease) = fixture();
+        let signal = lease.control_dir.join("signal-test");
+        let root = crate::TreeLifetime::open(work.path()).unwrap().unwrap();
+        lease
+            .prepare_launch(root, &super::super::tests::witness_selection(), &signal)
+            .unwrap();
+        let witness = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+        lease.launch.take();
+        let epoch = lease.control_dir.join(EPOCH_FILE_NAME);
+        let record = fs::read_to_string(&epoch).unwrap();
+        (work, lease, witness, epoch, record)
+    }
+
+    #[test]
+    fn witness_extension_validation_cannot_be_replaced_by_blanket_unavailability() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, lease, _, epoch, original) = released_fixture();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        // Enumerate the writer's extension: every published field is mandatory
+        // and unique for observation, while admission ignores the extension.
+        for line in original
+            .lines()
+            .filter(|line| line.starts_with("observation-"))
+        {
+            let (name, _) = line.split_once('=').unwrap();
+            for invalid in [
+                original.replace(&format!("{line}\n"), ""),
+                format!("{original}{line}\n"),
+                original.replace(line, &format!("{name}=invalid")),
+            ] {
+                fs::write(&epoch, invalid).unwrap();
+                assert!(
+                    matches!(sample(work.path()), ActivityObservation::Unavailable(_)),
+                    "{name}"
+                );
+                assert!(admit_session(
+                    work.path(),
+                    "test",
+                    Some(lease.control_dir.join("signal-test"))
+                )
+                .is_ok());
+                fs::write(&epoch, &original).unwrap();
+                assert_eq!(sample(work.path()), ActivityObservation::Idle);
+            }
+        }
+        for (name, value) in [
+            ("observation-version", "0"),
+            ("observation-version", "2"),
+            ("observation-key", "2"),
+            ("observation-key", "01"),
+            ("observation-key", "0"),
+            ("observation-handle-hex", "776f726b2d6b3031"), // work-k01
+            ("observation-handle-hex", "ff"),
+            ("observation-kind-hex", "49"), // I
+            ("observation-tree-device", "18446744073709551616"),
+            ("observation-witness-device", "18446744073709551615"),
+            ("observation-witness-inode", "0"),
+        ] {
+            let old = record_field(&original, name).unwrap();
+            fs::write(
+                &epoch,
+                original.replace(&format!("{name}={old}"), &format!("{name}={value}")),
+            )
+            .unwrap();
+            assert!(
+                matches!(sample(work.path()), ActivityObservation::Unavailable(_)),
+                "{name}={value}"
+            );
+        }
+        let name_field = "observation-witness-name-hex";
+        let old = record_field(&original, name_field).unwrap();
+        for name in [
+            "",
+            ".",
+            "..",
+            "../witness",
+            "/tmp/witness",
+            "sub/witness",
+            "witness/",
+            "witness\0",
+        ] {
+            let encoded = encode_path(Path::new(name)).unwrap();
+            fs::write(
+                &epoch,
+                original.replace(
+                    &format!("{name_field}={old}"),
+                    &format!("{name_field}={encoded}"),
+                ),
+            )
+            .unwrap();
+            assert!(
+                matches!(sample(work.path()), ActivityObservation::Unavailable(_)),
+                "{name:?}"
+            );
+        }
+        fs::write(&epoch, &original).unwrap();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+    }
+
+````
+<!-- /fragment -->
+
+### A name is insufficient evidence
+
+An existing compatible shared holder still permits Idle. The same fixture then makes the witness unreadable, removes it, replaces it with a different regular file, and substitutes a directory and FIFO. Each unavailable result comes through try_observe. Retaining the original descriptor prevents the replacement control from depending on inode reuse; restoring its name restores Idle. Access refusal is checked only for a non-root test process.
+
+<!-- fragment «runtime-test-substitution» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="423-473" parent="runtime-observer" -->
+````rust
+    #[test]
+    fn witness_missing_replaced_and_nonregular_evidence_is_unavailable() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        use std::os::unix::fs::PermissionsExt;
+        let (work, _lease, witness, _, _) = released_fixture();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        let retained = File::open(&witness).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(retained.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0
+        );
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        fs::set_permissions(&witness, fs::Permissions::from_mode(0o0)).unwrap();
+        if unsafe { libc::geteuid() } != 0 {
+            assert!(matches!(
+                sample(work.path()),
+                ActivityObservation::Unavailable(_)
+            ));
+        }
+        fs::set_permissions(&witness, fs::Permissions::from_mode(0o600)).unwrap();
+        let saved = witness.with_extension("saved");
+        fs::rename(&witness, &saved).unwrap();
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        fs::write(&witness, "started\n").unwrap();
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        fs::remove_file(&witness).unwrap();
+        fs::create_dir(&witness).unwrap();
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        fs::remove_dir(&witness).unwrap();
+        let path = std::ffi::CString::new(witness.as_os_str().as_bytes()).unwrap();
+        assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o600) }, 0);
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        fs::remove_file(&witness).unwrap();
+        fs::rename(saved, &witness).unwrap();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+    }
+
+````
+<!-- /fragment -->
+
+### Record bounds and exact-workspace discovery
+
+These retained controls reject malformed, oversized, invalid UTF-8, missing, directory and FIFO records. They also check aliases and exact-workspace isolation. Descriptor flag checks and bounded reads exercise both sides of the 64 KiB record limit.
+
+<!-- fragment «runtime-test-controls» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="474-587" parent="runtime-observer" -->
+````rust
     #[test]
     fn absent_controls_are_idle_but_missing_or_bad_records_are_unavailable() {
         let (work, lease) = fixture();
@@ -2414,11 +2747,13 @@ These controls move a real lease from inactive to active, hold an exclusive epoc
 ````
 <!-- /fragment -->
 
+
+
 ### Pauses at the two guard boundaries
 
 Readiness and release channels suspend the same typed operation after capture and inside the epoch guard. A driver and tree writer proceed during the first pause. During the second, other shared observers and tree writers still proceed, while exclusive handoff reaches the existing 30-second bound through the driver loop’s deterministic clock seam and reports contention once. Releasing the observer permits handoff while captured values remain alive. Ten-second channel timeouts bound broken barriers; the test does not wait thirty wall-clock seconds.
 
-<!-- fragment «runtime-test-guards» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="317-408" parent="runtime-observer" -->
+<!-- fragment «runtime-test-guards» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="588-679" parent="runtime-observer" -->
 ````rust
     #[test]
     fn capture_pause_and_returned_values_hold_no_epoch_or_tree_lock() {
@@ -2519,7 +2854,7 @@ Readiness and release channels suspend the same typed operation after capture an
 
 Replacing the epoch once forces a second attempt; replacing it on every guarded read exhausts exactly eight. Recursive snapshots compare file bytes and directory entries, including the administration area, across idle and legacy-active samples. The final control checks unreadable epochs where permissions apply and rejects a namespace replaced by a regular file. These controls exercise the observer’s own acquisition path rather than a parallel test implementation.
 
-<!-- fragment «runtime-test-races» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="409-504" parent="runtime-observer" -->
+<!-- fragment «runtime-test-races» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="680-775" parent="runtime-observer" -->
 ````rust
     #[test]
     fn identity_replacements_retry_and_stop_after_eight_attempts() {

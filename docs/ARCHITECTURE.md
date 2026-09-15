@@ -202,6 +202,11 @@ discovery and admission's mandatory record grammar, without probing the lease
 lock or requiring launch configuration. Missing workspace, namespace or lease
 means Idle; matching inactive records mean Idle; epoch contention means Busy;
 legacy active, malformed, mismatched or unreadable records mean Unavailable.
+For a version-1 active epoch, observation validates every extension field and
+the private witness's namespace-local name and descriptor identity. A successful
+shared witness probe unlocks immediately and establishes Idle regardless of
+leftover marker bytes. Contention remains Unavailable; it does not yet establish
+a mandate or its relation to the captured tree.
 Read-only, nonblocking, close-on-exec opens require directory/regular-file types,
 validate descriptor/path identities, bound records to 64 KiB and retry identity
 races at most eight times. Workspace aliases match by device/inode. The viewer
@@ -317,8 +322,9 @@ including invalid UTF-8 there. A mandatory epoch-write failure prevents spawn;
 an extension append failure only diagnoses. Started attempts the sole eight-byte
 `started\n` publication once, without acquiring a tree or epoch guard. Marker
 failure preserves launch outcome and both witnesses until reap or lease drop.
-The production observer still treats active records as Unavailable until the
-witness-verification reader lands.
+The production observer can establish Idle from a released private witness in
+a valid active record. Held witnesses remain Unavailable until the reader can
+verify the mandate's relation to the captured tree.
 
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed

@@ -128,9 +128,13 @@ captured-tree-k20 and bounded-runtime-k21 close typed-observation-k18.
 `tree` retains the previous Ready/Vacant/Busy/error capture and opaque lifetime.
 `activity` independently returns Idle, Busy(reason) or Unavailable(reason).
 Tree capture releases its guard before the runtime-only shared epoch read,
-and no advisory guard escapes. The viewer currently consumes `.tree` only.
-idle-activity-view-k19 owns activity acceptance and visible idle NEXT; the
-required idle-next-k22 review follows it and owns any integration.
+and no advisory guard escapes. idle-activity-view-k19 consumes both results for visible idle NEXT, and
+idle-next-k23 integrates the required idle-next-k22 review. Tree errors and
+absence preserve independently compared activity; NEXT requires an accepted
+tree. The active-record diagnostic makes no claim that a session is alive.
+F3's uninjected race windows are an accepted test limitation documented in the
+book, and F4's repeated shared selection is retained. Neither is deferred work
+for witnessed-activity-k13.
 
 Runtime compatibility, descriptor/type/size/race bounds, concurrent observers,
 after-capture and in-epoch barriers, handoff timeout/recovery, and stale admission

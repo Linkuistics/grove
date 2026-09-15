@@ -1489,6 +1489,13 @@ pub(crate) fn observe(worktree: &Path, in_epoch: impl FnMut()) -> ActivityObserv
 
 Discovery names an exact existing namespace. The root is pinned before namespace discovery so a retargeted alias cannot mix workspaces. Each attempt opens the namespace, lease and epoch, then tries a shared epoch lock without waiting. Path identities are checked after acquisition and again after copying records. Only matching inactive records establish Idle; an active legacy epoch has no witness and remains Unavailable. A vanished lease is Idle only after checking the pinned directories. The eight-attempt limit bounds replacement races; descriptor drop releases every successful lock before a retry or return.
 
+The active-record diagnostic names only the epoch record: without a witness it
+cannot establish that a session is alive. The replacement checks cover alias
+retargeting during discovery, replacement between open and lock, and replacement
+after copying. Those three windows are justified by the following source order;
+the deterministic replacement test below injects only inside the epoch guard,
+before copying. It does not exercise those other windows.
+
 <!-- fragment «runtime-read» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="15-97" parent="runtime-observer" -->
 ````rust
 fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityObservation> {
@@ -1559,7 +1566,7 @@ fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityO
                 ActivityObservation::Idle
             } else {
                 ActivityObservation::Unavailable(
-                    "active session has no supported observation witness".into(),
+                    "active epoch record has no supported observation witness".into(),
                 )
             })
         })();

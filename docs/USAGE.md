@@ -62,6 +62,12 @@ This is a forecast, not a promised launch. No eligible leaf means `NEXT: none`;
 viewing never creates a finish sentinel. Long summary slugs shorten before their
 permanent keys. The location/view, tree observation, RUNNING, NEXT and footer
 lines leave three bordered content rows at the minimum 60 × 10 size.
+A missing, unreadable or changing tree makes NEXT unavailable while the RUNNING
+summary continues to report independently observed runtime activity. For example,
+verified idle still reads `RUNNING: none (idle)` beside
+`NEXT: unavailable — tree unavailable`. An active legacy epoch record without a
+supported witness makes activity unavailable; that record alone does not prove
+that a session is alive.
 
 The root and branches count all descendant leaves, including folded ones.
 Their status is LIVE if any are live, otherwise DONE if any are done, otherwise

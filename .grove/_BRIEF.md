@@ -193,3 +193,19 @@ The source at the design handoff builds one plain row label with lifecycle after
 handle and kind; the renderer allocates 55% of the body to the tree and 45% to the
 file. The current epoch record carries a process identity and signal path, but no selected
 item identity. A truthful RUNNING indication therefore requires driver support.
+
+### Landed idle observation
+
+The idle-next-k11 subtree delivers production `try_observe` and visible idle
+NEXT through the shared selector. The viewer compares runtime activity across
+two captures even when tree reading or root opening fails; NEXT and row activity
+require an accepted tree. Active legacy epoch records remain Unavailable and do
+not prove a live session. The guard-lifetime and handoff controls remain in the
+loop tests for witnessed-activity-k12 to preserve.
+
+idle-next-k22 was integrated by idle-next-k23. Its F3 limitation is accepted:
+alias retargeting during discovery and replacement immediately before locking
+or after copying have source-order checks but no deterministic injection tests.
+The guarded replacement window and eight-attempt bound are tested. F4's duplicate
+selector call is retained; both calls use the same snapshot and shared rule.
+Neither finding leaves a repair obligation for witnessed-activity-k13.

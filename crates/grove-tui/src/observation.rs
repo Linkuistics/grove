@@ -44,35 +44,34 @@ pub(crate) enum Observation<T> {
 pub(crate) fn capture(
     worktree: &Path,
     candidates: &[Item],
-) -> Result<(DisplayCapture, ActivityObservation)> {
+) -> (Result<DisplayCapture>, ActivityObservation) {
     capture_with(|| grove_loop::try_observe(worktree, candidates))
 }
 
 fn capture_with(
     mut observe: impl FnMut() -> grove_loop::ObservationGuard,
-) -> Result<(DisplayCapture, ActivityObservation)> {
+) -> (Result<DisplayCapture>, ActivityObservation) {
     let first_sample = observe();
-    let (first, first_root) = display_capture(first_sample.tree?)?;
-    if !matches!(first, Observation::Ready(_)) {
-        return Ok((first, first_sample.activity));
-    }
     let second_sample = observe();
-    let (second, second_root) = display_capture(second_sample.tree?)?;
-    // Contention on the verification read is still Busy, not malformed data.
-    if !matches!(second, Observation::Ready(_)) {
-        return Ok((second, second_sample.activity));
-    }
-    anyhow::ensure!(
-        matches!((&first_root, &second_root), (Some(a), Some(b)) if a.same(b)?),
-        "root changed during observation; retrying"
-    );
-    anyhow::ensure!(first == second, "tree changed during observation; retrying");
     let activity = if first_sample.activity == second_sample.activity {
         second_sample.activity
     } else {
         ActivityObservation::Busy("activity changed during observation; retrying".into())
     };
-    Ok((second, activity))
+    let tree = (|| {
+        let (first, first_root) = display_capture(first_sample.tree?)?;
+        let (second, second_root) = display_capture(second_sample.tree?)?;
+        if !matches!(second, Observation::Ready(_)) {
+            return Ok(second);
+        }
+        anyhow::ensure!(
+            matches!((&first_root, &second_root), (Some(a), Some(b)) if a.same(b)?),
+            "root changed during observation; retrying"
+        );
+        anyhow::ensure!(first == second, "tree changed during observation; retrying");
+        Ok(second)
+    })();
+    (tree, activity)
 }
 
 /// Build display rows from a loop capture whose tree guard is already released.
@@ -203,6 +202,38 @@ mod tests {
     use std::fs;
 
     #[test]
+    fn tree_failure_does_not_skip_activity_comparison() {
+        for fail_first in [false, true] {
+            let work = tempfile::tempdir().unwrap();
+            fs::create_dir(work.path().join(".grove")).unwrap();
+            fs::write(work.path().join(".grove/_BRIEF.md"), "root bytes").unwrap();
+            let duplicate = work.path().join(".grove/02-impl--duplicate-k1.md");
+            fs::write(work.path().join(".grove/01-impl--next-k1.md"), "").unwrap();
+            if fail_first {
+                fs::write(&duplicate, "").unwrap();
+            }
+            let mut calls = 0;
+            let (tree, activity) = capture_with(|| {
+                calls += 1;
+                let observed = grove_loop::try_observe(work.path(), &[]);
+                if calls == 1 {
+                    if fail_first {
+                        fs::remove_file(&duplicate).unwrap();
+                    } else {
+                        fs::write(&duplicate, "").unwrap();
+                    }
+                    fs::create_dir_all(work.path().join(".jj/grove")).unwrap();
+                    fs::write(work.path().join(".jj/grove/driver.lease"), "bad").unwrap();
+                }
+                observed
+            });
+            assert_eq!(calls, 2);
+            assert!(tree.is_err());
+            assert!(matches!(activity, ActivityObservation::Busy(_)));
+        }
+    }
+
+    #[test]
     fn changing_runtime_preserves_a_consistent_tree_and_bounds_captures() {
         let work = tempfile::tempdir().unwrap();
         fs::create_dir(work.path().join(".grove")).unwrap();
@@ -217,10 +248,9 @@ mod tests {
                 fs::write(work.path().join(".jj/grove/driver.lease"), "bad").unwrap();
             }
             observed
-        })
-        .unwrap();
+        });
         assert_eq!(calls, 2);
-        let Observation::Ready((rows, _, content, next)) = tree else {
+        let Observation::Ready((rows, _, content, next)) = tree.unwrap() else {
             panic!("tree discarded")
         };
         assert_eq!(rows.len(), 2);

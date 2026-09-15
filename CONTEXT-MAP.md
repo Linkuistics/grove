@@ -330,7 +330,8 @@ Idle/Busy/Unavailable runtime evidence after tree capture, sharing mandatory
 record parsers without session admission or a lease-lock probe. Legacy active
 epochs remain Unavailable. Independent activity acceptance displays idle NEXT
 from the shared selector, with persistent summaries and no retained row activity
-on failed observation. Witnessed RUNNING follows next.
+on failed observation. Missing or failing trees withhold NEXT while retaining
+the independently compared runtime summary. Witnessed RUNNING follows next.
 The [viewer architecture](docs/ARCHITECTURE.md#read-only-viewer) names its
 application seam; the [usage guide](docs/USAGE.md#usage-viewing-tree) states the
 current interaction and refresh behavior. The

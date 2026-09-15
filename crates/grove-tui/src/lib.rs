@@ -182,6 +182,7 @@ pub struct Viewer {
     notice: Option<String>,
     activity: ActivityObservation,
     next: Option<u32>,
+    tree_current: bool,
 }
 
 impl Viewer {
@@ -213,6 +214,7 @@ impl Viewer {
             notice: None,
             activity: ActivityObservation::Unavailable("tree unavailable".into()),
             next: None,
+            tree_current: false,
         };
         viewer.refresh();
         viewer
@@ -415,15 +417,8 @@ impl Viewer {
         // A single deadline coalesces all selection/manual/timed observations.
         self.next_poll = now + POLL_INTERVAL;
         self.next = None;
-        self.activity = ActivityObservation::Unavailable("tree unavailable".into());
-        if let Err(error) = self.sync_root() {
-            self.failed(&error);
-            return;
-        }
-        if self.root.is_none() {
-            self.missing();
-            return;
-        }
+        self.tree_current = false;
+        let initial_root = self.sync_root();
         self.save_position();
         let old_key = self.rows.get(self.selected).map(|row| row.key);
         let mut candidates = Vec::new();
@@ -437,21 +432,33 @@ impl Viewer {
                 }
             }
         }
-        let observation = capture(&self.worktree, &candidates);
+        let (observation, activity) = capture(&self.worktree, &candidates);
+        if let Err(error) = initial_root {
+            self.failed(&error);
+            self.activity = activity;
+            return;
+        }
         // A replacement during capture invalidates even an otherwise valid tree.
         match self.sync_root() {
             Ok(true) => {
                 self.status = "WAITING — root changed during observation; retrying".into();
+                self.activity = activity;
                 return;
             }
             Err(error) => {
                 self.failed(&error);
+                self.activity = activity;
                 return;
             }
             Ok(false) => {}
         }
+        if self.root.is_none() {
+            self.missing();
+            self.activity = activity;
+            return;
+        }
         match observation {
-            Ok((Observation::Ready((mut rows, selected, content, next)), activity)) => {
+            Ok(Observation::Ready((mut rows, selected, content, next))) => {
                 let old: HashMap<_, _> = self
                     .rows
                     .iter()
@@ -506,20 +513,21 @@ impl Viewer {
                 } else {
                     None
                 };
-                self.activity = activity;
+                self.tree_current = true;
             }
-            Ok((Observation::Busy, _)) => {
-                self.activity = ActivityObservation::Busy("tree observation waiting".into());
+            Ok(Observation::Busy) => {
                 self.status =
                     "WAITING for tree writer — previous display retained; retrying".into();
             }
-            Ok((Observation::Vacant, _)) => self.missing(),
+            Ok(Observation::Vacant) => self.missing(),
             Err(error) => self.failed(&error),
         }
+        self.activity = activity;
     }
 
     fn clear(&mut self) {
         self.next = None;
+        self.tree_current = false;
         self.activity = ActivityObservation::Unavailable("tree unavailable".into());
         self.rows.clear();
         self.source = Rc::default();
@@ -768,6 +776,11 @@ Escape: close help | ?: toggle help",
                 format!("RUNNING: unavailable — {reason}"),
                 "NEXT: unavailable — activity not current".into(),
             ),
+        };
+        let next = if self.tree_current {
+            next
+        } else {
+            "NEXT: unavailable — tree unavailable".into()
         };
         [location, self.status.clone(), running, next]
             .into_iter()

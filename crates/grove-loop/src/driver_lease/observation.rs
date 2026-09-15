@@ -80,7 +80,7 @@ fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityO
                 ActivityObservation::Idle
             } else {
                 ActivityObservation::Unavailable(
-                    "active session has no supported observation witness".into(),
+                    "active epoch record has no supported observation witness".into(),
                 )
             })
         })();

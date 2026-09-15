@@ -206,10 +206,13 @@ Read-only, nonblocking, close-on-exec opens require directory/regular-file types
 validate descriptor/path identities, bound records to 64 KiB and retry identity
 races at most eight times. Workspace aliases match by device/inode. The viewer
 compares activity independently across its two captures: a change yields Busy
-without rejecting a consistent tree. Accepted Idle enables the NEXT key obtained
-from `select_snapshot` without exclusion. Busy, Unavailable or failed tree
-acceptance clears the current pair and row activity; no old activity description
-is retained. The single deadline also retries in File, help and undersized frames.
+without rejecting a consistent tree. Tree errors, missing roots and tree
+contention also retain independently compared activity, including when opening
+the root fails. Accepted Idle and a consistent tree enable the NEXT key obtained
+from `select_snapshot` without exclusion. Busy or Unavailable activity withholds
+NEXT; failed tree acceptance also clears row activity and makes NEXT unavailable,
+while the RUNNING summary keeps the fresh runtime result. No old activity
+description is retained. The single deadline also retries in File, help and undersized frames.
 Witnessed RUNNING remains a subsequent increment.
 The loop owns duplicate-key and multiple-live-finish validation for the driver,
 `pick` and viewer; the viewer has no private validity rule. Permanent keys

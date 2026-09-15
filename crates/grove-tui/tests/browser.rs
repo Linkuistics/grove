@@ -99,6 +99,57 @@ fn idle_next_survives_folding_file_view_and_minimum_chrome() {
     assert_eq!(snapshot(work.path()), empty); // Never allocate finish.
 }
 
+#[test]
+fn missing_tree_preserves_runtime_observation_and_recovers() {
+    for initial_tree in [false, true] {
+        let work = tempfile::tempdir().unwrap();
+        if initial_tree {
+            put(work.path(), ".grove/_BRIEF.md", "ROOT");
+        }
+        runtime_records(work.path(), false);
+        let mut viewer = Viewer::new(work.path().into());
+        if initial_tree {
+            viewer.act(Action::Focus);
+            fs::remove_dir_all(work.path().join(".grove")).unwrap();
+        }
+        for active in [false, true, false] {
+            runtime_records(work.path(), active);
+            let before = snapshot(work.path());
+            viewer.act(Action::Refresh);
+            let shown = screen(&mut viewer, 120, 15);
+            assert!(shown.contains("Missing .grove"), "{shown}");
+            assert!(shown.contains(if active {
+                "RUNNING: unavailable — active epoch record has no supported observation witness"
+            } else {
+                "RUNNING: none (idle)"
+            }), "{shown}");
+            assert!(
+                shown.contains("NEXT: unavailable — tree unavailable"),
+                "{shown}"
+            );
+            assert_eq!(snapshot(work.path()), before);
+        }
+        put(work.path(), ".grove/_BRIEF.md", "ROOT");
+        put(work.path(), ".grove/01-impl--next-k1.md", "");
+        viewer.act(Action::Refresh);
+        assert!(screen(&mut viewer, 60, 10).contains("NEXT: next-k1"));
+    }
+}
+
+#[test]
+fn root_open_error_preserves_idle_activity() {
+    let work = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(".grove", work.path().join(".grove")).unwrap();
+    let mut viewer = Viewer::new(work.path().into());
+    let shown = screen(&mut viewer, 100, 15);
+    assert!(shown.contains("Error:"), "{shown}");
+    assert!(shown.contains("RUNNING: none (idle)"), "{shown}");
+    assert!(
+        shown.contains("NEXT: unavailable — tree unavailable"),
+        "{shown}"
+    );
+}
+
 // Legacy records use the admission grammar, read by the real typed observer.
 fn runtime_records(work: &Path, active: bool) {
     use std::os::unix::{ffi::OsStrExt, fs::MetadataExt};
@@ -174,6 +225,7 @@ fn real_runtime_transitions_clear_next_and_retry_in_both_views() {
         viewer.act(Action::Refresh);
         let shown = screen(&mut viewer, 100, 15);
         assert!(shown.contains("duplicate key k1"), "{shown}");
+        assert!(shown.contains("RUNNING: none (idle)"), "{shown}");
         assert!(shown.contains("NEXT: unavailable"));
         assert!(!shown.lines().skip(4).any(|line| line.contains("NEXT")));
     }
@@ -208,7 +260,7 @@ fn aliases_and_multiple_viewers_only_read_exact_workspace_administration() {
 }
 
 #[test]
-fn long_next_keeps_its_key_offscreen_and_tree_contention_clears_activity() {
+fn long_next_keeps_its_key_offscreen_and_tree_contention_withholds_next() {
     let work = tempfile::tempdir().unwrap();
     put(work.path(), ".grove/_BRIEF.md", "ROOT");
     let name = format!(".grove/01-impl--{}-k4294967295.md", "long-name".repeat(12));
@@ -235,7 +287,11 @@ fn long_next_keeps_its_key_offscreen_and_tree_contention_clears_activity() {
     viewer.act(Action::Refresh);
     let shown = screen(&mut viewer, 60, 10);
     assert!(shown.lines().nth(1).unwrap().contains("WAITING"));
-    assert!(shown.lines().nth(3).unwrap().starts_with("NEXT: WAITING"));
+    assert!(shown.contains("RUNNING: none (idle)"), "{shown}");
+    assert!(
+        shown.contains("NEXT: unavailable — tree unavailable"),
+        "{shown}"
+    );
     assert!(!shown.lines().skip(4).any(|line| line.contains("NEXT")));
     drop(holder);
     viewer.act(Action::Refresh);

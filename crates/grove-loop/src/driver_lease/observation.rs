@@ -1,18 +1,28 @@
 //! Advisory runtime reads share admission's grammar, never its authority path.
 
 use super::*;
-use crate::ActivityObservation;
+use crate::observation::RuntimeIdentity;
+use crate::{ActivityObservation, LaunchTreeIdentity, RunningMandate, TreeLifetime, TreeRelation};
 
 const RECORD_LIMIT: u64 = 64 * 1024;
 
-pub(crate) fn observe(worktree: &Path, in_epoch: impl FnMut()) -> ActivityObservation {
-    match read_runtime(worktree, in_epoch) {
+pub(crate) fn observe(
+    worktree: &Path,
+    tree: Option<&TreeLifetime>,
+    in_epoch: impl FnMut(),
+) -> ActivityObservation {
+    match read_runtime(worktree, tree, in_epoch, &mut NativeWitnessIo) {
         Ok(activity) => activity,
         Err(error) => ActivityObservation::Unavailable(format!("{error:#}")),
     }
 }
 
-fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityObservation> {
+fn read_runtime(
+    worktree: &Path,
+    tree: Option<&TreeLifetime>,
+    mut in_epoch: impl FnMut(),
+    io: &mut impl WitnessIo,
+) -> Result<ActivityObservation> {
     // Pin before discovery so a retargeted workspace alias cannot mix namespaces.
     let root = match open(worktree, true) {
         Ok(root) => root,
@@ -80,7 +90,7 @@ fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityO
             Ok(if epoch_record.signal_path.is_none() {
                 ActivityObservation::Idle
             } else {
-                observe_private(&namespace, &epoch_bytes)?
+                observe_private(&namespace, &epoch_bytes, &epoch_record, tree, io)?
             })
         })();
         if current(&root, worktree)?
@@ -95,7 +105,7 @@ fn read_runtime(worktree: &Path, mut in_epoch: impl FnMut()) -> Result<ActivityO
 }
 
 /// Validate the entire extension before trusting even evidence of release.
-fn observation_witness(record: &str) -> Result<(PathBuf, FileIdentity)> {
+fn observation_witness(record: &str, epoch: &EpochRecord) -> Result<RunningMandate> {
     anyhow::ensure!(
         record_field(record, "observation-version")
             .context("active epoch record has no supported observation witness")?
@@ -113,12 +123,16 @@ fn observation_witness(record: &str) -> Result<(PathBuf, FileIdentity)> {
         record_field(record, "observation-key")? == handle.key().to_string(),
         "observation key does not match its handle"
     );
-    crate::Kind::new(&text("observation-kind-hex")?)?;
-    for name in ["observation-tree-device", "observation-tree-inode"] {
+    let kind = crate::Kind::new(&text("observation-kind-hex")?)?;
+    let number = |name| -> Result<u64> {
         record_field(record, name)?
             .parse::<u64>()
-            .with_context(|| format!("parsing {name}"))?;
-    }
+            .with_context(|| format!("parsing {name}"))
+    };
+    let tree_identity = LaunchTreeIdentity((
+        number("observation-tree-device")?,
+        number("observation-tree-inode")?,
+    ));
     let name = text("observation-witness-name-hex")?;
     anyhow::ensure!(
         !name.is_empty()
@@ -128,46 +142,145 @@ fn observation_witness(record: &str) -> Result<(PathBuf, FileIdentity)> {
             && !name.contains('\0'),
         "observation witness name is not a plain basename"
     );
-    let identity = FileIdentity {
-        device: record_field(record, "observation-witness-device")?.parse()?,
-        inode: record_field(record, "observation-witness-inode")?.parse()?,
-    };
-    Ok((PathBuf::from(name), identity))
+    Ok(RunningMandate {
+        handle,
+        kind,
+        tree_identity,
+        relation: TreeRelation::NoReadableTree,
+        runtime: RuntimeIdentity {
+            worktree: (
+                epoch.process.worktree_identity.device,
+                epoch.process.worktree_identity.inode,
+            ),
+            nonce: epoch.process.nonce.clone(),
+            signal: epoch
+                .signal_path
+                .clone()
+                .context("observation epoch is inactive")?,
+            witness_name: PathBuf::from(name),
+            witness: (
+                number("observation-witness-device")?,
+                number("observation-witness-inode")?,
+            ),
+        },
+    })
 }
 
-fn observe_private(namespace: &Path, record: &str) -> Result<ActivityObservation> {
-    let (name, expected) = observation_witness(record)?;
-    let path = namespace.join(name);
+/// Native operations are replaceable at the filesystem/lock boundary, not at
+/// the status-provider boundary. A probe returns true only after unlocking.
+trait WitnessIo {
+    fn open(&mut self, path: &Path) -> Result<File> {
+        open(path, false)
+    }
+
+    fn marker(&mut self, file: &mut File) -> Result<Vec<u8>> {
+        let mut bytes = Vec::new();
+        file.take(9).read_to_end(&mut bytes)?;
+        Ok(bytes)
+    }
+
+    fn current(&mut self, file: &File, path: &Path) -> Result<bool> {
+        current(file, path)
+    }
+
+    fn probe(&mut self, file: &File) -> Result<bool> {
+        // Independent shared probes are compatible; only exclusive ownership
+        // can contend. Release success immediately, before validation or I/O.
+        // https://man7.org/linux/man-pages/man2/flock.2.html
+        // https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/flock.2.html
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) } == 0 {
+            if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) } != 0 {
+                return Err(std::io::Error::last_os_error())
+                    .context("releasing shared witness probe");
+            }
+            Ok(true)
+        } else {
+            let error = std::io::Error::last_os_error();
+            if matches!(error.raw_os_error(), Some(code) if code == libc::EWOULDBLOCK || code == libc::EAGAIN)
+            {
+                Ok(false)
+            } else {
+                Err(error).context("probing shared witness")
+            }
+        }
+    }
+}
+
+struct NativeWitnessIo;
+impl WitnessIo for NativeWitnessIo {}
+
+fn tree_relation(
+    tree: Option<&TreeLifetime>,
+    expected: LaunchTreeIdentity,
+    io: &mut impl WitnessIo,
+) -> Result<Option<TreeRelation>> {
+    let Some(tree) = tree else {
+        return Ok(Some(TreeRelation::NoReadableTree));
+    };
+    let metadata = tree.directory().metadata()?;
+    if (metadata.dev(), metadata.ino()) != expected.0 {
+        return Ok(Some(TreeRelation::PreviousTree));
+    }
+    // Probe the accepted pin itself: reopening its path could bind another tree.
+    if io
+        .probe(tree.directory())
+        .context("probing task-root witness")?
+    {
+        Ok(None)
+    } else {
+        Ok(Some(TreeRelation::SameTree))
+    }
+}
+
+fn observe_private(
+    namespace: &Path,
+    record: &str,
+    epoch: &EpochRecord,
+    tree: Option<&TreeLifetime>,
+    io: &mut impl WitnessIo,
+) -> Result<ActivityObservation> {
+    let mut mandate = observation_witness(record, epoch)?;
+    // Save errors and unverified binding until the final private probe: release
+    // establishes Idle even if the directory probe or marker read failed.
+    let relation = tree_relation(tree, mandate.tree_identity, io);
+    let path = namespace.join(&mandate.runtime.witness_name);
     for _ in 0..IDENTITY_RETRY_LIMIT {
-        let file = open(&path, false)?;
-        if !current(&file, &path)? {
+        let mut file = io.open(&path)?;
+        if !io.current(&file, &path)? {
             continue;
         }
         anyhow::ensure!(
-            FileIdentity::from_metadata(&file.metadata()?) == expected,
+            {
+                let metadata = file.metadata()?;
+                (metadata.dev(), metadata.ino()) == mandate.runtime.witness
+            },
             "private witness identity does not match the epoch"
         );
-        // Shared probes cannot contend with one another. Unlock before all I/O.
-        // https://man7.org/linux/man-pages/man2/flock.2.html
-        let locked = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) };
-        let error = (locked != 0).then(std::io::Error::last_os_error);
-        if locked == 0 && unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) } != 0 {
-            return Err(std::io::Error::last_os_error()).context("releasing shared witness probe");
-        }
-        if !current(&file, &path)? {
+        let marker = io.marker(&mut file);
+        let released = io.probe(&file);
+        if !io.current(&file, &path)? {
             continue;
         }
-        return match error {
-            None => Ok(ActivityObservation::Idle),
-            Some(error) if matches!(error.raw_os_error(), Some(code) if code == libc::EWOULDBLOCK || code == libc::EAGAIN) =>
-            {
-                // Contention alone cannot bind a mandate to the captured tree.
-                Ok(ActivityObservation::Unavailable(
-                    "launch witness is not verified".into(),
-                ))
-            }
-            Some(error) => Err(error).context("probing shared private witness"),
+        if released.context("probing private witness")? {
+            return Ok(ActivityObservation::Idle);
+        }
+        let marker = marker.context("reading private witness marker")?;
+        if marker != b"started\n" {
+            anyhow::ensure!(
+                b"started\n".starts_with(&marker),
+                "invalid private witness marker"
+            );
+            return Ok(ActivityObservation::Busy(
+                "launch publication is in progress".into(),
+            ));
+        }
+        let Some(relation) = relation? else {
+            return Ok(ActivityObservation::Busy(
+                "task-root witness is not held".into(),
+            ));
         };
+        mandate.relation = relation;
+        return Ok(ActivityObservation::Running(mandate));
     }
     bail!("private witness changed during all {IDENTITY_RETRY_LIMIT} observation attempts")
 }
@@ -246,6 +359,30 @@ mod tests {
     }
 
     #[test]
+    fn witness_started_public_observation_identifies_the_prepared_launch() {
+        let (work, mut lease) = fixture();
+        let root = crate::TreeLifetime::open(work.path()).unwrap().unwrap();
+        lease
+            .prepare_launch(
+                root,
+                &super::super::tests::witness_selection(),
+                &lease.control_dir.join("signal-test"),
+            )
+            .unwrap();
+        lease.launch.as_mut().unwrap().started().unwrap();
+        let observed = sample(work.path());
+        let ActivityObservation::Running(mandate) = observed else {
+            panic!("{observed:?}");
+        };
+        assert_eq!(mandate.handle.to_string(), "work-k1");
+        assert_eq!(mandate.handle.key().get(), 1);
+        assert_eq!(mandate.kind.label(), "impl");
+        assert_eq!(mandate.relation, TreeRelation::SameTree);
+        assert_eq!(mandate.runtime.nonce, lease.nonce);
+        assert_eq!(sample(work.path()), ActivityObservation::Running(mandate));
+    }
+
+    #[test]
     fn witness_released_active_epoch_is_idle_despite_leftover_bytes() {
         if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
             return;
@@ -263,7 +400,7 @@ mod tests {
         lease.launch.as_mut().unwrap().started().unwrap();
         assert!(matches!(
             sample(work.path()),
-            ActivityObservation::Unavailable(_)
+            ActivityObservation::Running(_)
         ));
         lease.launch.take();
         for marker in [
@@ -704,6 +841,456 @@ mod tests {
                     matches!(result.activity, ActivityObservation::Unavailable(ref reason) if reason.contains("8 observation attempts"))
                 );
                 assert_eq!(attempts, 8);
+            }
+        }
+    }
+
+    fn started_fixture() -> (TempDir, DriverLease) {
+        let (work, mut lease) = fixture();
+        let root = TreeLifetime::open(work.path()).unwrap().unwrap();
+        lease
+            .prepare_launch(
+                root,
+                &super::super::tests::witness_selection(),
+                &lease.control_dir.join("signal-test"),
+            )
+            .unwrap();
+        lease.launch.as_mut().unwrap().started().unwrap();
+        (work, lease)
+    }
+
+    fn running(activity: ActivityObservation) -> RunningMandate {
+        let ActivityObservation::Running(mandate) = activity else {
+            panic!("expected Running, got {activity:?}")
+        };
+        mandate
+    }
+
+    #[test]
+    fn witness_real_launch_started_and_reaped_reach_public_observation() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, mut lease) = fixture();
+        let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
+        let root = TreeLifetime::open(work.path()).unwrap().unwrap();
+        lease
+            .prepare_launch(
+                root,
+                &super::super::tests::witness_selection(),
+                channel.path(),
+            )
+            .unwrap();
+        assert!(matches!(sample(work.path()), ActivityObservation::Busy(_)));
+        let config = work.path().join("launch.kdl");
+        fs::write(&config, "test \"/bin/sh -c true\"\n").unwrap();
+        let templates =
+            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
+                .unwrap();
+        let argv = templates.expand("test", &[]).unwrap();
+        let mut events = Vec::new();
+        lease
+            .supervise_launch(|notify| {
+                keyed_launch::run_observed(
+                    keyed_launch::Launch {
+                        argv: &argv,
+                        channel: &channel,
+                        channel_var: "GROVE_SIGNAL_FILE",
+                        scrub: &[],
+                        cwd: Some(work.path()),
+                        escalation: keyed_launch::Escalation {
+                            grace: Duration::ZERO,
+                            kill_grace: Duration::ZERO,
+                        },
+                    },
+                    &mut |event| {
+                        notify(event);
+                        events.push(event);
+                        let before = contents(work.path());
+                        let activity = sample(work.path());
+                        assert_eq!(contents(work.path()), before);
+                        match event {
+                            keyed_launch::LaunchEvent::Started => {
+                                let mandate = running(activity);
+                                assert_eq!(mandate.handle.to_string(), "work-k1");
+                                assert_eq!(mandate.relation, TreeRelation::SameTree);
+                                assert_eq!(mandate.runtime.signal, channel.path());
+                            }
+                            keyed_launch::LaunchEvent::Reaped => {
+                                assert_eq!(activity, ActivityObservation::Idle)
+                            }
+                        }
+                    },
+                )
+            })
+            .unwrap();
+        assert_eq!(
+            events,
+            [
+                keyed_launch::LaunchEvent::Started,
+                keyed_launch::LaunchEvent::Reaped
+            ]
+        );
+    }
+
+    #[test]
+    fn witness_private_open_and_identity_io_errors_release_the_epoch_guard() {
+        struct FailingIo {
+            fail_at: usize,
+            calls: usize,
+        }
+        impl FailingIo {
+            fn check(&mut self) -> Result<()> {
+                self.calls += 1;
+                anyhow::ensure!(
+                    self.calls != self.fail_at,
+                    "injected witness filesystem error"
+                );
+                Ok(())
+            }
+        }
+        impl WitnessIo for FailingIo {
+            fn open(&mut self, path: &Path) -> Result<File> {
+                self.check()?;
+                NativeWitnessIo.open(path)
+            }
+            fn current(&mut self, file: &File, path: &Path) -> Result<bool> {
+                self.check()?;
+                NativeWitnessIo.current(file, path)
+            }
+        }
+        let (work, _lease) = started_fixture();
+        let pin = TreeLifetime::open(work.path()).unwrap().unwrap();
+        for fail_at in 1..=3 {
+            let mut io = FailingIo { fail_at, calls: 0 };
+            let error = read_runtime(work.path(), Some(&pin), || {}, &mut io).unwrap_err();
+            assert!(error
+                .to_string()
+                .contains("injected witness filesystem error"));
+            assert_eq!(io.calls, fail_at);
+            assert!(acquire_epoch_file(
+                &work.path().join(".jj/grove/session.epoch"),
+                LockMode::Exclusive,
+                "test"
+            )
+            .is_ok());
+            assert_eq!(
+                running(sample(work.path())).relation,
+                TreeRelation::SameTree
+            );
+        }
+    }
+
+    #[test]
+    fn witness_capture_uses_accepted_pin_after_root_path_replacement() {
+        let (work, _lease) = started_fixture();
+        let original = running(sample(work.path()));
+        let captured = crate::observation::observe_with(
+            work.path(),
+            &[],
+            || {
+                fs::rename(work.path().join(".grove"), work.path().join("old")).unwrap();
+                fs::create_dir(work.path().join(".grove")).unwrap();
+                fs::write(work.path().join(".grove/_BRIEF.md"), "replacement").unwrap();
+            },
+            || {},
+        );
+        assert_eq!(running(captured.activity), original);
+        let crate::TreeObservation::Ready(tree) = captured.tree.unwrap() else {
+            panic!()
+        };
+        assert!(!tree.lifetime.at(work.path()).unwrap());
+        assert_eq!(tree.content.unwrap(), b"root");
+        let replacement = running(sample(work.path()));
+        assert_eq!(replacement.relation, TreeRelation::PreviousTree);
+        assert_eq!(replacement.tree_identity, original.tree_identity);
+        assert_eq!(replacement.runtime, original.runtime);
+    }
+
+    #[test]
+    fn witness_tree_absence_failure_and_contention_preserve_runtime_identity() {
+        let (work, _lease) = started_fixture();
+        let original = running(sample(work.path()));
+        let check = || {
+            let mandate = running(crate::try_observe(work.path(), &[]).activity);
+            assert_eq!(mandate.relation, TreeRelation::NoReadableTree);
+            assert_eq!(mandate.runtime, original.runtime);
+            assert_eq!(mandate.tree_identity, original.tree_identity);
+        };
+        let writer = File::open(work.path()).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(writer.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+            0
+        );
+        check();
+        drop(writer);
+        fs::write(work.path().join(".grove/01-impl--work-k1.md"), "").unwrap();
+        fs::write(work.path().join(".grove/02-impl--duplicate-k1.md"), "").unwrap();
+        assert!(crate::try_observe(work.path(), &[]).tree.is_err());
+        check();
+        fs::remove_dir_all(work.path().join(".grove")).unwrap();
+        check();
+    }
+
+    #[test]
+    fn witness_marker_prefixes_invalid_bytes_and_release_have_exact_precedence() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, mut lease) = started_fixture();
+        let path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+        for length in 0..8 {
+            fs::write(&path, &b"started\n"[..length]).unwrap();
+            assert!(
+                matches!(sample(work.path()), ActivityObservation::Busy(_)),
+                "{length}"
+            );
+        }
+        for marker in [
+            b"started\n!".as_slice(),
+            b"started",
+            b"stax",
+            b"\xff",
+            b"started\0",
+        ] {
+            fs::write(&path, marker).unwrap();
+            let activity = sample(work.path());
+            if marker == b"started" {
+                assert!(matches!(activity, ActivityObservation::Busy(_)));
+            } else {
+                assert!(
+                    matches!(activity, ActivityObservation::Unavailable(_)),
+                    "{marker:?}: {activity:?}"
+                );
+            }
+        }
+        fs::write(&path, vec![b'x'; 100_000]).unwrap();
+        assert_eq!(
+            NativeWitnessIo
+                .marker(&mut File::open(&path).unwrap())
+                .unwrap()
+                .len(),
+            9
+        );
+        assert!(matches!(
+            sample(work.path()),
+            ActivityObservation::Unavailable(_)
+        ));
+        lease.launch.take();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum ProbeResult {
+        Released,
+        Held,
+        Error,
+    }
+
+    struct ProbeCases {
+        directory: ProbeResult,
+        private: ProbeResult,
+        marker_error: bool,
+        events: Vec<&'static str>,
+    }
+
+    impl WitnessIo for ProbeCases {
+        fn marker(&mut self, file: &mut File) -> Result<Vec<u8>> {
+            self.events.push("marker");
+            if self.marker_error {
+                bail!("injected marker read error");
+            }
+            NativeWitnessIo.marker(file)
+        }
+        fn probe(&mut self, file: &File) -> Result<bool> {
+            let result = if file.metadata()?.is_dir() {
+                self.events.push("directory");
+                self.directory
+            } else {
+                self.events.push("private");
+                self.private
+            };
+            match result {
+                ProbeResult::Released => Ok(true),
+                ProbeResult::Held => Ok(false),
+                ProbeResult::Error => Err(std::io::Error::from_raw_os_error(libc::ENOLCK).into()),
+            }
+        }
+    }
+
+    #[test]
+    fn witness_directory_private_and_marker_error_matrix_obeys_final_probe() {
+        let (work, _lease) = started_fixture();
+        let pin = TreeLifetime::open(work.path()).unwrap().unwrap();
+        for directory in [ProbeResult::Released, ProbeResult::Held, ProbeResult::Error] {
+            for private in [ProbeResult::Released, ProbeResult::Held, ProbeResult::Error] {
+                for marker_error in [false, true] {
+                    let mut io = ProbeCases {
+                        directory,
+                        private,
+                        marker_error,
+                        events: vec![],
+                    };
+                    let result = read_runtime(work.path(), Some(&pin), || {}, &mut io);
+                    assert_eq!(io.events, ["directory", "marker", "private"]);
+                    match (private, marker_error, directory) {
+                        (ProbeResult::Released, _, _) => {
+                            assert_eq!(result.unwrap(), ActivityObservation::Idle)
+                        }
+                        (ProbeResult::Error, _, _) | (_, true, _) | (_, _, ProbeResult::Error) => {
+                            assert!(result.is_err())
+                        }
+                        (_, _, ProbeResult::Released) => {
+                            assert!(matches!(result.unwrap(), ActivityObservation::Busy(_)))
+                        }
+                        (_, _, ProbeResult::Held) => {
+                            assert_eq!(running(result.unwrap()).relation, TreeRelation::SameTree)
+                        }
+                    }
+                    // Every result drops the shared epoch guard.
+                    assert!(acquire_epoch_file(
+                        &work.path().join(".jj/grove/session.epoch"),
+                        LockMode::Exclusive,
+                        "test"
+                    )
+                    .is_ok());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn witness_unlocked_matching_directory_is_busy_and_probes_escape_no_locks() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, mut lease) = started_fixture();
+        let path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
+        let directory = lease.launch.as_ref().unwrap().root.directory();
+        assert_eq!(
+            unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_UN) },
+            0
+        );
+        let capture = crate::try_observe(work.path(), &[]);
+        assert!(matches!(capture.activity, ActivityObservation::Busy(_)));
+        let probe = File::open(work.path().join(".grove")).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+            0
+        );
+        drop(probe);
+        lease.launch.take();
+        let idle = crate::try_observe(work.path(), &[]);
+        assert_eq!(idle.activity, ActivityObservation::Idle);
+        for path in [
+            path,
+            work.path().join(".grove"),
+            work.path().join(".jj/grove/session.epoch"),
+        ] {
+            let probe = File::open(path).unwrap();
+            assert_eq!(
+                unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                0
+            );
+        }
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum ReplacementPoint {
+        Open,
+        Probe,
+    }
+
+    struct ReplacingIo {
+        point: ReplacementPoint,
+        path: PathBuf,
+        original: PathBuf,
+        substitute: PathBuf,
+        remaining: usize,
+        opens: usize,
+        recover: bool,
+    }
+
+    impl ReplacingIo {
+        fn replace(&mut self) {
+            if self.remaining == 0 {
+                return;
+            }
+            self.remaining -= 1;
+            // Alternate paths while keeping both objects alive. Restoring the
+            // published object on the second attempt proves retry can recover.
+            if self.original.exists() {
+                fs::rename(&self.path, &self.substitute).unwrap();
+                fs::rename(&self.original, &self.path).unwrap();
+            } else {
+                fs::rename(&self.path, &self.original).unwrap();
+                fs::rename(&self.substitute, &self.path).unwrap();
+            }
+        }
+    }
+
+    impl WitnessIo for ReplacingIo {
+        fn open(&mut self, path: &Path) -> Result<File> {
+            self.opens += 1;
+            if matches!(self.point, ReplacementPoint::Probe)
+                && self.recover
+                && self.original.exists()
+            {
+                fs::rename(&self.path, &self.substitute)?;
+                fs::rename(&self.original, &self.path)?;
+            }
+            let file = NativeWitnessIo.open(path)?;
+            if matches!(self.point, ReplacementPoint::Open) {
+                self.replace();
+            }
+            Ok(file)
+        }
+        fn probe(&mut self, file: &File) -> Result<bool> {
+            let result = NativeWitnessIo.probe(file);
+            if !file.metadata()?.is_dir() && matches!(self.point, ReplacementPoint::Probe) {
+                self.replace();
+            }
+            result
+        }
+    }
+
+    #[test]
+    fn witness_open_and_probe_replacements_reject_stale_descriptors_and_bound_retries() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        for point in [ReplacementPoint::Open, ReplacementPoint::Probe] {
+            for remaining in [1, 2, 8] {
+                let (work, _lease, path, epoch_path, record) = released_fixture();
+                let original = path.with_extension("original");
+                let substitute = path.with_extension("substitute");
+                fs::write(&substitute, "started\n").unwrap();
+                let mut io = ReplacingIo {
+                    point,
+                    path,
+                    original,
+                    substitute,
+                    remaining,
+                    opens: 0,
+                    recover: remaining > 1,
+                };
+                let result = read_runtime(work.path(), None, || {}, &mut io);
+                if remaining == 2 {
+                    assert_eq!(result.unwrap(), ActivityObservation::Idle);
+                    assert_eq!(io.opens, 3);
+                } else {
+                    let message = format!("{:#}", result.unwrap_err());
+                    assert!(
+                        message.contains(if remaining == 8 {
+                            "8 observation attempts"
+                        } else {
+                            "identity does not match"
+                        }),
+                        "{message}"
+                    );
+                    assert_eq!(io.opens, if remaining == 8 { 8 } else { 2 });
+                }
+                assert_eq!(fs::read_to_string(epoch_path).unwrap(), record);
             }
         }
     }

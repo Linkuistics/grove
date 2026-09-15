@@ -99,8 +99,41 @@ impl CapturedTree {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ActivityObservation {
     Idle,
+    Running(RunningMandate),
     Busy(String),
     Unavailable(String),
+}
+
+/// Verified relation to this capture, never inferred by a caller from inode numbers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TreeRelation {
+    SameTree,
+    PreviousTree,
+    NoReadableTree,
+}
+
+/// Opaque launch-time task-root identity. Equality alone does not prove binding.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LaunchTreeIdentity(pub(crate) (u64, u64));
+
+/// A witnessed Started launch. Equality includes runtime binding and tree relation
+/// so two captures can compare activity independently of rows and selected bytes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunningMandate {
+    pub handle: crate::Handle,
+    pub kind: crate::Kind,
+    pub tree_identity: LaunchTreeIdentity,
+    pub relation: TreeRelation,
+    pub(crate) runtime: RuntimeIdentity,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RuntimeIdentity {
+    pub worktree: (u64, u64),
+    pub nonce: String,
+    pub signal: PathBuf,
+    pub witness_name: PathBuf,
+    pub witness: (u64, u64),
 }
 
 /// Independent results, captured values and a tree pin; no advisory lock escapes.
@@ -124,7 +157,11 @@ pub(crate) fn observe_with(
 ) -> ObservationGuard {
     let tree = capture(worktree, candidates).map_err(Error::from);
     after_capture();
-    let activity = crate::driver_lease::observation::observe(worktree, in_epoch);
+    let lifetime = match &tree {
+        Ok(TreeObservation::Ready(tree)) => Some(&tree.lifetime),
+        _ => None,
+    };
+    let activity = crate::driver_lease::observation::observe(worktree, lifetime, in_epoch);
     ObservationGuard { tree, activity }
 }
 

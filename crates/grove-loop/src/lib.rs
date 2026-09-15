@@ -87,7 +87,8 @@ pub use jj_workspace::{Commit, Workspace};
 pub use keyed_launch::reraise;
 pub use loop_driver::{run, LoopOutcome};
 pub use observation::{
-    try_observe, ActivityObservation, CapturedTree, ObservationGuard, TreeLifetime, TreeObservation,
+    try_observe, ActivityObservation, CapturedTree, LaunchTreeIdentity, ObservationGuard,
+    RunningMandate, TreeLifetime, TreeObservation, TreeRelation,
 };
 pub use ordinal_fs_tree::Sought;
 pub use prompt::{compose, Mandate};

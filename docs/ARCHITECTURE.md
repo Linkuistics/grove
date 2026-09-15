@@ -203,10 +203,19 @@ lock or requiring launch configuration. Missing workspace, namespace or lease
 means Idle; matching inactive records mean Idle; epoch contention means Busy;
 legacy active, malformed, mismatched or unreadable records mean Unavailable.
 For a version-1 active epoch, observation validates every extension field and
-the private witness's namespace-local name and descriptor identity. A successful
-shared witness probe unlocks immediately and establishes Idle regardless of
-leftover marker bytes. Contention remains Unavailable; it does not yet establish
-a mandate or its relation to the captured tree.
+passes the captured task-root descriptor into runtime verification. A numerically
+matching root requires a contended shared probe on that same descriptor to
+establish `TreeRelation::SameTree`; a different root yields `PreviousTree`, and
+an absent, busy or invalid capture yields `NoReadableTree`. Numeric identity
+alone never establishes binding.
+The directory probe precedes opening, checking and reading the private witness.
+Its final shared probe unlocks immediately on success and establishes Idle,
+overriding leftover marker bytes, marker-read failure or a directory error.
+Contention plus the exact eight-byte Started marker produces `RunningMandate`
+with handle/key, kind, opaque launch-tree identity and the verified relation.
+An unlocked matching directory makes activity Busy; a directory error makes it
+Unavailable. Locked empty/proper-prefix markers are Busy; invalid/extra bytes
+are Unavailable. Missing or mismatched witness evidence remains Unavailable.
 Read-only, nonblocking, close-on-exec opens require directory/regular-file types,
 validate descriptor/path identities, bound records to 64 KiB and retry identity
 races at most eight times. Workspace aliases match by device/inode. The viewer
@@ -214,11 +223,14 @@ compares activity independently across its two captures: a change yields Busy
 without rejecting a consistent tree. Tree errors, missing roots and tree
 contention also retain independently compared activity, including when opening
 the root fails. Accepted Idle and a consistent tree enable the NEXT key obtained
-from `select_snapshot` without exclusion. Busy or Unavailable activity withholds
+from `select_snapshot` without exclusion. Busy, Unavailable or Running activity withholds
 NEXT; failed tree acceptance also clears row activity and makes NEXT unavailable,
 while the RUNNING summary keeps the fresh runtime result. No old activity
 description is retained. The single deadline also retries in File, help and undersized frames.
-Witnessed RUNNING remains a subsequent increment.
+The typed observer now verifies Running, including launch-binding identity in
+two-capture equality. Viewer presentation of that variant remains conservative:
+it shows activity unavailable and no row activity or NEXT until witnessed-view
+binding is implemented.
 The loop owns duplicate-key and multiple-live-finish validation for the driver,
 `pick` and viewer; the viewer has no private validity rule. Permanent keys
 preserve selection and branch expansion; disappearance selects the nearest
@@ -322,9 +334,10 @@ including invalid UTF-8 there. A mandatory epoch-write failure prevents spawn;
 an extension append failure only diagnoses. Started attempts the sole eight-byte
 `started\n` publication once, without acquiring a tree or epoch guard. Marker
 failure preserves launch outcome and both witnesses until reap or lease drop.
-The production observer can establish Idle from a released private witness in
-a valid active record. Held witnesses remain Unavailable until the reader can
-verify the mandate's relation to the captured tree.
+The production observer establishes Idle from a released private witness in
+a valid active record and verifies Running from the directory/private protocol.
+The viewer's remaining binding and presentation work consumes that typed
+relation when attaching activity and excluding the running key from NEXT.
 
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed

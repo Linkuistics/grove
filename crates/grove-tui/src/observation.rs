@@ -201,6 +201,104 @@ mod tests {
     use super::*;
     use std::fs;
 
+    fn witnessed_fixture() -> (
+        tempfile::TempDir,
+        grove_loop::DriverLease,
+        fs::File,
+        fs::File,
+    ) {
+        use std::os::{fd::AsRawFd, unix::fs::MetadataExt};
+        let work = tempfile::tempdir().unwrap();
+        fs::create_dir(work.path().join(".jj")).unwrap();
+        fs::create_dir(work.path().join(".grove")).unwrap();
+        fs::write(work.path().join(".grove/_BRIEF.md"), "root bytes").unwrap();
+        fs::write(work.path().join(".grove/01-impl--work-k1.md"), "work").unwrap();
+        let workspace = grove_loop::Workspace::resolve(work.path()).unwrap();
+        let lease = grove_loop::DriverLease::acquire(&workspace).unwrap();
+        let directory = fs::File::open(work.path().join(".grove")).unwrap();
+        let witness_path = work.path().join(".jj/grove/witness-test");
+        fs::write(&witness_path, b"started\n").unwrap();
+        let witness = fs::File::open(&witness_path).unwrap();
+        for file in [&directory, &witness] {
+            assert_eq!(
+                unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                0
+            );
+        }
+        let root = directory.metadata().unwrap();
+        let private = witness.metadata().unwrap();
+        let process = fs::read_to_string(work.path().join(".jj/grove/driver.lease")).unwrap();
+        // A real locked control fixture feeds the production reader. No status
+        // provider is substituted; the writer's protocol is independently tested.
+        fs::write(work.path().join(".jj/grove/session.epoch"), format!(
+            "state=active\n{process}signal-path-hex=2f7369676e616c2d61\nobservation-version=1\nobservation-key=1\nobservation-handle-hex=776f726b2d6b31\nobservation-kind-hex=696d706c\nobservation-tree-device={}\nobservation-tree-inode={}\nobservation-witness-name-hex=7769746e6573732d74657374\nobservation-witness-device={}\nobservation-witness-inode={}\n",
+            root.dev(), root.ino(), private.dev(), private.ino(),
+        )).unwrap();
+        assert!(matches!(
+            grove_loop::try_observe(work.path(), &[]).activity,
+            ActivityObservation::Running(_)
+        ));
+        (work, lease, directory, witness)
+    }
+
+    #[test]
+    fn witnessed_running_keeps_viewer_activity_conservative_in_both_views() {
+        use ratatui::{backend::TestBackend, Terminal};
+        let (work, _lease, _directory, _witness) = witnessed_fixture();
+        let mut viewer = crate::Viewer::new(work.path().into());
+        assert!(matches!(viewer.activity, ActivityObservation::Running(_)));
+        assert!(viewer.next.is_none());
+        for _ in 0..2 {
+            let mut terminal = Terminal::new(TestBackend::new(60, 10)).unwrap();
+            terminal.draw(|frame| viewer.render(frame)).unwrap();
+            let lines: Vec<String> = terminal
+                .backend()
+                .buffer()
+                .content
+                .chunks(60)
+                .map(|row| row.iter().map(|cell| cell.symbol()).collect())
+                .collect();
+            assert!(lines[2].contains("RUNNING: unavailable"));
+            assert!(lines[3].contains("NEXT: unavailable"));
+            assert!(!lines[4..]
+                .iter()
+                .any(|line| line.contains("RUNNING") || line.contains("NEXT")));
+            viewer.act(crate::Action::Focus);
+        }
+    }
+
+    #[test]
+    fn witnessed_launch_identity_change_is_compared_even_when_tree_capture_fails() {
+        for fail_tree in [false, true] {
+            let (work, _lease, _directory, _witness) = witnessed_fixture();
+            if fail_tree {
+                fs::write(work.path().join(".grove/02-impl--duplicate-k1.md"), "").unwrap();
+            }
+            let mut calls = 0;
+            let (tree, activity) = capture_with(|| {
+                calls += 1;
+                let observed = grove_loop::try_observe(work.path(), &[]);
+                assert!(matches!(observed.activity, ActivityObservation::Running(_)));
+                if calls == 1 {
+                    let epoch = work.path().join(".jj/grove/session.epoch");
+                    let record = fs::read_to_string(&epoch).unwrap();
+                    fs::write(
+                        epoch,
+                        record.replace(
+                            "signal-path-hex=2f7369676e616c2d61",
+                            "signal-path-hex=2f7369676e616c2d62",
+                        ),
+                    )
+                    .unwrap();
+                }
+                observed
+            });
+            assert_eq!(calls, 2);
+            assert_eq!(tree.is_err(), fail_tree);
+            assert!(matches!(activity, ActivityObservation::Busy(_)));
+        }
+    }
+
     #[test]
     fn tree_failure_does_not_skip_activity_comparison() {
         for fail_first in [false, true] {

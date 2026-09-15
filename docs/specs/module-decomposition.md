@@ -54,15 +54,19 @@ viewer. The shipped capture returns independent tree and activity results. Its p
 with read-only bounded acquisition and a runtime-only shared epoch guard.
 The lease publishes a versioned mandate extension and exact Started marker via
 its private paired-witness owner; mandatory admission does not depend on those
-observational fields. Active records remain Unavailable to the current reader;
-missing controls or matching inactive
-records are Idle. The viewer compares tree and activity consistency separately,
+observational fields. The reader probes the captured directory before the private
+witness and returns typed Running with a same-tree, previous-tree or no-readable-
+tree relation. A successful final private probe establishes Idle despite marker
+bytes or earlier directory errors. Unsupported active records remain Unavailable;
+missing controls or matching inactive records are Idle. The viewer compares tree and activity consistency separately,
 consuming consistent tree results even when activity changes or fails, and
 preserving compared activity when tree reading or root opening fails. Accepted
 Idle displays the shared selector's NEXT key in rows and persistent chrome;
-Busy/Unavailable or failed tree acceptance clears old row activity and withholds
+Busy/Unavailable/Running or failed tree acceptance clears old row activity and withholds
 NEXT. Tree failure leaves the independent RUNNING summary available. The loop owns selection, while the viewer owns freshness and
-label/key-preserving summary layout. Witnessed RUNNING remains a subsequent increment.
+label/key-preserving summary layout. The typed witnessed observer ships;
+the viewer still presents Running conservatively as activity unavailable until
+its row binding and exclusion-aware NEXT increment.
 
 One workspace, one release version, one changelog, one tag. A module is a crate
 so that *testable through its own interface without unrelated modules* is not a

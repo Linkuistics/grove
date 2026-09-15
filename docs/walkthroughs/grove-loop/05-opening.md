@@ -900,10 +900,10 @@ keys. It returns names, the selected file's bytes and a retained `TreeLifetime`;
 all advisory locks have gone before the caller builds rows. `grove-tui` compares
 two such captures and owns folds, lifecycle totals and reading positions.
 The item-status observation design in `docs/specs/item-status.md` separates
-this capture from a subsequent runtime sample. Its independent result can
-establish Idle; witnessed Running remains a later protocol increment.
+this capture from a subsequent runtime sample. Its independent result establishes
+Idle or a witnessed Running mandate with a verified relation to this capture.
 
-<!-- fragment «observation-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="1-181" parent="source-observation" -->
+<!-- fragment «observation-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="1-218" parent="source-observation" -->
 <!-- insert «observation-imports» -->
 <!-- insert «observation-lifetime» -->
 <!-- insert «observation-values» -->
@@ -1057,24 +1057,71 @@ tree lock, which spans this capture's selected-file read but no caller work.
 `ObservationGuard` now separates tree failure from runtime failure. The loop
 finishes `capture` and releases its tree guard before entering runtime observation;
 the two private callbacks mark those boundaries for deterministic lock tests.
-No callback is exposed to viewers. `ActivityObservation` can establish Idle,
-report a contended epoch as Busy, or withhold evidence as Unavailable. The
+No callback is exposed to viewers. `ActivityObservation` can establish Idle or
+Running, report publication as Busy, or withhold evidence as Unavailable. The
 [current runtime reader](17-the-epoch.md#runtime-observation) explains why an
 older active epoch cannot establish RUNNING. Browsing consumes `tree` regardless
 of that independent result. The viewer accepts activity separately across two
 captures and shows the shared selector's NEXT only for accepted Idle; changing
 activity withholds the pair without discarding a consistent tree.
 
-<!-- fragment «observation-capture» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="98-181" parent="observation-tree" -->
+<!-- fragment «observation-capture» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="98-218" parent="observation-tree" -->
+<!-- insert «observation-activity» -->
+<!-- insert «observation-operation» -->
+<!-- /fragment -->
+
+The loop owns the meaning of runtime evidence. `RunningMandate` carries the launch handle (and therefore permanent key), kind, opaque tree identity and a verified `TreeRelation`. Its private runtime identity retains the worktree, nonce, signal and witness binding for equality across captures. A consumer can compare observations without deriving SameTree from numeric identities. These are copied values and hold no locks.
+
+<!-- fragment «observation-activity» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="98-138" parent="observation-capture" -->
 ````rust
 /// Runtime evidence at this sample. Legacy active records cannot identify a mandate.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ActivityObservation {
     Idle,
+    Running(RunningMandate),
     Busy(String),
     Unavailable(String),
 }
 
+/// Verified relation to this capture, never inferred by a caller from inode numbers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TreeRelation {
+    SameTree,
+    PreviousTree,
+    NoReadableTree,
+}
+
+/// Opaque launch-time task-root identity. Equality alone does not prove binding.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LaunchTreeIdentity(pub(crate) (u64, u64));
+
+/// A witnessed Started launch. Equality includes runtime binding and tree relation
+/// so two captures can compare activity independently of rows and selected bytes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunningMandate {
+    pub handle: crate::Handle,
+    pub kind: crate::Kind,
+    pub tree_identity: LaunchTreeIdentity,
+    pub relation: TreeRelation,
+    pub(crate) runtime: RuntimeIdentity,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RuntimeIdentity {
+    pub worktree: (u64, u64),
+    pub nonce: String,
+    pub signal: PathBuf,
+    pub witness_name: PathBuf,
+    pub witness: (u64, u64),
+}
+
+````
+<!-- /fragment -->
+
+The operation first captures names and selected bytes, then passes a reference to that accepted directory pin into runtime observation. It passes no pin for a failed, busy or vacant capture. The runtime reader cannot reopen a later tree and join it to these rows. Both callbacks remain private test boundaries; the returned tree and activity stay independent.
+
+<!-- fragment «observation-operation» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="139-218" parent="observation-capture" -->
+````rust
 /// Independent results, captured values and a tree pin; no advisory lock escapes.
 pub struct ObservationGuard {
     pub tree: Result<TreeObservation, Error>,
@@ -1096,7 +1143,11 @@ pub(crate) fn observe_with(
 ) -> ObservationGuard {
     let tree = capture(worktree, candidates).map_err(Error::from);
     after_capture();
-    let activity = crate::driver_lease::observation::observe(worktree, in_epoch);
+    let lifetime = match &tree {
+        Ok(TreeObservation::Ready(tree)) => Some(&tree.lifetime),
+        _ => None,
+    };
+    let activity = crate::driver_lease::observation::observe(worktree, lifetime, in_epoch);
     ObservationGuard { tree, activity }
 }
 

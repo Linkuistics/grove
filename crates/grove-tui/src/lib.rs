@@ -772,6 +772,10 @@ Escape: close help | ?: toggle help",
                 format!("RUNNING: WAITING — {reason}"),
                 "NEXT: WAITING — activity not current".into(),
             ),
+            ActivityObservation::Running(_) => (
+                "RUNNING: unavailable — activity not current".into(),
+                "NEXT: unavailable — activity not current".into(),
+            ),
             ActivityObservation::Unavailable(reason) => (
                 format!("RUNNING: unavailable — {reason}"),
                 "NEXT: unavailable — activity not current".into(),

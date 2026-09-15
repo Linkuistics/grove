@@ -69,7 +69,8 @@ verified idle still reads `RUNNING: none (idle)` beside
 supported witness makes activity unavailable; that record alone does not prove
 that a session is alive. A released, validated launch witness establishes idle
 even if an active epoch and Started bytes remain after the session ends.
-Unverified held witnesses keep activity unavailable.
+While a launch is active, the viewer keeps activity unavailable and withholds
+NEXT. An incomplete Started publication shows activity waiting.
 
 The root and branches count all descendant leaves, including folded ones.
 Their status is LIVE if any are live, otherwise DONE if any are done, otherwise

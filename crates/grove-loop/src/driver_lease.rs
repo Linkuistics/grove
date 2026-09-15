@@ -1018,7 +1018,7 @@ mod tests {
         lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Started));
         assert!(matches!(
             crate::try_observe(temp.path(), &[None]).activity,
-            crate::ActivityObservation::Unavailable(_)
+            crate::ActivityObservation::Running(_)
         ));
         let prefix = record.split("observation-version=").next().unwrap();
         for extension in ["", "observation-version=999\n", "observation-version=1\nobservation-key=bad\nobservation-key=2\nobservation-handle-hex=zz\n"] {
@@ -1236,7 +1236,7 @@ mod tests {
         assert!(fs::read(&path).unwrap().is_empty());
         assert!(matches!(
             crate::try_observe(temp.path(), &[None]).activity,
-            crate::ActivityObservation::Unavailable(_)
+            crate::ActivityObservation::Busy(_)
         ));
         // The directory witness must not take the containing-directory tree lock.
         assert!(matches!(

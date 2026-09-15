@@ -9,7 +9,7 @@
 | Root ID | Source path | Lines |
 |---|---|---|
 | `source-crate-manifest` | `crates/grove-loop/Cargo.toml` | 68 |
-| `source-library-root` | `crates/grove-loop/src/lib.rs` | 420 |
+| `source-library-root` | `crates/grove-loop/src/lib.rs` | 421 |
 | `source-task-name` | `crates/grove-loop/src/task_name.rs` | 1,675 |
 | `source-task-tree` | `crates/grove-loop/src/task_tree.rs` | 2,001 |
 | `source-task-grow` | `crates/grove-loop/src/task_grow.rs` | 518 |
@@ -21,15 +21,15 @@
 | `source-session-config` | `crates/grove-loop/src/session_config.rs` | 358 |
 | `source-prompt` | `crates/grove-loop/src/prompt.rs` | 245 |
 | `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 752 |
-| `source-observation` | `crates/grove-loop/src/observation.rs` | 181 |
-| `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 775 |
+| `source-observation` | `crates/grove-loop/src/observation.rs` | 218 |
+| `source-runtime-observation` | `crates/grove-loop/src/driver_lease/observation.rs` | 1,362 |
 | `source-witnesses` | `crates/grove-loop/src/driver_lease/witnesses.rs` | 461 |
 
 
 <!-- source-root «source-crate-manifest» source="crates/grove-loop/Cargo.toml" lines="1-68" -->
 <!-- insert «manifest-domain-bound» -->
 <!-- /source-root -->
-<!-- source-root «source-library-root» source="crates/grove-loop/src/lib.rs" lines="1-420" -->
+<!-- source-root «source-library-root» source="crates/grove-loop/src/lib.rs" lines="1-421" -->
 <!-- insert «library-root» -->
 <!-- /source-root -->
 <!-- source-root «source-task-name» source="crates/grove-loop/src/task_name.rs" lines="1-1675" -->
@@ -92,10 +92,10 @@
 <!-- insert «loop-driver» -->
 <!-- /source-root -->
 
-<!-- source-root «source-observation» source="crates/grove-loop/src/observation.rs" lines="1-181" -->
+<!-- source-root «source-observation» source="crates/grove-loop/src/observation.rs" lines="1-218" -->
 <!-- insert «observation-tree» -->
 <!-- /source-root -->
-<!-- source-root «source-runtime-observation» source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-775" -->
+<!-- source-root «source-runtime-observation» source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-1362" -->
 <!-- insert «runtime-observer» -->
 <!-- /source-root -->
 
@@ -110,7 +110,7 @@
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
 | `manifest-domain-bound` | `source-crate-manifest` | `allowed-to-mean` | `1-68` | 68 | `resolved` |
-| `library-root` | `source-library-root` | `allowed-to-mean` | `1-420` | 420 | `resolved` |
+| `library-root` | `source-library-root` | `allowed-to-mean` | `1-421` | 421 | `resolved` |
 | `tokens-and-verdicts` | `source-task-name` | `four-verdicts` | `1-156` | 156 | `resolved` |
 | `kind-slug-and-handle` | `source-task-name` | `the-handle-not-the-position` | `157-505` | 349 | `resolved` |
 | `the-task-name` | `source-task-name` | `canonical-or-nothing` | `506-953` | 448 | `resolved` |
@@ -148,8 +148,8 @@
 | `whose-file` | `source-session-config` | `whose-file-and-whether` | `1-358` | 358 | `resolved` |
 | `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-245` | 245 | `resolved` |
 | `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-752` | 752 | `resolved` |
-| `observation-tree` | `source-observation` | `one-spelling-of-grove` | `1-181` | 181 | `resolved` |
-| `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-775` | 775 | `resolved` |
+| `observation-tree` | `source-observation` | `one-spelling-of-grove` | `1-218` | 218 | `resolved` |
+| `runtime-observer` | `source-runtime-observation` | `which-calls-are-admitted` | `1-1362` | 1,362 | `resolved` |
 | `launch-witnesses-production` | `source-witnesses` | `one-per-working-tree` | `1-175` | 175 | `resolved` |
 | `witness-tests` | `source-witnesses` | `which-calls-are-admitted` | `176-461` | 286 | `resolved` |
 
@@ -166,27 +166,27 @@
 | `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `48-50` | `manifest-domain-bound` | `—` |
 | `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `51-53` | `manifest-domain-bound` | `—` |
 | `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `54-68` | `manifest-domain-bound` | `—` |
-| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-420` | `—` | `library-root` |
+| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-421` | `—` | `library-root` |
 | `library-root-thesis` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `1-9` | `library-root` | `—` |
-| `library-root` | `orientation` | `source-library-root` | `composite` | `allowed-to-mean` | `1-420` | `source-library-root` | `library-root-thesis`, `library-root-and-the-driver`, `library-root-opening-mirrors`, `library-root-three-shapes`, `library-root-one-error`, `library-root-modules`, `library-root-version`, `library-root-imports-and-exports`, `library-root-tree-and-vacancy`, `library-root-reading-and-writing`, `library-root-tree-write`, `library-root-tree-write-impl`, `library-root-read-and-write`, `library-root-grove-root`, `library-root-reference`, `library-root-reference-display`, `library-root-selection`, `library-root-error`, `library-root-error-traits` |
+| `library-root` | `orientation` | `source-library-root` | `composite` | `allowed-to-mean` | `1-421` | `source-library-root` | `library-root-thesis`, `library-root-and-the-driver`, `library-root-opening-mirrors`, `library-root-three-shapes`, `library-root-one-error`, `library-root-modules`, `library-root-version`, `library-root-imports-and-exports`, `library-root-tree-and-vacancy`, `library-root-reading-and-writing`, `library-root-tree-write`, `library-root-tree-write-impl`, `library-root-read-and-write`, `library-root-grove-root`, `library-root-reference`, `library-root-reference-display`, `library-root-selection`, `library-root-error`, `library-root-error-traits` |
 | `library-root-and-the-driver` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `10-14` | `library-root` | `—` |
 | `library-root-opening-mirrors` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `15-29` | `library-root` | `—` |
 | `library-root-three-shapes` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `30-40` | `library-root` | `—` |
 | `library-root-one-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `41-49` | `library-root` | `—` |
 | `library-root-modules` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `50-63` | `library-root` | `—` |
 | `library-root-version` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `64-73` | `library-root` | `—` |
-| `library-root-imports-and-exports` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `74-96` | `library-root` | `—` |
-| `library-root-tree-and-vacancy` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `97-111` | `library-root` | `—` |
-| `library-root-reading-and-writing` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `112-136` | `library-root` | `—` |
-| `library-root-tree-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `137-192` | `library-root` | `—` |
-| `library-root-tree-write-impl` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `193-245` | `library-root` | `—` |
-| `library-root-read-and-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `246-289` | `library-root` | `—` |
-| `library-root-grove-root` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `290-294` | `library-root` | `—` |
-| `library-root-reference` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `295-345` | `library-root` | `—` |
-| `library-root-reference-display` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `346-351` | `library-root` | `—` |
-| `library-root-selection` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `352-375` | `library-root` | `—` |
-| `library-root-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `376-394` | `library-root` | `—` |
-| `library-root-error-traits` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `395-420` | `library-root` | `—` |
+| `library-root-imports-and-exports` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `74-97` | `library-root` | `—` |
+| `library-root-tree-and-vacancy` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `98-112` | `library-root` | `—` |
+| `library-root-reading-and-writing` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `113-137` | `library-root` | `—` |
+| `library-root-tree-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `138-193` | `library-root` | `—` |
+| `library-root-tree-write-impl` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `194-246` | `library-root` | `—` |
+| `library-root-read-and-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `247-290` | `library-root` | `—` |
+| `library-root-grove-root` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `291-295` | `library-root` | `—` |
+| `library-root-reference` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `296-346` | `library-root` | `—` |
+| `library-root-reference-display` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `347-352` | `library-root` | `—` |
+| `library-root-selection` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `353-376` | `library-root` | `—` |
+| `library-root-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `377-395` | `library-root` | `—` |
+| `library-root-error-traits` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `396-421` | `library-root` | `—` |
 | `source-task-name` | `source-index` | `source-task-name` | `root` | `—` | `1-1675` | `—` | `tokens-and-verdicts`, `kind-slug-and-handle`, `the-task-name`, `name-test-support-and-kit`, `classification-verdict-tests`, `grammar-and-canonicity-tests`, `shape-refusal-tests`, `slug-rule-tests`, `handle-grammar-tests` |
 | `name-the-only-grammar` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1-7` | `tokens-and-verdicts` | `—` |
 | `tokens-and-verdicts` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1-156` | `source-task-name` | `name-the-only-grammar`, `name-canonicity-departure`, `name-classification-loses-data`, `name-handle-is-this-grammar`, `name-handle-terminal-substring`, `name-imports`, `name-brief-and-key-mark`, `name-separator`, `name-outcome`, `name-outcome-infix-and-strip`, `name-token-error`, `name-token-error-traits`, `name-refuse-token` |
@@ -682,27 +682,42 @@
 | `loop-tests-open` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `583-693` | `loop-driver` | `—` |
 | `loop-test-handoff-preserves` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `694-729` | `loop-driver` | `—` |
 | `loop-test-ordering` | `the-loop` | `source-loop-driver` | `literal` | `four-things-a-runner-cannot-choose` | `730-752` | `loop-driver` | `—` |
-| `source-observation` | `source-index` | `source-observation` | `root` | `—` | `1-181` | `—` | `observation-tree` |
+| `source-observation` | `source-index` | `source-observation` | `root` | `—` | `1-218` | `—` | `observation-tree` |
 | `observation-imports` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `1-11` | `observation-tree` | `—` |
-| `observation-tree` | `opening` | `source-observation` | `composite` | `one-spelling-of-grove` | `1-181` | `source-observation` | `observation-imports`, `observation-lifetime`, `observation-values`, `observation-capture` |
+| `observation-tree` | `opening` | `source-observation` | `composite` | `one-spelling-of-grove` | `1-218` | `source-observation` | `observation-imports`, `observation-lifetime`, `observation-values`, `observation-capture` |
 | `observation-lifetime` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `12-66` | `observation-tree` | `—` |
 | `observation-values` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `67-97` | `observation-tree` | `—` |
-| `observation-capture` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `98-181` | `observation-tree` | `—` |
-| `source-runtime-observation` | `source-index` | `source-runtime-observation` | `root` | `—` | `1-775` | `—` | `runtime-observer` |
-| `runtime-entry` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1-14` | `runtime-observer` | `—` |
-| `runtime-observer` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `1-775` | `source-runtime-observation` | `runtime-entry`, `runtime-read`, `runtime-extension`, `runtime-private-probe`, `runtime-files`, `runtime-test-fixture`, `runtime-test-release`, `runtime-test-legacy`, `runtime-test-extension`, `runtime-test-substitution`, `runtime-test-controls`, `runtime-test-guards`, `runtime-test-races` |
-| `runtime-read` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `15-96` | `runtime-observer` | `—` |
-| `runtime-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `97-137` | `runtime-observer` | `—` |
-| `runtime-private-probe` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `138-174` | `runtime-observer` | `—` |
-| `runtime-files` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `175-222` | `runtime-observer` | `—` |
-| `runtime-test-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `223-247` | `runtime-observer` | `—` |
-| `runtime-test-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `248-288` | `runtime-observer` | `—` |
-| `runtime-test-legacy` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `289-320` | `runtime-observer` | `—` |
-| `runtime-test-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `321-422` | `runtime-observer` | `—` |
-| `runtime-test-substitution` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `423-473` | `runtime-observer` | `—` |
-| `runtime-test-controls` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `474-587` | `runtime-observer` | `—` |
-| `runtime-test-guards` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `588-679` | `runtime-observer` | `—` |
-| `runtime-test-races` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `680-775` | `runtime-observer` | `—` |
+| `observation-activity` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `98-138` | `observation-capture` | `—` |
+| `observation-capture` | `opening` | `source-observation` | `composite` | `one-spelling-of-grove` | `98-218` | `observation-tree` | `observation-activity`, `observation-operation` |
+| `observation-operation` | `opening` | `source-observation` | `literal` | `one-spelling-of-grove` | `139-218` | `observation-capture` | `—` |
+| `source-runtime-observation` | `source-index` | `source-runtime-observation` | `root` | `—` | `1-1362` | `—` | `runtime-observer` |
+| `runtime-entry` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1-19` | `runtime-observer` | `—` |
+| `runtime-observer` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `1-1362` | `source-runtime-observation` | `runtime-entry`, `runtime-read`, `runtime-extension`, `runtime-private-probe`, `runtime-files`, `runtime-test-fixture`, `runtime-test-release`, `runtime-test-legacy`, `runtime-test-extension`, `runtime-test-substitution`, `runtime-test-controls`, `runtime-test-guards`, `runtime-test-races` |
+| `runtime-read` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `20-106` | `runtime-observer` | `—` |
+| `runtime-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `107-168` | `runtime-observer` | `—` |
+| `runtime-witness-io` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `169-211` | `runtime-private-probe` | `—` |
+| `runtime-private-probe` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `169-287` | `runtime-observer` | `runtime-witness-io`, `runtime-tree-relation`, `runtime-witness-verdict` |
+| `runtime-tree-relation` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `212-234` | `runtime-private-probe` | `—` |
+| `runtime-witness-verdict` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `235-287` | `runtime-private-probe` | `—` |
+| `runtime-files` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `288-335` | `runtime-observer` | `—` |
+| `runtime-test-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `336-360` | `runtime-observer` | `—` |
+| `runtime-test-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `361-425` | `runtime-observer` | `—` |
+| `runtime-test-legacy` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `426-457` | `runtime-observer` | `—` |
+| `runtime-test-extension` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `458-559` | `runtime-observer` | `—` |
+| `runtime-test-substitution` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `560-610` | `runtime-observer` | `—` |
+| `runtime-test-controls` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `611-724` | `runtime-observer` | `—` |
+| `runtime-test-guards` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `725-816` | `runtime-observer` | `—` |
+| `runtime-test-epoch-replacements` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `817-847` | `runtime-test-races` | `—` |
+| `runtime-test-races` | `the-epoch` | `source-runtime-observation` | `composite` | `which-calls-are-admitted` | `817-1362` | `runtime-observer` | `runtime-test-epoch-replacements`, `runtime-test-started-fixture`, `runtime-test-real-launch`, `runtime-test-io-errors`, `runtime-test-tree-binding`, `runtime-test-markers`, `runtime-test-probe-precedence`, `runtime-test-directory-release`, `runtime-test-private-replacements`, `runtime-test-filesystem-preservation` |
+| `runtime-test-started-fixture` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `848-868` | `runtime-test-races` | `—` |
+| `runtime-test-real-launch` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `869-935` | `runtime-test-races` | `—` |
+| `runtime-test-io-errors` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `936-983` | `runtime-test-races` | `—` |
+| `runtime-test-tree-binding` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `984-1034` | `runtime-test-races` | `—` |
+| `runtime-test-markers` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1035-1082` | `runtime-test-races` | `—` |
+| `runtime-test-probe-precedence` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1083-1161` | `runtime-test-races` | `—` |
+| `runtime-test-directory-release` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1162-1197` | `runtime-test-races` | `—` |
+| `runtime-test-private-replacements` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1198-1297` | `runtime-test-races` | `—` |
+| `runtime-test-filesystem-preservation` | `the-epoch` | `source-runtime-observation` | `literal` | `which-calls-are-admitted` | `1298-1362` | `runtime-test-races` | `—` |
 | `source-witnesses` | `source-index` | `source-witnesses` | `root` | `—` | `1-461` | `—` | `launch-witnesses-production`, `witness-tests` |
 | `witness-owner-type` | `the-lease` | `source-witnesses` | `literal` | `one-per-working-tree` | `1-22` | `launch-witnesses-production` | `—` |
 | `launch-witnesses-production` | `the-lease` | `source-witnesses` | `composite` | `one-per-working-tree` | `1-175` | `source-witnesses` | `witness-owner-type`, `witness-preparation`, `witness-release`, `witness-cleanup` |
@@ -778,11 +793,11 @@ the declared corpus.
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `allowed-to-mean` | `01-orientation.md` | 488 |
+| `allowed-to-mean` | `01-orientation.md` | 489 |
 | `four-verdicts` | `02-the-tokens.md` | 373 |
 | `the-handle-not-the-position` | `03-kind-slug-handle.md` | 529 |
 | `canonical-or-nothing` | `04-the-name.md` | 773 |
-| `one-spelling-of-grove` | `05-opening.md` | 484 |
+| `one-spelling-of-grove` | `05-opening.md` | 521 |
 | `paths-are-built-here` | `06-paths.md` | 320 |
 | `first-live-leaf` | `07-the-walk.md` | 336 |
 | `root-to-leaf` | `08-kind-and-briefs.md` | 438 |
@@ -794,9 +809,9 @@ the declared corpus.
 | `the-tree-deletes-itself` | `14-finishing.md` | 521 |
 | `twelve-not-fourteen` | `15-the-verbs.md` | 514 |
 | `one-per-working-tree` | `16-the-lease.md` | 1,144 |
-| `which-calls-are-admitted` | `17-the-epoch.md` | 2,165 |
+| `which-calls-are-admitted` | `17-the-epoch.md` | 2,752 |
 | `whose-file-and-whether` | `18-which-files.md` | 358 |
 | `too-late-to-say-later` | `19-the-core.md` | 245 |
 | `four-things-a-runner-cannot-choose` | `20-the-loop.md` | 752 |
 | `assembly` | `21-what-could-not-move.md` | 0 |
-| **Total** | 16 source roots | **12,775** |
+| **Total** | 16 source roots | **13,400** |

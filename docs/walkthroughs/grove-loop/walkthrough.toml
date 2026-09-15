@@ -205,7 +205,7 @@ lines = 68
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 420
+lines = 421
 
 [[root]]
 id    = "source-task-name"
@@ -265,7 +265,7 @@ lines = 752
 [[root]]
 id = "source-observation"
 path = "crates/grove-loop/src/observation.rs"
-lines = 181
+lines = 218
 
 [[block]]
 id    = "manifest-domain-bound"
@@ -277,7 +277,7 @@ lines = "1-68"
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-420"
+lines = "1-421"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -505,7 +505,7 @@ lines = "1-752"
 id = "observation-tree"
 root = "source-observation"
 owner = "one-spelling-of-grove"
-lines = "1-181"
+lines = "1-218"
 
 [[early-use]]
 symbols   = "`TaskName`, `TaskNameError`, `Verdict`, `verdict`, `entry`, `malformed`"
@@ -551,13 +551,13 @@ anchors = [
 [[root]]
 id = "source-runtime-observation"
 path = "crates/grove-loop/src/driver_lease/observation.rs"
-lines = 775
+lines = 1362
 
 [[block]]
 id = "runtime-observer"
 root = "source-runtime-observation"
 owner = "which-calls-are-admitted"
-lines = "1-775"
+lines = "1-1362"
 
 [[root]]
 id = "source-witnesses"

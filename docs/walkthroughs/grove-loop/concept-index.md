@@ -6,7 +6,8 @@
 <a id="concepts"></a>
 ## Concepts
 
-- [Bounded runtime evidence and released witnesses without admission](17-the-epoch.md#runtime-observation)
+- [Bounded runtime evidence, witnessed Running and directory-before-private precedence](17-the-epoch.md#runtime-observation)
+- [Typed mandate identity and verified capture relation without standing locks](05-opening.md#captured-observation)
 - [Captured names, selected bytes and a lock-free lifetime pin](05-opening.md#captured-observation)
 
 - [Fragment notation](README.md#reading-fragments)

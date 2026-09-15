@@ -2038,7 +2038,7 @@ private witness establishes Idle even with an active epoch. A held exact Started
 marker establishes Running only after checking the captured directory relation;
 old active records cannot identify a mandate.
 
-<!-- fragment «runtime-observer» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-1362" parent="source-runtime-observation" -->
+<!-- fragment «runtime-observer» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1-1523" parent="source-runtime-observation" -->
 <!-- insert «runtime-entry» -->
 <!-- insert «runtime-read» -->
 <!-- insert «runtime-extension» -->
@@ -3014,7 +3014,7 @@ Readiness and release channels suspend the same typed operation after capture an
 
 Replacing the epoch once forces a second attempt; replacing it on every guarded read exhausts exactly eight. Recursive snapshots compare file bytes and directory entries, including the administration area, across idle and legacy-active samples. The final control checks unreadable epochs where permissions apply and rejects a namespace replaced by a regular file. These controls exercise the observer’s own acquisition path rather than a parallel test implementation.
 
-<!-- fragment «runtime-test-races» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="817-1362" parent="runtime-observer" -->
+<!-- fragment «runtime-test-races» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="817-1523" parent="runtime-observer" -->
 <!-- insert «runtime-test-epoch-replacements» -->
 <!-- insert «runtime-test-started-fixture» -->
 <!-- insert «runtime-test-real-launch» -->
@@ -3024,6 +3024,7 @@ Replacing the epoch once forces a second attempt; replacing it on every guarded 
 <!-- insert «runtime-test-probe-precedence» -->
 <!-- insert «runtime-test-directory-release» -->
 <!-- insert «runtime-test-private-replacements» -->
+<!-- insert «runtime-test-release-orders» -->
 <!-- insert «runtime-test-filesystem-preservation» -->
 <!-- /fragment -->
 
@@ -3571,9 +3572,197 @@ The replacement backend moves actual private-file paths after open or after the 
 ````
 <!-- /fragment -->
 
+### Independent witness release orders
+
+The release fixture starts with DriverLease's actual epoch and Started marker,
+then transfers exclusive ownership to independently droppable native lock holders.
+A Running sample proves that these holders satisfy the production observer before
+any release. Directory-first release removes the old tree and creates another
+leaf with key 1. Rewriting only the fixture's recorded tree numbers forces the
+identity-reuse premise: the unlocked replacement must produce Busy despite the
+old private witness. This models numeric reuse; it does not measure host inode
+allocation or pause kernel teardown. Removing directory verification makes this
+control falsely return SameTree Running while the real-launch positive still
+passes.
+
+Private-first and both-released samples must be Idle. The filesystem/lock seam
+also releases both holders immediately after a contended directory probe, before
+the final private probe; Idle must override that earlier SameTree evidence.
+An ordered event trace proves this schedule without sleeps. Retained captures
+permit independent exclusive probes of every relevant lock, and recursive byte
+snapshots show that these observations write nothing. Replacement epoch ordering
+and concurrent observers have their own controls; these release cases do not
+establish those properties.
+
+<!-- fragment «runtime-test-release-orders» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1298-1458" parent="runtime-test-races" -->
+````rust
+    /// Reproduce independent descriptor teardown with real native locks. The
+    /// epoch/marker come from DriverLease; only the holders are test-controlled.
+    fn release_fixture() -> (TempDir, DriverLease, Option<File>, Option<File>) {
+        let (work, mut lease) = started_fixture();
+        fs::write(work.path().join(".grove/01-impl--work-k1.md"), "old").unwrap();
+        let private = File::open(lease.launch.as_ref().unwrap().path().unwrap()).unwrap();
+        let directory = File::open(work.path().join(".grove")).unwrap();
+        lease.launch.take();
+        for file in [&directory, &private] {
+            assert_eq!(
+                unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                0
+            );
+        }
+        assert_eq!(
+            running(sample(work.path())).relation,
+            TreeRelation::SameTree
+        );
+        (work, lease, Some(directory), Some(private))
+    }
+
+    fn assert_observation_releases_guards(work: &Path, private: &Path) {
+        // Keep the returned capture (and therefore its tree pin) alive while
+        // independently acquiring every advisory lock it could have retained.
+        let capture = crate::try_observe(work, &[]);
+        assert_eq!(capture.activity, ActivityObservation::Idle);
+        for path in [
+            work.to_path_buf(),
+            work.join(".grove"),
+            work.join(".jj/grove/session.epoch"),
+            private.to_path_buf(),
+        ] {
+            let probe = File::open(path).unwrap();
+            assert_eq!(
+                unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                0
+            );
+        }
+        drop(capture);
+    }
+
+    #[test]
+    fn witness_release_directory_first_reused_identity_and_key_cannot_attach() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, lease, mut directory, mut private) = release_fixture();
+        let original = running(sample(work.path()));
+        directory.take();
+        fs::remove_dir_all(work.path().join(".grove")).unwrap();
+        fs::create_dir(work.path().join(".grove")).unwrap();
+        fs::write(work.path().join(".grove/_BRIEF.md"), "replacement").unwrap();
+        fs::write(work.path().join(".grove/01-impl--replacement-k1.md"), "new").unwrap();
+        let pin = TreeLifetime::open(work.path()).unwrap().unwrap();
+        let metadata = pin.directory().metadata().unwrap();
+        let epoch_path = lease.control_dir.join(EPOCH_FILE_NAME);
+        let record = fs::read_to_string(&epoch_path).unwrap();
+        // Force the ABA premise: old launch numbers equal the replacement's.
+        // This is a fixture-only identity model, not observed host inode reuse.
+        let record = record
+            .replace(
+                &format!("observation-tree-device={}", original.tree_identity.0 .0),
+                &format!("observation-tree-device={}", metadata.dev()),
+            )
+            .replace(
+                &format!("observation-tree-inode={}", original.tree_identity.0 .1),
+                &format!("observation-tree-inode={}", metadata.ino()),
+            );
+        fs::write(&epoch_path, record).unwrap();
+        let before = contents(work.path());
+        let capture = crate::try_observe(work.path(), &[]);
+        let crate::TreeObservation::Ready(tree) = capture.tree.unwrap() else {
+            panic!("replacement tree was not captured")
+        };
+        assert_eq!(tree.content.unwrap(), b"replacement");
+        assert!(
+            matches!(capture.activity, ActivityObservation::Busy(_)),
+            "released directory falsely attached old work-k1 to replacement-k1: {:?}",
+            capture.activity
+        );
+        private.take();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        assert_observation_releases_guards(
+            work.path(),
+            &lease.control_dir.join(original.runtime.witness_name),
+        );
+        assert_eq!(contents(work.path()), before);
+    }
+
+    #[test]
+    fn witness_release_private_first_and_both_released_are_idle() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, lease, mut directory, mut private) = release_fixture();
+        let original = running(sample(work.path()));
+        let before = contents(work.path());
+        private.take();
+        assert!(!NativeWitnessIo
+            .probe(&File::open(work.path().join(".grove")).unwrap())
+            .unwrap());
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        directory.take();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        assert_observation_releases_guards(
+            work.path(),
+            &lease.control_dir.join(original.runtime.witness_name),
+        );
+        assert_eq!(contents(work.path()), before);
+    }
+
+    #[test]
+    fn witness_release_after_directory_verification_obeys_final_private_probe() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        struct ReleaseAfterDirectory {
+            directory: Option<File>,
+            private: Option<File>,
+            events: Vec<&'static str>,
+        }
+        impl WitnessIo for ReleaseAfterDirectory {
+            fn probe(&mut self, file: &File) -> Result<bool> {
+                let released = NativeWitnessIo.probe(file)?;
+                if file.metadata()?.is_dir() {
+                    assert!(!released, "positive directory evidence is required");
+                    self.events.push("directory verified");
+                    self.directory.take();
+                    self.private.take();
+                    self.events.push("both released");
+                } else {
+                    assert!(released, "private release must be observed");
+                    self.events.push("private released");
+                }
+                Ok(released)
+            }
+        }
+        let (work, lease, directory, private) = release_fixture();
+        let original = running(sample(work.path()));
+        let pin = TreeLifetime::open(work.path()).unwrap().unwrap();
+        let before = contents(work.path());
+        let mut io = ReleaseAfterDirectory {
+            directory,
+            private,
+            events: vec![],
+        };
+        assert_eq!(
+            read_runtime(work.path(), Some(&pin), || {}, &mut io).unwrap(),
+            ActivityObservation::Idle
+        );
+        assert_eq!(
+            io.events,
+            ["directory verified", "both released", "private released"]
+        );
+        assert_observation_releases_guards(
+            work.path(),
+            &lease.control_dir.join(original.runtime.witness_name),
+        );
+        assert_eq!(contents(work.path()), before);
+    }
+
+````
+<!-- /fragment -->
+
 Recursive snapshots include tree and administration bytes for idle and legacy-active samples, absent controls and non-jj locations. Permission and namespace-type failures remain Unavailable. These existing controls complement the started-launch snapshots without granting observation cleanup or repair authority.
 
-<!-- fragment «runtime-test-filesystem-preservation» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1298-1362" parent="runtime-test-races" -->
+<!-- fragment «runtime-test-filesystem-preservation» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/observation.rs" lines="1459-1523" parent="runtime-test-races" -->
 ````rust
     fn contents(path: &Path) -> Vec<(PathBuf, Vec<u8>)> {
         let mut files = Vec::new();

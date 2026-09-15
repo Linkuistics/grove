@@ -216,6 +216,15 @@ with handle/key, kind, opaque launch-tree identity and the verified relation.
 An unlocked matching directory makes activity Busy; a directory error makes it
 Unavailable. Locked empty/proper-prefix markers are Busy; invalid/extra bytes
 are Unavailable. Missing or mismatched witness evidence remains Unavailable.
+
+Native lock release controls exercise directory-first, private-first, both-released
+and release-between-probes schedules through the runtime observer. The
+replacement fixture forces equal recorded tree numbers and a reused task key;
+it models identity reuse rather than relying on host inode allocation. Disabling
+directory verification exposes false SameTree attachment in that control while
+the real-launch Running positive remains valid. Byte snapshots and independent
+exclusive probes check read-only behavior and that advisory guards do not escape.
+
 Read-only, nonblocking, close-on-exec opens require directory/regular-file types,
 validate descriptor/path identities, bound records to 64 KiB and retry identity
 races at most eight times. Workspace aliases match by device/inode. The viewer

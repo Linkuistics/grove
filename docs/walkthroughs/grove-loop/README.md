@@ -11,7 +11,7 @@ and whose shape is the only state grove keeps. This reader has run a grove, has
 watched `pick` choose a leaf, and has seen a session's commit name a work item by
 its handle.
 
-`crates/grove-loop` is sixteen source roots and 12,775 lines, and it is the layer that
+`crates/grove-loop` is sixteen source roots and 13,561 lines, and it is the layer that
 stayed. Three domain-free crates sit underneath it — an ordered filesystem tree,
 a keyed launcher, a version-control workspace — and none of them has a word for a
 *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*. **This is the

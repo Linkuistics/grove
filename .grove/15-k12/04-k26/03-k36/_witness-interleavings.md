@@ -1,4 +1,4 @@
-# witness-interleavings-k36
+# witness-interleavings-k36 — brief
 
 
 ## Goal
@@ -29,3 +29,19 @@ the public activity provider may not.
 ## Notes
 These controls simulate interleavings, never host inode reuse or paused kernel
 teardown. k37 runs the native process suite; keep all node exit conditions live.
+
+## Decomposition
+
+The release-order mutation fits the existing observer seam. The independent
+epoch-before-preparation mutation needs a driver handoff harness and concurrent
+process controls, a separate independently verifiable increment.
+
+- witness-release-orders-k38 owns all four release schedules, forced numeric/key
+  reuse, the directory-check mutation with a real launch positive, restoration,
+  exact run provenance and the corresponding documentation.
+- witness-replacement-observers-k39 owns epoch-before-preparation and its
+  independent mutation, delayed replacement, continuous observers, separate
+  foreign shared-holder processes and expanded concurrent read-only snapshots.
+
+The original Done when remains the node's closure contract. k37 still owns
+native platform evidence; k27 commissions complete protocol review.

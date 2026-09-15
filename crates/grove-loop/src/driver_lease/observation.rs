@@ -1295,6 +1295,167 @@ mod tests {
         }
     }
 
+    /// Reproduce independent descriptor teardown with real native locks. The
+    /// epoch/marker come from DriverLease; only the holders are test-controlled.
+    fn release_fixture() -> (TempDir, DriverLease, Option<File>, Option<File>) {
+        let (work, mut lease) = started_fixture();
+        fs::write(work.path().join(".grove/01-impl--work-k1.md"), "old").unwrap();
+        let private = File::open(lease.launch.as_ref().unwrap().path().unwrap()).unwrap();
+        let directory = File::open(work.path().join(".grove")).unwrap();
+        lease.launch.take();
+        for file in [&directory, &private] {
+            assert_eq!(
+                unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                0
+            );
+        }
+        assert_eq!(
+            running(sample(work.path())).relation,
+            TreeRelation::SameTree
+        );
+        (work, lease, Some(directory), Some(private))
+    }
+
+    fn assert_observation_releases_guards(work: &Path, private: &Path) {
+        // Keep the returned capture (and therefore its tree pin) alive while
+        // independently acquiring every advisory lock it could have retained.
+        let capture = crate::try_observe(work, &[]);
+        assert_eq!(capture.activity, ActivityObservation::Idle);
+        for path in [
+            work.to_path_buf(),
+            work.join(".grove"),
+            work.join(".jj/grove/session.epoch"),
+            private.to_path_buf(),
+        ] {
+            let probe = File::open(path).unwrap();
+            assert_eq!(
+                unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+                0
+            );
+        }
+        drop(capture);
+    }
+
+    #[test]
+    fn witness_release_directory_first_reused_identity_and_key_cannot_attach() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, lease, mut directory, mut private) = release_fixture();
+        let original = running(sample(work.path()));
+        directory.take();
+        fs::remove_dir_all(work.path().join(".grove")).unwrap();
+        fs::create_dir(work.path().join(".grove")).unwrap();
+        fs::write(work.path().join(".grove/_BRIEF.md"), "replacement").unwrap();
+        fs::write(work.path().join(".grove/01-impl--replacement-k1.md"), "new").unwrap();
+        let pin = TreeLifetime::open(work.path()).unwrap().unwrap();
+        let metadata = pin.directory().metadata().unwrap();
+        let epoch_path = lease.control_dir.join(EPOCH_FILE_NAME);
+        let record = fs::read_to_string(&epoch_path).unwrap();
+        // Force the ABA premise: old launch numbers equal the replacement's.
+        // This is a fixture-only identity model, not observed host inode reuse.
+        let record = record
+            .replace(
+                &format!("observation-tree-device={}", original.tree_identity.0 .0),
+                &format!("observation-tree-device={}", metadata.dev()),
+            )
+            .replace(
+                &format!("observation-tree-inode={}", original.tree_identity.0 .1),
+                &format!("observation-tree-inode={}", metadata.ino()),
+            );
+        fs::write(&epoch_path, record).unwrap();
+        let before = contents(work.path());
+        let capture = crate::try_observe(work.path(), &[]);
+        let crate::TreeObservation::Ready(tree) = capture.tree.unwrap() else {
+            panic!("replacement tree was not captured")
+        };
+        assert_eq!(tree.content.unwrap(), b"replacement");
+        assert!(
+            matches!(capture.activity, ActivityObservation::Busy(_)),
+            "released directory falsely attached old work-k1 to replacement-k1: {:?}",
+            capture.activity
+        );
+        private.take();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        assert_observation_releases_guards(
+            work.path(),
+            &lease.control_dir.join(original.runtime.witness_name),
+        );
+        assert_eq!(contents(work.path()), before);
+    }
+
+    #[test]
+    fn witness_release_private_first_and_both_released_are_idle() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        let (work, lease, mut directory, mut private) = release_fixture();
+        let original = running(sample(work.path()));
+        let before = contents(work.path());
+        private.take();
+        assert!(!NativeWitnessIo
+            .probe(&File::open(work.path().join(".grove")).unwrap())
+            .unwrap());
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        directory.take();
+        assert_eq!(sample(work.path()), ActivityObservation::Idle);
+        assert_observation_releases_guards(
+            work.path(),
+            &lease.control_dir.join(original.runtime.witness_name),
+        );
+        assert_eq!(contents(work.path()), before);
+    }
+
+    #[test]
+    fn witness_release_after_directory_verification_obeys_final_private_probe() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        struct ReleaseAfterDirectory {
+            directory: Option<File>,
+            private: Option<File>,
+            events: Vec<&'static str>,
+        }
+        impl WitnessIo for ReleaseAfterDirectory {
+            fn probe(&mut self, file: &File) -> Result<bool> {
+                let released = NativeWitnessIo.probe(file)?;
+                if file.metadata()?.is_dir() {
+                    assert!(!released, "positive directory evidence is required");
+                    self.events.push("directory verified");
+                    self.directory.take();
+                    self.private.take();
+                    self.events.push("both released");
+                } else {
+                    assert!(released, "private release must be observed");
+                    self.events.push("private released");
+                }
+                Ok(released)
+            }
+        }
+        let (work, lease, directory, private) = release_fixture();
+        let original = running(sample(work.path()));
+        let pin = TreeLifetime::open(work.path()).unwrap().unwrap();
+        let before = contents(work.path());
+        let mut io = ReleaseAfterDirectory {
+            directory,
+            private,
+            events: vec![],
+        };
+        assert_eq!(
+            read_runtime(work.path(), Some(&pin), || {}, &mut io).unwrap(),
+            ActivityObservation::Idle
+        );
+        assert_eq!(
+            io.events,
+            ["directory verified", "both released", "private released"]
+        );
+        assert_observation_releases_guards(
+            work.path(),
+            &lease.control_dir.join(original.runtime.witness_name),
+        );
+        assert_eq!(contents(work.path()), before);
+    }
+
     fn contents(path: &Path) -> Vec<(PathBuf, Vec<u8>)> {
         let mut files = Vec::new();
         for entry in fs::read_dir(path).unwrap() {

@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 13,400 lines. The fragment graph spans
+This chapter owns none of the crate's 13,561 lines. The fragment graph spans
 [chapter 1](01-orientation.md) through [chapter 20](20-the-loop.md),
 including the captured observer in chapter 5. Its 43 ownership blocks are
 `resolved`; the [source index](source-index.md) records that graph in full and
@@ -436,7 +436,7 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 489 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 514 + 1,144 + 2,752 + 358 + 245 + 752 = 13,400 lines across
+**Owned source.** 489 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 514 + 1,144 + 2,913 + 358 + 245 + 752 = 13,561 lines across
 20 source-owning chapters. This closing chapter owns zero lines. The source
 index records the root sizes, block ranges and chapter totals.
 
@@ -539,7 +539,7 @@ sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved, and each of this book's first five
 children ended with thousands of lines legitimately deferred; in final mode a
 defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Fifteen files, 13,400 resolved
+page inventory must match the manifest exactly. Sixteen files, 13,561 resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 ```console
@@ -584,7 +584,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 16 roots, 13,400 lines, 21 chapters, two
+The book is complete: 16 roots, 13,561 lines, 21 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

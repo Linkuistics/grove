@@ -187,7 +187,7 @@ loop, then the four chosen values are declared **before** anything uses them,
 then the outcome type, then the loop itself, then the five helpers it calls, and
 last the two tests that hold the one ordering the loop cannot get wrong.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-745" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-752" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-worktree-name» -->
@@ -1276,7 +1276,7 @@ and it is why the loop's log is legible after a tree has been reordered under it
 <!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="421-448" parent="loop-driver" -->
 ````rust
     driver_lease
-        .prepare_launch(selected.lifetime, channel.path())
+        .prepare_launch(selected.lifetime, selection, channel.path())
         .context("activating the foreground session epoch before spawn")?;
 
     driver_lease
@@ -1663,7 +1663,7 @@ The remaining tests hold the separate handoff invariant: completion
 interpretation stays behind successful epoch invalidation, and a failed handoff
 preserves the preceding launch failure.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="583-686" parent="loop-driver" -->
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="583-693" parent="loop-driver" -->
 ````rust
 #[cfg(test)]
 mod tests {
@@ -1717,6 +1717,13 @@ mod tests {
                 state == "current",
                 "{epoch}"
             );
+            if state == "current" {
+                assert!(epoch.contains("observation-version=1\n"), "{epoch}");
+                assert!(epoch.contains("observation-key=1\n"), "{epoch}");
+                // Launch-time work-k1 and impl, encoded without record separators.
+                assert!(epoch.contains("observation-handle-hex=776f726b2d6b31\n"));
+                assert!(epoch.contains("observation-kind-hex=696d706c\n"));
+            }
         }
     }
 
@@ -1782,7 +1789,7 @@ end-to-end behaviour is `crates/keyed-launch/tests/launch.rs`'s, against a fake
 child, and the comment says so rather than leaving the gap to be read as an
 omission.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="687-722" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="694-729" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1852,7 +1859,7 @@ things, and they are different in kind.
   so the pair of assertions together does reach this arm, though neither does
   alone.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="723-745" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="730-752" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {

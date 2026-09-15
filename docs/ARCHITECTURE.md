@@ -309,8 +309,16 @@ return; an unconfirmed supervision error retains the pair until lease drop.
 Drop releases both before driver ownership, including on unwind. Witness cleanup
 follows epoch invalidation and skips a still-owned launch; replacement cleanup
 also follows initial epoch handoff. Cleanup errors are diagnostic only. The
-optional mandate extension and Started marker remain the next protocol step;
-active records still observe as Unavailable.
+optional version-1 mandate extension binds the selected key, handle and kind to
+the open tree/private identities and witness basename in that same nonce/signal
+epoch. Text is hex encoded and all extension fields use the `observation-`
+namespace; mandatory admission ignores malformed or unsupported extensions,
+including invalid UTF-8 there. A mandatory epoch-write failure prevents spawn;
+an extension append failure only diagnoses. Started attempts the sole eight-byte
+`started\n` publication once, without acquiring a tree or epoch guard. Marker
+failure preserves launch outcome and both witnesses until reap or lease drop.
+The production observer still treats active records as Unavailable until the
+witness-verification reader lands.
 
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed
@@ -318,8 +326,8 @@ reap, including recovery from a wait error, before token reading and terminal
 recovery. Failed spawn emits neither event and unconfirmed reap emits no
 `Reaped`. Callbacks return unit and must return promptly without panicking;
 consumers handle observational failures internally. Ordinary `run(Launch)`
-remains available. Grove witness publication is a later consumer of this seam;
-this API alone does not make witnessed RUNNING available in the viewer.
+remains available. Grove uses these events for witness publication and release;
+the writer alone does not make witnessed RUNNING available in the viewer.
 
 **Presence is per kind and just-in-time**
 (`docs/adr/complete-session-configuration.md`): both documents are validated

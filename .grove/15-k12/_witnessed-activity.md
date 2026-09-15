@@ -208,6 +208,26 @@ verify the replacement image rather than using a moving tag. If this route
 becomes unavailable, use the explicit human-run fallback above; that does not
 relax this node or its owner's exit.
 
+## Writer handoff
+
+launch-witnesses-k25, witness-owner-k29 and witness-publication-k31 close with
+witnessed-epoch-k33. The selected pin, paired locks, runner events, version-1
+extension and exact Started marker now ship together. Preparation derives the
+explicit key from Selection's typed handle. `LaunchWitnesses::publish` in
+`crates/grove-loop/src/driver_lease/witnesses.rs` defines the `observation-`
+field grammar; the enclosing mandatory epoch supplies its nonce/signal binding.
+Admission ignores malformed optional bytes, while mandatory encoded paths reject
+non-ASCII input without panicking. Publication faults preserve launch authority
+and pair ownership until confirmed reap or lease drop.
+
+The writer's native lock/event and real-launch controls and all eight principal
+checks pass. Source-derived books reconstruct the shipped writer. Production
+observation still returns Unavailable for active records, including version 1;
+k26 retains every native macOS/Linux observer and forced-reuse obligation. k27
+still commissions the complete protocol review after its artifact exists, as
+its Done when requires. Neither writer closure nor its narrow in-session review
+substitutes for that review or for k26's platform evidence.
+
 ## Pointers
 
 - Spec: `docs/specs/item-status.md`, especially One bounded observation,

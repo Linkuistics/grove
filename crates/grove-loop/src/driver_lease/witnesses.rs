@@ -1,8 +1,9 @@
 //! Lease-owned observation locks; records and admission remain the lease's.
 
-use super::{ensure_close_on_exec, hex_nonce, random_nonce};
+use super::{encode_path, ensure_close_on_exec, hex_nonce, random_nonce, FileIdentity};
 use anyhow::{bail, Context, Result};
 use std::fs::{self, File, OpenOptions};
+use std::io::Write;
 use std::os::fd::AsRawFd;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
@@ -16,6 +17,7 @@ pub(super) struct LaunchWitnesses {
     private: Option<File>,
     pub(super) root: crate::TreeLifetime,
     path: Option<PathBuf>,
+    started: bool,
 }
 
 impl LaunchWitnesses {
@@ -24,6 +26,7 @@ impl LaunchWitnesses {
             private: None,
             root,
             path: None,
+            started: false,
         }
     }
 
@@ -84,6 +87,54 @@ impl LaunchWitnesses {
     fn close_private(&mut self) {
         self.private.take();
     }
+
+    /// Append only observation fields after mandatory activation. Admission
+    /// ignores this namespace, including a partially written extension.
+    pub(super) fn publish(
+        &self,
+        epoch: &mut impl Write,
+        selected: &crate::Selection,
+    ) -> Result<()> {
+        let Some(private) = &self.private else {
+            return Ok(());
+        };
+        let root = FileIdentity::from_metadata(&self.root.directory().metadata()?);
+        let witness = FileIdentity::from_metadata(&private.metadata()?);
+        let basename = self
+            .path
+            .as_ref()
+            .and_then(|path| path.file_name())
+            .context("prepared witness has no basename")?;
+        // Hex text cannot inject mandatory fields. The enclosing epoch supplies
+        // the nonce/signal binding; its exclusive guard spans this append.
+        let extension = format!(
+            "observation-version=1\nobservation-key={}\nobservation-handle-hex={}\nobservation-kind-hex={}\nobservation-tree-device={}\nobservation-tree-inode={}\nobservation-witness-name-hex={}\nobservation-witness-device={}\nobservation-witness-inode={}\n",
+            selected.handle.key(),
+            encode_path(Path::new(&selected.handle.to_string()))?,
+            encode_path(Path::new(selected.kind.label()))?,
+            root.device, root.inode,
+            encode_path(Path::new(basename))?,
+            witness.device, witness.inode,
+        );
+        epoch
+            .write_all(extension.as_bytes())
+            .context("appending observation extension")?;
+        epoch.flush().context("flushing observation extension")
+    }
+
+    /// Attempt the sole marker publication once, even if a short write fails.
+    /// Neither this callback nor failure releases either witness or takes a guard.
+    pub(super) fn started(&mut self) -> Result<()> {
+        if std::mem::replace(&mut self.started, true) {
+            return Ok(());
+        }
+        if let Some(private) = &mut self.private {
+            private
+                .write_all(b"started\n")
+                .context("publishing Started witness")?;
+        }
+        Ok(())
+    }
 }
 
 impl Drop for LaunchWitnesses {
@@ -127,6 +178,101 @@ mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
     use tempfile::TempDir;
+
+    #[test]
+    fn witnessed_started_is_exact_and_never_retried_after_success_or_failure() {
+        let (_temp, mut owner, control) = fixture();
+        owner.prepare(&control).unwrap();
+        owner.started().unwrap();
+        owner.started().unwrap();
+        assert_eq!(fs::read(owner.path().unwrap()).unwrap(), b"started\n");
+
+        let (_temp, mut owner, control) = fixture();
+        owner.prepare(&control).unwrap();
+        let path = owner.path().unwrap().to_path_buf();
+        // Read-only descriptor injects a real write failure without unsafe fd reuse.
+        owner.private = Some(File::open(&path).unwrap());
+        assert!(owner.started().is_err());
+        owner.private = Some(OpenOptions::new().write(true).open(&path).unwrap());
+        owner.started().unwrap();
+        assert!(
+            fs::read(path).unwrap().is_empty(),
+            "failed publication was retried"
+        );
+    }
+
+    #[test]
+    fn witnessed_marker_failure_preserves_real_launch_and_both_locks_until_reap() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        use super::super::{tests::witness_selection, DriverLease, EPOCH_FILE_NAME};
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        let workspace = jj_workspace::Workspace::resolve(temp.path()).unwrap();
+        let mut lease = DriverLease::acquire(&workspace).unwrap();
+        let channel = keyed_launch::Channel::allocate(lease.control_dir()).unwrap();
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), channel.path())
+            .unwrap();
+        let owner = lease.launch.as_mut().unwrap();
+        let path = owner.path().unwrap().to_path_buf();
+        owner.private = Some(File::open(&path).unwrap());
+        lock(owner.private.as_ref().unwrap()).unwrap();
+        let private = File::open(&path).unwrap();
+        let directory = File::open(temp.path().join(".grove")).unwrap();
+        let epoch_path = lease.control_dir().join(EPOCH_FILE_NAME);
+        let config = temp.path().join("launch.kdl");
+        fs::write(&config, "test \"/bin/sh -c true\"\n").unwrap();
+        let templates =
+            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
+                .unwrap();
+        let argv = templates.expand("test", &[]).unwrap();
+        let mut events = Vec::new();
+        let result = lease.supervise_launch(|observer| {
+            keyed_launch::run_observed(
+                keyed_launch::Launch {
+                    argv: &argv,
+                    channel: &channel,
+                    channel_var: "GROVE_SIGNAL_FILE",
+                    scrub: &[],
+                    cwd: Some(temp.path()),
+                    escalation: keyed_launch::Escalation {
+                        grace: std::time::Duration::ZERO,
+                        kill_grace: std::time::Duration::ZERO,
+                    },
+                },
+                &mut |event| {
+                    observer(event);
+                    events.push(event);
+                    assert!(fs::read(&path).unwrap().is_empty());
+                    let reaped = event == keyed_launch::LaunchEvent::Reaped;
+                    assert_eq!(shared(&private), reaped);
+                    assert_eq!(shared(&directory), reaped);
+                    // Callbacks must have neither epoch nor containing-tree guard.
+                    lock(&File::open(&epoch_path).unwrap()).unwrap();
+                    lock(&File::open(temp.path()).unwrap()).unwrap();
+                    assert!(super::super::admit_session(
+                        temp.path(),
+                        "test",
+                        Some(channel.path().to_path_buf())
+                    )
+                    .is_ok());
+                },
+            )
+        });
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(
+            events,
+            [
+                keyed_launch::LaunchEvent::Started,
+                keyed_launch::LaunchEvent::Reaped
+            ]
+        );
+        assert!(lease.launch.is_none());
+    }
 
     fn fixture() -> (TempDir, LaunchWitnesses, PathBuf) {
         let temp = TempDir::new().unwrap();

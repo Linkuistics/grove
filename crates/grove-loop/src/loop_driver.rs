@@ -419,7 +419,7 @@ fn launch_configured_session(
     );
 
     driver_lease
-        .prepare_launch(selected.lifetime, channel.path())
+        .prepare_launch(selected.lifetime, selection, channel.path())
         .context("activating the foreground session epoch before spawn")?;
 
     driver_lease
@@ -632,6 +632,13 @@ mod tests {
                 state == "current",
                 "{epoch}"
             );
+            if state == "current" {
+                assert!(epoch.contains("observation-version=1\n"), "{epoch}");
+                assert!(epoch.contains("observation-key=1\n"), "{epoch}");
+                // Launch-time work-k1 and impl, encoded without record separators.
+                assert!(epoch.contains("observation-handle-hex=776f726b2d6b31\n"));
+                assert!(epoch.contains("observation-kind-hex=696d706c\n"));
+            }
         }
     }
 

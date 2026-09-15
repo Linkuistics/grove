@@ -159,7 +159,7 @@ launch-owner controls, scaffolding, the admission tests, and the closing brace. 
 reads them in that same order, because a test module has no conceptual order to
 prefer to the file's.
 
-<!-- fragment «lease-tests» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="935-1880" parent="source-driver-lease" -->
+<!-- fragment «lease-tests» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="970-2073" parent="source-driver-lease" -->
 <!-- insert «epoch-tests-module-open» -->
 <!-- insert «epoch-tests-launch-owner» -->
 <!-- insert «epoch-tests-workspace-fixture» -->
@@ -193,7 +193,7 @@ prefer to the file's.
 The module opens on its attribute and its name, and nothing else is on these
 two lines.
 
-<!-- fragment «epoch-tests-module-open» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="935-936" parent="lease-tests" -->
+<!-- fragment «epoch-tests-module-open» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="970-971" parent="lease-tests" -->
 ````rust
 #[cfg(test)]
 mod tests {
@@ -230,8 +230,145 @@ release operation is exercised in the paired-witness controls at the end of this
 chapter. Two-platform process-death and forced-reuse observation evidence remains
 owned by the later observer increment.
 
-<!-- fragment «epoch-tests-launch-owner» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="937-1318" parent="lease-tests" -->
+The publication controls compare the epoch's tree and private identities with
+actual descriptor metadata, decode its namespace-local basename, and check the
+nonce/signal binding. Admission accepts absent, unsupported and malformed
+extensions, including invalid UTF-8, while rejecting wrong signal paths and
+corrupt mandatory path fields. A limited writer fails partway through the real
+extension serializer to prove mandatory activation survives. The real-run event
+control writes a completion signal at Started and checks that both locks remain
+held until Reaped; successful spawn leaves exactly eight bytes, failed spawn none.
+
+<!-- fragment «epoch-tests-launch-owner» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="972-1511" parent="lease-tests" -->
 ````rust
+    pub(super) fn witness_selection() -> crate::Selection {
+        crate::Selection {
+            path: PathBuf::from(".grove/01-impl--work-k1.md"),
+            handle: crate::Handle::parse("work-k1").unwrap(),
+            kind: crate::Kind::new("impl").unwrap(),
+        }
+    }
+
+    #[test]
+    fn witnessed_epoch_binds_open_objects_and_admission_ignores_extensions() {
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        fs::write(temp.path().join(".grove/_BRIEF.md"), "root").unwrap();
+        let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        let tree = root.directory().metadata().unwrap();
+        let signal = lease.control_dir.join("signal-test\nnonce=injected");
+        lease
+            .prepare_launch(root, &witness_selection(), &signal)
+            .unwrap();
+        let epoch_path = lease.control_dir.join(EPOCH_FILE_NAME);
+        let record = fs::read_to_string(&epoch_path).unwrap();
+        let path = lease.launch.as_ref().unwrap().path().unwrap();
+        let private = fs::metadata(path).unwrap();
+        for (field, expected) in [
+            ("observation-tree-device", tree.dev()),
+            ("observation-tree-inode", tree.ino()),
+            ("observation-witness-device", private.dev()),
+            ("observation-witness-inode", private.ino()),
+        ] {
+            assert_eq!(
+                record_field(&record, field)
+                    .unwrap()
+                    .parse::<u64>()
+                    .unwrap(),
+                expected
+            );
+        }
+        let basename =
+            decode_path(record_field(&record, "observation-witness-name-hex").unwrap()).unwrap();
+        assert_eq!(basename.components().count(), 1);
+        assert_eq!(lease.control_dir.join(basename), path);
+        let mandatory = parse_epoch_record(&record).unwrap();
+        assert_eq!(mandatory.process.nonce, lease.nonce);
+        assert_eq!(mandatory.signal_path.as_deref(), Some(signal.as_path()));
+        lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Started));
+        assert!(matches!(
+            crate::try_observe(temp.path(), &[None]).activity,
+            crate::ActivityObservation::Unavailable(_)
+        ));
+        let prefix = record.split("observation-version=").next().unwrap();
+        for extension in ["", "observation-version=999\n", "observation-version=1\nobservation-key=bad\nobservation-key=2\nobservation-handle-hex=zz\n"] {
+            fs::write(&epoch_path, format!("{prefix}{extension}")).unwrap();
+            assert!(admit_session(temp.path(), "test", ambient(&signal)).is_ok(), "{extension}");
+            assert!(admit_session(temp.path(), "test", ambient(&signal.with_extension("stale"))).is_err());
+        }
+        let mut bytes = prefix.as_bytes().to_vec();
+        bytes.extend_from_slice(b"observation-kind-hex=\xff\n");
+        fs::write(&epoch_path, bytes).unwrap();
+        assert!(admit_session(temp.path(), "test", ambient(&signal)).is_ok());
+        for field in ["worktree-path-hex", "signal-path-hex"] {
+            let valid = record_field(prefix, field).unwrap();
+            let corrupt =
+                prefix.replace(&format!("{field}={valid}"), &format!("{field}=\u{fffd}0"));
+            fs::write(&epoch_path, corrupt.as_bytes()).unwrap();
+            assert!(admit_session(temp.path(), "test", ambient(&signal)).is_err());
+            let mut corrupt_bytes = prefix
+                .replace(&format!("{field}={valid}"), &format!("{field}=X0"))
+                .into_bytes();
+            let offset = corrupt_bytes
+                .windows(field.len() + 2)
+                .position(|bytes| bytes == format!("{field}=X").as_bytes())
+                .unwrap();
+            corrupt_bytes[offset + field.len() + 1] = 0xff;
+            fs::write(&epoch_path, corrupt_bytes).unwrap();
+            assert!(admit_session(temp.path(), "test", ambient(&signal)).is_err());
+        }
+    }
+
+    #[test]
+    fn witnessed_epoch_partial_publication_preserves_mandatory_activation() {
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
+        let signal = lease.control_dir.join("signal-test");
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        lease
+            .prepare_launch_using(
+                root,
+                &signal,
+                |path| acquire_epoch_file(path, LockMode::Exclusive, "test"),
+                |launch, epoch| {
+                    // Exhaust capacity partway through the real extension serializer.
+                    struct Limited<'a>(&'a mut File, usize);
+                    impl Write for Limited<'_> {
+                        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                            if self.1 == 0 {
+                                return Err(std::io::Error::other("injected full device"));
+                            }
+                            let n = self.0.write(&bytes[..bytes.len().min(self.1)])?;
+                            self.1 -= n;
+                            Ok(n)
+                        }
+                        fn flush(&mut self) -> std::io::Result<()> {
+                            self.0.flush()
+                        }
+                    }
+                    launch.publish(&mut Limited(epoch, 30), &witness_selection())
+                },
+            )
+            .unwrap();
+        assert!(admit_session(temp.path(), "test", ambient(&signal)).is_ok());
+        let record = fs::read_to_string(lease.control_dir.join(EPOCH_FILE_NAME)).unwrap();
+        assert!(
+            record.ends_with("observation-version=1\nobservat"),
+            "{record}"
+        );
+        let result = lease.supervise_launch(|event| {
+            event(keyed_launch::LaunchEvent::Started);
+            event(keyed_launch::LaunchEvent::Reaped);
+            42
+        });
+        assert_eq!(result, 42);
+        assert!(lease.launch.is_none());
+    }
+
     #[test]
     fn paired_witness_failure_preserves_real_launch_and_admission() {
         let temp = TempDir::new().unwrap();
@@ -246,7 +383,9 @@ owned by the later observer increment.
         );
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
-        lease.prepare_launch(root, channel.path()).unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), channel.path())
+            .unwrap();
         assert!(lease.launch.as_ref().unwrap().path().is_none());
         assert!(admit_session(temp.path(), "test", ambient(channel.path())).is_ok());
         assert!(matches!(
@@ -295,7 +434,9 @@ owned by the later observer increment.
             let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
             let signal = lease.control_dir.join("signal-test");
-            lease.prepare_launch(root, &signal).unwrap();
+            lease
+                .prepare_launch(root, &witness_selection(), &signal)
+                .unwrap();
             let path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
             let directory = File::open(temp.path().join(".grove")).unwrap();
             let private = File::open(&path).unwrap();
@@ -340,7 +481,9 @@ owned by the later observer increment.
         let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         let signal = lease.control_dir.join("signal-test");
-        lease.prepare_launch(root, &signal).unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), &signal)
+            .unwrap();
         let directory = File::open(temp.path().join(".grove")).unwrap();
         assert_ne!(
             unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
@@ -408,7 +551,9 @@ owned by the later observer increment.
             let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
             let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
-            lease.prepare_launch(root, channel.path()).unwrap();
+            lease
+                .prepare_launch(root, &witness_selection(), channel.path())
+                .unwrap();
             let directory = File::open(temp.path().join(".grove")).unwrap();
             let private_path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
             let private = File::open(&private_path).unwrap();
@@ -436,6 +581,11 @@ owned by the later observer increment.
                     },
                     &mut |event| {
                         observer(event);
+                        assert_eq!(fs::read(&private_path).unwrap(), b"started\n");
+                        if event == keyed_launch::LaunchEvent::Started {
+                            keyed_launch::signal(channel.path(), "relaunch").unwrap();
+                            assert!(channel.path().exists());
+                        }
                         for file in [&directory, &private] {
                             let result = unsafe {
                                 libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB)
@@ -462,19 +612,28 @@ owned by the later observer increment.
                 );
                 assert_eq!(unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) }, 0);
             }
-            assert!(fs::read(&private_path).unwrap().is_empty());
+            assert_eq!(
+                fs::read(&private_path).unwrap(),
+                if program == "/bin/sh" {
+                    b"started\n".as_slice()
+                } else {
+                    b""
+                }
+            );
 
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-            let result = lease.prepare_launch_with(root, channel.path(), |_| {
-                Err(anyhow::anyhow!("injected epoch acquisition failure"))
-            });
+            let result =
+                lease.prepare_launch_with(root, &witness_selection(), channel.path(), |_| {
+                    Err(anyhow::anyhow!("injected epoch acquisition failure"))
+                });
             assert!(result.is_err());
             assert!(lease.launch.is_none());
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-            let result = lease.prepare_launch_with(root, channel.path(), |path| {
-                // A read-only descriptor makes the mandatory epoch write fail.
-                Ok(File::open(path)?)
-            });
+            let result =
+                lease.prepare_launch_with(root, &witness_selection(), channel.path(), |path| {
+                    // A read-only descriptor makes the mandatory epoch write fail.
+                    Ok(File::open(path)?)
+                });
             assert!(result.is_err());
             assert!(lease.launch.is_none());
             channel.discard().unwrap();
@@ -493,7 +652,9 @@ owned by the later observer increment.
         let mut lease = DriverLease::acquire(&workspace).unwrap();
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         let signal = lease.control_dir.join("signal-test");
-        lease.prepare_launch(root, &signal).unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), &signal)
+            .unwrap();
         let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             lease.supervise_launch(|observer| {
                 observer(keyed_launch::LaunchEvent::Started);
@@ -511,12 +672,16 @@ owned by the later observer increment.
         assert!(unwind.is_err());
         assert!(lease.launch.is_none());
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-        lease.prepare_launch(root, &signal).unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), &signal)
+            .unwrap();
         let original = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         fs::rename(temp.path().join(".grove"), temp.path().join("old")).unwrap();
         fs::create_dir(temp.path().join(".grove")).unwrap();
         let replacement_pin = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-        assert!(lease.prepare_launch(replacement_pin, &signal).is_err());
+        assert!(lease
+            .prepare_launch(replacement_pin, &witness_selection(), &signal)
+            .is_err());
         assert!(
             lease.launch.as_ref().unwrap().root.same(&original).unwrap(),
             "a second attempt replaced the unreaped pin"
@@ -538,7 +703,7 @@ owned by the later observer increment.
         let reader = acquire_epoch_file(&epoch_path, LockMode::Shared, "test reader").unwrap();
         let (waiting_tx, waiting_rx) = mpsc::channel();
         let worker = thread::spawn(move || {
-            let result = lease.prepare_launch_with(root, &signal, |path| {
+            let result = lease.prepare_launch_with(root, &witness_selection(), &signal, |path| {
                 acquire_epoch_file_with(
                     path,
                     LockMode::Exclusive,
@@ -598,7 +763,9 @@ owned by the later observer increment.
             let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
             let signal = lease.control_dir.join("signal-test");
-            lease.prepare_launch(root, &signal).unwrap();
+            lease
+                .prepare_launch(root, &witness_selection(), &signal)
+                .unwrap();
             let result: Result<()> = lease.supervise_launch(|observer| {
                 for event in &events {
                     observer(*event);
@@ -620,7 +787,7 @@ owned by the later observer increment.
 `workspace_at` resolves the fixture marker into the same Workspace value the
 real lease acquisition accepts. It creates no launch configuration.
 
-<!-- fragment «epoch-tests-workspace-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1319-1325" parent="lease-tests" -->
+<!-- fragment «epoch-tests-workspace-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1512-1518" parent="lease-tests" -->
 ````rust
     /// The fixtures below build a `.jj` marker directly and then acquire against
     /// it. Resolving here rather than inside `acquire` is the shape of the
@@ -645,7 +812,7 @@ fixture and the two that drive the epoch helper against a bare temporary file.
 
 Then the imports, and one constant.
 
-<!-- fragment «epoch-tests-imports» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1326-1335" parent="lease-tests" -->
+<!-- fragment «epoch-tests-imports» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1519-1528" parent="lease-tests" -->
 ````rust
     use super::*;
     use std::cell::{Cell, RefCell};
@@ -669,7 +836,7 @@ not `GROVE_SIGNAL_FILE`.
 
 That distinction is the next item's whole subject.
 
-<!-- fragment «epoch-tests-ambient-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1336-1345" parent="lease-tests" -->
+<!-- fragment «epoch-tests-ambient-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1529-1538" parent="lease-tests" -->
 ````rust
     /// The ambient context an admission test would once have installed by
     /// writing `GROVE_SIGNAL_FILE`. Nothing here mutates the environment: these
@@ -707,7 +874,7 @@ the same file the structure brief mistook for part of this block.
 The next item is the reason three of the original admission tests are not really run by
 the test harness at all.
 
-<!-- fragment «epoch-tests-fork-guard» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1346-1381" parent="lease-tests" -->
+<!-- fragment «epoch-tests-fork-guard» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1539-1574" parent="lease-tests" -->
 ````rust
     pub(super) fn fork_sensitive_driver_lease_test_body_runs_here() -> bool {
         let current_thread = thread::current();
@@ -772,7 +939,7 @@ underneath. Both frames are present; neither is where a reader would first look.
 
 The last item before the tests is a two-line hook shared by the first two.
 
-<!-- fragment «epoch-tests-replace-locked» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1382-1387" parent="lease-tests" -->
+<!-- fragment «epoch-tests-replace-locked» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1575-1580" parent="lease-tests" -->
 ````rust
     fn replace_locked_path(attempt: usize, path: &Path) -> Result<()> {
         fs::rename(path, path.with_extension(format!("attempt-{attempt}")))?;
@@ -794,7 +961,7 @@ The first pair drives chapter 16's lease-file acquisition through its identity
 retry loop, once to success and once to exhaustion. The hook fires after the lock
 is taken and before the identity comparison.
 
-<!-- fragment «epoch-tests-retry-until-current» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1388-1412" parent="lease-tests" -->
+<!-- fragment «epoch-tests-retry-until-current» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1581-1605" parent="lease-tests" -->
 ````rust
     #[test]
     fn lease_path_replacement_retries_until_the_locked_descriptor_is_current() {
@@ -841,7 +1008,7 @@ the agreement means what the function's name says it means.
 
 The second reaches the bound.
 
-<!-- fragment «epoch-tests-fails-closed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1413-1436" parent="lease-tests" -->
+<!-- fragment «epoch-tests-fails-closed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1606-1629" parent="lease-tests" -->
 ````rust
     #[test]
     fn lease_path_replacement_fails_closed_after_eight_attempts() {
@@ -892,7 +1059,7 @@ That pattern recurs below, in a test where it comes out the other way.
 One test, and it is the only one in the block that reads a descriptor flag
 rather than a file's contents.
 
-<!-- fragment «epoch-tests-close-on-exec» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1437-1458" parent="lease-tests" -->
+<!-- fragment «epoch-tests-close-on-exec» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1630-1651" parent="lease-tests" -->
 ````rust
     #[test]
     fn acquired_driver_descriptors_are_close_on_exec() {
@@ -943,7 +1110,7 @@ and two are asserted nowhere in the corpus.
 The epoch record is the one file both sides of the handoff hold open at once,
 and this test is about the file rather than about what it says.
 
-<!-- fragment «epoch-tests-stable-record» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1459-1497" parent="lease-tests" -->
+<!-- fragment «epoch-tests-stable-record» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1652-1690" parent="lease-tests" -->
 ````rust
     #[test]
     fn activation_and_invalidation_replace_one_stable_epoch_record() {
@@ -1012,7 +1179,7 @@ Three tests drive `acquire_epoch_file_with`, which is the seam chapter 16
 described as the one the decision record reserves: a clock, a wait, two barriers
 and a contention reporter, all injected. This chapter says what each is used for.
 
-<!-- fragment «epoch-tests-event-order» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1498-1538" parent="lease-tests" -->
+<!-- fragment «epoch-tests-event-order» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1691-1731" parent="lease-tests" -->
 ````rust
     #[test]
     fn epoch_acquisition_retries_open_lock_path_replacement_in_event_order() {
@@ -1072,7 +1239,7 @@ does not contain it — so the test also pins, quietly, that an uncontended
 acquisition reports nothing, and that is the only assertion in the block about
 the reporter's *call site* rather than its text.
 
-<!-- fragment «epoch-tests-orphaned-timeout» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1539-1577" parent="lease-tests" -->
+<!-- fragment «epoch-tests-orphaned-timeout» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1732-1770" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_orphaned_epoch_guard_times_out_post_reap_once_at_the_fixed_bound() {
@@ -1134,7 +1301,7 @@ pinned by nothing in this corpus.** Even the `elapsed` assertion is weaker than 
 looks: with a ten-second step, any bound in the range 21 to 30 seconds produces
 the same final reading of thirty.
 
-<!-- fragment «epoch-tests-contention-text» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1578-1588" parent="lease-tests" -->
+<!-- fragment «epoch-tests-contention-text» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1771-1781" parent="lease-tests" -->
 ````rust
     #[test]
     fn the_epoch_contention_diagnostic_names_the_lock_mode_and_operation() {
@@ -1168,7 +1335,7 @@ Two tests split the absent case between the two halves the production code
 separated: the decision an absent context leads to, and the reading that decides
 a context is absent.
 
-<!-- fragment «epoch-tests-manual-operations» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1589-1596" parent="lease-tests" -->
+<!-- fragment «epoch-tests-manual-operations» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1782-1789" parent="lease-tests" -->
 ````rust
     #[test]
     fn manual_agent_operations_need_no_driver_epoch() {
@@ -1192,7 +1359,7 @@ statement and returns before `Workspace::resolve` is ever reached, so the path i
 never examined. The test would pass with a real worktree, a temporary directory,
 or an empty string. Its expressive fixture describes a branch it does not take.
 
-<!-- fragment «epoch-tests-nonempty-ambient» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1597-1614" parent="lease-tests" -->
+<!-- fragment «epoch-tests-nonempty-ambient» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1790-1807" parent="lease-tests" -->
 ````rust
     /// The reading half, pinned without touching the environment. The empty case
     /// is not a curiosity: `.cargo/config.toml` force-clears `GROVE_SIGNAL_FILE`
@@ -1239,7 +1406,7 @@ has a direct test because the value arrives as an argument.
 These two are the carried example, and they are the reason the fork guard
 exists. Both drive a real replacement against a real lease.
 
-<!-- fragment «epoch-tests-old-finishes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1615-1674" parent="lease-tests" -->
+<!-- fragment «epoch-tests-old-finishes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1808-1867" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_admitted_old_operation_finishes_before_replacement_invalidates_new_calls() {
@@ -1320,7 +1487,7 @@ the lock* from *not yet started*, and the `started_tx` handshake it takes first
 only proves the thread began, not that it reached the lock. The final refusal is
 matched on `"session epoch is inactive"`.
 
-<!-- fragment «epoch-tests-record-until-handoff» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1675-1717" parent="lease-tests" -->
+<!-- fragment «epoch-tests-record-until-handoff» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1868-1910" parent="lease-tests" -->
 ````rust
     #[test]
     fn replacement_keeps_the_old_lease_record_until_it_owns_epoch_handoff() {
@@ -1528,7 +1695,7 @@ panic that keeps the format string from the refusal it replaced.
 
 With the ladder in view, the seven read quickly.
 
-<!-- fragment «epoch-tests-foreign-worktree» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1718-1742" parent="lease-tests" -->
+<!-- fragment «epoch-tests-foreign-worktree» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1911-1935" parent="lease-tests" -->
 ````rust
     #[test]
     fn ambient_context_from_another_worktree_names_both_roots() {
@@ -1570,7 +1737,7 @@ constraint on order or framing. It also does not establish that the *identity*
 comparison one rung below would have caught the same case, which is the arm the
 mutation found unheld.
 
-<!-- fragment «epoch-tests-inactive-reported» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1743-1757" parent="lease-tests" -->
+<!-- fragment «epoch-tests-inactive-reported» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1936-1950" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_inactive_epoch_is_reported_without_claiming_a_session_is_active() {
@@ -1600,7 +1767,7 @@ pinned negatively because there is no other way to pin it.
 substring, so any rewording that avoided those two words while still implying a
 live session would satisfy it.
 
-<!-- fragment «epoch-tests-rotated-signal» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1758-1781" parent="lease-tests" -->
+<!-- fragment «epoch-tests-rotated-signal» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1951-1974" parent="lease-tests" -->
 ````rust
     #[test]
     fn a_rotated_epoch_refuses_the_old_signal_path() {
@@ -1641,7 +1808,7 @@ path does not match the active epoch"`, and the mutation confirms this rung. Wha
 is not asserted is that the *new* path would now be admitted; the test rotates
 and checks only the losing side.
 
-<!-- fragment «epoch-tests-separator-bytes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1782-1801" parent="lease-tests" -->
+<!-- fragment «epoch-tests-separator-bytes» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1975-1994" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_epoch_signal_path_round_trips_record_separator_bytes() {
@@ -1680,7 +1847,7 @@ the encode-decode pair must have been faithful for that call to be admitted. The
 weight is on the `expect`, and the assertion that follows it is close to
 decorative.
 
-<!-- fragment «epoch-tests-probe-releases» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1802-1843" parent="lease-tests" -->
+<!-- fragment «epoch-tests-probe-releases» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1995-2036" parent="lease-tests" -->
 ````rust
     #[test]
     fn a_successful_liveness_probe_releases_the_lease_before_validation() {
@@ -1741,7 +1908,7 @@ that much is guarded. But the test drives
 `admit_session`, so it says nothing about the probe being reached in admission —
 which is the previous section's ladder claim, held by the next test instead.
 
-<!-- fragment «epoch-tests-active-no-lease» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1844-1863" parent="lease-tests" -->
+<!-- fragment «epoch-tests-active-no-lease» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2037-2056" parent="lease-tests" -->
 ````rust
     #[test]
     fn an_active_epoch_without_a_live_lease_is_stale() {
@@ -1780,7 +1947,7 @@ assertion in the block, and it is one line.
 tell which layer produced the phrase. It is nonetheless attributed: the mutation
 puts this test and the probe test on that arm and no other.
 
-<!-- fragment «epoch-tests-malformed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1864-1880" parent="lease-tests" -->
+<!-- fragment «epoch-tests-malformed» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="2057-2073" parent="lease-tests" -->
 ````rust
     #[test]
     fn a_malformed_epoch_is_stale() {
@@ -2460,13 +2627,115 @@ Replacing the epoch once forces a second attempt; replacing it on every guarded 
 
 The tests create real directories and private files and probe them through independently opened descriptors. They exercise close-on-exec flags, the private-close operation while the directory remains locked, bounded occupied draws without truncation, random and open failures, foreign shared holders of either witness, reported lock failures, and cleanup grammar with an explicitly retained file. Fork-sensitive release checks run in the existing isolated harness. The lease tests earlier in this chapter additionally exercise real successful and failed launches, admission under foreign directory contention, Reaped callbacks, unwind/drop, and the old-reader acquisition barrier. These are native macOS lock controls, not the two-platform observer or forced-reuse evidence required by the later observation increment.
 
-<!-- fragment «witness-tests» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="125-315" parent="source-witnesses" -->
+The marker controls check duplicate Started calls and a failed write followed
+by a duplicate: neither can rewrite the file. A read-only private descriptor
+injects a real publication failure during a configured child launch. Independent
+shared probes still find both locks held at Started and released at Reaped;
+exclusive epoch and containing-directory probes succeed inside both callbacks.
+Admission remains usable and the successful runner result survives the warning.
+
+<!-- fragment «witness-tests» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease/witnesses.rs" lines="176-461" parent="source-witnesses" -->
 ````rust
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
     use tempfile::TempDir;
+
+    #[test]
+    fn witnessed_started_is_exact_and_never_retried_after_success_or_failure() {
+        let (_temp, mut owner, control) = fixture();
+        owner.prepare(&control).unwrap();
+        owner.started().unwrap();
+        owner.started().unwrap();
+        assert_eq!(fs::read(owner.path().unwrap()).unwrap(), b"started\n");
+
+        let (_temp, mut owner, control) = fixture();
+        owner.prepare(&control).unwrap();
+        let path = owner.path().unwrap().to_path_buf();
+        // Read-only descriptor injects a real write failure without unsafe fd reuse.
+        owner.private = Some(File::open(&path).unwrap());
+        assert!(owner.started().is_err());
+        owner.private = Some(OpenOptions::new().write(true).open(&path).unwrap());
+        owner.started().unwrap();
+        assert!(
+            fs::read(path).unwrap().is_empty(),
+            "failed publication was retried"
+        );
+    }
+
+    #[test]
+    fn witnessed_marker_failure_preserves_real_launch_and_both_locks_until_reap() {
+        if !super::super::tests::fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
+        use super::super::{tests::witness_selection, DriverLease, EPOCH_FILE_NAME};
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        let workspace = jj_workspace::Workspace::resolve(temp.path()).unwrap();
+        let mut lease = DriverLease::acquire(&workspace).unwrap();
+        let channel = keyed_launch::Channel::allocate(lease.control_dir()).unwrap();
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), channel.path())
+            .unwrap();
+        let owner = lease.launch.as_mut().unwrap();
+        let path = owner.path().unwrap().to_path_buf();
+        owner.private = Some(File::open(&path).unwrap());
+        lock(owner.private.as_ref().unwrap()).unwrap();
+        let private = File::open(&path).unwrap();
+        let directory = File::open(temp.path().join(".grove")).unwrap();
+        let epoch_path = lease.control_dir().join(EPOCH_FILE_NAME);
+        let config = temp.path().join("launch.kdl");
+        fs::write(&config, "test \"/bin/sh -c true\"\n").unwrap();
+        let templates =
+            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
+                .unwrap();
+        let argv = templates.expand("test", &[]).unwrap();
+        let mut events = Vec::new();
+        let result = lease.supervise_launch(|observer| {
+            keyed_launch::run_observed(
+                keyed_launch::Launch {
+                    argv: &argv,
+                    channel: &channel,
+                    channel_var: "GROVE_SIGNAL_FILE",
+                    scrub: &[],
+                    cwd: Some(temp.path()),
+                    escalation: keyed_launch::Escalation {
+                        grace: std::time::Duration::ZERO,
+                        kill_grace: std::time::Duration::ZERO,
+                    },
+                },
+                &mut |event| {
+                    observer(event);
+                    events.push(event);
+                    assert!(fs::read(&path).unwrap().is_empty());
+                    let reaped = event == keyed_launch::LaunchEvent::Reaped;
+                    assert_eq!(shared(&private), reaped);
+                    assert_eq!(shared(&directory), reaped);
+                    // Callbacks must have neither epoch nor containing-tree guard.
+                    lock(&File::open(&epoch_path).unwrap()).unwrap();
+                    lock(&File::open(temp.path()).unwrap()).unwrap();
+                    assert!(super::super::admit_session(
+                        temp.path(),
+                        "test",
+                        Some(channel.path().to_path_buf())
+                    )
+                    .is_ok());
+                },
+            )
+        });
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(
+            events,
+            [
+                keyed_launch::LaunchEvent::Started,
+                keyed_launch::LaunchEvent::Reaped
+            ]
+        );
+        assert!(lease.launch.is_none());
+    }
 
     fn fixture() -> (TempDir, LaunchWitnesses, PathBuf) {
         let temp = TempDir::new().unwrap();

@@ -245,9 +245,10 @@ impl DriverLease {
     pub(crate) fn prepare_launch(
         &mut self,
         root: crate::TreeLifetime,
+        selected: &crate::Selection,
         signal_path: &Path,
     ) -> Result<()> {
-        self.prepare_launch_with(root, signal_path, |path| {
+        self.prepare_launch_with(root, selected, signal_path, |path| {
             acquire_epoch_file(path, LockMode::Exclusive, "pre-spawn activation")
         })
     }
@@ -255,8 +256,21 @@ impl DriverLease {
     fn prepare_launch_with(
         &mut self,
         root: crate::TreeLifetime,
+        selected: &crate::Selection,
         signal_path: &Path,
         acquire: impl FnOnce(&Path) -> Result<File>,
+    ) -> Result<()> {
+        self.prepare_launch_using(root, signal_path, acquire, |launch, epoch| {
+            launch.publish(epoch, selected)
+        })
+    }
+
+    fn prepare_launch_using(
+        &mut self,
+        root: crate::TreeLifetime,
+        signal_path: &Path,
+        acquire: impl FnOnce(&Path) -> Result<File>,
+        publish: impl FnOnce(&witnesses::LaunchWitnesses, &mut File) -> Result<()>,
     ) -> Result<()> {
         anyhow::ensure!(
             self.launch.is_none(),
@@ -300,7 +314,13 @@ impl DriverLease {
                 &self.worktree_root,
                 &self.nonce,
                 Some(signal_path),
-            )
+            )?;
+            if let Some(launch) = &self.launch {
+                if let Err(error) = publish(launch, &mut epoch) {
+                    eprintln!("grove: warning: launch observation publication failed; continuing: {error:#}");
+                }
+            }
+            Ok(())
         })();
         if result.is_err() {
             self.launch.take();
@@ -317,7 +337,14 @@ impl DriverLease {
     ) -> T {
         let mut started = false;
         let result = run(&mut |event| match event {
-            keyed_launch::LaunchEvent::Started => started = true,
+            keyed_launch::LaunchEvent::Started => {
+                started = true;
+                if let Some(launch) = self.launch.as_mut() {
+                    if let Err(error) = launch.started() {
+                        eprintln!("grove: warning: launch observation publication failed; continuing: {error:#}");
+                    }
+                }
+            }
             keyed_launch::LaunchEvent::Reaped => {
                 self.launch.take();
             }
@@ -667,6 +694,7 @@ fn encode_path(path: &Path) -> Result<String> {
 }
 
 fn decode_path(value: &str) -> Result<PathBuf> {
+    anyhow::ensure!(value.is_ascii(), "path hex contains non-ASCII bytes");
     if value.len() % 2 != 0 {
         bail!("working-tree path hex has odd length");
     }
@@ -724,8 +752,15 @@ fn read_record(file: &mut File, label: &str) -> Result<String> {
 }
 
 fn read_epoch_record(file: &mut File) -> Result<EpochRecord> {
-    let record = read_record(file, "session epoch record")?;
-    parse_epoch_record(&record)
+    file.seek(SeekFrom::Start(0))
+        .context("rewinding session epoch record")?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
+        .context("reading session epoch record")?;
+    // Unknown extension bytes cannot veto admission. Every mandatory value is
+    // ASCII state, decimal or hex; replacement characters there still fail its
+    // existing validation, including encoded paths and the nonce.
+    parse_epoch_record(&String::from_utf8_lossy(&bytes))
 }
 
 fn parse_epoch_record(record: &str) -> Result<EpochRecord> {
@@ -934,6 +969,134 @@ fn write_record(
 
 #[cfg(test)]
 mod tests {
+    pub(super) fn witness_selection() -> crate::Selection {
+        crate::Selection {
+            path: PathBuf::from(".grove/01-impl--work-k1.md"),
+            handle: crate::Handle::parse("work-k1").unwrap(),
+            kind: crate::Kind::new("impl").unwrap(),
+        }
+    }
+
+    #[test]
+    fn witnessed_epoch_binds_open_objects_and_admission_ignores_extensions() {
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        fs::write(temp.path().join(".grove/_BRIEF.md"), "root").unwrap();
+        let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        let tree = root.directory().metadata().unwrap();
+        let signal = lease.control_dir.join("signal-test\nnonce=injected");
+        lease
+            .prepare_launch(root, &witness_selection(), &signal)
+            .unwrap();
+        let epoch_path = lease.control_dir.join(EPOCH_FILE_NAME);
+        let record = fs::read_to_string(&epoch_path).unwrap();
+        let path = lease.launch.as_ref().unwrap().path().unwrap();
+        let private = fs::metadata(path).unwrap();
+        for (field, expected) in [
+            ("observation-tree-device", tree.dev()),
+            ("observation-tree-inode", tree.ino()),
+            ("observation-witness-device", private.dev()),
+            ("observation-witness-inode", private.ino()),
+        ] {
+            assert_eq!(
+                record_field(&record, field)
+                    .unwrap()
+                    .parse::<u64>()
+                    .unwrap(),
+                expected
+            );
+        }
+        let basename =
+            decode_path(record_field(&record, "observation-witness-name-hex").unwrap()).unwrap();
+        assert_eq!(basename.components().count(), 1);
+        assert_eq!(lease.control_dir.join(basename), path);
+        let mandatory = parse_epoch_record(&record).unwrap();
+        assert_eq!(mandatory.process.nonce, lease.nonce);
+        assert_eq!(mandatory.signal_path.as_deref(), Some(signal.as_path()));
+        lease.supervise_launch(|event| event(keyed_launch::LaunchEvent::Started));
+        assert!(matches!(
+            crate::try_observe(temp.path(), &[None]).activity,
+            crate::ActivityObservation::Unavailable(_)
+        ));
+        let prefix = record.split("observation-version=").next().unwrap();
+        for extension in ["", "observation-version=999\n", "observation-version=1\nobservation-key=bad\nobservation-key=2\nobservation-handle-hex=zz\n"] {
+            fs::write(&epoch_path, format!("{prefix}{extension}")).unwrap();
+            assert!(admit_session(temp.path(), "test", ambient(&signal)).is_ok(), "{extension}");
+            assert!(admit_session(temp.path(), "test", ambient(&signal.with_extension("stale"))).is_err());
+        }
+        let mut bytes = prefix.as_bytes().to_vec();
+        bytes.extend_from_slice(b"observation-kind-hex=\xff\n");
+        fs::write(&epoch_path, bytes).unwrap();
+        assert!(admit_session(temp.path(), "test", ambient(&signal)).is_ok());
+        for field in ["worktree-path-hex", "signal-path-hex"] {
+            let valid = record_field(prefix, field).unwrap();
+            let corrupt =
+                prefix.replace(&format!("{field}={valid}"), &format!("{field}=\u{fffd}0"));
+            fs::write(&epoch_path, corrupt.as_bytes()).unwrap();
+            assert!(admit_session(temp.path(), "test", ambient(&signal)).is_err());
+            let mut corrupt_bytes = prefix
+                .replace(&format!("{field}={valid}"), &format!("{field}=X0"))
+                .into_bytes();
+            let offset = corrupt_bytes
+                .windows(field.len() + 2)
+                .position(|bytes| bytes == format!("{field}=X").as_bytes())
+                .unwrap();
+            corrupt_bytes[offset + field.len() + 1] = 0xff;
+            fs::write(&epoch_path, corrupt_bytes).unwrap();
+            assert!(admit_session(temp.path(), "test", ambient(&signal)).is_err());
+        }
+    }
+
+    #[test]
+    fn witnessed_epoch_partial_publication_preserves_mandatory_activation() {
+        let temp = TempDir::new().unwrap();
+        fs::create_dir(temp.path().join(".jj")).unwrap();
+        fs::create_dir(temp.path().join(".grove")).unwrap();
+        let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
+        let signal = lease.control_dir.join("signal-test");
+        let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
+        lease
+            .prepare_launch_using(
+                root,
+                &signal,
+                |path| acquire_epoch_file(path, LockMode::Exclusive, "test"),
+                |launch, epoch| {
+                    // Exhaust capacity partway through the real extension serializer.
+                    struct Limited<'a>(&'a mut File, usize);
+                    impl Write for Limited<'_> {
+                        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                            if self.1 == 0 {
+                                return Err(std::io::Error::other("injected full device"));
+                            }
+                            let n = self.0.write(&bytes[..bytes.len().min(self.1)])?;
+                            self.1 -= n;
+                            Ok(n)
+                        }
+                        fn flush(&mut self) -> std::io::Result<()> {
+                            self.0.flush()
+                        }
+                    }
+                    launch.publish(&mut Limited(epoch, 30), &witness_selection())
+                },
+            )
+            .unwrap();
+        assert!(admit_session(temp.path(), "test", ambient(&signal)).is_ok());
+        let record = fs::read_to_string(lease.control_dir.join(EPOCH_FILE_NAME)).unwrap();
+        assert!(
+            record.ends_with("observation-version=1\nobservat"),
+            "{record}"
+        );
+        let result = lease.supervise_launch(|event| {
+            event(keyed_launch::LaunchEvent::Started);
+            event(keyed_launch::LaunchEvent::Reaped);
+            42
+        });
+        assert_eq!(result, 42);
+        assert!(lease.launch.is_none());
+    }
+
     #[test]
     fn paired_witness_failure_preserves_real_launch_and_admission() {
         let temp = TempDir::new().unwrap();
@@ -948,7 +1111,9 @@ mod tests {
         );
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
-        lease.prepare_launch(root, channel.path()).unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), channel.path())
+            .unwrap();
         assert!(lease.launch.as_ref().unwrap().path().is_none());
         assert!(admit_session(temp.path(), "test", ambient(channel.path())).is_ok());
         assert!(matches!(
@@ -997,7 +1162,9 @@ mod tests {
             let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
             let signal = lease.control_dir.join("signal-test");
-            lease.prepare_launch(root, &signal).unwrap();
+            lease
+                .prepare_launch(root, &witness_selection(), &signal)
+                .unwrap();
             let path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
             let directory = File::open(temp.path().join(".grove")).unwrap();
             let private = File::open(&path).unwrap();
@@ -1042,7 +1209,9 @@ mod tests {
         let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         let signal = lease.control_dir.join("signal-test");
-        lease.prepare_launch(root, &signal).unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), &signal)
+            .unwrap();
         let directory = File::open(temp.path().join(".grove")).unwrap();
         assert_ne!(
             unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
@@ -1110,7 +1279,9 @@ mod tests {
             let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
             let channel = keyed_launch::Channel::allocate(&lease.control_dir).unwrap();
-            lease.prepare_launch(root, channel.path()).unwrap();
+            lease
+                .prepare_launch(root, &witness_selection(), channel.path())
+                .unwrap();
             let directory = File::open(temp.path().join(".grove")).unwrap();
             let private_path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
             let private = File::open(&private_path).unwrap();
@@ -1138,6 +1309,11 @@ mod tests {
                     },
                     &mut |event| {
                         observer(event);
+                        assert_eq!(fs::read(&private_path).unwrap(), b"started\n");
+                        if event == keyed_launch::LaunchEvent::Started {
+                            keyed_launch::signal(channel.path(), "relaunch").unwrap();
+                            assert!(channel.path().exists());
+                        }
                         for file in [&directory, &private] {
                             let result = unsafe {
                                 libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB)
@@ -1164,19 +1340,28 @@ mod tests {
                 );
                 assert_eq!(unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) }, 0);
             }
-            assert!(fs::read(&private_path).unwrap().is_empty());
+            assert_eq!(
+                fs::read(&private_path).unwrap(),
+                if program == "/bin/sh" {
+                    b"started\n".as_slice()
+                } else {
+                    b""
+                }
+            );
 
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-            let result = lease.prepare_launch_with(root, channel.path(), |_| {
-                Err(anyhow::anyhow!("injected epoch acquisition failure"))
-            });
+            let result =
+                lease.prepare_launch_with(root, &witness_selection(), channel.path(), |_| {
+                    Err(anyhow::anyhow!("injected epoch acquisition failure"))
+                });
             assert!(result.is_err());
             assert!(lease.launch.is_none());
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-            let result = lease.prepare_launch_with(root, channel.path(), |path| {
-                // A read-only descriptor makes the mandatory epoch write fail.
-                Ok(File::open(path)?)
-            });
+            let result =
+                lease.prepare_launch_with(root, &witness_selection(), channel.path(), |path| {
+                    // A read-only descriptor makes the mandatory epoch write fail.
+                    Ok(File::open(path)?)
+                });
             assert!(result.is_err());
             assert!(lease.launch.is_none());
             channel.discard().unwrap();
@@ -1195,7 +1380,9 @@ mod tests {
         let mut lease = DriverLease::acquire(&workspace).unwrap();
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         let signal = lease.control_dir.join("signal-test");
-        lease.prepare_launch(root, &signal).unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), &signal)
+            .unwrap();
         let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             lease.supervise_launch(|observer| {
                 observer(keyed_launch::LaunchEvent::Started);
@@ -1213,12 +1400,16 @@ mod tests {
         assert!(unwind.is_err());
         assert!(lease.launch.is_none());
         let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-        lease.prepare_launch(root, &signal).unwrap();
+        lease
+            .prepare_launch(root, &witness_selection(), &signal)
+            .unwrap();
         let original = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
         fs::rename(temp.path().join(".grove"), temp.path().join("old")).unwrap();
         fs::create_dir(temp.path().join(".grove")).unwrap();
         let replacement_pin = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
-        assert!(lease.prepare_launch(replacement_pin, &signal).is_err());
+        assert!(lease
+            .prepare_launch(replacement_pin, &witness_selection(), &signal)
+            .is_err());
         assert!(
             lease.launch.as_ref().unwrap().root.same(&original).unwrap(),
             "a second attempt replaced the unreaped pin"
@@ -1240,7 +1431,7 @@ mod tests {
         let reader = acquire_epoch_file(&epoch_path, LockMode::Shared, "test reader").unwrap();
         let (waiting_tx, waiting_rx) = mpsc::channel();
         let worker = thread::spawn(move || {
-            let result = lease.prepare_launch_with(root, &signal, |path| {
+            let result = lease.prepare_launch_with(root, &witness_selection(), &signal, |path| {
                 acquire_epoch_file_with(
                     path,
                     LockMode::Exclusive,
@@ -1300,7 +1491,9 @@ mod tests {
             let mut lease = DriverLease::acquire(&workspace_at(temp.path())).unwrap();
             let root = crate::TreeLifetime::open(temp.path()).unwrap().unwrap();
             let signal = lease.control_dir.join("signal-test");
-            lease.prepare_launch(root, &signal).unwrap();
+            lease
+                .prepare_launch(root, &witness_selection(), &signal)
+                .unwrap();
             let result: Result<()> = lease.supervise_launch(|observer| {
                 for event in &events {
                     observer(*event);

@@ -327,8 +327,10 @@ exclusion-aware selection, selected-file reads and the opaque TreeLifetime.
 The viewer owns two-capture acceptance, presentation rows, display and in-memory
 interaction state. The loop's private driver_lease observer adds independent
 Idle/Busy/Unavailable runtime evidence after tree capture, sharing mandatory
-record parsers without session admission or a lease-lock probe. Legacy active
-epochs remain Unavailable. Independent activity acceptance displays idle NEXT
+record parsers without session admission or a lease-lock probe. The lease writes
+the versioned selected-mandate extension and Started marker through its paired
+witness owner; active epochs still remain Unavailable to this reader.
+Independent activity acceptance displays idle NEXT
 from the shared selector, with persistent summaries and no retained row activity
 on failed observation. Missing or failing trees withhold NEXT while retaining
 the independently compared runtime summary. Witnessed RUNNING follows next.

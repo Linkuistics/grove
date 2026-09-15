@@ -29,3 +29,24 @@ publishes no observation extension or marker; its empty witnesses are not RUNNIN
   witnessed-activity node requires, without preclaiming observer evidence.
 
 ## Notes
+
+## Decisions (running log)
+
+- Keep mandatory epoch serialization and field grammar unchanged. Append an ASCII,
+  `observation-`-prefixed version-1 extension only after paired preparation and
+  the mandatory active write succeed; encode text fields as hex so they cannot
+  introduce mandatory record fields. Its nonce and signal binding is the enclosing
+  epoch record, written under the same exclusive guard.
+- Pass the already validated Selection to preparation; derive its explicit key
+  from its typed Handle. Publish Started through the lease-owned pair at most
+  once, retaining both locks on publication or unconfirmed-reap failure.
+- Verification sequence: failing real-run marker/record tests; focused writer,
+  admission and fault tests; source-derived book repair; principal gate. The
+  enclosing k12 requires whole-protocol review after k27; k26 owns native
+  observer/platform and forced-reuse evidence.
+- Admission decodes unknown extension bytes tolerantly, while mandatory ASCII
+  fields retain their validators. The single fresh-context review found a valid
+  panic in hex-path decoding for non-ASCII input; reject it before string slicing.
+  The admission test reproduces the panic and covers both mandatory path fields,
+  including raw invalid UTF-8. This executable seam conclusively covers the fix;
+  no second in-session reviewer is used.

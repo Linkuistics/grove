@@ -52,7 +52,10 @@ knowledge belongs to the loop; row styling and viewport state belong to the
 viewer. The shipped capture returns independent tree and activity results. Its private
 `driver_lease::observation` module reuses mandatory parsers and identity logic,
 with read-only bounded acquisition and a runtime-only shared epoch guard.
-Legacy active records are Unavailable; missing controls or matching inactive
+The lease publishes a versioned mandate extension and exact Started marker via
+its private paired-witness owner; mandatory admission does not depend on those
+observational fields. Active records remain Unavailable to the current reader;
+missing controls or matching inactive
 records are Idle. The viewer compares tree and activity consistency separately,
 consuming consistent tree results even when activity changes or fails, and
 preserving compared activity when tree reading or root opening fails. Accepted

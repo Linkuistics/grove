@@ -28,7 +28,7 @@ refusal that names what is absent.
 ```text
 <worktree>
   │
-  ├─ join ".grove"            (`lib.rs::grove_root`, for the two public openings)
+  ├─ join ".grove"            (`lib.rs::grove_root`, for the public openings)
   │
   ├─ announce_contention      probe flock(2) non-blocking, in the caller's mode
   │    ├─ acquired            release; say nothing
@@ -61,7 +61,7 @@ not have supplied: **path construction**, because the library returns no paths,
 and **refusal precedence**, because an absent root is a condition grove states in
 its own words.
 
-This chapter owns 290 lines of `task_tree.rs` in 1 blocks.
+This chapter owns 302 lines of `task_tree.rs` in 1 block.
 The source index records their current ranges; the fragments below reconstruct
 every owned byte.
 
@@ -69,10 +69,10 @@ every owned byte.
 ## The header, and the one place paths are built
 
 The composite below is this chapter's whole ownership block. It expands, in
-order, to lines 1 through 290 of the file, and the seventeen fragments it names
+order, to lines 1 through 302 of the file, and the seventeen fragments it names
 run from here to the end of the chapter.
 
-<!-- fragment «tree-opening» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="1-290" parent="source-task-tree" -->
+<!-- fragment «tree-opening» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="1-302" parent="source-task-tree" -->
 <!-- insert «tree-header-who-owns-the-walk» -->
 <!-- insert «tree-header-paths-here» -->
 <!-- insert «tree-header-no-canonicalising» -->
@@ -126,9 +126,9 @@ Both halves of that are held by tests, and neither of them is in this crate.
 `crates/grove-llm/tests/tree_lock.rs`, because they scan every `.rs` file grove
 ships and so belong to the package that ships them all. The first asserts that
 the non-comment mentions of `ordinal_fs_tree::fs` across that scan are exactly
-five, all in `crates/grove-loop/src/task_tree.rs` — **and all five are in this
-chapter's block**: the import at line 46 the two guard aliases at lines 58 and
-102 and the two acquisitions at lines 86 and 183. The count is the control, so a
+six, all in `crates/grove-loop/src/task_tree.rs` — **and all six are in this
+chapter's block**: the import, the two guard aliases, the blocking shared and
+exclusive acquisitions, and the quiet observer acquisition. The count is the control, so a
 rename that hid the call sites fails the test rather than passing it clean. The
 second cuts each file at its inline `mod tests`, skips the releases, and reports
 any remaining `libc::flock` acquisition that does not carry `LOCK_NB`. Its
@@ -253,7 +253,7 @@ use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
-use ordinal_fs_tree::fs::{Reading, Vacancy, Writing};
+use ordinal_fs_tree::fs::{Reading, TryReading, Vacancy, Writing};
 use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Sought, Verdict};
 
 use crate::task_name::{self, Handle, Kind, Outcome, Parts, TaskName};
@@ -305,9 +305,9 @@ would break `entry_path` two chapters later.
 
 `READ_COUNT` is test-only bookkeeping, and it is worth following because it is
 the thing declared in this chapter that reaches furthest past it. It is declared
-here and incremented in exactly two places — line 83 in `read_or_vacant` and line
-181 in `open_write` — which are the two acquisitions, so the counter measures
-*locks taken* and not verbs run. Its accessors sit at lines 962 to 970 in
+here and incremented in `read_or_vacant` and `open_write`, so it measures
+blocking acquisition calls rather than verbs run. The observer does not enter
+this counter. Its accessors, `reset_read_count` and `read_count`, sit in
 the block chapter 9 owns, and **nine assertions read them**: one in chapter 7's
 `pick-tests`, six in `tree_lifecycle.rs` spread across the blocks chapters 11, 12,
 13 and 14 own, and two in the `task_grow` test file chapter 10 can only cite by
@@ -318,9 +318,15 @@ launch facts it returns. What those nine have in common is the property this
 declaration exists to instrument, and it is crate-wide rather than local: **one
 verb, one lock**.
 
-The read-side opening comes next, and its enum exists for one caller.
+The read-side opening comes next, and its vacancy enum serves the blocking
+facade. The observer's `try_read` goes straight to the store's nonblocking
+acquisition, translating Busy and ready Tree/Vacant into the public facade's
+types. It skips `announce_contention` entirely: a terminal viewer supplies its
+own waiting indicator and retry deadline. A successful observer still holds the
+real shared descriptor, so its copied names and file bytes have the same guard
+boundary as the blocking reader.
 
-<!-- fragment «tree-vacant-and-read-or-vacant» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="65-93" parent="tree-opening" -->
+<!-- fragment «tree-vacant-and-read-or-vacant» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="65-106" parent="tree-opening" -->
 ````rust
 /// The whole of what a shared opening found: the tree, or the fact that there is
 /// none — under the lock either way.
@@ -351,6 +357,19 @@ pub(crate) fn read_or_vacant(grove_root: &Path) -> Result<Vacant> {
     }
 }
 
+/// Quiet observer acquisition: no diagnostic probe and no blocking fallback.
+pub(crate) fn try_read(grove_root: &Path) -> Result<crate::TryReading> {
+    match ordinal_fs_tree::fs::try_read::<TaskName>(grove_root)
+        .map_err(|error| restate(grove_root, &error))?
+    {
+        TryReading::Busy => Ok(crate::TryReading::Busy),
+        TryReading::Ready(Reading::Tree(tree)) => {
+            Ok(crate::TryReading::Ready(crate::Reading::Tree(tree)))
+        }
+        TryReading::Ready(Reading::Vacant) => Ok(crate::TryReading::Ready(crate::Reading::Vacant)),
+    }
+}
+
 ````
 <!-- /fragment -->
 
@@ -371,7 +390,7 @@ entry points.
 The write side takes three aliases rather than one, and each is named here for a
 different caller.
 
-<!-- fragment «tree-guard-opening-vacancy» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="94-122" parent="tree-opening" -->
+<!-- fragment «tree-guard-opening-vacancy» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="107-135" parent="tree-opening" -->
 ````rust
 /// The task tree, read once under the library's **exclusive** lock — the
 /// surface every mutation is on.
@@ -440,7 +459,7 @@ refusal.
 `read` is the shared refusing arm, and it is a wrapper rather than an
 acquisition.
 
-<!-- fragment «tree-read» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="123-141" parent="tree-opening" -->
+<!-- fragment «tree-read» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="136-154" parent="tree-opening" -->
 ````rust
 /// Read the task tree under a shared lock, refusing a root that holds no tree.
 ///
@@ -479,7 +498,7 @@ purely a re-reading of the same result.
 `write` is the exclusive refusing arm, and unlike `read` it announces in its own
 body.
 
-<!-- fragment «tree-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="142-154" parent="tree-opening" -->
+<!-- fragment «tree-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="155-167" parent="tree-opening" -->
 ````rust
 /// Read the task tree under an exclusive lock, announcing contention first.
 ///
@@ -503,7 +522,7 @@ workstream. That is the failure the split exists to prevent, and it is prevented
 by the *type* rather than by a check, because a caller holding a `Guard` never
 had a vacancy to create anything in.
 
-<!-- fragment «tree-write-or-vacancy» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="155-163" parent="tree-opening" -->
+<!-- fragment «tree-write-or-vacancy» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="168-176" parent="tree-opening" -->
 ````rust
 /// The exclusive opening **with** its vacancy arm, announcing contention first.
 ///
@@ -528,7 +547,7 @@ creating a tree in it is not racing a second creator.
 The fifth `pub(crate)` function is not a fifth opening. It is `write` with the
 diagnostic removed.
 
-<!-- fragment «tree-reopen-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="164-177" parent="tree-opening" -->
+<!-- fragment «tree-reopen-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="177-190" parent="tree-opening" -->
 ````rust
 /// [`write`] without the waiting diagnostic, for the second and later guards of
 /// one verb.
@@ -557,7 +576,7 @@ in `crates/grove-llm/tests/tree_lock.rs`: it holds an external shared lock on th
 worktree, runs `leaf-add`, and asserts on the child's stderr that the waiting
 diagnostic appears exactly once — `assert_eq!(…count(), 1)` rather than a
 `contains`, so a second copy would fail it. But count the guards. `reopen_write`
-has three callers: `write` itself at line 152 which announced before it got
+has three callers: `write` itself which announced before it got
 here; the `leaf-decompose` retitle at `tree_lifecycle.rs` line 534; and
 `apply_prune`'s loop at line 909. Only the last takes *N* of them, and `leaf-add`
 is not it — a one-guard verb prints exactly once under a per-guard policy and a
@@ -569,7 +588,7 @@ argued in its own comment and held nowhere.
 And the sixth and last of them is private, which is what makes `reopen_write`
 possible at all.
 
-<!-- fragment «tree-open-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="178-185" parent="tree-opening" -->
+<!-- fragment «tree-open-write» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="191-198" parent="tree-opening" -->
 ````rust
 /// The exclusive acquisition itself, shared by both write-side entry points.
 fn open_write(grove_root: &Path) -> Result<Opening> {
@@ -595,7 +614,7 @@ takes more than one anyway.
 
 Two of the three error paths are small and neither is a rewording of the store.
 
-<!-- fragment «tree-absent-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="186-198" parent="tree-opening" -->
+<!-- fragment «tree-absent-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="199-211" parent="tree-opening" -->
 ````rust
 /// The diagnostic for a root that holds no tree — **moved, not redesigned**.
 ///
@@ -620,8 +639,8 @@ operator's sentence was held still across that move precisely so the change woul
 be invisible from outside. A refactor called pure is one that has to be, and a
 one-line function producing a fixed sentence is where that is easiest to check.
 
-Two functions in this file produce that sentence. `absent_tree` at line 196 is
-one; `restate`'s absence clause at line 277 is the other, and the two are the
+Two functions in this file produce that sentence. `absent_tree` is
+one; `restate`'s absence clause is the other, and the two are the
 same format string written twice with nothing holding them to each other. Eight
 assertions pin it across the crate — four in later blocks of this file, at lines
 1,311 1,518, 1,648 and 1,870, which chapters 7, 8 and 9 own, and four more in
@@ -632,7 +651,7 @@ The surface is wider than this file, besides: `grove-llm` writes the same openin
 words a third time with different advice after them, and nothing holds that one
 to these two either.
 
-<!-- fragment «tree-raised» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="199-209" parent="tree-opening" -->
+<!-- fragment «tree-raised» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="212-222" parent="tree-opening" -->
 ````rust
 /// Turn a library error raised by a *mutation* into Grove's own.
 ///
@@ -662,13 +681,12 @@ The longest item in the chapter is fifty lines, thirty of them comment — the
 highest proportion of argument to code anywhere in the block. It is also the use
 the crate's manifest names first when it explains `libc`.
 
-<!-- fragment «tree-announce-contention» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="210-259" parent="tree-opening" -->
+<!-- fragment «tree-announce-contention» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="223-271" parent="tree-opening" -->
 ````rust
 /// Say that this process is waiting, before it blocks.
 ///
-/// The library's locking is invisible in its interface — no try-variant, no
-/// timeout, and `read` simply blocks — which is the architecture's own decision
-/// and not something to work around. But grove has always told an operator why
+/// Ordinary library reads and writes block; observers use the separate quiet
+/// [`try_read`] path. Grove has always told an operator why
 /// it appears to have hung, and losing that is a user-visible regression in what
 /// the node brief calls a pure refactor. So the diagnostic is bought outside the
 /// library: one non-blocking acquisition of the same mode on the same directory
@@ -728,9 +746,9 @@ acquisition because it has no way to ask the library a question about it.
 taken before an exclusive acquisition *succeeds* while another reader holds the
 tree, and would therefore swallow the very message it exists to print. So the
 three call sites pass the mode they are about to contend in:
-`libc::LOCK_SH` at line 85 in `read_or_vacant`, and `libc::LOCK_EX` at lines 151
-and 160 in `write` and `write_or_vacancy`. Those three are every call site there
-is; `read`, `reopen_write` and `open_write` deliberately have none.
+`libc::LOCK_SH` in `read_or_vacant`, and `libc::LOCK_EX` in `write` and
+`write_or_vacancy`. `read`, `reopen_write` and `open_write` deliberately have
+none. The observer also has none: its single attempt returns Busy to the caller.
 
 That is held by `worktree_readers_share_the_lock_without_reporting_contention`,
 which takes an external **shared** lock on the worktree, runs `pick`, and asserts
@@ -762,8 +780,8 @@ descriptor and outlives both `flock`s. The second clause — that `flock` touche
 nothing else — is what makes the first sufficient.
 
 **Both `flock` calls carry a flag the source scan reads, and it reads them
-differently.** Line 249 passes `mode | libc::LOCK_NB`, which is the acquisition
-`no_production_lock_grove_takes_for_itself_ever_blocks` requires; line 250
+differently.** The first passes `mode | libc::LOCK_NB`, which is the acquisition
+`no_production_lock_grove_takes_for_itself_ever_blocks` requires; the second
 passes `libc::LOCK_UN`, which leaves that scan as a release rather than
 satisfying it. That test's claim is not *this probe is correct*; it is that
 **no** `flock` grove takes in production waits, so the deleted layer cannot grow
@@ -794,7 +812,7 @@ its diagnostic purpose is stated.
 The last function discharges the header's third claim, and its shape is a
 precedence list rather than a match.
 
-<!-- fragment «tree-restate» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="260-290" parent="tree-opening" -->
+<!-- fragment «tree-restate» owner="one-spelling-of-grove" source="crates/grove-loop/src/task_tree.rs" lines="272-302" parent="tree-opening" -->
 ````rust
 /// Re-state a failed read in the order grove owes its operator.
 ///

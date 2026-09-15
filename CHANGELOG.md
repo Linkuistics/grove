@@ -54,8 +54,13 @@ stood at the graft — a closed record, not part of the versioned sequence above
 - Add `grove view [WORKTREE]`, a permanently read-only terminal browser with
   nested tree navigation, outcome counts, task/brief reading as plain text,
   file paging and manual refresh. It works outside jj workspaces and needs no
-  launch configuration. This increment uses blocking reads; automatic refresh,
+  launch configuration. Automatic refresh,
   formatted Markdown and full terminal hardening follow separately.
+- Keep `grove view` responsive during tree mutations: quiet nonblocking reads
+  show WAITING, retain the previous display and retry every 500 ms. Ordinary
+  blocking reads/writes and their CLI waiting diagnostics remain unchanged.
+  Retain Rust 1.85 support by resolving its viewer macro dependency to a
+  compatible version in the lockfile.
 
 ## v21.0.0
 

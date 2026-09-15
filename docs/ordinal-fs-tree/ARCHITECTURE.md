@@ -446,12 +446,17 @@ Everything follows from it:
 
 Two things a reader might expect here are deliberately absent.
 
-**Locking is invisible.** The library takes an advisory lock on the directory
+**Locking belongs to the store.** The library takes an advisory lock on the directory
 *containing* the tree root — not the root itself. The containing directory
 exists before the root is created and persists after it is deleted, so the tree's
 creation and destruction fall under the same lock as every ordinary operation.
 That reasoning is general, so it is the library's rule rather than a parameter.
-Consumers never mention locking.
+Ordinary `read` and `write` block. The observer's `try_read` makes one quiet
+nonblocking shared acquisition and returns `TryReading::Busy` without a
+snapshot on contention. Success uses the same descriptor for presence checking,
+canonical parsing and the returned read guard. There is no public lock type or
+timeout; the observer decides when to retry. This replaces the earlier rule
+that offered no try-read at all.
 
 The lock names the **tree**, not a spelling of it: every accepted spelling of one
 root — a relative path and an absolute one, a route through `..`, a symbolic link

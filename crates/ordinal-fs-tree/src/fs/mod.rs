@@ -56,13 +56,11 @@
 //! # Ok::<(), ordinal_fs_tree::Error<SyllabusName>>(())
 //! ```
 //!
-//! # Locking is invisible in the interface
+//! # Blocking operations and a quiet observer
 //!
-//! There is no lock type in this module's public surface, no *try* variant and
-//! no timeout — an API offering any of those would be an API that mentions
-//! locking, which the architecture document says consumers never do. What that
-//! costs is stated rather than hidden: [`read`] and [`write`] block until the
-//! tree is free.
+//! [`read`] and [`write`] block until the tree is free. [`try_read`] makes one
+//! nonblocking shared acquisition for observers, returning [`TryReading::Busy`]
+//! without a snapshot on contention. No timeout or public lock type is exposed.
 //!
 //! # Paths come back the way they went in
 //!
@@ -117,14 +115,46 @@ mod remove;
 /// [`Error::Io`] for a filesystem refusal; [`Error::NoContainingDirectory`] for
 /// a root with nothing to lock.
 pub fn read<N: EntryName>(root: &Path) -> Result<Reading<N>, Error<N>> {
-    match acquire(root, lock::Mode::Shared)? {
-        Opened::Tree(guard, snapshot) => Ok(Reading::Tree(ReadGuard {
+    Ok(reading(root, acquire(root, lock::Mode::Shared)?))
+}
+
+fn reading<N>(root: &Path, opened: Opened<N>) -> Reading<N> {
+    match opened {
+        Opened::Tree(guard, snapshot) => Reading::Tree(ReadGuard {
             _guard: guard,
             root: root.to_path_buf(),
             snapshot,
-        })),
-        Opened::Vacant(_) => Ok(Reading::Vacant),
+        }),
+        Opened::Vacant(_) => Reading::Vacant,
     }
+}
+
+/// Attempt a quiet observer read without waiting for a writer.
+///
+/// Busy captures no snapshot. On success, presence and parsing use the same
+/// held descriptor as the returned guard; there is no probe/reopen window.
+///
+/// # Errors
+///
+/// As [`read`], including filesystem errors from the acquisition itself.
+pub fn try_read<N: EntryName>(root: &Path) -> Result<TryReading<N>, Error<N>> {
+    let directory = read::containing_directory::<N>(root)?;
+    let Some(guard) = lock::try_shared(&directory).map_err(|source| Error::Io {
+        path: directory,
+        doing: "locking the directory containing the tree",
+        source,
+    })?
+    else {
+        return Ok(TryReading::Busy);
+    };
+    Ok(TryReading::Ready(reading(root, open_locked(root, guard)?)))
+}
+
+/// An observer either acquired a reading or found contention without reading.
+#[must_use]
+pub enum TryReading<N> {
+    Ready(Reading<N>),
+    Busy,
 }
 
 /// Read a tree under an **exclusive** lock: nothing else holds it while this
@@ -172,6 +202,10 @@ fn acquire<N: EntryName>(root: &Path, mode: lock::Mode) -> Result<Opened<N>, Err
         doing: "locking the directory containing the tree",
         source,
     })?;
+    open_locked(root, guard)
+}
+
+fn open_locked<N: EntryName>(root: &Path, guard: File) -> Result<Opened<N>, Error<N>> {
     // Under the lock, and only under it. For a tree that is a snapshot which
     // could otherwise be stale before the caller saw it; for a vacancy it is the
     // absence itself, which could otherwise be false before the caller acted on

@@ -28,6 +28,68 @@ const SOON: Duration = Duration::from_secs(10);
 /// This one bounds a *failure*, so it trades test time for confidence.
 const A_WHILE: Duration = Duration::from_millis(300);
 
+#[test]
+fn observer_try_read_is_busy_before_parsing_and_retries_under_a_shared_guard() {
+    use ordinal_fs_tree::fs::{Reading, TryReading};
+    use std::os::fd::AsRawFd;
+    let (temporary, root) = documents_tree();
+    let writer = fs::File::open(temporary.path()).unwrap();
+    // Independent open file description, on both macOS and Linux.
+    // SAFETY: writer owns the live descriptor.
+    assert_eq!(
+        unsafe { libc::flock(writer.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+        0
+    );
+    dir(&root, "5-topology-i7");
+    let (tx, rx) = mpsc::channel();
+    let observed = root.clone();
+    let reader = thread::spawn(move || {
+        let result = ordinal_fs_tree::fs::try_read::<SyllabusName>(&observed);
+        let _ = tx.send(matches!(result, Ok(TryReading::Busy)));
+    });
+    let busy = rx.recv_timeout(SOON);
+    drop(writer); // Even a blocking regression cannot strand the test thread.
+    reader.join().unwrap();
+    assert!(busy.unwrap());
+    assert!(ordinal_fs_tree::fs::try_read::<SyllabusName>(&root).is_err());
+    fs::remove_dir(root.join("5-topology-i7")).unwrap();
+    let TryReading::Ready(Reading::Tree(tree)) =
+        ordinal_fs_tree::fs::try_read::<SyllabusName>(&root).unwrap()
+    else {
+        panic!("retry should return a guarded tree")
+    };
+    assert!(tree
+        .walk()
+        .any(|entry| entry.name().to_string() == "03-draft-assessment-i9.md"));
+    let contender = fs::File::open(temporary.path()).unwrap();
+    // SAFETY: contender owns the live descriptor.
+    assert_eq!(
+        unsafe { libc::flock(contender.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+        -1
+    );
+    assert_eq!(
+        std::io::Error::last_os_error().kind(),
+        std::io::ErrorKind::WouldBlock
+    );
+    drop(tree);
+    // SAFETY: contender still owns the descriptor.
+    assert_eq!(
+        unsafe { libc::flock(contender.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+        0
+    );
+    drop(contender);
+    fs::remove_dir_all(&root).unwrap();
+    assert!(matches!(
+        ordinal_fs_tree::fs::try_read::<SyllabusName>(&root).unwrap(),
+        TryReading::Ready(Reading::Vacant)
+    ));
+    fs::write(&root, "not a directory").unwrap();
+    assert!(matches!(
+        ordinal_fs_tree::fs::try_read::<SyllabusName>(&root),
+        Err(Error::RootIsNotATree { .. })
+    ));
+}
+
 fn file(at: &Path, name: &str) {
     fs::write(at.join(name), "").expect("writing a fixture file");
 }

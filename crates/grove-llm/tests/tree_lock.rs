@@ -270,10 +270,10 @@ fn the_librarys_tree_lock_is_taken_from_exactly_one_module() {
     callers.sort();
     assert_eq!(
         callers,
-        vec![("crates/grove-loop/src/task_tree.rs".to_string(), 5)],
+        vec![("crates/grove-loop/src/task_tree.rs".to_string(), 6)],
         "the library's lock is `task_tree`'s to take: two guard type aliases, the \
-         two acquisitions themselves — shared and exclusive — and the one import \
-         of `Reading`/`Writing`/`Vacancy`, which are the shapes those acquisitions \
+         three acquisitions — blocking shared/exclusive and quiet observer — and \
+         the one import of `Reading`/`TryReading`/`Writing`/`Vacancy`, which those acquisitions \
          now answer with. Every reader in Grove goes through them, and the vacancy \
          is re-exported from there so the one verb group that creates a tree does \
          not reach for the module itself. The count is the control — a pattern \

@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 10,458 lines. The fragment graph closed at
+This chapter owns none of the crate's 10,489 lines. The fragment graph closed at
 the end of [chapter 20](20-the-loop.md), where the last of `loop_driver.rs`'s 615
 lines was reproduced and the last of the book's 39 ownership blocks turned
 `resolved`; the [source index](source-index.md) records that graph in full and
@@ -438,7 +438,7 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 445 + 373 + 529 + 773 + 290 + 320 + 319 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 514 + 819 + 564 + 358 + 245 + 615 = 10,458 lines across
+**Owned source.** 464 + 373 + 529 + 773 + 302 + 320 + 319 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 514 + 819 + 564 + 358 + 245 + 615 = 10,489 lines across
 20 source-owning chapters. This closing chapter owns zero lines. The source
 index records the root sizes, block ranges and chapter totals.
 
@@ -541,7 +541,7 @@ sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved, and each of this book's first five
 children ended with thousands of lines legitimately deferred; in final mode a
 defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Thirteen files, 10,458 resolved
+page inventory must match the manifest exactly. Thirteen files, 10,489 resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 ```console
@@ -586,7 +586,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 13 roots, 10,458 lines, 21 chapters, two
+The book is complete: 13 roots, 10,489 lines, 21 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

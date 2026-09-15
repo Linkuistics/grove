@@ -67,10 +67,11 @@ A selected-file failure is shown in the file pane. Fix the external problem,
 then press `r` to reload; the viewer never repairs it. An empty document has an
 empty pane. Terminal sizes too small to read can be enlarged without quitting.
 
-**Temporary contention limit:** startup, selection and reload use Grove's
-existing blocking reader. They may wait for a writer and may print
-`waiting for active Grove tree operation`. Quit is not responsive during that
-wait. The shared guard is released before rendering or waiting for input.
+Startup, selection and reload use a quiet nonblocking reader. While a writer
+holds the tree, the viewer shows WAITING and retains its previous display;
+navigation and quit remain responsive. It retries the pending read every 500 ms
+until contention ends. Other external changes and repairs still require `r`.
+The shared guard is released before rendering or waiting for input.
 
 Run directly with interactive stdin and stdout; piping either is refused before
 terminal setup. Ordinary quit and returned errors restore raw mode, alternate

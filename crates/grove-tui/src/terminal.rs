@@ -1,6 +1,7 @@
 use std::{
     io::{self, IsTerminal},
     path::Path,
+    time::Instant,
 };
 
 use anyhow::{bail, Result};
@@ -31,9 +32,15 @@ pub fn run(worktree: &Path) -> Result<()> {
 fn drive(viewer: &mut Viewer) -> Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
     loop {
+        viewer.tick(Instant::now());
         terminal.draw(|frame| viewer.render(frame))?;
-        // Blocking event reads and raw mode use one thread, per Crossterm's contract.
-        // https://docs.rs/crossterm/0.28.1/crossterm/event/index.html
+        // Poll and read stay on one thread; a true poll guarantees read won't block.
+        // https://docs.rs/crossterm/0.28.1/crossterm/event/fn.poll.html
+        if let Some(wait) = viewer.retry_after(Instant::now()) {
+            if !event::poll(wait)? {
+                continue;
+            }
+        }
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Release {
                 continue;

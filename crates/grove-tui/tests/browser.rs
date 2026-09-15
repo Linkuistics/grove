@@ -207,3 +207,136 @@ fn idle_viewers_release_the_shared_lock() {
         0
     );
 }
+
+/// The fallback release bounds even a regression to the blocking reader.
+struct HeldWriter {
+    release: Option<std::sync::mpsc::Sender<()>>,
+    worker: Option<std::thread::JoinHandle<()>>,
+}
+
+impl Drop for HeldWriter {
+    fn drop(&mut self) {
+        drop(self.release.take());
+        self.worker.take().unwrap().join().unwrap();
+    }
+}
+
+fn hold_writer(worktree: &Path) -> HeldWriter {
+    use std::os::fd::AsRawFd;
+    let lock = fs::File::open(worktree).unwrap();
+    // SAFETY: lock owns this independent open file description.
+    assert_eq!(
+        unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+        0
+    );
+    let (release, wait) = std::sync::mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        let _ = wait.recv_timeout(std::time::Duration::from_secs(3));
+        drop(lock);
+    });
+    HeldWriter {
+        release: Some(release),
+        worker: Some(worker),
+    }
+}
+
+#[test]
+fn busy_startup_is_visible_and_quit_remains_responsive() {
+    use std::time::{Duration, Instant};
+    let work = tempfile::tempdir().unwrap();
+    put(&work.path().join(".grove"), "_BRIEF.md", "CHARTER");
+    let before = snapshot(work.path());
+    let release = hold_writer(work.path());
+    let start = Instant::now();
+    let mut viewer = Viewer::new(work.path().into());
+    assert!(screen(&mut viewer, 140, 20).contains("WAITING"));
+    assert!(viewer.act(Action::Quit));
+    assert!(start.elapsed() < Duration::from_secs(1));
+    drop(release);
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn busy_selection_retries_the_latest_file_without_an_event_backlog() {
+    use std::time::{Duration, Instant};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "CHARTER");
+    put(&root, "01-impl--first-k1.md", "FIRST FILE");
+    put(&root, "02-impl--second-k2.md", "SECOND FILE");
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    let release = hold_writer(work.path());
+    let start = Instant::now();
+    viewer.act(Action::Down);
+    viewer.act(Action::Down);
+    assert!(start.elapsed() < Duration::from_secs(1));
+    let waiting = screen(&mut viewer, 140, 20);
+    assert!(waiting.contains("WAITING"));
+    assert!(waiting.contains("CHARTER"));
+    let deadline = start + Duration::from_millis(600);
+    viewer.tick(deadline);
+    assert_eq!(
+        viewer.retry_after(deadline),
+        Some(Duration::from_millis(500))
+    );
+    drop(release);
+    viewer.tick(deadline + Duration::from_secs(1));
+    assert!(screen(&mut viewer, 140, 20).contains("SECOND FILE"));
+    assert_eq!(viewer.retry_after(deadline), None);
+    put(&root, "02-impl--second-k2.md", "MANUAL ONLY");
+    viewer.tick(deadline + Duration::from_secs(20));
+    assert!(screen(&mut viewer, 140, 20).contains("SECOND FILE"));
+    fs::write(root.join("02-impl--second-k2.md"), "SECOND FILE").unwrap();
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn busy_refresh_recovers_and_nonbusy_errors_wait_for_manual_repair() {
+    use std::time::{Duration, Instant};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "OLD CHARTER");
+    let release = hold_writer(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    drop(release);
+    viewer.tick(Instant::now() + Duration::from_secs(1));
+    assert!(screen(&mut viewer, 140, 20).contains("OLD CHARTER"));
+    let release = hold_writer(work.path());
+    let start = Instant::now();
+    viewer.act(Action::Refresh);
+    assert!(start.elapsed() < Duration::from_secs(1));
+    assert!(screen(&mut viewer, 140, 20).contains("OLD CHARTER"));
+    put(&root, "_BRIEF.md", "NEW CHARTER");
+    drop(release);
+    viewer.tick(Instant::now() + Duration::from_secs(1));
+    assert!(screen(&mut viewer, 140, 20).contains("NEW CHARTER"));
+    put(&root, "01-bad.md", "malformed");
+    viewer.act(Action::Refresh);
+    assert!(screen(&mut viewer, 140, 20).contains("STALE"));
+    assert_eq!(viewer.retry_after(Instant::now()), None);
+    fs::remove_file(root.join("01-bad.md")).unwrap();
+    viewer.tick(Instant::now() + Duration::from_secs(5));
+    assert!(screen(&mut viewer, 140, 20).contains("STALE"));
+    viewer.act(Action::Refresh);
+    assert!(!screen(&mut viewer, 140, 20).contains("STALE"));
+    fs::remove_dir_all(root).unwrap();
+    viewer.act(Action::Refresh);
+    let missing = screen(&mut viewer, 140, 20);
+    assert!(missing.contains("Missing"));
+    assert!(!missing.contains("NEW CHARTER"));
+}
+
+#[test]
+fn removing_the_observed_worktree_clears_the_previous_display() {
+    let parent = tempfile::tempdir().unwrap();
+    let work = parent.path().join("work");
+    put(&work.join(".grove"), "_BRIEF.md", "DELETED CHARTER");
+    let mut viewer = Viewer::new(work.clone());
+    assert!(screen(&mut viewer, 140, 20).contains("DELETED CHARTER"));
+    fs::remove_dir_all(work).unwrap();
+    viewer.act(Action::Refresh);
+    let missing = screen(&mut viewer, 140, 20);
+    assert!(missing.contains("Missing"));
+    assert!(!missing.contains("DELETED CHARTER"));
+}

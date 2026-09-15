@@ -173,13 +173,14 @@ path is the specified directory's `.grove`; it never searches upward.
 Only the human binary depends on it. `grove-loop` and `grove-llm` have no terminal
 UI dependencies.
 
-`Viewer::new`, `act` and `render` form the application seam shared by the real
-terminal and TestBackend fixtures. The adapter uses `grove_loop::read` and its
+`Viewer::new`, `act`, `tick` and `render` form the application seam shared by the real
+terminal and TestBackend fixtures. The adapter uses `grove_loop::try_read` and its
 typed snapshot, derives labels through `Parts`, `Outcome` and `Handle`, and
 uses the public `entry_path` helper for canonical file paths. It copies rows
 and selected bytes under a short shared guard and drops it before layout or
-input. There is no persisted viewer state. This slice uses blocking reads and
-manual refresh; the contention diagnostic and wait behavior remain unchanged.
+input. There is no persisted viewer state. Busy retains the previous display
+with a waiting indicator and one pending retry every 500 ms; input polling uses
+that deadline. Other changes and repairs require manual refresh.
 
 ## Session configuration
 
@@ -781,6 +782,12 @@ driver routes a scheduled review solely by its filename kind.
 
 <a id="tree-access-lock"></a>
 ### Tree access lock
+
+Ordinary reads and writes block and retain the CLI's waiting diagnostic.
+Observers use `grove_loop::try_read`, acquired only through `task_tree.rs`.
+The store attempts one real nonblocking shared lock: Busy carries no snapshot;
+success checks presence and builds the snapshot under that same descriptor.
+The observer prints no contention diagnostic and never probes then reopens.
 
 **The Tree access lock is the store's own, and since `collapse-tree-access-k13`
 it is the only one** — Grove kept a second layer of its own for as long as there

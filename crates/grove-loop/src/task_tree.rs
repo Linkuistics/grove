@@ -43,7 +43,7 @@ use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
-use ordinal_fs_tree::fs::{Reading, Vacancy, Writing};
+use ordinal_fs_tree::fs::{Reading, TryReading, Vacancy, Writing};
 use ordinal_fs_tree::{Entry, EntryName, Error, Found, Key, Snapshot, Sought, Verdict};
 
 use crate::task_name::{self, Handle, Kind, Outcome, Parts, TaskName};
@@ -88,6 +88,19 @@ pub(crate) fn read_or_vacant(grove_root: &Path) -> Result<Vacant> {
     {
         Reading::Tree(tree) => Ok(Vacant::Tree(tree)),
         Reading::Vacant => Ok(Vacant::Nothing),
+    }
+}
+
+/// Quiet observer acquisition: no diagnostic probe and no blocking fallback.
+pub(crate) fn try_read(grove_root: &Path) -> Result<crate::TryReading> {
+    match ordinal_fs_tree::fs::try_read::<TaskName>(grove_root)
+        .map_err(|error| restate(grove_root, &error))?
+    {
+        TryReading::Busy => Ok(crate::TryReading::Busy),
+        TryReading::Ready(Reading::Tree(tree)) => {
+            Ok(crate::TryReading::Ready(crate::Reading::Tree(tree)))
+        }
+        TryReading::Ready(Reading::Vacant) => Ok(crate::TryReading::Ready(crate::Reading::Vacant)),
     }
 }
 
@@ -209,9 +222,8 @@ pub(crate) fn raised(error: Error<TaskName>) -> anyhow::Error {
 
 /// Say that this process is waiting, before it blocks.
 ///
-/// The library's locking is invisible in its interface — no try-variant, no
-/// timeout, and `read` simply blocks — which is the architecture's own decision
-/// and not something to work around. But grove has always told an operator why
+/// Ordinary library reads and writes block; observers use the separate quiet
+/// [`try_read`] path. Grove has always told an operator why
 /// it appears to have hung, and losing that is a user-visible regression in what
 /// the node brief calls a pure refactor. So the diagnostic is bought outside the
 /// library: one non-blocking acquisition of the same mode on the same directory

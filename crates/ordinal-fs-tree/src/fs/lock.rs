@@ -64,9 +64,7 @@ impl Mode {
 /// holding the lock and dropping it releases it. There is no unlock call and no
 /// unlock path to get wrong.
 ///
-/// Blocking, with no way to ask for a refusal instead, because the architecture
-/// document says consumers never mention locking — an API that offered
-/// *try-lock* would be an API that mentioned it.
+/// Ordinary reads and writes block; observers use `try_shared` instead.
 pub(crate) fn take(directory: &Path, mode: Mode) -> io::Result<File> {
     // A read-only open is enough: `flock` is advisory and attaches to the
     // descriptor, not to the file's contents, and a directory cannot be opened
@@ -87,5 +85,24 @@ pub(crate) fn take(directory: &Path, mode: Mode) -> io::Result<File> {
         if error.kind() != io::ErrorKind::Interrupted {
             return Err(error);
         }
+    }
+}
+
+/// One quiet, nonblocking shared acquisition. Busy carries no descriptor.
+pub(crate) fn try_shared(directory: &Path) -> io::Result<Option<File>> {
+    let handle = File::open(directory)?;
+    // LOCK_NB refuses contention on the actual descriptor we retain on success.
+    // https://man7.org/linux/man-pages/man2/flock.2.html
+    // https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/flock.2.html
+    // SAFETY: handle owns the open descriptor throughout the call.
+    let result = unsafe { libc::flock(handle.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) };
+    if result == 0 {
+        return Ok(Some(handle));
+    }
+    let error = io::Error::last_os_error();
+    if error.kind() == io::ErrorKind::WouldBlock {
+        Ok(None)
+    } else {
+        Err(error)
     }
 }

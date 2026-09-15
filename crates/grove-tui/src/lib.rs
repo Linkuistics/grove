@@ -1,12 +1,13 @@
 //! A read-only browser over Grove's typed tree reader.
 //!
-//! `Viewer` owns display data only. Every action finishes its blocking read and
+//! `Viewer` owns display data only. Every action attempts a quiet read and
 //! drops the shared guard before rendering or waiting for input.
 
 mod observation;
 mod terminal;
 
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use ratatui::{
     layout::{Constraint, Layout},
@@ -16,7 +17,7 @@ use ratatui::{
     Frame,
 };
 
-use observation::{capture, read_selected, safe_text, Row};
+use observation::{capture, read_selected, safe_text, Observation, Row};
 pub use terminal::run;
 
 /// Inputs shared by the terminal driver and application tests.
@@ -30,6 +31,14 @@ pub enum Action {
     Quit,
 }
 
+#[derive(Clone, Copy)]
+enum Request {
+    Refresh,
+    Selected,
+}
+
+const RETRY_INTERVAL: Duration = Duration::from_millis(500);
+
 /// An in-memory view of one worktree's `.grove`, with no persistence.
 pub struct Viewer {
     worktree: PathBuf,
@@ -40,6 +49,7 @@ pub struct Viewer {
     scroll: usize,
     page_height: usize,
     status: String,
+    pending: Option<(Request, Instant)>,
 }
 
 impl Viewer {
@@ -55,6 +65,7 @@ impl Viewer {
             scroll: 0,
             page_height: 1,
             status: String::new(),
+            pending: None,
         };
         viewer.refresh();
         viewer
@@ -76,10 +87,7 @@ impl Viewer {
                     if at != next {
                         self.selected = visible[next];
                         self.scroll = 0;
-                        self.set_content(read_selected(
-                            &self.worktree,
-                            &self.rows[self.selected].path,
-                        ));
+                        self.load_selected(Instant::now());
                     }
                 }
             }
@@ -100,8 +108,14 @@ impl Viewer {
     }
 
     fn refresh(&mut self) {
+        self.pending = None;
+        self.refresh_at(Instant::now());
+    }
+
+    fn refresh_at(&mut self, now: Instant) {
         match capture(&self.worktree) {
-            Ok(Some((rows, content))) => {
+            Ok(Observation::Ready((rows, content))) => {
+                self.pending = None;
                 self.rows = rows;
                 self.selected = 0;
                 self.scroll = 0;
@@ -109,25 +123,87 @@ impl Viewer {
                 self.status = "Read-only | manual refresh".into();
                 self.set_content(content);
             }
-            Ok(None) => {
-                self.rows.clear();
-                self.content.clear();
-                self.selected = 0;
-                self.scroll = 0;
-                self.status = "Missing .grove — press r to retry".into();
-            }
-            Err(error) => {
-                let state = if self.rows.is_empty() {
-                    "Error"
-                } else {
-                    "STALE"
-                };
-                self.status = format!(
-                    "{state}: {} — press r to retry",
-                    safe_text(&error.to_string())
-                );
-            }
+            Ok(Observation::Busy) => self.waiting(Request::Refresh, now),
+            Ok(Observation::Vacant) => self.missing(),
+            Err(error) => self.failed(&error),
         }
+    }
+
+    fn load_selected(&mut self, now: Instant) {
+        let Some(row) = self.rows.get(self.selected) else {
+            return;
+        };
+        match read_selected(&self.worktree, &row.path) {
+            Ok(Observation::Ready(content)) => {
+                // A selection does not discard a pending whole-tree refresh.
+                if !matches!(self.pending, Some((Request::Refresh, _))) {
+                    self.pending = None;
+                    self.status = "Read-only | manual refresh".into();
+                }
+                self.set_content(content);
+            }
+            Ok(Observation::Busy) => self.waiting(Request::Selected, now),
+            Ok(Observation::Vacant) => self.missing(),
+            Err(error) => self.failed(&error),
+        }
+    }
+
+    fn waiting(&mut self, request: Request, now: Instant) {
+        if self.pending.is_none() {
+            self.pending = Some((request, now + RETRY_INTERVAL));
+        }
+        self.status = "WAITING for tree writer — previous display retained; retrying".into();
+    }
+
+    fn missing(&mut self) {
+        self.pending = None;
+        self.rows.clear();
+        self.content.clear();
+        self.selected = 0;
+        self.scroll = 0;
+        self.status = "Missing .grove — press r to retry".into();
+    }
+
+    fn failed(&mut self, error: &anyhow::Error) {
+        // Acquisition already failed. An absent observation directory has no
+        // lock to take and no old tree to retain; other I/O errors stay visible.
+        if std::fs::metadata(&self.worktree)
+            .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+        {
+            self.missing();
+            return;
+        }
+        self.pending = None;
+        let state = if self.rows.is_empty() {
+            "Error"
+        } else {
+            "STALE"
+        };
+        self.status = format!(
+            "{state}: {} — press r to retry",
+            safe_text(&error.to_string())
+        );
+    }
+
+    /// Deliver the current time. Only a busy request is retried, at most once.
+    pub fn tick(&mut self, now: Instant) {
+        let Some((request, deadline)) = self.pending else {
+            return;
+        };
+        if now < deadline {
+            return;
+        }
+        self.pending = Some((request, now + RETRY_INTERVAL));
+        match request {
+            Request::Refresh => self.refresh_at(now),
+            Request::Selected => self.load_selected(now),
+        }
+    }
+
+    /// Time until the pending retry, or no deadline for an idle manual browser.
+    pub fn retry_after(&self, now: Instant) -> Option<Duration> {
+        self.pending
+            .map(|(_, deadline)| deadline.saturating_duration_since(now))
     }
 
     fn set_content(&mut self, content: Result<Vec<u8>, String>) {

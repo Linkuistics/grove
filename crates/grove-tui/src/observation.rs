@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use grove_loop::{entry_path, Handle, Outcome, Parts, Reading};
+use grove_loop::{entry_path, Handle, Outcome, Parts, Reading, TryReading};
 
 pub(crate) struct Row {
     pub path: PathBuf,
@@ -13,12 +13,18 @@ pub(crate) struct Row {
 }
 
 type Content = Result<Vec<u8>, String>;
-type Capture = Option<(Vec<Row>, Content)>;
+pub(crate) enum Observation<T> {
+    Ready(T),
+    Vacant,
+    Busy,
+}
 
 /// Copy rows and root bytes while guarded. No guard escapes this function.
-pub(crate) fn capture(worktree: &Path) -> Result<Capture> {
-    let Reading::Tree(tree) = grove_loop::read(worktree)? else {
-        return Ok(None);
+pub(crate) fn capture(worktree: &Path) -> Result<Observation<(Vec<Row>, Content)>> {
+    let tree = match grove_loop::try_read(worktree)? {
+        TryReading::Busy => return Ok(Observation::Busy),
+        TryReading::Ready(Reading::Vacant) => return Ok(Observation::Vacant),
+        TryReading::Ready(Reading::Tree(tree)) => tree,
     };
     let root = tree.snapshot().root();
     let brief = root.distinguished().context("root has no brief")?;
@@ -114,24 +120,25 @@ pub(crate) fn capture(worktree: &Path) -> Result<Capture> {
             );
         }
     }
-    Ok(Some((rows, content)))
+    Ok(Observation::Ready((rows, content)))
 }
 
-/// Re-open under the existing blocking reader. A stale row cannot redirect to
+/// Re-open under the quiet observer reader. A stale row cannot redirect to
 /// an arbitrary path: require its file still to belong to this typed snapshot.
-pub(crate) fn read_selected(worktree: &Path, path: &Path) -> Content {
-    let read = || -> Result<Vec<u8>> {
-        let Reading::Tree(tree) = grove_loop::read(worktree)? else {
-            anyhow::bail!("tree is missing")
-        };
-        let entry = tree
-            .walk()
-            .find(|entry| entry_path(tree.root(), *entry) == path)
-            .context("selected file disappeared; refresh the tree")?;
-        let path = entry_path(tree.root(), entry);
-        std::fs::read(&path).with_context(|| format!("cannot read {}", path.display()))
+pub(crate) fn read_selected(worktree: &Path, path: &Path) -> Result<Observation<Content>> {
+    let tree = match grove_loop::try_read(worktree)? {
+        TryReading::Busy => return Ok(Observation::Busy),
+        TryReading::Ready(Reading::Vacant) => return Ok(Observation::Vacant),
+        TryReading::Ready(Reading::Tree(tree)) => tree,
     };
-    read().map_err(|error| format!("{error:#}"))
+    let content = tree
+        .walk()
+        .find(|entry| entry_path(tree.root(), *entry) == path)
+        .map_or_else(
+            || Err("selected file disappeared; refresh the tree".into()),
+            |entry| read_file(&entry_path(tree.root(), entry)),
+        );
+    Ok(Observation::Ready(content))
 }
 
 fn read_file(path: &Path) -> Content {

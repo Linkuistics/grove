@@ -178,7 +178,7 @@ lines = 132
 [[root]]
 id    = "source-filesystem-module"
 path  = "crates/ordinal-fs-tree/src/fs/mod.rs"
-lines = 825
+lines = 859
 
 [[root]]
 id    = "source-filesystem-read"
@@ -198,7 +198,7 @@ lines = 275
 [[root]]
 id    = "source-filesystem-lock"
 path  = "crates/ordinal-fs-tree/src/fs/lock.rs"
-lines = 91
+lines = 108
 
 [[block]]
 id    = "manifest-package-and-library-dependency"
@@ -300,79 +300,79 @@ lines = "1-132"
 id    = "filesystem-read-opening"
 root  = "source-filesystem-module"
 owner = "read-path-k14"
-lines = "1-128"
+lines = "1-158"
 
 [[block]]
 id    = "filesystem-write-acquire"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "129-155"
+lines = "159-185"
 
 [[block]]
 id    = "filesystem-read-acquire-and-guard"
 root  = "source-filesystem-module"
 owner = "read-path-k14"
-lines = "156-202"
+lines = "186-236"
 
 [[block]]
 id    = "filesystem-writing-shape"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "203-215"
+lines = "237-249"
 
 [[block]]
 id    = "filesystem-reading-api"
 root  = "source-filesystem-module"
 owner = "read-path-k14"
-lines = "216-248"
+lines = "250-282"
 
 [[block]]
 id    = "filesystem-writing-api"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "249-290"
+lines = "283-324"
 
 [[block]]
 id    = "filesystem-read-guard"
 root  = "source-filesystem-module"
 owner = "read-path-k14"
-lines = "291-304"
+lines = "325-338"
 
 [[block]]
 id    = "filesystem-write-guard"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "305-388"
+lines = "339-422"
 
 [[block]]
 id    = "filesystem-vacancy-api"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "389-518"
+lines = "423-552"
 
 [[block]]
 id    = "filesystem-read-guard-api"
 root  = "source-filesystem-module"
 owner = "read-path-k14"
-lines = "519-532"
+lines = "553-566"
 
 [[block]]
 id    = "filesystem-write-guard-api"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "533-810"
+lines = "567-844"
 
 [[block]]
 id    = "filesystem-read-deref"
 root  = "source-filesystem-module"
 owner = "read-path-k14"
-lines = "811-818"
+lines = "845-852"
 
 [[block]]
 id    = "filesystem-write-deref"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "819-825"
+lines = "853-859"
 
 [[block]]
 id    = "read-filesystem-source"
@@ -396,7 +396,7 @@ lines = "1-275"
 id    = "filesystem-lock-source"
 root  = "source-filesystem-lock"
 owner = "filesystem-interpreter-k16"
-lines = "1-91"
+lines = "1-108"
 
 [[early-use]]
 symbols   = "`Ordinal`, `Key`, `Found`, `Verdict`, `Species`, `EntryName`"

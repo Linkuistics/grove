@@ -36,7 +36,7 @@ state and is cited here rather than restated.
 | skills | the `grove` plugin | no |
 | — | `grove`, `grove-llm` (binaries) | — |
 
-The domain-bound viewer consumes the loop's public typed reader and canonical
+The domain-bound viewer consumes the loop's quiet `try_read` typed reader and canonical
 `entry_path` helper. It owns application state and terminal rendering; its
 Ratatui/Crossterm dependencies do not enter grove-loop or grove-llm. The human
 binary dispatches `view` before lifecycle setup. The observation path is not a
@@ -98,6 +98,7 @@ load-bearing under this design than before it, not less.
 
 ```rust
 pub fn read<N: EntryName>(root: &Path)  -> Result<Reading<N>, Error<N>>;
+pub fn try_read<N: EntryName>(root: &Path) -> Result<TryReading<N>, Error<N>>;
 pub fn write<N: EntryName>(root: &Path) -> Result<Writing<N>, Error<N>>;
 
 /// A tree opened under a shared lock, or the fact that there is none.

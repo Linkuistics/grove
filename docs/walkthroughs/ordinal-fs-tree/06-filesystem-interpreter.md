@@ -26,7 +26,7 @@ protocol.
 <!-- insert «error-sources» -->
 <!-- /fragment -->
 
-<!-- fragment «filesystem-write-guard-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="533-810" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-guard-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="567-844" parent="source-filesystem-module" -->
 <!-- insert «write-guard-accessors» -->
 <!-- insert «write-guard-append» -->
 <!-- insert «write-guard-insert» -->
@@ -54,7 +54,7 @@ protocol.
 <!-- insert «remove-worklist-and-failure» -->
 <!-- /fragment -->
 
-<!-- fragment «filesystem-lock-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/lock.rs" lines="1-91" parent="source-filesystem-lock" -->
+<!-- fragment «filesystem-lock-source» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/lock.rs" lines="1-108" parent="source-filesystem-lock" -->
 <!-- insert «lock-contract» -->
 <!-- insert «lock-modes» -->
 <!-- insert «lock-take» -->
@@ -63,7 +63,7 @@ protocol.
 <a id="write-lock"></a>
 ## Exclusive acquisition and snapshot timing
 
-Both public guard constructors use `acquire`. A read takes `Mode::Shared`; a
+The blocking guard constructors use `acquire`. A read takes `Mode::Shared`; a
 write takes `Mode::Exclusive`. Acquisition resolves the directory containing
 the root, opens that directory, blocks in `flock`, and reads the complete
 snapshot only after the lock succeeds. The returned `File` descriptor is the
@@ -84,7 +84,7 @@ no consumer can receive a snapshot taken before the exclusive lock. For an
 absent root, the descriptor enters `Vacancy` without a snapshot, retaining the
 same lock across the decision to initialize.
 
-<!-- fragment «filesystem-write-acquire» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="129-155" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-acquire» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="159-185" parent="source-filesystem-module" -->
 ````rust
 
 /// Read a tree under an **exclusive** lock: nothing else holds it while this
@@ -205,7 +205,12 @@ other operating-system failures return unchanged. This establishes that the
 exclusive lock remains held across snapshot, decision, and application and is
 released by dropping the guard rather than by a separate unlock path.
 
-<!-- fragment «lock-take» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/lock.rs" lines="59-91" parent="filesystem-lock-source" -->
+Observers use `try_shared` in the same fragment. It opens a fresh descriptor
+and requests `LOCK_SH | LOCK_NB` once. Contention closes that descriptor and
+returns no handle; success retains it for presence checking and snapshot
+construction. This is the acquisition itself, so there is no probe/reopen gap.
+
+<!-- fragment «lock-take» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/lock.rs" lines="59-108" parent="filesystem-lock-source" -->
 ````rust
 
 /// Take the lock on `directory`, blocking until it is available.
@@ -215,9 +220,7 @@ released by dropping the guard rather than by a separate unlock path.
 /// holding the lock and dropping it releases it. There is no unlock call and no
 /// unlock path to get wrong.
 ///
-/// Blocking, with no way to ask for a refusal instead, because the architecture
-/// document says consumers never mention locking — an API that offered
-/// *try-lock* would be an API that mentioned it.
+/// Ordinary reads and writes block; observers use `try_shared` instead.
 pub(crate) fn take(directory: &Path, mode: Mode) -> io::Result<File> {
     // A read-only open is enough: `flock` is advisory and attaches to the
     // descriptor, not to the file's contents, and a directory cannot be opened
@@ -240,13 +243,32 @@ pub(crate) fn take(directory: &Path, mode: Mode) -> io::Result<File> {
         }
     }
 }
+
+/// One quiet, nonblocking shared acquisition. Busy carries no descriptor.
+pub(crate) fn try_shared(directory: &Path) -> io::Result<Option<File>> {
+    let handle = File::open(directory)?;
+    // LOCK_NB refuses contention on the actual descriptor we retain on success.
+    // https://man7.org/linux/man-pages/man2/flock.2.html
+    // https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/flock.2.html
+    // SAFETY: handle owns the open descriptor throughout the call.
+    let result = unsafe { libc::flock(handle.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) };
+    if result == 0 {
+        return Ok(Some(handle));
+    }
+    let error = io::Error::last_os_error();
+    if error.kind() == io::ErrorKind::WouldBlock {
+        Ok(None)
+    } else {
+        Err(error)
+    }
+}
 ````
 <!-- /fragment -->
 
 `take` retries `EINTR` because interruption while waiting does not mean that
 the lock was acquired or refused. Other I/O failures become `Error::Io` in
-`acquire`. There is no try-lock mode: locking is an internal concurrency rule,
-not a consumer-selectable operation outcome.
+`acquire`. The observer returns Busy on `WouldBlock`; other errors remain I/O
+failures. Its caller schedules retries without changing blocking operations.
 
 <a id="write-guard"></a>
 ## One guard owns one mutation
@@ -264,7 +286,7 @@ keys. Consuming the guard makes one acquisition correspond to one decision and
 one interpreter run. `append_many` is the supported way to place several
 entries under one snapshot and one rollback boundary.
 
-<!-- fragment «filesystem-write-guard» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="305-388" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-guard» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="339-422" parent="source-filesystem-module" -->
 ````rust
 /// A tree read under an exclusive lock, and the surface every mutation is on.
 ///
@@ -358,7 +380,7 @@ fragment turns shared borrows of the guard into references to those unchanged
 inputs, preserving the invariant that the worked insert plans from the snapshot
 taken after its exclusive lock was acquired.
 
-<!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="533-545" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="567-579" parent="filesystem-write-guard-api" -->
 ````rust
 impl<N: EntryName> WriteGuard<N> {
     /// The tree root, in the caller's own spelling.
@@ -385,7 +407,7 @@ either an exclusive `WriteGuard` or a `Vacancy` that still owns the exclusive
 descriptor. `expect_tree` and `expect_vacancy` are explicit assertion helpers;
 the ordinary control flow is exhaustive matching on these shapes.
 
-<!-- fragment «filesystem-writing-shape» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="203-215" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-writing-shape» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="237-249" parent="source-filesystem-module" -->
 ````rust
 /// What [`write`] found: the tree, or a vacancy that can become one.
 ///
@@ -406,7 +428,7 @@ pub enum Writing<N> {
 `Writing` retains whichever exclusive capability the opening established: a
 live-tree guard or the vacancy that may create the root.
 
-<!-- fragment «filesystem-writing-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="249-290" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-writing-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="283-324" parent="source-filesystem-module" -->
 ````rust
 
 impl<N> Writing<N> {
@@ -457,7 +479,7 @@ The vacancy API consumes that exclusive capability exactly once. Its plan uses
 the ordinary initialization algebra, while its filesystem wrapper owns the
 extra root create and root unwind that no named effect can represent.
 
-<!-- fragment «filesystem-vacancy-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="389-518" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-vacancy-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="423-552" parent="source-filesystem-module" -->
 ````rust
 
 impl<N: EntryName> Vacancy<N> {
@@ -604,7 +626,7 @@ distinguished child and positioned entries, but no row for the unnamed root.
 The write guard also dereferences to the snapshot. This is read-only access;
 the methods that alter the tree consume the guard.
 
-<!-- fragment «filesystem-write-deref» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="819-825" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-deref» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="853-859" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> core::ops::Deref for WriteGuard<N> {
     type Target = Snapshot<N>;
@@ -638,7 +660,7 @@ then one `Report` or `Error`; guard consumption keeps one captured snapshot
 behind one decision, while `append_many` supplies the page's multi-entry form
 under a single rollback boundary alongside the worked insert.
 
-<!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="546-584" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="580-618" parent="filesystem-write-guard-api" -->
 ````rust
 
 impl<N: EntryName> WriteGuard<N> {
@@ -686,7 +708,7 @@ The worked insert from the previous page plans its two highest-first moves and
 one create from the captured snapshot, then applies that plan with production
 fault injection disabled.
 
-<!-- fragment «write-guard-insert» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="585-619" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-insert» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="619-653" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`insert`**: add a child at an occupied ordinal, shifting the occupant
     /// and every later sibling up by one.
@@ -729,7 +751,7 @@ fault injection disabled.
 Promotion documents the exceptional intermediate state at the public seam: the
 new node and old leaf coexist between its create and move effects.
 
-<!-- fragment «write-guard-promote» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="620-682" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-promote» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="654-716" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`promote`**: turn the leaf with this key into a node, moving its bytes
     /// verbatim into the new node's distinguished child.
@@ -801,7 +823,7 @@ Rewrite uses the same interpreter even when its source and destination path are
 equal. The interpreter treats that move as a successful no-op and still records
 the report entry.
 
-<!-- fragment «write-guard-rewrite» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="683-728" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-rewrite» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="717-762" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`rewrite`**: replace the parts of the entry with this key, keeping its
     /// ordinal, its key and its species.
@@ -856,7 +878,7 @@ Deletion is the lifecycle operation on a live guard. It bypasses the algebraic
 plan because it removes foreign entries as well as parsed names, but it remains
 under the guard's exclusive lock.
 
-<!-- fragment «write-guard-delete» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="729-796" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-delete» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="763-830" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`delete`**: remove the tree root and everything beneath it, following
     /// no symbolic link, and report the paths that went.
@@ -935,7 +957,7 @@ and filesystem interpretation. This fragment turns `Decision::Refuse` into
 `Error`, preserving total algebra without exposing a plan and carrying the
 worked insert into its ordered effect trace.
 
-<!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="797-810" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="831-844" parent="filesystem-write-guard-api" -->
 ````rust
     /// Turn a decision into an outcome: refuse, or apply under the lock this
     /// guard holds.

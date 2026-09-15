@@ -115,6 +115,14 @@ pub enum Reading {
     Vacant,
 }
 
+/// A quiet observer opening, with contention distinct from absence or errors.
+pub enum TryReading {
+    /// A shared reading, including a guarded determination of absence.
+    Ready(Reading),
+    /// A writer holds the tree. No snapshot or file bytes were captured.
+    Busy,
+}
+
 /// What [`write`] found — under the **exclusive** lock either way.
 pub enum Writing {
     /// A tree, and the affordance to mutate it.
@@ -245,6 +253,17 @@ pub fn read(worktree: &Path) -> Result<Reading, Error> {
         task_tree::Vacant::Tree(tree) => Ok(Reading::Tree(tree)),
         task_tree::Vacant::Nothing => Ok(Reading::Vacant),
     }
+}
+
+/// Attempt to read this worktree's grove without waiting or printing diagnostics.
+///
+/// A successful reading holds the real shared guard; Busy holds nothing.
+///
+/// # Errors
+///
+/// As [`read`]. Contention is [`TryReading::Busy`], not an error.
+pub fn try_read(worktree: &Path) -> Result<TryReading, Error> {
+    Ok(task_tree::try_read(&grove_root(worktree))?)
 }
 
 /// Open the grove at `worktree` for writing, or take the lock over the vacancy

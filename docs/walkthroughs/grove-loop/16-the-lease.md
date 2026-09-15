@@ -1952,7 +1952,7 @@ path would make every test-suite invocation claim session-epoch authority. The
 
 The comment credits `tests/env_hygiene.rs` with owning the claim, and the file it
 means is `crates/grove/tests/env_hygiene.rs` — the other crate's, not this one's,
-whose `tests/` directory holds six files and none of that name. It does own it:
+whose `tests/` directory holds no file of that name. It does own it:
 `the_suite_cannot_reach_a_live_loop_signal_file` asserts the observed value
 `is_empty()`, and `both_guards_are_present_and_neither_subsumes_the_other` asserts
 that the configuration entry carries `force = true` — without which an inherited

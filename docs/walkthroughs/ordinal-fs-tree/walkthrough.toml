@@ -178,7 +178,7 @@ lines = 132
 [[root]]
 id    = "source-filesystem-module"
 path  = "crates/ordinal-fs-tree/src/fs/mod.rs"
-lines = 859
+lines = 868
 
 [[root]]
 id    = "source-filesystem-read"
@@ -354,25 +354,25 @@ lines = "423-552"
 id    = "filesystem-read-guard-api"
 root  = "source-filesystem-module"
 owner = "read-path-k14"
-lines = "553-566"
+lines = "553-575"
 
 [[block]]
 id    = "filesystem-write-guard-api"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "567-844"
+lines = "576-853"
 
 [[block]]
 id    = "filesystem-read-deref"
 root  = "source-filesystem-module"
 owner = "read-path-k14"
-lines = "845-852"
+lines = "854-861"
 
 [[block]]
 id    = "filesystem-write-deref"
 root  = "source-filesystem-module"
 owner = "filesystem-interpreter-k16"
-lines = "853-859"
+lines = "862-868"
 
 [[block]]
 id    = "read-filesystem-source"

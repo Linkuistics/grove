@@ -82,7 +82,9 @@ their columns; Left/Right scrolls those wide blocks without shifting prose. Link
 labels and destinations, images show alt text, and HTML is inert text. Nothing
 opens a link, fetches an image, runs code or executes terminal control characters.
 Syntax highlighting is not provided. The tree and selected bytes refresh every
-500 ms, including same-size edits; `r` refreshes immediately.
+500 ms, including same-size edits; `r` refreshes immediately. Captured names and
+file bytes remain readable after the shared tree lock is released, so reading
+a file does not hold up tree mutations.
 
 Resize preserves the reading location through prose reflow, clamping near the
 end of a file. Returning to a previously selected file restores its reading

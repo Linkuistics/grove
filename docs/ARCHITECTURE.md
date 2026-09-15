@@ -178,21 +178,25 @@ Only the human binary depends on it. `grove-loop` and `grove-llm` have no termin
 UI dependencies.
 
 `Viewer::new`, `act`, `tick` and `render` form the application seam shared by the real
-terminal and TestBackend fixtures. The adapter uses `grove_loop::try_read` and its
-typed snapshot, retains identity, `Handle`, `Kind`, lifecycle, depth, expansion
+terminal and TestBackend fixtures. The adapter uses `grove_loop::try_observe` and its
+captured snapshot, retains identity, `Handle`, `Kind`, lifecycle, depth, expansion
 and descendant totals as separate row data, and
-uses the public `entry_path` helper for canonical file paths. It copies rows
-and selected bytes under a short shared guard and drops it before layout or
-input. There is no persisted viewer state. Busy retains the previous display
+uses the public `entry_path` helper for canonical file paths. The loop captures
+names and selected bytes under a short shared guard, then releases it through
+`ReadGuard::into_snapshot`. The viewer builds presentation rows from that
+immutable value before layout or input. There is no persisted viewer state.
+Busy retains the previous display
 with a waiting indicator. A single 500 ms deadline drives automatic observation
 and error recovery; selection and explicit refresh enter the same operation.
 Two bounded typed captures compare rows and selected bytes, rejecting observed
 inconsistency from non-cooperating edits without claiming an atomic transaction.
-Every capture releases its guard before another acquisition. A retained open
-root directory descriptor holds no tree lock; device/inode identity checks
-around capture detect replacement and clear old item state. Root opening is
+Every capture releases its guard before another acquisition. The loop owns
+`TreeLifetime`, an opaque retained root directory descriptor holding no tree
+lock; device/inode identity checks around capture detect replacement and clear old item state. Root opening is
 nonblocking and directory-only; metadata identifies even unreadable replacements.
-The adapter calls `grove_loop::select_snapshot` before selecting content. The
+The loop capture calls `select_snapshot` before selecting content.
+`try_observe` currently returns the tree portion only (Ready, Vacant, Busy or an
+error); the runtime increment will add its independent activity result. The
 loop owns duplicate-key and multiple-live-finish validation for the driver,
 `pick` and viewer; the viewer has no private validity rule. Permanent keys
 preserve selection and branch expansion; disappearance selects the nearest
@@ -852,7 +856,8 @@ driver routes a scheduled review solely by its filename kind.
 ### Tree access lock
 
 Ordinary reads and writes block and retain the CLI's waiting diagnostic.
-Observers use `grove_loop::try_read`, acquired only through `task_tree.rs`.
+The viewer uses `grove_loop::try_observe`, whose tree capture reaches
+`try_read` through `task_tree.rs`.
 The store attempts one real nonblocking shared lock: Busy carries no snapshot;
 success checks presence and builds the snapshot under that same descriptor.
 The observer prints no contention diagnostic and never probes then reopens.

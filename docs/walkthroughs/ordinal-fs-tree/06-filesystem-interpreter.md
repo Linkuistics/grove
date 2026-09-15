@@ -26,7 +26,7 @@ protocol.
 <!-- insert «error-sources» -->
 <!-- /fragment -->
 
-<!-- fragment «filesystem-write-guard-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="567-844" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-guard-api» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="576-853" parent="source-filesystem-module" -->
 <!-- insert «write-guard-accessors» -->
 <!-- insert «write-guard-append» -->
 <!-- insert «write-guard-insert» -->
@@ -380,7 +380,7 @@ fragment turns shared borrows of the guard into references to those unchanged
 inputs, preserving the invariant that the worked insert plans from the snapshot
 taken after its exclusive lock was acquired.
 
-<!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="567-579" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-accessors» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="576-588" parent="filesystem-write-guard-api" -->
 ````rust
 impl<N: EntryName> WriteGuard<N> {
     /// The tree root, in the caller's own spelling.
@@ -626,7 +626,7 @@ distinguished child and positioned entries, but no row for the unnamed root.
 The write guard also dereferences to the snapshot. This is read-only access;
 the methods that alter the tree consume the guard.
 
-<!-- fragment «filesystem-write-deref» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="853-859" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-write-deref» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="862-868" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> core::ops::Deref for WriteGuard<N> {
     type Target = Snapshot<N>;
@@ -660,7 +660,7 @@ then one `Report` or `Error`; guard consumption keeps one captured snapshot
 behind one decision, while `append_many` supplies the page's multi-entry form
 under a single rollback boundary alongside the worked insert.
 
-<!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="580-618" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-append» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="589-627" parent="filesystem-write-guard-api" -->
 ````rust
 
 impl<N: EntryName> WriteGuard<N> {
@@ -708,7 +708,7 @@ The worked insert from the previous page plans its two highest-first moves and
 one create from the captured snapshot, then applies that plan with production
 fault injection disabled.
 
-<!-- fragment «write-guard-insert» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="619-653" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-insert» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="628-662" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`insert`**: add a child at an occupied ordinal, shifting the occupant
     /// and every later sibling up by one.
@@ -751,7 +751,7 @@ fault injection disabled.
 Promotion documents the exceptional intermediate state at the public seam: the
 new node and old leaf coexist between its create and move effects.
 
-<!-- fragment «write-guard-promote» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="654-716" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-promote» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="663-725" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`promote`**: turn the leaf with this key into a node, moving its bytes
     /// verbatim into the new node's distinguished child.
@@ -823,7 +823,7 @@ Rewrite uses the same interpreter even when its source and destination path are
 equal. The interpreter treats that move as a successful no-op and still records
 the report entry.
 
-<!-- fragment «write-guard-rewrite» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="717-762" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-rewrite» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="726-771" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`rewrite`**: replace the parts of the entry with this key, keeping its
     /// ordinal, its key and its species.
@@ -878,7 +878,7 @@ Deletion is the lifecycle operation on a live guard. It bypasses the algebraic
 plan because it removes foreign entries as well as parsed names, but it remains
 under the guard's exclusive lock.
 
-<!-- fragment «write-guard-delete» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="763-830" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-delete» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="772-839" parent="filesystem-write-guard-api" -->
 ````rust
     /// **`delete`**: remove the tree root and everything beneath it, following
     /// no symbolic link, and report the paths that went.
@@ -957,7 +957,7 @@ and filesystem interpretation. This fragment turns `Decision::Refuse` into
 `Error`, preserving total algebra without exposing a plan and carrying the
 worked insert into its ordered effect trace.
 
-<!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="831-844" parent="filesystem-write-guard-api" -->
+<!-- fragment «write-guard-dispatch» owner="filesystem-interpreter-k16" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="840-853" parent="filesystem-write-guard-api" -->
 ````rust
     /// Turn a decision into an outcome: refuse, or apply under the lock this
     /// guard holds.

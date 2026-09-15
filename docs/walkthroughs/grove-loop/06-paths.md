@@ -958,7 +958,7 @@ inline test module's path-composition fixtures.
 The second ownership block is where the test module opens. It is ninety lines and
 it is the only block of this book whose name says *tests* and whose contents are
 none: **zero of the file's sixty-three `#[test]` functions are in it**, and the
-first is at line 1,066 in chapter 7's block. Sixteen of the book's thirty-nine
+first is at line 1,066 in chapter 7's block. Sixteen of the book's forty
 ownership blocks carry `test` in their id and the other fifteen hold between one
 and thirty-two tests each; this is the one that holds none.
 

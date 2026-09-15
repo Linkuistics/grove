@@ -1461,10 +1461,26 @@ canonicalized.
 guard into the caller-spelled root or the exact immutable snapshot captured
 under its lock, without copying either, so every returned snapshot borrow stays
 bounded by the guard. The worked walk starts from that `snapshot` result.
+A caller that needs names after releasing the lock consumes the guard with
+`into_snapshot`: moving the snapshot out drops the remaining descriptor field
+before return. The resulting value grants no continuing filesystem authority.
+Grove uses this for viewer captures, so a displayed snapshot cannot hold up a
+writer. `captures_release_the_tree_lock_and_pin_distinct_root_lifetimes` in
+`crates/grove-loop/tests/observation.rs` checks this with a nonblocking exclusive
+lock attempt on an independent descriptor while the capture remains alive.
 
-<!-- fragment «filesystem-read-guard-api» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="553-566" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-read-guard-api» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="553-575" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> ReadGuard<N> {
+    /// Release the shared lock and retain the captured names as value data.
+    ///
+    /// The returned snapshot describes this reading, not subsequent filesystem
+    /// changes. It grants no filesystem access or mutation authority.
+    #[must_use]
+    pub fn into_snapshot(self) -> Snapshot<N> {
+        self.snapshot
+    }
+
     /// The tree root, in the caller's own spelling.
     #[must_use]
     pub fn root(&self) -> &Path {
@@ -1486,7 +1502,7 @@ The `Deref` implementation owns the ergonomic forwarding step. It turns
 so direct calls cannot bypass the captured names or their borrow lifetime. This
 is why the example can spell its public query as `guard.walk()`.
 
-<!-- fragment «filesystem-read-deref» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="845-852" parent="source-filesystem-module" -->
+<!-- fragment «filesystem-read-deref» owner="read-path-k14" source="crates/ordinal-fs-tree/src/fs/mod.rs" lines="854-861" parent="source-filesystem-module" -->
 ````rust
 impl<N: EntryName> core::ops::Deref for ReadGuard<N> {
     type Target = Snapshot<N>;

@@ -891,4 +891,240 @@ state is the reason those two questions are not the same.
 Nine of this file's ten ownership blocks remain, and chapters 6 through 9 resolve
 them.
 
+<a id="captured-observation"></a>
+## Captured names without a standing lock
+
+A viewer needs to keep displaying a tree after allowing its next mutation.
+`try_observe` takes the exact worktree and an ordered list of preferred selected
+keys. It returns names, the selected file's bytes and a retained `TreeLifetime`;
+all advisory locks have gone before the caller builds rows. `grove-tui` compares
+two such captures and owns folds, lifecycle totals and reading positions.
+This is the shipped tree portion of the item-status observation design in `docs/specs/item-status.md`:
+typed runtime activity is a subsequent extension, and this operation makes no
+Idle or Running claim.
+
+<!-- fragment «observation-tree» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="1-156" parent="source-observation" -->
+<!-- insert «observation-imports» -->
+<!-- insert «observation-lifetime» -->
+<!-- insert «observation-values» -->
+<!-- insert «observation-capture» -->
+<!-- /fragment -->
+
+The observer composes the existing quiet reader and canonical path helper. Its
+imports name the ownership boundary: filesystem capture is the loop's, while
+`Snapshot` remains the tree library's value representation.
+
+<!-- fragment «observation-imports» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="1-11" parent="observation-tree" -->
+````rust
+//! One captured tree and selected file, with no advisory guard returned.
+
+use std::fs::{File, OpenOptions};
+use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+use std::path::{Path, PathBuf};
+
+use anyhow::{ensure, Context};
+use ordinal_fs_tree::Snapshot;
+
+use crate::{entry_path, Error, Parts, Reading, TaskName, TryReading};
+
+````
+<!-- /fragment -->
+
+`TreeLifetime` opens a directory read-only, nonblocking and close-on-exec. It
+holds no advisory lock. Its `at` comparison detects a changed path and `same`
+compares retained device/inode pairs, allowing alias spellings. Keeping the
+old directory open prevents its identity being reused while the viewer retains
+it. Metadata failures remain errors; a missing or nondirectory root opens as
+None. The viewer also uses these operations around capture to discard stale
+item state even when a writer is busy.
+
+<!-- fragment «observation-lifetime» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="12-62" parent="observation-tree" -->
+````rust
+/// A retained directory descriptor prevents inode reuse while a capture lives.
+/// This value holds no tree lock, epoch guard or driver authority.
+#[derive(Debug)]
+pub struct TreeLifetime(File);
+
+impl TreeLifetime {
+    /// Open the exact task-root directory without creating or locking anything.
+    ///
+    /// # Errors
+    /// An existing directory cannot be opened. Missing/nondirectory roots are None.
+    pub fn open(worktree: &Path) -> Result<Option<Self>, Error> {
+        // custom_flags adds OS flags without changing read-only access.
+        // https://doc.rust-lang.org/std/os/unix/fs/trait.OpenOptionsExt.html#tymethod.custom_flags
+        match OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_DIRECTORY | libc::O_NONBLOCK | libc::O_CLOEXEC)
+            .open(worktree.join(".grove"))
+        {
+            Ok(file) => Ok(Some(Self(file))),
+            Err(error) if matches!(error.raw_os_error(), Some(libc::ENOENT | libc::ENOTDIR)) => {
+                Ok(None)
+            }
+            Err(error) => Err(anyhow::Error::new(error).into()),
+        }
+    }
+
+    /// Whether this retained directory still occupies the observed task-root path.
+    ///
+    /// # Errors
+    /// Metadata cannot be read for the descriptor or current path.
+    pub fn at(&self, worktree: &Path) -> Result<bool, Error> {
+        let current = match std::fs::metadata(worktree.join(".grove")) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(anyhow::Error::new(error).into()),
+        };
+        let old = self.0.metadata().map_err(anyhow::Error::new)?;
+        Ok(current.is_dir() && old.dev() == current.dev() && old.ino() == current.ino())
+    }
+
+    /// Compare two still-pinned directory identities, independent of path spelling.
+    ///
+    /// # Errors
+    /// Metadata cannot be read for either descriptor.
+    pub fn same(&self, other: &Self) -> Result<bool, Error> {
+        let a = self.0.metadata().map_err(anyhow::Error::new)?;
+        let b = other.0.metadata().map_err(anyhow::Error::new)?;
+        Ok(a.dev() == b.dev() && a.ino() == b.ino())
+    }
+}
+
+````
+<!-- /fragment -->
+
+`TreeObservation` separates vacancy and writer contention from a captured tree;
+invalid trees remain errors. `CapturedTree` holds the captured snapshot and root
+path, a selected permanent key (None for the root), and bytes or a file-read
+error. A failed selected file therefore leaves the names available for browsing.
+The consuming `ReadGuard::into_snapshot` operation supplies owned names without
+cloning, reparsing or retaining the store's lock.
+
+<!-- fragment «observation-values» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="63-93" parent="observation-tree" -->
+````rust
+/// The tree portion of one quiet observation. Errors remain a separate Result.
+pub enum TreeObservation {
+    Ready(CapturedTree),
+    Vacant,
+    Busy,
+}
+
+/// Names and selected bytes copied under the tree guard, then released from it.
+/// The snapshot's paths use the caller's spelling. The lifetime pins that capture.
+pub struct CapturedTree {
+    root: PathBuf,
+    snapshot: Snapshot<TaskName>,
+    pub lifetime: TreeLifetime,
+    /// First surviving requested key, or the root (None).
+    pub selected: Option<u32>,
+    /// A file failure does not discard a readable tree.
+    pub content: Result<Vec<u8>, String>,
+}
+
+impl CapturedTree {
+    #[must_use]
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    #[must_use]
+    pub fn snapshot(&self) -> &Snapshot<TaskName> {
+        &self.snapshot
+    }
+}
+
+````
+<!-- /fragment -->
+
+The capture pins the task root before the quiet read, then validates that pin
+against the path before and after copying selected bytes. Whole-tree
+`select_snapshot` validation runs before choosing content, so duplicate keys or
+multiple live finish leaves cannot be hidden by a selected item. Preferred keys
+are tried in order; the root brief is the fallback. A branch resolves to its
+node brief through the same `entry_path` helper used for leaves. Moving the
+snapshot out releases the shared tree lock before returning the value.
+
+These identity comparisons detect observed non-cooperating replacement; they
+do not make arbitrary filesystem edits atomic. `grove-tui` additionally compares
+the two retained lifetimes alongside rows and bytes. Cooperating writers use the
+tree lock, which spans this capture's selected-file read but no caller work.
+
+<!-- fragment «observation-capture» owner="one-spelling-of-grove" source="crates/grove-loop/src/observation.rs" lines="94-156" parent="observation-tree" -->
+````rust
+/// Capture the exact worktree's tree and selected file without waiting for a writer.
+/// Candidate keys are ordered by preference; None requests the root brief.
+/// No launch configuration, session admission or runtime controls are consulted.
+/// This tree-only stage is extended by the runtime-observation increment.
+///
+/// # Errors
+/// Invalid/unreadable trees, ambiguous selection or a root changed during capture.
+/// Selected-file errors remain in CapturedTree::content so browsing can continue.
+pub fn try_observe(worktree: &Path, candidates: &[Option<u32>]) -> Result<TreeObservation, Error> {
+    capture(worktree, candidates).map_err(Error::from)
+}
+
+fn capture(worktree: &Path, candidates: &[Option<u32>]) -> anyhow::Result<TreeObservation> {
+    // Pin before reading so a changed root cannot be attached to old names.
+    let lifetime = TreeLifetime::open(worktree)?;
+    let tree = match crate::try_read(worktree)? {
+        TryReading::Busy => return Ok(TreeObservation::Busy),
+        TryReading::Ready(Reading::Vacant) => return Ok(TreeObservation::Vacant),
+        TryReading::Ready(Reading::Tree(tree)) => tree,
+    };
+    let lifetime = lifetime.context("tree changed during observation; retrying")?;
+    ensure!(
+        lifetime.at(worktree)?,
+        "tree changed during observation; retrying"
+    );
+    crate::select_snapshot(tree.root(), tree.snapshot(), None)?;
+    let brief = tree
+        .snapshot()
+        .root()
+        .distinguished()
+        .context("root has no brief")?;
+    let mut files = vec![(None, entry_path(tree.root(), brief))];
+    for entry in tree.walk() {
+        let Some(triple) = entry.triple() else {
+            continue;
+        };
+        let file = match triple.parts {
+            Parts::Leaf { .. } => entry,
+            Parts::Node => entry
+                .contents()
+                .and_then(|level| level.distinguished())
+                .context("branch has no brief")?,
+        };
+        files.push((Some(triple.key.get()), entry_path(tree.root(), file)));
+    }
+    let (selected, path) = candidates
+        .iter()
+        .find_map(|key| files.iter().find(|(candidate, _)| candidate == key))
+        .unwrap_or(&files[0]);
+    let content = std::fs::read(path).map_err(|error| format!("{}: {error}", path.display()));
+    ensure!(
+        lifetime.at(worktree)?,
+        "tree changed during observation; retrying"
+    );
+    let root = tree.root().to_path_buf();
+    Ok(TreeObservation::Ready(CapturedTree {
+        root,
+        snapshot: tree.into_snapshot(),
+        lifetime,
+        selected: *selected,
+        content,
+    }))
+}
+````
+<!-- /fragment -->
+
+The public-seam tests in `crates/grove-loop/tests/observation.rs` exercise
+leaf, branch and root content, fallback selection, duplicate-key refusal,
+vacancy, writer contention and replacement with an old capture still alive.
+The writer test tries an exclusive nonblocking lock on an independent worktree
+descriptor while two captures remain alive. Deliberately leaking the reader's
+lock makes that assertion fail; normal descriptor drop makes it pass. The
+existing Viewer application suite checks that the migrated caller preserves its
+interaction and retry behavior.
+
 [Previous: The name, and canonicity](04-the-name.md) | [Contents](README.md) | [Next: Paths, and addressing](06-paths.md)

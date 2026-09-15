@@ -52,6 +52,7 @@ mod complete;
 pub mod driver;
 mod driver_lease;
 mod loop_driver;
+mod observation;
 mod task_grow;
 mod task_name;
 mod task_tree;
@@ -85,6 +86,7 @@ pub use jj_workspace::{Commit, Workspace};
 /// binary's, and [`LoopOutcome::Interrupted`] is how the loop says it may.
 pub use keyed_launch::reraise;
 pub use loop_driver::{run, LoopOutcome};
+pub use observation::{try_observe, CapturedTree, TreeLifetime, TreeObservation};
 pub use ordinal_fs_tree::Sought;
 pub use prompt::{compose, Mandate};
 pub use session_config::{SessionConfig, TemplateSource};

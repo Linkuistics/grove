@@ -1,9 +1,7 @@
-use std::fs::File;
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use grove_loop::{entry_path, Handle, Kind, Outcome, Parts, Reading, TryReading};
+use grove_loop::{entry_path, Handle, Kind, Outcome, Parts, TreeObservation};
 
 #[derive(PartialEq, Eq)]
 pub(crate) struct Row {
@@ -29,46 +27,10 @@ pub(crate) enum Lifecycle {
 /// Root has its own identity, separate from permanent task keys.
 pub(crate) type Item = Option<u32>;
 
-/// A retained descriptor prevents inode reuse while an old lifetime is visible.
-/// It never carries Grove's tree lock.
-pub(crate) struct Root(File);
-
-impl Root {
-    pub fn open(worktree: &Path) -> std::io::Result<Option<Self>> {
-        use rustix::fs::{open, Mode, OFlags};
-        // Reject a raced-in nondirectory (including FIFOs) without blocking.
-        // https://docs.rs/crate/rustix/0.38.44/source/src/fs/abs.rs
-        match open(
-            worktree.join(".grove"),
-            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NONBLOCK | OFlags::CLOEXEC,
-            Mode::empty(),
-        ) {
-            Ok(fd) => Ok(Some(Self(File::from(fd)))),
-            Err(rustix::io::Errno::NOENT | rustix::io::Errno::NOTDIR) => Ok(None),
-            Err(error) => Err(error.into()),
-        }
-    }
-
-    pub fn at(&self, worktree: &Path) -> std::io::Result<bool> {
-        let current = match std::fs::metadata(worktree.join(".grove")) {
-            Ok(metadata) => metadata,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
-            Err(error) => return Err(error),
-        };
-        let old = self.0.metadata()?;
-        Ok(current.is_dir() && old.dev() == current.dev() && old.ino() == current.ino())
-    }
-
-    pub fn same(&self, other: &Self) -> std::io::Result<bool> {
-        let a = self.0.metadata()?;
-        let b = other.0.metadata()?;
-        // Device + inode identify an open object on supported Unix targets.
-        // https://doc.rust-lang.org/std/os/unix/fs/trait.MetadataExt.html
-        Ok(a.dev() == b.dev() && a.ino() == b.ino())
-    }
-}
+pub(crate) use grove_loop::TreeLifetime as Root;
 
 type Content = Result<Vec<u8>, String>;
+type DisplayCapture = Observation<(Vec<Row>, usize, Content)>;
 #[derive(PartialEq, Eq)]
 pub(crate) enum Observation<T> {
     Ready(T),
@@ -79,34 +41,31 @@ pub(crate) enum Observation<T> {
 /// Two bounded captures detect visible non-cooperating edits without claiming
 /// atomicity. Each drops its guard before another acquisition. Never loop until
 /// stable here: busy/changing trees must leave input and quit responsive.
-pub(crate) fn capture(
-    worktree: &Path,
-    candidates: &[Item],
-) -> Result<Observation<(Vec<Row>, usize, Content)>> {
-    let first = capture_once(worktree, candidates)?;
+pub(crate) fn capture(worktree: &Path, candidates: &[Item]) -> Result<DisplayCapture> {
+    let (first, first_root) = capture_once(worktree, candidates)?;
     if !matches!(first, Observation::Ready(_)) {
         return Ok(first);
     }
-    let second = capture_once(worktree, candidates)?;
+    let (second, second_root) = capture_once(worktree, candidates)?;
     // Contention on the verification read is still Busy, not malformed data.
     if !matches!(second, Observation::Ready(_)) {
         return Ok(second);
     }
+    anyhow::ensure!(
+        matches!((&first_root, &second_root), (Some(a), Some(b)) if a.same(b)?),
+        "root changed during observation; retrying"
+    );
     anyhow::ensure!(first == second, "tree changed during observation; retrying");
     Ok(second)
 }
 
-/// Copy rows and selected bytes while guarded. No guard escapes this function.
-fn capture_once(
-    worktree: &Path,
-    candidates: &[Item],
-) -> Result<Observation<(Vec<Row>, usize, Content)>> {
-    let tree = match grove_loop::try_read(worktree)? {
-        TryReading::Busy => return Ok(Observation::Busy),
-        TryReading::Ready(Reading::Vacant) => return Ok(Observation::Vacant),
-        TryReading::Ready(Reading::Tree(tree)) => tree,
+/// Build display rows from a loop capture whose tree guard is already released.
+fn capture_once(worktree: &Path, candidates: &[Item]) -> Result<(DisplayCapture, Option<Root>)> {
+    let tree = match grove_loop::try_observe(worktree, candidates)? {
+        TreeObservation::Busy => return Ok((Observation::Busy, None)),
+        TreeObservation::Vacant => return Ok((Observation::Vacant, None)),
+        TreeObservation::Ready(tree) => tree,
     };
-    grove_loop::select_snapshot(tree.root(), tree.snapshot(), None)?;
     let root = tree.snapshot().root();
     let brief = root.distinguished().context("root has no brief")?;
     let path = entry_path(tree.root(), brief);
@@ -122,7 +81,7 @@ fn capture_once(
         expanded: true,
         counts: [0; 3],
     }];
-    for entry in tree.walk() {
+    for entry in tree.snapshot().walk() {
         let Some(triple) = entry.triple() else {
             continue;
         };
@@ -197,16 +156,14 @@ fn capture_once(
             Lifecycle::Empty
         };
     }
-    let selected = candidates
+    let selected = rows
         .iter()
-        .find_map(|key| rows.iter().position(|row| row.key == *key))
+        .position(|row| row.key == tree.selected)
         .unwrap_or(0);
-    let content = read_file(&rows[selected].path);
-    Ok(Observation::Ready((rows, selected, content)))
-}
-
-fn read_file(path: &Path) -> Content {
-    std::fs::read(path).map_err(|error| format!("{}: {error}", path.display()))
+    Ok((
+        Observation::Ready((rows, selected, tree.content)),
+        Some(tree.lifetime),
+    ))
 }
 
 /// Never put control bytes from names, paths, diagnostics or file contents on

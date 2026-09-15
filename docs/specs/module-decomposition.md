@@ -36,17 +36,21 @@ state and is cited here rather than restated.
 | skills | the `grove` plugin | no |
 | — | `grove`, `grove-llm` (binaries) | — |
 
-The domain-bound viewer consumes the loop's quiet `try_read` typed reader and canonical
-`entry_path` helper, and calls the loop's `select_snapshot` for whole-tree
-duplicate-key and live-finish validation. It owns application state and terminal rendering; its
-Ratatui/Crossterm dependencies do not enter grove-loop or grove-llm. The human
+The domain-bound viewer consumes the loop's quiet `try_observe` capture and
+canonical `entry_path` helper. The loop captures validated names and selected-file
+bytes, retaining an opaque `TreeLifetime` after releasing the tree guard through
+`ReadGuard::into_snapshot`. Capture calls `select_snapshot` for whole-tree
+duplicate-key and live-finish validation. The viewer owns application state and
+terminal rendering; its Ratatui/Crossterm dependencies do not enter grove-loop
+or grove-llm. The human
 binary dispatches `view` before lifecycle setup. The loop owns the shared
 selection rule over an already-read snapshot, including optional permanent-key
 exclusion; the viewer does not reimplement it. See [Read-only viewer](../ARCHITECTURE.md#read-only-viewer).
 The [item-status design](./item-status.md) defines the combined typed
 tree/activity observation interface and full-width interaction. Runtime protocol
 knowledge belongs to the loop; row styling and viewport state belong to the
-viewer.
+viewer. The shipped capture currently returns only tree results; independent
+runtime results remain part of the next implementation increment.
 
 One workspace, one release version, one changelog, one tag. A module is a crate
 so that *testable through its own interface without unrelated modules* is not a

@@ -224,7 +224,7 @@ const ROOTS: &[RootSpec] = &[
     RootSpec {
         id: "source-filesystem-module",
         path: "crates/ordinal-fs-tree/src/fs/mod.rs",
-        lines: 859,
+        lines: 868,
         blocks: &[
             BlockSpec {
                 id: "filesystem-read-opening",
@@ -284,25 +284,25 @@ const ROOTS: &[RootSpec] = &[
                 id: "filesystem-read-guard-api",
                 owner: "read-path-k14",
                 first: 553,
-                last: 566,
+                last: 575,
             },
             BlockSpec {
                 id: "filesystem-write-guard-api",
                 owner: "filesystem-interpreter-k16",
-                first: 567,
-                last: 844,
+                first: 576,
+                last: 853,
             },
             BlockSpec {
                 id: "filesystem-read-deref",
                 owner: "read-path-k14",
-                first: 845,
-                last: 852,
+                first: 854,
+                last: 861,
             },
             BlockSpec {
                 id: "filesystem-write-deref",
                 owner: "filesystem-interpreter-k16",
-                first: 853,
-                last: 859,
+                first: 862,
+                last: 868,
             },
         ],
     },

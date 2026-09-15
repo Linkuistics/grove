@@ -219,7 +219,7 @@ rollback requires human inspection.
 
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
-The source ledger contains 17 roots and 8,896 owned source lines. Every
+The source ledger contains 17 roots and 8,905 owned source lines. Every
 top-level ownership block is `resolved`, every early-use row is `explained`, and
 no `defer` directive remains. Recursive expansion of each source root is checked
 byte for byte against its production file; Markdown validation separately

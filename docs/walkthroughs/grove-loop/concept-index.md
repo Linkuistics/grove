@@ -6,6 +6,8 @@
 <a id="concepts"></a>
 ## Concepts
 
+- [Captured names, selected bytes and a lock-free lifetime pin](05-opening.md#captured-observation)
+
 - [Fragment notation](README.md#reading-fragments)
 - [The what-could-not-move test, stated](README.md)
 - [The layer that stayed, and why meaning could not move](01-orientation.md#allowed-to-mean)

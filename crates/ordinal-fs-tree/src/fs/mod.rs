@@ -551,6 +551,15 @@ impl<N: EntryName> Vacancy<N> {
 }
 
 impl<N: EntryName> ReadGuard<N> {
+    /// Release the shared lock and retain the captured names as value data.
+    ///
+    /// The returned snapshot describes this reading, not subsequent filesystem
+    /// changes. It grants no filesystem access or mutation authority.
+    #[must_use]
+    pub fn into_snapshot(self) -> Snapshot<N> {
+        self.snapshot
+    }
+
     /// The tree root, in the caller's own spelling.
     #[must_use]
     pub fn root(&self) -> &Path {

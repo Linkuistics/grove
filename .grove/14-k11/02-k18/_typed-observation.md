@@ -1,4 +1,4 @@
-# typed-observation-k18
+# typed-observation-k18 — brief
 
 
 ## Goal
@@ -37,3 +37,15 @@ in grove-loop/src/driver_lease.rs. Reuse those mechanisms, not admission.
 The next child owns visible activity chrome, idle NEXT attachments, independent
 tree/activity consistency acceptance and end-to-end Viewer tests. Preserve
 working browsing now; do not publish unused witness records or invent RUNNING.
+
+## Decomposition
+
+Capture migration and runtime evidence each need their own verification and
+source-derived book repair. Complete captured-tree-k20 in the decomposing
+session. It ships the tree-only try_observe seam used by real browsing, with
+no runtime claims. bounded-runtime-k21 extends that same operation with the
+independent activity result and owns every remaining runtime, guard-pause,
+handoff/recovery and admission obligation above. It commissions the required
+idle-next review under idle-next-k11 once the complete typed artifact exists,
+naming both producers and this node. Node closure requires that artifact and
+its principal checks; the surrounding idle-next node still owns review closure.

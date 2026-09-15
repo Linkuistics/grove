@@ -18,8 +18,8 @@ rust-version.workspace = true
 # `anyhow` is **internal only**: every public entry point answers this crate's
 # own opaque [`Error`], so a consumer takes on no error library of ours — the
 # same rule `crates/jj-workspace`, `crates/keyed-launch` and
-# `crates/ordinal-fs-tree` state for theirs. `libc` is the POSIX surface three
-# production modules reach: the lock-contention probe in `task_tree`, which
+# `crates/ordinal-fs-tree` state for theirs. `libc` supplies Unix calls and flags.
+# `observation` uses open flags; the lock-contention probe in `task_tree`
 # needs `flock(2)` non-blocking before it announces a wait; `driver_lease`, the
 # largest user, for the lease's own `flock(2)` and for the `fcntl(2)`
 # close-on-exec descriptors it carries across a spawn; and `loop_driver`, for

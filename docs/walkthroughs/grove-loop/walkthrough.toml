@@ -15,8 +15,7 @@ subject = "crates/grove-loop"
 # `docs/specs/walkthrough-books.md`'s corpus exception inventory carries for this
 # book, and declaring any other exclusion would disagree with that table.
 # The sixth is `task_grow.rs`, whose two-line declaration names the external file
-# excluded below. `crates/grove-loop/tests/` is 3,457 lines over six files and is
-# evidence rather than corpus.
+# excluded below. `crates/grove-loop/tests/` is evidence rather than corpus.
 [corpus]
 include = [
   "crates/grove-loop/Cargo.toml",
@@ -206,7 +205,7 @@ lines = 68
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 416
+lines = 418
 
 [[root]]
 id    = "source-task-name"
@@ -263,6 +262,11 @@ id    = "source-loop-driver"
 path  = "crates/grove-loop/src/loop_driver.rs"
 lines = 615
 
+[[root]]
+id = "source-observation"
+path = "crates/grove-loop/src/observation.rs"
+lines = 156
+
 [[block]]
 id    = "manifest-domain-bound"
 root  = "source-crate-manifest"
@@ -273,7 +277,7 @@ lines = "1-68"
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-416"
+lines = "1-418"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -496,6 +500,12 @@ id    = "loop-driver"
 root  = "source-loop-driver"
 owner = "four-things-a-runner-cannot-choose"
 lines = "1-615"
+
+[[block]]
+id = "observation-tree"
+root = "source-observation"
+owner = "one-spelling-of-grove"
+lines = "1-156"
 
 [[early-use]]
 symbols   = "`TaskName`, `TaskNameError`, `Verdict`, `verdict`, `entry`, `malformed`"

@@ -199,7 +199,7 @@ order is that account's order. The book reads it whole here, in seven fragments:
 six that follow the doc comment's own paragraph breaks, and one for the module
 declarations and exports, which this chapter reads after the worked example.
 
-<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-68" parent="source-library-root" -->
+<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-75" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-two-documents» -->
 <!-- insert «library-root-vocabulary» -->
@@ -212,7 +212,7 @@ declarations and exports, which this chapter reads after the worked example.
 The first fragment is the spine, and every chapter of this book is a reading of
 its second sentence. The claim has two halves. The crate understands neither the
 key nor the template: a consumer names one and a template names the other, and
-nothing in these 2,073 lines interprets either. What the crate does own is
+nothing in these 2,145 lines interprets either. What the crate does own is
 stated positively — a launch is one complete template string read whole out of
 one file, never assembled from two, and every rule about a template is checked
 before anything is spawned. Chapters 3 and 4 are those two clauses.
@@ -335,8 +335,13 @@ holds a consumer's configuration to this crate's contract **from outside the
 consumer's own suite**. The distinction it draws in that clause is the whole of
 why the kit exists, and chapter 9 argues it.
 
-<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="48-52" parent="library-root" -->
+<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="48-57" parent="library-root" -->
 ````rust
+//!
+//! [`run_observed`] adds synchronous parent-side [`LaunchEvent`] notifications
+//! at successful spawn and confirmed reap, including reap during wait-error
+//! recovery. Notifications precede token reading and terminal recovery; failed
+//! spawn emits none. [`run`] keeps the same interface without an observer.
 //!
 //! # Testing a consumer's configuration
 //!
@@ -454,12 +459,16 @@ than an omission.
 <a id="the-cast"></a>
 ## The cast
 
-The last sixteen lines of the library root are the module declarations and the
-export list. They are the crate's public surface in one place, and this book
-reads them here rather than deferring each name to its own chapter, because the
+`run_observed` accepts the same `Launch` plus a synchronous callback. Its
+`LaunchEvent` distinguishes successful spawn (Started) from confirmed reap
+(Reaped); `run` supplies a no-op callback. Chapter 7 owns the API and chapter 8
+shows why token appearance is not reap.
+
+The final module declarations and exports put the public surface in one place.
+This book reads them here rather than deferring each name to its own chapter, because the
 list is short and the map above has already said which chapter owns what.
 
-<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="53-68" parent="library-root" -->
+<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="58-75" parent="library-root" -->
 ````rust
 
 pub mod conformance;
@@ -474,7 +483,9 @@ mod vocabulary;
 pub use argv::{Argv, Slot};
 pub use channel::{signal, Channel, Token};
 pub use error::{ConfigError, LaunchError};
-pub use run::{reraise, run, take_interrupt, End, Ended, Escalation, Launch};
+pub use run::{
+    reraise, run, run_observed, take_interrupt, End, Ended, Escalation, Launch, LaunchEvent,
+};
 pub use templates::Templates;
 pub use vocabulary::{Requirement, SlotRule, Vocabulary};
 ````

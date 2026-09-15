@@ -6,7 +6,7 @@
 ## Nine openings, one question
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The nine roots and 2,073 lines are
+This chapter owns no production source. The nine roots and 2,145 lines are
 already reconstructed by the fragment graph the nine chapters before it built,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
@@ -418,11 +418,11 @@ src/templates.rs   670 lines, 8 blocks, chapters 2 3 4 5
     618–660   ch 4      the diagnostics
     661–670   ch 5      keys
 
-src/run.rs         607 lines, 4 blocks, chapters 7 8
+src/run.rs         672 lines, 4 blocks, chapters 7 8
       1–123   ch 7   ┐  the launch's shape
     124–243   ch 8   │  the watch and the latch, inside chapter 7's pair
-    244–448   ch 7   ┘  the terminal and the spawn
-    449–607   ch 8      supervise and escalate
+    244–510   ch 7   ┘  the terminal and the spawn
+    511–672   ch 8      supervise and escalate
 
 src/channel.rs     404 lines, 2 blocks, chapters 6 9
       1–271   ch 6      the production code
@@ -454,10 +454,10 @@ together. Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 196 + 135 + 193 + 246 + 188 + 271 + 328 + 279 + 237 = 2,073
+**Owned source.** 203 + 135 + 193 + 246 + 188 + 271 + 390 + 282 + 237 = 2,145
 lines across 9 chapters, and 0 for this one. The tenth row of that table exists
 to be zero: a chapter that owns no source is the shape the structure brief chose
-for the assembly, and the total is the same 2,073 the root brief froze.
+for the assembly, and the total is the 2,145 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
@@ -475,14 +475,14 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/keyed-launch --final --check all
-valid: 9 files, 2073 resolved lines, 0 deferred lines, final=true
+valid: 9 files, 2145 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 2,073 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 2,145 resolved and 0 deferred is the whole corpus
 reconstructed — including `src/channel.rs` lines 272 to 404, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
@@ -496,7 +496,7 @@ valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
 valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/keyed-launch
-valid: 9 files, 2073 resolved lines, 0 deferred lines, final=true
+valid: 9 files, 2145 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/ordinal-fs-tree
 valid: 17 files, 8720 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/overview
@@ -565,7 +565,7 @@ Nothing in the corpus holds them; they hold the corpus.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 9 roots, 2,073 lines, 10 chapters, two lookup surfaces,
+The book is complete: 9 roots, 2,145 lines, 10 chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that nine refusals are one design, and
 what it leaves the reader with is the question — *where does this layer learn what
 the value means?* — together with the one case where this crate's own answer runs

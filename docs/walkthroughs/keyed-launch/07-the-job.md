@@ -22,14 +22,14 @@ the way out** — expressed as an inferred convenience.
 `arguments_reach_the_child_as_written` are where the crate is held to the claim
 from the two directions it could fail in.
 
-The file is `src/run.rs`, 607 lines and 29% of the corpus, and it splits between
+The file is `src/run.rs`, 672 lines and 31% of the corpus, and it splits between
 this chapter and the next **by whose signal it is**. Everything done *to* the
 child is here: the shape of a launch, the dispositions it is handed, the terminal
 it is given, and the spawn that puts it in a process group of its own. Everything
 about *endings* is chapter 8's: the supervisor's state machine, the escalation,
 and the launcher's own SIGTERM. So this chapter owns lines 1–123 and
-244–448, and chapter 8 owns the 124–243 between them and the
-449–607 after — 328 lines here, the heaviest chapter in the book.
+244–510, and chapter 8 owns the 124–243 between them and the
+511–672 after — 390 lines here, the heaviest chapter in the book.
 
 Read the source closely on this page. `src/run.rs` is 53% comment, and those
 comments are *argument* rather than description: the escalation, the child's
@@ -101,7 +101,7 @@ operation performed on them.
 checkable, and the field's own section below reads how.
 
 **Three names appear in this chapter's source and are explained in chapter 8.**
-`run`'s first act is `install_termination_handler()` and its last is
+`run_observed`'s first act is `install_termination_handler()` and its last is
 `supervise(…)`, and between them it stores a zero into `INTERRUPTED_BY`. The
 minimum needed here is that `INTERRUPTED_BY` is a process-global latch holding
 the number of a termination signal the *launcher* received,
@@ -114,10 +114,10 @@ handler and the loop are reproduced.
 <a id="what-the-blocks-answer"></a>
 ## What the two blocks answer
 
-This chapter's 328 lines are two blocks with chapter 8's first block between
+This chapter's 390 lines are two blocks with chapter 8's first block between
 them: one constant, four types and a module thesis at the top of the file; then a
-constant, a private wrapper type with four methods, one free function and `run`
-itself. The table collects what each answers and what pins it. Tests named
+constant, the terminal wrapper, the two public runner entry points,
+launch events and the private process seam. The table collects what each answers and what pins it. Tests named
 without a path are in `crates/keyed-launch/tests/launch.rs`; the one exception
 names its own file.
 
@@ -171,7 +171,7 @@ interval, and the four public types this file defines.
 The second is the block after chapter 8's, and it is the machinery of a spawn:
 the dispositions, the terminal, and `run` itself.
 
-<!-- fragment «terminal-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="244-448" parent="source-run" -->
+<!-- fragment «terminal-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="244-510" parent="source-run" -->
 <!-- insert «run-default-dispositions» -->
 <!-- insert «run-terminal-type» -->
 <!-- insert «run-terminal-open» -->
@@ -696,7 +696,7 @@ decide whether it has one it is entitled to take back.
 
 Three sites in this file hand the terminal to a process group, and this method
 exists so that two of them do not have to write the dance out. Both of those two
-are chapter 8's — the reclaim in `supervise` and the one in `watch` —
+are the recovery closure below and chapter 8's `watch` —
 which is why a chapter about spawning a child owns the method and a chapter about
 ending one owns every call to it. The third site cannot use it: it is the
 `tcsetpgrp` inside `pre_exec`, in a forked child where the only async-signal-safe
@@ -817,12 +817,42 @@ named failure mode.
 <a id="nothing-added"></a>
 ## Nothing added
 
-`run` begins by installing chapter 8's handler, and then builds the `Command`.
+`run` delegates to `run_observed` with a no-op callback, preserving existing
+`Launch` literals and results. The observed entry point installs chapter 8's
+handler and builds the same `Command`. `LaunchEvent` reports parent-side
+boundaries independently of `End`: a successfully spawned child always emits
+Started, even if it exits immediately, while only confirmed reap emits Reaped.
+The callback returns unit and must handle its own failures without blocking or
+panicking. It supplies neither launch authority nor a child acknowledgement.
 Everything the child's environment will be is settled before the fragment ends.
 
-<!-- fragment «run-command-and-environment» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="367-385" parent="terminal-and-spawn" -->
+<!-- fragment «run-command-and-environment» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="367-409" parent="terminal-and-spawn" -->
 ````rust
 pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError> {
+    run_observed(launch, &mut |_| {})
+}
+
+/// Parent-side evidence about one launched child, independent of its token.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LaunchEvent {
+    /// Spawn succeeded. The child may already have exited.
+    Started,
+    /// A wait confirmed reap, even if supervision returns an error afterwards.
+    Reaped,
+}
+
+/// Run a launch with synchronous, infallible parent-side notifications.
+///
+/// Started occurs exactly once after successful spawn; failed spawn emits no
+/// events. Reaped occurs exactly once on confirmed reap, before token reading
+/// and terminal recovery. A token alone or an unsuccessful wait is not reap.
+/// The callback must return promptly and must not panic; observation failures
+/// must be handled within it. No child acknowledgement or outcome override is
+/// involved. All other behavior is the same as [`run`].
+pub fn run_observed(
+    launch: Launch<'_>,
+    observer: &mut dyn FnMut(LaunchEvent),
+) -> Result<Ended, LaunchError> {
     install_termination_handler();
 
     let mut command = Command::new(launch.argv.program());
@@ -871,7 +901,7 @@ which exist split precisely because this is what a spawn wants.
 With the environment settled, `run` turns to the terminal — and asks two
 separate questions of it before handing anything over.
 
-<!-- fragment «run-terminal-handover» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="386-397" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-handover» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="410-421" parent="terminal-and-spawn" -->
 ````rust
 
     let terminal = Terminal::open();
@@ -892,7 +922,7 @@ One guard and one duplication, and they answer different questions. The `filter`
 is a question of **entitlement**: this launcher may hand over the terminal only
 if it currently owns it, because otherwise it would transfer control away from a
 different job. That is the guard `Terminal::foreground` exists
-for, and it is the same guard chapter 8's `supervise` applies in reverse before
+for, and it is the same guard the recovery closure applies in reverse before
 taking the terminal back.
 
 The comment's own argument is about **timing**, and it is why a `RawFd` is
@@ -908,7 +938,7 @@ is not in this function at all but in chapter 8's `watch`. That second site is
 not the other half of a race. It earns its place for a reason of its own, and the
 reason is chapter 8's too: it is re-asked every tick.
 
-<!-- fragment «run-process-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="398-403" parent="terminal-and-spawn" -->
+<!-- fragment «run-process-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="422-427" parent="terminal-and-spawn" -->
 ````rust
 
     // The group, through `std`'s own checked path rather than a `setpgid` of our
@@ -928,7 +958,7 @@ an ordinary `Err` the caller already handles. This is the same reasoning chapter
 gave for checking the channel directory before the launch rather than letting the
 child's write fail: move the failure to where somebody is reading.
 
-<!-- fragment «run-pre-exec» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="404-425" parent="terminal-and-spawn" -->
+<!-- fragment «run-pre-exec» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="428-449" parent="terminal-and-spawn" -->
 ````rust
 
     // SAFETY: the closure runs between `fork` and `exec`, so it may call only
@@ -974,7 +1004,7 @@ Everything is now built and nothing has been started. Two acts stand between the
 assembled `Command` and a running child, and the first of them is a single
 store.
 
-<!-- fragment «run-clear-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="426-437" parent="terminal-and-spawn" -->
+<!-- fragment «run-clear-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="450-461" parent="terminal-and-spawn" -->
 ````rust
 
     // Clear the latch *before* the spawn, never after: see `INTERRUPTED_BY`. A
@@ -1006,8 +1036,17 @@ chapter 1 read off the error types and chapter 4 applied to the template
 diagnostics. `a_program_that_does_not_exist_names_itself_and_says_what_to_check`
 asserts on both halves: the program's name, and the word *executable*.
 
-<!-- fragment «run-parent-group-and-supervise» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="438-448" parent="terminal-and-spawn" -->
+The callback receives Started immediately after successful spawn, before any
+wait can report the child gone. The handoff below borrows the terminal for the
+watch and passes a closure that reclaims it only from this job. `Process` is a
+private test seam: production delegates waits to `Child` and signals its existing
+process group; tests can force failed waits without inventing lifecycle events.
+The seam introduces no new public launch policy.
+
+<!-- fragment «run-parent-group-and-supervise» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="462-510" parent="terminal-and-spawn" -->
 ````rust
+
+    observer(LaunchEvent::Started);
 
     // The parent's half of the same `setpgid` — insurance, not a race. The
     // `pre_exec` above takes `std` off `posix_spawn` onto fork-and-exec, and
@@ -1017,7 +1056,43 @@ asserts on both halves: the program's name, and the word *executable*.
     // SAFETY: `setpgid(2)` naming this process's own child.
     unsafe { libc::setpgid(pgid, pgid) };
 
-    supervise(child, launch.channel, launch.escalation, terminal, pgid)
+    supervise(
+        child,
+        launch.channel,
+        launch.escalation,
+        terminal.as_ref(),
+        pgid,
+        observer,
+        || {
+            // Recover only the terminal still owned by this launch's job.
+            if let Some(terminal) = &terminal {
+                if terminal.foreground() == pgid {
+                    terminal.hand_to(own_group());
+                }
+            }
+        },
+    )
+}
+
+// The private seam lets tests force wait errors without faking launch events.
+trait Process {
+    fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>>;
+    fn wait(&mut self) -> std::io::Result<ExitStatus>;
+    fn signal(&mut self, signal: i32);
+}
+
+impl Process for Child {
+    fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
+        Child::try_wait(self)
+    }
+
+    fn wait(&mut self) -> std::io::Result<ExitStatus> {
+        Child::wait(self)
+    }
+
+    fn signal(&mut self, signal: i32) {
+        kill(self.id() as libc::pid_t, signal);
+    }
 }
 ````
 <!-- /fragment -->
@@ -1043,11 +1118,10 @@ rather than to the child alone. The ignored return value is right on either
 reading: every failure the call can produce here means the group already
 exists.
 
-`supervise` takes the child, the channel, the escalation, the terminal and the
-group, and everything after this line is chapter 8's. `run` keeps nothing: the
-`Terminal` and the `Child` both go by value, because reclaiming a terminal and
-reaping a child are parts of *ending* a launch rather than of starting one, and
-this function is finished the moment the child exists.
+`supervise` takes the child, channel, escalation, borrowed terminal, group,
+observer and recovery closure. The child moves into supervision; `run_observed`
+retains the terminal, which the closure reclaims after the watch returns on
+success or failure. Chapter 8 owns the wait and notification boundaries.
 
 That is the spawn. A program a template authored, an environment the launcher's
 own minus a list and plus one path, a working directory the caller named, seven

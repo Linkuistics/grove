@@ -49,3 +49,29 @@ belong to launch-witnesses-k25. Do not put Grove types or filesystem locks in
 the runner. The callbacks' nonblocking discipline is that consumer's obligation.
 The final whole-protocol review is commissioned by witnessed-view-k27; if an
 unexpected event-order doubt needs review earlier, name that doubt explicitly.
+
+## Decisions (running log)
+
+- Keep `run(Launch)` source-compatible and add `run_observed(Launch, callback)`
+  with `LaunchEvent::{Started, Reaped}`. A borrowed synchronous `FnMut` returns
+  unit; consumers own nonblocking, non-panicking notification handling.
+- Use a private process/wait seam for deterministic confirmed/unconfirmed error
+  paths and a recovery closure to check event ordering against terminal recovery.
+  Production still uses the real Child and existing process-group signaling.
+- Implementation sequence: public real-child event tests; runner seam and error
+  ordering tests; shipped API/architecture and exact-source book repair; focused
+  tests and the principal gate; retire and describe the leaf.
+- The private wait trace rejects a deliberate suppression of Reaped (expected
+  assertion failure), then passes with production restored. Real-child tests
+  cover immediate/ordinary exits, missing program, token-before-exit, SIGTERM,
+  SIGKILL and interruption. The existing no-observer tests remain controls.
+- The keyed-launch book now reconstructs the changed API and private process
+  seam; its final validation accepts 9 roots and 2,145 lines with no deferrals.
+  No framework-version decision or new dependency was needed: this is event
+  plumbing around the existing Child wait and process-group operations.
+- Final host verification: `cargo test --locked -p keyed-launch` passed;
+  `bash scripts/check.sh` passed all eight principal checks, including workspace
+  process/PTY regressions and all six books. SHA-256 comparison of 1,749 files
+  under crates/docs/scripts/plugins/.cargo and root check inputs found no changes
+  during the gate. These are native macOS results; Linux witness evidence remains
+  owned by witnessed-observation-k26. G6 still records witnessed viewing pending.

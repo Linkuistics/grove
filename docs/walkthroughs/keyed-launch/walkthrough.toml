@@ -121,7 +121,7 @@ lines = 47
 [[root]]
 id    = "source-library-root"
 path  = "crates/keyed-launch/src/lib.rs"
-lines = 68
+lines = 75
 
 [[root]]
 id    = "source-error-types"
@@ -151,7 +151,7 @@ lines = 404
 [[root]]
 id    = "source-run"
 path  = "crates/keyed-launch/src/run.rs"
-lines = 607
+lines = 672
 
 [[root]]
 id    = "source-conformance"
@@ -168,7 +168,7 @@ lines = "1-47"
 id    = "library-root"
 root  = "source-library-root"
 owner = "understands-neither"
-lines = "1-68"
+lines = "1-75"
 
 [[block]]
 id    = "two-opaque-errors"
@@ -264,13 +264,13 @@ lines = "124-243"
 id    = "terminal-and-spawn"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "244-448"
+lines = "244-510"
 
 [[block]]
 id    = "supervise-and-escalate"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "449-607"
+lines = "511-672"
 
 [[block]]
 id    = "conformance"
@@ -303,10 +303,10 @@ owner     = "appearance-is-the-event"
 statement = "A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back."
 
 [[early-use]]
-symbols   = "`run`, `Launch`, `Ended`, `End`, `Escalation`"
+symbols   = "`run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Escalation`"
 first-use = "01-orientation.md#the-cast"
 owner     = "nothing-else-added"
-statement = "`run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened."
+statement = "`run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened."
 
 [[early-use]]
 symbols   = "`reraise`, `take_interrupt`"

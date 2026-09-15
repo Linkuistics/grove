@@ -16,8 +16,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use keyed_launch::{
-    run, take_interrupt, Argv, Channel, End, Escalation, Launch, Requirement, Slot, SlotRule,
-    Templates, Vocabulary,
+    run, run_observed, take_interrupt, Argv, Channel, End, Escalation, Launch, LaunchEvent,
+    Requirement, Slot, SlotRule, Templates, Vocabulary,
 };
 use tempfile::TempDir;
 
@@ -117,12 +117,15 @@ fn an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other() {
     // rather than orphaned onto the terminal.
     let patient = argv_for(dir.path(), "while : ; do sleep 0.05 ; done\n");
     let interrupted = Channel::allocate(&control).unwrap();
-    let raiser = std::thread::spawn(|| {
-        std::thread::sleep(Duration::from_millis(300));
-        raise_sigterm();
-    });
-    let ended = run(launch(&patient, &interrupted)).unwrap();
-    raiser.join().unwrap();
+    let mut events = Vec::new();
+    let ended = run_observed(launch(&patient, &interrupted), &mut |event| {
+        events.push(event);
+        if event == LaunchEvent::Started {
+            raise_sigterm();
+        }
+    })
+    .unwrap();
+    assert_eq!(events, [LaunchEvent::Started, LaunchEvent::Reaped]);
 
     assert_eq!(
         ended.end,

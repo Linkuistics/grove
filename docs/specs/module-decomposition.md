@@ -29,7 +29,7 @@ state and is cited here rather than restated.
 | module | package | domain-free |
 |---|---|---|
 | tree store | `ordinal-fs-tree` | yes |
-| runner | `keyed-launch` | yes |
+| runner, optional synchronous spawn/reap notifications | `keyed-launch` | yes |
 | VCS seam | `jj-workspace` | yes |
 | loop | `grove-loop` | no |
 | read-only viewer | `grove-tui` | no |

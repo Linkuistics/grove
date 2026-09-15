@@ -46,6 +46,11 @@
 //! *appearance* starts the kill [`Escalation`] the child cannot perform on
 //! itself. See [`Escalation`] for why that is the launcher's job.
 //!
+//! [`run_observed`] adds synchronous parent-side [`LaunchEvent`] notifications
+//! at successful spawn and confirmed reap, including reap during wait-error
+//! recovery. Notifications precede token reading and terminal recovery; failed
+//! spawn emits none. [`run`] keeps the same interface without an observer.
+//!
 //! # Testing a consumer's configuration
 //!
 //! [`conformance::check`] holds a configuration to this crate's contract from
@@ -63,6 +68,8 @@ mod vocabulary;
 pub use argv::{Argv, Slot};
 pub use channel::{signal, Channel, Token};
 pub use error::{ConfigError, LaunchError};
-pub use run::{reraise, run, take_interrupt, End, Ended, Escalation, Launch};
+pub use run::{
+    reraise, run, run_observed, take_interrupt, End, Ended, Escalation, Launch, LaunchEvent,
+};
 pub use templates::Templates;
 pub use vocabulary::{Requirement, SlotRule, Vocabulary};

@@ -15,7 +15,8 @@ use std::process::Command;
 use std::time::Duration;
 
 use keyed_launch::{
-    run, Channel, End, Escalation, Launch, Requirement, Slot, SlotRule, Templates, Vocabulary,
+    run, run_observed, Channel, End, Escalation, Launch, LaunchEvent, Requirement, Slot, SlotRule,
+    Templates, Vocabulary,
 };
 use tempfile::TempDir;
 
@@ -191,7 +192,9 @@ fn a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace() {
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
 
-    let ended = run(launch(&argv, &channel, &[], None)).unwrap();
+    let mut events = Vec::new();
+    let ended = run_observed(launch(&argv, &channel, &[], None), &mut |e| events.push(e)).unwrap();
+    assert_eq!(events, [LaunchEvent::Started, LaunchEvent::Reaped]);
 
     assert_eq!(ended.end, End::Signalled);
     assert_eq!(ended.token.as_ref().map(|t| t.as_str()), Some("relaunch"));
@@ -227,7 +230,9 @@ fn a_child_that_ignores_sigterm_is_killed_after_the_kill_grace() {
     let argv = harness.argv(&script);
     let channel = Channel::allocate(&harness.control()).unwrap();
 
-    let ended = run(launch(&argv, &channel, &[], None)).unwrap();
+    let mut events = Vec::new();
+    let ended = run_observed(launch(&argv, &channel, &[], None), &mut |e| events.push(e)).unwrap();
+    assert_eq!(events, [LaunchEvent::Started, LaunchEvent::Reaped]);
 
     assert_eq!(ended.end, End::Signalled);
     assert_eq!(
@@ -381,7 +386,10 @@ fn a_program_that_does_not_exist_names_itself_and_says_what_to_check() {
     fs::create_dir(dir.path().join("control")).unwrap();
     let channel = Channel::allocate(&dir.path().join("control")).unwrap();
 
-    let error = run(launch(&argv, &channel, &[], None)).unwrap_err();
+    let mut events = Vec::new();
+    let error =
+        run_observed(launch(&argv, &channel, &[], None), &mut |e| events.push(e)).unwrap_err();
+    assert!(events.is_empty());
 
     let message = error.to_string();
     assert!(message.contains("no-such-program-anywhere"), "{message}");
@@ -613,4 +621,81 @@ fn gone(pid: i32) -> bool {
         }
         std::thread::sleep(Duration::from_millis(50));
     }
+}
+
+#[test]
+fn observed_immediate_exit_and_failed_spawn_have_exact_events() {
+    use keyed_launch::{run_observed, LaunchEvent};
+    let harness = Harness::new();
+    let script = harness.script("exit 3\n");
+    let argv = harness.argv(&script);
+    let channel = Channel::allocate(&harness.control()).unwrap();
+    let parent = std::process::id();
+    let mut events = Vec::new();
+    let ended = run_observed(launch(&argv, &channel, &[], None), &mut |event| {
+        assert_eq!(std::process::id(), parent);
+        events.push(event);
+    })
+    .unwrap();
+    assert_eq!(events, [LaunchEvent::Started, LaunchEvent::Reaped]);
+    assert_eq!(ended.status.code(), Some(3));
+    assert_eq!(ended.end, End::Exited);
+    assert_eq!(ended.token, None);
+
+    events.clear();
+    let missing = harness.dir.path().join("missing-directory");
+    assert!(
+        run_observed(launch(&argv, &channel, &[], Some(&missing)), &mut |event| {
+            events.push(event)
+        })
+        .is_err()
+    );
+    assert!(events.is_empty());
+}
+
+#[test]
+fn a_token_does_not_emit_reaped_before_the_child_exits() {
+    use std::sync::mpsc;
+    use std::time::Instant;
+    let harness = Harness::new();
+    let release = harness.dir.path().join("release");
+    let script = harness.script("printf 'done\\n' > \"$TEST_CHANNEL\"\nwhile [ ! -f release ]; do sleep 0.01; done\nexit 0\n");
+    let argv = harness.argv(&script);
+    let channel = Channel::allocate(&harness.control()).unwrap();
+    let (send, receive) = mpsc::channel();
+    std::thread::scope(|scope| {
+        let runner = scope.spawn(|| {
+            run_observed(
+                Launch {
+                    escalation: Escalation {
+                        grace: Duration::from_secs(5),
+                        kill_grace: Duration::ZERO,
+                    },
+                    ..launch(&argv, &channel, &[], Some(harness.dir.path()))
+                },
+                &mut |event| send.send(event).unwrap(),
+            )
+            .unwrap()
+        });
+        assert_eq!(
+            receive.recv_timeout(Duration::from_secs(5)).unwrap(),
+            LaunchEvent::Started
+        );
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !channel.path().exists() {
+            assert!(Instant::now() < deadline, "child never published its token");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(receive.try_recv(), Err(mpsc::TryRecvError::Empty));
+        fs::write(release, "exit").unwrap();
+        assert_eq!(
+            receive.recv_timeout(Duration::from_secs(5)).unwrap(),
+            LaunchEvent::Reaped
+        );
+        let ended = runner.join().unwrap();
+        assert!(ended.status.success());
+        assert_eq!(ended.end, End::Exited);
+        assert_eq!(ended.token.unwrap().as_str(), "done");
+        assert_eq!(receive.try_recv(), Err(mpsc::TryRecvError::Empty));
+    });
 }

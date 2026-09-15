@@ -338,3 +338,7 @@
 - [What `--final` proves that a scoped run does not](10-what-passes-through.md#final-verification)
 - [Why every drafting session but the last left the umbrella red](10-what-passes-through.md#final-verification)
 - [Fifty-four tests over two surfaces, and which is corpus](10-what-passes-through.md#final-verification)
+
+Spawn/reap observation: `run_observed` and `LaunchEvent` are explained in
+[Nothing added](07-the-job.md#nothing-added); wait-error evidence and ordering
+are explained in [The watch and the escalation](08-the-escalation.md).

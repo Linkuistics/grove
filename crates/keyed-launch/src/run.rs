@@ -365,6 +365,30 @@ fn own_group() -> libc::pid_t {
 /// would only trade a stall for a wrong kill. It is the caller's to close, at
 /// the layer that instructs the child.
 pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError> {
+    run_observed(launch, &mut |_| {})
+}
+
+/// Parent-side evidence about one launched child, independent of its token.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LaunchEvent {
+    /// Spawn succeeded. The child may already have exited.
+    Started,
+    /// A wait confirmed reap, even if supervision returns an error afterwards.
+    Reaped,
+}
+
+/// Run a launch with synchronous, infallible parent-side notifications.
+///
+/// Started occurs exactly once after successful spawn; failed spawn emits no
+/// events. Reaped occurs exactly once on confirmed reap, before token reading
+/// and terminal recovery. A token alone or an unsuccessful wait is not reap.
+/// The callback must return promptly and must not panic; observation failures
+/// must be handled within it. No child acknowledgement or outcome override is
+/// involved. All other behavior is the same as [`run`].
+pub fn run_observed(
+    launch: Launch<'_>,
+    observer: &mut dyn FnMut(LaunchEvent),
+) -> Result<Ended, LaunchError> {
     install_termination_handler();
 
     let mut command = Command::new(launch.argv.program());
@@ -436,6 +460,8 @@ pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError> {
         ))
     })?;
 
+    observer(LaunchEvent::Started);
+
     // The parent's half of the same `setpgid` — insurance, not a race. The
     // `pre_exec` above takes `std` off `posix_spawn` onto fork-and-exec, and
     // `spawn` then returns only after the child has exec'd, so this call is
@@ -444,36 +470,66 @@ pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError> {
     // SAFETY: `setpgid(2)` naming this process's own child.
     unsafe { libc::setpgid(pgid, pgid) };
 
-    supervise(child, launch.channel, launch.escalation, terminal, pgid)
+    supervise(
+        child,
+        launch.channel,
+        launch.escalation,
+        terminal.as_ref(),
+        pgid,
+        observer,
+        || {
+            // Recover only the terminal still owned by this launch's job.
+            if let Some(terminal) = &terminal {
+                if terminal.foreground() == pgid {
+                    terminal.hand_to(own_group());
+                }
+            }
+        },
+    )
+}
+
+// The private seam lets tests force wait errors without faking launch events.
+trait Process {
+    fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>>;
+    fn wait(&mut self) -> std::io::Result<ExitStatus>;
+    fn signal(&mut self, signal: i32);
+}
+
+impl Process for Child {
+    fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
+        Child::try_wait(self)
+    }
+
+    fn wait(&mut self) -> std::io::Result<ExitStatus> {
+        Child::wait(self)
+    }
+
+    fn signal(&mut self, signal: i32) {
+        kill(self.id() as libc::pid_t, signal);
+    }
 }
 
 fn supervise(
-    child: Child,
-    channel: &Channel,
-    escalation: Escalation,
-    terminal: Option<Terminal>,
-    pgid: libc::pid_t,
-) -> Result<Ended, LaunchError> {
-    let outcome = watch(child, channel, escalation, terminal.as_ref(), pgid);
-    // Take the terminal back, and only from the job this launch owned. A
-    // launcher that returned while the terminal still belonged to a dead group
-    // would leave its own next write — `stty`, a diagnostic — to a terminal it
-    // is a background job on, which is a SIGTTOU stop rather than an error
-    // anybody could read.
-    if let Some(terminal) = &terminal {
-        if terminal.foreground() == pgid {
-            terminal.hand_to(own_group());
-        }
-    }
-    outcome
-}
-
-fn watch(
-    mut child: Child,
+    child: impl Process,
     channel: &Channel,
     escalation: Escalation,
     terminal: Option<&Terminal>,
     pgid: libc::pid_t,
+    observer: &mut dyn FnMut(LaunchEvent),
+    recover_terminal: impl FnOnce(),
+) -> Result<Ended, LaunchError> {
+    let outcome = watch(child, channel, escalation, terminal, pgid, observer);
+    recover_terminal();
+    outcome
+}
+
+fn watch(
+    mut child: impl Process,
+    channel: &Channel,
+    escalation: Escalation,
+    terminal: Option<&Terminal>,
+    pgid: libc::pid_t,
+    observer: &mut dyn FnMut(LaunchEvent),
 ) -> Result<Ended, LaunchError> {
     let started = Instant::now();
     let mut watch = Watch::Running;
@@ -512,8 +568,11 @@ fn watch(
                 // leave an interactive one holding the terminal with nothing
                 // left to reap it. Ending it is the last thing this launch can
                 // still do correctly, so it does that before reporting.
-                kill(pgid, libc::SIGKILL);
+                child.signal(libc::SIGKILL);
                 let reaped = child.wait().is_ok();
+                if reaped {
+                    observer(LaunchEvent::Reaped);
+                }
                 return Err(LaunchError::new(format!(
                     "cannot wait on the launched child: {error}; it has been sent SIGKILL and {}",
                     if reaped {
@@ -525,6 +584,7 @@ fn watch(
             }
         };
         if let Some(status) = waited {
+            observer(LaunchEvent::Reaped);
             // A child ended by the escalation exits non-zero, or by signal.
             // That is the normal completion path, not a failure: the token,
             // never the exit status, says what the launch meant.
@@ -539,7 +599,7 @@ fn watch(
         if interrupted.is_none() {
             if let Some(signal) = take_interrupt() {
                 interrupted = Some(signal);
-                kill(pgid, signal);
+                child.signal(signal);
                 // Start the kill grace only if nothing is already counting one
                 // down. Overwriting a running `Terminated` deadline would
                 // *extend* the child's life by a full `kill_grace` — so a
@@ -562,14 +622,15 @@ fn watch(
                 // ended. A child that signals and then exits inside its own
                 // grace was never touched, and says so.
                 signalled = true;
-                kill(pgid, libc::SIGTERM);
+                child.signal(libc::SIGTERM);
                 Watch::Terminated(Instant::now())
             }
             Watch::Terminated(at) if at.elapsed() >= escalation.kill_grace => {
-                kill(pgid, libc::SIGKILL);
+                child.signal(libc::SIGKILL);
                 let status = child.wait().map_err(|error| {
                     LaunchError::new(format!("cannot reap the killed child: {error}"))
                 })?;
+                observer(LaunchEvent::Reaped);
                 return Ok(ended(status, interrupted, signalled));
             }
             other => other,
@@ -605,3 +666,7 @@ fn kill(pgid: libc::pid_t, signal: libc::c_int) {
         libc::kill(pgid, signal);
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/internal/wait_events.rs"]
+mod wait_events;

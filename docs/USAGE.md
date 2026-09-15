@@ -62,17 +62,24 @@ leaves. Counts expose mixed terminal branches.
 | r | Reload the tree and root brief; selection and scroll reset to root/top |
 | q or Ctrl-c | Quit from either pane or help |
 
-Files are inert **plain text** in this increment: Markdown formatting and
-automatic updates are not available yet. Long lines are clipped at the pane
-edge; horizontal scrolling reveals them, preserving Unicode characters, and
-vertical paging reads long files. No links, code or control characters execute.
+Files render as **formatted Markdown**: headings, emphasis, nested lists,
+quotes, rules, inline code, fenced/indented code blocks and aligned tables.
+Prose wraps to the pane width. Code keeps its indentation and tables keep their
+columns; Left/Right scrolls those wide blocks without shifting prose. Links show
+labels and destinations, images show alt text, and HTML is inert text. Nothing
+opens a link, fetches an image, runs code or executes terminal control characters.
+Syntax highlighting is not provided. Updates still require `r`.
+
+Resize preserves the reading location through prose reflow, clamping near the
+end of a file. Returning to a previously selected file restores its reading
+position, including horizontal scroll. These positions live only in memory.
 The selected tree row stays visible. The footer points to key help.
 
 A missing tree shows its observed path and a Missing message. A malformed or
 unreadable reload shows an error; a retained previous tree is explicitly STALE.
 A selected-file failure is shown in the file pane. Fix the external problem,
 then press `r` to reload; the viewer never repairs it. An empty document has an
-empty pane. Resize clamps file scroll without changing selection. Below 60
+empty pane. Resize keeps the selected item. Below 60
 columns or 10 rows, a resize message replaces the panes; navigation pauses and
 state is retained until they fit again. Quit and refresh still work, including
 while help is open. Refresh deliberately resets selection and scroll as above.

@@ -3,9 +3,11 @@
 //! `Viewer` owns display data only. Every action attempts a quiet read and
 //! drops the shared guard before rendering or waiting for input.
 
+mod markdown;
 mod observation;
 mod terminal;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -17,6 +19,7 @@ use ratatui::{
     Frame,
 };
 
+use markdown::{Anchor, Document};
 use observation::{capture, read_selected, safe_text, Observation, Row};
 pub use terminal::run;
 
@@ -52,7 +55,10 @@ pub struct Viewer {
     rows: Vec<Row>,
     selected: usize,
     tree_state: ListState,
-    content: Vec<String>,
+    source: String,
+    content: Document,
+    positions: HashMap<PathBuf, (Anchor, usize)>,
+    restore_anchor: Option<Anchor>,
     scroll: usize,
     horizontal: usize,
     content_width: usize,
@@ -74,7 +80,10 @@ impl Viewer {
             rows: Vec::new(),
             selected: 0,
             tree_state: ListState::default(),
-            content: Vec::new(),
+            source: String::new(),
+            content: Document::default(),
+            positions: HashMap::new(),
+            restore_anchor: None,
             scroll: 0,
             horizontal: 0,
             content_width: 0,
@@ -162,7 +171,7 @@ impl Viewer {
                     self.scroll = if matches!(action, Action::Home) {
                         0
                     } else {
-                        self.content.len()
+                        self.content.lines.len()
                     };
                     self.clamp_scroll();
                 } else {
@@ -188,9 +197,22 @@ impl Viewer {
 
     fn select(&mut self, target: usize) {
         if self.selected != target {
+            if let Some(row) = self.rows.get(self.selected) {
+                self.positions.insert(
+                    row.path.clone(),
+                    (self.content.anchor(self.scroll), self.horizontal),
+                );
+            }
             self.selected = target;
+            let (anchor, horizontal) = self
+                .rows
+                .get(target)
+                .and_then(|row| self.positions.get(&row.path))
+                .copied()
+                .unwrap_or_default();
+            self.restore_anchor = Some(anchor);
             self.scroll = 0;
-            self.horizontal = 0;
+            self.horizontal = horizontal;
             self.load_selected(Instant::now());
         }
     }
@@ -232,6 +254,9 @@ impl Viewer {
         match capture(&self.worktree) {
             Ok(Observation::Ready((rows, content))) => {
                 self.pending = None;
+                self.positions
+                    .retain(|path, _| rows.iter().any(|row| &row.path == path));
+                self.restore_anchor = Some(Anchor::default());
                 self.rows = rows;
                 self.selected = 0;
                 self.scroll = 0;
@@ -275,7 +300,10 @@ impl Viewer {
     fn missing(&mut self) {
         self.pending = None;
         self.rows.clear();
-        self.content.clear();
+        self.source.clear();
+        self.content = Document::default();
+        self.positions.clear();
+        self.restore_anchor = None;
         self.selected = 0;
         self.scroll = 0;
         self.horizontal = 0;
@@ -326,17 +354,15 @@ impl Viewer {
     }
 
     fn set_content(&mut self, content: Result<Vec<u8>, String>) {
-        let text = match content {
-            Ok(bytes) => safe_text(&String::from_utf8_lossy(&bytes)),
+        self.source = match content {
+            Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
             Err(error) => format!("File error: {} — press r to retry", safe_text(&error)),
         };
-        self.content = text.lines().map(str::to_owned).collect();
-        self.content_width = self
-            .content
-            .iter()
-            .map(|line| Line::raw(line.as_str()).width())
-            .max()
-            .unwrap_or(0);
+        self.content = Document::layout(&self.source, self.page_width);
+        self.content_width = self.content.width();
+        if let Some(anchor) = self.restore_anchor.take() {
+            self.scroll = self.content.row_for(anchor);
+        }
     }
 
     fn visible(&self) -> Vec<usize> {
@@ -361,7 +387,7 @@ impl Viewer {
     fn clamp_scroll(&mut self) {
         self.scroll = self
             .scroll
-            .min(self.content.len().saturating_sub(self.page_height));
+            .min(self.content.lines.len().saturating_sub(self.page_height));
         self.horizontal = self
             .horizontal
             .min(self.content_width.saturating_sub(self.page_width));
@@ -386,11 +412,11 @@ impl Viewer {
 Tree: Up/Down j/k select | Home/End first/last\n\
 Right/l expand/enter | Left/h collapse/parent\n\
 Enter/Space: toggle branch\n\
-File: Up/Down j/k line | Left/Right h/l column\n\
+File: Up/Down j/k line | Left/Right h/l code/table\n\
 PageUp/PageDown Ctrl-u/Ctrl-d: page | Home/End: top/end\n\
 Escape: close help | ?: toggle help",
                 )
-                .block(Block::bordered().title("Key help")),
+                .block(Block::bordered().title("Key help — Markdown reader")),
                 frame.area(),
             );
             return;
@@ -450,22 +476,30 @@ Escape: close help | ?: toggle help",
             &mut self.tree_state,
         );
         self.page_height = usize::from(file_area.height.saturating_sub(2)).max(1);
-        self.page_width = usize::from(file_area.width.saturating_sub(2)).max(1);
+        let width = usize::from(file_area.width.saturating_sub(2)).max(1);
+        if self.page_width != width {
+            let anchor = self.content.anchor(self.scroll);
+            self.page_width = width;
+            self.content = Document::layout(&self.source, width);
+            self.content_width = self.content.width();
+            self.scroll = self.content.row_for(anchor);
+        }
         self.clamp_scroll();
         let lines: Vec<Line<'_>> = self
             .content
+            .lines
             .iter()
             .skip(self.scroll)
             .take(self.page_height)
-            .map(|line| Line::raw(clip_columns(line, self.horizontal, self.page_width)))
+            .map(|line| markdown::clip(line, self.horizontal, self.page_width))
             .collect();
-        // Unwrapped plain text preserves source lines; slicing avoids u16 scroll limits.
+        // Layout already wraps prose; slicing avoids u16 scroll limits.
         // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.Paragraph.html
         frame.render_widget(
             Paragraph::new(lines).block(Block::bordered().title(if self.file_focus {
-                "File [focus] (plain text)"
+                "File [focus] (Markdown)"
             } else {
-                "File (plain text)"
+                "File (Markdown)"
             })),
             file_area,
         );
@@ -474,30 +508,4 @@ Escape: close help | ?: toggle help",
             footer,
         );
     }
-}
-
-/// Clip terminal columns without splitting graphemes or narrowing offsets to u16.
-fn clip_columns(text: &str, offset: usize, width: usize) -> String {
-    let line = Line::raw(text);
-    let mut column: usize = 0;
-    let mut output = String::new();
-    // Ratatui's graphemes preserve combining sequences; Line measures display width.
-    // https://docs.rs/ratatui/0.29.0/ratatui/text/struct.Line.html#method.styled_graphemes
-    for grapheme in line.styled_graphemes(Style::default()) {
-        let start = column;
-        column += Line::raw(grapheme.symbol).width();
-        if column <= offset {
-            continue;
-        }
-        if start >= offset.saturating_add(width) {
-            break;
-        }
-        if start < offset || column > offset.saturating_add(width) {
-            let cells = column.min(offset.saturating_add(width)) - start.max(offset);
-            output.extend(std::iter::repeat_n(' ', cells));
-        } else {
-            output.push_str(grapheme.symbol);
-        }
-    }
-    output
 }

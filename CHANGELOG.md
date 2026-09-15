@@ -51,6 +51,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Render task and brief files as formatted Markdown in `grove view`, including
+  nested lists, code blocks and aligned tables. Prose reflows on resize while
+  retaining the reading location; revisits restore saved positions. Wide code
+  and tables scroll horizontally. Links, images, HTML and controls remain inert.
+
 - Restore the viewer terminal on partial setup and input/draw failures,
   SIGINT/SIGTERM/SIGHUP and unwinding panics, before fatal diagnostics.
   Handle a closed PTY without hanging; exercise cleanup with live PTY tests.
@@ -60,9 +65,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
   modal key help and state retention while the terminal is too small.
 
 - Add `grove view [WORKTREE]`, a permanently read-only terminal browser with
-  nested tree navigation, outcome counts, task/brief reading as plain text,
-  file paging and manual refresh. It works outside jj workspaces and needs no
-  launch configuration. Automatic refresh and formatted Markdown follow separately.
+  nested tree navigation, outcome counts, task/brief reading, file paging and
+  manual refresh. It works outside jj workspaces and needs no launch
+  configuration. Automatic refresh follows separately.
 - Keep `grove view` responsive during tree mutations: quiet nonblocking reads
   show WAITING, retain the previous display and retry every 500 ms. Ordinary
   blocking reads/writes and their CLI waiting diagnostics remain unchanged.

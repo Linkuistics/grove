@@ -403,7 +403,7 @@ fn focused_file_keys_scroll_lines_pages_and_unicode_columns() {
     let content = (0..50)
         .map(|n| format!("line {n:02}\n"))
         .collect::<String>();
-    put(&root, "_BRIEF.md", &content);
+    put(&root, "_BRIEF.md", &format!("```\n{content}```"));
     let before = snapshot(work.path());
     let mut viewer = Viewer::new(work.path().into());
     screen(&mut viewer, 100, 15); // ten file rows
@@ -432,7 +432,7 @@ fn focused_file_keys_scroll_lines_pages_and_unicode_columns() {
     put(
         &root,
         "_BRIEF.md",
-        &format!("界e\u{301}{}TAIL", "界".repeat(40)),
+        &format!("```\n界e\u{301}{}TAIL\n```", "界".repeat(40)),
     );
     key(&mut viewer, Char('r'));
     for _ in 0..200 {
@@ -496,4 +496,216 @@ fn help_and_small_frames_preserve_navigation_and_allow_global_actions() {
     key(&mut viewer, Esc);
     assert!(screen(&mut viewer, 100, 15).contains("ROOT BODY"));
     assert_eq!(snapshot(work.path()), before);
+}
+
+// Removing parser styles or treating list/table syntax as text breaks this seam.
+#[test]
+fn markdown_formats_real_task_and_branch_documents_without_writes() {
+    use ratatui::style::{Color, Modifier};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let markdown = "# Heading\n\n## Subheading\n\n**bold** *italic* `inline`\n\n- outer\n  3. nested\n     - inner\n\n> quoted\n\n---\n\n```rust\n    let x = 1;\n```\n\n    indented\n\n| Name | Count |\n| :--- | ---: |\n| a | 12 |\n| longer | 3 |\n\n[label](https://example.test) ![alt text](https://image.test)\n\n<div>inert</div>\n";
+    put(&root, "_BRIEF.md", "root");
+    put(&root, "01-k1/_branch.md", markdown);
+    put(&root, "01-k1/01-impl--task-k2.md", markdown);
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    for _ in 0..2 {
+        viewer.act(Action::Down);
+        let text = screen(&mut viewer, 220, 55);
+        for expected in [
+            "Heading",
+            "## Subheading",
+            "bold italic inline",
+            "• outer",
+            "3. nested",
+            "• inner",
+            "│ quoted",
+            "────",
+            "    let x = 1;",
+            "indented",
+            "longer",
+            "label (https://example.test)",
+            "alt text",
+            "<div>inert</div>",
+        ] {
+            assert!(text.contains(expected), "missing {expected}: {text}");
+        }
+        assert!(!text.contains("**bold**"));
+        assert!(!text.contains("![alt"));
+        let mut terminal = Terminal::new(TestBackend::new(220, 55)).unwrap();
+        terminal.draw(|f| viewer.render(f)).unwrap();
+        let buffer = terminal.backend().buffer();
+        for (word, modifier) in [
+            ("Heading", Modifier::BOLD),
+            ("bold", Modifier::BOLD),
+            ("italic", Modifier::ITALIC),
+        ] {
+            let cells = buffer
+                .content
+                .chunks(220)
+                .find_map(|row| {
+                    row.windows(word.len())
+                        .find(|cells| cells.iter().map(|c| c.symbol()).collect::<String>() == word)
+                })
+                .unwrap();
+            assert!(
+                cells.iter().all(|c| c.modifier.contains(modifier)),
+                "{word}"
+            );
+        }
+        assert!(buffer
+            .content
+            .iter()
+            .any(|c| c.symbol() == "i" && c.fg == Color::Yellow));
+        let table: Vec<_> = text
+            .lines()
+            .filter(|l| l.contains("│ Name") || l.contains("│ a ") || l.contains("│ longer"))
+            .collect();
+        assert_eq!(table.len(), 3, "{text}");
+        for row in [
+            "│ Name   │ Count │",
+            "│ a      │    12 │",
+            "│ longer │     3 │",
+        ] {
+            assert!(text.contains(row), "unaligned table: {text}");
+        }
+    }
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn markdown_reflow_and_revisits_keep_the_visible_source_marker() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let repeated =
+        "repeated words fill a paragraph with ordinary prose and enough text to reflow.\n\n";
+    let text = format!(
+        "{}UNIQUE-MARKER here is the reading position.\n\n{}",
+        repeated.repeat(20),
+        repeated.repeat(30)
+    );
+    put(&root, "_BRIEF.md", &text);
+    put(&root, "01-impl--task-k1.md", "other document");
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    screen(&mut viewer, 160, 15);
+    viewer.act(Action::Focus);
+    // Put the marker at the top, not merely at an arbitrary visible row.
+    for _ in 0..200 {
+        let view = screen(&mut viewer, 160, 15);
+        if view.lines().nth(3).unwrap().contains("UNIQUE-MARKER") {
+            break;
+        }
+        viewer.act(Action::Down);
+    }
+    assert!(screen(&mut viewer, 160, 15)
+        .lines()
+        .nth(3)
+        .unwrap()
+        .contains("UNIQUE-MARKER"));
+    assert!(screen(&mut viewer, 60, 15).contains("UNIQUE-MARKER"));
+    viewer.act(Action::Focus);
+    viewer.act(Action::Down);
+    assert!(screen(&mut viewer, 60, 15).contains("other document"));
+    viewer.act(Action::Up);
+    assert!(screen(&mut viewer, 120, 15).contains("UNIQUE-MARKER"));
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn markdown_wide_blocks_partial_edits_unicode_and_empty_files_are_readable() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(
+        &root,
+        "_BRIEF.md",
+        &format!(
+            "```\n界e\u{301}{}CODETAIL\n```\n\n| Wide |\n| --- |\n| {}TABLETAIL |\n",
+            "x".repeat(80),
+            "x".repeat(80)
+        ),
+    );
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    screen(&mut viewer, 60, 20);
+    viewer.act(Action::Focus);
+    for _ in 0..200 {
+        viewer.act(Action::Right);
+    }
+    let view = screen(&mut viewer, 60, 20);
+    assert!(view.contains("CODETAIL"), "{view}");
+    assert!(view.contains("TABLETAIL"), "{view}");
+    for _ in 0..200 {
+        viewer.act(Action::Left);
+    }
+    assert!(screen(&mut viewer, 60, 20).contains("界 e\u{301}"));
+    assert_eq!(snapshot(work.path()), before);
+    for text in [
+        "",
+        "**unfinished [link\n\n```\n  partial",
+        "Unicode 界 e\u{301} prose\n\n&#27;[2J\u{1b}[2J",
+    ] {
+        put(&root, "_BRIEF.md", text);
+        let expected = snapshot(work.path());
+        viewer.act(Action::Refresh);
+        let view = screen(&mut viewer, 60, 20);
+        assert!(!view.contains('\u{1b}'));
+        if text.contains("partial") {
+            assert!(view.contains("  partial"));
+        }
+        if text.contains("Unicode") {
+            assert!(view.contains("界  e\u{301}"), "{view}");
+        }
+        assert_eq!(snapshot(work.path()), expected);
+    }
+}
+
+#[test]
+fn transformed_markdown_and_blank_code_lines_keep_reading_anchors() {
+    for body in [
+        format!(
+            "`{}UNIQUE-MARKER {} `",
+            "alpha bravo ".repeat(60),
+            "charlie delta ".repeat(60)
+        ),
+        format!(
+            "[label](https://example.test/{}UNIQUE-MARKER/{})",
+            "part/".repeat(147),
+            "tail/".repeat(150)
+        ),
+        format!(
+            "```\nalpha\n{}UNIQUE-MARKER\n{}\n```",
+            "\n".repeat(20),
+            "tail\n".repeat(30)
+        ),
+    ] {
+        let work = tempfile::tempdir().unwrap();
+        let root = work.path().join(".grove");
+        put(&root, "_BRIEF.md", &body);
+        put(&root, "01-impl--other-k1.md", "other");
+        let mut viewer = Viewer::new(work.path().into());
+        screen(&mut viewer, 100, 15);
+        viewer.act(Action::Focus);
+        let mut found = false;
+        for _ in 0..250 {
+            let view = screen(&mut viewer, 100, 15);
+            if view.lines().nth(3).unwrap().contains("UNIQUE-MARKER") {
+                found = true;
+                break;
+            }
+            viewer.act(Action::Down);
+        }
+        assert!(found, "marker not reachable: {body}");
+        viewer.act(Action::Focus);
+        viewer.act(Action::Down);
+        screen(&mut viewer, 100, 15);
+        viewer.act(Action::Up);
+        let revisited = screen(&mut viewer, 100, 15);
+        assert!(
+            revisited.lines().nth(3).unwrap().contains("UNIQUE-MARKER"),
+            "{revisited}"
+        );
+        assert!(screen(&mut viewer, 70, 20).contains("UNIQUE-MARKER"));
+    }
 }

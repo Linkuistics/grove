@@ -182,6 +182,17 @@ input. There is no persisted viewer state. Busy retains the previous display
 with a waiting indicator and one pending retry every 500 ms; input polling uses
 that deadline. Other changes and repairs require manual refresh.
 
+The private Markdown module consumes pulldown-cmark events with source offsets.
+It sanitizes rendered text after entity decoding and lays out styled prose by
+terminal grapheme width. Code and tables retain columns and scroll horizontally;
+prose reflows. Each rendered line keeps its source range, allowing width changes
+to map the top reading anchor into a new layout. A rendered offset within
+transformed events distinguishes wrapped inline code and link destinations.
+Ordinary revisits save source
+anchors and horizontal columns by observed file path, bounded to the current
+snapshot. Manual refresh resets to the root; identity across moves and content
+edit reconciliation are not yet implemented. The renderer performs no I/O.
+
 ## Session configuration
 
 `~/.config/grove/config.kdl` carries user launch policy: a flat map of session

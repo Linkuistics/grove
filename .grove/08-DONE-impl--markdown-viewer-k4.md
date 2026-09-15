@@ -58,3 +58,40 @@ Run the focused viewer/application tests and affected CLI/documentation tests,
 `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets`, and the
 locked Rust 1.85 workspace check after the dependency change. Build and run the
 real `grove view` command for the smoke check.
+
+## Decisions (running log)
+
+- Follow the approved root design: a private Markdown layout module consumes
+  pulldown-cmark 0.13 events and source offsets, producing styled terminal lines
+  with source ranges. The application continues to own navigation and scrolling.
+- Execution order: first exercise formatting through real-file application tests;
+  implement parser/layout and integrate it; then verify resize/revisit anchors,
+  update usage and run the required checks and actual-binary terminal smoke.
+- Keep saved positions by observed file path for ordinary revisits in this slice;
+  permanent-key and root-lifetime reconciliation remain live-viewer-k5's scope.
+  Store source-byte anchors plus horizontal columns, not width-dependent rows.
+- The layout sanitizes parser output (including decoded entities), retains
+  grapheme-level source ranges for unchanged text and event ranges for transformed
+  text, and clips only code/table rows horizontally. Existing line-navigation
+  fixtures now use fenced code where their line-preserving contract requires it.
+- Doubt claim: source-range mapping keeps the reading location through width
+  changes and ordinary revisits. The compiler cannot establish this; spend the
+  leaf's single reviewer on transformed events, repeated text and anchor lookup.
+- Reviewer reconciliation: both findings are valid/actionable. Wrapped inline
+  code and generated destinations need an intra-event rendered offset in addition
+  to the source byte; blank code rows need the specific newline range rather than
+  the whole text event. Visible-marker application regressions exercise both
+  fixes through revisit and resize, so no second review is needed for these fixes.
+- The only dependency change is private to grove-tui plus Cargo.lock; no human
+  crate, reader facade or book-reconstructed source changes. README, usage and
+  architecture explain the delivered behavior. No walkthrough corpus changes.
+- Validation passed: grove-tui's 17 application tests and 2 terminal tests;
+  view_command, view_terminal, user_guide_coverage and reference_navigation;
+  cargo fmt --all -- --check; cargo clippy --workspace --all-targets;
+  rustup run 1.85 cargo check --locked --workspace --all-targets; cargo build -p grove.
+  Final format/lint/viewer-test/build checks kept all 1,756 tracked-file digests
+  unchanged while running (including sources, manifests, fixtures and docs).
+- Actual-binary PTY smoke displayed ROOT_DEMO, a nested-list/table BRANCH_DEMO,
+  and a fenced-code TASK_DEMO; horizontal scrolling reached TAIL_DEMO. Quit
+  restored canonical input/echo and emitted leave-screen/show-cursor sequences;
+  the fixture's file hashes were unchanged. Capture: /tmp/grove-markdown-smoke.ansi.

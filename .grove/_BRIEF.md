@@ -283,6 +283,23 @@ the human/JSON inspector and k12 owns validated example delivery; neither is
 claimed by the completed engine. The current configuration reference and module
 spec distinguish these remaining consumer features from implemented composition.
 
+## Workspace configuration handoff
+
+`workspace-reload-k30` completes `workspace-configuration-k10`, following the
+selection/diagnostic adapter in k29 and initial-kind admission repair in k31.
+Real driver acceptance covers opposite lead/review arrangements in sibling jj
+workspaces, repository fallback and worktree shadowing, local replacement,
+default inheritance and empty selection, direct overrides and parameter-only
+experiments. NUL-delimited child records retain adversarial parameter contents
+and empty words. A live-child handshake covers selection/shared-value reload
+without changing that child's PID/argv, and a lock-controlled external edit
+tests invalid configuration at the second load with no launch or tree change.
+
+Inspection k11 should continue through SessionConfig's existing discovery,
+selection and diagnostic surface. Human inspection and example delivery remain
+owned by k11 and k12. No new resolver, load point or source-admission policy was
+needed for the composed acceptance. The ADR set already matches this boundary.
+
 ## Implementation constraints carried from design
 
 - Implement the reviewed KDL grammar and parameter/reference namespaces without baking

@@ -340,6 +340,11 @@ else the personal default, else empty, preserving the chosen declaration origin.
 SessionConfig exposes that snapshot through `inspect`; Grove errors expose the
 runner diagnostics and path-bearing source-discovery/admission records through
 `diagnostics`. Both driver load points and mutating verbs use this adapter.
+The driver retains a reloadable source between children. Workspace selection and
+shared-value edits leave the running process intact and apply at the next
+session; invalid policy at the second load refuses launch. Process acceptance
+in `lifecycle_cutover.rs` and `loop_driver.rs` covers workspace isolation, exact
+parameter argv, live-child edits and an external edit between the two loads.
 Named definitions
 are primary-only; effective bindings validate their templates after local targets
 replace personal targets. Dormant definitions are not compiled; flat checks stay eager.

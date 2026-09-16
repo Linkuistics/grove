@@ -55,6 +55,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
   default, or an empty list. Explicit empty local selections disable profiles;
   direct local values apply last. SessionConfig exposes compiled inspection and
   source-attributed diagnostics while retaining tracked-file refusal.
+- Acceptance tests cover modular policy isolation across jj workspaces, exact
+  child arguments, live-child selection/value edits and refusal of invalid
+  configuration at the pre-launch reload.
 
 ## v21.5.0
 

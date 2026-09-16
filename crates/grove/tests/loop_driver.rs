@@ -292,6 +292,179 @@ fn children_of(parent: libc::pid_t) -> Vec<(libc::pid_t, libc::pid_t)> {
 fn run_driver(worktree: &Path, home: &Path) -> Output {
     DriverProcess::spawn(worktree, home).finish()
 }
+
+// A cached snapshot or a config-driven live restart must fail this handshake:
+// the original child reports its own PID and argv again after both edits.
+#[test]
+fn modular_reload_changes_the_next_child_and_preserves_the_running_child() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
+    plant_tree(&worktree, "01-impl--subject-k1.md");
+    let first = fixture.path().join("first command");
+    let second = fixture.path().join("second command");
+    write_exec(
+        &first,
+        r#"#!/bin/sh
+set -eu
+printf '%s\0' "$@" > before.argv
+printf '%s\n' "$$" > before.pid
+: > ready
+while [ ! -e inspect ]; do sleep 0.02; done
+printf '%s\0' "$@" > after.argv
+printf '%s\n' "$$" > after.pid
+: > inspected
+while [ ! -e release ]; do sleep 0.02; done
+printf 'relaunch\n' > "$GROVE_SIGNAL_FILE"
+"#,
+    );
+    write_exec(
+        &second,
+        "#!/bin/sh\nprintf '%s\\0' \"$@\" > next.argv\n: > next-ready\n",
+    );
+    let alpha = format!(
+        "{} alpha effort=${{param.effort}} ${{prompt}}",
+        shell_quote(&first)
+    );
+    let beta = format!(
+        "{} beta effort=${{param.effort}} ${{prompt}}",
+        shell_quote(&second)
+    );
+    let policy = format!(
+        r#"config {{
+        command "alpha" {alpha:?} {{ param "effort"; }}
+        command "beta" {beta:?} {{ param "effort"; }}
+        values "alpha" {{ param "effort" "medium"; }}
+        values "beta" {{ param "effort" "medium"; }}
+        bind "lead" "alpha"
+        route "impl" "lead"
+        profile "opposite" {{ bind "lead" "beta"; }}
+    }}"#
+    );
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let personal = config_dir.join("config.kdl");
+    fs::write(&personal, &policy).unwrap();
+    let mut driver = DriverProcess::spawn(&worktree, &home);
+    driver.wait_for_ready(&worktree.join("ready"));
+    let before = fs::read(worktree.join("before.argv")).unwrap();
+    let words: Vec<_> = before.split(|b| *b == 0).collect();
+    assert_eq!(words.len(), 4);
+    assert_eq!(words[0], b"alpha");
+    assert_eq!(words[1], b"effort=medium");
+    assert!(String::from_utf8_lossy(words[2]).contains("`subject-k1`"));
+
+    fs::write(
+        worktree.join(".grove.kdl"),
+        "config { select \"opposite\"; }",
+    )
+    .unwrap();
+    fs::write(&personal, policy.replace("\"medium\"", "\"high\"")).unwrap();
+    fs::write(worktree.join("inspect"), "").unwrap();
+    driver.wait_for_ready(&worktree.join("inspected"));
+    assert_eq!(fs::read(worktree.join("after.argv")).unwrap(), before);
+    assert_eq!(
+        fs::read(worktree.join("after.pid")).unwrap(),
+        fs::read(worktree.join("before.pid")).unwrap()
+    );
+    assert!(driver.try_wait().is_none());
+    assert!(!worktree.join("next.argv").exists());
+    fs::write(worktree.join("release"), "").unwrap();
+    driver.wait_for_ready(&worktree.join("next-ready"));
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while driver.try_wait().is_none() {
+        assert!(
+            Instant::now() < deadline,
+            "driver did not stop after the next child exited"
+        );
+        thread::sleep(Duration::from_millis(20));
+    }
+    let output = driver.finish();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let next = fs::read(worktree.join("next.argv")).unwrap();
+    let words: Vec<_> = next.split(|b| *b == 0).collect();
+    assert_eq!(words.len(), 4);
+    assert_eq!(words[0], b"beta");
+    assert_eq!(words[1], b"effort=high");
+    assert!(String::from_utf8_lossy(words[2]).contains("`subject-k1`"));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr)
+            .matches("grove: launching")
+            .count(),
+        2
+    );
+}
+
+// The first load succeeds before transition waits on this lock. Invalidating
+// the selection there must be caught by the second load, before any child.
+#[test]
+fn modular_pre_launch_reload_refuses_invalid_selection_after_transition_admission() {
+    use std::os::fd::AsRawFd;
+
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    plant_tree(&worktree, "01-impl--subject-k1.md");
+    let configured = fixture.path().join("configured");
+    write_exec(&configured, "#!/bin/sh\n: > launched\n");
+    write_complete_config(&home, &configured);
+    let personal = home.join(".config/grove/config.kdl");
+    let valid = fs::read_to_string(&personal).unwrap();
+    let brief = worktree.join(".grove/_BRIEF.md");
+    let leaf = worktree.join(".grove/01-impl--subject-k1.md");
+    let before = [fs::read(&brief).unwrap(), fs::read(&leaf).unwrap()];
+    let guard = fs::File::open(&worktree).unwrap();
+    // SAFETY: a live descriptor for this fixture's worktree; drop releases it.
+    assert_eq!(unsafe { libc::flock(guard.as_raw_fd(), libc::LOCK_EX) }, 0);
+    let mut driver = DriverProcess::spawn(&worktree, &home);
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        let said = fs::read_to_string(driver.diagnostics()).unwrap_or_default();
+        if said.contains("waiting for active Grove tree operation") {
+            break;
+        }
+        assert!(
+            driver.try_wait().is_none(),
+            "driver ended before transition wait: {said}"
+        );
+        assert!(
+            Instant::now() < deadline,
+            "driver did not reach transition wait: {said}"
+        );
+        thread::sleep(Duration::from_millis(20));
+    }
+    fs::write(
+        &personal,
+        format!("{valid}\nconfig {{ select \"missing\"; }}\n"),
+    )
+    .unwrap();
+    drop(guard);
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while driver.try_wait().is_none() {
+        assert!(
+            Instant::now() < deadline,
+            "driver did not refuse invalid reload"
+        );
+        thread::sleep(Duration::from_millis(20));
+    }
+    let output = driver.finish();
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "{error}");
+    assert!(
+        error.contains("missing") && error.contains(personal.to_str().unwrap()),
+        "{error}"
+    );
+    assert!(!worktree.join("launched").exists());
+    assert_eq!([fs::read(brief).unwrap(), fs::read(leaf).unwrap()], before);
+    assert_eq!(fs::read_dir(worktree.join(".grove")).unwrap().count(), 2);
+}
 // The session epoch is what admits an agent's `grove-llm` calls, so its window
 // has to be exactly the child's lifetime: active before the spawn (or the very
 // first call the session makes is refused) and inactive after the reap (or a

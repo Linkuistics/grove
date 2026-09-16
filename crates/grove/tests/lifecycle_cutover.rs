@@ -1166,6 +1166,90 @@ fn root_init(worktree: &Path, slug: &str) -> Vec<std::path::PathBuf> {
 }
 
 #[test]
+fn modular_workspace_selections_isolate_bindings_and_preserve_parameter_words() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let repository = fixture.path().join("repository");
+    init_worktree(&repository);
+    fs::write(repository.join(".gitignore"), ".grove.kdl\n").unwrap();
+    let left = fixture.path().join("left");
+    let right = fixture.path().join("right");
+    for worktree in [&left, &right] {
+        run_command(
+            "jj",
+            &repository,
+            &["workspace", "add", "--quiet", worktree.to_str().unwrap()],
+        );
+        // A new jj workspace starts at the parent revision, so it does not
+        // inherit the main workspace's still-open ignore-file edit.
+        fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
+        let grove = worktree.join(".grove");
+        fs::create_dir_all(&grove).unwrap();
+        fs::write(grove.join("_BRIEF.md"), "workspace acceptance").unwrap();
+        fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
+    }
+    let fake = fixture.path().join("record arguments");
+    write_executable(&fake, "#!/bin/sh\nprintf '%s\\0' \"$@\" > argv\n");
+    let alpha = format!(
+        "{} alpha effort=${{param.effort}} ${{param.literal}} ${{param.empty}} ${{prompt}}",
+        shell_quote(&fake)
+    );
+    let beta = alpha.replace(" alpha ", " beta ");
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let policy = format!(
+        r#"config {{
+        command "alpha" {alpha:?} {{ param "effort" "medium"; param "literal" "space 'single' \"double\" $HOME ${{prompt}} ${{param.effort}} $(touch injected); & | > * #"; param "empty" ""; }}
+        command "beta" {beta:?} {{ param "effort" "medium"; param "literal" "space 'single' \"double\" $HOME ${{prompt}} ${{param.effort}} $(touch injected); & | > * #"; param "empty" ""; }}
+        bind "lead" "alpha"
+        bind "review" "beta"
+        route "impl" "lead"
+        route "review-impl" "review"
+        profile "opposite" {{ bind "lead" "beta"; bind "review" "alpha"; }}
+        profile "high" {{ values "alpha" {{ param "effort" "high"; }}; values "beta" {{ param "effort" "high"; }}; }}
+        select "high"
+    }}"#
+    );
+    fs::write(config_dir.join("config.kdl"), policy).unwrap();
+    let local = left.join(".grove.kdl");
+    let repo_local = repository.join(".grove.kdl");
+    fs::write(&repo_local, "config { select \"opposite\"; values \"alpha\" { param \"effort\" \"repository\"; }; values \"beta\" { param \"effort\" \"repository\"; }; }").unwrap();
+
+    // Catch candidate merging and selection leakage: each row launches both
+    // kinds in both workspaces, while only left's local selection changes.
+    for (patch, left_agents, left_effort) in [
+        ("config { select; }", ["alpha", "beta"], "medium"),
+        ("config { select \"opposite\" \"high\"; }", ["beta", "alpha"], "high"),
+        ("config { select \"opposite\"; }", ["beta", "alpha"], "medium"),
+        ("config { select \"high\"; values \"alpha\" { param \"effort\" \"local\"; }; values \"beta\" { param \"effort\" \"local\"; }; }", ["alpha", "beta"], "local"),
+        ("config {}", ["alpha", "beta"], "high"),
+    ] {
+        fs::write(&local, patch).unwrap();
+        for (worktree, agents, effort) in [(&left, left_agents, left_effort), (&right, ["beta", "alpha"], "repository")] {
+            for (kind, agent) in ["impl", "review-impl"].into_iter().zip(agents) {
+                let leaf = worktree.join(".grove/01-impl--work-k1.md");
+                let selected = worktree.join(format!(".grove/01-{kind}--work-k1.md"));
+                if leaf != selected { fs::rename(&leaf, &selected).unwrap(); }
+                let output = run_grove(&home, worktree);
+                assert!(output.status.success(), "{patch}: {}", String::from_utf8_lossy(&output.stderr));
+                let bytes = fs::read(worktree.join("argv")).unwrap();
+                let words: Vec<_> = bytes.split(|b| *b == 0).collect();
+                assert_eq!(words.len(), 6, "{bytes:?}");
+                assert_eq!(words[0], agent.as_bytes());
+                assert_eq!(words[1], format!("effort={effort}").as_bytes());
+                assert_eq!(words[2], b"space 'single' \"double\" $HOME ${prompt} ${param.effort} $(touch injected); & | > * #");
+                assert_eq!(words[3], b"");
+                assert!(String::from_utf8_lossy(words[4]).contains(&mandate_naming("work-k1")));
+                assert_eq!(words[5], b"");
+                assert!(!worktree.join("injected").exists());
+                fs::remove_file(worktree.join("argv")).unwrap();
+                if leaf != selected { fs::rename(selected, leaf).unwrap(); }
+            }
+        }
+    }
+}
+
+#[test]
 fn named_wrapper_commands_launch_with_local_target_overrides_and_refuse_before_use() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");

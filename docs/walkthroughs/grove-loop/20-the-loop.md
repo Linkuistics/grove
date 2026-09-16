@@ -886,8 +886,8 @@ same commit as the comment, and the sentence now reads *twice per iteration* wit
 each clause attached to the read it belongs to. The two rows of the table above
 are what it enumerates.
 
-**And the count is the only half of this that any test can see.** Three mutations
-bracket it, against the same 277-test control used later in this chapter:
+The original book's 277-test control distinguished the presence check but not
+the placement of either load:
 
 | Mutation | Newly failing |
 |---|---:|
@@ -895,22 +895,23 @@ bracket it, against the same 277-test control used later in this chapter:
 | ask the presence rule against a **post**-transition load instead | 0 |
 | let the launch reuse the **pre**-transition load instead of reading again | 0 |
 
-So *that* the finish template's presence is checked is pinned by one test, and
-*when* it is checked is pinned by nothing — in either direction. The reason is
-structural rather than an oversight: the only things standing between the two
-reads are `transition_to_current` and `materialize_finish`, both of which write
-into `.grove/`, and `tree_lifecycle.rs` — where both of them do their work —
-contains no reference to a `.kdl` file at all. Nothing the loop does between the
-two calls can change what the second one reads, so the two documents are
-identical unless something *outside* grove rewrites a configuration file inside
-that window.
+The current process suite supplies that external writer.
+`modular_pre_launch_reload_refuses_invalid_selection_after_transition_admission`
+in `crates/grove/tests/loop_driver.rs` holds the worktree lock and waits for the
+driver's transition-wait diagnostic. The first load has then succeeded, but the
+second cannot yet have happened. The test writes an unknown selected profile,
+releases the lock, and observes refusal naming the personal file, no child, and
+the existing tree unchanged. Reusing the pre-transition snapshot makes this test
+fail: the invalid policy launches the old command. The historical zero above
+therefore no longer describes the late-load coverage. The timing of finish
+admission remains a separate claim.
 
-That is worth stating precisely, because it is the k157 and k158 lesson in a
-place the reader would not look for it: **a zero here means the distinction is
-unreachable through this path, not that the placement is untested by oversight.**
-The pre-transition timing is a guarantee about a race with an external writer,
-and a fixture that exercises it would have to be one — which is also why the
-guarantee is argued in a record rather than in a test.
+`modular_reload_changes_the_next_child_and_preserves_the_running_child` exercises
+the other window: a configured child records its arguments and PID, waits while
+the test edits a workspace selection and personal shared values, then records
+them again before signalling. Its PID and argv stay equal; the next child uses
+the newly selected executable and value. These are handshakes with a running
+process, not an elapsed-time assumption about when the edits happened.
 
 For an existing grove with a live leaf, the transition receives
 `pre_transition_config` but skips kind admission, and selection skips the

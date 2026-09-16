@@ -275,6 +275,11 @@ use without falling back to another list.
 
 Configuration is reloaded before each tree transition and again before launch.
 Edits affect a subsequent session; the running child's command stays unchanged.
+For example, changing a workspace's selected profiles and a personal shared
+parameter while its child runs leaves that process and its arguments intact.
+After it signals relaunch, the next child uses the new selection and value.
+If the active configuration becomes invalid between transition and launch,
+Grove refuses the launch; it does not roll back an already admitted transition.
 The adapter exposes the same snapshot through `SessionConfig::inspect()` and
 source-attributed records through `grove_loop::Error::diagnostics()`. Discovery
 and admission failures retain the candidate path without inventing a byte span.

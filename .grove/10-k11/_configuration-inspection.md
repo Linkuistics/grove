@@ -1,4 +1,4 @@
-# configuration-inspection-k11
+# configuration-inspection-k11 — brief
 
 
 ## Goal
@@ -71,6 +71,16 @@ codes. Supply their `docs/USAGE.md` anchors and update
 Update the CLI subcommand-surface assertions to the delivered help. The guide,
 its coverage inventory and the binary must agree; no future examples row or
 placeholder command is required before `k12`.
+
+## Decomposition
+
+`human-configuration-inspection-k32` delivers the complete human `config show`
+surface with `--kind`, shared admission, read-only process acceptance, help and
+current-state documentation. `json-configuration-inspection-k33` adds `--json`,
+the lossless versioned encoding and structured parser errors, and the tagged-word
+inspection/launch equality and native-path acceptance. Each child owns its
+source-exact books and the root principal checks. The parent remains live until
+both independently useful interfaces satisfy the full contract above.
 
 ## Notes
 

@@ -5,29 +5,31 @@
 <a id="no-arguments"></a>
 ## Lifecycle and observation
 
-The human binary has two entry paths. Bare `grove` starts, resumes or finishes
+The human binary has lifecycle, tree-viewing and configuration-inspection paths. Bare `grove` starts, resumes or finishes
 the lifecycle in the enclosing jj workspace. `grove view [WORKTREE]` opens an
 inert, read-only browser at one directory's `.grove`. Its path selects what to
 observe; it does not select a session, a kind or launch policy. `grove-llm`
 remains the separate flat command surface a running session uses.
 
 The parser turns the shell's argument vector into `Cli`. An absent command
-means lifecycle dispatch; a `View` variant carries an optional path. Help and
-version exit during parsing, before either dispatch path.
+means lifecycle dispatch; a `View` variant carries an optional path and a
+`Config` variant carries the nested inspection command. Help and
+version exit during parsing, before application dispatch.
 
 <a id="the-grammar"></a>
-## The grammar, in four fragments
+## The grammar, in five fragments
 
 The grammar owns the imports, its stated contract, clap metadata and the
 command declarations. Their source-order concatenation is independent of the
 reader order below. The `Command` enum belongs here alongside `Cli`, because
 its only job is parsing the observation request.
 
-<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-36" parent="source-command-surface" -->
+<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-58" parent="source-command-surface" -->
 <!-- insert «surface-imports» -->
 <!-- insert «surface-doc-comment» -->
 <!-- insert «surface-clap-attributes» -->
 <!-- insert «surface-empty-struct» -->
+<!-- insert «surface-config-command» -->
 <!-- /fragment -->
 
 <a id="the-imports"></a>
@@ -66,7 +68,7 @@ Adding the browser does not give the launcher a second source of policy.
 <!-- fragment «surface-doc-comment» owner="no-arguments" source="crates/grove/src/cli.rs" lines="5-7" parent="surface-grammar" -->
 ````rust
 
-/// Bare `grove` drives the lifecycle; `view` observes a path without launching.
+/// Bare `grove` drives the lifecycle; `view` and `config` observe without launching.
 /// Launch policy stays in configuration rather than command-line selectors.
 ````
 <!-- /fragment -->
@@ -79,7 +81,7 @@ version. Both binaries read `grove_loop::VERSION`; their manifests and the
 libraries shipped with them inherit the workspace version. `book-validation`
 is an authoring tool with its own version and is outside that release set.
 
-`disable_help_subcommand` keeps the subcommand set exactly `{view}`.
+`disable_help_subcommand` keeps the subcommand set exactly `{config, view}`.
 The normal `--help` option still describes every command and argument.
 
 <!-- fragment «surface-clap-attributes» owner="no-arguments" source="crates/grove/src/cli.rs" lines="8-19" parent="surface-grammar" -->
@@ -108,7 +110,7 @@ help states no upward search, explains the subdirectory case, and gives
 examples for both current and explicit worktrees. Parsing accepts a path even
 when that directory is absent; absence is a visible state of the viewer.
 
-<!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="20-36" parent="surface-grammar" -->
+<!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="20-44" parent="surface-grammar" -->
 ````rust
 pub struct Cli {
     #[command(subcommand)]
@@ -117,6 +119,14 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Inspect the workspace's resolved launch configuration without launching.
+    // clap 4.6.1: variant-level subcommand nests the enum's commands.
+    // https://docs.rs/clap/4.6.1/clap/_derive/index.html#command-attributes
+    #[command(
+        subcommand,
+        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n\nExit codes: 0 success, 1 configuration/source failure, 2 invalid usage."
+    )]
+    Config(ConfigCommand),
     /// Browse a .grove task tree read-only with automatic refresh.
     #[command(
         long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or launch configuration is needed.",
@@ -130,6 +140,34 @@ enum Command {
 ````
 <!-- /fragment -->
 
+<a id="config-grammar"></a>
+## Inspecting configured policy
+
+`ConfigCommand::Show` holds only an optional kind filter. It changes which
+validated commands are displayed, not which profiles resolve or what launches.
+Clap requires a child of `config`; its nested help provides examples and exit
+codes. SessionConfig owns validation; the parser cannot establish that a kind
+is admitted. No JSON option is advertised yet.
+
+<!-- fragment «surface-config-command» owner="no-arguments" source="crates/grove/src/cli.rs" lines="45-58" parent="surface-grammar" -->
+````rust
+
+#[derive(Subcommand)]
+enum ConfigCommand {
+    /// Show sources, selected profiles, commands and override provenance.
+    #[command(
+        long_about = "Inspect the workspace's configuration read-only, using the same complete validation and admission as launch. Requires a jj workspace but no task tree or driver lease. Runtime slots remain placeholders; no executable is probed or launched. jj may snapshot metadata when checking local configuration trackedness.",
+        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n\nExit codes: 0 valid inspection, 1 source/configuration/resolution failure, 2 invalid usage.\nReports go to stdout; errors go to stderr. A report describes one load; later launches reload configuration."
+    )]
+    Show {
+        /// Show one kind after validating the entire active configuration.
+        #[arg(long, value_name = "KIND")]
+        kind: Option<String>,
+    },
+}
+````
+<!-- /fragment -->
+
 <a id="worked-argv"></a>
 ## Worked example: dispatch before workspace resolution
 
@@ -138,6 +176,7 @@ enum Command {
 | `grove` | `command: None`; resolve workspace, acquire lease, run lifecycle |
 | `grove view` | `View { worktree: None }`; observe current directory's `.grove` |
 | `grove view /tmp/tasks` | `View` with `/tmp/tasks`; observe `/tmp/tasks/.grove` |
+| `grove config show --kind impl` | Validate all active policy, then require and display impl |
 | `grove view --help` | Print observation help and exit before terminal setup |
 | `grove --version` | Print the shared release version and exit |
 | `grove --harness claude` | Clap refuses the unknown lifecycle flag |

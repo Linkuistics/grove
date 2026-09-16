@@ -364,8 +364,10 @@ profile/include occurrence before the overlay, with active personal authority an
 occurrence-specific provenance. Inactive profiles receive structural checks only.
 SessionConfig exposes the shared `Inspection`; `grove_loop::Error::diagnostics`
 returns generic configuration records and Grove discovery/admission records,
-including paths when no span exists (empty for other errors). Human inspection
-commands remain pending alongside the unchanged launch surface.
+including paths when no span exists (empty for other errors). Human
+`grove config show [--kind KIND]` loads through SessionConfig before acquiring
+a lease, validates globally before filtering, and formats the shared records
+in the human binary. JSON inspection remains pending.
 
 ```rust
 /// The slot vocabulary a consumer's templates are written against. Supplied at

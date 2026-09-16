@@ -34,6 +34,40 @@ profile list; `config { select; }` disables profiles. Without a local selection,
 Grove inherits the personal default. Direct local values apply last, and edits
 affect subsequent sessions. See [configuration profiles](CONFIGURATION.md#named-commands-and-routes).
 
+<a id="usage-inspecting-configuration"></a>
+## Inspecting configuration before launch
+
+```sh
+grove config --help
+grove config show
+grove config show --kind impl
+```
+
+Inside a jj workspace, `config show` explains the same active policy launch
+uses: source paths, selected profiles and include occurrences, admitted kinds,
+non-admitted local keys, binding/command references, parameter winners and
+assignment histories. Executable and argument words are listed in order.
+Quoted literals stay distinct from runtime placeholders such as `slot <prompt>`;
+no prompt is fabricated. Origin and history IDs are local to the report, and
+origins identify source paths and byte spans. See the
+[configuration reference](CONFIGURATION.md#inspecting-the-active-configuration)
+for the record meanings.
+
+`--kind KIND` filters displayed commands after validating all active policy;
+it cannot hide a broken different kind. Unknown or non-admitted kinds fail.
+Success writes the report to stdout and exits 0. Source, trackedness and
+configuration failures write actionable errors to stderr and exit 1. Invalid
+options or missing option values exit 2 with usage on stderr. `--help` works
+without a repository. No profile override flag is provided.
+
+Inspection needs no `.grove/`, selected leaf, lease or session epoch. It works
+while a driver holds the lease and ignores stale inherited completion signals.
+It launches and probes no executable, creates no coordination/completion file,
+and changes no configuration or working-tree bytes; jj may snapshot metadata
+for its existing trackedness check. Output has no pager or truncation. A report
+covers one load, while launches reload configuration: equal argv requires
+unchanged source inputs and runtime context. JSON inspection is not yet shipped.
+
 <a id="usage-viewing-tree"></a>
 ## Viewing a tree
 
@@ -1061,6 +1095,7 @@ added to the inventory and forgotten here is a test failure rather than a silenc
 | G2 | [Running Grove](#usage-running-grove) |
 | G3 | [Running Grove](#usage-running-grove) |
 | G4 | [Running Grove](#usage-running-grove) |
+| G7 | [Inspecting configuration before launch](#usage-inspecting-configuration) |
 | G6 | [Viewing a tree](#usage-viewing-tree) |
 | G5 | [Stopping the loop](#stopping-the-loop) |
 | L1 | [Growing the tree](#growing-the-tree) |

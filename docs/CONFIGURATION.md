@@ -2,7 +2,8 @@
 
 This reference describes flat commands, named command reuse, parameters and
 ordered profile composition with workspace selection. The [modular design](specs/modular-configuration.md)
-also specifies human inspection and example delivery, which remain pending.
+also specifies JSON inspection and example delivery, which remain pending.
+Human `grove config show [--kind KIND]` is available now.
 Existing configurations require no rewrite.
 
 The generic runner captures sources in an owned `Catalog` and resolves an explicit
@@ -506,7 +507,7 @@ are consumer slots, not configuration parameters. Binding, command and parameter
 Unknown selections carry their selection occurrence and zero-based list index. Unknown external
 profiles are named in the message and carry no source unless the caller supplies
 an origin. Semantic diagnostics retain the selected occurrence/include chain.
-Human inspection commands remain pending.
+Human inspection uses `grove config show`, described below.
 
 Library consumers can call `Templates::inspect()` to borrow an owned explanation
 of the captured resolution. Named commands include their binding and command
@@ -527,7 +528,38 @@ representation as expansion. Slots remain symbolic names; filling them with the
 same native runtime values gives the same argument vector as `expand`. Inspection
 records cannot construct an `Argv`, and reading them launches nothing. The
 convenience loader and Catalog resolved with an empty Selection expose equivalent
-views. This is a library API; the `grove config show` CLI remains planned.
+views. The human CLI formats this same view through SessionConfig.
+
+### Inspecting the active configuration
+
+```sh
+grove config show
+grove config show --kind impl
+```
+
+Run from anywhere inside the jj workspace. The report names the personal file
+and selected local file, the selection declaration (or implicit empty list),
+every include occurrence, admitted kinds in name order and non-admitted local
+keys. Each command shows its binding/command chain, winning parameter values,
+executable and ordered argument words. Quoted `literal` words escape controls;
+`slot <prompt>` is a runtime placeholder, distinct from a literal `${prompt}`.
+Origin IDs point to paths and zero-based, end-exclusive UTF-8 byte spans;
+history IDs expose overwritten assignments, unset operations and template resets.
+All provenance tables remain available when `--kind` filters the command list.
+
+Inspection validates the entire active configuration before requiring a kind.
+A broken active route cannot be hidden by asking for another kind. Unknown and
+non-admitted kinds fail with source-attributed guidance. Reports go to stdout;
+errors go to stderr. Exit codes are 0 for valid inspection, 1 for source,
+admission or resolution failure, and 2 for invalid usage.
+
+No task tree, selected leaf, driver lease or active session epoch is needed.
+Inspection does not launch or probe executables, use a pager, truncate output,
+create coordination files, signal completion or change working/configuration
+bytes. The existing jj trackedness query may snapshot jj metadata. A held
+lease or stale inherited signal does not prevent inspection. Each report covers
+one load; later sessions reload sources, so equality with launch requires the
+same inputs and runtime context. JSON output remains a subsequent increment.
 
 For example, a duplicate declaration produces a human report such as:
 
@@ -544,12 +576,13 @@ No diagnostic silently fills a target or falls back to another kind.
 
 ### When a missing kind is reported
 
-Grove asks whether kind K resolves at the two moments it commits to K, and not
-before: **when it writes a leaf of kind K** — `grove-llm leaf-add`,
+During lifecycle operations, Grove asks whether kind K resolves at the two
+moments it commits to K: **when it writes a leaf of kind K** — `grove-llm leaf-add`,
 `leaf-insert`, `leaf-decompose` and `root-init` — and **when it
 launches K**. An add given several kinds asks about every one of them, before
 any of them lands. The check runs before the tree is mutated, so a refusal leaves the
-task tree byte-identical.
+task tree byte-identical. An explicit `grove config show --kind K` also checks
+that K resolves, after validating all active policy, without mutation or launch.
 
 The driver's automatic fresh-root bootstrap also requires an active personal
 `requirements` route before creating `.grove/`. It checks while holding the lock

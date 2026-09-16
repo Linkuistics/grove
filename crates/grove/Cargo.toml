@@ -32,6 +32,8 @@ clap = { version = "4", features = ["derive"] }
 # behind grove-tui.
 grove-loop = { path = "../grove-loop" }
 grove-tui = { path = "../grove-tui" }
+# Public inspection records; resolution remains SessionConfig's responsibility.
+keyed-launch = { path = "../keyed-launch" }
 
 # **The repository-surface tests live here**, and that is deliberate rather than
 # incidental. `tests/reference_navigation.rs`, `tests/plugin_fallback.rs`,

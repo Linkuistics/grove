@@ -10,8 +10,9 @@ working tree, it resolves that tree, takes the one-driver lease over it, and
 calls the loop; the loop is everything else — which task runs next, which
 command launches it, and when the grove is done. The bare lifecycle takes no
 launch-policy selectors. The `view` subcommand
-observes a supplied directory without entering that lifecycle. Its complete
-source remains three files: manifest, main and CLI.
+observes a supplied directory without entering that lifecycle. `config show` explains
+active policy without launching. The corpus includes manifest, main, CLI and
+configuration presentation.
 
 This book is the system's overview, and `crates/grove` is its corpus, because
 that crate is where the system is entered and nothing else is decided. Each
@@ -23,8 +24,8 @@ behind the call is named on those pages and explained on none of them, and
 
 The chapter's thesis is the manifest's own: **the binary is thin, and the
 compiler holds it so.** `grove` is a crate rather than a `[[bin]]` target inside
-the library it calls, so everything its two Rust files can reach is something
-the loop and viewer libraries chose to publish. A binary that merely looks thin
+the library it calls, so everything its Rust files can reach is something
+the loop, viewer and configuration libraries chose to publish. A binary that merely looks thin
 is held by
 review — someone reads the entry point and finds no logic in it, and the next
 commit is free to add some. This one is held by a package boundary, which is the
@@ -37,7 +38,7 @@ their own, which of the three holds it thin, or whether none does.
 ## Two products, and which one `grove` enters
 
 The repository that holds this crate ships two products, and the manifest's own
-phrase — *the package that is grove-the-product*, at line 41 below —
+phrase — *the package that is grove-the-product*, in the test commentary below —
 needs the distinction stated before it is read. The table names both so
 that phrase has a referent.
 
@@ -56,12 +57,12 @@ in no book; *What the call reaches* names it and stops.
 <a id="package-identity"></a>
 ## The package, and what it inherits
 
-The manifest is production source and this chapter reconstructs all fifty-four
+The manifest is production source and this chapter reconstructs all
 lines of it, in eight fragments that follow the file's own order. It is read
 first because the first mechanism is declared there rather than argued anywhere
 else: the package is a crate, and the crate has no library.
 
-<!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-55" parent="source-crate-manifest" -->
+<!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-57" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
 <!-- insert «manifest-human-binary» -->
 <!-- insert «manifest-crate-not-a-bin» -->
@@ -132,14 +133,14 @@ kind to one complete command template. With both facts on disk, an argument
 that selected either would be a second source for a fact that already has one.
 *The surface* reads the grammar that results, and *Proving a negative* reads the
 test that keeps the bare lifecycle free of selectors and the subcommand set
-at `{view}`.
+at `{config, view}` with `show` beneath `config`.
 
 <a id="crate-not-a-bin"></a>
 ## A crate, not a `[[bin]]` target
 
 The second comment is the chapter's argument, and it names the alternative it
 rejects: a `[[bin]]` target declared inside `grove-loop`'s own manifest, with
-the same thirteen-line `main` at `src/bin/grove.rs`. Cargo would accept that,
+the same small `main` at `src/bin/grove.rs`. Cargo would accept that,
 and the binary would be one file shorter to describe. What it would cost is
 the thesis — but only for one of the two shapes such a target can take, which
 is why the comment names that shape rather than stating the clause of binary
@@ -164,7 +165,7 @@ anyone asking for it — so a clause that did not name the first shape would be
 false of the arrangement a reader pictures. What the package boundary adds is
 not that the first shape becomes impossible — a `#[path]` can point outside a
 package, and three of this repository's test targets do exactly that — but
-that from here it has to, and the two Rust files visibly do not carry one. The
+that from here it has to, and the Rust files visibly do not carry one. The
 move is made visible rather than unavailable. Inside `grove-loop`'s package,
 *the binary is thin* would be a fact about which of the two shapes the current
 commit uses, held by whoever reviews the next one. Through its loop dependency
@@ -173,7 +174,7 @@ private item is a compile error. That is
 the whole of the first mechanism: the boundary is the compiler's, and no test
 is needed to assert it, which is also why it is the mechanism a reader is most
 likely to take on trust. The check is one line: every `grove_loop::` path the
-two Rust files name is a `pub` re-export in that library's root. The comment's
+Rust files name is a `pub` re-export in that library's root. The comment's
 own sentence, and decision 1 of `docs/specs/module-decomposition.md` which it
 cites, both name the shape the clause holds for; the comment says it in one
 clause because five lines is all the room the manifest gives it, and this
@@ -224,12 +225,14 @@ and `grove-tui` owns observation. Only the viewer pulls in Ratatui and
 Crossterm. `Workspace` still arrives through the loop's re-export; the human
 binary never opens a store lock itself. The manifest therefore records two
 public entry seams without importing their private implementation modules.
+The additional `keyed-launch` dependency supplies public inspection record
+types to the report formatter; SessionConfig still owns resolution.
 
 The dependency comment names the two public entry points and places terminal
 dependencies behind the viewer. That keeps display concerns out of the loop
 and agent binary; the exact manifest fragment below records those edges.
 
-<!-- fragment «manifest-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="27-34" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="27-36" parent="manifest-thin-by-construction" -->
 ````toml
 
 [dependencies]
@@ -239,6 +242,8 @@ clap = { version = "4", features = ["derive"] }
 # behind grove-tui.
 grove-loop = { path = "../grove-loop" }
 grove-tui = { path = "../grove-tui" }
+# Public inspection records; resolution remains SessionConfig's responsibility.
+keyed-launch = { path = "../keyed-launch" }
 ````
 <!-- /fragment -->
 
@@ -264,12 +269,11 @@ about a different set of tests for a different reason: the loop fixtures in
 spawned process against a temporary tree, which is the only harness a binary
 with no library can offer them.
 
-The directory holds nine files today and the comment names four; the other
-five are later repository-surface tests and the two fixture files, and every
-one of them is evidence for this book rather than corpus — `tests/`
-directories are cited and never reproduced.
+The comment names the original repository-surface tests. Later tests include
+configuration inspection and viewer fixtures. All are evidence for this book
+rather than corpus: `tests/` directories are cited and never reproduced.
 
-<!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="35-46" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="37-48" parent="manifest-thin-by-construction" -->
 ````toml
 
 # **The repository-surface tests live here**, and that is deliberate rather than
@@ -297,7 +301,7 @@ path — the driver dying of the signal it was sent — is *Three steps*' second
 ending, and this line is the first trace of it in the corpus. `tempfile`
 supplies the temporary trees.
 
-<!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="47-52" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="49-54" parent="manifest-thin-by-construction" -->
 ````toml
 [dev-dependencies]
 book-validation = { path = "../book-validation" }
@@ -311,7 +315,7 @@ tempfile = "3.10"
 The lint configuration is inherited for the same reason `version` is: one
 workspace, one standard, and nothing crate-specific to add.
 
-<!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="53-55" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="55-57" parent="manifest-thin-by-construction" -->
 ````toml
 
 [lints]
@@ -396,12 +400,12 @@ job is the invocation itself.
 | 1 | A package boundary: the entry point can reach only what the library publishes | the compiler | Orientation |
 | — | The grammar that results, and the agent surface beside it | — | The surface |
 | — | The three calls, and the signal path | — | Three steps |
-| 2 | A closure property: bare lifecycle selectors are absent and only view is a subcommand | `the_human_command_surface_has_nothing_left_to_select` | Proving a negative |
+| 2 | A closure property: bare lifecycle selectors are absent and only config and view are top-level subcommands | `the_human_command_surface_has_nothing_left_to_select` | Proving a negative |
 | 3 | A convention, checked: every option the binary lists is described | `the_human_facing_binary_describes_every_option_it_lists` | Proving a negative |
 | — | The module map, and the boundary of this book | — | What the call reaches |
 
 Mechanism 1 is this chapter's, and it is now fully read: a separate crate, no
-`[lib]`, one target, two grove dependencies, and a manifest whose comments state
+`[lib]`, one target, public library dependencies, and a manifest whose comments state
 each of those as a decision rather than a default. The remaining two are
 asserted by tests in the file the grammar lives in, and the grammar is read
 next.

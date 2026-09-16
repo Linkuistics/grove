@@ -74,47 +74,47 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove/Cargo.toml"
-lines = 55
+lines = 57
 
 [[root]]
 id    = "source-entry-point"
 path  = "crates/grove/src/main.rs"
-lines = 13
+lines = 14
 
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove/src/cli.rs"
-lines = 156
+lines = 184
 
 [[block]]
 id    = "manifest-thin-by-construction"
 root  = "source-crate-manifest"
 owner = "compiler-held"
-lines = "1-55"
+lines = "1-57"
 
 [[block]]
 id    = "entry-point-three-steps"
 root  = "source-entry-point"
 owner = "one-call"
-lines = "1-13"
+lines = "1-14"
 
 [[block]]
 id    = "surface-grammar"
 root  = "source-command-surface"
 owner = "no-arguments"
-lines = "1-36"
+lines = "1-58"
 
 [[block]]
 id    = "surface-resolve-lease-run"
 root  = "source-command-surface"
 owner = "one-call"
-lines = "37-73"
+lines = "59-98"
 
 [[block]]
 id    = "surface-closure-tests"
 root  = "source-command-surface"
 owner = "closure-proved"
-lines = "74-156"
+lines = "99-184"
 
 [[early-use]]
 symbols   = "`grove_loop::run`"
@@ -148,8 +148,19 @@ statement = "A resolved jj working tree, produced once here and handed to both t
 
 [guide]
 path    = "docs/USAGE.md"
-anchors = ["usage-viewing-tree", "usage-running-grove", "usage-tree-verbs", "usage-driver-lease", "usage-session-lifecycle"]
+anchors = ["usage-inspecting-configuration", "usage-viewing-tree", "usage-running-grove", "usage-tree-verbs", "usage-driver-lease", "usage-session-lifecycle"]
 
 [[glossary]]
 path    = "CONTEXT.md"
 anchors = ["driver-lease", "stated-vcs", "loop-control-channel", "guaranteed-core", "task-tree-scheme"]
+
+[[root]]
+id = "source-configuration-report"
+path = "crates/grove/src/config.rs"
+lines = 157
+
+[[block]]
+id = "configuration-report"
+root = "source-configuration-report"
+owner = "assembly"
+lines = "1-157"

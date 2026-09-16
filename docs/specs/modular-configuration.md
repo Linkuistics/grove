@@ -15,8 +15,9 @@ declarations are captured with source spans; the convenience loader ignores them
 while Grove chooses the local declaration, else the personal default, else empty.
 Explicit selections compose every profile/include occurrence with active-only
 semantic validation and occurrence-specific histories. Inactive profiles receive
-structural checks without affecting resolution. Human inspection commands,
-and example delivery remain pending; the [reference](../CONFIGURATION.md) describes
+structural checks without affecting resolution. Human `config show [--kind KIND]`
+uses that snapshot before lease acquisition. JSON inspection and example delivery
+remain pending; the [reference](../CONFIGURATION.md) describes
 the current boundary.
 
 The authority and execution constraints are owned by

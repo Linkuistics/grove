@@ -334,7 +334,8 @@ and shared/route values fill pre-split words and retain contributing origins and
 assignment/removal/reset histories. Explicit generic selections expand includes
 before each profile patch, repeating every occurrence and checking personal target
 authority before local patches. Inactive profiles receive structural checks only.
-Human inspection commands remain pending. Catalog captures optional selection
+Human `config show` presents this snapshot; JSON inspection remains pending.
+Catalog captures optional selection
 declarations; the convenience loader ignores them. Grove chooses the local list,
 else the personal default, else empty, preserving the chosen declaration origin.
 SessionConfig exposes that snapshot through `inspect`; Grove errors expose the
@@ -429,6 +430,15 @@ recovery. Failed spawn emits neither event and unconfirmed reap emits no
 consumers handle observational failures internally. Ordinary `run(Launch)`
 remains available. Grove uses these events for witness publication and release;
 the viewer consumes their verified same-tree evidence for RUNNING and NEXT.
+
+The human CLI dispatches `config show [--kind KIND]` before driver setup.
+`grove::config` resolves the enclosing workspace, calls SessionConfig to load the
+same sources and admission policy, requires an optional kind only after global
+validation, then formats the captured Inspection. `keyed-launch` supplies public
+record types; the binary implements no configuration resolver. Runtime words
+remain tagged literals or symbolic slots. No tree, lease or epoch is consulted,
+and the trackedness query's jj metadata snapshot is the only permitted write.
+The human report exposes origin/history references; JSON encoding remains pending.
 
 **Presence is per kind and just-in-time**
 (`docs/adr/complete-session-configuration.md`): both documents are validated

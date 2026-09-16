@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
 
-/// Bare `grove` drives the lifecycle; `view` observes a path without launching.
+/// Bare `grove` drives the lifecycle; `view` and `config` observe without launching.
 /// Launch policy stays in configuration rather than command-line selectors.
 #[derive(Parser)]
 #[command(
@@ -24,6 +24,14 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Inspect the workspace's resolved launch configuration without launching.
+    // clap 4.6.1: variant-level subcommand nests the enum's commands.
+    // https://docs.rs/clap/4.6.1/clap/_derive/index.html#command-attributes
+    #[command(
+        subcommand,
+        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n\nExit codes: 0 success, 1 configuration/source failure, 2 invalid usage."
+    )]
+    Config(ConfigCommand),
     /// Browse a .grove task tree read-only with automatic refresh.
     #[command(
         long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or launch configuration is needed.",
@@ -35,7 +43,21 @@ enum Command {
     },
 }
 
-/// Dispatch the viewer, or resolve, lease and run the lifecycle.
+#[derive(Subcommand)]
+enum ConfigCommand {
+    /// Show sources, selected profiles, commands and override provenance.
+    #[command(
+        long_about = "Inspect the workspace's configuration read-only, using the same complete validation and admission as launch. Requires a jj workspace but no task tree or driver lease. Runtime slots remain placeholders; no executable is probed or launched. jj may snapshot metadata when checking local configuration trackedness.",
+        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n\nExit codes: 0 valid inspection, 1 source/configuration/resolution failure, 2 invalid usage.\nReports go to stdout; errors go to stderr. A report describes one load; later launches reload configuration."
+    )]
+    Show {
+        /// Show one kind after validating the entire active configuration.
+        #[arg(long, value_name = "KIND")]
+        kind: Option<String>,
+    },
+}
+
+/// Dispatch observation, or resolve, lease and run the lifecycle.
 ///
 /// The workspace is resolved **here**, once, and handed to both the lease and
 /// the loop. That is the shape `loop-crate-driver-k22` gave the seam: the lease
@@ -61,6 +83,9 @@ pub fn run() -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     if let Some(Command::View { worktree }) = cli.command {
         return grove_tui::run(&worktree.unwrap_or(cwd));
+    }
+    if let Some(Command::Config(ConfigCommand::Show { kind })) = cli.command {
+        return crate::config::show(&cwd, kind.as_deref());
     }
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
@@ -131,17 +156,20 @@ mod tests {
     }
 
     /// Stated as a closure property rather than as a list of rejected verbs: the
-    /// bare lifecycle has no launch-policy selectors. The only subcommand is
-    /// `view`, which observes a path. A new command or lifecycle argument fails
+    /// bare lifecycle has no launch-policy selectors. `view` observes a path;
+    /// `config show` explains the configured policy. A new command or argument fails
     /// this closed-set assertion without being named in a rejection list.
     #[test]
     fn the_human_command_surface_has_nothing_left_to_select() {
         let command = Cli::command();
         let subcommands: Vec<&str> = command.get_subcommands().map(|s| s.get_name()).collect();
         assert!(
-            subcommands == ["view"],
-            "only view complements the bare lifecycle: {subcommands:?}"
+            subcommands == ["config", "view"],
+            "only observation complements the bare lifecycle: {subcommands:?}"
         );
+        let config = command.find_subcommand("config").unwrap();
+        let config_commands: Vec<_> = config.get_subcommands().map(|s| s.get_name()).collect();
+        assert_eq!(config_commands, ["show"]);
         let arguments: Vec<String> = command
             .get_arguments()
             .map(|argument| argument.get_id().to_string())

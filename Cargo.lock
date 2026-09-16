@@ -328,6 +328,7 @@ dependencies = [
  "clap",
  "grove-loop",
  "grove-tui",
+ "keyed-launch",
  "libc",
  "tempfile",
 ]

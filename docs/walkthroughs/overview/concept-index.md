@@ -52,3 +52,11 @@
 - [Apply the thin-entry-point test](05-what-the-call-reaches.md#the-test-applied-back)
 - [Source ownership and early uses](05-what-the-call-reaches.md#the-closed-ledgers)
 - [Verification](05-what-the-call-reaches.md#final-verification)
+
+- [Inspecting configured policy](02-the-surface.md#config-grammar)
+- [Inspect without starting the lifecycle](05-what-the-call-reaches.md#configuration-report)
+- [Loading before output](05-what-the-call-reaches.md#inspection-load)
+- [Locating assignments](05-what-the-call-reaches.md#inspection-labels)
+- [Explaining one selection](05-what-the-call-reaches.md#inspection-selection)
+- [Keeping words separate from slots](05-what-the-call-reaches.md#inspection-words)
+- [Following provenance back to source](05-what-the-call-reaches.md#inspection-histories)

@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.2.0
+
 - Switch `grove view` between full-width Tree and File views with Tab, preserving
   selection and reading positions. Keep lifecycle labels visible before tree
   indentation, with distinct DONE ticks and ABANDONED crosses.

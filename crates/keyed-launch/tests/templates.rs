@@ -453,3 +453,107 @@ fn a_duplicated_slot_name_is_refused_at_load() {
         .to_string();
     assert_contains(&error, "declares `prompt` more than once");
 }
+
+#[test]
+fn nul_templates_fail_eagerly_in_both_sources_with_real_spans() {
+    use keyed_launch::Catalog;
+
+    let dir = TempDir::new().unwrap();
+    let primary = write(
+        dir.path(),
+        "primary.kdl",
+        "run \"bad\\u{0}program ${prompt}\"\nother \"ok ${prompt}\"\n",
+    );
+    let overlay = write(
+        dir.path(),
+        "overlay.kdl",
+        "run \"good ${prompt}\"\nother \"ok 'bad\\u{0}argument' ${prompt}\"\n",
+    );
+    let catalog_error = Catalog::load(&primary, Some(&overlay), vocabulary())
+        .err()
+        .expect("NUL templates must fail before resolution");
+    let convenience_error = Templates::load(&primary, Some(&overlay), vocabulary())
+        .err()
+        .expect("convenience loading must reject the same templates");
+    assert_eq!(catalog_error.diagnostics(), convenience_error.diagnostics());
+    let diagnostics = catalog_error.diagnostics();
+    assert_eq!(diagnostics.len(), 2);
+    for (diagnostic, path, key) in [
+        (&diagnostics[0], &primary, "run"),
+        (&diagnostics[1], &overlay, "other"),
+    ] {
+        assert_eq!(diagnostic.category, "invalid_template");
+        assert_eq!(diagnostic.key.as_deref(), Some(key));
+        let span = diagnostic
+            .primary
+            .as_ref()
+            .expect("actual template location");
+        assert_eq!(&span.source.path, path);
+        assert!(fs::read_to_string(path).unwrap()[span.start..span.end].contains("\\u{0}"));
+        assert!(diagnostic.message.contains("NUL"));
+        assert!(diagnostic.remedy.contains("NUL"));
+    }
+}
+
+#[test]
+fn nul_runtime_values_fail_even_for_unused_optional_slots() {
+    let dir = TempDir::new().unwrap();
+    let primary = write(dir.path(), "primary.kdl", "run \"original ${prompt}\"");
+    let overlay = write(dir.path(), "overlay.kdl", "run \"replacement ${prompt}\"");
+    let templates = Templates::load(&primary, Some(&overlay), vocabulary()).unwrap();
+    for (prompt, label, slot) in [
+        ("bad\0value", "ok", "prompt"),
+        ("ok", "bad\0value", "label"),
+    ] {
+        let error = templates
+            .expand("run", &values(OsStr::new(prompt), OsStr::new(label)))
+            .expect_err("NUL values must not produce Argv");
+        let diagnostics = error.diagnostics();
+        assert_eq!(diagnostics.len(), 1);
+        let diagnostic = &diagnostics[0];
+        assert_eq!(diagnostic.category, "invalid_value");
+        assert_eq!(diagnostic.key.as_deref(), Some("run"));
+        assert_eq!(diagnostic.source.as_ref().unwrap().path, overlay);
+        assert!(diagnostic.primary.is_none());
+        assert!(diagnostic.message.contains(slot));
+        assert!(diagnostic.message.contains("NUL"));
+        assert!(diagnostic.remedy.contains("NUL"));
+    }
+}
+
+#[test]
+fn empty_and_parameter_looking_runtime_values_stay_opaque_words() {
+    let (_dir, loaded) = load("run \"wrapper ${prompt} ${label}\"");
+    let templates = loaded.unwrap();
+    let opaque = OsStr::new("quotes ' \" ${param.name} ${prompt} # ; $(anything)");
+    assert_eq!(
+        templates
+            .expand("run", &values(opaque, OsStr::new("")))
+            .unwrap()
+            .words(),
+        vec![
+            OsString::from("wrapper"),
+            opaque.to_owned(),
+            OsString::new()
+        ]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn native_runtime_values_preserve_non_unicode_and_reject_embedded_nul() {
+    use std::os::unix::ffi::OsStrExt;
+
+    let (_dir, loaded) = load("run \"wrapper ${prompt}\"");
+    let templates = loaded.unwrap();
+    let native = OsStr::from_bytes(b"path/\xff two words");
+    let argv = templates
+        .expand("run", &values(native, OsStr::new("")))
+        .unwrap();
+    assert_eq!(argv.args()[0].as_bytes(), native.as_bytes());
+    let with_nul = OsStr::from_bytes(b"path/\xff\0suffix");
+    let error = templates
+        .expand("run", &values(with_nul, OsStr::new("")))
+        .unwrap_err();
+    assert_eq!(error.diagnostics()[0].category, "invalid_value");
+}

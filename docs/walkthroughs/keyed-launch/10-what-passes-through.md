@@ -6,7 +6,7 @@
 ## Nine openings, one question
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The 10 roots and 2,733 lines are
+This chapter owns no production source. The 10 roots and 2,753 lines are
 already reconstructed by the fragment graph the nine chapters before it built,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
@@ -407,15 +407,15 @@ ranges cannot is the interleaving: in two of the three, one chapter's block sits
 *inside* another chapter's pair.
 
 ```text
-src/templates.rs   963 lines, 8 blocks, chapters 2 3 4 5
-       1-163   ch 2      the loaded shapes
-     164-296   ch 3      load
-     297-461   ch 5      resolution and expansion
-     462-664   ch 3      reading and whole-document validation
-     665-790   ch 4      node and template rules
-     791-873   ch 4      word scan
-     874-953   ch 4      diagnostics
-     954-963   ch 5      keys
+src/templates.rs   1091 lines, 8 blocks, chapters 2 3 4 5
+       1-165   ch 2      the loaded shapes
+     166-392   ch 3      load and inspection
+     393-574   ch 5      resolution and expansion
+     575-778   ch 3      reading and whole-document validation
+     779-918   ch 4      node and template rules
+    919-1001   ch 4      word scan
+   1002-1081   ch 4      diagnostics
+   1082-1091   ch 5      keys
 
 src/run.rs         672 lines, 4 blocks, chapters 7 8
       1–123   ch 7   ┐  the launch's shape
@@ -453,10 +453,10 @@ together. Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 286 + 317 + 431 + 296 + 229 + 271 + 390 + 282 + 231 = 2,733
+**Owned source.** 288 + 317 + 431 + 303 + 240 + 271 + 390 + 282 + 231 = 2,753
 lines across 9 chapters, and 0 for this one. The tenth row of that table exists
 to be zero: a chapter that owns no source is the shape the structure brief chose
-for the assembly, and the total is the 2,733 lines in the current declared corpus.
+for the assembly, and the total is the 2,753 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
@@ -474,14 +474,14 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/keyed-launch --final --check all
-valid: 10 files, 2733 resolved lines, 0 deferred lines, final=true
+valid: 10 files, 2753 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 2,733 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 2,753 resolved and 0 deferred is the whole corpus
 reconstructed — including `src/channel.rs` lines 272 to 404, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
@@ -495,7 +495,7 @@ valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
 valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/keyed-launch
-valid: 10 files, 2733 resolved lines, 0 deferred lines, final=true
+valid: 10 files, 2753 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/ordinal-fs-tree
 valid: 17 files, 8720 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/overview
@@ -564,7 +564,7 @@ Nothing in the corpus holds them; they hold the corpus.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 9 roots, 2,733 lines, 10 chapters, two lookup surfaces,
+The book is complete: 10 roots, 2,753 lines, 10 chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that nine refusals are one design, and
 what it leaves the reader with is the question — *where does this layer learn what
 the value means?* — together with the one case where this crate's own answer runs

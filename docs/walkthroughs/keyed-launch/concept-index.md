@@ -124,7 +124,7 @@
 - [Lines counted in bytes, columns counted in characters](04-template-law.md#what-a-refusal-owes)
 - [The clamp that makes a bad offset harmless rather than modelled](04-template-law.md#what-a-refusal-owes)
 - [Substitution is whole-word or nothing, and the two places it binds](05-to-an-argv.md#whole-word-or-nothing)
-- [The second arm completed: the value is never re-read](05-to-an-argv.md#whole-word-or-nothing)
+- [Opaque runtime values and the NUL boundary](05-to-an-argv.md#whole-word-or-nothing)
 - [Four values offered, one word substituted, four words out](05-to-an-argv.md#four-words)
 - [Why a value with spaces and a `$(…)` is one argument](05-to-an-argv.md#four-words)
 - [The inspection and expansion functions, what each answers and what each refuses](05-to-an-argv.md#four-questions)
@@ -349,3 +349,6 @@ are explained in [The watch and the escalation](08-the-escalation.md).
 
 - [Diagnostic categories, remedies and selected occurrences](01-orientation.md#the-two-errors)
 - [Cross-document structural-first aggregation](03-two-documents.md#one-entry-point)
+
+- [NUL template refusal before tokenization](04-template-law.md#the-comment-start)
+- [NUL runtime refusal with native-string preservation](05-to-an-argv.md#by-name)

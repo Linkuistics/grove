@@ -8,15 +8,16 @@
 Chapter 4 read every rule a template must satisfy and the five functions that
 turn a broken one into a sentence an operator can act on. All of those rules bind
 at load, and none of them binds again. This chapter is what happens afterwards:
-the rest of the public `impl` — the 130 lines chapter 3 stepped over on its way
+the rest of the public `impl` that chapter 3 stepped over on its way
 from `load` to the reading and validation `load` drives — ten more lines at the
 very end of `src/templates.rs`, and the whole of `src/argv.rs`.
 
 What this stage must not add and must not interpret is **the value**. A caller
 hands the crate a name and an `OsStr`; the crate finds the position that name
 occupies in the slot table, and puts the `OsStr` at the corresponding position of
-the argv. It does not look inside it. It does not split it, quote it, unquote it,
-expand it, match it against anything, or compare it with any other value.
+the argv. It rejects NUL, which cannot be passed as part of a process argument.
+It does not split, quote, unquote or expand the value, or compare it with another
+value. Other native bytes pass through unchanged.
 Substitution is whole-word or nothing, and that phrase binds in two places rather
 than one: chapter 4 refused a template in which a substitution was less than a
 whole word, and this chapter never re-reads the word that substitution produced.
@@ -158,7 +159,7 @@ interleaving is the cost of ordering the book by concept, and the ownership
 ledger in the source index is where it is visible: eight blocks of one root,
 divided across four chapters.
 
-<!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="393-563" parent="source-templates" -->
+<!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="393-574" parent="source-templates" -->
 <!-- insert «templates-source» -->
 <!-- insert «templates-require» -->
 <!-- insert «templates-expand» -->
@@ -293,14 +294,15 @@ load, so what remains is a single question about the caller's values — and the
 comment on it is the longest in the block precisely because that question is
 stated over something other than what a reader would first expect.
 
-<!-- fragment «templates-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="428-478" parent="resolution-and-expansion" -->
+<!-- fragment «templates-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="428-479" parent="resolution-and-expansion" -->
 ````rust
 
     /// Expand this key's template into an argv.
     ///
     /// The values must fill the slots the vocabulary declared: one value per
-    /// declared slot, no duplicates, no name the vocabulary does not hold. That
-    /// is expansion's whole obligation — every other template rule was checked
+    /// declared slot, no duplicates, no name the vocabulary does not hold, and
+    /// no NUL in any offered value, even for an unused optional slot. Every
+    /// other template rule was checked
     /// at load — and it is stated over the vocabulary rather than over this
     /// template's own words so a consumer cannot have a call that works for one
     /// key and fails for its neighbour purely because the two templates mention
@@ -393,7 +395,12 @@ values in its order; zipping those values with the slot names creates the lookup
 The compiled-word loop then copies a literal into an `OsString`, or copies the
 native value associated with a `Word::Slot(name)`. This is the same named word
 representation inspection exposes. Neither branch splits or interprets the
-value, so spaces and non-Unicode bytes remain inside one argument.
+value, so spaces and non-Unicode bytes remain inside one argument. The matching
+step also refuses NUL in every offered value, including optional slots absent
+from this template. Its `invalid_value` diagnostic names the slot; expansion
+adds the key and template source without inventing a source range for caller
+data. `nul_runtime_values_fail_even_for_unused_optional_slots` checks that
+boundary, and the native-string regression checks that non-Unicode bytes survive.
 
 The final split separates word zero from the arguments. The split cannot fail, and the reason it cannot is
 in another chapter: word zero is checked at load to be a literal and non-empty,
@@ -411,7 +418,7 @@ consumes it. Its input is the caller's slice of `Slot` values; its output is a
 vector of borrowed `OsStr`s in vocabulary order. Expansion pairs them with
 validated names before it walks the compiled words.
 
-<!-- fragment «match-values» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="479-531" parent="resolution-and-expansion" -->
+<!-- fragment «match-values» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="480-542" parent="resolution-and-expansion" -->
 ````rust
 
     /// Line up the offered values with the declared slots, by name.
@@ -437,6 +444,16 @@ validated names before it walks the compiled words.
                     "invalid_value",
                     format!("slot `{}` was offered more than one value", value.name),
                     "Supply exactly one value for each declared runtime slot and no other names.",
+                ));
+            }
+            // OsStr's encoding preserves ASCII, so NUL can be checked without
+            // converting native strings to Unicode (stable since Rust 1.74):
+            // https://doc.rust-lang.org/1.85.0/std/ffi/struct.OsStr.html#method.as_encoded_bytes
+            if value.value.as_encoded_bytes().contains(&0) {
+                return Err(ConfigError::new(
+                    "invalid_value",
+                    format!("runtime slot `{}` contains NUL", value.name),
+                    "Remove NUL from the runtime slot value before expansion.",
                 ));
             }
             offered[index] = Some(value.value);
@@ -478,29 +495,26 @@ site anywhere in the crate branches on a *particular* name, and this one is the
 easiest place to see why that is a property rather than an accident — the
 function has no way to say `prompt` even if it wanted to.
 
-Three refusals come out of it, and they are found at two different times, which
+Four refusals come out of it, and they are found at two different times, which
 is a distinction the messages themselves make visible.
 
 | Refusal | Found | Message |
 |---|---|---|
 | a name the vocabulary does not declare | during the loop, at the first offending value | `` no slot named `mandate` is declared; declared slots: prompt, session_name, worktree, repo `` |
 | two values for one slot | during the loop, at the second value for that slot | `` slot `prompt` was offered more than one value `` |
+| a runtime value containing NUL | during the loop, after its name and uniqueness checks | `` runtime slot `prompt` contains NUL `` |
 | a declared slot with no value | after the loop, over all of them at once | `` no value offered for declared slots: worktree, repo `` |
 
-The table's point is the middle column. The first two are first-error and the
-third is aggregate, and that asymmetry is correct rather than an inconsistency
-with chapter 3's aggregate document report: the loop cannot continue past an
-unknown name because it has no index to write to, whereas *missing* is only
-knowable once every offered value has been placed, and at that moment every
-missing slot is known at once. So the third message names all of them, joined
-with `, `, and pluralises its own noun on line 417 — `declared slot: label` for
-one and `declared slots: worktree, repo` for two, rather than one spelling that
-is wrong half the time.
+The first three return on the first offending value in caller order. Within one
+value, an unknown name takes precedence over a duplicate, which takes precedence
+over NUL. Missing values are collected only after every offered value has passed
+those checks. That final message names all missing slots, joined with `, `, and
+pluralises its noun: `declared slot: label` or `declared slots: worktree, repo`.
 
-`declared_slots` exists for the first of the three messages and for nothing else.
+`declared_slots` exists for the unknown-name message and for nothing else.
 It has exactly one call site, in `match_values` above it.
 
-<!-- fragment «declared-slots» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="532-539" parent="resolution-and-expansion" -->
+<!-- fragment «declared-slots» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="543-550" parent="resolution-and-expansion" -->
 ````rust
 
     fn declared_slots(&self) -> String {
@@ -539,7 +553,7 @@ this chapter keeps. It takes a key that failed `require` and returns the sentenc
 the operator will read. It has one caller, and it is the reason `require` exists
 as a named obligation rather than as a `contains_key` at each call site.
 
-<!-- fragment «templates-unresolved» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="540-563" parent="resolution-and-expansion" -->
+<!-- fragment «templates-unresolved» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="551-574" parent="resolution-and-expansion" -->
 ````rust
 
     /// The refusal for a key that does not resolve — naming the key and the
@@ -627,7 +641,7 @@ another module, and its placement says so: it is not part of the block a reader
 of the type's public surface walks, and it was added where it could be read
 against its purpose rather than against its neighbours.
 
-<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="1064-1073" parent="source-templates" -->
+<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="1082-1091" parent="source-templates" -->
 ````rust
 
 /// The keys the primary document declares, in name order. The conformance kit's

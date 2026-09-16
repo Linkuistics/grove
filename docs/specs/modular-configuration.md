@@ -7,7 +7,8 @@ profiles, and resolves an explicit command for each configured session kind.
 This is the design contract for that configuration area. The running reader
 implements the legacy flat form through captured Catalog/Selection resolution
 and the same conformance path, with structured diagnostics and flat library
-inspection/provenance. Human inspection commands, wrapper/profile syntax and
+inspection/provenance, and NUL rejection in flat templates and runtime values.
+Human inspection commands, wrapper/profile syntax and
 Grove selection policy remain pending; the
 [configuration reference](../CONFIGURATION.md) documents that boundary.
 

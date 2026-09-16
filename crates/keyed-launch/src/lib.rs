@@ -43,6 +43,8 @@
 //! with no shell — and supervises the child until it ends. The two halves meet
 //! only at `Argv`, and each is usable without the other: a launcher that builds
 //! its argv some other way still cannot construct one, which is the point.
+//! Templates reject NUL at load; expansion rejects NUL in every offered runtime
+//! value, including unused optional slots. Other native bytes remain unchanged.
 //!
 //! **The child is a job.** It is spawned into a process group of its own and
 //! handed the launcher's controlling terminal, so a terminal signal reaches the

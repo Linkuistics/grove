@@ -615,7 +615,10 @@ namespace and can fill argument fragments without re-splitting. Templates also
 exposes one structured inspection view of its compiled words and provenance,
 used by diagnostics and Grove's inspector. Runtime expansion fills declared
 slots and checks their values without reparsing configuration or selecting
-profiles again. Launch/channel supervision is unchanged.
+profiles again. NUL in flat templates is rejected eagerly at load; NUL in any
+offered runtime value is rejected at expansion, including an unused optional
+slot. Native values otherwise retain their exact contents. Launch/channel
+supervision is unchanged.
 
 ### 8 — The VCS seam
 

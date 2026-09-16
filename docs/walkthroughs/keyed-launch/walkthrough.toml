@@ -121,7 +121,7 @@ lines = 47
 [[root]]
 id    = "source-library-root"
 path  = "crates/keyed-launch/src/lib.rs"
-lines = 91
+lines = 93
 
 [[root]]
 id    = "source-error-types"
@@ -136,7 +136,7 @@ lines = 46
 [[root]]
 id    = "source-templates"
 path  = "crates/keyed-launch/src/templates.rs"
-lines = 1073
+lines = 1091
 
 [[root]]
 id = "source-inspection"
@@ -173,7 +173,7 @@ lines = "1-47"
 id    = "library-root"
 root  = "source-library-root"
 owner = "understands-neither"
-lines = "1-91"
+lines = "1-93"
 
 [[block]]
 id    = "two-opaque-errors"
@@ -203,37 +203,37 @@ lines = "166-392"
 id    = "resolution-and-expansion"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "393-563"
+lines = "393-574"
 
 [[block]]
 id    = "reading-and-whole-document-validation"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "564-767"
+lines = "575-778"
 
 [[block]]
 id    = "node-and-template-rules"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "768-900"
+lines = "779-918"
 
 [[block]]
 id    = "word-scanning"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "901-983"
+lines = "919-1001"
 
 [[block]]
 id    = "diagnostics"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "984-1063"
+lines = "1002-1081"
 
 [[block]]
 id    = "templates-keys"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "1064-1073"
+lines = "1082-1091"
 
 [[block]]
 id = "inspection-records"

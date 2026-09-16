@@ -1,4 +1,4 @@
-# reusable-commands-k8
+# reusable-commands-k8 — brief
 
 
 ## Goal
@@ -77,3 +77,23 @@ advertise selection policy yet. Run the root brief's common checks.
 Use the spec's grammar and record types rather than exposing an arbitrary patch
 input API. This is a working generic reuse feature before profile composition;
 tests that only inspect parser nodes do not establish its acceptance boundary.
+
+## Decomposition
+
+The template compiler, reference fold and parameter histories exceed one focused
+session. Each child must land usable public behavior and current documentation:
+
+1. `argv-nul-validation-k18`: reject NUL in flat templates and native runtime
+   values before constructing Argv, retaining exact non-NUL native values.
+2. `named-command-reuse-k19`: named definitions with parameter defaults, bindings
+   and explicit routes work through Catalog, inspection and Grove. Parameter
+   assignment/removal patches remain explicit errors until the next child.
+3. `parameter-overlays-k20`: shared and route value maps, removals, target
+   transitions, authorization and provenance complete this node's base contract.
+
+## Decisions (running log)
+
+The existing loader already reserves the parameter vocabulary prefix, but NUL
+can reach Argv from both flat template words and offered runtime values. Deliver
+this independently observable validation boundary first. The remaining children
+own every other original acceptance criterion; profiles remain with `k9`.

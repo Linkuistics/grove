@@ -349,7 +349,7 @@ needs a `Templates` — they run before one exists — and all five are private:
 `Catalog::load` is their entry point; Catalog resolution then produces
 Templates without invoking them again. The block is read in seven fragments.
 
-<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="564-767" parent="source-templates" -->
+<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="575-778" parent="source-templates" -->
 <!-- insert «compile-vocabulary» -->
 <!-- insert «read-primary» -->
 <!-- insert «read-overlay» -->
@@ -366,7 +366,7 @@ statement anywhere in the crate of why the duplicate is a refusal rather than a
 tolerated redundancy, and the reason is that the failure it would otherwise cause
 is silent and lands on the wrong file.
 
-<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="564-601" parent="reading-and-whole-document-validation" -->
+<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="575-612" parent="reading-and-whole-document-validation" -->
 ````rust
 
 /// Turn the borrowed vocabulary into the owned slot table `Templates` keeps, and
@@ -441,7 +441,7 @@ comment. They are worth reading side by side: the difference between them is the
 whole of what *the overlay is optional* means once a path has been handed in, and
 the source nowhere says so.
 
-<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="602-626" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="613-637" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_primary(path: &Path) -> Result<String, ConfigError> {
@@ -482,7 +482,7 @@ one case named, everything else reported verbatim.
 
 The overlay's reader has no such case.
 
-<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="627-646" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="638-657" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_overlay(path: &Path) -> Result<String, ConfigError> {
@@ -526,7 +526,7 @@ question be answered once, in `load`'s comment, rather than per error kind here.
 depends on and the rules it adds on top of them. It is nineteen lines, and eight
 of them are the message it builds when the parse fails.
 
-<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="647-684" parent="reading-and-whole-document-validation" -->
+<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="658-695" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn parse_and_validate(
@@ -603,7 +603,7 @@ three fragments below are those passes. The first walks the nodes, recording eac
 node's validation and building an index from key to every location that key was
 declared at.
 
-<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="685-704" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="696-715" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn validate_document(
@@ -640,7 +640,7 @@ were.
 The second pass is the duplicate check, and it is the one finding
 `validate_document` produces on its own rather than collecting from a node.
 
-<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="705-736" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="716-747" parent="reading-and-whole-document-validation" -->
 ````rust
     let mut diagnostics = Vec::new();
 
@@ -698,7 +698,7 @@ established that the vector is non-empty, the compiler cannot see it, and the
 The third pass drains everything into one result. It is where a document either
 becomes a map of templates or becomes a single refusal.
 
-<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="737-767" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="748-778" parent="reading-and-whole-document-validation" -->
 ````rust
 
     let mut templates = BTreeMap::new();

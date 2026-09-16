@@ -429,8 +429,9 @@ impl Templates {
     /// Expand this key's template into an argv.
     ///
     /// The values must fill the slots the vocabulary declared: one value per
-    /// declared slot, no duplicates, no name the vocabulary does not hold. That
-    /// is expansion's whole obligation — every other template rule was checked
+    /// declared slot, no duplicates, no name the vocabulary does not hold, and
+    /// no NUL in any offered value, even for an unused optional slot. Every
+    /// other template rule was checked
     /// at load — and it is stated over the vocabulary rather than over this
     /// template's own words so a consumer cannot have a call that works for one
     /// key and fails for its neighbour purely because the two templates mention
@@ -500,6 +501,16 @@ impl Templates {
                     "invalid_value",
                     format!("slot `{}` was offered more than one value", value.name),
                     "Supply exactly one value for each declared runtime slot and no other names.",
+                ));
+            }
+            // OsStr's encoding preserves ASCII, so NUL can be checked without
+            // converting native strings to Unicode (stable since Rust 1.74):
+            // https://doc.rust-lang.org/1.85.0/std/ffi/struct.OsStr.html#method.as_encoded_bytes
+            if value.value.as_encoded_bytes().contains(&0) {
+                return Err(ConfigError::new(
+                    "invalid_value",
+                    format!("runtime slot `{}` contains NUL", value.name),
+                    "Remove NUL from the runtime slot value before expansion.",
                 ));
             }
             offered[index] = Some(value.value);
@@ -838,6 +849,13 @@ fn validate_template(
     slots: &[SlotSpec],
     diagnostics: &mut Vec<ValidationDiagnostic>,
 ) -> Option<Vec<Word>> {
+    if template.contains('\0') {
+        let mut diagnostic = at_template(location, key, "command template contains NUL".to_owned());
+        diagnostic.remedy =
+            "Remove NUL from the command template; executables and arguments cannot contain NUL.";
+        diagnostics.push(diagnostic);
+        return None;
+    }
     if contains_shell_comment_start(template) {
         diagnostics.push(at_template(
             location,

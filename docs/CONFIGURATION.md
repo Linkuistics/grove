@@ -15,6 +15,12 @@ wrapper/profile syntax and Grove's selection policy remain pending.
 Runtime vocabulary names beginning with `param.` are reserved;
 Grove's existing four slots are unaffected.
 
+NUL is refused before an argument vector is returned: a NUL in either file's
+template is an `invalid_template` error at load, including overridden templates.
+A NUL in any offered runtime slot is an `invalid_value` error at expansion,
+including an unused optional slot. Empty values and non-Unicode native paths
+remain intact; values are never split or interpreted as template syntax.
+
 One personal file, `~/.config/grove/config.kdl`, gives each session kind you use
 one complete command template. Grove parses a template into arguments, expands
 its own substitutions, and executes the result directly as its foreground child.

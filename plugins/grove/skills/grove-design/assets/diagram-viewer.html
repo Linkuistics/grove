@@ -5,27 +5,91 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Design diagrams</title>
   <style>
-    :root { color-scheme: light dark; font-family: system-ui, sans-serif; color: light-dark(#202124, #e6e6e6); background: light-dark(#fff, #181a1b); }
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, sans-serif;
+      color: light-dark(#202124, #e6e6e6);
+      background: light-dark(#fff, #181a1b);
+      --muted: light-dark(#5b5e63, #b2b5bb);
+      --border: light-dark(#dce0e5, #3d4248);
+      --accent: light-dark(#1557b0, #9bc5ff);
+      --tint: light-dark(#f0f6ff, #202d3e);
+      --surface: light-dark(#f5f6f8, #222527);
+    }
     * { box-sizing: border-box; }
-    body { max-width: 1280px; margin: 0 auto; padding: 24px; line-height: 1.5; }
-    h1 { font-size: 1.5rem; margin: 0 0 8px; } h2 { font-size: 1.2rem; margin: 0; }
-    p { max-width: 90ch; } a { color: light-dark(#1557b0, #9bc5ff); }
-    nav, .heading { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: baseline; }
-    nav { margin: 18px 0 28px; } .heading { justify-content: space-between; }
-    section { margin-bottom: 40px; scroll-margin-top: 20px; }
-    .secondary { color: light-dark(#5b5e63, #b2b5bb); font-size: 0.9rem; }
-    .diagram { overflow: auto; padding: 16px 0; min-height: 60px; }
+    body { max-width: 1520px; margin: 0 auto; padding: 24px; line-height: 1.5; }
+    h1 { font-size: 1.6rem; margin: 0 0 8px; }
+    h2 { font-size: 1.35rem; margin: 0; }
+    h3 { font-size: 1.12rem; margin: 0; }
+    p { max-width: 90ch; }
+    a { color: var(--accent); overflow-wrap: anywhere; }
+    button, a, summary { touch-action: manipulation; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    [hidden] { display: none !important; }
+    .secondary, .breadcrumb { color: var(--muted); font-size: 0.9rem; }
+    p.secondary, .discussion-summary { white-space: pre-line; }
+    .document-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 32px; align-items: start; margin-top: 28px; }
+    .outline { position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow: auto; padding-right: 12px; }
+    .outline h2 { font-size: 1rem; margin-bottom: 12px; }
+    .outline ul { list-style: none; padding: 0; margin: 0; }
+    .outline ul ul { padding-left: 12px; border-left: 1px solid var(--border); margin: 6px 0 16px; }
+    .outline li { margin: 7px 0; }
+    .outline a { text-decoration: none; font-size: 0.9rem; }
+    .outline a:hover { text-decoration: underline; }
+    .outline .topic-link { font-weight: 650; }
+    .outline .badge { font-size: 0.7rem; margin-left: 4px; }
+    main, .topic, .diagram-section { min-width: 0; }
+    .discussion { padding: 20px; border: 1px solid var(--accent); border-radius: 10px; background: var(--tint); margin-top: 24px; scroll-margin-top: 20px; }
+    .discussion h2 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .discussion .discussion-title { font-size: 1.3rem; margin-top: 6px; }
+    .discussion .badge { white-space: normal; overflow-wrap: anywhere; }
+    .discussion-summary { margin: 12px 0; }
+    .discussion-list { margin: 10px 0 0; padding-left: 20px; }
+    .discussion-list li { margin: 4px 0; }
+    .list-label { font-size: 0.9rem; font-weight: 650; margin: 14px 0 4px; }
+    .topic { margin-bottom: 48px; scroll-margin-top: 20px; }
+    .topic-header { border-bottom: 2px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; }
+    .topic-header p { margin: 6px 0 0; }
+    .diagram-section { padding: 18px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 24px; scroll-margin-top: 20px; }
+    .diagram-section:target, .diagram-section:has(:target), .topic:target > .topic-header, .discussion:target { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .diagram-section:target, .diagram-section:has(:target) { background: var(--tint); }
+    .heading { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: baseline; justify-content: space-between; }
+    .heading h3, .heading h2 { flex: 1 1 280px; overflow-wrap: anywhere; }
+    .heading-links, .markers { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+    .heading-links { font-size: 0.85rem; }
+    .breadcrumb { margin: 0 0 8px; }
+    .markers { margin-top: 8px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 650; padding: 1px 7px; border: 1px solid var(--border); border-radius: 20px; white-space: nowrap; }
+    .badge.updated { color: var(--accent); border-color: var(--accent); }
+    .diagram { overflow: auto; max-width: 100%; padding: 16px 0; min-height: 60px; }
     .diagram svg { display: block; max-width: none; height: auto; margin: 0 auto; }
     summary { cursor: pointer; width: fit-content; }
-    pre { overflow: auto; padding: 12px; background: light-dark(#f3f4f5, #222527); font-size: 0.85rem; }
-    .error { color: light-dark(#a31b1b, #ffabab); border-left: 3px solid currentColor; padding-left: 12px; }
-    @media (max-width: 560px) { body { padding: 16px; } }
+    pre { overflow: auto; max-width: 100%; padding: 12px; background: var(--surface); font-size: 0.85rem; }
+    .error { color: light-dark(#a31b1b, #ffabab); border-left: 3px solid currentColor; padding-left: 12px; overflow-wrap: anywhere; }
+    #status:empty { display: none; }
+    footer { margin-top: 28px; }
+    @media (max-width: 900px) {
+      .document-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+      .outline { position: static; max-height: 20rem; padding: 14px; border: 1px solid var(--border); border-radius: 8px; }
+    }
+    @media (max-width: 560px) {
+      body { padding: 16px; }
+      .discussion, .diagram-section { padding: 14px; }
+      .heading h3, .heading h2 { flex-basis: 100%; }
+    }
   </style>
 </head>
 <body>
-  <header><h1 id="title">Design diagrams</h1><p id="intro"></p><nav id="navigation" aria-label="Diagrams"></nav></header>
+  <header><h1 id="title">Design diagrams</h1><p id="intro"></p></header>
+  <section id="discussion" class="discussion" aria-labelledby="discussion-label" hidden></section>
   <div id="status" role="status">Loading diagrams.json…</div>
-  <main id="diagrams"></main>
+  <div class="document-layout">
+    <aside class="outline" aria-labelledby="outline-title">
+      <h2 id="outline-title">Document outline</h2>
+      <nav id="navigation" aria-label="Document outline"></nav>
+    </aside>
+    <main id="diagrams"></main>
+  </div>
   <footer class="secondary">Mermaid 12.0.0 · Local .mmd files are canonical · Wide diagrams scroll horizontally.</footer>
   <noscript>This viewer requires JavaScript. Open diagrams.json to find the Mermaid source files.</noscript>
   <script type="module">
@@ -41,6 +105,11 @@
       node.className = className;
       return node;
     }
+    function link(text, href, className = '') {
+      const node = element('a', text, className);
+      node.href = href;
+      return node;
+    }
     function report(target, context, error) {
       const message = element('p', context + ': ' + (error instanceof Error ? error.message : String(error)), 'error');
       message.setAttribute('role', 'alert');
@@ -51,34 +120,104 @@
       if (!response.ok) throw new Error('HTTP ' + response.status + ' while loading ' + url);
       return await response.text();
     }
+    function isObject(value) {
+      return value !== null && typeof value === 'object' && !Array.isArray(value);
+    }
+    function validId(value) {
+      return typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_-]*$/.test(value);
+    }
     function validate(value) {
-      if (!value || Array.isArray(value) || typeof value !== 'object') throw new Error('Manifest must be an object.');
+      if (!isObject(value)) throw new Error('Manifest must be an object.');
       if (typeof value.title !== 'string' || !value.title.trim() || typeof value.intro !== 'string') throw new Error('Manifest needs a nonempty title and an intro string.');
       if (!Array.isArray(value.diagrams) || value.diagrams.length === 0) throw new Error('Manifest diagrams must be a nonempty array.');
+      if (value.groups !== undefined && !Array.isArray(value.groups)) throw new Error('Manifest groups must be an array when present.');
+      const groupIds = new Set();
+      const groups = (value.groups ?? []).map((group, index) => {
+        const label = 'Group ' + (index + 1);
+        if (!isObject(group) || !validId(group.id) || groupIds.has(group.id)) throw new Error(label + ' needs a unique valid id.');
+        if (typeof group.title !== 'string' || !group.title.trim() || typeof group.description !== 'string') throw new Error(label + ' needs a nonempty title and a description string.');
+        groupIds.add(group.id);
+        return { id: group.id, title: group.title, description: group.description };
+      });
       const ids = new Set();
       const diagrams = value.diagrams.map((item, index) => {
         const label = 'Diagram ' + (index + 1);
-        if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error(label + ' must be an object.');
-        if (typeof item.id !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]*$/.test(item.id) || ids.has(item.id)) throw new Error(label + ' needs a unique id starting with a letter, followed by letters, digits, underscores or hyphens.');
+        if (!isObject(item)) throw new Error(label + ' must be an object.');
+        if (!validId(item.id) || ids.has(item.id)) throw new Error(label + ' needs a unique id starting with a letter, followed by letters, digits, underscores or hyphens.');
         if (typeof item.title !== 'string' || !item.title.trim() || typeof item.source !== 'string' || !item.source.trim()) throw new Error(label + ' needs nonempty title and source strings.');
         if (item.caption !== undefined && typeof item.caption !== 'string') throw new Error(label + ' caption must be a string when present.');
+        if (item.group !== undefined && (typeof item.group !== 'string' || !groupIds.has(item.group))) throw new Error(label + ' refers to an unknown group: ' + String(item.group));
         const url = new URL(item.source, document.baseURI);
         if (url.origin !== location.origin || !/^https?:$/.test(url.protocol) || !url.pathname.endsWith('.mmd')) throw new Error(label + ' source must be a same-origin .mmd URL.');
         ids.add(item.id);
         return { ...item, url: url.href };
       });
-      return { title: value.title, intro: value.intro, diagrams };
+      let discussion;
+      if (value.discussion !== undefined) {
+        const item = value.discussion;
+        if (!isObject(item) || typeof item.title !== 'string' || !item.title.trim() || typeof item.status !== 'string' || !item.status.trim() || typeof item.summary !== 'string') throw new Error('Discussion needs nonempty title and status strings, and a summary string.');
+        for (const field of ['diagramIds', 'updatedDiagramIds']) {
+          if (!Array.isArray(item[field])) throw new Error('Discussion ' + field + ' must be an array of diagram IDs.');
+          const seen = new Set();
+          for (const id of item[field]) {
+            if (typeof id !== 'string' || !ids.has(id) || seen.has(id)) throw new Error('Discussion ' + field + ' contains an unknown or duplicate diagram ID: ' + String(id));
+            seen.add(id);
+          }
+        }
+        discussion = { title: item.title, status: item.status, summary: item.summary,
+          diagramIds: [...item.diagramIds], updatedDiagramIds: [...item.updatedDiagramIds] };
+      }
+      return { title: value.title, intro: value.intro, groups, discussion, diagrams };
     }
-    function addDiagram(item) {
-      const section = element('section');
+    function addDiscussion(manifest) {
+      if (!manifest.discussion) return;
+      const item = manifest.discussion;
+      const panel = document.getElementById('discussion');
+      const label = element('h2', 'Current discussion');
+      label.id = 'discussion-label';
+      const heading = element('div', '', 'heading');
+      heading.append(element('h3', item.title, 'discussion-title'), element('span', item.status, 'badge'));
+      panel.append(label, heading, element('p', item.summary, 'discussion-summary'));
+      const byId = new Map(manifest.diagrams.map(diagram => [diagram.id, diagram]));
+      for (const [title, ids] of [['Discussed diagrams', item.diagramIds], ['Updated in this discussion', item.updatedDiagramIds]]) {
+        panel.append(element('p', title, 'list-label'));
+        if (ids.length === 0) {
+          panel.append(element('p', 'None listed.', 'secondary'));
+          continue;
+        }
+        const list = element('ul', '', 'discussion-list');
+        for (const id of ids) {
+          const row = element('li');
+          row.append(link(byId.get(id).title, '#diagram-' + id));
+          list.append(row);
+        }
+        panel.append(list);
+      }
+      panel.hidden = false;
+    }
+    function addDiagram(item, container, group, current, updated) {
+      const section = element('section', '', 'diagram-section');
       section.id = 'diagram-' + item.id;
-      const title = element('h2', item.title);
+      const breadcrumb = element('p', '', 'breadcrumb');
+      if (group) {
+        breadcrumb.append('Topic: ', link(group.title, '#group-' + group.id));
+      } else {
+        breadcrumb.textContent = 'Diagrams';
+      }
+      const title = element(group ? 'h3' : 'h2', item.title);
       title.id = 'heading-' + item.id;
       section.setAttribute('aria-labelledby', title.id);
-      const link = element('a', 'Mermaid source');
-      link.href = item.url;
       const heading = element('div', '', 'heading');
-      heading.append(title, link);
+      const links = element('div', '', 'heading-links');
+      const permalink = link('Permalink', '#' + section.id);
+      permalink.setAttribute('aria-label', 'Permalink to ' + item.title);
+      links.append(permalink, link('Mermaid source', item.url));
+      heading.append(title, links);
+      section.append(breadcrumb, heading);
+      const markers = element('div', '', 'markers');
+      if (current.has(item.id)) markers.append(element('span', 'Current', 'badge'));
+      if (updated.has(item.id)) markers.append(element('span', 'Updated', 'badge updated'));
+      if (markers.childElementCount) section.append(markers);
       const target = element('div', 'Loading diagram…', 'diagram');
       target.setAttribute('aria-label', item.title);
       target.tabIndex = 0;
@@ -87,14 +226,69 @@
       pre.append(code);
       const details = element('details');
       details.append(element('summary', 'Show source'), pre);
-      section.append(heading, target);
+      section.append(target);
       if (item.caption) section.append(element('p', item.caption, 'secondary'));
       section.append(details);
-      document.getElementById('diagrams').append(section);
-      const navigation = element('a', item.title);
-      navigation.href = '#' + section.id;
-      document.getElementById('navigation').append(navigation);
+      container.append(section);
       return { ...item, target, code };
+    }
+    function addDocument(manifest) {
+      const current = new Set(manifest.discussion?.diagramIds ?? []);
+      const updated = new Set(manifest.discussion?.updatedDiagramIds ?? []);
+      const outline = element('ul');
+      const navigation = document.getElementById('navigation');
+      if (manifest.discussion) {
+        const discussion = element('li');
+        discussion.append(link('Current discussion', '#discussion', 'topic-link'));
+        outline.append(discussion);
+      }
+      const groups = manifest.groups.map(group => ({
+        ...group, diagrams: manifest.diagrams.filter(item => item.group === group.id)
+      }));
+      const ungrouped = manifest.diagrams.filter(item => item.group === undefined);
+      if (ungrouped.length) groups.push({ id: null, title: manifest.groups.length ? 'Other diagrams' : 'Diagrams', diagrams: ungrouped });
+      const entries = [];
+      for (const group of groups) {
+        const row = element('li');
+        const list = element('ul');
+        let container = document.getElementById('diagrams');
+        if (group.id !== null) {
+          container = element('section', '', 'topic');
+          container.id = 'group-' + group.id;
+          const header = element('header', '', 'topic-header');
+          const heading = element('h2', group.title);
+          heading.id = 'topic-heading-' + group.id;
+          container.setAttribute('aria-labelledby', heading.id);
+          header.append(heading);
+          if (group.description) header.append(element('p', group.description, 'secondary'));
+          container.append(header);
+          document.getElementById('diagrams').append(container);
+          row.append(link(group.title, '#' + container.id, 'topic-link'));
+        } else if (manifest.groups.length) {
+          row.append(element('span', group.title, 'topic-link'));
+        }
+        for (const item of group.diagrams) {
+          entries.push(addDiagram(item, container, group.id === null ? null : group, current, updated));
+          const entry = element('li');
+          const diagramLink = link(item.title, '#diagram-' + item.id);
+          if (updated.has(item.id)) diagramLink.append(' ', element('span', 'Updated', 'badge updated'));
+          entry.append(diagramLink);
+          list.append(entry);
+        }
+        row.append(list);
+        outline.append(row);
+      }
+      navigation.append(outline);
+      return entries;
+    }
+    function scrollToHash() {
+      if (!location.hash) return;
+      let id;
+      try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
+      document.getElementById(id)?.scrollIntoView({ block: 'start' });
+    }
+    function scheduleHashScroll() {
+      requestAnimationFrame(scrollToHash);
     }
     async function renderDiagrams() {
       const currentRevision = ++revision;
@@ -122,19 +316,26 @@
       document.title = manifest.title;
       document.getElementById('title').textContent = manifest.title;
       document.getElementById('intro').textContent = manifest.intro;
+      addDiscussion(manifest);
+      const entries = addDocument(manifest);
+      window.addEventListener('hashchange', scheduleHashScroll);
+      scheduleHashScroll();
       status.textContent = 'Loading sources and renderer…';
-      const entries = manifest.diagrams.map(addDiagram);
       await Promise.all(entries.map(async item => {
         try {
           item.sourceText = await read(item.url);
           item.code.textContent = item.sourceText;
-          loaded.push(item);
         } catch (error) {
           item.code.textContent = 'Source could not be loaded.';
           report(item.target, 'Source error for ' + item.title, error);
         }
       }));
-      if (!loaded.length) { status.textContent = 'No diagram sources could be loaded.'; return; }
+      loaded.push(...entries.filter(item => typeof item.sourceText === 'string'));
+      if (!loaded.length) {
+        status.textContent = 'No diagram sources could be loaded.';
+        scheduleHashScroll();
+        return;
+      }
       try {
         mermaid = (await import('https://cdn.jsdelivr.net/npm/mermaid@12.0.0/dist/mermaid.esm.min.mjs')).default;
         await renderDiagrams();
@@ -144,6 +345,8 @@
         report(status, 'Mermaid renderer unavailable; source links remain usable', error);
         for (const item of loaded) report(item.target, 'Renderer error', error);
       }
+      // Initial/deferred deep links need final geometry. Theme changes do not retarget them.
+      scheduleHashScroll();
     }
     await main();
   </script>

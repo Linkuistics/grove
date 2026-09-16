@@ -22,4 +22,6 @@ a `planning` leaf instead.
 Use highly visual documents as the default working surface for design
 discussions. Read `references/visual-design-discussion.md` for choosing a
 notation, presenting editable diagrams at a browser URL, and keeping the
-visual document consistent with the design's decisions.
+visual document consistent with the design's decisions. Organize it by topic,
+make the current discussion and changed diagrams visible, and link the exact
+view being discussed.

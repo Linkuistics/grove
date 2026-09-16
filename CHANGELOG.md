@@ -51,6 +51,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove` / `grove-design`: organize visual design documents by topic, show
+  the current discussion and its updated diagrams, and refer to exact views
+  using stable deep links. Extend the reusable viewer with a grouped outline,
+  discussion panel, change markers and visible link targets while preserving
+  flat manifests and source access.
+
 ## v21.3.0
 
 - `grove` / `grove-design`: make highly visual documents the default working

@@ -334,9 +334,12 @@ and shared/route values fill pre-split words and retain contributing origins and
 assignment/removal/reset histories. Explicit generic selections expand includes
 before each profile patch, repeating every occurrence and checking personal target
 authority before local patches. Inactive profiles receive structural checks only.
-Human inspection commands and Grove selection policy remain pending. Catalog
-captures optional selection declarations; the convenience loader ignores them,
-while Grove refuses either source declaration before resolving the empty list.
+Human inspection commands remain pending. Catalog captures optional selection
+declarations; the convenience loader ignores them. Grove chooses the local list,
+else the personal default, else empty, preserving the chosen declaration origin.
+SessionConfig exposes that snapshot through `inspect`; Grove errors expose the
+runner diagnostics and path-bearing source-discovery/admission records through
+`diagnostics`. Both driver load points and mutating verbs use this adapter.
 Named definitions
 are primary-only; effective bindings validate their templates after local targets
 replace personal targets. Dormant definitions are not compiled; flat checks stay eager.

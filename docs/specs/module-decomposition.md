@@ -352,12 +352,14 @@ Inspection/provenance is implemented through `Templates::inspect`, retaining
 reference chains, parameter defaults/shared values/route overrides/removals/resets, multi-origin words, overwritten targets and
 non-admitted overlay keys. Both optional selection declarations are captured with
 their origins; the convenience loader ignores them. Grove captures Catalog after
-source admission and refuses either declaration, including an empty list, before
-resolution until its selection policy lands. Explicit generic selections apply every
+source admission and chooses the local declaration, else the personal default,
+else an empty list, retaining declaration origins. Explicit generic selections apply every
 profile/include occurrence before the overlay, with active personal authority and
 occurrence-specific provenance. Inactive profiles receive structural checks only.
-Human inspection and Grove selection policy remain pending; those parts below describe the intended interface
-alongside the unchanged launch surface.
+SessionConfig exposes the shared `Inspection`; `grove_loop::Error::diagnostics`
+returns generic configuration records and Grove discovery/admission records,
+including paths when no span exists (empty for other errors). Human inspection
+commands remain pending alongside the unchanged launch surface.
 
 ```rust
 /// The slot vocabulary a consumer's templates are written against. Supplied at

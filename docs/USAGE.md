@@ -29,10 +29,10 @@ Every transcript below is real output with the working tree rewritten to
 Personal policy may use flat commands or share named commands with parameter
 defaults through explicit bindings and routes. Local deltas can replace those
 targets, shared command values or route parameters. Inactive personal profiles are structurally validated and leave base commands unchanged.
-The generic Catalog API supports explicit profile selections; Grove still uses
-only the base and local delta pending its selection policy.
-Grove also refuses any wrapper `select` declaration, including an empty one,
-until profile selection is available; see [named command reuse](CONFIGURATION.md#named-commands-and-routes).
+A local `config { select "daily" "experiment"; }` replaces the personal default
+profile list; `config { select; }` disables profiles. Without a local selection,
+Grove inherits the personal default. Direct local values apply last, and edits
+affect subsequent sessions. See [configuration profiles](CONFIGURATION.md#named-commands-and-routes).
 
 <a id="usage-viewing-tree"></a>
 ## Viewing a tree

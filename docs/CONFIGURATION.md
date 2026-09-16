@@ -1,15 +1,13 @@
 # Grove Configuration
 
-This reference describes flat commands and named command reuse with parameter
-declarations, defaults, shared values and route overrides. The [modular design](specs/modular-configuration.md)
+This reference describes flat commands, named command reuse, parameters and
+ordered profile composition with workspace selection. The [modular design](specs/modular-configuration.md)
 also specifies human inspection and example delivery, which remain pending.
-The generic Catalog API supports explicit profile composition; Grove selection
-policy remains pending.
 Existing configurations require no rewrite.
 
 The generic runner captures sources in an owned `Catalog` and resolves an explicit
-`Selection` into `Templates`; Grove currently resolves an empty selection after
-refusing either source’s selection declaration. Captured resolution,
+`Selection` into `Templates`. Grove chooses the local declaration when present,
+otherwise the personal default, otherwise an empty selection. Captured resolution,
 inspection and expansion do not reread files. Structured diagnostics and library
 inspection cover flat commands, named reference chains, parameter histories and
 every contributing origin in a resolved word.
@@ -126,8 +124,8 @@ enforces. A configuration declaring fewer is valid; you find out about a kind yo
 have not configured at the moment you use it.
 
 There are no implicit defaults or kind families. Named reuse is explicit;
-inactive personal profiles are accepted and structurally validated. Grove refuses selection declarations as described
-below, including an empty declaration.
+inactive personal profiles are accepted and structurally validated. Only active
+personal routes authorize kinds; a local selection can activate those routes.
 The disciplines behind these names are in
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
 
@@ -264,9 +262,22 @@ settings are checked even in inactive profiles, with a separate namespace for
 each profile. Unknown include/reference names, cycles and incomplete parameters
 in inactive profiles do not affect base resolution. Such profiles do not
 admit keys for local overrides. Local deltas cannot define profiles or redeclare
-command schemas. Grove refuses a wrapper `select` declaration in either source,
-including `select` with no arguments, before tree mutation or launch. Remove the
-declaration and use base commands until Grove selection policy is available.
+command schemas.
+
+Grove always loads the personal file and at most one admitted local delta.
+A local `config { select "daily" "experiment"; }` replaces the personal default
+list; it does not append. `config { select; }` explicitly disables profiles.
+If the local file has no selection, Grove inherits the personal `select`; with
+neither declaration it uses only the base and direct local overrides. Local
+values apply after the selected personal profiles and may complete their required
+parameters. An unknown selected profile or invalid active composition refuses
+use without falling back to another list.
+
+Configuration is reloaded before each tree transition and again before launch.
+Edits affect a subsequent session; the running child's command stays unchanged.
+The adapter exposes the same snapshot through `SessionConfig::inspect()` and
+source-attributed records through `grove_loop::Error::diagnostics()`. Discovery
+and admission failures retain the candidate path without inventing a byte span.
 
 The generic `Catalog` API captures one optional `select` per document, with its
 source span, ordered names and repeated entries intact. Its arguments are zero
@@ -535,6 +546,11 @@ launches K**. An add given several kinds asks about every one of them, before
 any of them lands. The check runs before the tree is mutated, so a refusal leaves the
 task tree byte-identical.
 
+The driver's automatic fresh-root bootstrap currently checks a missing
+`requirements` kind at launch, after creating the root. Repairing that earlier
+admission boundary remains pending; invalid active compositions already fail
+before root creation.
+
 ```text
 Error: refusing to write a leaf of kind `prototype`: no launch template resolves for it
 
@@ -564,8 +580,8 @@ grove: session ended without a completion signal — status exit status: 127, el
 
 ### When configuration is read
 
-Grove reads and fully validates the whole file — and resolves the delta, if there
-is one — before **every** task-tree mutation: the driver's own (root
+Grove checks both documents structurally and validates the active composition
+before **every** task-tree mutation: the driver's own (root
 initialization, partial-root recovery, and finish-leaf materialization) and every
 `grove-llm` verb that writes a leaf. It reads them again immediately before every
 launch. Nothing is cached between loop iterations or between verbs, so editing
@@ -577,9 +593,9 @@ launch read, that mutation stays as resumable tree state and no session launches
 Either way an existing selected leaf remains live and resumable.
 
 A configuration that declares no template for a kind you never reach is neither
-invalid nor a problem. One that declares a *malformed* template for such a kind
-is invalid, and fails at the next read — validation is about the document,
-presence is about the kind in hand.
+invalid nor a problem. Malformed flat templates remain eagerly invalid even for unused kinds. Named
+commands and profile references receive semantic validation when active; inactive
+profiles receive structural checks. Presence is about the kind in hand.
 
 ## Adjacent settings Grove does not own
 

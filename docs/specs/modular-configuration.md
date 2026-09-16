@@ -12,11 +12,11 @@ named dollar escaping and effective-reference validation are implemented.
 Shared and route values/removals fold across primary/local sources with retained
 histories, literal resets and personal target authorization. Optional selection
 declarations are captured with source spans; the convenience loader ignores them
-and Grove refuses either declaration before use, including explicit empty lists.
+while Grove chooses the local declaration, else the personal default, else empty.
 Explicit selections compose every profile/include occurrence with active-only
 semantic validation and occurrence-specific histories. Inactive profiles receive
 structural checks without affecting resolution. Human inspection commands,
-example delivery and Grove selection policy remain pending; the [reference](../CONFIGURATION.md) describes
+and example delivery remain pending; the [reference](../CONFIGURATION.md) describes
 the current boundary.
 
 The authority and execution constraints are owned by

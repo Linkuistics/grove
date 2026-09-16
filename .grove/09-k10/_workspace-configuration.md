@@ -1,4 +1,4 @@
-# workspace-configuration-k10
+# workspace-configuration-k10 — brief
 
 
 ## Goal
@@ -82,3 +82,11 @@ leaf focused on the adapter policy, structured error mapping and composed Grove
 observations. If those exceed one session, decompose at a usable selection/error
 adapter with focused mutation/launch acceptance, followed by the broader
 isolation/reload scenarios; each child owns its touched books and common checks.
+
+## Decomposition
+
+workspace-selection-k29 delivers the usable selection/inspection/diagnostic
+adapter with focused mutation and launch acceptance. bootstrap-kind-admission-k31
+repairs the discovered preexisting initial-root kind-authority gap.
+workspace-reload-k30 then proves broader workspace isolation, parameter boundaries
+and live-child reload, and checks this whole brief before closing k10.

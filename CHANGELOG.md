@@ -51,6 +51,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Grove now selects personal profiles from the workspace delta, the personal
+  default, or an empty list. Explicit empty local selections disable profiles;
+  direct local values apply last. SessionConfig exposes compiled inspection and
+  source-attributed diagnostics while retaining tracked-file refusal.
+
 ## v21.5.0
 
 - `grove` / `grove-design`: choose diagram notation and renderer by the design

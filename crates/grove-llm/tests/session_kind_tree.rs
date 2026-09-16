@@ -43,45 +43,81 @@ fn stderr(output: &std::process::Output) -> String {
 }
 
 #[test]
-fn selection_declarations_refuse_leaf_add_before_mutation() {
-    let repository = init_repo();
-    let grove = current_grove(repository.path());
-    let original = write_leaf(&grove, "01-impl--original-k1.md", "original bytes");
-    fs::write(repository.path().join(".gitignore"), ".grove.kdl\n").unwrap();
-    let home = TempDir::new().unwrap();
-    let config_dir = home.path().join(".config/grove");
-    fs::create_dir_all(&config_dir).unwrap();
-    let primary = config_dir.join("config.kdl");
-    let local = repository.path().join(".grove.kdl");
-    let base = "impl \"runner ${prompt}\"\n";
-    let profiles = "command \"alternate\" \"other-runner ${prompt}\"; profile \"daily\" { bind \"lead\" \"alternate\"; route \"impl\" \"lead\"; };";
-    for in_local in [false, true] {
-        for declaration in ["select", "select \"daily\""] {
-            fs::write(&primary, format!("{base}config {{ {profiles} }}\n")).unwrap();
-            fs::write(&local, "").unwrap();
-            let source = if in_local { &local } else { &primary };
-            let document = if in_local {
-                format!("config {{ {declaration}; }}\n")
-            } else {
-                format!("{base}config {{ {profiles} {declaration}; }}\n")
-            };
-            fs::write(source, document).unwrap();
-            let output = Command::cargo_bin("grove-llm")
-                .unwrap()
-                .env("HOME", home.path())
-                .current_dir(repository.path())
-                .args(["leaf-add", ".", "new-work", "--kind", "impl"])
-                .output()
-                .unwrap();
-            let error = stderr(&output);
-            assert!(!output.status.success(), "{error}");
+fn selected_policy_controls_leaf_add_and_errors_precede_mutation() {
+    for (selection, local, accepted, error_fragment) in [
+        ("select", "", true, ""),
+        ("select \"daily\"", "", true, ""),
+        ("select \"unknown\"", "config { select; }", true, ""),
+        ("select", "config { select \"daily\"; }", true, ""),
+        ("select \"unknown\"", "", false, "unknown"),
+        ("select", "config { select \"unknown\"; }", false, "unknown"),
+        ("select \"broken\"", "", false, "missing"),
+        (
+            "select \"missing-target\"",
+            "design \"local ${prompt}\"",
+            false,
+            "design",
+        ),
+        (
+            "select \"inactive\"",
+            "impl \"local ${prompt}\"",
+            false,
+            "impl",
+        ),
+    ] {
+        let repository = init_repo();
+        let grove = current_grove(repository.path());
+        let original = write_leaf(&grove, "01-impl--original-k1.md", "original bytes");
+        fs::write(repository.path().join(".gitignore"), ".grove.kdl\n").unwrap();
+        let home = TempDir::new().unwrap();
+        let config_dir = home.path().join(".config/grove");
+        fs::create_dir_all(&config_dir).unwrap();
+        // The inactive case has no base authority for impl: local cannot add it.
+        let base = if selection == "select \"inactive\"" {
+            ""
+        } else {
+            "impl \"runner ${prompt}\""
+        };
+        fs::write(
+            config_dir.join("config.kdl"),
+            format!(
+                r#"{base}
+config {{
+    command "agent" "runner ${{prompt}}"
+    profile "daily" {{ bind "lead" "agent"; route "impl" "lead"; }}
+    profile "inactive" {{ }}
+    profile "broken" {{ include "missing"; }}
+    profile "missing-target" {{ route "design" {{ param "effort" "high"; }}; }}
+    {selection}
+}}
+"#
+            ),
+        )
+        .unwrap();
+        fs::write(repository.path().join(".grove.kdl"), local).unwrap();
+        let output = Command::cargo_bin("grove-llm")
+            .unwrap()
+            .env("HOME", home.path())
+            .current_dir(repository.path())
+            .args(["leaf-add", ".", "new-work", "--kind", "impl"])
+            .output()
+            .unwrap();
+        let error = stderr(&output);
+        assert_eq!(
+            output.status.success(),
+            accepted,
+            "{selection}, {local}: {error}"
+        );
+        assert_eq!(fs::read_to_string(&original).unwrap(), "original bytes");
+        if accepted {
+            assert!(grove.join("02-impl--new-work-k2.md").is_file());
+        } else {
+            assert!(error.contains(error_fragment), "{error}");
             assert!(
-                error.contains("profile selection is not yet supported"),
+                error.contains("config.kdl") || error.contains(".grove.kdl"),
                 "{error}"
             );
-            assert!(error.contains(source.to_str().unwrap()), "{error}");
             assert!(output.stdout.is_empty());
-            assert_eq!(fs::read_to_string(&original).unwrap(), "original bytes");
             assert_eq!(fs::read_dir(&grove).unwrap().count(), 2);
         }
     }

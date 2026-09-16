@@ -19,7 +19,7 @@ is allowed to have a say.
 > worktree, answered through grove's version-control seam, and it is the
 > boundary between an untrusted repository and arbitrary code execution.
 
-That last clause is why this chapter matters more than its 371 lines suggest. A
+That boundary is why this chapter matters to every configured launch. A
 delta names a program to execute. A repository that could ship one would choose
 what grove spawns in every checkout of it, and no amount of documentation makes
 that safe. So the one read-only question grove asks the version-control system
@@ -63,16 +63,15 @@ Four chapters running have had to warn that a clean reading was a blind spot
 rather than a result. This root is the exception, and it is worth stating plainly
 because the next two chapters go back to the general case.
 
-**The block is 371 lines and holds no test at all.** There is no `#[cfg(test)]`
+**The production module holds no inline test.** There is no `#[cfg(test)]`
 module and no `#[test]` function in it. So the book's *supply the claim*
 obligation, which attaches to inline test blocks, has nothing here to attach to —
 chapter 18 is not on the structure brief's list for it, and this chapter takes
 *do not restate* across its whole block, the same instruction chapters 1, 5, 10
 and 15 carry.
 
-The module's documentation comments are visible to rustdoc. The plain comment
-beside the selection guard explains its temporary policy boundary and contains
-no link; rustdoc does not check it. There is no inline test module here, so that
+The module's documentation comments are visible to rustdoc. Ordinary comments
+are outside that check. There is no inline test module here, so that
 source of hidden documentation does not apply to this root.
 
 At initial drafting, `cargo doc --no-deps --document-private-items
@@ -90,31 +89,30 @@ It checks *intra-doc* links — the `` [`Foo`] `` form — and says nothing what
 about a Markdown link with an explicit URL target. There was one of those in this
 block and it was broken; `requirement-six-citation-k189` has since replaced it
 with the backticked path the rest of the file cites by, so the two Markdown links
-left in the 371 lines are both the intra-doc form — `` [configuration
-delta](`DELTA_FILE_NAME`) ``, at line 9 and again at line 71 — and the instrument
+described here are both the intra-doc form — `` [configuration
+delta](`DELTA_FILE_NAME`) ``, in the module header and the delta-roots documentation — and the instrument
 does reach both. The `delta_is_tracked` section below reads the one that was
 broken, and it is worth reading for the blind spot rather than for the defect:
 what the clean run above means is bounded by the class of link the instrument
 inspects, and this root happened to hold the other class.
 
-**The evidence is twenty tests, and the brief pins four of them.**
-`crates/grove-loop/tests/session_config.rs` is 713 lines and twenty `#[test]`
-functions in four labelled sections — the slot vocabulary, the just-in-time
-presence rule, the cross-crate seam, and the configuration delta. It is
+**The public adapter tests are the evidence.**
+`crates/grove-loop/tests/session_config.rs` covers the slot vocabulary, just-in-time
+presence, the cross-crate seam, source admission, selection, diagnostic records
+and inspection after source removal. It is
 `tests/`, so it is evidence and not a root: this chapter cites those tests and
-reproduces none of them, and the count above is taken from the file rather than
-from any prose list of it.
+reproduces none of them, alongside the real mutation and fake-launch acceptance in
+`session_kind_tree.rs` and `lifecycle_cutover.rs`.
 
 <a id="the-block-declared"></a>
 ## The block, declared
 
-The 371 lines are one composite whose children are the file's own items in file
+The source is one composite whose children are the file's own items in file
 order, because the file is already in the order the concept wants: what the
 module kept, the two names, the vocabulary, the two roots, the source, the
-configuration, and then the two free functions that decide whether a second file
-is allowed to speak.
+configuration, candidate discovery/admission, and diagnostic transport.
 
-<!-- fragment «whose-file» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="1-371" parent="source-session-config" -->
+<!-- fragment «whose-file» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="1-460" parent="source-session-config" -->
 <!-- insert «config-header» -->
 <!-- insert «config-imports» -->
 <!-- insert «config-two-paths» -->
@@ -137,6 +135,7 @@ is allowed to speak.
 <!-- insert «config-find-delta» -->
 <!-- insert «config-refuse-tracked» -->
 <!-- insert «config-delta-is-tracked» -->
+<!-- insert «config-diagnostics» -->
 <!-- /fragment -->
 
 <a id="the-header-and-what-left"></a>
@@ -189,15 +188,18 @@ it below.
 
 The imports are the seam, visible without reading a function.
 
-<!-- fragment «config-imports» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="18-25" parent="whose-file" -->
+<!-- fragment «config-imports» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="18-28" parent="whose-file" -->
 ````rust
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use jj_workspace::Workspace;
-use keyed_launch::{Argv, Catalog, Requirement, Selection, Slot, SlotRule, Templates, Vocabulary};
+use keyed_launch::{
+    Argv, Catalog, ConfigError, Diagnostic, Inspection, Requirement, Selection, Slot, SlotRule,
+    Source, SourceRole, Templates, Vocabulary,
+};
 
 ````
 <!-- /fragment -->
@@ -213,7 +215,7 @@ what a word in a template means.
 
 Both constants are file names, and the asymmetry between them is deliberate.
 
-<!-- fragment «config-two-paths» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="26-30" parent="whose-file" -->
+<!-- fragment «config-two-paths» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="29-33" parent="whose-file" -->
 ````rust
 const CONFIG_PATH: &str = ".config/grove/config.kdl";
 /// The configuration delta's fixed name, searched at the two roots
@@ -235,7 +237,7 @@ than a caller.
 This is the outcome's third question in twenty-five lines: the values this
 layer chooses that nothing beneath it could have defaulted.
 
-<!-- fragment «config-four-slots» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="31-56" parent="whose-file" -->
+<!-- fragment «config-four-slots» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="34-59" parent="whose-file" -->
 ````rust
 /// The four slots grove's command templates are written against, and the whole
 /// of what grove tells the runner about its own domain.
@@ -304,7 +306,7 @@ The vocabulary reaches the runner through one function, and the reason it
 is handed over at load rather than at expansion is the whole of its doc
 comment.
 
-<!-- fragment «config-vocabulary» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="57-63" parent="whose-file" -->
+<!-- fragment «config-vocabulary» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="60-66" parent="whose-file" -->
 ````rust
 /// Grove's slot vocabulary, supplied at load so every template rule is checked
 /// before anything is spawned (`docs/specs/module-decomposition.md`, decision 7).
@@ -344,7 +346,7 @@ is what closes the pair, refusing one document from both sides.
 `ExpansionContext` is the other half of the vocabulary: four names above,
 four values here, checked against each other at expansion.
 
-<!-- fragment «config-expansion-context» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="64-70" parent="whose-file" -->
+<!-- fragment «config-expansion-context» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="67-73" parent="whose-file" -->
 ````rust
 pub struct ExpansionContext<'a> {
     pub prompt: &'a str,
@@ -365,7 +367,7 @@ whose fields are their own documentation, the one-line `SessionConfig::path`, an
 the private `read` whose documented public wrapper sits directly above it. Every
 item in the block that carries an argument carries a comment.
 
-<!-- fragment «config-delta-roots» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="71-84" parent="whose-file" -->
+<!-- fragment «config-delta-roots» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="74-87" parent="whose-file" -->
 ````rust
 /// The two roots the [configuration delta](`DELTA_FILE_NAME`) is searched at,
 /// **in that order** — the same two `${worktree}` and `${repo}` expand to.
@@ -403,7 +405,7 @@ This is the type the book carried an adjudication for from chapter 1's cast
 onward, and the count in its doc comment has since been corrected at source.
 Line 89 reads *twice per iteration*; it said *once* while this book was drafted.
 
-<!-- fragment «config-template-source» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="85-101" parent="whose-file" -->
+<!-- fragment «config-template-source» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="88-104" parent="whose-file" -->
 ````rust
 /// **Where each iteration's launch templates are read from** — the third
 /// argument [`crate::run`] takes.
@@ -469,7 +471,7 @@ above.
 The impl block opens on the constructor that takes a home directory
 outright, which is the plainest of the four and the only one nothing uses.
 
-<!-- fragment «config-template-source-open» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="102-108" parent="whose-file" -->
+<!-- fragment «config-template-source-open» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="105-111" parent="whose-file" -->
 ````rust
 impl TemplateSource {
     /// The personal configuration under `home`.
@@ -488,7 +490,7 @@ every `.rs` file, the only match for the name is an unrelated function in
 the constructor a test *would* use if the tests did not build a home directory
 and go through `SessionConfig::load` instead.
 
-<!-- fragment «config-from-env» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="109-123" parent="whose-file" -->
+<!-- fragment «config-from-env» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="112-129" parent="whose-file" -->
 ````rust
     /// The personal configuration under `$HOME`.
     ///
@@ -497,10 +499,13 @@ and go through `SessionConfig::load` instead.
     /// `$HOME` unset, which leaves nothing to locate the file from.
     pub fn from_env() -> Result<Self, crate::Error> {
         let home = std::env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
-            crate::Error::msg(
+            crate::Error::from(source_error(
+                "source_read",
+                None,
                 "$HOME is not set; cannot locate ~/.config/grove/config.kdl. Set it, or run \
                  `grove` from a login shell.",
-            )
+                "Set HOME to the directory containing .config/grove/config.kdl.",
+            ))
         })?;
         Ok(Self { home })
     }
@@ -513,7 +518,7 @@ file from, and rather than defaulting to a path it names the remedy — set it, 
 run `grove` from a login shell. `crates/grove/src/cli.rs` line 47 is the one
 production call site, so this refusal is the human binary's front door.
 
-<!-- fragment «config-personal-path» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="124-130" parent="whose-file" -->
+<!-- fragment «config-personal-path» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="130-136" parent="whose-file" -->
 ````rust
     /// The personal file's path — the one a diagnostic names when nothing
     /// overrode it.
@@ -529,7 +534,7 @@ production call site, so this refusal is the human binary's front door.
 `loop_driver.rs` line 215, to hold the fallback path every launch diagnostic
 falls back to when a kind resolved from no file at all.
 
-<!-- fragment «config-template-source-load» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="131-136" parent="whose-file" -->
+<!-- fragment «config-template-source-load» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="137-142" parent="whose-file" -->
 ````rust
     /// Read the personal file, and at most one delta laid over it.
     pub(crate) fn load(&self, roots: &DeltaRoots<'_>) -> Result<SessionConfig> {
@@ -551,7 +556,7 @@ passes roots it did not derive.
 The loaded configuration is a newtype over the runner's `Templates`, and
 everything below it is grove deciding which files that type is built from.
 
-<!-- fragment «config-session-config» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="137-140" parent="whose-file" -->
+<!-- fragment «config-session-config» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="143-146" parent="whose-file" -->
 ````rust
 pub struct SessionConfig {
     templates: Templates,
@@ -563,7 +568,7 @@ pub struct SessionConfig {
 One field, and it is the runner's type. Everything a template is lives
 behind it.
 
-<!-- fragment «config-path-and-candidates» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="141-155" parent="whose-file" -->
+<!-- fragment «config-path-and-candidates» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="147-161" parent="whose-file" -->
 ````rust
 impl SessionConfig {
     pub fn path(home: &Path) -> PathBuf {
@@ -594,12 +599,14 @@ That the two paths *diverge* in the secondary-workspace family is what makes the
 pair worth having at all, and it is the same fact the version-control seam's own
 book states about `main_repo`.
 
-<!-- fragment «config-load» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="156-171" parent="whose-file" -->
+<!-- fragment «config-load» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="162-179" parent="whose-file" -->
 ````rust
     /// The personal file, then at most one delta laid over it per kind.
     ///
-    /// All-or-nothing in both halves: the personal file is read and fully
-    /// validated whatever a delta says, and an unreadable, unparseable, invalid
+    /// The local selection replaces the personal default, including an empty
+    /// list. Without either declaration, resolve the base with no profiles.
+    /// Both sources are structurally validated, then the active composition is
+    /// validated globally. An unreadable, unparseable, invalid
     /// or **tracked** delta fails the load rather than falling back to the very
     /// policy its owner was moving work away from.
     ///
@@ -615,8 +622,8 @@ book states about `main_repo`.
 ````
 <!-- /fragment -->
 
-*All-or-nothing in both halves* is the sentence that carries the record.
-The personal file is read and fully validated whatever a delta says; an
+Both documents receive structural validation and the active composition receives
+semantic validation. Inactive profile semantics do not block a working selection; an
 unreadable, unparseable, invalid or **tracked** delta fails the load rather than
 falling back to *the very policy its owner was moving work away from*. That last
 clause is the argument: a fallback here would silently hand a session back to the
@@ -628,7 +635,7 @@ to: both documents receive structural and eager legacy validation; effective
 named targets and values are checked during resolution. These checks run before
 tree mutation and again before launch; kind presence is asked at use.
 
-<!-- fragment «config-read» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="172-194" parent="whose-file" -->
+<!-- fragment «config-read» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="180-196" parent="whose-file" -->
 ````rust
     fn read(home: &Path, roots: &DeltaRoots<'_>) -> Result<Self> {
         let path = Self::path(home);
@@ -636,20 +643,14 @@ tree mutation and again before launch; kind presence is asked at use.
         if let Some(delta) = &delta {
             refuse_a_tracked_delta(delta)?;
         }
-        let catalog = Catalog::load(&path, delta.as_deref(), vocabulary())?;
-        // Refuse declarations until Grove implements local/default selection policy.
-        for selection in [catalog.primary_selection(), catalog.overlay_selection()]
-            .into_iter()
-            .flatten()
-        {
-            if let Some(origin) = &selection.origin {
-                bail!(
-                    "{} (bytes {}..{}): profile selection is not yet supported by Grove; remove the select declaration, including an empty one, and use base commands until selection policy is available.",
-                    origin.source.path.display(), origin.start, origin.end
-                );
-            }
-        }
-        let templates = catalog.resolve(&Selection::default())?;
+        let catalog =
+            Catalog::load(&path, delta.as_deref(), vocabulary()).map_err(configuration_error)?;
+        let empty = Selection::default();
+        let selection = catalog
+            .overlay_selection()
+            .or_else(|| catalog.primary_selection())
+            .unwrap_or(&empty);
+        let templates = catalog.resolve(selection).map_err(configuration_error)?;
         Ok(SessionConfig { templates })
     }
 
@@ -661,12 +662,15 @@ found, then refused if tracked, and only then does `Catalog::load` open
 anything. The refusal runs against the path the search already selected and
 before any byte of it is parsed — which is the difference between validating a
 candidate and choosing one, and the two free functions at the end of the chapter
-are those two steps in that order. After capture, `read` refuses either source
-selection declaration, including an empty list, naming its path and byte range.
-With no declaration it resolves an explicit empty selection. This temporary
-guard keeps the generic convenience loader from silently discarding Grove
-policy before local/default selection is implemented. The same adapter serves
-tree verbs and launch, so both refuse before their effects.
+are those two steps in that order. After capture, `read` chooses the overlay
+selection when present, otherwise the personal default, otherwise an empty list.
+A present empty overlay disables profiles rather than inheriting defaults. The
+selected declaration keeps its source span; Catalog composes the personal base,
+selected occurrences and direct local patches into one validated snapshot.
+The same adapter serves tree verbs and both driver load points. Active errors
+therefore stop use without selecting another list. Initial-root missing-kind
+admission is a separate driver concern; the adapter still refuses expansion of
+any kind without an active personal target.
 
 <a id="the-same-order-from-a-verb"></a>
 ## The same order, reached from a verb
@@ -674,7 +678,7 @@ tree verbs and launch, so both refuse before their effects.
 The loop is not the only thing that loads a configuration. A `grove-llm`
 verb does too, and this is the entry point that keeps the two agreeing.
 
-<!-- fragment «config-load-for-worktree» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="195-213" parent="whose-file" -->
+<!-- fragment «config-load-for-worktree» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="197-222" parent="whose-file" -->
 ````rust
     /// Load from the worktree a verb is running in, resolving `$HOME` and the
     /// two delta roots the same way the loop driver does.
@@ -688,7 +692,14 @@ verb does too, and this is the entry point that keeps the two agreeing.
     /// [`Self::load`] makes.
     pub fn load_for_worktree(worktree: &Path) -> Result<Self, crate::Error> {
         let source = TemplateSource::from_env()?;
-        let workspace = Workspace::resolve(worktree).map_err(anyhow::Error::from)?;
+        let workspace = Workspace::resolve(worktree).map_err(|error| {
+            source_error(
+                "source_admission",
+                Some(worktree.join(DELTA_FILE_NAME)),
+                error.to_string(),
+                "Run from a jj workspace so Grove can discover and admit its local configuration.",
+            )
+        })?;
         Ok(source.load(&DeltaRoots {
             worktree,
             repository: workspace.main_repo(),
@@ -708,12 +719,19 @@ again, discharged at the one place a caller could have got it wrong.
 it is followed immediately by `require`. That pairing is the just-in-time
 presence rule reaching the agent-side binary.
 
-<!-- fragment «config-source-and-require» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="214-233" parent="whose-file" -->
+<!-- fragment «config-source-and-require» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="223-249" parent="whose-file" -->
 ````rust
     /// The file the resolved template for `kind` was read from — the personal
     /// file, or the delta that overrode it.
     pub fn source(&self, kind: &str) -> Option<&Path> {
         self.templates.source(kind)
+    }
+
+    /// The captured selection, sources, compiled commands and their provenance.
+    /// Inspection and expansion share one validated snapshot and perform no I/O.
+    #[must_use]
+    pub fn inspect(&self) -> &Inspection {
+        self.templates.inspect()
     }
 
     /// Does this kind resolve to exactly one complete template?
@@ -726,7 +744,7 @@ presence rule reaching the agent-side binary.
     ///
     /// A kind no template resolves for, or one whose template is incomplete.
     pub fn require(&self, kind: &str) -> Result<(), crate::Error> {
-        self.templates.require(kind).map_err(anyhow::Error::from)?;
+        self.templates.require(kind).map_err(configuration_error)?;
         Ok(())
     }
 
@@ -736,6 +754,10 @@ presence rule reaching the agent-side binary.
 `source` answers *which file did this kind actually come from*, and
 `loop_driver.rs` uses it so that every launch diagnostic names the file that held
 the failing template rather than the personal file that did not.
+
+`inspect` borrows the same compiled snapshot used by `expand`: selection origins,
+word origins and overridden assignments stay available after the files disappear.
+No second resolver or later source read is involved.
 
 `require` is *the just-in-time half* of `complete-session-configuration`, and the
 comment's account of it is exact in a way worth checking rather than trusting.
@@ -753,7 +775,7 @@ reached a template a kind does not resolve for is not reachable. The comment say
 The last method on `SessionConfig`, and the one whose argument is about
 types rather than behaviour.
 
-<!-- fragment «config-expand» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="234-273" parent="whose-file" -->
+<!-- fragment «config-expand» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="250-289" parent="whose-file" -->
 ````rust
     /// The launch this kind names, as the runner's own `Argv`.
     ///
@@ -790,7 +812,7 @@ types rather than behaviour.
                     },
                 ],
             )
-            .map_err(anyhow::Error::from)?;
+            .map_err(configuration_error)?;
         Ok(argv)
     }
 }
@@ -814,7 +836,7 @@ rather than by position — and `worktree` and `repo` go in as `OsStr` rather th
 The first of the two free functions: selection. It decides *which* file,
 and refuses to guess.
 
-<!-- fragment «config-find-delta» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="274-306" parent="whose-file" -->
+<!-- fragment «config-find-delta» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="290-325" parent="whose-file" -->
 ````rust
 /// The first of the two searched paths that **holds anything at all**; the other
 /// is not read, and the two are never merged with each other.
@@ -837,12 +859,15 @@ fn find_delta(roots: &DeltaRoots<'_>) -> Result<Option<PathBuf>> {
             Ok(_) => return Ok(Some(candidate)),
             Err(error) if error.kind() == ErrorKind::NotFound => continue,
             Err(error) => {
-                return Err(error).with_context(|| {
+                return Err(source_error(
+                    "source_read",
+                    Some(candidate.clone()),
                     format!(
-                        "failed to determine whether a Grove configuration delta is present at {}",
+                        "failed to determine whether a Grove configuration delta is present at {}: {error}",
                         candidate.display()
-                    )
-                })
+                    ),
+                    "Make the candidate path accessible; only an absent candidate permits repository fallback.",
+                ));
             }
         }
     }
@@ -904,7 +929,7 @@ fragment range below it in this chapter.
 The second free function: validation. It runs on the file the search
 already chose, and never to choose it.
 
-<!-- fragment «config-refuse-tracked» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="307-339" parent="whose-file" -->
+<!-- fragment «config-refuse-tracked» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="326-368" parent="whose-file" -->
 ````rust
 /// Refuse the selected delta if it is **tracked**, before anything reads it.
 ///
@@ -920,21 +945,31 @@ already chose, and never to choose it.
 /// (`jj file untrack --help`, jj 0.44.0 — "Paths to untrack. They must already
 /// be ignored.").
 fn refuse_a_tracked_delta(path: &Path) -> Result<()> {
-    let tracked = delta_is_tracked(path).with_context(|| {
-        format!(
-            "checking whether the Grove configuration delta at {} is tracked",
-            path.display()
+    let tracked = delta_is_tracked(path).map_err(|error| {
+        source_error(
+            "source_admission",
+            Some(path.to_owned()),
+            format!(
+                "checking whether the Grove configuration delta at {} is tracked: {error:#}",
+                path.display()
+            ),
+            "Repair the jj workspace or executable so trackedness can be checked; no fallback is used.",
         )
     })?;
     if tracked {
-        bail!(
+        return Err(source_error(
+            "source_admission",
+            Some(path.to_owned()),
+            format!(
             "refusing the Grove configuration delta at {path}: it is tracked in version control, \
              and a tracked delta lets a repository choose what Grove executes in every checkout \
              of it.\n  Untrack it (`jj file untrack {name}`, after adding `/{name}` to \
              `.gitignore` — jj refuses to untrack a file it would immediately re-add).",
             path = path.display(),
             name = DELTA_FILE_NAME
-        );
+            ),
+            "Add /.grove.kdl to .gitignore, then run `jj file untrack .grove.kdl` in its workspace.",
+        ));
     }
     Ok(())
 }
@@ -981,7 +1016,7 @@ remedy names the ignore line first.
 
 The last item, and the boundary the module header opened on.
 
-<!-- fragment «config-delta-is-tracked» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="340-371" parent="whose-file" -->
+<!-- fragment «config-delta-is-tracked» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="369-401" parent="whose-file" -->
 ````rust
 /// Is the delta at `path` **tracked** by the workspace it sits in?
 ///
@@ -1015,6 +1050,7 @@ fn delta_is_tracked(path: &Path) -> Result<bool> {
     };
     Ok(workspace.is_tracked(path)?)
 }
+
 ````
 <!-- /fragment -->
 
@@ -1125,5 +1161,81 @@ could not move to `keyed-launch`, which knows nothing about worktrees, and it
 could not move to `jj-workspace`, which knows nothing about what a delta is for.
 It is the boundary itself, and it stayed here because there was nowhere else for
 it to be.
+
+
+
+<a id="configuration-diagnostics"></a>
+## Configuration errors retain their structured evidence
+
+The adapter carries generic `ConfigError` values through the human error chain,
+adding their known source paths because a generic message need not repeat its
+structured locations. `Error::diagnostics` can still retrieve the original
+records. Discovery and trackedness failures occur before text is captured;
+`SourceError` supplies the same record shape with the candidate path and no
+invented span. This lets the future inspector report the same refusal as launch.
+
+<!-- fragment «config-diagnostics» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="402-460" parent="whose-file" -->
+````rust
+/// Generic diagnostic messages need not repeat their structured source paths.
+/// Keep the records intact and add those paths to Grove's human error chain.
+fn configuration_error(error: ConfigError) -> anyhow::Error {
+    let mut paths = Vec::new();
+    for diagnostic in error.diagnostics() {
+        if let Some(source) = &diagnostic.source {
+            if !paths.contains(&source.path) {
+                paths.push(source.path.clone());
+            }
+        }
+    }
+    let sources = paths
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    if sources.is_empty() {
+        error.into()
+    } else {
+        anyhow::Error::new(error).context(format!("Grove configuration from {sources}"))
+    }
+}
+
+/// Discovery has no captured text, so retain its path without inventing a span.
+#[derive(Debug)]
+pub(crate) struct SourceError(pub Diagnostic);
+
+impl std::fmt::Display for SourceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}\n  {}", self.0.message, self.0.remedy)
+    }
+}
+
+impl std::error::Error for SourceError {}
+
+fn source_error(
+    category: &str,
+    path: Option<PathBuf>,
+    message: impl Into<String>,
+    remedy: &str,
+) -> anyhow::Error {
+    SourceError(Diagnostic {
+        category: category.to_owned(),
+        message: message.into(),
+        source: path.map(|path| Source {
+            role: SourceRole::Overlay,
+            path,
+        }),
+        primary: None,
+        related: Vec::new(),
+        occurrence_chain: Vec::new(),
+        key: None,
+        binding: None,
+        command: None,
+        parameter: None,
+        remedy: remedy.to_owned(),
+    })
+    .into()
+}
+````
+<!-- /fragment -->
 
 [Previous: Which calls the lease admits](17-the-epoch.md) | [Contents](README.md) | [Next: The guaranteed core](19-the-core.md)

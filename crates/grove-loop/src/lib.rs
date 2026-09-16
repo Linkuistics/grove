@@ -388,6 +388,21 @@ pub fn select_snapshot(
 pub struct Error(anyhow::Error);
 
 impl Error {
+    /// Structured configuration refusals, retaining the runner's records or
+    /// Grove's source-discovery/admission record. Other failures return no records.
+    #[must_use]
+    pub fn diagnostics(&self) -> &[keyed_launch::Diagnostic] {
+        if let Some(error) = self.0.downcast_ref::<keyed_launch::ConfigError>() {
+            error.diagnostics()
+        } else if let Some(error) = self.0.downcast_ref::<session_config::SourceError>() {
+            std::slice::from_ref(&error.0)
+        } else if let Some(error) = self.0.downcast_ref::<Self>() {
+            error.diagnostics()
+        } else {
+            &[]
+        }
+    }
+
     /// An error from a message this crate states itself.
     pub(crate) fn msg(message: impl Into<String>) -> Self {
         Self(anyhow::Error::msg(message.into()))

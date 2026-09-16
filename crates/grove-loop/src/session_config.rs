@@ -19,9 +19,12 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use jj_workspace::Workspace;
-use keyed_launch::{Argv, Catalog, Requirement, Selection, Slot, SlotRule, Templates, Vocabulary};
+use keyed_launch::{
+    Argv, Catalog, ConfigError, Diagnostic, Inspection, Requirement, Selection, Slot, SlotRule,
+    Source, SourceRole, Templates, Vocabulary,
+};
 
 const CONFIG_PATH: &str = ".config/grove/config.kdl";
 /// The configuration delta's fixed name, searched at the two roots
@@ -113,10 +116,13 @@ impl TemplateSource {
     /// `$HOME` unset, which leaves nothing to locate the file from.
     pub fn from_env() -> Result<Self, crate::Error> {
         let home = std::env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
-            crate::Error::msg(
+            crate::Error::from(source_error(
+                "source_read",
+                None,
                 "$HOME is not set; cannot locate ~/.config/grove/config.kdl. Set it, or run \
                  `grove` from a login shell.",
-            )
+                "Set HOME to the directory containing .config/grove/config.kdl.",
+            ))
         })?;
         Ok(Self { home })
     }
@@ -155,8 +161,10 @@ impl SessionConfig {
 
     /// The personal file, then at most one delta laid over it per kind.
     ///
-    /// All-or-nothing in both halves: the personal file is read and fully
-    /// validated whatever a delta says, and an unreadable, unparseable, invalid
+    /// The local selection replaces the personal default, including an empty
+    /// list. Without either declaration, resolve the base with no profiles.
+    /// Both sources are structurally validated, then the active composition is
+    /// validated globally. An unreadable, unparseable, invalid
     /// or **tracked** delta fails the load rather than falling back to the very
     /// policy its owner was moving work away from.
     ///
@@ -175,20 +183,14 @@ impl SessionConfig {
         if let Some(delta) = &delta {
             refuse_a_tracked_delta(delta)?;
         }
-        let catalog = Catalog::load(&path, delta.as_deref(), vocabulary())?;
-        // Refuse declarations until Grove implements local/default selection policy.
-        for selection in [catalog.primary_selection(), catalog.overlay_selection()]
-            .into_iter()
-            .flatten()
-        {
-            if let Some(origin) = &selection.origin {
-                bail!(
-                    "{} (bytes {}..{}): profile selection is not yet supported by Grove; remove the select declaration, including an empty one, and use base commands until selection policy is available.",
-                    origin.source.path.display(), origin.start, origin.end
-                );
-            }
-        }
-        let templates = catalog.resolve(&Selection::default())?;
+        let catalog =
+            Catalog::load(&path, delta.as_deref(), vocabulary()).map_err(configuration_error)?;
+        let empty = Selection::default();
+        let selection = catalog
+            .overlay_selection()
+            .or_else(|| catalog.primary_selection())
+            .unwrap_or(&empty);
+        let templates = catalog.resolve(selection).map_err(configuration_error)?;
         Ok(SessionConfig { templates })
     }
 
@@ -204,7 +206,14 @@ impl SessionConfig {
     /// [`Self::load`] makes.
     pub fn load_for_worktree(worktree: &Path) -> Result<Self, crate::Error> {
         let source = TemplateSource::from_env()?;
-        let workspace = Workspace::resolve(worktree).map_err(anyhow::Error::from)?;
+        let workspace = Workspace::resolve(worktree).map_err(|error| {
+            source_error(
+                "source_admission",
+                Some(worktree.join(DELTA_FILE_NAME)),
+                error.to_string(),
+                "Run from a jj workspace so Grove can discover and admit its local configuration.",
+            )
+        })?;
         Ok(source.load(&DeltaRoots {
             worktree,
             repository: workspace.main_repo(),
@@ -217,6 +226,13 @@ impl SessionConfig {
         self.templates.source(kind)
     }
 
+    /// The captured selection, sources, compiled commands and their provenance.
+    /// Inspection and expansion share one validated snapshot and perform no I/O.
+    #[must_use]
+    pub fn inspect(&self) -> &Inspection {
+        self.templates.inspect()
+    }
+
     /// Does this kind resolve to exactly one complete template?
     ///
     /// The just-in-time half of `docs/adr/complete-session-configuration.md`:
@@ -227,7 +243,7 @@ impl SessionConfig {
     ///
     /// A kind no template resolves for, or one whose template is incomplete.
     pub fn require(&self, kind: &str) -> Result<(), crate::Error> {
-        self.templates.require(kind).map_err(anyhow::Error::from)?;
+        self.templates.require(kind).map_err(configuration_error)?;
         Ok(())
     }
 
@@ -266,7 +282,7 @@ impl SessionConfig {
                     },
                 ],
             )
-            .map_err(anyhow::Error::from)?;
+            .map_err(configuration_error)?;
         Ok(argv)
     }
 }
@@ -292,12 +308,15 @@ fn find_delta(roots: &DeltaRoots<'_>) -> Result<Option<PathBuf>> {
             Ok(_) => return Ok(Some(candidate)),
             Err(error) if error.kind() == ErrorKind::NotFound => continue,
             Err(error) => {
-                return Err(error).with_context(|| {
+                return Err(source_error(
+                    "source_read",
+                    Some(candidate.clone()),
                     format!(
-                        "failed to determine whether a Grove configuration delta is present at {}",
+                        "failed to determine whether a Grove configuration delta is present at {}: {error}",
                         candidate.display()
-                    )
-                })
+                    ),
+                    "Make the candidate path accessible; only an absent candidate permits repository fallback.",
+                ));
             }
         }
     }
@@ -318,21 +337,31 @@ fn find_delta(roots: &DeltaRoots<'_>) -> Result<Option<PathBuf>> {
 /// (`jj file untrack --help`, jj 0.44.0 — "Paths to untrack. They must already
 /// be ignored.").
 fn refuse_a_tracked_delta(path: &Path) -> Result<()> {
-    let tracked = delta_is_tracked(path).with_context(|| {
-        format!(
-            "checking whether the Grove configuration delta at {} is tracked",
-            path.display()
+    let tracked = delta_is_tracked(path).map_err(|error| {
+        source_error(
+            "source_admission",
+            Some(path.to_owned()),
+            format!(
+                "checking whether the Grove configuration delta at {} is tracked: {error:#}",
+                path.display()
+            ),
+            "Repair the jj workspace or executable so trackedness can be checked; no fallback is used.",
         )
     })?;
     if tracked {
-        bail!(
+        return Err(source_error(
+            "source_admission",
+            Some(path.to_owned()),
+            format!(
             "refusing the Grove configuration delta at {path}: it is tracked in version control, \
              and a tracked delta lets a repository choose what Grove executes in every checkout \
              of it.\n  Untrack it (`jj file untrack {name}`, after adding `/{name}` to \
              `.gitignore` — jj refuses to untrack a file it would immediately re-add).",
             path = path.display(),
             name = DELTA_FILE_NAME
-        );
+            ),
+            "Add /.grove.kdl to .gitignore, then run `jj file untrack .grove.kdl` in its workspace.",
+        ));
     }
     Ok(())
 }
@@ -368,4 +397,64 @@ fn delta_is_tracked(path: &Path) -> Result<bool> {
         return Ok(false);
     };
     Ok(workspace.is_tracked(path)?)
+}
+
+/// Generic diagnostic messages need not repeat their structured source paths.
+/// Keep the records intact and add those paths to Grove's human error chain.
+fn configuration_error(error: ConfigError) -> anyhow::Error {
+    let mut paths = Vec::new();
+    for diagnostic in error.diagnostics() {
+        if let Some(source) = &diagnostic.source {
+            if !paths.contains(&source.path) {
+                paths.push(source.path.clone());
+            }
+        }
+    }
+    let sources = paths
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    if sources.is_empty() {
+        error.into()
+    } else {
+        anyhow::Error::new(error).context(format!("Grove configuration from {sources}"))
+    }
+}
+
+/// Discovery has no captured text, so retain its path without inventing a span.
+#[derive(Debug)]
+pub(crate) struct SourceError(pub Diagnostic);
+
+impl std::fmt::Display for SourceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}\n  {}", self.0.message, self.0.remedy)
+    }
+}
+
+impl std::error::Error for SourceError {}
+
+fn source_error(
+    category: &str,
+    path: Option<PathBuf>,
+    message: impl Into<String>,
+    remedy: &str,
+) -> anyhow::Error {
+    SourceError(Diagnostic {
+        category: category.to_owned(),
+        message: message.into(),
+        source: path.map(|path| Source {
+            role: SourceRole::Overlay,
+            path,
+        }),
+        primary: None,
+        related: Vec::new(),
+        occurrence_chain: Vec::new(),
+        key: None,
+        binding: None,
+        command: None,
+        parameter: None,
+        remedy: remedy.to_owned(),
+    })
+    .into()
 }

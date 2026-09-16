@@ -275,7 +275,7 @@ fragments, and the five passages are read in the file's own order — which is n
 this book's chapter order, because the header opens on the crate and the book
 opens on the grammar underneath it.
 
-<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-421" parent="source-library-root" -->
+<!-- fragment «library-root» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="1-436" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-and-the-driver» -->
 <!-- insert «library-root-opening-mirrors» -->
@@ -1138,7 +1138,7 @@ rule to `keyed-launch`'s and `jj-workspace`'s errors, which is the workspace-wid
 form of it. `Error::msg` is `pub(crate)`, so the only messages this type can
 carry are ones a module of this crate wrote.
 
-<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="377-395" parent="library-root" -->
+<!-- fragment «library-root-error» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="377-410" parent="library-root" -->
 ````rust
 
 /// **One error for the whole crate**, opaque by construction.
@@ -1154,6 +1154,21 @@ carry are ones a module of this crate wrote.
 pub struct Error(anyhow::Error);
 
 impl Error {
+    /// Structured configuration refusals, retaining the runner's records or
+    /// Grove's source-discovery/admission record. Other failures return no records.
+    #[must_use]
+    pub fn diagnostics(&self) -> &[keyed_launch::Diagnostic] {
+        if let Some(error) = self.0.downcast_ref::<keyed_launch::ConfigError>() {
+            error.diagnostics()
+        } else if let Some(error) = self.0.downcast_ref::<session_config::SourceError>() {
+            std::slice::from_ref(&error.0)
+        } else if let Some(error) = self.0.downcast_ref::<Self>() {
+            error.diagnostics()
+        } else {
+            &[]
+        }
+    }
+
     /// An error from a message this crate states itself.
     pub(crate) fn msg(message: impl Into<String>) -> Self {
         Self(anyhow::Error::msg(message.into()))
@@ -1161,6 +1176,11 @@ impl Error {
 }
 ````
 <!-- /fragment -->
+
+`Error::diagnostics` retrieves runner configuration records or the adapter's
+source-admission record through the stored context stack. It also unwraps nested
+Grove errors; unrelated failures return an empty slice. The error remains opaque,
+while consumers can inspect configuration failures without parsing display text.
 
 The four trait implementations are what make the opacity affordable for a
 consumer. `Display` and `Debug` both defer to the inner error, and `Debug`
@@ -1172,7 +1192,7 @@ takes on no dependency of grove's to do it. The `From<anyhow::Error>` is what
 lets every module inside the crate keep stacking context with `?` and have it
 arrive here as one type.
 
-<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="396-421" parent="library-root" -->
+<!-- fragment «library-root-error-traits» owner="allowed-to-mean" source="crates/grove-loop/src/lib.rs" lines="411-436" parent="library-root" -->
 ````rust
 
 impl fmt::Display for Error {

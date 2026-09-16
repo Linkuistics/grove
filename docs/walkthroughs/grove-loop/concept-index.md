@@ -674,3 +674,5 @@ in [the guarded selection](20-the-loop.md#picked) and exercised through the
 - [Foreign shared processes preserve launch and admission](17-the-epoch.md#foreign-shared-processes)
 
 - [Native process death, exec survivors and replaced roots](17-the-epoch.md#native-witness-processes)
+
+- [Source-attributed configuration diagnostics without invented spans](18-which-files.md#configuration-diagnostics)

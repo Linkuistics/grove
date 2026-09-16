@@ -790,8 +790,8 @@ vocabulary; **Templates** is an owned resolved command snapshot; its **Inspectio
 read-only explanation of captured sources, compiled words and assignment histories.
 Catalog captures an optional **Selection** declaration from each source, retaining
 the difference between absence and an empty list; callers supply the selection
-to resolve. Grove currently refuses these declarations until its selection
-policy is implemented.
+to resolve. Grove chooses the local declaration, else the personal default,
+else an empty selection. A present empty local list disables profiles.
 _Avoid_: "primary harness" — harness selection is a property of each session kind,
 not of the grove as a whole.
 _Avoid_: "thinking effort" — use **reasoning effort**, the launch-policy term.

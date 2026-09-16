@@ -1224,56 +1224,88 @@ fn named_wrapper_commands_launch_with_local_target_overrides_and_refuse_before_u
 }
 
 #[test]
-fn selection_declarations_refuse_before_launch_or_root_creation() {
+fn selected_policy_launches_and_active_errors_refuse_before_root_creation() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
     fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
     let grove = worktree.join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    fs::write(grove.join("_BRIEF.md"), "root").unwrap();
-    fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
     let log = fixture.path().join("launched");
     let fake = fixture.path().join("fake");
-    write_executable(&fake, "#!/bin/sh\nprintf launched > \"$1\"\n");
-    let command = format!("{} {} ${{prompt}}", shell_quote(&fake), shell_quote(&log));
-    let flat = format!("impl {command:?}\nrequirements {command:?}\n");
-    let alternative = format!("{command} alternate");
-    let profiles = format!("command \"alternate\" {alternative:?}; profile \"daily\" {{ bind \"lead\" \"alternate\"; route \"impl\" \"lead\"; }}; profile \"unfinished\" {{ include \"missing\"; }};");
-    let base = format!("{flat}config {{ {profiles} }}\n");
+    write_executable(&fake, "#!/bin/sh\nprintf '%s' \"$2\" > \"$1\"\n");
+    let base_command = format!(
+        "{} {} base ${{prompt}}",
+        shell_quote(&fake),
+        shell_quote(&log)
+    );
+    let selected_command = format!(
+        "{} {} selected ${{prompt}}",
+        shell_quote(&fake),
+        shell_quote(&log)
+    );
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
     let primary = config_dir.join("config.kdl");
     let local = worktree.join(".grove.kdl");
-    fs::write(&primary, &base).unwrap();
-    assert!(run_grove(&home, &worktree).status.success());
-    assert!(log.exists());
-    fs::remove_file(&log).unwrap();
     for existing_tree in [true, false] {
-        if !existing_tree {
-            fs::remove_dir_all(&grove).unwrap();
-        }
-        for in_local in [false, true] {
-            for declaration in ["select", "select \"daily\""] {
-                fs::write(&primary, &base).unwrap();
-                fs::write(&local, "").unwrap();
-                let source = if in_local { &local } else { &primary };
-                let document = if in_local {
-                    format!("config {{ {declaration}; }}\n")
-                } else {
-                    format!("{flat}config {{ {profiles} {declaration}; }}\n")
-                };
-                fs::write(source, document).unwrap();
-                let before = existing_tree.then(|| tree_snapshot(&grove));
-                let output = run_grove(&home, &worktree);
-                let error = String::from_utf8_lossy(&output.stderr);
-                assert!(!output.status.success(), "{error}");
+        for (selection, local_text, expected) in [
+            ("select", "", Some("base")),
+            ("select \"daily\"", "", Some("selected")),
+            ("select \"unfinished\"", "config { select; }", Some("base")),
+            ("select", "config { select \"daily\"; }", Some("selected")),
+            ("select \"unfinished\"", "", None),
+            ("select", "config { select \"unfinished\"; }", None),
+            (
+                "select \"missing-target\"",
+                "design \"local ${prompt}\"",
+                None,
+            ),
+            ("select", "impl \"local ${prompt}\"", None),
+        ] {
+            // Missing-kind bootstrap admission is tracked by bootstrap-kind-admission-k31.
+            // Here the absent-tree cases exercise globally invalid active policy.
+            if !existing_tree && local_text == "impl \"local ${prompt}\"" {
+                continue;
+            }
+            if grove.exists() {
+                fs::remove_dir_all(&grove).unwrap();
+            }
+            if existing_tree {
+                fs::create_dir(&grove).unwrap();
+                fs::write(grove.join("_BRIEF.md"), "root").unwrap();
+                fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
+            }
+            let local_only = local_text == "impl \"local ${prompt}\"";
+            let flat = if local_only {
+                String::new()
+            } else {
+                format!("impl {base_command:?}\nrequirements {base_command:?}\n")
+            };
+            fs::write(&primary, format!(r#"{flat}config {{
+                command "agent" {selected_command:?}
+                profile "daily" {{ bind "lead" "agent"; route "impl" "lead"; route "requirements" "lead"; }}
+                profile "unfinished" {{ include "missing"; }}
+                profile "missing-target" {{ route "design" {{ param "effort" "high"; }}; }}
+                {selection}
+            }}"#)).unwrap();
+            fs::write(&local, local_text).unwrap();
+            let before = existing_tree.then(|| tree_snapshot(&grove));
+            let output = run_grove(&home, &worktree);
+            let error = String::from_utf8_lossy(&output.stderr);
+            assert_eq!(
+                output.status.success(),
+                expected.is_some(),
+                "{selection}, {local_text}: {error}"
+            );
+            if let Some(expected) = expected {
+                assert_eq!(fs::read_to_string(&log).unwrap(), expected);
+                fs::remove_file(&log).unwrap();
+            } else {
                 assert!(
-                    error.contains("profile selection is not yet supported"),
+                    error.contains("config.kdl") || error.contains(".grove.kdl"),
                     "{error}"
                 );
-                assert!(error.contains(source.to_str().unwrap()), "{error}");
                 assert!(!log.exists());
                 if let Some(before) = before {
                     assert_eq!(tree_snapshot(&grove), before);

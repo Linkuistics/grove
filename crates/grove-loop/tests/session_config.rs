@@ -723,3 +723,164 @@ fn a_candidate_grove_cannot_stat_fails_closed_instead_of_reading_the_next_one() 
         "the refusal must name the candidate whose state is unknown:\n{error}"
     );
 }
+
+#[test]
+fn profile_selection_uses_local_then_default_then_empty_and_local_values_last() {
+    let home = TempDir::new().unwrap();
+    let work = TempDir::new().unwrap();
+    let repo = TempDir::new().unwrap();
+    let document = r#"
+impl "base ${prompt}"
+config {
+    command "agent" "agent --effort=${param.effort} ${prompt}" { param "effort"; }
+    profile "daily" { bind "lead" "agent"; route "impl" "lead"; }
+    profile "experiment" { values "agent" { param "effort" "high"; }; }
+    profile "unfinished" { include "missing"; }
+    select "daily" "experiment"
+}
+"#;
+    write_raw_config(home.path(), document);
+    write_delta(repo.path(), "config { select \"missing\"; }\n");
+    let local = write_delta(work.path(), "");
+    let words =
+        |config: &SessionConfig| config.expand("impl", &context("mandate")).unwrap().words();
+    assert_eq!(
+        words(&load_from(home.path(), work.path(), repo.path()).unwrap()),
+        ["agent", "--effort=high", "mandate"].map(OsString::from)
+    );
+    fs::write(
+        &local,
+        "config { select \"daily\"; values \"agent\" { param \"effort\" \"local\"; }; }\n",
+    )
+    .unwrap();
+    assert_eq!(
+        words(&load_from(home.path(), work.path(), repo.path()).unwrap()),
+        ["agent", "--effort=local", "mandate"].map(OsString::from)
+    );
+    fs::write(&local, "config { select; }\n").unwrap();
+    assert_eq!(
+        words(&load_from(home.path(), work.path(), repo.path()).unwrap()),
+        ["base", "mandate"].map(OsString::from)
+    );
+    fs::remove_file(&local).unwrap();
+    assert!(load_error_from(home.path(), work.path(), repo.path()).contains("missing"));
+    fs::remove_file(repo.path().join(".grove.kdl")).unwrap();
+    write_raw_config(
+        home.path(),
+        &document.replace("select \"daily\" \"experiment\"", ""),
+    );
+    assert_eq!(
+        words(&load_from(home.path(), work.path(), repo.path()).unwrap()),
+        ["base", "mandate"].map(OsString::from)
+    );
+}
+
+#[test]
+fn selected_snapshot_retains_origins_and_structured_errors_without_source_io() {
+    let home = TempDir::new().unwrap();
+    let work = TempDir::new().unwrap();
+    let primary = write_raw_config(
+        home.path(),
+        r#"config {
+        command "agent" "selected ${prompt}"
+        profile "daily" { bind "lead" "agent"; route "impl" "lead"; }
+        profile "inactive" { bind "lead" "agent"; route "design" "lead"; }
+        select "missing"
+    }
+"#,
+    );
+    let local = write_delta(
+        work.path(),
+        "config { select \"daily\"; }\ndesign \"local ${prompt}\"\n",
+    );
+    let config = load_from(home.path(), work.path(), work.path()).unwrap();
+    let inspection = config.inspect().clone();
+    assert_eq!(inspection.selection.profiles, ["daily"]);
+    assert_eq!(
+        inspection.selection.origin.as_ref().unwrap().source.path,
+        local
+    );
+    fs::remove_file(&primary).unwrap();
+    fs::remove_file(&local).unwrap();
+    assert_eq!(config.inspect(), &inspection);
+    assert_eq!(
+        config.expand("impl", &context("m")).unwrap().words(),
+        ["selected", "m"]
+    );
+    let error = config.require("design").unwrap_err();
+    assert_eq!(error.diagnostics()[0].category, "unconfigured_key");
+    assert_eq!(error.diagnostics()[0].key.as_deref(), Some("design"));
+    let error = config.expand("impl", &context("bad\0prompt")).unwrap_err();
+    assert_eq!(error.diagnostics()[0].category, "invalid_value");
+    let error = load(home.path()).err().unwrap();
+    assert_eq!(error.diagnostics()[0].category, "source_read");
+    assert_eq!(
+        error.diagnostics()[0].source.as_ref().unwrap().path,
+        primary
+    );
+}
+
+#[test]
+fn selected_missing_target_fails_globally_and_local_target_cannot_repair_it() {
+    let home = TempDir::new().unwrap();
+    let work = TempDir::new().unwrap();
+    let primary = write_raw_config(
+        home.path(),
+        r#"impl "valid ${prompt}"
+config {
+    profile "broken" { route "design" { param "effort" "high"; }; }
+    select "broken"
+}
+"#,
+    );
+    write_delta(work.path(), "design \"local ${prompt}\"\n");
+    let error = load_from(home.path(), work.path(), work.path())
+        .err()
+        .unwrap();
+    let diagnostic = error
+        .diagnostics()
+        .iter()
+        .find(|d| d.category == "missing_target")
+        .unwrap();
+    assert_eq!(diagnostic.key.as_deref(), Some("design"));
+    assert_eq!(diagnostic.source.as_ref().unwrap().path, primary);
+    assert_eq!(diagnostic.occurrence_chain[0].profile, "broken");
+}
+
+#[test]
+fn source_admission_diagnostics_preserve_paths_without_inventing_spans() {
+    let home = TempDir::new().unwrap();
+    write_config(home.path(), "runner ${prompt}");
+    let repository = TempDir::new().unwrap();
+    write_delta(repository.path(), "config { select \"missing\"; }\n");
+    let tracked = jj_tree_with_delta("config { select; }\n", false, false);
+    let broken = TempDir::new().unwrap();
+    fs::create_dir(broken.path().join(".jj")).unwrap();
+    write_delta(broken.path(), "config { select; }\n");
+    for work in [tracked.path(), broken.path()] {
+        let error = load_from(home.path(), work, repository.path())
+            .err()
+            .unwrap();
+        let diagnostics = error.diagnostics();
+        assert_eq!(diagnostics.len(), 1, "{error:#}");
+        assert_eq!(diagnostics[0].category, "source_admission");
+        assert_eq!(
+            diagnostics[0].source.as_ref().unwrap().path,
+            work.join(".grove.kdl")
+        );
+        assert!(diagnostics[0].primary.is_none());
+        assert!(!diagnostics[0].remedy.is_empty());
+    }
+    // ENOTDIR is discovery failure, never positive absence or repository fallback.
+    let file = broken.path().join("file");
+    fs::write(&file, "not a directory").unwrap();
+    let error = load_from(home.path(), &file, repository.path())
+        .err()
+        .unwrap();
+    assert_eq!(error.diagnostics()[0].category, "source_read");
+    assert_eq!(
+        error.diagnostics()[0].source.as_ref().unwrap().path,
+        file.join(".grove.kdl")
+    );
+    assert!(error.diagnostics()[0].primary.is_none());
+}

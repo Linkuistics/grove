@@ -10,8 +10,8 @@ subject = "crates/keyed-launch"
 # `#[cfg(test)] mod tests`, and they are **not** excluded — a root is
 # `src/**/*.rs`, the exception class `inline-test-module` is checked against a
 # file named `tests.rs`, and those 133 lines are owned, reconstructed and
-# explained by chapter 9 like any other. `crates/keyed-launch/tests/` is 1,370
-# lines and all of it is evidence rather than corpus, so this book carries no
+# explained by chapter 9 like any other. `crates/keyed-launch/tests/`
+# is evidence rather than corpus, so this book carries no
 # `[[corpus.add]]` and no `[[corpus.exclude]]`, and the normative inventory in
 # `docs/specs/walkthrough-books.md` records that emptiness by giving the book no
 # row.
@@ -121,7 +121,7 @@ lines = 47
 [[root]]
 id    = "source-library-root"
 path  = "crates/keyed-launch/src/lib.rs"
-lines = 75
+lines = 83
 
 [[root]]
 id    = "source-error-types"
@@ -131,12 +131,12 @@ lines = 81
 [[root]]
 id    = "source-vocabulary"
 path  = "crates/keyed-launch/src/vocabulary.rs"
-lines = 44
+lines = 46
 
 [[root]]
 id    = "source-templates"
 path  = "crates/keyed-launch/src/templates.rs"
-lines = 670
+lines = 796
 
 [[root]]
 id    = "source-argv"
@@ -156,7 +156,7 @@ lines = 672
 [[root]]
 id    = "source-conformance"
 path  = "crates/keyed-launch/src/conformance.rs"
-lines = 104
+lines = 98
 
 [[block]]
 id    = "manifest-three-dependencies"
@@ -168,7 +168,7 @@ lines = "1-47"
 id    = "library-root"
 root  = "source-library-root"
 owner = "understands-neither"
-lines = "1-75"
+lines = "1-83"
 
 [[block]]
 id    = "two-opaque-errors"
@@ -180,55 +180,55 @@ lines = "1-81"
 id    = "vocabulary"
 root  = "source-vocabulary"
 owner = "rules-about-names"
-lines = "1-44"
+lines = "1-46"
 
 [[block]]
 id    = "template-shapes"
 root  = "source-templates"
 owner = "rules-about-names"
-lines = "1-91"
+lines = "1-147"
 
 [[block]]
 id    = "templates-load"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "92-145"
+lines = "148-258"
 
 [[block]]
 id    = "resolution-and-expansion"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "146-275"
+lines = "259-388"
 
 [[block]]
 id    = "reading-and-whole-document-validation"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "276-414"
+lines = "389-540"
 
 [[block]]
 id    = "node-and-template-rules"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "415-534"
+lines = "541-660"
 
 [[block]]
 id    = "word-scanning"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "535-617"
+lines = "661-743"
 
 [[block]]
 id    = "diagnostics"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "618-660"
+lines = "744-786"
 
 [[block]]
 id    = "templates-keys"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "661-670"
+lines = "787-796"
 
 [[block]]
 id    = "argv"
@@ -276,7 +276,7 @@ lines = "511-672"
 id    = "conformance"
 root  = "source-conformance"
 owner = "checked-without-meaning"
-lines = "1-104"
+lines = "1-98"
 
 [[early-use]]
 symbols   = "`Vocabulary`, `SlotRule`, `Requirement`"
@@ -339,3 +339,9 @@ anchors = ["usage-running-grove", "usage-session-lifecycle"]
 [[glossary]]
 path    = "CONTEXT.md"
 anchors = ["loop-control-channel"]
+
+[[early-use]]
+symbols = "`Catalog`, `Selection`, `SourceRole`, `Source`, `SourceSpan`"
+first-use = "01-orientation.md#the-cast"
+owner = "rules-about-names"
+statement = "Catalog owns captured documents and vocabulary; Selection supplies the explicit profile list and optional source origin; SourceRole, Source and SourceSpan identify that origin."

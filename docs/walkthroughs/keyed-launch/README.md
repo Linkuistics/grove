@@ -11,7 +11,7 @@ is this crate's central property seen from the operator's side. This reader has
 written a `config.kdl`, has had grove refuse a malformed one, and has watched a
 session end without ever seeing what ended it.
 
-`crates/keyed-launch` is nine files and 2,073 lines, and it is the layer between
+`crates/keyed-launch` is nine files and 2,275 lines, and it is the layer between
 a human's configuration file and a running process. A consumer names a key; a
 template names a program. **Nothing in the crate understands either.** A key is
 an opaque string, a slot is a name the consumer declares, and the words of a
@@ -32,7 +32,7 @@ name the three places such a layer usually learns it anyway, what each costs, an
 the test that catches it: **on the way in**, by assembling one value out of more
 than one source; **on the way through**, by re-reading a value it has already
 read; and **on the way out**, by inferring what came back or adding to the launch
-what the operator did not write. All three are provable inside these 2,073 lines,
+what the operator did not write. All three are provable inside these 2,275 lines,
 and the closing chapter states the test and applies it to all nine source-owning
 chapters.
 
@@ -55,7 +55,7 @@ used and their *consequences* are argued at length, because the consequences are
 the design, while their signatures and portability are the operating system's
 documentation. The crate is Unix-only by construction and no chapter treats
 portability as an open question. The crate's own `tests/` directory — five files
-and 1,370 lines — is cited as evidence throughout and is not reproduced: it is
+— is cited as evidence throughout and is not reproduced: it is
 outside the corpus this book reconstructs. The nine tests the book *does*
 reproduce are the inline module inside `src/channel.rs`, which are corpus because
 a root is `src/**/*.rs`.
@@ -64,7 +64,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and the source index records how those fragments
 reconstruct each in-scope file. During authoring a scoped check proves the
 completed prefix and reports later-owned ranges as deferred; only the final check
-proves complete reconstruction of all nine files and 2,073 lines.
+proves complete reconstruction of all nine files and 2,275 lines.
 
 <a id="reading-fragments"></a>
 ## Reading fragments

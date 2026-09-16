@@ -292,10 +292,13 @@ fn a_grove_configuration_conforms_to_the_runners_own_kit() {
         "runner ${session_name} ${worktree} ${repo} ${prompt}",
     );
 
-    let outcome = keyed_launch::conformance::check(
+    let catalog = keyed_launch::Catalog::load(
         &SessionConfig::path(home.path()),
+        None,
         grove_loop::session_config::vocabulary(),
-    );
+    )
+    .unwrap();
+    let outcome = keyed_launch::conformance::check(&catalog, &keyed_launch::Selection::default());
 
     assert!(outcome.passed(), "{}", outcome.failures.join("\n"));
 }
@@ -303,20 +306,21 @@ fn a_grove_configuration_conforms_to_the_runners_own_kit() {
 /// And it fails the same document for the same reason grove's own load does —
 /// one contract, checked from two sides.
 #[test]
-fn the_kit_and_grove_refuse_the_same_document() {
+fn catalog_and_grove_refuse_the_same_document() {
     let home = TempDir::new().unwrap();
     write_config(home.path(), "runner ${settings} ${prompt}");
 
-    let outcome = keyed_launch::conformance::check(
+    let error = keyed_launch::Catalog::load(
         &SessionConfig::path(home.path()),
+        None,
         grove_loop::session_config::vocabulary(),
-    );
-
-    assert!(!outcome.passed());
+    )
+    .err()
+    .unwrap()
+    .to_string();
     assert!(
-        outcome.failures[0].contains("unknown substitution `${settings}`"),
-        "{:?}",
-        outcome.failures
+        error.contains("unknown substitution `${settings}`"),
+        "{error}"
     );
     assert!(
         load_error(home.path()).contains("unknown substitution `${settings}`"),

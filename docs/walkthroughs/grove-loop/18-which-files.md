@@ -331,7 +331,8 @@ precisely the claim on which the comment depends.
 
 What the comment does not say is why the function is `pub`. Production reaches it
 once, at `read` below. Its only other callers are the two conformance-kit tests,
-which hand grove's vocabulary to `keyed_launch::conformance::check` — so the
+which hand Grove's vocabulary to `keyed_launch::Catalog::load` and then pass the
+captured catalog to `keyed_launch::conformance::check` — so the
 public modifier exists so that *grove's configuration can be held to the runner's
 own kit from outside the runner*, which is what
 `a_grove_configuration_conforms_to_the_runners_own_kit` does.
@@ -341,7 +342,7 @@ slots and asserts the kit passes it. The kit checks a document against a
 vocabulary, so it would pass just as well if `SLOTS` had the wrong cardinalities
 — a document with one `${prompt}` conforms whether `prompt` is `ExactlyOnce` or
 `AtMostOnce`. It pins *this document and this vocabulary are kit-clean*, and the
-cardinalities are pinned by its sibling above. `the_kit_and_grove_refuse_the_same_document`
+cardinalities are pinned by its sibling above. `catalog_and_grove_refuse_the_same_document`
 is what closes the pair, refusing one document from both sides.
 
 <a id="the-four-values"></a>

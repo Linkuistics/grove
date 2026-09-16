@@ -199,7 +199,7 @@ order is that account's order. The book reads it whole here, in seven fragments:
 six that follow the doc comment's own paragraph breaks, and one for the module
 declarations and exports, which this chapter reads after the worked example.
 
-<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-75" parent="source-library-root" -->
+<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-83" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-two-documents» -->
 <!-- insert «library-root-vocabulary» -->
@@ -212,7 +212,7 @@ declarations and exports, which this chapter reads after the worked example.
 The first fragment is the spine, and every chapter of this book is a reading of
 its second sentence. The claim has two halves. The crate understands neither the
 key nor the template: a consumer names one and a template names the other, and
-nothing in these 2,145 lines interprets either. What the crate does own is
+nothing in these 2,275 lines interprets either. What the crate does own is
 stated positively — a launch is one complete template string read whole out of
 one file, never assembled from two, and every rule about a template is checked
 before anything is spawned. Chapters 3 and 4 are those two clauses.
@@ -246,7 +246,7 @@ questions.
 //!
 //! # Two documents, and what the second one may do
 //!
-//! [`Templates::load`] takes a primary file and an optional overlay. **A key
+//! [`Catalog::load`] captures a primary file and an optional overlay. **A key
 //! resolves only if the primary declares it**: where the overlay also declares
 //! it the overlay's template is the one used, whole; where only the overlay
 //! declares it the key does not resolve, and the refusal names the key and the
@@ -267,8 +267,16 @@ expansion can check none of them. Chapter 2 owns that argument and takes the
 position the crate takes on it; chapter 3 then reads a `load` that has the names
 in hand.
 
-<!-- fragment «library-root-vocabulary» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="23-27" parent="library-root" -->
+<!-- fragment «library-root-vocabulary» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="23-35" parent="library-root" -->
 ````rust
+//! Catalog retains both original documents and their declarations. Resolving an
+//! explicit [`Selection`] returns an owned [`Templates`] snapshot without source
+//! I/O; expansion still works after the files change and the Catalog is dropped.
+//! [`Templates::load`] delegates to that path with an empty selection.
+//!
+//! Only flat configuration is implemented: selection declarations are absent,
+//! and selecting any profile is an error. Wrapper commands, profiles, structured
+//! diagnostics and inspection are pending; no partial inspection API is exposed.
 //!
 //! # The vocabulary is an input to `load`, not to `expand`
 //!
@@ -290,7 +298,7 @@ dependency — nothing in `run` compiles against `templates`, and nothing in
 shows the two lines that make it true, and this chapter's last section reads the
 error module that the claim is also visible in.
 
-<!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="28-34" parent="library-root" -->
+<!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="36-42" parent="library-root" -->
 ````rust
 //!
 //! # From a template to a running child
@@ -311,7 +319,7 @@ finishes rather than exiting, so its own exit is not the event anyone is waiting
 for, and the channel's *appearance* is. Those two sentences are the reason the
 crate has a `Channel` at all, and chapter 6 is where the appearance rule is built.
 
-<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="35-47" parent="library-root" -->
+<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="43-55" parent="library-root" -->
 ````rust
 //!
 //! **The child is a job.** It is spawned into a process group of its own and
@@ -335,7 +343,7 @@ holds a consumer's configuration to this crate's contract **from outside the
 consumer's own suite**. The distinction it draws in that clause is the whole of
 why the kit exists, and chapter 9 argues it.
 
-<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="48-57" parent="library-root" -->
+<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="56-65" parent="library-root" -->
 ````rust
 //!
 //! [`run_observed`] adds synchronous parent-side [`LaunchEvent`] notifications
@@ -362,12 +370,12 @@ launcher's job, which is chapter 8.
 | `src/lib.rs` section | Lines | Chapter |
 |---|---:|---:|
 | the opening thesis | 1–9 | 1 |
-| *Two documents, and what the second one may do* | 11–22 | 3 |
-| *The vocabulary is an input to `load`, not to `expand`* | 24–27 | 2 |
-| *From a template to a running child* | 29–34 | 5, and the seam in 1 |
-| **The child is a job** | 36–40 | 7 |
-| **A launch ends out of band** | 42–47 | 6, and the escalation in 8 |
-| *Testing a consumer's configuration* | 49–52 | 9 |
+| *Two documents, and what the second one may do* | 11–30 | 3 |
+| *The vocabulary is an input to `load`, not to `expand`* | 32–35 | 2 |
+| *From a template to a running child* | 37–42 | 5, and the seam in 1 |
+| **The child is a job** | 44–48 | 7 |
+| **A launch ends out of band** | 50–54 | 6, and the escalation in 8 |
+| *Testing a consumer's configuration* | 62–65 | 9 |
 
 Chapter 4 is the one chapter with no paragraph of its own in the library root,
 and that absence is itself informative: the template rules are the part of the
@@ -468,7 +476,7 @@ The final module declarations and exports put the public surface in one place.
 This book reads them here rather than deferring each name to its own chapter, because the
 list is short and the map above has already said which chapter owns what.
 
-<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="58-75" parent="library-root" -->
+<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="66-83" parent="library-root" -->
 ````rust
 
 pub mod conformance;
@@ -486,7 +494,7 @@ pub use error::{ConfigError, LaunchError};
 pub use run::{
     reraise, run, run_observed, take_interrupt, End, Ended, Escalation, Launch, LaunchEvent,
 };
-pub use templates::Templates;
+pub use templates::{Catalog, Selection, Source, SourceRole, SourceSpan, Templates};
 pub use vocabulary::{Requirement, SlotRule, Vocabulary};
 ````
 <!-- /fragment -->
@@ -510,6 +518,7 @@ last row is this chapter's own and is not one.
 
 | Names | Minimum statement | Chapter |
 |---|---|---:|
+| `Catalog`, `Selection`, `SourceRole`, `Source`, `SourceSpan` | Catalog owns captured documents and vocabulary; Selection supplies the explicit profile list and optional source origin; SourceRole, Source and SourceSpan identify that origin. | 2 |
 | `Templates` | One loaded configuration: key to complete command template, compiled against a vocabulary and validated whole before anything is spawned. | 2 |
 | `Vocabulary`, `SlotRule`, `Requirement` | The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name. | 2 |
 | `Argv`, `Slot` | `Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call. | 5 |

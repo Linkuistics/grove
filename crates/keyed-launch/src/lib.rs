@@ -10,7 +10,7 @@
 //!
 //! # Two documents, and what the second one may do
 //!
-//! [`Templates::load`] takes a primary file and an optional overlay. **A key
+//! [`Catalog::load`] captures a primary file and an optional overlay. **A key
 //! resolves only if the primary declares it**: where the overlay also declares
 //! it the overlay's template is the one used, whole; where only the overlay
 //! declares it the key does not resolve, and the refusal names the key and the
@@ -20,6 +20,14 @@
 //!
 //! Which files those two are, and whether the overlay is admissible at all, are
 //! the consumer's questions. This crate reads the paths it is handed.
+//! Catalog retains both original documents and their declarations. Resolving an
+//! explicit [`Selection`] returns an owned [`Templates`] snapshot without source
+//! I/O; expansion still works after the files change and the Catalog is dropped.
+//! [`Templates::load`] delegates to that path with an empty selection.
+//!
+//! Only flat configuration is implemented: selection declarations are absent,
+//! and selecting any profile is an error. Wrapper commands, profiles, structured
+//! diagnostics and inspection are pending; no partial inspection API is exposed.
 //!
 //! # The vocabulary is an input to `load`, not to `expand`
 //!
@@ -71,5 +79,5 @@ pub use error::{ConfigError, LaunchError};
 pub use run::{
     reraise, run, run_observed, take_interrupt, End, Ended, Escalation, Launch, LaunchEvent,
 };
-pub use templates::Templates;
+pub use templates::{Catalog, Selection, Source, SourceRole, SourceSpan, Templates};
 pub use vocabulary::{Requirement, SlotRule, Vocabulary};

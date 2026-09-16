@@ -1,5 +1,5 @@
-//! The conformance kit: hand it a configuration file and the slot vocabulary it
-//! was written against, and learn which of this crate's obligations it violates.
+//! The conformance kit: resolve a captured Catalog with an explicit Selection
+//! and exercise every admitted command without rereading its source files.
 //!
 //! This is the **cross-crate seam**. A consumer's own suite can only assert that
 //! *its* configuration works with *its* build; the kit is what holds a
@@ -8,11 +8,13 @@
 //! repository.
 //!
 //! ```no_run
-//! use keyed_launch::{conformance, Requirement, SlotRule, Vocabulary};
-//! let outcome = conformance::check(
+//! use keyed_launch::{conformance, Catalog, Selection, Requirement, SlotRule, Vocabulary};
+//! let catalog = Catalog::load(
 //!     std::path::Path::new("config.kdl"),
+//!     None,
 //!     Vocabulary { slots: &[SlotRule { name: "prompt", requirement: Requirement::ExactlyOnce }] },
-//! );
+//! ).unwrap();
+//! let outcome = conformance::check(&catalog, &Selection::default());
 //! assert!(outcome.passed(), "{}", outcome.failures.join("\n"));
 //! ```
 //!
@@ -25,10 +27,8 @@
 //! otherwise detect that it did not run.
 
 use std::ffi::OsString;
-use std::path::Path;
 
-use crate::templates::Templates;
-use crate::vocabulary::Vocabulary;
+use crate::templates::{Catalog, Selection};
 
 /// What the kit found. Empty [`failures`](Self::failures) is conformance.
 pub struct Outcome {
@@ -44,25 +44,19 @@ impl Outcome {
 
 /// Hold a consumer's configuration to this crate's contract.
 ///
-/// Three obligations, in order: the document loads whole against `vocabulary`;
-/// it declares at least one key; and every key it declares expands to an argv
+/// Three obligations, in order: the captured catalog resolves `selection`;
+/// it admits at least one key; and every admitted key expands to an argv
 /// with a program, given one placeholder value per declared slot. The third is
 /// what stops the kit from being a second spelling of `load` — expansion is the
 /// only place the compiled words are walked.
 #[must_use]
-pub fn check(config: &Path, vocabulary: Vocabulary<'_>) -> Outcome {
-    let placeholders: Vec<(String, OsString)> = vocabulary
-        .slots
-        .iter()
-        .map(|slot| {
-            (
-                slot.name.to_owned(),
-                OsString::from(format!("<{}>", slot.name)),
-            )
-        })
+pub fn check(catalog: &Catalog, selection: &Selection) -> Outcome {
+    let placeholders: Vec<(String, OsString)> = catalog
+        .slot_names()
+        .map(|name| (name.to_owned(), OsString::from(format!("<{name}>"))))
         .collect();
 
-    let templates = match Templates::load(config, None, vocabulary) {
+    let templates = match catalog.resolve(selection) {
         Ok(templates) => templates,
         Err(error) => {
             return Outcome {
@@ -74,11 +68,11 @@ pub fn check(config: &Path, vocabulary: Vocabulary<'_>) -> Outcome {
     let mut failures = Vec::new();
     let keys: Vec<String> = templates.keys().into_iter().map(str::to_owned).collect();
     if keys.is_empty() {
-        failures.push(format!(
-            "{} declares no keys, so nothing in this kit was exercised. A configuration \
-             that checks nothing passes every check.",
-            config.display()
-        ));
+        failures.push(
+            "the resolved configuration declares no keys, so nothing in this kit was exercised. \
+             A configuration that checks nothing passes every check."
+                .to_owned(),
+        );
     }
 
     let values: Vec<crate::Slot<'_>> = placeholders

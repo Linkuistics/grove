@@ -6,6 +6,14 @@ commands, profiles, inspection and separate example delivery; its new grammar
 and verbs are pending implementation. The configuration ADRs describe that
 intended contract. Existing configurations require no rewrite.
 
+The generic runner now captures flat sources in an owned `Catalog` and resolves
+an explicit empty `Selection` into `Templates`; the existing Grove loader uses
+that same path. Captured resolution and expansion do not reread files. The
+generic conformance kit takes Catalog plus Selection. Structured diagnostic
+records and inspection remain pending, as do wrapper/profile syntax and Grove's
+selection policy. Runtime vocabulary names beginning with `param.` are reserved;
+Grove's existing four slots are unaffected.
+
 One personal file, `~/.config/grove/config.kdl`, gives each session kind you use
 one complete command template. Grove parses a template into arguments, expands
 its own substitutions, and executes the result directly as its foreground child.

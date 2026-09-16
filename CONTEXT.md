@@ -783,6 +783,8 @@ definitions, [[Command binding]]s, and named [[Configuration profile]]s, with an
 optional [[Configuration delta]]. The modular design is specified in
 [modular configuration](docs/specs/modular-configuration.md); the currently
 implemented flat form is documented in [the reference](docs/CONFIGURATION.md).
+The generic runner's **Catalog** is the captured source documents and slot
+vocabulary; **Templates** is an owned resolved command snapshot.
 _Avoid_: "primary harness" — harness selection is a property of each session kind,
 not of the grove as a whole.
 _Avoid_: "thinking effort" — use **reasoning effort**, the launch-policy term.

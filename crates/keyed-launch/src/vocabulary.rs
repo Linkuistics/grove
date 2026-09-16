@@ -7,6 +7,8 @@
 /// names until expansion. Handed the vocabulary at load, the whole of both
 /// documents is checked before anything is spawned, and expansion is left with
 /// one obligation: that the values offered fill the slots declared here.
+/// Names beginning with `param.` are reserved for configuration parameters and
+/// are refused by both Catalog and Templates loading, before source I/O.
 pub struct Vocabulary<'a> {
     pub slots: &'a [SlotRule<'a>],
 }

@@ -344,8 +344,12 @@ source paths and slot vocabulary enter Catalog loading; the consumer chooses a
 selection declaration; Catalog resolution returns validated Templates and
 provenance. Grove retains source discovery, local admissibility, profile-list
 selection policy and runtime context. The runner understands none of Grove's
-paths, kinds or VCS. The modular implementation is pending; the contracts below
-describe its intended interface alongside the unchanged launch surface.
+paths, kinds or VCS. Catalog/Selection capture and resolution, the empty-selection
+Templates convenience, and Catalog-based conformance are implemented for flat
+documents. Both loaders reserve the `param.` vocabulary prefix. Structured
+diagnostics, inspection/provenance, wrapper/profile syntax and Grove selection
+policy remain pending; those parts below describe the intended interface
+alongside the unchanged launch surface.
 
 ```rust
 /// The slot vocabulary a consumer's templates are written against. Supplied at

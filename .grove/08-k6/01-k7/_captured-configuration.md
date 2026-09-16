@@ -1,4 +1,4 @@
-# captured-configuration-k7
+# captured-configuration-k7 — brief
 
 
 ## Goal
@@ -63,3 +63,22 @@ Do not merely publish record types for a later reader: this leaf delivers
 working legacy capture, diagnostics and expansion. Later children
 extend the same representation and source capture rather than building a
 parallel modular loader.
+
+## Decomposition
+
+- `flat-snapshots-k16` delivers owned Catalog/Selection, retained source bytes
+  and parsed declarations, empty-selection resolution, vocabulary reservation,
+  and the conformance migration. It preserves existing text errors while
+  exposing no inspection or diagnostic stubs.
+- `structured-diagnostics-k17` replaces those text-only errors with the reviewed
+  Diagnostic records, real source spans and independent cross-document error
+  aggregation. It owns every diagnostic completion condition above, including
+  `unknown_profile` without a fabricated span.
+
+## Decisions (running log)
+
+The existing loader combines reading, validation and merging, while ConfigError
+stores only a message. Splitting owned capture from diagnostic aggregation gives
+two independently observable public improvements and keeps each source-exact
+book update with its implementation. The node retains the complete original
+contract; the first child does not claim diagnostic records or inspection.

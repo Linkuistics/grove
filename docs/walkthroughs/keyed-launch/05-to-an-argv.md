@@ -159,7 +159,7 @@ interleaving is the cost of ordering the book by concept, and the ownership
 ledger in the source index is where it is visible: eight blocks of one root,
 divided across four chapters.
 
-<!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="146-275" parent="source-templates" -->
+<!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="259-388" parent="source-templates" -->
 <!-- insert «templates-source» -->
 <!-- insert «templates-require» -->
 <!-- insert «templates-expand» -->
@@ -179,7 +179,7 @@ the input is a borrowed key and the output is a borrowed path, so the caller
 learns which file to name in its own diagnostics without the configuration having
 to be re-read.
 
-<!-- fragment «templates-source» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="146-154" parent="resolution-and-expansion" -->
+<!-- fragment «templates-source» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="259-267" parent="resolution-and-expansion" -->
 ````rust
     /// The file this key's template was actually read from — the primary file,
     /// or the overlay that overrode it. `None` when the primary does not declare
@@ -231,7 +231,7 @@ input is a key and its output is `Ok(())` or a refusal; it reads the same map
 establishes is a precondition rather than a value, which is why it exists at all
 as a separate call from `expand`.
 
-<!-- fragment «templates-require» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="155-167" parent="resolution-and-expansion" -->
+<!-- fragment «templates-require» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="268-280" parent="resolution-and-expansion" -->
 ````rust
 
     /// Does this key resolve to exactly one complete template?
@@ -276,7 +276,7 @@ load, so what remains is a single question about the caller's values — and the
 comment on it is the longest in the block precisely because that question is
 stated over something other than what a reader would first expect.
 
-<!-- fragment «templates-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="168-199" parent="resolution-and-expansion" -->
+<!-- fragment «templates-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="281-312" parent="resolution-and-expansion" -->
 ````rust
 
     /// Expand this key's template into an argv.
@@ -353,7 +353,7 @@ the line that keeps it.
 
 The body is four steps and each is a line or a loop. `require` runs first, so a
 key that does not resolve is refused before any value is looked at; the index on
-line 180 cannot panic because `require` has just returned `Ok`. `match_values`
+line 293 cannot panic because `require` has just returned `Ok`. `match_values`
 runs second and produces the offered vector. The loop then walks the compiled
 words in order, and its two arms are the entire substitution mechanism:
 `Word::Literal` becomes an `OsString` of the bytes the file held, and
@@ -381,7 +381,7 @@ consumes it. Its input is the caller's slice of `Slot` values; its output is a
 vector of borrowed `OsStr`s indexed by the *same* table the compiled words index
 into, which is what lets `expand` read `offered[*index]` with no lookup.
 
-<!-- fragment «match-values» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="200-243" parent="resolution-and-expansion" -->
+<!-- fragment «match-values» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="313-356" parent="resolution-and-expansion" -->
 ````rust
 
     /// Line up the offered values with the declared slots, by name.
@@ -454,14 +454,14 @@ with chapter 3's aggregate document report: the loop cannot continue past an
 unknown name because it has no index to write to, whereas *missing* is only
 knowable once every offered value has been placed, and at that moment every
 missing slot is known at once. So the third message names all of them, joined
-with `, `, and pluralises its own noun on line 234 — `declared slot: label` for
+with `, `, and pluralises its own noun on line 347 — `declared slot: label` for
 one and `declared slots: worktree, repo` for two, rather than one spelling that
 is wrong half the time.
 
 `declared_slots` exists for the first of the three messages and for nothing else.
 It has exactly one call site, in `match_values` above it.
 
-<!-- fragment «declared-slots» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="244-251" parent="resolution-and-expansion" -->
+<!-- fragment «declared-slots» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="357-364" parent="resolution-and-expansion" -->
 ````rust
 
     fn declared_slots(&self) -> String {
@@ -500,7 +500,7 @@ this chapter keeps. It takes a key that failed `require` and returns the sentenc
 the operator will read. It has one caller, and it is the reason `require` exists
 as a named obligation rather than as a `contains_key` at each call site.
 
-<!-- fragment «templates-unresolved» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="252-275" parent="resolution-and-expansion" -->
+<!-- fragment «templates-unresolved» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="365-388" parent="resolution-and-expansion" -->
 ````rust
 
     /// The refusal for a key that does not resolve — naming the key and the
@@ -565,9 +565,9 @@ the `PathBuf` `load` stored, so the sentence works long after the borrowed
 argument that named it is gone.
 
 One line in the overlay branch is unreachable, and it is worth saying so rather
-than passing over it. Line 260 defaults the overlay's name to the string `the
+than passing over it. Line 373 defaults the overlay's name to the string `the
 overlay` when `self.overlay` is `None`. That state cannot occur: `overlay_only`
-is only ever inserted into inside `load`'s `if let Some(overlay_path)` block, and
+is only ever inserted into inside `Catalog::resolve`'s overlay block, and
 the `overlay` field is `Some` exactly when that block ran, so a key in
 `overlay_only` implies a path to print. The code keeps the branch because the two
 fields are independent as far as the type system is concerned, and the cost of
@@ -576,7 +576,7 @@ the same instinct as chapter 4's clamp on a source offset: the crate declines to
 prove a thing the types do not say, and arranges for the unproved case to be
 harmless.
 
-Line 275 closes the `impl` block. Chapter 3's `load` opened it at line 92, and
+Line 388 closes the `impl` block. Chapter 3's convenience-loader fragment opens it, and
 between the two are the two halves this chapter and that one own.
 
 <a id="one-window"></a>
@@ -588,7 +588,7 @@ another module, and its placement says so: it is not part of the block a reader
 of the type's public surface walks, and it was added where it could be read
 against its purpose rather than against its neighbours.
 
-<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="661-670" parent="source-templates" -->
+<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="787-796" parent="source-templates" -->
 ````rust
 
 /// The keys the primary document declares, in name order. The conformance kit's
@@ -723,7 +723,7 @@ Five lines, and the load-bearing token in them is `pub(crate)`. `argv` is a
 private module — chapter 1 read the module list — so the only things visible
 outside the crate are what `pub use argv::{Argv, Slot}` re-exports: the two
 types, and none of the constructor. Inside the crate, `Argv::new` has exactly one
-caller. It is line 198 of `src/templates.rs`, the last line of `expand`, and a
+caller. It is line 311 of `src/templates.rs`, the last line of `expand`, and a
 search of the whole workspace finds no other. The figure below is that count
 stated as what it proves.
 

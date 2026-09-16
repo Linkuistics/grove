@@ -320,7 +320,12 @@ map, validated whole against a *slot vocabulary* the consumer supplies at load,
 and expands one selected template into an argv. It hides KDL handling, aggregate
 schema diagnostics, POSIX shell-word splitting, substitution validation, and argv
 construction; callers cannot ask it for a default, family, harness, or model, and
-it holds no set of keys.
+it holds no set of keys. `Catalog::load` captures source bytes, parsed
+declarations and vocabulary once; `Catalog::resolve` produces an owned
+`Templates` snapshot without file I/O. `Templates::load` uses that same path
+with an empty selection, and conformance checks the captured Catalog. The
+current reader accepts only flat documents; structured diagnostic records,
+inspection, wrapper/profile syntax and Grove selection policy remain pending.
 
 **And it runs what it expanded.** The same crate allocates the launch's
 completion channel, spawns the argv directly with no shell, supervises the child

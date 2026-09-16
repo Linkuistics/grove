@@ -6,7 +6,7 @@
 ## Nine openings, one question
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The nine roots and 2,145 lines are
+This chapter owns no production source. The nine roots and 2,275 lines are
 already reconstructed by the fragment graph the nine chapters before it built,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
@@ -408,15 +408,15 @@ ranges cannot is the interleaving: in two of the three, one chapter's block sits
 *inside* another chapter's pair.
 
 ```text
-src/templates.rs   670 lines, 8 blocks, chapters 2 3 4 5
-      1–91    ch 2      the loaded shapes
-     92–145   ch 3   ┐  load
-    146–275   ch 5   │  resolution and expansion, inside chapter 3's pair
-    276–414   ch 3   ┘  reading and whole-document validation
-    415–534   ch 4      the node and template rules
-    535–617   ch 4      the word scan
-    618–660   ch 4      the diagnostics
-    661–670   ch 5      keys
+src/templates.rs   796 lines, 8 blocks, chapters 2 3 4 5
+      1–147    ch 2      the loaded shapes
+     148–258   ch 3   ┐  load
+    259–388   ch 5   │  resolution and expansion, inside chapter 3's pair
+    389–540   ch 3   ┘  reading and whole-document validation
+    541–660   ch 4      the node and template rules
+    661–743   ch 4      the word scan
+    744–786   ch 4      the diagnostics
+    787–796   ch 5      keys
 
 src/run.rs         672 lines, 4 blocks, chapters 7 8
       1–123   ch 7   ┐  the launch's shape
@@ -438,15 +438,15 @@ in the book cut at a compilation condition rather than a conceptual one.
 <!-- rollup «early-use-rows» -->
 <!-- rollup «early-use-rows-declared» -->
 <!-- rollup «early-use-rows-at» of="01-orientation.md#the-cast" -->
-**Early use.** 10 rows, every one `explained`. 9 of them are the manifest's
-`[[early-use]]` entries, which are the rows the book may not omit: 7 forced
+**Early use.** 11 rows, every one `explained`. 10 of them are the manifest's
+`[[early-use]]` entries, which are the rows the book may not omit: 8 forced
 by [chapter 1's cast](01-orientation.md#the-cast) naming nearly every public type
 before its owner explains it, one by
 [chapter 3](03-two-documents.md#both-documents) reaching the two rule checks that
 `validate_document` drives and chapter 4 owns, and one by
 [chapter 7](07-the-job.md#the-spawn) reaching the handler, the latch and the
 supervisor that are `run`'s first and last acts and chapter 8's to explain. The
-tenth was added under the clause that requires a row before any additional
+eleventh was added under the clause that requires a row before any additional
 later-owned name is introduced: chapter 3's parse reaches `source_location`,
 `format_location` and `render_diagnostics`, three of chapter 4's diagnostic
 helpers, and carries the minimum statement until that chapter explains them
@@ -454,10 +454,10 @@ together. Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 203 + 135 + 193 + 246 + 188 + 271 + 390 + 282 + 237 = 2,145
+**Owned source.** 211 + 193 + 263 + 246 + 188 + 271 + 390 + 282 + 231 = 2,275
 lines across 9 chapters, and 0 for this one. The tenth row of that table exists
 to be zero: a chapter that owns no source is the shape the structure brief chose
-for the assembly, and the total is the 2,145 lines in the current declared corpus.
+for the assembly, and the total is the 2,275 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
@@ -482,7 +482,7 @@ valid: 9 files, 2145 resolved lines, 0 deferred lines, final=true
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 2,145 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 2,275 resolved and 0 deferred is the whole corpus
 reconstructed — including `src/channel.rs` lines 272 to 404, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
@@ -565,7 +565,7 @@ Nothing in the corpus holds them; they hold the corpus.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 9 roots, 2,145 lines, 10 chapters, two lookup surfaces,
+The book is complete: 9 roots, 2,275 lines, 10 chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that nine refusals are one design, and
 what it leaves the reader with is the question — *where does this layer learn what
 the value means?* — together with the one case where this crate's own answer runs

@@ -2,13 +2,13 @@
 
 ## Status and provenance
 
-This is the structure brief for the book at `docs/walkthroughs/keyed-launch/`,
-which does not exist yet and which this document is written ahead of, in the
-form [`walkthrough-books.md`](walkthrough-books.md) requires under *The
-structure brief*. It settles what that specification deliberately does not: the
-chapter sequence, the mapping of that sequence onto the corpus, each chapter's
-worked example, the early uses the order forces, and what the book does not
-cover.
+This is the structure brief for the book at `docs/walkthroughs/keyed-launch/`.
+The original interview below establishes its audience and concept order; current
+source ownership and lengths are recorded in the book's checked manifest and
+source index. The captured-flat increment extends chapters 2 and 3 with Catalog,
+Selection and retained source declarations, and chapter 9 with Catalog-based
+conformance. Chapter 5 retains the same expansion/scanner contract. Diagnostic
+records, inspection and modular grammar remain pending implementation.
 
 **This document is authored, not recovered, and it precedes its book.** Every
 decision below was settled in the `keyed-launch-structure-k34` interview and is

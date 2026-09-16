@@ -5,6 +5,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use kdl::{KdlDocument, KdlNode};
 
@@ -12,9 +13,61 @@ use crate::argv::{Argv, Slot};
 use crate::error::ConfigError;
 use crate::vocabulary::{Requirement, Vocabulary};
 
+/// Which explicit input supplied a declaration.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceRole {
+    Primary,
+    Overlay,
+}
+
+/// An explicit source path and its role, independent of filesystem availability.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Source {
+    pub role: SourceRole,
+    pub path: PathBuf,
+}
+
+/// Zero-based UTF-8 byte range in a captured source; end is exclusive.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SourceSpan {
+    pub source: Source,
+    pub start: usize,
+    pub end: usize,
+}
+
+/// Explicit profile selection. Flat catalogs accept only an empty list.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Selection {
+    pub profiles: Vec<String>,
+    pub origin: Option<SourceSpan>,
+}
+
+/// Validated input documents and vocabulary, captured once at load.
+/// Resolution never opens their paths again. Profile syntax is not yet supported.
+pub struct Catalog {
+    captured: Arc<Captured>,
+}
+
+struct Captured {
+    primary: CapturedDocument,
+    overlay: Option<CapturedDocument>,
+    slots: Vec<SlotSpec>,
+}
+
+/// Keep original bytes and parsed declarations, including overridden and
+/// overlay-only entries, for subsequent provenance without rereading a file.
+struct CapturedDocument {
+    path: PathBuf,
+    _source: String,
+    _document: KdlDocument,
+    templates: BTreeMap<String, Template>,
+}
+
 /// A loaded configuration: every key the primary document declares, mapped to
 /// one complete command template read whole out of one file.
 pub struct Templates {
+    // Preserve both documents independently of the Catalog's lifetime.
+    _captured: Arc<Captured>,
     primary: PathBuf,
     overlay: Option<PathBuf>,
     slots: Vec<SlotSpec>,
@@ -26,6 +79,7 @@ pub struct Templates {
     overlay_only: BTreeSet<String>,
 }
 
+#[derive(Clone)]
 struct SlotSpec {
     name: String,
     requirement: Requirement,
@@ -38,6 +92,7 @@ struct SlotSpec {
 /// overlay while its neighbour's comes from the primary file. Every diagnostic
 /// that names a file has to name the one that actually supplied the failing key,
 /// or it points a reader at a file that never held the template.
+#[derive(Clone)]
 struct Template {
     words: Vec<Word>,
     source: PathBuf,
@@ -45,6 +100,7 @@ struct Template {
 
 /// A compiled template word: a literal, or the slot it stands for by index into
 /// [`Templates::slots`].
+#[derive(Clone)]
 enum Word {
     Literal(String),
     Slot(usize),
@@ -89,8 +145,8 @@ struct NodeValidation {
     diagnostics: Vec<ValidationDiagnostic>,
 }
 
-impl Templates {
-    /// Read and fully validate both documents, then resolve one template per key.
+impl Catalog {
+    /// Read and fully validate both documents, retaining their original declarations.
     ///
     /// A key resolves from the primary file or the overlay, never from both, and
     /// only if the **primary** declares it: the overlay overrides and never
@@ -108,24 +164,60 @@ impl Templates {
     ) -> Result<Self, ConfigError> {
         let slots = compile_vocabulary(&vocabulary)?;
 
-        let primary_source = read_primary(primary)?;
-        let mut templates =
-            parse_and_validate(primary, &primary_source, DocumentRole::Primary, &slots)?;
+        let primary = parse_and_validate(
+            primary,
+            read_primary(primary)?,
+            DocumentRole::Primary,
+            &slots,
+        )?;
+        let overlay = overlay
+            .map(|path| {
+                parse_and_validate(path, read_overlay(path)?, DocumentRole::Overlay, &slots)
+            })
+            .transpose()?;
+        Ok(Self {
+            captured: Arc::new(Captured {
+                primary,
+                overlay,
+                slots,
+            }),
+        })
+    }
+
+    /// Flat documents contain no profile selection declaration.
+    #[must_use]
+    pub fn primary_selection(&self) -> Option<&Selection> {
+        None
+    }
+
+    /// Flat overlays contain no profile selection declaration.
+    #[must_use]
+    pub fn overlay_selection(&self) -> Option<&Selection> {
+        None
+    }
+
+    /// Resolve captured declarations with primary authority and whole-template
+    /// overlay replacement. The returned snapshot owns its inputs independently.
+    pub fn resolve(&self, selection: &Selection) -> Result<Templates, ConfigError> {
+        if let Some(profile) = selection.profiles.first() {
+            return Err(ConfigError::new(format!(
+                "unknown profile `{profile}`; flat configuration declares no profiles. \
+                 Resolve with an empty selection."
+            )));
+        }
+        let mut templates = self.captured.primary.templates.clone();
 
         let mut overlay_only = BTreeSet::new();
-        if let Some(overlay_path) = overlay {
-            let overlay_source = read_overlay(overlay_path)?;
-            let declared =
-                parse_and_validate(overlay_path, &overlay_source, DocumentRole::Overlay, &slots)?;
+        if let Some(overlay) = &self.captured.overlay {
             // Each key the primary already declares wins outright: one whole
             // template replaces one whole template, so no rule has to decide
             // which *words* of a launch come from where. A key the primary does
             // not declare is set aside rather than admitted, which is the
             // per-key form of what the old all-keys completeness rule bought.
-            for (key, template) in declared {
-                match templates.entry(key) {
+            for (key, template) in &overlay.templates {
+                match templates.entry(key.clone()) {
                     Entry::Occupied(mut occupied) => {
-                        occupied.insert(template);
+                        occupied.insert(template.clone());
                     }
                     Entry::Vacant(vacant) => {
                         overlay_only.insert(vacant.into_key());
@@ -135,12 +227,33 @@ impl Templates {
         }
 
         Ok(Templates {
-            primary: primary.to_path_buf(),
-            overlay: overlay.map(Path::to_path_buf),
-            slots,
+            _captured: Arc::clone(&self.captured),
+            primary: self.captured.primary.path.clone(),
+            overlay: self
+                .captured
+                .overlay
+                .as_ref()
+                .map(|source| source.path.clone()),
+            slots: self.captured.slots.clone(),
             templates,
             overlay_only,
         })
+    }
+
+    pub(crate) fn slot_names(&self) -> impl Iterator<Item = &str> {
+        self.captured.slots.iter().map(|slot| slot.name.as_str())
+    }
+}
+
+impl Templates {
+    /// Load a Catalog and resolve an empty explicit selection through the same
+    /// validation path. Source discovery and selection policy belong to the caller.
+    pub fn load(
+        primary: &Path,
+        overlay: Option<&Path>,
+        vocabulary: Vocabulary<'_>,
+    ) -> Result<Self, ConfigError> {
+        Catalog::load(primary, overlay, vocabulary)?.resolve(&Selection::default())
     }
 
     /// The file this key's template was actually read from — the primary file,
@@ -283,6 +396,13 @@ impl Templates {
 fn compile_vocabulary(vocabulary: &Vocabulary<'_>) -> Result<Vec<SlotSpec>, ConfigError> {
     let mut slots: Vec<SlotSpec> = Vec::with_capacity(vocabulary.slots.len());
     for rule in vocabulary.slots {
+        if rule.name.starts_with("param.") {
+            return Err(ConfigError::new(format!(
+                "slot `{}` uses the reserved `param.` prefix; choose a runtime slot name \
+                 outside the configuration parameter namespace",
+                rule.name
+            )));
+        }
         if slots.iter().any(|slot| slot.name == rule.name) {
             return Err(ConfigError::new(format!(
                 "the slot vocabulary declares `{}` more than once",
@@ -322,12 +442,12 @@ fn read_overlay(path: &Path) -> Result<String, ConfigError> {
 
 fn parse_and_validate(
     path: &Path,
-    source: &str,
+    source: String,
     role: DocumentRole,
     slots: &[SlotSpec],
-) -> Result<BTreeMap<String, Template>, ConfigError> {
+) -> Result<CapturedDocument, ConfigError> {
     let document: KdlDocument = source.parse().map_err(|error: kdl::KdlError| {
-        let location = source_location(source, error.span.offset());
+        let location = source_location(&source, error.span.offset());
         ConfigError::new(format!(
             "{}:{}:{}: KDL syntax error: {}",
             path.display(),
@@ -337,7 +457,13 @@ fn parse_and_validate(
         ))
     })?;
 
-    validate_document(path, source, &document, role, slots)
+    let templates = validate_document(path, &source, &document, role, slots)?;
+    Ok(CapturedDocument {
+        path: path.to_path_buf(),
+        _source: source,
+        _document: document,
+        templates,
+    })
 }
 
 fn validate_document(

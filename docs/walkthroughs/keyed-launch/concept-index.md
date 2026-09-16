@@ -32,7 +32,7 @@
 - [Five calls, every step named and none traced](01-orientation.md#the-launch-in-outline)
 - [Allocation writes nothing, so appearance is evidence](01-orientation.md#the-launch-in-outline)
 - [The token the crate never interprets](01-orientation.md#the-launch-in-outline)
-- [Seven modules, one public, six re-exported names](01-orientation.md#the-cast)
+- [Seven modules, one public, and re-exported types](01-orientation.md#the-cast)
 - [The cast, and the chapter that owns each name](01-orientation.md#the-cast)
 - [Two opaque errors, and why there are two](01-orientation.md#the-two-errors)
 - [Opacity as a design, not an omission](01-orientation.md#the-two-errors)
@@ -53,7 +53,7 @@
 - [The four slots, and the refusal holding them makes possible](02-the-names.md#the-four-slots)
 - [Which substitution rules need the slot table, and which does not](02-the-names.md#the-four-slots)
 - [The whole-word rule as the gate on the name lookup](02-the-names.md#the-four-slots)
-- [`Templates`: five private fields and what each answers](02-the-names.md#the-compiled-shapes)
+- [Catalog capture and owned Templates snapshots](02-the-names.md#the-compiled-shapes)
 - [`overlay_only`, kept for the wording of one refusal](02-the-names.md#the-compiled-shapes)
 - [`SlotSpec` as the owned form of a `SlotRule`](02-the-names.md#the-compiled-shapes)
 - [A template carries the file it was read from, per key](02-the-names.md#the-file-it-was-read-from)
@@ -64,13 +64,13 @@
 - [`NodeValidation` keeps a key even when the node failed](02-the-names.md#what-a-diagnostic-carries)
 - [A launch is read whole out of one file, never assembled from two](03-two-documents.md#never-assembled)
 - [Two blocks that are not adjacent, and the chapter between them](03-two-documents.md#never-assembled)
-- [`load` as the type's only constructor](03-two-documents.md#one-entry-point)
+- [Catalog loading and empty-selection Templates convenience](03-two-documents.md#one-entry-point)
 - [The three promises, and the line that enforces each](03-two-documents.md#one-entry-point)
 - [What *complete session configuration* settles, and where its lines are](03-two-documents.md#one-entry-point)
 - [Why an invalid overlay is not a fallback to the primary](03-two-documents.md#one-entry-point)
 - [The vocabulary is compiled before the filesystem is touched](03-two-documents.md#overrides-never-supplies)
 - [`Entry::Occupied` replaces one whole template with another](03-two-documents.md#overrides-never-supplies)
-- [`Entry::Vacant` sets the key aside and drops the template](03-two-documents.md#overrides-never-supplies)
+- [`Entry::Vacant` excludes an overlay-only key from resolution](03-two-documents.md#overrides-never-supplies)
 - [The per-key restatement of a retired completeness quantifier](03-two-documents.md#overrides-never-supplies)
 - [Two keys, two files, each naming its own](03-two-documents.md#both-documents)
 - [The rules do not differ by document role](03-two-documents.md#both-documents)
@@ -333,7 +333,7 @@
 - [What your rules would have to know to be correct](10-what-passes-through.md#taking-the-test-away)
 - [Two arms closed at load, and one closed by a type](10-what-passes-through.md#taking-the-test-away)
 - [20 blocks over 9 roots, and the three splits that explain the count](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «ownership-blocks» --> <!-- rollup «source-roots» -->
-- [10 early-use rows, 9 required by the manifest and one added](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «early-use-rows» --> <!-- rollup «early-use-rows-declared» -->
+- [11 early-use rows, 10 required by the manifest and one added](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «early-use-rows» --> <!-- rollup «early-use-rows-declared» -->
 - [The tenth owned-source row that exists to be zero](10-what-passes-through.md#the-closed-ledgers)
 - [What `--final` proves that a scoped run does not](10-what-passes-through.md#final-verification)
 - [Why every drafting session but the last left the umbrella red](10-what-passes-through.md#final-verification)
@@ -342,3 +342,6 @@
 Spawn/reap observation: `run_observed` and `LaunchEvent` are explained in
 [Nothing added](07-the-job.md#nothing-added); wait-error evidence and ordering
 are explained in [The watch and the escalation](08-the-escalation.md).
+
+- [Captured inputs survive source removal](03-two-documents.md#both-documents)
+- [Conformance resolves an explicit selection](09-how-checked.md#three-obligations)

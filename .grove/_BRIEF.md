@@ -138,8 +138,86 @@ is which executable and exact arguments Grove launches.
 - `plan-k1` establishes the approved human-facing behavior and test seams.
 - `modular-configuration-k2` designs the grammar, resolution semantics,
   diagnostics, inspection, example delivery, and interfaces between the generic
-  runner and Grove. It synthesizes these decisions rather than repeating the
-  interview; implementation planning follows that design.
+  runner and Grove. Its review and integration are `modular-configuration-k3`
+  and `modular-configuration-k5`.
+- `modular-configuration-k4` plans the complete reviewed feature. Its planning
+  review `modular-configuration-k13` precedes the implementation work below;
+  any review integration must also precede the first implementation entry.
+- `configuration-engine-k6` delivers the generic Catalog/Templates increment:
+  captured legacy configuration (`captured-configuration-k7`), reusable base
+  commands (`reusable-commands-k8`), then selected profile composition
+  (`profile-composition-k9`). Each child supplies working public behavior and
+  retains the existing Grove caller until its migration.
+- `workspace-configuration-k10` makes Grove selection, admission, tree mutation
+  and launches use the resolver, with isolation and next-session reload.
+- `configuration-inspection-k11` adds human/JSON inspection of that same result.
+- `configuration-examples-k12` validates and packages the repository examples,
+  adds safe installation, and performs actual personal-directory delivery.
+
+These are dependency-ordered working increments inside the approved complete
+feature scope. The generic engine is useful through its public API before the
+Grove adapter switches; Grove launches work before the inspection command; and
+inspection works before example installation. Later work must not be needed to
+repair a predecessor's checks or source-exact documentation. The planning leaf's
+running log records why the complete root contract remains in this grove.
+
+## Implementation verification and documentation
+
+Every producer owns observable tests at the agreed seam and documentation for
+its delivered behavior. Use Rust and walkthrough-authoring skills when writing
+those artifacts, and the CLI-design skill for command surfaces. Prefer existing
+test seams. Keep all affected crate docs, the user reference, usage and
+architecture prose, durable specs/ADRs and glossary consistent at each landing;
+narrow pending-implementation notices to what remains rather than claiming a
+partially delivered contract is complete.
+
+Production Rust and crate manifests belong to source-exact walkthrough corpora.
+Inspect every affected book manifest, update fragments, explanatory prose,
+indices, concept rows, root lengths and corpus inventory where required, and
+run final book validation in the same task. New production modules are included
+by recursive corpus rules; a new file does not escape this obligation. Discover
+the complete affected set instead of assuming the named book is the only one.
+
+Run focused public-seam acceptance as appropriate, then `bash scripts/check.sh`
+before committing each implementation task. It is the principal check list,
+including workspace tests and final validation of every book. Keep measurement
+inputs fixed during a run and preserve `.cargo/config.toml`'s signal guard.
+Invoke actual Grove tree verbs with `grove-llm` directly, never through cargo.
+
+## Acceptance ownership
+
+The rows below cover the modular spec's complete acceptance table. Handles are
+stable even if review inserts work or a producer further decomposes a leaf.
+Shared rows name both the semantic owner and the composed Grove observation;
+each named leaf must carry its part, not assume another owner tested it.
+
+| Spec acceptance case | Implementation/testing owner and observation |
+|---|---|
+| Shared command | `reusable-commands-k8`: public expansion changes all shared users while preserving explicit route overrides |
+| Lead arrangements | `profile-composition-k9`: unchanged route map reaches swapped bindings; `workspace-configuration-k10`: opposite launches and workspace isolation |
+| Small experiment | `profile-composition-k9`: add/remove profile changes embedded parameter contents with stable word count; `workspace-configuration-k10`: exact launched argv |
+| Ordering | `profile-composition-k9`: within-scope last write, cross-scope specificity, includes before own patch, repeats/diamonds, full cycle chain |
+| Selection | `profile-composition-k9`: declaration capture and explicit selection; `workspace-configuration-k10`: absent/replacement/empty local policy with global definitions |
+| Source discovery | `workspace-configuration-k10`: worktree/repository precedence, tracked/unreadable/unprobeable refusal without fallback; `configuration-inspection-k11`: same admission |
+| Inactive work | `profile-composition-k9`: inactive success versus surviving selected errors; `configuration-examples-k12`: packaged unfinished profile and no launch on failure |
+| Partial building blocks | `profile-composition-k9`: split routes/bindings/values and local completion; `workspace-configuration-k10`: production adapter uses the result |
+| Missing personal target | `reusable-commands-k8` and `profile-composition-k9`: global `missing_target`, real origins/occurrences, local target cannot repair; `workspace-configuration-k10` and `configuration-inspection-k11`: no mutation/launch/snapshot even for another requested kind |
+| Loader convenience | `captured-configuration-k7`: legacy/vocabulary equivalence; `reusable-commands-k8`: wrapper base equivalence; `profile-composition-k9`: captured selections ignored by the empty-selection convenience |
+| Local authorization | `reusable-commands-k8`: local-only non-admission; `profile-composition-k9`: inactive versus selected personal target; `workspace-configuration-k10`: refusal before use |
+| Legacy compatibility | `captured-configuration-k7`: unchanged flat argv and eager checks; `reusable-commands-k8` and `profile-composition-k9`: shape-disambiguated grammar words, mixed forms and overrides; `workspace-configuration-k10`: existing launch fixtures |
+| Parameter safety | `reusable-commands-k8`: exact words for adversarial strings, empty values, NUL rejection, native runtime values and named/legacy scanner differences; `workspace-configuration-k10`: fake executable receives those boundaries |
+| Provenance | `captured-configuration-k7`: captured legacy source/history; `reusable-commands-k8`: multi-origin words, winners, removals/resets; `profile-composition-k9`: repeated occurrence histories; `configuration-inspection-k11`: encoded/displayed records |
+| Inspection | `configuration-inspection-k11`: shared compiled words equal captured argv with fixed inputs/context, full validation, read-only bytes, no launch/lease/epoch dependence, JSON and usage contract |
+| Reload | `workspace-configuration-k10`: edits change the next child and preserve the running child |
+| Delivery | `configuration-examples-k12`: all exact repository examples through the reader and fake launch, safe installer success/conflict/failure/races, actual personal-directory files and preserved active policy |
+
+Additional interface obligations have explicit owners: the generic non-Grove
+consumer and captured-source independence start in `captured-configuration-k7`
+and are extended through `profile-composition-k9`; Catalog/Selection conformance
+migrates in the first child and tests modular resolution in the last. CLI help,
+streams, exit codes, native path encoding and stale-epoch independence belong
+to the two human-command leaves. Complete example delivery remains root work
+until the intended files are actually present or a live leaf carries the gap.
 
 ## Pointers
 
@@ -160,35 +238,37 @@ is which executable and exact arguments Grove launches.
 
 `modular-configuration-k2` owns the design. The review is
 `modular-configuration-k3`, followed by `modular-configuration-k4` for
-implementation planning; any review integration goes before planning.
-The design and ADRs describe the intended modular contract; production code and
-the flat user reference remain at the pre-implementation boundary.
+implementation planning; integration `modular-configuration-k5` repaired that
+review before planning. The design and ADRs describe the intended modular
+contract; at the planning handoff, production code and the flat user reference
+remain at the pre-implementation boundary. Each implementation producer owns
+updating that boundary as its working increment lands.
 
 The user explicitly approved inspection reusing the existing jj trackedness
 check. It edits no configuration or working-tree files and launches no session;
 jj may snapshot metadata. This preserves the same admission decision as launch.
 
-## Design obligations
+## Implementation constraints carried from design
 
-- Choose a clear KDL grammar and parameter/reference namespaces without baking
+- Implement the reviewed KDL grammar and parameter/reference namespaces without baking
   harnesses or the methodology's set of kinds into the binary.
-- Specify which named settings and mappings compose, their override granularity,
-  and the order for nested profiles. Preserve the ability to change a single
+- Preserve the specified named settings, override granularity and order for
+  nested profiles. Preserve the ability to change a single
   value without copying an entire command or mapping.
-- Specify the interaction of profiles with legacy flat entries and direct local
+- Preserve the interaction of profiles with legacy flat entries and direct local
   overrides, including the requirement that a local delta cannot independently
   introduce a session kind absent from personal policy.
 - Distinguish document-wide parse/structural errors from selected-combination
   semantic errors, so partial profiles can be useful building blocks and unused
   experiments do not break working configurations.
-- Define safe parameter expansion, required-parameter errors, source attribution,
-  and a useful inspection surface. Keep inspection and launch on one resolver.
-- Choose how the shipped examples reach the configuration directory without
+- Deliver safe parameter expansion, required-parameter errors, source attribution,
+  and the specified inspection surface. Keep inspection and launch on one resolver.
+- Deliver the shipped examples through the specified safe installer without
   replacing personal files, and keep example contents checked against the reader.
-- Reconcile the current ADR's rejection of profiles and partial commands with
-  the user's explicit decision to support them. The old prohibition is evidence
-  of a trade-off to address, not grounds to refuse this feature.
+- The configuration ADRs now permit profiles and require complete resolved
+  commands. Their original flat-only prohibition is historical evidence of a
+  trade-off, not a current restriction to restore.
 - Preserve the generic runner's independence from Grove-specific paths, kinds,
-  profile-selection policy, and VCS checks where those remain the consumer's
-  responsibilities. Reassess the exact seam during design rather than deciding
-  the implementation here.
+  profile-selection policy and VCS checks. The reviewed Catalog/Templates and
+  SessionConfig boundary assigns those responsibilities; keep its output
+  records coherent with the module contract as implementation lands.

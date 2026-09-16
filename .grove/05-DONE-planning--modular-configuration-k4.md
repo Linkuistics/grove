@@ -72,3 +72,60 @@ current graph and source before implementation):
 Use the approved public configuration and jj/fake-executable launch seams.
 Preserve `.cargo/config.toml`'s meta-grove signal guard and invoke `grove-llm`
 directly for actual Grove verbs. Read `scripts/check.sh` for the required checks.
+
+## Decisions (running log)
+
+- Consume the integrated design, including `missing_target`, Catalog-based
+  conformance, empty-selection loader equivalence, human CLI configuration
+  commands, and actual example delivery. These are implementation obligations,
+  not questions to reopen in planning.
+- Keep the approved complete feature in this grove. The planning skill normally
+  asks for separate groves at working increments; this leaf explicitly requires
+  the resulting tree to retain the complete root contract. An optional topology
+  question was offered; absent steering, preserve that scope and order green
+  working increments within it. Do not strand inspection or personal example
+  delivery in an independently launched workstream.
+- The generic configuration increment needs several sessions. First make the
+  captured Catalog and legacy Templates observable with structured diagnostics
+  and provenance; then deliver reusable base commands; then selected profiles.
+  Each step must work through the public API with a non-Grove consumer and keep
+  the legacy Grove caller green. No parser-only or schema-only leaf is sufficient.
+- Follow with workspace selection and reload, the human inspection command,
+  and safe example installation plus delivery to the requested personal
+  directory. Each source-changing step owns its documentation and source-exact
+  walkthrough updates; there is no later catch-up documentation leaf.
+- This decomposition is load-bearing. Cut a `review-planning` leaf ahead of
+  implementation after the complete tree exists; spend no in-session reviewer.
+
+## Planning evidence
+
+Tier 2 graph verification used project
+`Users-antony-Development-grove.modular-configuration`, generation
+`2026-09-16T11:54:39Z`. Targeted discovery and inbound traces identify the current
+`Templates::load` caller in `SessionConfig::read` and the old conformance entry
+point. Exact snippets confirm the personal/local admission order and the human
+CLI's lease boundary. Coverage reports no recorded gaps and matching metadata
+for those production files. Graph call edges are candidate evidence, not an
+exhaustive caller claim; direct source confirms the two loop load points.
+
+Documentation and scripts are excluded from the index, and glossary metadata
+has changed; read these directly. Walkthrough manifests cover crate manifests
+and production Rust recursively, so new modules also need book coverage. The
+planning tree's acceptance map uses the current spec, not graph completeness.
+
+## Validation
+
+- `bash scripts/check.sh` passed all eight principal checks, including workspace
+  tests and final validation of all six walkthrough books. SHA-256 digests of
+  all 1,784 tracked inputs matched before and after the run. No implementation
+  or example delivery is claimed by this planning session.
+- Grove resolved the planning/review and all six implementation leaves and
+  returned their expected complete brief chains. A focused artifact check
+  verified all 13 stable task/node handles, nonempty goals/completion criteria,
+  handle references and all 17 spec acceptance rows in the ownership map.
+- The final prose edits clarify that the inherited design constraints are now
+  implementation obligations, and record this evidence. The source and test
+  subjects remain at the checked pre-implementation boundary.
+- `modular-configuration-k13` is the next live root entry and reviews this
+  decomposition before any implementation. Retiring this planning leaf leaves
+  live work under the root; no parent node closes in this session.

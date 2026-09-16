@@ -782,7 +782,8 @@ Personal launch policy: explicit [[Session kind]] routes, reusable command
 definitions, [[Command binding]]s, and named [[Configuration profile]]s, with an
 optional [[Configuration delta]]. The modular design is specified in
 [modular configuration](docs/specs/modular-configuration.md); the currently
-implemented flat and parameterized named forms are documented in
+implemented flat and parameterized named forms, with structurally checked
+inactive profiles, are documented in
 [the reference](docs/CONFIGURATION.md).
 The generic runner's **Catalog** is the captured source documents and slot
 vocabulary; **Templates** is an owned resolved command snapshot; its **Inspection** is the

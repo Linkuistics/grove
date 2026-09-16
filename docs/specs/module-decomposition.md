@@ -353,7 +353,8 @@ reference chains, parameter defaults/shared values/route overrides/removals/rese
 non-admitted overlay keys. Both optional selection declarations are captured with
 their origins; the convenience loader ignores them. Grove captures Catalog after
 source admission and refuses either declaration, including an empty list, before
-resolution until its selection policy lands. Profiles, human inspection and Grove
+resolution until its selection policy lands. Inactive profiles are structurally checked without applying their patches; known
+selected profiles still refuse explicitly. Profile composition, human inspection and Grove
 selection policy remain pending; those parts below describe the intended interface
 alongside the unchanged launch surface.
 

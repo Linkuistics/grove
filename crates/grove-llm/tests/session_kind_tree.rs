@@ -54,13 +54,18 @@ fn selection_declarations_refuse_leaf_add_before_mutation() {
     let primary = config_dir.join("config.kdl");
     let local = repository.path().join(".grove.kdl");
     let base = "impl \"runner ${prompt}\"\n";
+    let profiles = "command \"alternate\" \"other-runner ${prompt}\"; profile \"daily\" { bind \"lead\" \"alternate\"; route \"impl\" \"lead\"; };";
     for in_local in [false, true] {
         for declaration in ["select", "select \"daily\""] {
-            fs::write(&primary, base).unwrap();
+            fs::write(&primary, format!("{base}config {{ {profiles} }}\n")).unwrap();
             fs::write(&local, "").unwrap();
             let source = if in_local { &local } else { &primary };
-            let prefix = if in_local { "" } else { base };
-            fs::write(source, format!("{prefix}config {{ {declaration}; }}\n")).unwrap();
+            let document = if in_local {
+                format!("config {{ {declaration}; }}\n")
+            } else {
+                format!("{base}config {{ {profiles} {declaration}; }}\n")
+            };
+            fs::write(source, document).unwrap();
             let output = Command::cargo_bin("grove-llm")
                 .unwrap()
                 .env("HOME", home.path())

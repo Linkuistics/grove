@@ -16,7 +16,7 @@ The running example resolves each key to one whole template. Capture preserves
 both original declarations when an overlay replaces a command, and Templates
 owns its snapshot independently. Changing or removing a file cannot change
 expansion, inspection or diagnostic locations. Inspection explains flat commands and named reference chains. Parameter
-composition and profiles remain pending.
+composition remains pending; inactive profiles pass structural validation.
 
 <a id="one-entry-point"></a>
 ## One validation path
@@ -28,7 +28,7 @@ template-semantic failures. With valid structure, unused flat templates still
 undergo eager checking. Errors are ordered by primary/overlay, byte position
 and key; a bad document never causes fallback to another configuration.
 
-<!-- fragment «templates-load» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="165-281" parent="source-templates" -->
+<!-- fragment «templates-load» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="166-291" parent="source-templates" -->
 <!-- insert «templates-load-three-promises» -->
 <!-- insert «templates-load-primary» -->
 <!-- insert «templates-load-overlay» -->
@@ -38,7 +38,7 @@ and key; a bad document never causes fallback to another configuration.
 The opening fragment states the eager flat validation and fail-closed contract.
 Its output is a Catalog rather than an already merged map.
 
-<!-- fragment «templates-load-three-promises» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="165-174" parent="templates-load" -->
+<!-- fragment «templates-load-three-promises» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="166-175" parent="templates-load" -->
 ````rust
 impl Catalog {
     /// Capture both documents with structural and eager legacy validation.
@@ -56,14 +56,15 @@ impl Catalog {
 The next fragment captures the documents and implements selection accessors and
 the start of resolution. Each accessor returns the captured optional `select`
 declaration from its source. Absence returns `None`; a present empty list retains
-its declaration span. Any nonempty explicit selection names an unknown
-profile and fails. Every selected entry has a diagnostic occurrence with its
+its declaration span. Any nonempty explicit selection fails: unknown names report `unknown_profile`,
+while known names report that composition is not yet supported and relate the
+profile definition span. Every selected entry has a diagnostic occurrence with its
 zero-based selection index; external selections have no invented span. An empty
 selection resolves the captured base declarations.
 The consumer chooses that list. The convenience loader always supplies an empty
 selection, ignoring captured declarations rather than choosing between them.
 
-<!-- fragment «templates-load-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="175-242" parent="templates-load" -->
+<!-- fragment «templates-load-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="176-252" parent="templates-load" -->
 ````rust
         let slots = compile_vocabulary(&vocabulary)?;
 
@@ -120,9 +121,18 @@ selection, ignoring captured declarations rather than choosing between them.
     pub fn resolve(&self, selection: &Selection) -> Result<Templates, ConfigError> {
         if !selection.profiles.is_empty() {
             let diagnostics = selection.profiles.iter().enumerate().map(|(index, profile)| {
-                let mut diagnostic = Diagnostic::new("unknown_profile", format!(
-                    "unknown profile `{profile}` at selection index {index}; base configuration declares no profiles."
-                ), "Resolve with an empty selection; base files declare no profiles.");
+                let definition = self.captured.primary.named.profiles.get(profile);
+                let mut diagnostic = if let Some(definition) = definition {
+                    let mut diagnostic = Diagnostic::new("shape", format!(
+                        "profile composition is not yet supported: `{profile}` at selection index {index}"
+                    ), "Resolve with an empty selection until profile composition is available; inactive profiles may remain in primary policy.");
+                    diagnostic.related.push(definition.clone());
+                    diagnostic
+                } else {
+                    Diagnostic::new("unknown_profile", format!(
+                        "unknown profile `{profile}` at selection index {index}"
+                    ), "Use a declared profile name; resolution currently requires an empty selection until profile composition is available.")
+                };
                 diagnostic.primary.clone_from(&selection.origin);
                 diagnostic.source = selection.origin.as_ref().map(|span| span.source.clone());
                 diagnostic.occurrence_chain.push(Occurrence {
@@ -144,7 +154,7 @@ and binding targets. Primary declarations authorize keys before local replacemen
 a local-only route is retained for an explanatory refusal. The declaration fold
 and reference validation are explained [below](#named-fold).
 
-<!-- fragment «templates-load-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="243-243" parent="templates-load" -->
+<!-- fragment «templates-load-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="253-253" parent="templates-load" -->
 ````rust
         let (templates, overlay_only, inspection) = named::resolve(&self.captured, selection)?;
 ````
@@ -160,7 +170,7 @@ Origins follow primary then overlay source order, while histories retain replace
 targets. Empty documents still appear in `sources`. The returned Templates owns
 that explanation alongside compiled words, without reopening any source path.
 
-<!-- fragment «templates-load-value» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="244-281" parent="templates-load" -->
+<!-- fragment «templates-load-value» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="254-291" parent="templates-load" -->
 ````rust
 
         Ok(Templates {
@@ -237,7 +247,7 @@ needs a `Templates` — they run before one exists — and all five are private:
 `Catalog::load` is their entry point; Catalog resolution then produces
 Templates without invoking them again. The block is read in seven fragments.
 
-<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="464-672" parent="source-templates" -->
+<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="474-682" parent="source-templates" -->
 <!-- insert «compile-vocabulary» -->
 <!-- insert «read-primary» -->
 <!-- insert «read-overlay» -->
@@ -254,7 +264,7 @@ statement anywhere in the crate of why the duplicate is a refusal rather than a
 tolerated redundancy, and the reason is that the failure it would otherwise cause
 is silent and lands on the wrong file.
 
-<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="464-501" parent="reading-and-whole-document-validation" -->
+<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="474-511" parent="reading-and-whole-document-validation" -->
 ````rust
 
 /// Turn the borrowed vocabulary into the owned slot table `Templates` keeps, and
@@ -329,7 +339,7 @@ comment. They are worth reading side by side: the difference between them is the
 whole of what *the overlay is optional* means once a path has been handed in, and
 the source nowhere says so.
 
-<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="502-526" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="512-536" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_primary(path: &Path) -> Result<String, ConfigError> {
@@ -370,7 +380,7 @@ one case named, everything else reported verbatim.
 
 The overlay's reader has no such case.
 
-<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="527-546" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="537-556" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_overlay(path: &Path) -> Result<String, ConfigError> {
@@ -414,7 +424,7 @@ question be answered once, in `load`'s comment, rather than per error kind here.
 depends on and the rules it adds on top of them. It is nineteen lines, and eight
 of them are the message it builds when the parse fails.
 
-<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="547-585" parent="reading-and-whole-document-validation" -->
+<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="557-595" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn parse_and_validate(
@@ -493,7 +503,7 @@ three fragments below are those passes. The first walks flat nodes, recording
 validation and each key’s declaration locations. Wrapper nodes are captured by
 `named::parse`, whose duplicate checks share the flat route namespace.
 
-<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="586-608" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="596-618" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn validate_document(
@@ -533,7 +543,7 @@ were.
 The second pass is the duplicate check, and it is the one finding
 `validate_document` produces on its own rather than collecting from a node.
 
-<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="609-641" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="619-651" parent="reading-and-whole-document-validation" -->
 ````rust
     let mut diagnostics = Vec::new();
     let named = named::parse(path, source, document, role, &mut diagnostics);
@@ -592,7 +602,7 @@ established that the vector is non-empty, the compiler cannot see it, and the
 The third pass drains everything into one result. It is where a document either
 becomes a map of templates or becomes a single refusal.
 
-<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="642-672" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="652-682" parent="reading-and-whole-document-validation" -->
 ````rust
 
     let mut templates = BTreeMap::new();
@@ -658,15 +668,21 @@ line, and the diagnostics all three of this chapter's aggregating passes carry.
 <a id="named-capture"></a>
 ## Named declarations before resolution
 
-The private named module captures command definitions, binding targets, optional route targets and shared/route parameter maps with their original spans. `is_wrapper` distinguishes a child-bearing `config` from a flat key named config. `parse` checks namespaces and document roles without compiling dormant templates. Flat keys enter the route duplicate table before wrapper traversal, so textual order cannot hide a duplicate. Command children declare parameters and optional defaults; their names, shapes and uniqueness are checked even when the command stays dormant. `parse_values` and route parsing share `parse_patches`, which captures assignments and removals in either source and rejects duplicate mentions even when one is an `unset`. Parameter-only routes are structurally valid; personal target authority is checked during resolution. Profile definitions still fail explicitly.
+The private named module captures command definitions, binding targets, optional route targets and shared/route parameter maps with their original spans. `is_wrapper` distinguishes a child-bearing `config` from a flat key named config. `parse` checks namespaces and document roles without compiling dormant templates. Flat keys enter the route duplicate table before wrapper traversal, so textual order cannot hide a duplicate. Command children declare parameters and optional defaults; their names, shapes and uniqueness are checked even when the command stays dormant. `parse_values` and route parsing share `parse_patches`, which captures assignments and removals in either source and rejects duplicate mentions even when one is an `unset`. Parameter-only routes are structurally valid; personal target authority is checked during resolution. Profile definitions are primary-only. `ParseSource` groups the source path, captured text and document role for
+`parse_scope`, which shares patch validation while
+using a fresh duplicate namespace for each profile. It restricts profile children
+to include lists and patches; nested definitions and selection declarations fail.
+The captured KDL retains each complete profile, and the declaration map retains
+its span. Empty selection never folds these patches, so inactive references and
+include cycles cannot change the base command or authorize a local-only key.
 
-`parse_selection` captures one optional list per source without resolving its
-names. It preserves repeats and an empty list, rejects properties, types and
+`parse_selection` validates both the source selection and a profile include
+list without resolving names. Each scope has its own list slot. It preserves repeats and an empty list, rejects properties, types and
 children, and reports duplicate declarations against both source spans. This
 lets a consumer inspect the declaration before deciding policy; Grove uses that
 boundary to refuse declarations until its selection policy is implemented.
 
-<!-- fragment «named-capture» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1-404" parent="source-named" -->
+<!-- fragment «named-capture» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1-505" parent="source-named" -->
 ````rust
 //! Named base commands: capture structure first, then resolve effective targets.
 use super::{
@@ -680,6 +696,7 @@ use crate::ParameterView;
 #[derive(Default)]
 pub(super) struct Declarations {
     pub(super) selection: Option<Selection>,
+    pub(super) profiles: BTreeMap<String, SourceSpan>,
     commands: BTreeMap<String, Command>,
     bindings: BTreeMap<String, Target>,
     routes: BTreeMap<String, RoutePatch>,
@@ -781,113 +798,213 @@ pub(super) fn parse(
         let Some(children) = node.children() else {
             continue;
         };
-        for child in children.nodes() {
-            let loc = location(source, child);
-            let kind = child.name().value();
-            if kind == "select" {
-                parse_selection(
-                    path,
-                    source,
-                    child,
-                    role,
-                    &mut result.selection,
-                    diagnostics,
-                );
-                continue;
-            }
-            if kind == "values" {
-                parse_values(path, source, child, role, &mut result.values, diagnostics);
-                continue;
-            }
-            if !matches!(kind, "command" | "bind" | "route") {
-                diagnostics.push(at_node(loc, format!("unsupported config node `{kind}`; profile definitions are not yet supported")));
-                continue;
-            }
-            let values: Option<Vec<_>> = child
-                .entries()
-                .iter()
-                .map(|entry| entry.value().as_string())
-                .collect();
-            let Some(values) = values.filter(|v| v.len() == 2 || (kind == "route" && v.len() == 1))
-            else {
-                diagnostics.push(at_node(
-                    loc,
-                    format!("`{kind}` requires two string arguments (route permits just its key)"),
-                ));
-                continue;
-            };
-            if !plain(child) || (kind == "bind" && child.children().is_some()) {
-                diagnostics.push(at_node(loc, format!("`{kind}` does not accept properties or types; commands accept declarations and routes accept parameter patches")));
-                continue;
-            }
-            let name = values[0];
-            if (kind == "route" && name.is_empty())
-                || (kind != "route" && !valid_name(name))
-                || (kind != "command" && values.get(1).is_some_and(|name| !valid_name(name)))
-            {
-                diagnostics.push(at_node(loc, format!("invalid `{kind}` name; use lowercase letters, digits and single interior dashes; route keys must be nonempty")));
-                continue;
-            }
-            if kind == "command" && role == DocumentRole::Overlay {
-                diagnostics.push(at_node(
-                    loc,
-                    "command definitions belong in primary configuration, not an overlay".into(),
-                ));
-                continue;
-            }
-            let target = Target {
-                value: values.get(1).unwrap_or(&name).to_string(),
-                span: SourceSpan {
-                    source: role.source(path),
-                    start: loc.start,
-                    end: loc.end,
-                },
-            };
-            if kind == "command" {
-                let parameters = parse_parameters(path, source, child, role, diagnostics);
-                if let Some(previous) = result.commands.insert(
-                    name.into(),
-                    Command {
-                        template: target,
-                        parameters,
-                    },
-                ) {
-                    let mut earlier = source_location(source, previous.template.span.start);
-                    earlier.end = previous.template.span.end;
-                    duplicate(name, earlier, loc, diagnostics);
-                }
-                continue;
-            }
-            let table = match kind {
-                "bind" => &mut result.bindings,
-                _ => {
-                    if let Some(previous) = routes.insert(name.into(), loc) {
-                        duplicate(name, previous, loc, diagnostics);
-                    }
-                    result.routes.insert(
-                        name.into(),
-                        RoutePatch {
-                            declaration: target,
-                            binding: values.get(1).map(|name| (*name).to_owned()),
-                            parameters: parse_patches(path, source, child, role, diagnostics),
-                        },
-                    );
-                    continue;
-                }
-            };
-            if let Some(previous) = table.insert(name.into(), target) {
-                let mut earlier = source_location(source, previous.span.start);
-                earlier.end = previous.span.end;
-                duplicate(name, earlier, loc, diagnostics);
-            }
-        }
+        parse_scope(
+            ParseSource {
+                path,
+                text: source,
+                role,
+            },
+            children,
+            false,
+            &mut result,
+            &mut routes,
+            diagnostics,
+        );
     }
     for diagnostic in &mut diagnostics[first_diagnostic..] {
         if diagnostic.category == "shape" {
-            diagnostic.remedy = "Use command declarations, bind/route targets, values blocks and at most one select list inside config; select takes only valid profile-name strings. Keep definitions in primary policy; omit profile definitions.";
+            diagnostic.remedy = "Use command declarations, bind/route targets, values blocks and at most one select list inside config; select takes only valid profile-name strings. Profiles belong in primary policy and accept include lists and values/bind/route patches.";
         }
     }
     result
+}
+
+struct ParseSource<'a> {
+    path: &'a Path,
+    text: &'a str,
+    role: DocumentRole,
+}
+
+// Profiles share patch validation with the base, but never its duplicate namespace.
+fn parse_scope(
+    source: ParseSource<'_>,
+    children: &KdlDocument,
+    profile_scope: bool,
+    result: &mut Declarations,
+    routes: &mut BTreeMap<String, SourceLocation>,
+    diagnostics: &mut Vec<ValidationDiagnostic>,
+) {
+    let ParseSource {
+        path,
+        text: source,
+        role,
+    } = source;
+    for child in children.nodes() {
+        let loc = location(source, child);
+        let kind = child.name().value();
+        if profile_scope && !matches!(kind, "include" | "values" | "bind" | "route") {
+            diagnostics.push(at_node(
+                loc,
+                format!("unsupported profile node `{kind}`; use include, values, bind or route"),
+            ));
+            continue;
+        }
+        if kind == "profile" {
+            parse_profile(path, source, child, role, &mut result.profiles, diagnostics);
+            continue;
+        }
+        if kind == "select" || kind == "include" && profile_scope {
+            parse_selection(
+                path,
+                source,
+                child,
+                role,
+                &mut result.selection,
+                diagnostics,
+            );
+            continue;
+        }
+        if kind == "values" {
+            parse_values(path, source, child, role, &mut result.values, diagnostics);
+            continue;
+        }
+        if !matches!(kind, "command" | "bind" | "route") {
+            diagnostics.push(at_node(loc, format!("unsupported config node `{kind}`")));
+            continue;
+        }
+        let values: Option<Vec<_>> = child
+            .entries()
+            .iter()
+            .map(|entry| entry.value().as_string())
+            .collect();
+        let Some(values) = values.filter(|v| v.len() == 2 || (kind == "route" && v.len() == 1))
+        else {
+            diagnostics.push(at_node(
+                loc,
+                format!("`{kind}` requires two string arguments (route permits just its key)"),
+            ));
+            continue;
+        };
+        if !plain(child) || (kind == "bind" && child.children().is_some()) {
+            diagnostics.push(at_node(loc, format!("`{kind}` does not accept properties or types; commands accept declarations and routes accept parameter patches")));
+            continue;
+        }
+        let name = values[0];
+        if (kind == "route" && name.is_empty())
+            || (kind != "route" && !valid_name(name))
+            || (kind != "command" && values.get(1).is_some_and(|name| !valid_name(name)))
+        {
+            diagnostics.push(at_node(loc, format!("invalid `{kind}` name; use lowercase letters, digits and single interior dashes; route keys must be nonempty")));
+            continue;
+        }
+        if kind == "command" && role == DocumentRole::Overlay {
+            diagnostics.push(at_node(
+                loc,
+                "command definitions belong in primary configuration, not an overlay".into(),
+            ));
+            continue;
+        }
+        let target = Target {
+            value: values.get(1).unwrap_or(&name).to_string(),
+            span: SourceSpan {
+                source: role.source(path),
+                start: loc.start,
+                end: loc.end,
+            },
+        };
+        if kind == "command" {
+            let parameters = parse_parameters(path, source, child, role, diagnostics);
+            if let Some(previous) = result.commands.insert(
+                name.into(),
+                Command {
+                    template: target,
+                    parameters,
+                },
+            ) {
+                let mut earlier = source_location(source, previous.template.span.start);
+                earlier.end = previous.template.span.end;
+                duplicate(name, earlier, loc, diagnostics);
+            }
+            continue;
+        }
+        let table = match kind {
+            "bind" => &mut result.bindings,
+            _ => {
+                if let Some(previous) = routes.insert(name.into(), loc) {
+                    duplicate(name, previous, loc, diagnostics);
+                }
+                result.routes.insert(
+                    name.into(),
+                    RoutePatch {
+                        declaration: target,
+                        binding: values.get(1).map(|name| (*name).to_owned()),
+                        parameters: parse_patches(path, source, child, role, diagnostics),
+                    },
+                );
+                continue;
+            }
+        };
+        if let Some(previous) = table.insert(name.into(), target) {
+            let mut earlier = source_location(source, previous.span.start);
+            earlier.end = previous.span.end;
+            duplicate(name, earlier, loc, diagnostics);
+        }
+    }
+}
+
+fn parse_profile(
+    path: &Path,
+    source: &str,
+    node: &KdlNode,
+    role: DocumentRole,
+    profiles: &mut BTreeMap<String, SourceSpan>,
+    diagnostics: &mut Vec<ValidationDiagnostic>,
+) {
+    let loc = location(source, node);
+    let name = node
+        .entries()
+        .first()
+        .and_then(|entry| entry.value().as_string());
+    let Some(name) = name.filter(|name| valid_name(name)) else {
+        diagnostics.push(at_node(
+            loc,
+            "profile requires a valid profile-name string and a child block".into(),
+        ));
+        return;
+    };
+    if role == DocumentRole::Overlay
+        || !plain(node)
+        || node.entries().len() != 1
+        || node.children().is_none()
+    {
+        diagnostics.push(at_node(loc, "profile requires one name and a child block in primary policy, without properties or types".into()));
+        return;
+    }
+    let span = SourceSpan {
+        source: role.source(path),
+        start: loc.start,
+        end: loc.end,
+    };
+    if let Some(previous) = profiles.insert(name.into(), span) {
+        let mut earlier = source_location(source, previous.start);
+        earlier.end = previous.end;
+        duplicate(name, earlier, loc, diagnostics);
+    }
+    if let Some(children) = node.children() {
+        // Validate without folding; the captured KDL retains the complete profile.
+        parse_scope(
+            ParseSource {
+                path,
+                text: source,
+                role,
+            },
+            children,
+            true,
+            &mut Declarations::default(),
+            &mut BTreeMap::new(),
+            diagnostics,
+        );
+    }
 }
 
 fn parse_selection(
@@ -907,7 +1024,7 @@ fn parse_selection(
     let Some(names) = names.filter(|names| {
         plain(node) && node.children().is_none() && names.iter().all(|name| valid_name(name))
     }) else {
-        diagnostics.push(at_node(loc, "select requires zero or more valid profile-name strings, without properties, types or children".into()));
+        diagnostics.push(at_node(loc, format!("{} requires zero or more valid profile-name strings, without properties, types or children", node.name().value())));
         return;
     };
     if let Some(previous) = selection
@@ -916,7 +1033,7 @@ fn parse_selection(
     {
         let mut earlier = source_location(source, previous.start);
         earlier.end = previous.end;
-        duplicate("select", earlier, loc, diagnostics);
+        duplicate(node.name().value(), earlier, loc, diagnostics);
         return;
     }
     *selection = Some(Selection {
@@ -1080,7 +1197,7 @@ fn duplicate(
 
 `problem` attaches a target’s source and byte range to a semantic diagnostic. Reference resolution adds the affected names. This gives a failed binding a useful file location even though it was resolved after capture, and no file needs to be reopened.
 
-<!-- fragment «named-diagnostics» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="405-420" parent="source-named" -->
+<!-- fragment «named-diagnostics» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="506-521" parent="source-named" -->
 ````rust
 fn problem(category: &str, target: &Target, message: String) -> Diagnostic {
     let mut diagnostic = Diagnostic::new(
@@ -1106,7 +1223,7 @@ fn problem(category: &str, target: &Target, message: String) -> Diagnostic {
 
 `resolve` collects primary targets and shared values before applying the overlay. Its admitted-key set is filled only by primary explicit targets, independently of later target or value changes. Both flat and named routes enter the same map. Shared values fold per command and parameter: assignment replaces the value, while `unset` removes it from the effective map. Neither operation changes a declaration default. A personal parameter-only route produces `missing_target` before the overlay can supply authority. Route maps fold separately from shared maps, preserving exceptions across binding changes. Literal replacement clears a map and records a reset for each historical route parameter; switching a literal to a binding starts fresh. A parameter-only patch on a final literal is refused. Every captured declaration receives one origin in source order; several resets can share that origin while retaining distinct assignment orders. Target and value operations append to histories rather than erasing predecessors. Definition origins have no target history, because definitions cannot be overridden. This is where a local binding change redirects several routes, or a local value changes their arguments, without granting a new key.
 
-<!-- fragment «named-fold» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="559-799" parent="source-named" -->
+<!-- fragment «named-fold» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="660-900" parent="source-named" -->
 ````rust
 #[derive(Clone)]
 enum Route {
@@ -1361,7 +1478,7 @@ Every admitted route must have values for all declared parameters, including unu
 
 Each successful command exposes its route, binding and template origins, target and parameter histories, resolved parameters, and the very words expansion uses. A parameter keeps its declaration origin plus the winning shared assignment, if present, and both default and shared histories where they exist. A word adds the template origin and deduplicates contributors when a parameter repeats. A flat replacement instead has only its literal target origin and no parameter map. Independent failures aggregate in source-role and byte order; any failure prevents a Templates snapshot.
 
-<!-- fragment «named-resolve» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="800-1123" parent="source-named" -->
+<!-- fragment «named-resolve» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="901-1224" parent="source-named" -->
 ````rust
     let definitions = &captured.primary.named.commands;
     let mut compiled = BTreeMap::new();
@@ -1695,7 +1812,7 @@ Each successful command exposes its route, binding and template origins, target 
 
 The final helpers order route histories before binding histories and locate captured origins and histories by identity. These lookups operate only on declarations already recorded by the fold; their expectations express that internal invariant. The response keeps native source paths and captured byte offsets, so deleting either input file cannot invalidate an origin or change a compiled word.
 
-<!-- fragment «named-lookups» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1124-1158" parent="source-named" -->
+<!-- fragment «named-lookups» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1225-1259" parent="source-named" -->
 ````rust
 fn setting_key(setting: &Setting) -> (u8, &str, &str) {
     match setting {

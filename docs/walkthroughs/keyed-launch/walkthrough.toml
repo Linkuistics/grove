@@ -121,7 +121,7 @@ lines = 47
 [[root]]
 id    = "source-library-root"
 path  = "crates/keyed-launch/src/lib.rs"
-lines = 98
+lines = 99
 
 [[root]]
 id    = "source-error-types"
@@ -136,7 +136,7 @@ lines = 46
 [[root]]
 id    = "source-templates"
 path  = "crates/keyed-launch/src/templates.rs"
-lines = 985
+lines = 995
 
 [[root]]
 id = "source-inspection"
@@ -173,7 +173,7 @@ lines = "1-47"
 id    = "library-root"
 root  = "source-library-root"
 owner = "understands-neither"
-lines = "1-98"
+lines = "1-99"
 
 [[block]]
 id    = "two-opaque-errors"
@@ -191,49 +191,49 @@ lines = "1-46"
 id    = "template-shapes"
 root  = "source-templates"
 owner = "rules-about-names"
-lines = "1-164"
+lines = "1-165"
 
 [[block]]
 id    = "templates-load"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "165-281"
+lines = "166-291"
 
 [[block]]
 id    = "resolution-and-expansion"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "282-463"
+lines = "292-473"
 
 [[block]]
 id    = "reading-and-whole-document-validation"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "464-672"
+lines = "474-682"
 
 [[block]]
 id    = "node-and-template-rules"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "673-812"
+lines = "683-822"
 
 [[block]]
 id    = "word-scanning"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "813-895"
+lines = "823-905"
 
 [[block]]
 id    = "diagnostics"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "896-975"
+lines = "906-985"
 
 [[block]]
 id    = "templates-keys"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "976-985"
+lines = "986-995"
 
 [[block]]
 id = "inspection-records"
@@ -368,40 +368,40 @@ statement = "Inspection explains captured commands and replaced assignments thro
 [[root]]
 id = "source-named"
 path = "crates/keyed-launch/src/templates/named.rs"
-lines = 1158
+lines = 1259
 
 [[block]]
 id = "named-capture"
 root = "source-named"
 owner = "never-assembled"
-lines = "1-404"
+lines = "1-505"
 
 [[block]]
 id = "named-diagnostics"
 root = "source-named"
 owner = "never-assembled"
-lines = "405-420"
+lines = "506-521"
 
 [[block]]
 id = "named-compile"
 root = "source-named"
 owner = "words-not-shell"
-lines = "421-558"
+lines = "522-659"
 
 [[block]]
 id = "named-fold"
 root = "source-named"
 owner = "never-assembled"
-lines = "559-799"
+lines = "660-900"
 
 [[block]]
 id = "named-resolve"
 root = "source-named"
 owner = "never-assembled"
-lines = "800-1123"
+lines = "901-1224"
 
 [[block]]
 id = "named-lookups"
 root = "source-named"
 owner = "never-assembled"
-lines = "1124-1158"
+lines = "1225-1259"

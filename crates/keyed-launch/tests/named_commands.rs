@@ -141,7 +141,7 @@ fn active_bindings_validate_even_without_routes_but_unused_definitions_do_not() 
 }
 
 #[test]
-fn structural_errors_and_pending_syntax_are_explicit() {
+fn structural_and_active_reference_errors_are_explicit() {
     for text in [
         "config { command \"bad--name\" \"runner ${payload}\"; }",
         "config { command \"a\" \"runner ${payload}\"; command \"a\" \"other ${payload}\"; }",
@@ -151,7 +151,7 @@ fn structural_errors_and_pending_syntax_are_explicit() {
         "config { route \"alpha\" \"a\"; route \"alpha\" \"b\"; }",
         "config { values \"a\" { param \"x\" \"y\"; }; }",
         "config { route \"alpha\" { unset \"x\"; }; }",
-        "config { profile \"a\" {}; }",
+        "config { profile \"a\"; }",
         "config { bind \"lead\" \"a\" extra=\"bad\"; }",
         "config { (typed)route \"alpha\" \"lead\"; }",
     ] {

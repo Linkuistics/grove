@@ -1238,7 +1238,10 @@ fn selection_declarations_refuse_before_launch_or_root_creation() {
     let fake = fixture.path().join("fake");
     write_executable(&fake, "#!/bin/sh\nprintf launched > \"$1\"\n");
     let command = format!("{} {} ${{prompt}}", shell_quote(&fake), shell_quote(&log));
-    let base = format!("impl {command:?}\nrequirements {command:?}\n");
+    let flat = format!("impl {command:?}\nrequirements {command:?}\n");
+    let alternative = format!("{command} alternate");
+    let profiles = format!("command \"alternate\" {alternative:?}; profile \"daily\" {{ bind \"lead\" \"alternate\"; route \"impl\" \"lead\"; }}; profile \"unfinished\" {{ include \"missing\"; }};");
+    let base = format!("{flat}config {{ {profiles} }}\n");
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
     let primary = config_dir.join("config.kdl");
@@ -1256,8 +1259,12 @@ fn selection_declarations_refuse_before_launch_or_root_creation() {
                 fs::write(&primary, &base).unwrap();
                 fs::write(&local, "").unwrap();
                 let source = if in_local { &local } else { &primary };
-                let prefix = if in_local { "" } else { &base };
-                fs::write(source, format!("{prefix}config {{ {declaration}; }}\n")).unwrap();
+                let document = if in_local {
+                    format!("config {{ {declaration}; }}\n")
+                } else {
+                    format!("{flat}config {{ {profiles} {declaration}; }}\n")
+                };
+                fs::write(source, document).unwrap();
                 let before = existing_tree.then(|| tree_snapshot(&grove));
                 let output = run_grove(&home, &worktree);
                 let error = String::from_utf8_lossy(&output.stderr);

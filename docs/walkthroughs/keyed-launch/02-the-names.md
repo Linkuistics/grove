@@ -485,7 +485,7 @@ Catalog captures the documents and vocabulary; Templates retains that capture
 and its winning commands. The validation helper types remain private. Chapters
 3 and 5 construct and consume these shapes respectively.
 
-<!-- fragment «template-shapes» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-164" parent="source-templates" -->
+<!-- fragment «template-shapes» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-165" parent="source-templates" -->
 <!-- insert «template-shapes-imports» -->
 <!-- insert «template-shapes-templates» -->
 <!-- insert «template-shapes-slot-spec» -->
@@ -535,7 +535,8 @@ error records and vocabulary to the validator; no launch operation is imported.
 `SourceRole`, `Source` and `SourceSpan` identify an input and a byte range;
 Selection carries a profile list and an optional declaration origin. A caller's
 list normally has no origin. Flat Catalog loading returns no declarations, and
-resolution rejects a nonempty profile list while profile syntax is pending.
+resolution rejects a nonempty profile list while composition is pending. Known
+profiles have a definition span in the refusal; unknown names remain distinct.
 
 `Catalog` owns an `Arc<Captured>`. Each CapturedDocument keeps its original text,
 parsed KDL and compiled declarations, so overwritten and overlay-only commands
@@ -543,7 +544,7 @@ are not erased by resolution. Templates owns the merged map and shares this
 capture. Its underscore-prefixed retained fields are intentionally unread by the
 base resolver; inspection uses their captured declarations without loading files again.
 
-<!-- fragment «template-shapes-templates» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="20-86" parent="template-shapes" -->
+<!-- fragment «template-shapes-templates» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="20-87" parent="template-shapes" -->
 ````rust
 /// Which explicit input supplied a declaration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -567,7 +568,7 @@ pub struct SourceSpan {
     pub end: usize,
 }
 
-/// Explicit profile selection. Base-only catalogs accept only an empty list.
+/// Explicit profile selection. Resolution currently accepts only an empty list.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Selection {
     pub profiles: Vec<String>,
@@ -575,7 +576,8 @@ pub struct Selection {
 }
 
 /// Validated input documents and vocabulary, captured once at load.
-/// Resolution never opens their paths again. Profile syntax is not yet supported.
+/// Resolution never opens their paths again. Inactive profiles are structurally
+/// validated; selected profile composition is not yet supported.
 pub struct Catalog {
     captured: Arc<Captured>,
 }
@@ -634,7 +636,7 @@ file disappears and distinguishes a typo from a declaration in the wrong file.
 `SlotSpec` is the owned form of a `SlotRule`, and it carries no comment because
 it needs none once its counterpart has one.
 
-<!-- fragment «template-shapes-slot-spec» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="87-92" parent="template-shapes" -->
+<!-- fragment «template-shapes-slot-spec» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="88-93" parent="template-shapes" -->
 ````rust
 #[derive(Clone)]
 struct SlotSpec {
@@ -660,7 +662,7 @@ These belong to each key because an overlay can replace one command while its
 neighbour still comes from the primary. The path serves `source()` and runtime
 errors; the span also survives when the declaration remains non-admitted.
 
-<!-- fragment «template-shapes-per-key-source» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="93-107" parent="template-shapes" -->
+<!-- fragment «template-shapes-per-key-source» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="94-108" parent="template-shapes" -->
 ````rust
 /// One key's compiled template together with **the file it was read from**.
 ///
@@ -712,7 +714,7 @@ duplication rather than the ambiguity.
 one representation. The alias keeps the validator concise without introducing
 a second word format.
 
-<!-- fragment «template-shapes-word» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="108-110" parent="template-shapes" -->
+<!-- fragment «template-shapes-word» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="109-111" parent="template-shapes" -->
 ````rust
 /// Validation and expansion use the same literal/slot representation as inspection.
 type Word = CompiledWord;
@@ -736,7 +738,7 @@ is the compiled restatement of the whole-word rule chapter 4 enforces and chapte
 `DocumentRole` is the last of the validation shapes to carry an argument, and the
 argument is about what it does *not* change.
 
-<!-- fragment «template-shapes-document-role» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="111-139" parent="template-shapes" -->
+<!-- fragment «template-shapes-document-role» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="112-140" parent="template-shapes" -->
 ````rust
 /// Which document is being validated, and so which file a diagnostic names.
 ///
@@ -788,7 +790,7 @@ the entire purpose of carrying the role that far.
 The last three types are the shape of a validation report. There is no comment
 on any of them, and what they are for is legible only from their fields.
 
-<!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="140-164" parent="template-shapes" -->
+<!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="141-165" parent="template-shapes" -->
 ````rust
 #[derive(Clone, Copy)]
 struct SourceLocation {

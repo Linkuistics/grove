@@ -124,7 +124,7 @@ enforces. A configuration declaring fewer is valid; you find out about a kind yo
 have not configured at the moment you use it.
 
 There are no implicit defaults or kind families. Named reuse is explicit;
-profiles are not yet accepted. Grove refuses selection declarations as described
+inactive personal profiles are accepted and structurally validated. Grove refuses selection declarations as described
 below, including an empty declaration.
 The disciplines behind these names are in
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
@@ -243,7 +243,25 @@ Inspection retains overwritten assignments, removals and resets, including names
 absent from the final schema. Flat entries and wrapper routes share the same
 per-document key namespace, including parameter-only patches.
 
-Profile definitions remain explicit errors. Local deltas cannot redeclare
+Personal profiles may coexist with base commands while remaining inactive:
+
+```kdl
+config {
+    profile "experiment" {
+        include "unfinished-base"
+        bind "lead" "unfinished-command"
+        route "impl" "lead"
+    }
+}
+```
+
+Each profile requires one valid name and a child block containing only
+`values`, `bind`, `route`, and at most one `include` list. Includes take zero or
+more valid profile names; repeated names are allowed. Patch shapes and duplicate
+settings are checked even in inactive profiles, with a separate namespace for
+each profile. Unknown include/reference names, cycles and incomplete parameters
+in inactive profiles do not affect base resolution. Such profiles do not
+admit keys for local overrides. Local deltas cannot define profiles or redeclare
 command schemas. Grove refuses a wrapper `select` declaration in either source,
 including `select` with no arguments, before tree mutation or launch. Remove the
 declaration and use base commands until Grove selection policy is available.
@@ -254,7 +272,9 @@ or more valid profile-name strings; properties, types and child blocks are
 invalid. Absence differs from a present empty list. Catalog never chooses policy:
 `resolve` uses only its explicit `Selection`, and `Templates::load` ignores both
 declarations and resolves an empty selection. Nonempty explicit selections still
-fail with `unknown_profile` while profile definitions remain unsupported.
+refuse: unknown names report `unknown_profile`; known names report `shape` with
+a composition-not-yet-supported remedy and the profile definition span. No
+profile patch is silently applied or ignored in an explicit selection.
 
 ## The configuration delta
 

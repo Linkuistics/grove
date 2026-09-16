@@ -199,7 +199,7 @@ order is that account's order. The book reads it whole here, in seven fragments:
 six that follow the doc comment's own paragraph breaks, and one for the module
 declarations and exports, which this chapter reads after the worked example.
 
-<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-98" parent="source-library-root" -->
+<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-99" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-two-documents» -->
 <!-- insert «library-root-vocabulary» -->
@@ -266,7 +266,7 @@ expansion can check none of them. Chapter 2 owns that argument and takes the
 position the crate takes on it; chapter 3 then reads a `load` that has the names
 in hand.
 
-<!-- fragment «library-root-vocabulary» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="22-42" parent="library-root" -->
+<!-- fragment «library-root-vocabulary» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="22-43" parent="library-root" -->
 ````rust
 //! Catalog retains both original documents and their declarations. Resolving an
 //! explicit [`Selection`] returns an owned [`Templates`] snapshot without source
@@ -277,7 +277,8 @@ in hand.
 //! targets and shared/route parameter patches in either source. Route overrides beat
 //! shared values and defaults; unset restores inheritance, literal replacement resets.
 //! Catalog captures optional select declarations; the convenience loader ignores
-//! them. Profile definitions remain errors. Effective bindings activate named
+//! them. Inactive primary profiles are structurally checked; selecting a known
+//! profile explicitly refuses until composition is available. Effective bindings activate named
 //! templates; dormant definitions are not compiled. Flat templates validate eagerly.
 //! [`Templates::inspect`] explains reference chains, command words, captured origins,
 //! parameter defaults/assignments/removals, multi-origin words and non-admitted overlay
@@ -305,7 +306,7 @@ dependency — nothing in `run` compiles against `templates`, and nothing in
 shows the two lines that make it true, and this chapter's last section reads the
 error module that the claim is also visible in.
 
-<!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="43-52" parent="library-root" -->
+<!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="44-53" parent="library-root" -->
 ````rust
 //!
 //! # From a template to a running child
@@ -329,7 +330,7 @@ finishes rather than exiting, so its own exit is not the event anyone is waiting
 for, and the channel's *appearance* is. Those two sentences are the reason the
 crate has a `Channel` at all, and chapter 6 is where the appearance rule is built.
 
-<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="53-65" parent="library-root" -->
+<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="54-66" parent="library-root" -->
 ````rust
 //!
 //! **The child is a job.** It is spawned into a process group of its own and
@@ -353,7 +354,7 @@ holds a consumer's configuration to this crate's contract **from outside the
 consumer's own suite**. The distinction it draws in that clause is the whole of
 why the kit exists, and chapter 9 argues it.
 
-<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="66-75" parent="library-root" -->
+<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="67-76" parent="library-root" -->
 ````rust
 //!
 //! [`run_observed`] adds synchronous parent-side [`LaunchEvent`] notifications
@@ -487,7 +488,7 @@ The final module declarations and exports put the public surface in one place.
 This book reads them here rather than deferring each name to its own chapter, because the
 list is short and the map above has already said which chapter owns what.
 
-<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="76-98" parent="library-root" -->
+<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="77-99" parent="library-root" -->
 ````rust
 
 pub mod conformance;

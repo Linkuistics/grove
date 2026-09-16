@@ -39,7 +39,7 @@ pub struct SourceSpan {
     pub end: usize,
 }
 
-/// Explicit profile selection. Base-only catalogs accept only an empty list.
+/// Explicit profile selection. Resolution currently accepts only an empty list.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Selection {
     pub profiles: Vec<String>,
@@ -47,7 +47,8 @@ pub struct Selection {
 }
 
 /// Validated input documents and vocabulary, captured once at load.
-/// Resolution never opens their paths again. Profile syntax is not yet supported.
+/// Resolution never opens their paths again. Inactive profiles are structurally
+/// validated; selected profile composition is not yet supported.
 pub struct Catalog {
     captured: Arc<Captured>,
 }
@@ -227,9 +228,18 @@ impl Catalog {
     pub fn resolve(&self, selection: &Selection) -> Result<Templates, ConfigError> {
         if !selection.profiles.is_empty() {
             let diagnostics = selection.profiles.iter().enumerate().map(|(index, profile)| {
-                let mut diagnostic = Diagnostic::new("unknown_profile", format!(
-                    "unknown profile `{profile}` at selection index {index}; base configuration declares no profiles."
-                ), "Resolve with an empty selection; base files declare no profiles.");
+                let definition = self.captured.primary.named.profiles.get(profile);
+                let mut diagnostic = if let Some(definition) = definition {
+                    let mut diagnostic = Diagnostic::new("shape", format!(
+                        "profile composition is not yet supported: `{profile}` at selection index {index}"
+                    ), "Resolve with an empty selection until profile composition is available; inactive profiles may remain in primary policy.");
+                    diagnostic.related.push(definition.clone());
+                    diagnostic
+                } else {
+                    Diagnostic::new("unknown_profile", format!(
+                        "unknown profile `{profile}` at selection index {index}"
+                    ), "Use a declared profile name; resolution currently requires an empty selection until profile composition is available.")
+                };
                 diagnostic.primary.clone_from(&selection.origin);
                 diagnostic.source = selection.origin.as_ref().map(|span| span.source.clone());
                 diagnostic.occurrence_chain.push(Occurrence {

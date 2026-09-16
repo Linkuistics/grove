@@ -10,6 +10,7 @@ use crate::ParameterView;
 #[derive(Default)]
 pub(super) struct Declarations {
     pub(super) selection: Option<Selection>,
+    pub(super) profiles: BTreeMap<String, SourceSpan>,
     commands: BTreeMap<String, Command>,
     bindings: BTreeMap<String, Target>,
     routes: BTreeMap<String, RoutePatch>,
@@ -111,113 +112,213 @@ pub(super) fn parse(
         let Some(children) = node.children() else {
             continue;
         };
-        for child in children.nodes() {
-            let loc = location(source, child);
-            let kind = child.name().value();
-            if kind == "select" {
-                parse_selection(
-                    path,
-                    source,
-                    child,
-                    role,
-                    &mut result.selection,
-                    diagnostics,
-                );
-                continue;
-            }
-            if kind == "values" {
-                parse_values(path, source, child, role, &mut result.values, diagnostics);
-                continue;
-            }
-            if !matches!(kind, "command" | "bind" | "route") {
-                diagnostics.push(at_node(loc, format!("unsupported config node `{kind}`; profile definitions are not yet supported")));
-                continue;
-            }
-            let values: Option<Vec<_>> = child
-                .entries()
-                .iter()
-                .map(|entry| entry.value().as_string())
-                .collect();
-            let Some(values) = values.filter(|v| v.len() == 2 || (kind == "route" && v.len() == 1))
-            else {
-                diagnostics.push(at_node(
-                    loc,
-                    format!("`{kind}` requires two string arguments (route permits just its key)"),
-                ));
-                continue;
-            };
-            if !plain(child) || (kind == "bind" && child.children().is_some()) {
-                diagnostics.push(at_node(loc, format!("`{kind}` does not accept properties or types; commands accept declarations and routes accept parameter patches")));
-                continue;
-            }
-            let name = values[0];
-            if (kind == "route" && name.is_empty())
-                || (kind != "route" && !valid_name(name))
-                || (kind != "command" && values.get(1).is_some_and(|name| !valid_name(name)))
-            {
-                diagnostics.push(at_node(loc, format!("invalid `{kind}` name; use lowercase letters, digits and single interior dashes; route keys must be nonempty")));
-                continue;
-            }
-            if kind == "command" && role == DocumentRole::Overlay {
-                diagnostics.push(at_node(
-                    loc,
-                    "command definitions belong in primary configuration, not an overlay".into(),
-                ));
-                continue;
-            }
-            let target = Target {
-                value: values.get(1).unwrap_or(&name).to_string(),
-                span: SourceSpan {
-                    source: role.source(path),
-                    start: loc.start,
-                    end: loc.end,
-                },
-            };
-            if kind == "command" {
-                let parameters = parse_parameters(path, source, child, role, diagnostics);
-                if let Some(previous) = result.commands.insert(
-                    name.into(),
-                    Command {
-                        template: target,
-                        parameters,
-                    },
-                ) {
-                    let mut earlier = source_location(source, previous.template.span.start);
-                    earlier.end = previous.template.span.end;
-                    duplicate(name, earlier, loc, diagnostics);
-                }
-                continue;
-            }
-            let table = match kind {
-                "bind" => &mut result.bindings,
-                _ => {
-                    if let Some(previous) = routes.insert(name.into(), loc) {
-                        duplicate(name, previous, loc, diagnostics);
-                    }
-                    result.routes.insert(
-                        name.into(),
-                        RoutePatch {
-                            declaration: target,
-                            binding: values.get(1).map(|name| (*name).to_owned()),
-                            parameters: parse_patches(path, source, child, role, diagnostics),
-                        },
-                    );
-                    continue;
-                }
-            };
-            if let Some(previous) = table.insert(name.into(), target) {
-                let mut earlier = source_location(source, previous.span.start);
-                earlier.end = previous.span.end;
-                duplicate(name, earlier, loc, diagnostics);
-            }
-        }
+        parse_scope(
+            ParseSource {
+                path,
+                text: source,
+                role,
+            },
+            children,
+            false,
+            &mut result,
+            &mut routes,
+            diagnostics,
+        );
     }
     for diagnostic in &mut diagnostics[first_diagnostic..] {
         if diagnostic.category == "shape" {
-            diagnostic.remedy = "Use command declarations, bind/route targets, values blocks and at most one select list inside config; select takes only valid profile-name strings. Keep definitions in primary policy; omit profile definitions.";
+            diagnostic.remedy = "Use command declarations, bind/route targets, values blocks and at most one select list inside config; select takes only valid profile-name strings. Profiles belong in primary policy and accept include lists and values/bind/route patches.";
         }
     }
     result
+}
+
+struct ParseSource<'a> {
+    path: &'a Path,
+    text: &'a str,
+    role: DocumentRole,
+}
+
+// Profiles share patch validation with the base, but never its duplicate namespace.
+fn parse_scope(
+    source: ParseSource<'_>,
+    children: &KdlDocument,
+    profile_scope: bool,
+    result: &mut Declarations,
+    routes: &mut BTreeMap<String, SourceLocation>,
+    diagnostics: &mut Vec<ValidationDiagnostic>,
+) {
+    let ParseSource {
+        path,
+        text: source,
+        role,
+    } = source;
+    for child in children.nodes() {
+        let loc = location(source, child);
+        let kind = child.name().value();
+        if profile_scope && !matches!(kind, "include" | "values" | "bind" | "route") {
+            diagnostics.push(at_node(
+                loc,
+                format!("unsupported profile node `{kind}`; use include, values, bind or route"),
+            ));
+            continue;
+        }
+        if kind == "profile" {
+            parse_profile(path, source, child, role, &mut result.profiles, diagnostics);
+            continue;
+        }
+        if kind == "select" || kind == "include" && profile_scope {
+            parse_selection(
+                path,
+                source,
+                child,
+                role,
+                &mut result.selection,
+                diagnostics,
+            );
+            continue;
+        }
+        if kind == "values" {
+            parse_values(path, source, child, role, &mut result.values, diagnostics);
+            continue;
+        }
+        if !matches!(kind, "command" | "bind" | "route") {
+            diagnostics.push(at_node(loc, format!("unsupported config node `{kind}`")));
+            continue;
+        }
+        let values: Option<Vec<_>> = child
+            .entries()
+            .iter()
+            .map(|entry| entry.value().as_string())
+            .collect();
+        let Some(values) = values.filter(|v| v.len() == 2 || (kind == "route" && v.len() == 1))
+        else {
+            diagnostics.push(at_node(
+                loc,
+                format!("`{kind}` requires two string arguments (route permits just its key)"),
+            ));
+            continue;
+        };
+        if !plain(child) || (kind == "bind" && child.children().is_some()) {
+            diagnostics.push(at_node(loc, format!("`{kind}` does not accept properties or types; commands accept declarations and routes accept parameter patches")));
+            continue;
+        }
+        let name = values[0];
+        if (kind == "route" && name.is_empty())
+            || (kind != "route" && !valid_name(name))
+            || (kind != "command" && values.get(1).is_some_and(|name| !valid_name(name)))
+        {
+            diagnostics.push(at_node(loc, format!("invalid `{kind}` name; use lowercase letters, digits and single interior dashes; route keys must be nonempty")));
+            continue;
+        }
+        if kind == "command" && role == DocumentRole::Overlay {
+            diagnostics.push(at_node(
+                loc,
+                "command definitions belong in primary configuration, not an overlay".into(),
+            ));
+            continue;
+        }
+        let target = Target {
+            value: values.get(1).unwrap_or(&name).to_string(),
+            span: SourceSpan {
+                source: role.source(path),
+                start: loc.start,
+                end: loc.end,
+            },
+        };
+        if kind == "command" {
+            let parameters = parse_parameters(path, source, child, role, diagnostics);
+            if let Some(previous) = result.commands.insert(
+                name.into(),
+                Command {
+                    template: target,
+                    parameters,
+                },
+            ) {
+                let mut earlier = source_location(source, previous.template.span.start);
+                earlier.end = previous.template.span.end;
+                duplicate(name, earlier, loc, diagnostics);
+            }
+            continue;
+        }
+        let table = match kind {
+            "bind" => &mut result.bindings,
+            _ => {
+                if let Some(previous) = routes.insert(name.into(), loc) {
+                    duplicate(name, previous, loc, diagnostics);
+                }
+                result.routes.insert(
+                    name.into(),
+                    RoutePatch {
+                        declaration: target,
+                        binding: values.get(1).map(|name| (*name).to_owned()),
+                        parameters: parse_patches(path, source, child, role, diagnostics),
+                    },
+                );
+                continue;
+            }
+        };
+        if let Some(previous) = table.insert(name.into(), target) {
+            let mut earlier = source_location(source, previous.span.start);
+            earlier.end = previous.span.end;
+            duplicate(name, earlier, loc, diagnostics);
+        }
+    }
+}
+
+fn parse_profile(
+    path: &Path,
+    source: &str,
+    node: &KdlNode,
+    role: DocumentRole,
+    profiles: &mut BTreeMap<String, SourceSpan>,
+    diagnostics: &mut Vec<ValidationDiagnostic>,
+) {
+    let loc = location(source, node);
+    let name = node
+        .entries()
+        .first()
+        .and_then(|entry| entry.value().as_string());
+    let Some(name) = name.filter(|name| valid_name(name)) else {
+        diagnostics.push(at_node(
+            loc,
+            "profile requires a valid profile-name string and a child block".into(),
+        ));
+        return;
+    };
+    if role == DocumentRole::Overlay
+        || !plain(node)
+        || node.entries().len() != 1
+        || node.children().is_none()
+    {
+        diagnostics.push(at_node(loc, "profile requires one name and a child block in primary policy, without properties or types".into()));
+        return;
+    }
+    let span = SourceSpan {
+        source: role.source(path),
+        start: loc.start,
+        end: loc.end,
+    };
+    if let Some(previous) = profiles.insert(name.into(), span) {
+        let mut earlier = source_location(source, previous.start);
+        earlier.end = previous.end;
+        duplicate(name, earlier, loc, diagnostics);
+    }
+    if let Some(children) = node.children() {
+        // Validate without folding; the captured KDL retains the complete profile.
+        parse_scope(
+            ParseSource {
+                path,
+                text: source,
+                role,
+            },
+            children,
+            true,
+            &mut Declarations::default(),
+            &mut BTreeMap::new(),
+            diagnostics,
+        );
+    }
 }
 
 fn parse_selection(
@@ -237,7 +338,7 @@ fn parse_selection(
     let Some(names) = names.filter(|names| {
         plain(node) && node.children().is_none() && names.iter().all(|name| valid_name(name))
     }) else {
-        diagnostics.push(at_node(loc, "select requires zero or more valid profile-name strings, without properties, types or children".into()));
+        diagnostics.push(at_node(loc, format!("{} requires zero or more valid profile-name strings, without properties, types or children", node.name().value())));
         return;
     };
     if let Some(previous) = selection
@@ -246,7 +347,7 @@ fn parse_selection(
     {
         let mut earlier = source_location(source, previous.start);
         earlier.end = previous.end;
-        duplicate("select", earlier, loc, diagnostics);
+        duplicate(node.name().value(), earlier, loc, diagnostics);
         return;
     }
     *selection = Some(Selection {

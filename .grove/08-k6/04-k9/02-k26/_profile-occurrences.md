@@ -1,4 +1,4 @@
-# profile-occurrences-k26
+# profile-occurrences-k26 — brief
 
 
 ## Goal
@@ -26,3 +26,19 @@ the initial guard; do not remove that guard before workspace-configuration-k10.
 Keep each delivered increment usable. Decompose further if the fold and its
 provenance cannot fit one focused session, without silently accepting unsupported
 syntax. Actual Grove selection policy remains workspace-configuration-k10 work.
+
+## Decomposition
+- `inactive-profiles-k27` admits structurally valid inactive experiments and
+  exercises Grove's base launch/selection guard with real profiles. Explicit
+  generic selection remains a clear refusal until the next child.
+- `selected-profile-fold-k28` completes occurrence expansion, selected semantics,
+  histories and every remaining parent acceptance criterion, then audits k26,
+  profile-composition-k9 and configuration-engine-k6 for closure.
+
+## Decisions (running log)
+- Source inspection found profile rejection in the base parser, a two-document
+  fold, eager primary parameter-only refusal, and span-only origin lookup.
+  Together with the acceptance/book obligations, occurrence composition is larger
+  than a focused session. The first independently useful boundary is inactive
+  profile acceptance with explicit selected refusal; no supported selection is
+  silently ignored.

@@ -264,3 +264,110 @@ fn captured_expansion_preserves_native_runtime_bytes() {
         .unwrap();
     assert_eq!(argv.args(), [native]);
 }
+
+#[test]
+fn inactive_profiles_preserve_base_commands_and_do_not_authorize_local_keys() {
+    let dir = TempDir::new().unwrap();
+    let primary = dir.path().join("personal.kdl");
+    let overlay = dir.path().join("local.kdl");
+    let text = r#"opaque "base ${payload}"
+config {
+    command "unused" "'unfinished" { param "required"; }
+    profile "experiment" {
+        include "missing" "experiment" "missing"
+        route "local-only" "absent" { param "unknown" "value"; }
+        values "missing" { param "unknown" "value"; }
+        bind "other" "missing"
+    }
+    profile "empty" {}
+    select "experiment"
+}
+"#;
+    fs::write(&primary, text).unwrap();
+    fs::write(&overlay, "local-only \"local ${payload}\"\n").unwrap();
+    let catalog = Catalog::load(&primary, Some(&overlay), vocabulary()).unwrap();
+    let convenience = Templates::load(&primary, Some(&overlay), vocabulary()).unwrap();
+    fs::remove_file(&primary).unwrap();
+    fs::remove_file(&overlay).unwrap();
+    let snapshot = catalog.resolve(&Selection::default()).unwrap();
+    assert_eq!(snapshot.inspect(), convenience.inspect());
+    assert_eq!(snapshot.keys(), ["opaque"]);
+    assert!(snapshot.require("local-only").is_err());
+    assert!(snapshot.inspect().profile_occurrences.is_empty());
+    assert!(conformance::check(&catalog, &Selection::default()).passed());
+    assert_eq!(
+        snapshot
+            .expand(
+                "opaque",
+                &[Slot {
+                    name: "payload",
+                    value: OsStr::new("one word")
+                }]
+            )
+            .unwrap()
+            .words(),
+        &[OsString::from("base"), OsString::from("one word")]
+    );
+    let selected = catalog.primary_selection().unwrap();
+    let error = catalog.resolve(selected).err().unwrap();
+    let diagnostic = &error.diagnostics()[0];
+    assert_eq!(diagnostic.category, "shape");
+    assert!(diagnostic
+        .message
+        .contains("profile composition is not yet supported"));
+    assert_eq!(diagnostic.primary, selected.origin);
+    assert!(text[diagnostic.related[0].start..diagnostic.related[0].end]
+        .starts_with("profile \"experiment\""));
+    assert!(!conformance::check(&catalog, selected).passed());
+}
+
+#[test]
+fn inactive_profile_structure_is_checked_without_merging_patch_namespaces() {
+    let dir = TempDir::new().unwrap();
+    let primary = dir.path().join("personal.kdl");
+    let overlay = dir.path().join("local.kdl");
+    for (body, category) in [
+        ("profile \"empty\" {}", None),
+        ("profile \"one\" { include; route \"x\" \"lead\"; }; profile \"two\" { include \"one\" \"one\"; route \"x\" \"other\"; }", None),
+        ("profile \"Bad\" {}", Some("shape")),
+        ("profile \"one\"", Some("shape")),
+        ("profile \"one\" \"extra\" {}", Some("shape")),
+        ("profile name=\"one\" {}", Some("shape")),
+        ("(typed)profile \"one\" {}", Some("shape")),
+        ("profile (typed)\"one\" {}", Some("shape")),
+        ("profile \"one\" {}; profile \"one\" {}", Some("duplicate")),
+        ("profile \"one\" { include; include; }", Some("duplicate")),
+        ("profile \"one\" { include 1; }", Some("shape")),
+        ("profile \"one\" { include \"Bad\"; }", Some("shape")),
+        ("profile \"one\" { include {}; }", Some("shape")),
+        ("profile \"one\" { command \"x\" \"run\"; }", Some("shape")),
+        ("profile \"one\" { select; }", Some("shape")),
+        ("profile \"one\" { profile \"two\" {}; }", Some("shape")),
+        ("profile \"one\" { opaque \"run\"; }", Some("shape")),
+        ("profile \"one\" { bind \"lead\" \"a\"; bind \"lead\" \"b\"; }", Some("duplicate")),
+        ("profile \"one\" { route \"x\" \"lead\"; route \"x\"; }", Some("duplicate")),
+        ("profile \"one\" { route \"x\" { param \"p\" \"a\"; unset \"p\"; }; }", Some("duplicate")),
+        ("profile \"one\" { values \"a\" {}; values \"a\" {}; }", Some("duplicate")),
+        ("profile \"one\" { values \"a\" { param \"p\"; }; }", Some("shape")),
+    ] {
+        fs::write(&primary, format!("opaque \"base ${{payload}}\"\nconfig {{ {body}; }}\n")).unwrap();
+        let result = Catalog::load(&primary, None, vocabulary());
+        if let Some(category) = category {
+            let error = result.err().expect(body);
+            assert!(error.diagnostics().iter().any(|d| d.category == category), "{body}: {error}");
+            assert!(error.diagnostics().iter().all(|d| d.source.as_ref().unwrap().path == primary));
+        } else {
+            assert_eq!(result.unwrap().resolve(&Selection::default()).unwrap().keys(), ["opaque"]);
+        }
+    }
+    fs::write(&primary, "opaque \"base ${payload}\"\n").unwrap();
+    fs::write(&overlay, "config { profile \"local\" {}; }\n").unwrap();
+    let error = Catalog::load(&primary, Some(&overlay), vocabulary())
+        .err()
+        .unwrap();
+    assert_eq!(error.diagnostics()[0].category, "shape");
+    assert_eq!(
+        error.diagnostics()[0].source.as_ref().unwrap().path,
+        overlay
+    );
+}

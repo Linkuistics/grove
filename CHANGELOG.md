@@ -51,6 +51,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove` / `grove-design`: make highly visual documents the default working
+  surface for design discussions, with standard diagram notation, a stable
+  browser URL, and diagrams kept consistent with accepted decisions. Include
+  a reusable Mermaid viewer with editable source, visible rendering errors,
+  and guidance for checking the information each decision requires.
+
 ## v21.2.0
 
 - Switch `grove view` between full-width Tree and File views with Tab, preserving

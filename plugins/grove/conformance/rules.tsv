@@ -4,7 +4,7 @@
 # which was the design this file began as an assertion over. **That spec went
 # with `content/` at `delete-provisioning-k19`**, so this file is no longer a
 # copy of an inventory — it is the inventory, and a row changes here alone.
-# One row per rule a session could violate; 182 rows.
+# One row per rule a session could violate.
 #
 # Five tab-separated columns:
 #
@@ -139,6 +139,10 @@ vertical-slice	grove/references/decompose.md	B	on(cutting children) @ grove/refe
 wide-refactor-expand-contract	grove/references/decompose.md	B	on(cutting children) @ grove/references/decompose.md	Sequence it **expand → migrate → contract** instead, one leaf per stage
 design-deliverable	grove-design/SKILL.md	B	static({design})	
 design-does-not-cut-impl-leaves	grove-design/SKILL.md	B	static({design})	
+visual-design-default	grove-design/SKILL.md	B	static({design})	Use highly visual documents as the default working surface for design discussions
+visual-design-editable-source	grove-design/references/visual-design-discussion.md	B	static({design})	Keep source as the editable artifact
+visual-design-browser-url	grove-design/references/visual-design-discussion.md	B	static({design})	Serve the visual document at a stable browser URL
+visual-design-information-prerequisites	grove-design/references/visual-design-discussion.md	B	static({design})	For each decision node, identify the information needed to decide
 draft-requires-a-structure-brief	grove-draft/SKILL.md	B+S	static({draft})	If this document has no structure brief, stop and say so
 structure-brief-is-three-citable-things	grove-draft/SKILL.md	B	static({draft})	The existence of a node file is not the test
 draft-owns-structure-and-technical-truth	grove-draft/SKILL.md	B	static({draft})	every claim about the subject is checked against the subject

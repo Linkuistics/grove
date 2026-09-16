@@ -16,3 +16,10 @@ stated nowhere else.
 spec, an ADR set, or both. A `design` session that finds itself cutting
 *implementation* leaves has drifted into planning's job and should externalize
 a `planning` leaf instead.
+
+## Visual design discussion
+
+Use highly visual documents as the default working surface for design
+discussions. Read `references/visual-design-discussion.md` for choosing a
+notation, presenting editable diagrams at a browser URL, and keeping the
+visual document consistent with the design's decisions.

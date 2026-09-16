@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design diagrams</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; color: light-dark(#202124, #e6e6e6); background: light-dark(#fff, #181a1b); }
+    * { box-sizing: border-box; }
+    body { max-width: 1280px; margin: 0 auto; padding: 24px; line-height: 1.5; }
+    h1 { font-size: 1.5rem; margin: 0 0 8px; } h2 { font-size: 1.2rem; margin: 0; }
+    p { max-width: 90ch; } a { color: light-dark(#1557b0, #9bc5ff); }
+    nav, .heading { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: baseline; }
+    nav { margin: 18px 0 28px; } .heading { justify-content: space-between; }
+    section { margin-bottom: 40px; scroll-margin-top: 20px; }
+    .secondary { color: light-dark(#5b5e63, #b2b5bb); font-size: 0.9rem; }
+    .diagram { overflow: auto; padding: 16px 0; min-height: 60px; }
+    .diagram svg { display: block; max-width: none; height: auto; margin: 0 auto; }
+    summary { cursor: pointer; width: fit-content; }
+    pre { overflow: auto; padding: 12px; background: light-dark(#f3f4f5, #222527); font-size: 0.85rem; }
+    .error { color: light-dark(#a31b1b, #ffabab); border-left: 3px solid currentColor; padding-left: 12px; }
+    @media (max-width: 560px) { body { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <header><h1 id="title">Design diagrams</h1><p id="intro"></p><nav id="navigation" aria-label="Diagrams"></nav></header>
+  <div id="status" role="status">Loading diagrams.json…</div>
+  <main id="diagrams"></main>
+  <footer class="secondary">Mermaid 12.0.0 · Local .mmd files are canonical · Wide diagrams scroll horizontally.</footer>
+  <noscript>This viewer requires JavaScript. Open diagrams.json to find the Mermaid source files.</noscript>
+  <script type="module">
+    const status = document.getElementById('status');
+    const appearance = window.matchMedia('(prefers-color-scheme: dark)');
+    const loaded = [];
+    let mermaid;
+    let revision = 0;
+
+    function element(tag, text = '', className = '') {
+      const node = document.createElement(tag);
+      node.textContent = text;
+      node.className = className;
+      return node;
+    }
+    function report(target, context, error) {
+      const message = element('p', context + ': ' + (error instanceof Error ? error.message : String(error)), 'error');
+      message.setAttribute('role', 'alert');
+      target.replaceChildren(message);
+    }
+    async function read(url) {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) throw new Error('HTTP ' + response.status + ' while loading ' + url);
+      return await response.text();
+    }
+    function validate(value) {
+      if (!value || Array.isArray(value) || typeof value !== 'object') throw new Error('Manifest must be an object.');
+      if (typeof value.title !== 'string' || !value.title.trim() || typeof value.intro !== 'string') throw new Error('Manifest needs a nonempty title and an intro string.');
+      if (!Array.isArray(value.diagrams) || value.diagrams.length === 0) throw new Error('Manifest diagrams must be a nonempty array.');
+      const ids = new Set();
+      const diagrams = value.diagrams.map((item, index) => {
+        const label = 'Diagram ' + (index + 1);
+        if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error(label + ' must be an object.');
+        if (typeof item.id !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]*$/.test(item.id) || ids.has(item.id)) throw new Error(label + ' needs a unique id starting with a letter, followed by letters, digits, underscores or hyphens.');
+        if (typeof item.title !== 'string' || !item.title.trim() || typeof item.source !== 'string' || !item.source.trim()) throw new Error(label + ' needs nonempty title and source strings.');
+        if (item.caption !== undefined && typeof item.caption !== 'string') throw new Error(label + ' caption must be a string when present.');
+        const url = new URL(item.source, document.baseURI);
+        if (url.origin !== location.origin || !/^https?:$/.test(url.protocol) || !url.pathname.endsWith('.mmd')) throw new Error(label + ' source must be a same-origin .mmd URL.');
+        ids.add(item.id);
+        return { ...item, url: url.href };
+      });
+      return { title: value.title, intro: value.intro, diagrams };
+    }
+    function addDiagram(item) {
+      const section = element('section');
+      section.id = 'diagram-' + item.id;
+      const title = element('h2', item.title);
+      title.id = 'heading-' + item.id;
+      section.setAttribute('aria-labelledby', title.id);
+      const link = element('a', 'Mermaid source');
+      link.href = item.url;
+      const heading = element('div', '', 'heading');
+      heading.append(title, link);
+      const target = element('div', 'Loading diagram…', 'diagram');
+      target.setAttribute('aria-label', item.title);
+      target.tabIndex = 0;
+      const code = element('code', 'Loading source…');
+      const pre = element('pre');
+      pre.append(code);
+      const details = element('details');
+      details.append(element('summary', 'Show source'), pre);
+      section.append(heading, target);
+      if (item.caption) section.append(element('p', item.caption, 'secondary'));
+      section.append(details);
+      document.getElementById('diagrams').append(section);
+      const navigation = element('a', item.title);
+      navigation.href = '#' + section.id;
+      document.getElementById('navigation').append(navigation);
+      return { ...item, target, code };
+    }
+    async function renderDiagrams() {
+      const currentRevision = ++revision;
+      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true,
+        layout: 'dagre', look: 'classic', theme: appearance.matches ? 'dark' : 'default',
+        fontFamily: 'system-ui, sans-serif', themeVariables: { fontSize: '16px' },
+        flowchart: { useMaxWidth: false, htmlLabels: false, curve: 'linear', nodeSpacing: 26, rankSpacing: 36 } });
+      for (const item of loaded) {
+        if (currentRevision !== revision) return;
+        try {
+          const rendered = await mermaid.render('svg-' + item.id + '-' + currentRevision, item.sourceText);
+          if (currentRevision !== revision) return;
+          item.target.innerHTML = rendered.svg;
+        } catch (error) {
+          if (currentRevision === revision) report(item.target, 'Rendering ' + item.title + ' failed; source remains available', error);
+        }
+      }
+    }
+    async function main() {
+      let manifest;
+      try {
+        if (!/^https?:$/.test(location.protocol)) throw new Error('Serve this directory over HTTP(S) to load its manifest and sources.');
+        manifest = validate(JSON.parse(await read('./diagrams.json')));
+      } catch (error) { report(status, 'Manifest error', error); return; }
+      document.title = manifest.title;
+      document.getElementById('title').textContent = manifest.title;
+      document.getElementById('intro').textContent = manifest.intro;
+      status.textContent = 'Loading sources and renderer…';
+      const entries = manifest.diagrams.map(addDiagram);
+      await Promise.all(entries.map(async item => {
+        try {
+          item.sourceText = await read(item.url);
+          item.code.textContent = item.sourceText;
+          loaded.push(item);
+        } catch (error) {
+          item.code.textContent = 'Source could not be loaded.';
+          report(item.target, 'Source error for ' + item.title, error);
+        }
+      }));
+      if (!loaded.length) { status.textContent = 'No diagram sources could be loaded.'; return; }
+      try {
+        mermaid = (await import('https://cdn.jsdelivr.net/npm/mermaid@12.0.0/dist/mermaid.esm.min.mjs')).default;
+        await renderDiagrams();
+        status.textContent = '';
+        appearance.addEventListener('change', () => renderDiagrams().catch(error => report(status, 'Theme rendering failed', error)));
+      } catch (error) {
+        report(status, 'Mermaid renderer unavailable; source links remain usable', error);
+        for (const item of loaded) report(item.target, 'Renderer error', error);
+      }
+    }
+    await main();
+  </script>
+</body>
+</html>

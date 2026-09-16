@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
@@ -29,7 +30,7 @@ enum Command {
     // https://docs.rs/clap/4.6.1/clap/_derive/index.html#command-attributes
     #[command(
         subcommand,
-        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n\nExit codes: 0 success, 1 configuration/source failure, 2 invalid usage."
+        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n\nExit codes: 0 success, 1 configuration/source failure, 2 invalid usage."
     )]
     Config(ConfigCommand),
     /// Browse a .grove task tree read-only with automatic refresh.
@@ -48,13 +49,54 @@ enum ConfigCommand {
     /// Show sources, selected profiles, commands and override provenance.
     #[command(
         long_about = "Inspect the workspace's configuration read-only, using the same complete validation and admission as launch. Requires a jj workspace but no task tree or driver lease. Runtime slots remain placeholders; no executable is probed or launched. jj may snapshot metadata when checking local configuration trackedness.",
-        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n\nExit codes: 0 valid inspection, 1 source/configuration/resolution failure, 2 invalid usage.\nReports go to stdout; errors go to stderr. A report describes one load; later launches reload configuration."
+        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n\nExit codes: 0 valid inspection, 1 source/configuration/resolution failure, 2 invalid usage.\nReports go to stdout; errors go to stderr. --json emits one schema-version-1 object, including usage diagnostics on stderr. A report describes one load; later launches reload configuration."
     )]
     Show {
         /// Show one kind after validating the entire active configuration.
         #[arg(long, value_name = "KIND")]
         kind: Option<String>,
+        /// Emit schema-version-1 JSON; failures emit JSON diagnostics on stderr.
+        #[arg(long)]
+        json: bool,
     },
+}
+
+/// Own process reporting, including usage failures before a command exists.
+pub fn run() -> ExitCode {
+    let args: Vec<_> = std::env::args_os().collect();
+    let json = args
+        .iter()
+        .skip(1)
+        .take_while(|arg| *arg != "--")
+        .any(|arg| arg == "--json" || arg.as_encoded_bytes().starts_with(b"--json="));
+    // try_parse_from preserves native arguments; use_stderr distinguishes help
+    // from refusal. https://docs.rs/clap/4.6.1/clap/error/struct.Error.html#method.use_stderr
+    let cli = match Cli::try_parse_from(args) {
+        Ok(cli) => cli,
+        Err(error) if json && error.use_stderr() => {
+            eprintln!(
+                "{}",
+                crate::config_json::failure(
+                    "usage",
+                    &error.to_string(),
+                    "Run grove config show --help for supported options."
+                )
+            );
+            return ExitCode::from(2);
+        }
+        Err(error) => error.exit(),
+    };
+    match execute(cli) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            if json {
+                eprintln!("{}", crate::config_json::error(&error));
+            } else {
+                eprintln!("Error: {error:?}");
+            }
+            ExitCode::FAILURE
+        }
+    }
 }
 
 /// Dispatch observation, or resolve, lease and run the lifecycle.
@@ -78,14 +120,13 @@ enum ConfigCommand {
 ///
 /// A working tree that is not a jj workspace, a lease another driver holds, or
 /// anything the loop refuses, or a viewer terminal setup/input/draw failure.
-pub fn run() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+fn execute(cli: Cli) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     if let Some(Command::View { worktree }) = cli.command {
         return grove_tui::run(&worktree.unwrap_or(cwd));
     }
-    if let Some(Command::Config(ConfigCommand::Show { kind })) = cli.command {
-        return crate::config::show(&cwd, kind.as_deref());
+    if let Some(Command::Config(ConfigCommand::Show { kind, json })) = cli.command {
+        return crate::config::show(&cwd, kind.as_deref(), json);
     }
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
@@ -170,6 +211,12 @@ mod tests {
         let config = command.find_subcommand("config").unwrap();
         let config_commands: Vec<_> = config.get_subcommands().map(|s| s.get_name()).collect();
         assert_eq!(config_commands, ["show"]);
+        let show = config.find_subcommand("show").unwrap();
+        let options: Vec<_> = show
+            .get_arguments()
+            .map(|arg| arg.get_id().as_str())
+            .collect();
+        assert_eq!(options, ["kind", "json"]);
         let arguments: Vec<String> = command
             .get_arguments()
             .map(|argument| argument.get_id().to_string())

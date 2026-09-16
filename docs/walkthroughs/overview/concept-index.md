@@ -60,3 +60,12 @@
 - [Explaining one selection](05-what-the-call-reaches.md#inspection-selection)
 - [Keeping words separate from slots](05-what-the-call-reaches.md#inspection-words)
 - [Following provenance back to source](05-what-the-call-reaches.md#inspection-histories)
+
+- [Process reporting before parsing succeeds](02-the-surface.md#process-reporting)
+- [The JSON projection](05-what-the-call-reaches.md#configuration-json)
+- [Preserving native source paths](05-what-the-call-reaches.md#json-native-paths)
+- [Sources, spans and occurrences](05-what-the-call-reaches.md#json-locations)
+- [Keeping assignment kinds distinct](05-what-the-call-reaches.md#json-assignment-tags)
+- [Projecting one complete inspection](05-what-the-call-reaches.md#json-inspection)
+- [Reporting a refusal once](05-what-the-call-reaches.md#json-diagnostics)
+- [Checking native units without filesystem support](05-what-the-call-reaches.md#json-native-tests)

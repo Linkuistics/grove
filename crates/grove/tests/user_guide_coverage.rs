@@ -390,3 +390,34 @@ fn a_duplicated_inventory_row_id_is_refused_rather_than_absorbed() {
         Ok(vec!["L1".to_owned()])
     );
 }
+
+#[test]
+fn inspection_options_in_binary_help_are_explained_by_the_guide() {
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_grove"))
+        .args(["config", "show", "--help"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let help = String::from_utf8(output.stdout).unwrap();
+    let guide = read(&support::repo_root(), GUIDE);
+    let section = guide
+        .split("## Inspecting configuration before launch\n")
+        .nth(1)
+        .unwrap()
+        .split("\n## ")
+        .next()
+        .unwrap();
+    let options: BTreeSet<_> = help
+        .lines()
+        .flat_map(|line| line.split_whitespace())
+        .filter(|word| word.starts_with("--"))
+        .map(|word| word.trim_end_matches(','))
+        .collect();
+    assert!(options.contains("--json"));
+    for option in options {
+        assert!(
+            section.contains(option),
+            "inspection option {option} is absent from its guide section"
+        );
+    }
+}

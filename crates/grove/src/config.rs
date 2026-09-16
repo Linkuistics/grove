@@ -7,13 +7,21 @@ use keyed_launch::{AssignmentValue, CompiledWord, Inspection, Setting, SourceSpa
 
 /// Load everything before filtering or writing a report. No lease, epoch or
 /// task-tree operation belongs on this path; only source admission may ask jj.
-pub fn show(cwd: &Path, kind: Option<&str>) -> anyhow::Result<()> {
+pub fn show(cwd: &Path, kind: Option<&str>, json: bool) -> anyhow::Result<()> {
     let workspace = Workspace::resolve(cwd)?;
     let config = SessionConfig::load_for_worktree(workspace.root())?;
     if let Some(kind) = kind {
         config.require(kind)?;
     }
-    write_human(&mut io::stdout().lock(), config.inspect(), kind)?;
+    if json {
+        writeln!(
+            io::stdout().lock(),
+            "{}",
+            crate::config_json::inspection(config.inspect(), kind)
+        )?;
+    } else {
+        write_human(&mut io::stdout().lock(), config.inspect(), kind)?;
+    }
     Ok(())
 }
 

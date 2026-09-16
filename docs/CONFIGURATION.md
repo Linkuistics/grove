@@ -2,8 +2,8 @@
 
 This reference describes flat commands, named command reuse, parameters and
 ordered profile composition with workspace selection. The [modular design](specs/modular-configuration.md)
-also specifies JSON inspection and example delivery, which remain pending.
-Human `grove config show [--kind KIND]` is available now.
+also specifies example delivery, which remains pending.
+`grove config show [--kind KIND] [--json]` is available now.
 Existing configurations require no rewrite.
 
 The generic runner captures sources in an owned `Catalog` and resolves an explicit
@@ -535,6 +535,7 @@ views. The human CLI formats this same view through SessionConfig.
 ```sh
 grove config show
 grove config show --kind impl
+grove config show --json
 ```
 
 Run from anywhere inside the jj workspace. The report names the personal file
@@ -559,7 +560,38 @@ create coordination files, signal completion or change working/configuration
 bytes. The existing jj trackedness query may snapshot jj metadata. A held
 lease or stale inherited signal does not prevent inspection. Each report covers
 one load; later sessions reload sources, so equality with launch requires the
-same inputs and runtime context. JSON output remains a subsequent increment.
+same inputs and runtime context.
+
+<a id="configuration-json"></a>
+### JSON records
+
+`--json` emits one object with `schema_version: 1`, `sources`, `selection`,
+`profile_occurrences`, `commands`, `non_admitted_keys`, `origins` and `histories`.
+The record fields match the public Inspection records documented in the
+[module contract](specs/module-decomposition.md). `--kind` filters only commands;
+all provenance tables remain intact, so every response-local ID resolves.
+
+Words are `{"type":"literal","value":"text"}` or
+`{"type":"slot","name":"prompt"}`. Parameters have already become literal
+contents. Assignment values use `type`: `set` and `literal_template` carry a
+`value`; `unset` and `reset` carry no value. Settings use snake_case type tags
+and named fields. Source roles are `primary` and `overlay`; absent optionals
+are null. IDs and byte offsets are integers.
+
+Unicode paths are strings. Non-Unicode paths use
+`{"encoding":"unix_bytes","value":[47,255]}` on Unix or
+`{"encoding":"windows_wide","value":[67,58,92,55296]}` on Windows, preserving
+bytes or UTF-16 code units respectively. This encoding also applies to paths
+in source spans and diagnostics; displayed error prose is not a path encoding.
+
+Failures write one `schema_version: 1` object with a `diagnostics` array to
+stderr and nothing to stdout. Each diagnostic carries `category`, `message`,
+`source`, `primary`, `related`, `occurrence_chain`, `key`, `binding`, `command`,
+`parameter` and `remedy`. Configuration refusals retain the resolver's records.
+Other inspection failures use category `inspection`, with absent source fields;
+parser failures use `usage` and exit 2. `--json` (including a malformed `--json=…`) before the
+`--` terminator requests structured errors even if parsing fails before reaching
+it. Successful explicit help/version requests keep clap's human output.
 
 For example, a duplicate declaration produces a human report such as:
 

@@ -330,6 +330,7 @@ dependencies = [
  "grove-tui",
  "keyed-launch",
  "libc",
+ "serde_json",
  "tempfile",
 ]
 

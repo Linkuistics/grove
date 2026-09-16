@@ -34,6 +34,7 @@ grove-loop = { path = "../grove-loop" }
 grove-tui = { path = "../grove-tui" }
 # Public inspection records; resolution remains SessionConfig's responsibility.
 keyed-launch = { path = "../keyed-launch" }
+serde_json = "1.0"
 
 # **The repository-surface tests live here**, and that is deliberate rather than
 # incidental. `tests/reference_navigation.rs`, `tests/plugin_fallback.rs`,

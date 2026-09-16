@@ -62,7 +62,7 @@ lines of it, in eight fragments that follow the file's own order. It is read
 first because the first mechanism is declared there rather than argued anywhere
 else: the package is a crate, and the crate has no library.
 
-<!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-57" parent="source-crate-manifest" -->
+<!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-58" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
 <!-- insert «manifest-human-binary» -->
 <!-- insert «manifest-crate-not-a-bin» -->
@@ -273,8 +273,9 @@ The comment names the original repository-surface tests. Later tests include
 configuration inspection and viewer fixtures. All are evidence for this book
 rather than corpus: `tests/` directories are cited and never reproduced.
 
-<!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="37-48" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="37-49" parent="manifest-thin-by-construction" -->
 ````toml
+serde_json = "1.0"
 
 # **The repository-surface tests live here**, and that is deliberate rather than
 # incidental. `tests/reference_navigation.rs`, `tests/plugin_fallback.rs`,
@@ -301,7 +302,7 @@ path — the driver dying of the signal it was sent — is *Three steps*' second
 ending, and this line is the first trace of it in the corpus. `tempfile`
 supplies the temporary trees.
 
-<!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="49-54" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="50-55" parent="manifest-thin-by-construction" -->
 ````toml
 [dev-dependencies]
 book-validation = { path = "../book-validation" }
@@ -315,7 +316,7 @@ tempfile = "3.10"
 The lint configuration is inherited for the same reason `version` is: one
 workspace, one standard, and nothing crate-specific to add.
 
-<!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="55-57" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="56-58" parent="manifest-thin-by-construction" -->
 ````toml
 
 [lints]

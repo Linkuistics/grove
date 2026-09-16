@@ -367,7 +367,7 @@ returns generic configuration records and Grove discovery/admission records,
 including paths when no span exists (empty for other errors). Human
 `grove config show [--kind KIND]` loads through SessionConfig before acquiring
 a lease, validates globally before filtering, and formats the shared records
-in the human binary. JSON inspection remains pending.
+in the human binary. Its `--json` projection preserves tagged words, assignment variants, native paths and diagnostics without changing resolution.
 
 ```rust
 /// The slot vocabulary a consumer's templates are written against. Supplied at

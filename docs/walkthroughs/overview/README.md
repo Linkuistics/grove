@@ -9,7 +9,7 @@ start, resume and finish, alongside the [read-only browser](../../USAGE.md#usage
 [configuration inspector](../../USAGE.md#usage-inspecting-configuration).
 
 `crates/grove` contains a manifest, an entry point, the CLI dispatcher and a
-configuration report formatter. Bare invocation resolves the working tree,
+human configuration formatter and a JSON projection. Bare invocation resolves the working tree,
 takes the driver lease and calls the loop; observation returns before the lease. That is the whole human entry
 point onto grove, and this book is the system's overview rather than a fourth
 crate's account because that crate is where the system is entered and nothing
@@ -25,7 +25,7 @@ merely looks thin — naming which of three mechanisms holds it: a package
 boundary the compiler enforces, a closure property a test asserts, or a
 convention enforced only by a test. The book identifies the evidence for each mechanism.
 
-**The book's boundary is the call.** It explains `grove::cli` and `grove::config`, and
+**The book's boundary is the call.** It explains `grove::cli`, `grove::config` and `grove::config_json`, and
 names the libraries they call. Everything behind `grove_tui::run` and `grove_loop::run` — the loop, the task tree,
 the kinds, the lifecycle and the session epoch — is named where a page
 cannot be followed without it and explained nowhere here; the last chapter

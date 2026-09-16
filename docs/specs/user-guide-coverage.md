@@ -61,7 +61,7 @@ show a real invocation, not merely name the command.
 
 ### `grove` — the human binary
 
-`Usage: grove [COMMAND]` — bare lifecycle plus `view [WORKTREE]` and `config show [--kind KIND]`.
+`Usage: grove [COMMAND]` — bare lifecycle plus `view [WORKTREE]` and `config show [--kind KIND] [--json]`.
 
 | Row | Surface | Obligation |
 |---|---|---|
@@ -73,7 +73,7 @@ show a real invocation, not merely name the command.
 
 | G6 | `grove view [WORKTREE]` | Current and explicit worktree; no upward search, read-only Markdown, automatic/manual refresh, full-width Tree/File switching with active-view and Tab cues, leading lifecycle glyphs/words/colors with an independent cursor and fold markers, whole-subtree totals, bounded indentation and key-preserving elision at 60 × 10, tree/parent navigation, File-only line/page/Unicode horizontal scrolling, help, independent viewport and resize state retention, responsive contention/retry, error recovery and non-TTY refusal. Shared snapshot validation gives the viewer, driver and `pick` consistent duplicate-key and multiple-live-finish refusal, with identity-preserving repair guidance. Persistent RUNNING/NEXT summaries show idle NEXT and witnessed same-tree RUNNING with exclusion-aware NEXT, including finish after the last running ordinary leaf. RUNNING uses bold yellow activity/item text while lifecycle colors remain independent; rename/move/retirement/decomposition follow the key and branch children remain eligible. Labels and keys survive folded/File summaries at 60 × 10. Real launch application controls cover those behaviors, read-only multiple viewers and stale-row clearing. Independent tree/activity consistency, unavailable legacy active epochs, Idle after a validated private witness releases despite an active epoch, and bounded contention/recovery remain. Viewing guidance explains runtime waiting and the suspended-reader 30-second handoff bound and restart. Witnessed summaries retain launch handles with item absent, tree absent, tree unavailable or previous tree qualifiers; qualifiers and keys survive minimum-width clipping. Previous-tree mandates attach to no row and exclude no reused key; same-tree item absence still permits NEXT. Real-launch controls cover absence, replacement and first arrivals, saved-state reset versus same-root brief edits, aliases, failed/immediate spawn, signal-before-reap, handoff and killed drivers with surviving sessions. Full signal/panic restoration evidence follows separately. |
 
-| G7 | `grove config`, `grove config show [--kind KIND]` | Worked discovery and full/filtered reports; sources, selection, include occurrences, ordered words, runtime placeholders, winners and histories; global validation before filtering; stdout report, stderr errors and exit codes 0/1/2; no tree/lease/epoch requirement, no launch or writes except jj metadata, reload caveat; help and usage failures. |
+| G7 | `grove config`, `grove config show [--kind KIND] [--json]` | Worked discovery and full/filtered reports; sources, selection, include occurrences, ordered words, runtime placeholders, winners and histories; global validation before filtering; stdout report, stderr errors and exit codes 0/1/2; no tree/lease/epoch requirement, no launch or writes except jj metadata, reload caveat; help and usage failures; version-1 JSON success/diagnostics, tagged words, native paths and nulls. |
 
 Rows G1–G3 come from `grove --help`. G4 and G5 are behaviours no help text
 states: G4 is the absence of lifecycle selector arguments, and G5 is verified

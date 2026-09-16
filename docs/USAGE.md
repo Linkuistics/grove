@@ -41,6 +41,7 @@ affect subsequent sessions. See [configuration profiles](CONFIGURATION.md#named-
 grove config --help
 grove config show
 grove config show --kind impl
+grove config show --kind impl --json
 ```
 
 Inside a jj workspace, `config show` explains the same active policy launch
@@ -60,13 +61,23 @@ configuration failures write actionable errors to stderr and exit 1. Invalid
 options or missing option values exit 2 with usage on stderr. `--help` works
 without a repository. No profile override flag is provided.
 
+`--json` writes one object with `schema_version: 1` and the complete inspection
+records. Each word is tagged `literal` with `value`, or `slot` with `name`;
+`${prompt}` inside a parameter remains a literal. Missing optional fields are
+null. Unicode paths are strings; other native paths use tagged integer arrays
+as described in the [JSON reference](CONFIGURATION.md#configuration-json).
+Failures, including invalid options when `--json` was requested, write one
+version-1 object with a `diagnostics` array to stderr and leave stdout empty.
+Explicit help/version output stays human-readable. `--json` (including malformed `--json=…`) before
+`--` requests JSON errors even when another argument fails parsing.
+
 Inspection needs no `.grove/`, selected leaf, lease or session epoch. It works
 while a driver holds the lease and ignores stale inherited completion signals.
 It launches and probes no executable, creates no coordination/completion file,
 and changes no configuration or working-tree bytes; jj may snapshot metadata
 for its existing trackedness check. Output has no pager or truncation. A report
 covers one load, while launches reload configuration: equal argv requires
-unchanged source inputs and runtime context. JSON inspection is not yet shipped.
+unchanged source inputs and runtime context.
 
 <a id="usage-viewing-tree"></a>
 ## Viewing a tree

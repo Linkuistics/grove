@@ -74,47 +74,47 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove/Cargo.toml"
-lines = 57
+lines = 58
 
 [[root]]
 id    = "source-entry-point"
 path  = "crates/grove/src/main.rs"
-lines = 14
+lines = 15
 
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove/src/cli.rs"
-lines = 184
+lines = 231
 
 [[block]]
 id    = "manifest-thin-by-construction"
 root  = "source-crate-manifest"
 owner = "compiler-held"
-lines = "1-57"
+lines = "1-58"
 
 [[block]]
 id    = "entry-point-three-steps"
 root  = "source-entry-point"
 owner = "one-call"
-lines = "1-14"
+lines = "1-15"
 
 [[block]]
 id    = "surface-grammar"
 root  = "source-command-surface"
 owner = "no-arguments"
-lines = "1-58"
+lines = "1-100"
 
 [[block]]
 id    = "surface-resolve-lease-run"
 root  = "source-command-surface"
 owner = "one-call"
-lines = "59-98"
+lines = "101-139"
 
 [[block]]
 id    = "surface-closure-tests"
 root  = "source-command-surface"
 owner = "closure-proved"
-lines = "99-184"
+lines = "140-231"
 
 [[early-use]]
 symbols   = "`grove_loop::run`"
@@ -157,10 +157,21 @@ anchors = ["driver-lease", "stated-vcs", "loop-control-channel", "guaranteed-cor
 [[root]]
 id = "source-configuration-report"
 path = "crates/grove/src/config.rs"
-lines = 157
+lines = 165
 
 [[block]]
 id = "configuration-report"
 root = "source-configuration-report"
 owner = "assembly"
-lines = "1-157"
+lines = "1-165"
+
+[[root]]
+id = "source-configuration-json"
+path = "crates/grove/src/config_json.rs"
+lines = 167
+
+[[block]]
+id = "configuration-json"
+root = "source-configuration-json"
+owner = "assembly"
+lines = "1-167"

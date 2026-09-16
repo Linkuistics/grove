@@ -15,9 +15,8 @@ declarations are captured with source spans; the convenience loader ignores them
 while Grove chooses the local declaration, else the personal default, else empty.
 Explicit selections compose every profile/include occurrence with active-only
 semantic validation and occurrence-specific histories. Inactive profiles receive
-structural checks without affecting resolution. Human `config show [--kind KIND]`
-uses that snapshot before lease acquisition. JSON inspection and example delivery
-remain pending; the [reference](../CONFIGURATION.md) describes
+structural checks without affecting resolution. `config show [--kind KIND] [--json]`
+uses that snapshot before lease acquisition. Example delivery remains pending; the [reference](../CONFIGURATION.md) describes
 the current boundary.
 
 The authority and execution constraints are owned by
@@ -373,8 +372,11 @@ target's binding name uses `set`; a legacy whole template uses `literal_template
 even when their text is identical. `Setting` uses `type` with the
 snake_case variant name and its named fields. `SourceRole` is `primary` or
 `overlay`. Optional values are JSON null; IDs and source offsets are integers.
-Native strings outside Unicode must have a lossless tagged encoding,
-not lossy replacement; inspection normally leaves native runtime values symbolic.
+Unicode paths are JSON strings. Non-Unicode paths are objects with `encoding`
+set to `unix_bytes` and `value` an array of bytes, or `encoding` set to
+`windows_wide` and `value` an array of UTF-16 code units. Both preserve native
+units without replacement. Runtime values normally remain symbolic slots.
+The same path representation applies inside diagnostics and source spans.
 
 Exit 0 means a valid inspection; exit 1 is source/configuration/resolution
 failure, and exit 2 is invalid CLI usage. In JSON mode errors are one

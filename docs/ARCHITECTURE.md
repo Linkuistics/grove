@@ -334,7 +334,7 @@ and shared/route values fill pre-split words and retain contributing origins and
 assignment/removal/reset histories. Explicit generic selections expand includes
 before each profile patch, repeating every occurrence and checking personal target
 authority before local patches. Inactive profiles receive structural checks only.
-Human `config show` presents this snapshot; JSON inspection remains pending.
+`config show` presents this snapshot in human or schema-version-1 JSON form.
 Catalog captures optional selection
 declarations; the convenience loader ignores them. Grove chooses the local list,
 else the personal default, else empty, preserving the chosen declaration origin.
@@ -438,7 +438,7 @@ validation, then formats the captured Inspection. `keyed-launch` supplies public
 record types; the binary implements no configuration resolver. Runtime words
 remain tagged literals or symbolic slots. No tree, lease or epoch is consulted,
 and the trackedness query's jj metadata snapshot is the only permitted write.
-The human report exposes origin/history references; JSON encoding remains pending.
+Both report formats expose origin/history references. The human binary owns the JSON projection and structured usage errors; the resolver stays format-independent.
 
 **Presence is per kind and just-in-time**
 (`docs/adr/complete-session-configuration.md`): both documents are validated

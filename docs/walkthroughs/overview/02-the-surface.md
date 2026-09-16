@@ -24,12 +24,13 @@ command declarations. Their source-order concatenation is independent of the
 reader order below. The `Command` enum belongs here alongside `Cli`, because
 its only job is parsing the observation request.
 
-<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-58" parent="source-command-surface" -->
+<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-100" parent="source-command-surface" -->
 <!-- insert «surface-imports» -->
 <!-- insert «surface-doc-comment» -->
 <!-- insert «surface-clap-attributes» -->
 <!-- insert «surface-empty-struct» -->
 <!-- insert «surface-config-command» -->
+<!-- insert «surface-process-reporting» -->
 <!-- /fragment -->
 
 <a id="the-imports"></a>
@@ -48,9 +49,10 @@ The loop imports are used by the next chapter's lifecycle path:
 
 The viewer returns before any of those four is constructed or used.
 
-<!-- fragment «surface-imports» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-4" parent="surface-grammar" -->
+<!-- fragment «surface-imports» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-5" parent="surface-grammar" -->
 ````rust
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
@@ -65,7 +67,7 @@ The tree still decides which leaf runs, and `~/.config/grove/config.kdl` still
 decides how to launch its kind. Bare `grove` takes neither as an argument.
 Adding the browser does not give the launcher a second source of policy.
 
-<!-- fragment «surface-doc-comment» owner="no-arguments" source="crates/grove/src/cli.rs" lines="5-7" parent="surface-grammar" -->
+<!-- fragment «surface-doc-comment» owner="no-arguments" source="crates/grove/src/cli.rs" lines="6-8" parent="surface-grammar" -->
 ````rust
 
 /// Bare `grove` drives the lifecycle; `view` and `config` observe without launching.
@@ -84,7 +86,7 @@ is an authoring tool with its own version and is outside that release set.
 `disable_help_subcommand` keeps the subcommand set exactly `{config, view}`.
 The normal `--help` option still describes every command and argument.
 
-<!-- fragment «surface-clap-attributes» owner="no-arguments" source="crates/grove/src/cli.rs" lines="8-19" parent="surface-grammar" -->
+<!-- fragment «surface-clap-attributes» owner="no-arguments" source="crates/grove/src/cli.rs" lines="9-20" parent="surface-grammar" -->
 ````rust
 #[derive(Parser)]
 #[command(
@@ -110,7 +112,7 @@ help states no upward search, explains the subdirectory case, and gives
 examples for both current and explicit worktrees. Parsing accepts a path even
 when that directory is absent; absence is a visible state of the viewer.
 
-<!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="20-44" parent="surface-grammar" -->
+<!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="21-45" parent="surface-grammar" -->
 ````rust
 pub struct Cli {
     #[command(subcommand)]
@@ -124,7 +126,7 @@ enum Command {
     // https://docs.rs/clap/4.6.1/clap/_derive/index.html#command-attributes
     #[command(
         subcommand,
-        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n\nExit codes: 0 success, 1 configuration/source failure, 2 invalid usage."
+        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n\nExit codes: 0 success, 1 configuration/source failure, 2 invalid usage."
     )]
     Config(ConfigCommand),
     /// Browse a .grove task tree read-only with automatic refresh.
@@ -143,13 +145,13 @@ enum Command {
 <a id="config-grammar"></a>
 ## Inspecting configured policy
 
-`ConfigCommand::Show` holds only an optional kind filter. It changes which
+`ConfigCommand::Show` holds an optional kind filter and a JSON output flag. It changes which
 validated commands are displayed, not which profiles resolve or what launches.
 Clap requires a child of `config`; its nested help provides examples and exit
 codes. SessionConfig owns validation; the parser cannot establish that a kind
-is admitted. No JSON option is advertised yet.
+is admitted. The JSON flag selects the wire projection of that same validated result.
 
-<!-- fragment «surface-config-command» owner="no-arguments" source="crates/grove/src/cli.rs" lines="45-58" parent="surface-grammar" -->
+<!-- fragment «surface-config-command» owner="no-arguments" source="crates/grove/src/cli.rs" lines="46-62" parent="surface-grammar" -->
 ````rust
 
 #[derive(Subcommand)]
@@ -157,12 +159,15 @@ enum ConfigCommand {
     /// Show sources, selected profiles, commands and override provenance.
     #[command(
         long_about = "Inspect the workspace's configuration read-only, using the same complete validation and admission as launch. Requires a jj workspace but no task tree or driver lease. Runtime slots remain placeholders; no executable is probed or launched. jj may snapshot metadata when checking local configuration trackedness.",
-        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n\nExit codes: 0 valid inspection, 1 source/configuration/resolution failure, 2 invalid usage.\nReports go to stdout; errors go to stderr. A report describes one load; later launches reload configuration."
+        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n\nExit codes: 0 valid inspection, 1 source/configuration/resolution failure, 2 invalid usage.\nReports go to stdout; errors go to stderr. --json emits one schema-version-1 object, including usage diagnostics on stderr. A report describes one load; later launches reload configuration."
     )]
     Show {
         /// Show one kind after validating the entire active configuration.
         #[arg(long, value_name = "KIND")]
         kind: Option<String>,
+        /// Emit schema-version-1 JSON; failures emit JSON diagnostics on stderr.
+        #[arg(long)]
+        json: bool,
     },
 }
 ````
@@ -195,5 +200,64 @@ The twelve tree/session verbs belong to `grove-llm`; their parser and lifecycle
 semantics are unchanged by `view`. The human binary delegates observation to
 `grove-tui` and lifecycle execution to `grove-loop`. [Three steps](03-three-steps.md)
 shows the branch that separates these paths.
+
+
+
+<a id="process-reporting"></a>
+## Reporting before a command exists
+
+`run` owns parsing and process reporting. It scans native arguments for the JSON
+request before asking clap to parse, so even an earlier unknown option can produce
+structured diagnostics. The `--` terminator ends that scan. Malformed equals-form
+requests still ask for JSON errors, while clap refuses their value. Help and
+version requests keep clap's successful human output.
+
+After parsing, `execute` returns any application failure to this boundary. JSON
+configuration errors preserve structured records; other failures get the same
+record shape. Human errors retain their context chain. Returning `ExitCode` lets
+`main` finish without Rust adding a second error message.
+
+<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="63-100" parent="surface-grammar" -->
+````rust
+
+/// Own process reporting, including usage failures before a command exists.
+pub fn run() -> ExitCode {
+    let args: Vec<_> = std::env::args_os().collect();
+    let json = args
+        .iter()
+        .skip(1)
+        .take_while(|arg| *arg != "--")
+        .any(|arg| arg == "--json" || arg.as_encoded_bytes().starts_with(b"--json="));
+    // try_parse_from preserves native arguments; use_stderr distinguishes help
+    // from refusal. https://docs.rs/clap/4.6.1/clap/error/struct.Error.html#method.use_stderr
+    let cli = match Cli::try_parse_from(args) {
+        Ok(cli) => cli,
+        Err(error) if json && error.use_stderr() => {
+            eprintln!(
+                "{}",
+                crate::config_json::failure(
+                    "usage",
+                    &error.to_string(),
+                    "Run grove config show --help for supported options."
+                )
+            );
+            return ExitCode::from(2);
+        }
+        Err(error) => error.exit(),
+    };
+    match execute(cli) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            if json {
+                eprintln!("{}", crate::config_json::error(&error));
+            } else {
+                eprintln!("Error: {error:?}");
+            }
+            ExitCode::FAILURE
+        }
+    }
+}
+````
+<!-- /fragment -->
 
 [Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Three steps](03-three-steps.md)

@@ -300,6 +300,24 @@ selection and diagnostic surface. Human inspection and example delivery remain
 owned by k11 and k12. No new resolver, load point or source-admission policy was
 needed for the composed acceptance. The ADR set already matches this boundary.
 
+## Inspection handoff
+
+`json-configuration-inspection-k33` completes `configuration-inspection-k11`,
+following the human report in k32. `grove config show [--kind KIND] [--json]`
+uses SessionConfig's existing admission and complete validation before filtering.
+JSON version 1 retains tagged words, all assignment variants, nullable records,
+native path encodings and complete origin/history tables. Configuration and
+parser failures use structured stderr diagnostics with exit codes 1 and 2.
+Process acceptance covers read-only operation without a tree, held lease/stale
+signal, source refusals, secondary-workspace precedence and tagged-word equality
+with fake-launch argv under unchanged inputs/context. All eight principal checks
+and all six books pass. Native existing-file success also has a Linux-only test;
+this macOS run exercises native records, missing-source failures and argv.
+
+`configuration-examples-k12` remains responsible for packaged examples, their
+safe installer and actual personal-directory delivery. Inspection needs no new
+resolver or source-admission policy for that work.
+
 ## Implementation constraints carried from design
 
 - Implement the reviewed KDL grammar and parameter/reference namespaces without baking

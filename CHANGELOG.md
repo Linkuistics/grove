@@ -51,6 +51,18 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Switch `grove view` between full-width Tree and File views with Tab, preserving
+  selection and reading positions. Keep lifecycle labels visible before tree
+  indentation, with distinct DONE ticks and ABANDONED crosses.
+- Show RUNNING and NEXT in tree rows and in a summary visible in both views.
+  Observe the live driver's mandate through paired session witnesses; preserve
+  honest activity across task moves, retirement, decomposition and tree replacement.
+  Keep browsing read-only and report unavailable activity when evidence cannot
+  be verified.
+- Share validated task selection between the driver, `pick` and viewer, including
+  running-item exclusion and the finish exception. Cover witness lifetimes and
+  concurrent observation with native macOS and Linux process tests.
+
 ## v21.1.0
 
 - Cover live monitoring with real-clock recovery tests and an actual-binary

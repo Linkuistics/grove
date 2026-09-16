@@ -391,6 +391,8 @@ reused key yields PreviousTree to a fresh observation. Separate descriptor-leak
 mutations make the corresponding post-reap probe fail. These controls establish
 the tested native behavior, not host inode reuse or detection of silently
 ineffective backend locks; the ADR's native-locking and suspension limits remain.
+The [platform evidence record](item-status-verification.md) preserves the exact
+cases, frozen-source digests, commands and accepted review limitations.
 
 The runner also exposes `run_observed(Launch, callback)`. Its synchronous
 `LaunchEvent::Started` follows successful spawn; `Reaped` follows confirmed

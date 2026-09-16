@@ -789,7 +789,9 @@ The generic runner's **Catalog** is the captured source documents and slot
 vocabulary; **Templates** is an owned resolved command snapshot; its **Inspection** is the
 read-only explanation of captured sources, compiled words and assignment histories.
 `grove config show` presents that snapshot as human text or versioned JSON
-without entering a driver session.
+without entering a driver session. `grove config examples` installs separately
+named inactive samples and instructions beside personal policy; installation
+does not activate or modify that policy.
 Catalog captures an optional **Selection** declaration from each source, retaining
 the difference between absence and an empty list; callers supply the selection
 to resolve. Grove chooses the local declaration, else the personal default,

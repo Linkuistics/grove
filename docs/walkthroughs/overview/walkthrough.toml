@@ -79,12 +79,12 @@ lines = 58
 [[root]]
 id    = "source-entry-point"
 path  = "crates/grove/src/main.rs"
-lines = 15
+lines = 16
 
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove/src/cli.rs"
-lines = 231
+lines = 248
 
 [[block]]
 id    = "manifest-thin-by-construction"
@@ -96,25 +96,25 @@ lines = "1-58"
 id    = "entry-point-three-steps"
 root  = "source-entry-point"
 owner = "one-call"
-lines = "1-15"
+lines = "1-16"
 
 [[block]]
 id    = "surface-grammar"
 root  = "source-command-surface"
 owner = "no-arguments"
-lines = "1-100"
+lines = "1-106"
 
 [[block]]
 id    = "surface-resolve-lease-run"
 root  = "source-command-surface"
 owner = "one-call"
-lines = "101-139"
+lines = "107-148"
 
 [[block]]
 id    = "surface-closure-tests"
 root  = "source-command-surface"
 owner = "closure-proved"
-lines = "140-231"
+lines = "149-248"
 
 [[early-use]]
 symbols   = "`grove_loop::run`"
@@ -148,7 +148,7 @@ statement = "A resolved jj working tree, produced once here and handed to both t
 
 [guide]
 path    = "docs/USAGE.md"
-anchors = ["usage-inspecting-configuration", "usage-viewing-tree", "usage-running-grove", "usage-tree-verbs", "usage-driver-lease", "usage-session-lifecycle"]
+anchors = ["usage-configuration-examples", "usage-inspecting-configuration", "usage-viewing-tree", "usage-running-grove", "usage-tree-verbs", "usage-driver-lease", "usage-session-lifecycle"]
 
 [[glossary]]
 path    = "CONTEXT.md"
@@ -175,3 +175,14 @@ id = "configuration-json"
 root = "source-configuration-json"
 owner = "assembly"
 lines = "1-167"
+
+[[root]]
+id = "source-configuration-examples"
+path = "crates/grove/src/examples.rs"
+lines = 320
+
+[[block]]
+id = "configuration-examples"
+root = "source-configuration-examples"
+owner = "assembly"
+lines = "1-320"

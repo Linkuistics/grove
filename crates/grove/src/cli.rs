@@ -4,7 +4,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
 
-/// Bare `grove` drives the lifecycle; `view` and `config` observe without launching.
+/// Bare `grove` drives the lifecycle; `view` and `config` never launch sessions.
 /// Launch policy stays in configuration rather than command-line selectors.
 #[derive(Parser)]
 #[command(
@@ -25,12 +25,12 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Inspect the workspace's resolved launch configuration without launching.
+    /// Inspect launch configuration or install inactive examples.
     // clap 4.6.1: variant-level subcommand nests the enum's commands.
     // https://docs.rs/clap/4.6.1/clap/_derive/index.html#command-attributes
     #[command(
         subcommand,
-        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n\nExit codes: 0 success, 1 configuration/source failure, 2 invalid usage."
+        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n  grove config examples\n\nExit codes: 0 success, 1 configuration/source/installation failure, 2 invalid usage."
     )]
     Config(ConfigCommand),
     /// Browse a .grove task tree read-only with automatic refresh.
@@ -46,6 +46,12 @@ enum Command {
 
 #[derive(Subcommand)]
 enum ConfigCommand {
+    /// Install inactive example files beside the personal configuration.
+    #[command(
+        long_about = "Install six .example.kdl files and CONFIGURATION.examples.md under ~/.config/grove/. Works outside a workspace without loading active policy. All destinations are checked first: matching regular files stay untouched; differing, unreadable or non-regular entries are conflicts. Missing files are created exclusively. Later failures may leave created or partial files, which are reported. Never overwrites config.kdl or edits a workspace delta or ignore rule.",
+        after_help = "Examples:\n  grove config examples\n  grove config examples --help\n\nExit codes: 0 whole set present, 1 conflict or I/O failure, 2 invalid usage.\nSuccess paths go to stdout; conflicts and partial-failure paths go to stderr. No force or destination option. Inspect conflicting paths and move them aside yourself before retrying. See also: grove config show --help."
+    )]
+    Examples,
     /// Show sources, selected profiles, commands and override provenance.
     #[command(
         long_about = "Inspect the workspace's configuration read-only, using the same complete validation and admission as launch. Requires a jj workspace but no task tree or driver lease. Runtime slots remain placeholders; no executable is probed or launched. jj may snapshot metadata when checking local configuration trackedness.",
@@ -99,7 +105,7 @@ pub fn run() -> ExitCode {
     }
 }
 
-/// Dispatch observation, or resolve, lease and run the lifecycle.
+/// Dispatch inspection, viewing or example delivery before the lifecycle.
 ///
 /// The workspace is resolved **here**, once, and handed to both the lease and
 /// the loop. That is the shape `loop-crate-driver-k22` gave the seam: the lease
@@ -121,6 +127,9 @@ pub fn run() -> ExitCode {
 /// A working tree that is not a jj workspace, a lease another driver holds, or
 /// anything the loop refuses, or a viewer terminal setup/input/draw failure.
 fn execute(cli: Cli) -> anyhow::Result<()> {
+    if let Some(Command::Config(ConfigCommand::Examples)) = cli.command {
+        return crate::examples::run();
+    }
     let cwd = std::env::current_dir()?;
     if let Some(Command::View { worktree }) = cli.command {
         return grove_tui::run(&worktree.unwrap_or(cwd));
@@ -198,7 +207,7 @@ mod tests {
 
     /// Stated as a closure property rather than as a list of rejected verbs: the
     /// bare lifecycle has no launch-policy selectors. `view` observes a path;
-    /// `config show` explains the configured policy. A new command or argument fails
+    /// `config` inspects policy or installs inactive samples. A new command or argument fails
     /// this closed-set assertion without being named in a rejection list.
     #[test]
     fn the_human_command_surface_has_nothing_left_to_select() {
@@ -206,11 +215,19 @@ mod tests {
         let subcommands: Vec<&str> = command.get_subcommands().map(|s| s.get_name()).collect();
         assert!(
             subcommands == ["config", "view"],
-            "only observation complements the bare lifecycle: {subcommands:?}"
+            "only config and view complement the bare lifecycle: {subcommands:?}"
         );
         let config = command.find_subcommand("config").unwrap();
         let config_commands: Vec<_> = config.get_subcommands().map(|s| s.get_name()).collect();
-        assert_eq!(config_commands, ["show"]);
+        assert_eq!(config_commands, ["examples", "show"]);
+        assert_eq!(
+            config
+                .find_subcommand("examples")
+                .unwrap()
+                .get_arguments()
+                .count(),
+            0
+        );
         let show = config.find_subcommand("show").unwrap();
         let options: Vec<_> = show
             .get_arguments()

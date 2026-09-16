@@ -34,6 +34,46 @@ profile list; `config { select; }` disables profiles. Without a local selection,
 Grove inherits the personal default. Direct local values apply last, and edits
 affect subsequent sessions. See [configuration profiles](CONFIGURATION.md#named-commands-and-routes).
 
+<a id="usage-configuration-examples"></a>
+## Installing configuration examples
+
+```sh
+grove config examples --help
+grove config examples
+```
+
+This command works outside a workspace, with absent or broken active policy,
+and without a driver lease or live session epoch. It ignores stale inherited
+signals. It installs only these fixed paths under `~/.config/grove/`:
+
+- `config.modular.example.kdl`
+- `grove.codex-led.example.kdl`
+- `grove.claude-led.example.kdl`
+- `grove.high-effort.example.kdl`
+- `grove.local-override.example.kdl`
+- `grove.legacy-override.example.kdl`
+- `CONFIGURATION.examples.md`
+
+The instructions explain how to supply your executable/model policy and adapt
+a sample. Nothing is activated: `config.kdl`, workspace `.grove.kdl`, ignore
+rules and unrelated files are preserved. See the
+[configuration reference](CONFIGURATION.md#installing-examples) for sample behavior.
+
+Preflight checks the whole set before writing. Matching regular files are left
+untouched, including on repeated runs. Different contents, symlinks, directories
+and unreadable entries are conflicts. Move or reconcile the reported conflicts
+yourself before retrying. There is no force or destination option.
+
+Missing files are exclusively created, so a new occupant cannot be overwritten
+between preflight and creation. Installation is not a batch transaction: a later
+create/write failure reports the created paths, identifies any partial file and
+stops. Those files remain for inspection; Grove deletes nothing as cleanup.
+Inspect a partial file before moving it aside and retrying.
+
+Exit 0 means the entire intended set is present and paths are reported on stdout.
+Conflicts or I/O failures exit 1 with the failure and any created paths on stderr.
+Invalid usage exits 2. `--help` prints usage without installing anything.
+
 <a id="usage-inspecting-configuration"></a>
 ## Inspecting configuration before launch
 
@@ -265,7 +305,8 @@ Grove: hierarchical workstream tool for AI agents
 Usage: grove [COMMAND]
 
 Commands:
-  view  Browse a .grove task tree read-only with automatic refresh
+  config  Inspect launch configuration or install inactive examples
+  view    Browse a .grove task tree read-only with automatic refresh
 
 Options:
   -h, --help     Print help
@@ -1106,6 +1147,7 @@ added to the inventory and forgotten here is a test failure rather than a silenc
 | G2 | [Running Grove](#usage-running-grove) |
 | G3 | [Running Grove](#usage-running-grove) |
 | G4 | [Running Grove](#usage-running-grove) |
+| G8 | [Installing configuration examples](#usage-configuration-examples) |
 | G7 | [Inspecting configuration before launch](#usage-inspecting-configuration) |
 | G6 | [Viewing a tree](#usage-viewing-tree) |
 | G5 | [Stopping the loop](#stopping-the-loop) |

@@ -51,6 +51,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove config examples` installs six validated KDL samples and self-contained
+  instructions beside personal policy. Full-set preflight, exclusive creation
+  and partial-failure reporting preserve active configuration and existing files.
+  `grove config show` exposes the resolved commands and provenance as human text
+  or versioned JSON, without launching a session.
+
 - Grove now selects personal profiles from the workspace delta, the personal
   default, or an empty list. Explicit empty local selections disable profiles;
   direct local values apply last. SessionConfig exposes compiled inspection and

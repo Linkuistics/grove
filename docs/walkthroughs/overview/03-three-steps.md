@@ -24,7 +24,7 @@ The composite assembles the function's contract and implementation in source
 order. The documentation separates ordinary errors from a signal that took the
 driver away; the body adds the early observation branch before lifecycle setup.
 
-<!-- fragment «surface-resolve-lease-run» owner="one-call" source="crates/grove/src/cli.rs" lines="101-139" parent="source-command-surface" -->
+<!-- fragment «surface-resolve-lease-run» owner="one-call" source="crates/grove/src/cli.rs" lines="107-148" parent="source-command-surface" -->
 <!-- insert «run-seam-doc» -->
 <!-- insert «run-signal-doc» -->
 <!-- insert «run-errors-doc» -->
@@ -42,7 +42,7 @@ entry point should call public seams rather than compile private modules into
 itself. The CLI reports errors once and returns an `ExitCode`; main propagates that
 status without adding a second message.
 
-<!-- fragment «entry-point-three-steps» owner="one-call" source="crates/grove/src/main.rs" lines="1-15" parent="source-entry-point" -->
+<!-- fragment «entry-point-three-steps» owner="one-call" source="crates/grove/src/main.rs" lines="1-16" parent="source-entry-point" -->
 <!-- insert «entry-point-module-doc» -->
 <!-- insert «entry-point-module-and-main» -->
 <!-- /fragment -->
@@ -53,12 +53,12 @@ modules into the binary.
 
 <!-- fragment «entry-point-module-doc» owner="one-call" source="crates/grove/src/main.rs" lines="1-7" parent="entry-point-three-steps" -->
 ````rust
-//! The human's binary: lifecycle execution and read-only observation.
+//! The human's binary: lifecycle, observation and inactive example delivery.
 //!
-//! The CLI dispatches `view` and `config show` before lifecycle setup. Bare `grove`
+//! The CLI dispatches `view` and `config` before lifecycle setup. Bare `grove`
 //! resolves the working tree and takes the one-driver lease before calling
 //! [`grove_loop::run`]. Both application lifetimes sit behind public library
-//! entry points; main propagates the CLI's reported exit status
+//! entry points; sample delivery stays in the binary. Main propagates exit status
 //! (`docs/specs/module-decomposition.md`, decision 9).
 ````
 <!-- /fragment -->
@@ -66,12 +66,13 @@ modules into the binary.
 The module declaration and main function implement that boundary: one call
 returns the CLI result directly to the process runtime.
 
-<!-- fragment «entry-point-module-and-main» owner="one-call" source="crates/grove/src/main.rs" lines="8-15" parent="entry-point-three-steps" -->
+<!-- fragment «entry-point-module-and-main» owner="one-call" source="crates/grove/src/main.rs" lines="8-16" parent="entry-point-three-steps" -->
 ````rust
 
 mod cli;
 mod config;
 mod config_json;
+mod examples;
 
 fn main() -> std::process::ExitCode {
     cli::run()
@@ -88,10 +89,10 @@ therefore runs once and passes its result to both consumers. This contract is
 about the lifecycle; the viewer's absolute observation path is not a workspace
 resolution.
 
-<!-- fragment «run-seam-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="101-109" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-seam-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="107-115" parent="surface-resolve-lease-run" -->
 ````rust
 
-/// Dispatch observation, or resolve, lease and run the lifecycle.
+/// Dispatch inspection, viewing or example delivery before the lifecycle.
 ///
 /// The workspace is resolved **here**, once, and handed to both the lease and
 /// the loop. That is the shape `loop-crate-driver-k22` gave the seam: the lease
@@ -119,9 +120,16 @@ An unset home directory can fail lifecycle configuration discovery. It is never
 consulted for a view request. A non-jj directory can be observed, even though
 bare invocation there is refused. Both outcomes follow from the early return.
 
-<!-- fragment «run-three-steps» owner="one-call" source="crates/grove/src/cli.rs" lines="123-133" parent="surface-resolve-lease-run" -->
+`config examples` is the earliest branch: it resolves only HOME and returns
+before current-directory lookup, workspace discovery or leasing. Missing or broken
+active policy and stale ambient epochs therefore cannot change sample delivery.
+
+<!-- fragment «run-three-steps» owner="one-call" source="crates/grove/src/cli.rs" lines="129-142" parent="surface-resolve-lease-run" -->
 ````rust
 fn execute(cli: Cli) -> anyhow::Result<()> {
+    if let Some(Command::Config(ConfigCommand::Examples)) = cli.command {
+        return crate::examples::run();
+    }
     let cwd = std::env::current_dir()?;
     if let Some(Command::View { worktree }) = cli.command {
         return grove_tui::run(&worktree.unwrap_or(cwd));
@@ -145,7 +153,7 @@ observes termination by that signal. This is the lifecycle's contract; the
 viewer's current Ctrl-c handling is an ordinary quit through its own terminal
 lifetime, and full signal hardening is a later viewer increment.
 
-<!-- fragment «run-signal-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="110-118" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-signal-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="116-124" parent="surface-resolve-lease-run" -->
 ````rust
 /// **A driver that was killed does not exit 0.** The loop returns *why* it
 /// stopped, and one of the reasons is that this process was sent SIGTERM or
@@ -160,9 +168,9 @@ lifetime, and full signal hardening is a later viewer increment.
 <!-- /fragment -->
 
 The final match maps the returned lifecycle outcome to clean return or signal
-re-raising. Both observation commands have already returned before this match can run.
+re-raising. The observation commands and sample installer have already returned before this match can run.
 
-<!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="134-139" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="143-148" parent="surface-resolve-lease-run" -->
 ````rust
     match grove_loop::run(&workspace, lease, &templates)? {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
@@ -221,7 +229,7 @@ non-TTY refusal or a terminal setup/input/draw error; its terminal owner restore
 modes before that error reaches the reporting boundary. `execute` returns the error
 to `run`, which writes human or JSON diagnostics and returns exit 1 to main.
 
-<!-- fragment «run-errors-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="119-122" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-errors-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="125-128" parent="surface-resolve-lease-run" -->
 ````rust
 /// # Errors
 ///

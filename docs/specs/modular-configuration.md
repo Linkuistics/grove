@@ -16,7 +16,7 @@ while Grove chooses the local declaration, else the personal default, else empty
 Explicit selections compose every profile/include occurrence with active-only
 semantic validation and occurrence-specific histories. Inactive profiles receive
 structural checks without affecting resolution. `config show [--kind KIND] [--json]`
-uses that snapshot before lease acquisition. Example delivery remains pending; the [reference](../CONFIGURATION.md) describes
+uses that snapshot before lease acquisition. The example installer is implemented; the [reference](../CONFIGURATION.md) describes
 the current boundary.
 
 The authority and execution constraints are owned by
@@ -423,10 +423,11 @@ route overrides/unset and legacy literal replacement. Removing the effort
 experiment or the unset restores the documented inherited or explicit value.
 The inactive unfinished profile succeeds unselected; selecting it produces
 source-attributed diagnostics and prevents the driver from bootstrapping or
-launching, preserving any existing task tree. Installer packaging and actual
-personal-directory delivery remain pending. The implementation session must also
-deliver the tested examples to the requested personal configuration directory;
-writing the installer alone does not satisfy example delivery.
+launching, preserving any existing task tree. The human binary embeds these exact bytes with `include_bytes!`. Installer
+acceptance checks success, idempotence, full-set conflicts, exclusive-create races
+and partial writes; the reader/inspection/fake-launch tests consume installed
+files. Actual personal-directory delivery is recorded in the implementation
+leaf before it is retired.
 
 ## Module interfaces
 

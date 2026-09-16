@@ -421,3 +421,35 @@ fn inspection_options_in_binary_help_are_explained_by_the_guide() {
         );
     }
 }
+
+#[test]
+fn example_installation_help_and_guide_cover_delivery_and_failure() {
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_grove"))
+        .args(["config", "examples", "--help"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let help = String::from_utf8(output.stdout).unwrap();
+    let guide = read(&support::repo_root(), GUIDE);
+    let section = guide
+        .split("## Installing configuration examples\n")
+        .nth(1)
+        .unwrap()
+        .split("\n## ")
+        .next()
+        .unwrap();
+    for term in [
+        "grove config examples",
+        "--help",
+        "~/.config/grove/",
+        "CONFIGURATION.examples.md",
+        "partial",
+        "stdout",
+        "stderr",
+        "force",
+        "2",
+    ] {
+        assert!(help.contains(term), "help omits {term}");
+        assert!(section.contains(term), "guide omits {term}");
+    }
+}

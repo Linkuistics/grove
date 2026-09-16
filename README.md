@@ -35,6 +35,10 @@ each session kind you use a complete command template. Grove holds no list of
 kinds and enforces no schema: it asks whether a kind is declared at the moment it
 needs one. The lifecycle will not start without the file at all — see
 [Configuration](docs/CONFIGURATION.md).
+Run `grove config examples` for inactive samples and instructions in
+`~/.config/grove/`, then adapt the policy yourself. The command preserves active
+configuration and refuses conflicting files. Use `grove config show --json` inside
+a workspace to inspect resolved commands and their origins before launching.
 
 Grove's methodology uses two Linkuistics skills: `decision-records` for ADR
 discipline and `codebase-design` for testable module seams. Install the

@@ -10,7 +10,7 @@ working tree, it resolves that tree, takes the one-driver lease over it, and
 calls the loop; the loop is everything else — which task runs next, which
 command launches it, and when the grove is done. The bare lifecycle takes no
 launch-policy selectors. The `view` subcommand
-observes a supplied directory without entering that lifecycle. `config show` explains
+observes a supplied directory without entering that lifecycle. `config examples` delivers inactive samples without workspace or policy setup. `config show` explains
 active policy without launching. The corpus includes manifest, main, CLI and
 configuration presentation.
 

@@ -41,8 +41,15 @@ impl Fixture {
         fs::create_dir(&bin).unwrap();
         support::init_jj_repo(&repo);
         fs::write(repo.join(".gitignore"), "/.grove.kdl\n/captured.argv\n").unwrap();
+        let installation = Command::new(env!("CARGO_BIN_EXE_grove"))
+            .args(["config", "examples"])
+            .current_dir(&home)
+            .env("HOME", &home)
+            .output()
+            .unwrap();
+        assert_success(&installation);
         fs::copy(
-            example("config.modular.example.kdl"),
+            home.join(".config/grove/config.modular.example.kdl"),
             home.join(".config/grove/config.kdl"),
         )
         .unwrap();
@@ -64,7 +71,12 @@ impl Fixture {
     }
 
     fn local_example(&self, name: &str) {
-        fs::copy(example(name), self.repo.join(".grove.kdl")).unwrap();
+        let delivered = self.home.join(".config/grove").join(name);
+        assert_eq!(
+            fs::read(&delivered).unwrap(),
+            fs::read(example(name)).unwrap()
+        );
+        fs::copy(delivered, self.repo.join(".grove.kdl")).unwrap();
     }
 
     fn load(&self) -> SessionConfig {

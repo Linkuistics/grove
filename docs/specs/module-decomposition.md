@@ -368,6 +368,12 @@ including paths when no span exists (empty for other errors). Human
 `grove config show [--kind KIND]` loads through SessionConfig before acquiring
 a lease, validates globally before filtering, and formats the shared records
 in the human binary. Its `--json` projection preserves tagged words, assignment variants, native paths and diagnostics without changing resolution.
+`grove config examples` is likewise owned by the human binary, independently of
+SessionConfig: it embeds the repository fixtures and instructions, checks every
+fixed destination, then creates missing files exclusively. No workspace, lease,
+epoch or active-policy load participates. Partial failures report created paths;
+matching files and active policy are preserved.
+
 
 ```rust
 /// The slot vocabulary a consumer's templates are written against. Supplied at

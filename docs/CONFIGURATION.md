@@ -2,12 +2,9 @@
 
 This reference describes flat commands, named command reuse, parameters and
 ordered profile composition with workspace selection. The [modular design](specs/modular-configuration.md)
-also specifies example delivery, which remains pending. The
-[repository examples](examples/modular-configuration/README.md) are validated
-through the production reader, JSON inspection and fake executable launches;
-`grove config examples` and installation into the personal directory are not yet
-implemented.
-`grove config show [--kind KIND] [--json]` is available now.
+specifies the resolution and delivery contract. `grove config show [--kind KIND]
+[--json]` explains active policy; `grove config examples` installs the validated
+[example set](examples/modular-configuration/README.md) without activating it.
 Existing configurations require no rewrite.
 
 The generic runner captures sources in an owned `Catalog` and resolves an explicit
@@ -46,6 +43,26 @@ cannot choose your model or approval policy for you.
 Every admitted kind resolves to a complete command before launch. Named routes
 can use a binding selected by the local file and a command defined in personal
 policy; inspection retains those contributing declarations.
+
+## Installing examples
+
+Run `grove config examples` to place six `.example.kdl` files and
+`CONFIGURATION.examples.md` in `~/.config/grove/`. It needs neither a workspace
+nor valid active policy. Destinations are fixed; active `config.kdl` and
+`.grove.kdl` files are never written. The installed instructions explain
+wrapper/model/policy choices and how to activate a local sample after ignoring
+its destination. The samples cover both lead/review arrangements, includes,
+parameter experiments, local selection and overrides, and an inactive unfinished
+profile. They are illustrative policy, not built-in harness support.
+
+All destinations are checked before writes. Matching regular files remain
+untouched; different contents, symlinks, directories and unreadable entries are
+conflicts. Missing files are exclusively created. A later create/write failure
+can leave completed or partial new files: stderr names them and the failure,
+and nothing is deleted as cleanup. Resolve conflicts yourself before retrying;
+there is no force option, destination option or automatic ignore edit.
+Success reports paths on stdout and exits 0; conflicts/I/O failures exit 1;
+invalid usage exits 2. See the [worked command](USAGE.md#usage-configuration-examples).
 
 ## The file
 

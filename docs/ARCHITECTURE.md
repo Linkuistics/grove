@@ -440,6 +440,13 @@ remain tagged literals or symbolic slots. No tree, lease or epoch is consulted,
 and the trackedness query's jj metadata snapshot is the only permitted write.
 Both report formats expose origin/history references. The human binary owns the JSON projection and structured usage errors; the resolver stays format-independent.
 
+The human CLI also dispatches `config examples` before resolving a workspace or
+loading policy. `grove::examples` embeds the repository samples and instructions,
+preflights the fixed personal-directory destinations and exclusively creates only
+missing files. It reports partial failures without rollback; matching files and
+active policy remain untouched. Its filesystem seam exercises races and I/O
+failures without introducing configuration semantics into the installer.
+
 **Presence is per kind and just-in-time**
 (`docs/adr/complete-session-configuration.md`): both documents are validated
 whole before every tree mutation and every launch, but whether a *particular*

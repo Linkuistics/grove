@@ -53,7 +53,7 @@
 - [Source ownership and early uses](05-what-the-call-reaches.md#the-closed-ledgers)
 - [Verification](05-what-the-call-reaches.md#final-verification)
 
-- [Inspecting configured policy](02-the-surface.md#config-grammar)
+- [Inspecting configured policy and installing examples](02-the-surface.md#config-grammar)
 - [Inspect without starting the lifecycle](05-what-the-call-reaches.md#configuration-report)
 - [Loading before output](05-what-the-call-reaches.md#inspection-load)
 - [Locating assignments](05-what-the-call-reaches.md#inspection-labels)
@@ -69,3 +69,14 @@
 - [Projecting one complete inspection](05-what-the-call-reaches.md#json-inspection)
 - [Reporting a refusal once](05-what-the-call-reaches.md#json-diagnostics)
 - [Checking native units without filesystem support](05-what-the-call-reaches.md#json-native-tests)
+
+- [Installing inactive examples](05-what-the-call-reaches.md#configuration-examples)
+- [Embedding the inactive package](05-what-the-call-reaches.md#examples-package)
+- [Separating filesystem effects](05-what-the-call-reaches.md#examples-storage)
+- [Reporting completed and incomplete work](05-what-the-call-reaches.md#examples-report)
+- [Preflight before exclusive creation](05-what-the-call-reaches.md#examples-install)
+- [Delivery without session setup](05-what-the-call-reaches.md#examples-run)
+- [Interleaving real filesystem failures](05-what-the-call-reaches.md#examples-faults)
+- [Observing a competing occupant](05-what-the-call-reaches.md#examples-race-test)
+- [Observing partial writes and retries](05-what-the-call-reaches.md#examples-write-test)
+- [Refusing before any creation](05-what-the-call-reaches.md#examples-refusal-test)

@@ -5,7 +5,7 @@
 <a id="no-arguments"></a>
 ## Lifecycle and observation
 
-The human binary has lifecycle, tree-viewing and configuration-inspection paths. Bare `grove` starts, resumes or finishes
+The human binary has lifecycle, tree-viewing, configuration-inspection and example-delivery paths. Bare `grove` starts, resumes or finishes
 the lifecycle in the enclosing jj workspace. `grove view [WORKTREE]` opens an
 inert, read-only browser at one directory's `.grove`. Its path selects what to
 observe; it does not select a session, a kind or launch policy. `grove-llm`
@@ -13,7 +13,7 @@ remains the separate flat command surface a running session uses.
 
 The parser turns the shell's argument vector into `Cli`. An absent command
 means lifecycle dispatch; a `View` variant carries an optional path and a
-`Config` variant carries the nested inspection command. Help and
+`Config` variant carries inspection or inactive example delivery. Help and
 version exit during parsing, before application dispatch.
 
 <a id="the-grammar"></a>
@@ -22,9 +22,9 @@ version exit during parsing, before application dispatch.
 The grammar owns the imports, its stated contract, clap metadata and the
 command declarations. Their source-order concatenation is independent of the
 reader order below. The `Command` enum belongs here alongside `Cli`, because
-its only job is parsing the observation request.
+its job is parsing the requested operation, without selecting launch policy.
 
-<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-100" parent="source-command-surface" -->
+<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-106" parent="source-command-surface" -->
 <!-- insert «surface-imports» -->
 <!-- insert «surface-doc-comment» -->
 <!-- insert «surface-clap-attributes» -->
@@ -47,7 +47,7 @@ The loop imports are used by the next chapter's lifecycle path:
 | `TemplateSource` | The location from which the loop reads launch policy |
 | `LoopOutcome` | Why the loop stopped, including interruption by a signal |
 
-The viewer returns before any of those four is constructed or used.
+The viewer and example installer return before any of those four is constructed or used.
 
 <!-- fragment «surface-imports» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-5" parent="surface-grammar" -->
 ````rust
@@ -70,7 +70,7 @@ Adding the browser does not give the launcher a second source of policy.
 <!-- fragment «surface-doc-comment» owner="no-arguments" source="crates/grove/src/cli.rs" lines="6-8" parent="surface-grammar" -->
 ````rust
 
-/// Bare `grove` drives the lifecycle; `view` and `config` observe without launching.
+/// Bare `grove` drives the lifecycle; `view` and `config` never launch sessions.
 /// Launch policy stays in configuration rather than command-line selectors.
 ````
 <!-- /fragment -->
@@ -121,12 +121,12 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Inspect the workspace's resolved launch configuration without launching.
+    /// Inspect launch configuration or install inactive examples.
     // clap 4.6.1: variant-level subcommand nests the enum's commands.
     // https://docs.rs/clap/4.6.1/clap/_derive/index.html#command-attributes
     #[command(
         subcommand,
-        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n\nExit codes: 0 success, 1 configuration/source failure, 2 invalid usage."
+        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n  grove config examples\n\nExit codes: 0 success, 1 configuration/source/installation failure, 2 invalid usage."
     )]
     Config(ConfigCommand),
     /// Browse a .grove task tree read-only with automatic refresh.
@@ -143,7 +143,7 @@ enum Command {
 <!-- /fragment -->
 
 <a id="config-grammar"></a>
-## Inspecting configured policy
+## Inspecting configured policy and installing examples
 
 `ConfigCommand::Show` holds an optional kind filter and a JSON output flag. It changes which
 validated commands are displayed, not which profiles resolve or what launches.
@@ -151,11 +151,17 @@ Clap requires a child of `config`; its nested help provides examples and exit
 codes. SessionConfig owns validation; the parser cannot establish that a kind
 is admitted. The JSON flag selects the wire projection of that same validated result.
 
-<!-- fragment «surface-config-command» owner="no-arguments" source="crates/grove/src/cli.rs" lines="46-62" parent="surface-grammar" -->
+<!-- fragment «surface-config-command» owner="no-arguments" source="crates/grove/src/cli.rs" lines="46-68" parent="surface-grammar" -->
 ````rust
 
 #[derive(Subcommand)]
 enum ConfigCommand {
+    /// Install inactive example files beside the personal configuration.
+    #[command(
+        long_about = "Install six .example.kdl files and CONFIGURATION.examples.md under ~/.config/grove/. Works outside a workspace without loading active policy. All destinations are checked first: matching regular files stay untouched; differing, unreadable or non-regular entries are conflicts. Missing files are created exclusively. Later failures may leave created or partial files, which are reported. Never overwrites config.kdl or edits a workspace delta or ignore rule.",
+        after_help = "Examples:\n  grove config examples\n  grove config examples --help\n\nExit codes: 0 whole set present, 1 conflict or I/O failure, 2 invalid usage.\nSuccess paths go to stdout; conflicts and partial-failure paths go to stderr. No force or destination option. Inspect conflicting paths and move them aside yourself before retrying. See also: grove config show --help."
+    )]
+    Examples,
     /// Show sources, selected profiles, commands and override provenance.
     #[command(
         long_about = "Inspect the workspace's configuration read-only, using the same complete validation and admission as launch. Requires a jj workspace but no task tree or driver lease. Runtime slots remain placeholders; no executable is probed or launched. jj may snapshot metadata when checking local configuration trackedness.",
@@ -203,6 +209,11 @@ shows the branch that separates these paths.
 
 
 
+The `Examples` variant takes no selector or destination. Its help describes the
+fixed personal-directory package, preflight conflicts, exclusive creation and
+partial-failure reports. It shares the outer config group but never calls the
+configuration reader.
+
 <a id="process-reporting"></a>
 ## Reporting before a command exists
 
@@ -217,7 +228,7 @@ configuration errors preserve structured records; other failures get the same
 record shape. Human errors retain their context chain. Returning `ExitCode` lets
 `main` finish without Rust adding a second error message.
 
-<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="63-100" parent="surface-grammar" -->
+<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="69-106" parent="surface-grammar" -->
 ````rust
 
 /// Own process reporting, including usage failures before a command exists.

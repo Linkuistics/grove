@@ -342,3 +342,35 @@ resolver or source-admission policy for that work.
   profile-selection policy and VCS checks. The reviewed Catalog/Templates and
   SessionConfig boundary assigns those responsibilities; keep its output
   records coherent with the module contract as implementation lands.
+
+## Complete configuration and example delivery handoff
+
+`configuration-example-installation-k35` closes `configuration-examples-k12`.
+The human binary embeds the authoritative six KDL examples and README, performs
+full-set preflight, preserves matching regular files and exclusively creates only
+missing paths. Conflicts and partial failures report their paths without cleanup
+or overwrite. Delivery dispatches before workspace, policy, lease and epoch work.
+The installed instructions explain owner-supplied executable/model policy and
+explicit activation; samples remain inactive.
+
+The final `bash scripts/check.sh` run passed all eight principal checks on fixed
+tracked inputs, including all workspace tests and six source-exact books. The
+root acceptance matrix is accounted for by the executed seams:
+
+| Acceptance cases | Executed evidence |
+|---|---|
+| Shared commands, safe parameters, provenance, captured-source independence and legacy compatibility | keyed-launch `templates`, `profiles` and `conformance_kit`; Grove `session_config` and `config_show` |
+| Lead arrangements, small variations, selection/includes/order and partial/inactive building blocks | keyed-launch `profiles`; Grove `session_config` and installed `config_examples` |
+| Source discovery, missing personal targets, local authorization and refusal before mutation/launch | Grove `session_config`, `config_show`, lifecycle/driver acceptance and grove-llm admission suites |
+| Workspace isolation and next-session reload without changing the live child | Grove `loop_driver` modular acceptance |
+| Human/JSON inspection and compiled-word/launch agreement | Grove `config_show` and installed `config_examples` |
+| Package identity, conflicts, idempotence, races, late failures and unchanged active policy | Grove `example_installation`, binary installer effect-seam tests and installed `config_examples` |
+| Actual requested delivery | Newly built `./target/debug/grove config examples`; seven repository-byte matches under `/Users/antony/.config/grove/`; preexisting files and repeat-run metadata preserved |
+
+Configuration/reference, command coverage, architecture/module prose, glossary,
+release notes and the affected overview book describe this delivered contract.
+The two configuration ADRs remain consistent. The handoffs above record earlier
+increment boundaries; their inspection/delivery follow-ons are now fulfilled.
+Opaque commands, symbolic runtime slots, no cross-file transaction and no changes
+to an already-running child remain deliberate limitations. No acceptance work
+remains for this feature; driver-owned finish and teardown are separate.

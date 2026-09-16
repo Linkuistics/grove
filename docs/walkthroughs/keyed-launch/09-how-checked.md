@@ -2,6 +2,13 @@
 <!-- book-page id="how-checked" slice="checked-without-meaning" order="9" -->
 [Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md) | [Next: What passes through](10-what-passes-through.md)
 
+The public `tests/inspection.rs` fixture deliberately writes declarations in a
+non-alphabetical order and places UTF-8 text before them. It checks original byte
+spans, assignment order, response IDs, overwritten values and overlay-only
+refusal after changing/removing sources and dropping Catalog. Independently
+filling inspected words equals expansion, including an empty literal and native
+runtime bytes. A separate empty-file case checks that capture invents no activity.
+
 <a id="checked-without-meaning"></a>
 ## Check the captured result
 

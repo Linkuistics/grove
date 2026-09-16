@@ -6,8 +6,9 @@ Grove configuration names reusable commands, composes differences through
 profiles, and resolves an explicit command for each configured session kind.
 This is the design contract for that configuration area. The running reader
 implements the legacy flat form through captured Catalog/Selection resolution
-and the same conformance path, with structured diagnostics. Inspection, wrapper and
-profile syntax, and Grove selection policy remain pending; the
+and the same conformance path, with structured diagnostics and flat library
+inspection/provenance. Human inspection commands, wrapper/profile syntax and
+Grove selection policy remain pending; the
 [configuration reference](../CONFIGURATION.md) documents that boundary.
 
 The authority and execution constraints are owned by

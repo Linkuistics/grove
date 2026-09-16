@@ -67,7 +67,7 @@ and one slot reference, where the reference is a *position* in the four-name tab
 rather than the name itself.
 
 ```text
-[Word::Literal("claude"), Word::Literal("--model"), Word::Literal("opus"), Word::Slot(0)]
+[Word::Literal("claude"), Word::Literal("--model"), Word::Literal("opus"), Word::Slot("prompt".into())]
 ```
 
 Now grove offers values. It offers **four** of them, one for every slot the
@@ -113,7 +113,7 @@ the chapter is one column of it read closely.
 | 0 | `Word::Literal("claude")` | the file | `claude` |
 | 1 | `Word::Literal("--model")` | the file | `--model` |
 | 2 | `Word::Literal("opus")` | the file | `opus` |
-| 3 | `Word::Slot(0)` | `offered[0]`, the value offered for `prompt` | `Fix the $(date) helper in scripts/check.sh` |
+| 3 | `Word::Slot("prompt".into())` | `offered["prompt"]`, the value offered for `prompt` | `Fix the $(date) helper in scripts/check.sh` |
 
 Four words in, four words out. The mandate is one argument by construction: the
 only splitting this crate ever does happened at load, to the template, and a
@@ -134,14 +134,13 @@ not read. That is not waste; it is the obligation, and the section on
 <a id="four-questions"></a>
 ## What the block answers
 
-The 130 lines are six functions, three of them public, and a seventh sits alone
-at the end of the file. The table collects what each answers and what each
-refuses, so the sections that follow can be read one at a time without holding
-the shape of the block in mind; every row's refusal text is exact, and the tests
-named are in `crates/keyed-launch/tests/templates.rs`.
+The following table collects the inspection, lookup and expansion operations.
+Each answers one question about a captured snapshot. The tests named here use
+the public API in `tests/templates.rs` and `tests/inspection.rs`.
 
 | Function | Answers | Refuses with | Pinned by |
 |---|---|---|---|
+| `inspect` | captured sources, histories and compiled words | — | `captured_flat_inspection_retains_history_and_matches_expansion` |
 | `source` | which file this key's template was read from | `None` is an answer, not a refusal | `an_overlay_replaces_a_whole_template_and_reports_its_own_path`, `a_key_only_the_overlay_declares_does_not_resolve` |
 | `require` | does this key resolve to exactly one complete template | `` key `k` does not resolve: … `` | `a_key_nobody_declares_names_the_primary_file`, `a_key_only_the_overlay_declares_does_not_resolve` |
 | `expand` | this key's template plus these values, as an argv | both of `require`'s and all three of `match_values`'s | `a_slot_value_is_one_argument_whatever_it_contains`, `program_and_arguments_split_at_word_zero`, `shell_metacharacters_stay_literal` |
@@ -152,14 +151,14 @@ named are in `crates/keyed-launch/tests/templates.rs`.
 
 The composite below is the block as a whole, and it sits in `src/templates.rs`
 between the two halves of chapter 3's reading. Those are ownership-block
-boundaries rather than function boundaries: chapter 3's first block runs to line
-145, this one begins at 146 and runs to 275, and chapter 3's second block — which
-holds `compile_vocabulary`, the function `load` calls first — starts at 276. The
+boundaries rather than function boundaries. Chapter 3 captures and resolves the
+inputs; this block reads the snapshot; the later validation block defines the
+rules capture applies. The
 interleaving is the cost of ordering the book by concept, and the ownership
 ledger in the source index is where it is visible: eight blocks of one root,
 divided across four chapters.
 
-<!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="297-461" parent="source-templates" -->
+<!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="393-563" parent="source-templates" -->
 <!-- insert «templates-source» -->
 <!-- insert «templates-require» -->
 <!-- insert «templates-expand» -->
@@ -171,15 +170,14 @@ divided across four chapters.
 <a id="which-file"></a>
 ## Which file this key came from
 
-`source` is the first of the six and the only one that answers a question about
-provenance rather than about a launch. It takes a key and returns the path of the
+`source` is the narrow provenance lookup beside the full inspection view. It takes a key and returns the path of the
 file that supplied that key's template, or `None`. The actor is the `Templates`
 value itself, reading the per-key `source` field chapter 2 read the comment on;
 the input is a borrowed key and the output is a borrowed path, so the caller
 learns which file to name in its own diagnostics without the configuration having
 to be re-read.
 
-<!-- fragment «templates-source» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="297-305" parent="resolution-and-expansion" -->
+<!-- fragment «templates-source» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="393-401" parent="resolution-and-expansion" -->
 ````rust
     /// The file this key's template was actually read from — the primary file,
     /// or the overlay that overrode it. `None` when the primary does not declare
@@ -237,7 +235,7 @@ its captured declaration as a related span. `expand` returns this same refusal
 before matching runtime values. Runtime mismatches use `invalid_value`, carry
 the requested key and winning source, and have no fabricated file span.
 
-<!-- fragment «templates-require» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="306-331" parent="resolution-and-expansion" -->
+<!-- fragment «templates-require» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="402-427" parent="resolution-and-expansion" -->
 ````rust
 
     /// Does this key resolve to exactly one complete template?
@@ -295,7 +293,7 @@ load, so what remains is a single question about the caller's values — and the
 comment on it is the longest in the block precisely because that question is
 stated over something other than what a reader would first expect.
 
-<!-- fragment «templates-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="332-376" parent="resolution-and-expansion" -->
+<!-- fragment «templates-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="428-478" parent="resolution-and-expansion" -->
 ````rust
 
     /// Expand this key's template into an argv.
@@ -325,11 +323,17 @@ stated over something other than what a reader would first expect.
             )
         })?;
 
+        let offered: HashMap<_, _> = self
+            .slots
+            .iter()
+            .map(|slot| slot.name.as_str())
+            .zip(offered)
+            .collect();
         let mut words = Vec::with_capacity(template.words.len());
         for word in &template.words {
             words.push(match word {
                 Word::Literal(value) => OsString::from(value),
-                Word::Slot(index) => offered[*index].to_owned(),
+                Word::Slot(name) => offered[name.as_str()].to_owned(),
             });
         }
 
@@ -383,21 +387,15 @@ expansion with one obligation, that the values offered fill the slots it declare
 — and this comment is that consequence written down. `match_values`, below, is
 the line that keeps it.
 
-The body is four steps and each is a line or a loop. `require` runs first, so a
-key that does not resolve is refused before any value is looked at; the index on
-line 344 cannot panic because `require` has just returned `Ok`. `match_values`
-runs second and produces the offered vector. The loop then walks the compiled
-words in order, and its two arms are the entire substitution mechanism:
-`Word::Literal` becomes an `OsString` of the bytes the file held, and
-`Word::Slot(index)` becomes a copy of `offered[*index]`. Nothing else is
-consulted; the index is a position in the slot table rather than a name, so no
-name comparison happens here at all. That is the thread chapter 2 traced to its
-end — the vocabulary is supplied at load, so an owned table exists; because the
-table exists, a compiled word can name a slot by position; because it names it by
-position, expansion never compares a name against a template.
+Expansion first calls `require`, so an unknown key fails before runtime values
+are examined. `match_values` checks the complete vocabulary and returns borrowed
+values in its order; zipping those values with the slot names creates the lookup.
+The compiled-word loop then copies a literal into an `OsString`, or copies the
+native value associated with a `Word::Slot(name)`. This is the same named word
+representation inspection exposes. Neither branch splits or interprets the
+value, so spaces and non-Unicode bytes remain inside one argument.
 
-The last four lines are word zero, and the comment above them is the only non-doc
-comment in these 130 lines. The split cannot fail, and the reason it cannot is
+The final split separates word zero from the arguments. The split cannot fail, and the reason it cannot is
 in another chapter: word zero is checked at load to be a literal and non-empty,
 for every template in both documents, so a `Templates` value cannot hold a
 template with no words. The `expect` message says as much. `Argv::new` receives
@@ -410,10 +408,10 @@ configuration half.
 `match_values` is the check the comment on `expand` promised, and it is a private
 function because the vector it produces has no meaning outside the one call that
 consumes it. Its input is the caller's slice of `Slot` values; its output is a
-vector of borrowed `OsStr`s indexed by the *same* table the compiled words index
-into, which is what lets `expand` read `offered[*index]` with no lookup.
+vector of borrowed `OsStr`s in vocabulary order. Expansion pairs them with
+validated names before it walks the compiled words.
 
-<!-- fragment «match-values» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="377-429" parent="resolution-and-expansion" -->
+<!-- fragment «match-values» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="479-531" parent="resolution-and-expansion" -->
 ````rust
 
     /// Line up the offered values with the declared slots, by name.
@@ -502,7 +500,7 @@ is wrong half the time.
 `declared_slots` exists for the first of the three messages and for nothing else.
 It has exactly one call site, in `match_values` above it.
 
-<!-- fragment «declared-slots» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="430-437" parent="resolution-and-expansion" -->
+<!-- fragment «declared-slots» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="532-539" parent="resolution-and-expansion" -->
 ````rust
 
     fn declared_slots(&self) -> String {
@@ -541,7 +539,7 @@ this chapter keeps. It takes a key that failed `require` and returns the sentenc
 the operator will read. It has one caller, and it is the reason `require` exists
 as a named obligation rather than as a `contains_key` at each call site.
 
-<!-- fragment «templates-unresolved» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="438-461" parent="resolution-and-expansion" -->
+<!-- fragment «templates-unresolved» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="540-563" parent="resolution-and-expansion" -->
 ````rust
 
     /// The refusal for a key that does not resolve — naming the key and the
@@ -629,7 +627,7 @@ another module, and its placement says so: it is not part of the block a reader
 of the type's public surface walks, and it was added where it could be read
 against its purpose rather than against its neighbours.
 
-<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="954-963" parent="source-templates" -->
+<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="1064-1073" parent="source-templates" -->
 ````rust
 
 /// The keys the primary document declares, in name order. The conformance kit's

@@ -47,3 +47,32 @@ Run the root brief's common checks before committing.
 This is a usable flat explanation feature before reusable commands exist. Later
 children extend its histories and word origins to parameters and occurrences;
 they do not repair a placeholder inspection result.
+
+## Decisions (running log)
+
+- Implement the reviewed output records in a dedicated `inspection` module;
+  `Templates::inspect` borrows an owned view built during resolution from captured
+  declarations. Flat assignments apply in primary then overlay source order;
+  command and history lookup order is by key. Each whole-template declaration
+  supplies a real node span, shared by its compiled words.
+- Replace the private indexed word enum with the public literal/slot-name enum,
+  keeping validation and expansion authoritative and exposing no Argv constructor.
+  Flat views leave bindings, parameters and profile occurrences empty.
+
+- The bounded adversarial review found no actionable contract violations. Keep
+  the output view separate from validated launch authority; no public output
+  record is accepted by expansion. The public tests establish ordering and
+  captured-lifetime behavior through exact expected values.
+- Native runtime bytes are tested on Unix. The invalid-UTF-8 filename fixture is
+  Linux-only because this macOS filesystem rejects it before library loading;
+  macOS still checks native PathBuf retention with a Unicode filename.
+
+## Implementation plan
+
+1. Add public-seam tests for captured history, source spans, all references,
+   ordering, local-only refusal and inspection/expansion equality, including native
+   strings; observe failure before implementing the API.
+2. Add the output types and captured resolution view, preserving eager validation
+   and existing expansion behavior; run the keyed-launch tests.
+3. Update current interface documentation and every affected source-exact book;
+   run the principal checks, retire this leaf, and seal its jj commit.

@@ -199,7 +199,7 @@ order is that account's order. The book reads it whole here, in seven fragments:
 six that follow the doc comment's own paragraph breaks, and one for the module
 declarations and exports, which this chapter reads after the worked example.
 
-<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-85" parent="source-library-root" -->
+<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-91" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-two-documents» -->
 <!-- insert «library-root-vocabulary» -->
@@ -212,7 +212,7 @@ declarations and exports, which this chapter reads after the worked example.
 The first fragment is the spine, and every chapter of this book is a reading of
 its second sentence. The claim has two halves. The crate understands neither the
 key nor the template: a consumer names one and a template names the other, and
-nothing in these 2,275 lines interprets either. What the crate does own is
+nothing in these 2,733 lines interprets either. What the crate does own is
 stated positively — a launch is one complete template string read whole out of
 one file, never assembled from two, and every rule about a template is checked
 before anything is spawned. Chapters 3 and 4 are those two clauses.
@@ -267,7 +267,7 @@ expansion can check none of them. Chapter 2 owns that argument and takes the
 position the crate takes on it; chapter 3 then reads a `load` that has the names
 in hand.
 
-<!-- fragment «library-root-vocabulary» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="23-37" parent="library-root" -->
+<!-- fragment «library-root-vocabulary» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="23-38" parent="library-root" -->
 ````rust
 //! Catalog retains both original documents and their declarations. Resolving an
 //! explicit [`Selection`] returns an owned [`Templates`] snapshot without source
@@ -275,8 +275,9 @@ in hand.
 //! [`Templates::load`] delegates to that path with an empty selection.
 //!
 //! Only flat configuration is implemented: selection declarations are absent,
-//! and selecting any profile is an error. Wrapper commands, profiles and
-//! inspection are pending; no partial inspection API is exposed.
+//! and selecting any profile is an error. Wrapper commands and profiles remain
+//! pending. [`Templates::inspect`] explains flat command words, captured origins,
+//! overwritten assignments and non-admitted overlay keys without source I/O.
 //! [`ConfigError::diagnostics`] exposes stable categories, source byte ranges
 //! and remedies. Independent structural errors aggregate across both inputs.
 //!
@@ -300,7 +301,7 @@ dependency — nothing in `run` compiles against `templates`, and nothing in
 shows the two lines that make it true, and this chapter's last section reads the
 error module that the claim is also visible in.
 
-<!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="38-44" parent="library-root" -->
+<!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="39-45" parent="library-root" -->
 ````rust
 //!
 //! # From a template to a running child
@@ -321,7 +322,7 @@ finishes rather than exiting, so its own exit is not the event anyone is waiting
 for, and the channel's *appearance* is. Those two sentences are the reason the
 crate has a `Channel` at all, and chapter 6 is where the appearance rule is built.
 
-<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="45-57" parent="library-root" -->
+<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="46-58" parent="library-root" -->
 ````rust
 //!
 //! **The child is a job.** It is spawned into a process group of its own and
@@ -345,7 +346,7 @@ holds a consumer's configuration to this crate's contract **from outside the
 consumer's own suite**. The distinction it draws in that clause is the whole of
 why the kit exists, and chapter 9 argues it.
 
-<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="58-67" parent="library-root" -->
+<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="59-68" parent="library-root" -->
 ````rust
 //!
 //! [`run_observed`] adds synchronous parent-side [`LaunchEvent`] notifications
@@ -478,7 +479,7 @@ The final module declarations and exports put the public surface in one place.
 This book reads them here rather than deferring each name to its own chapter, because the
 list is short and the map above has already said which chapter owns what.
 
-<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="68-85" parent="library-root" -->
+<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="69-91" parent="library-root" -->
 ````rust
 
 pub mod conformance;
@@ -486,6 +487,7 @@ pub mod conformance;
 mod argv;
 mod channel;
 mod error;
+mod inspection;
 mod run;
 mod templates;
 mod vocabulary;
@@ -493,6 +495,10 @@ mod vocabulary;
 pub use argv::{Argv, Slot};
 pub use channel::{signal, Channel, Token};
 pub use error::{ConfigError, Diagnostic, LaunchError, Occurrence};
+pub use inspection::{
+    Assignment, AssignmentHistory, AssignmentValue, CommandView, CompiledWord, Inspection,
+    NonAdmittedKey, Origin, ParameterView, Setting, WordView,
+};
 pub use run::{
     reraise, run, run_observed, take_interrupt, End, Ended, Escalation, Launch, LaunchEvent,
 };
@@ -501,9 +507,9 @@ pub use vocabulary::{Requirement, SlotRule, Vocabulary};
 ````
 <!-- /fragment -->
 
-Seven modules, one of them public. `conformance` is public because a consumer's
-own test suite calls into it; the other six are private, and everything a
-consumer touches from them is re-exported by the six `pub use` lines. That shape
+Eight modules, one of them public. `conformance` is public because a consumer's
+own test suite calls into it; the other seven are private, and everything a
+consumer touches from them is re-exported by the seven `pub use` declarations. That shape
 is what makes the seam of the fourth fragment enforceable rather than
 conventional. `argv` is a private module, so the only thing outside this crate
 can see of it is what `pub use argv::{Argv, Slot}` publishes — the two types, and
@@ -515,11 +521,12 @@ Every name in that block belongs to a later chapter except `ConfigError` and
 reader needs to follow this chapter, and nothing more; each row's owning chapter
 is where the full account lives. Every row but the last is an **early use** — a
 name this page must state a minimum for because its owner is ahead of it — and
-the source index carries those seven verbatim as the book's early-use ledger. The
+the source index carries the required statements as the book's early-use ledger. The
 last row is this chapter's own and is not one.
 
 | Names | Minimum statement | Chapter |
 |---|---|---:|
+| `Inspection`, `CompiledWord`, `Origin`, `AssignmentHistory` | Inspection explains captured commands and replaced assignments through response-local origins and histories; CompiledWord is the literal/slot representation also used by expansion. | 2 |
 | `Catalog`, `Selection`, `SourceRole`, `Source`, `SourceSpan` | Catalog owns captured documents and vocabulary; Selection supplies the explicit profile list and optional source origin; SourceRole, Source and SourceSpan identify that origin. | 2 |
 | `Templates` | One loaded configuration: key to complete command template, compiled against a vocabulary and validated whole before anything is spawned. | 2 |
 | `Vocabulary`, `SlotRule`, `Requirement` | The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name. | 2 |

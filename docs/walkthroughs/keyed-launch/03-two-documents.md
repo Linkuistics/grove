@@ -15,8 +15,8 @@ which files a consumer should supply.
 The running example resolves each key to one whole template. Capture preserves
 both original declarations when an overlay replaces a command, and Templates
 owns its snapshot independently. Changing or removing a file cannot change
-expansion or diagnostic locations. Wrapper composition and inspection remain
-pending; structured diagnostics are available.
+expansion, inspection or diagnostic locations. Flat inspection and structured
+diagnostics are available; wrapper composition remains pending.
 
 <a id="one-entry-point"></a>
 ## One validation path
@@ -28,7 +28,7 @@ template-semantic failures. With valid structure, unused flat templates still
 undergo eager checking. Errors are ordered by primary/overlay, byte position
 and key; a bad document never causes fallback to another configuration.
 
-<!-- fragment «templates-load» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="164-296" parent="source-templates" -->
+<!-- fragment «templates-load» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="166-392" parent="source-templates" -->
 <!-- insert «templates-load-three-promises» -->
 <!-- insert «templates-load-primary» -->
 <!-- insert «templates-load-overlay» -->
@@ -38,7 +38,7 @@ and key; a bad document never causes fallback to another configuration.
 The opening fragment states the eager flat validation and fail-closed contract.
 Its output is a Catalog rather than an already merged map.
 
-<!-- fragment «templates-load-three-promises» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="164-180" parent="templates-load" -->
+<!-- fragment «templates-load-three-promises» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="166-182" parent="templates-load" -->
 ````rust
 impl Catalog {
     /// Read and fully validate both documents, retaining their original declarations.
@@ -68,7 +68,7 @@ zero-based selection index; external selections have no invented span. An empty
 selection clones the captured primary command map.
 The consumer chooses that list, even when the consumer is the convenience loader.
 
-<!-- fragment «templates-load-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="181-247" parent="templates-load" -->
+<!-- fragment «templates-load-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="183-249" parent="templates-load" -->
 ````rust
         let slots = compile_vocabulary(&vocabulary)?;
 
@@ -149,7 +149,7 @@ refusal, without admitting its command. The original overlay declaration remains
 in Captured even when it cannot enter the resolved map. This is the authority
 boundary; choosing an executable for an admitted key remains the caller's policy.
 
-<!-- fragment «templates-load-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="248-265" parent="templates-load" -->
+<!-- fragment «templates-load-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="250-267" parent="templates-load" -->
 ````rust
         let mut overlay_only = BTreeMap::new();
         if let Some(overlay) = &self.captured.overlay {
@@ -177,10 +177,19 @@ through `Arc`. `slot_names` lends the captured vocabulary to conformance.
 Templates' convenience constructor delegates directly to the same Catalog path,
 so it cannot drift into a second reader or different vocabulary rules.
 
-<!-- fragment «templates-load-value» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="266-296" parent="templates-load" -->
+`Catalog::inspect_flat` records both documents before projecting admitted
+commands. It sorts declarations by their captured node offsets, assigns origins
+in primary-then-overlay order, and accumulates every target assignment. It then
+walks histories by key: admitted commands receive the winner's words and origin,
+while overlay-only keys receive a reason without a command. Histories preserve
+the overwritten primary assignment. Empty documents still appear in `sources`.
+No path is reopened, and `selection` is the caller's explicit empty list.
+
+<!-- fragment «templates-load-value» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="268-392" parent="templates-load" -->
 ````rust
 
         Ok(Templates {
+            inspection: self.inspect_flat(selection, &templates),
             _captured: Arc::clone(&self.captured),
             primary: self.captured.primary.path.clone(),
             overlay: self
@@ -194,12 +203,105 @@ so it cannot drift into a second reader or different vocabulary rules.
         })
     }
 
+    /// Record declarations before projecting the winners. Sorting by span keeps
+    /// application order independent of the maps' alphabetical lookup order.
+    fn inspect_flat(
+        &self,
+        selection: &Selection,
+        templates: &BTreeMap<String, Template>,
+    ) -> Inspection {
+        let mut view = Inspection {
+            sources: Vec::new(),
+            selection: selection.clone(),
+            profile_occurrences: Vec::new(),
+            commands: Vec::new(),
+            non_admitted_keys: Vec::new(),
+            origins: Vec::new(),
+            histories: Vec::new(),
+        };
+        let mut histories: BTreeMap<String, Vec<Assignment>> = BTreeMap::new();
+        for (document, role) in std::iter::once((&self.captured.primary, SourceRole::Primary))
+            .chain(
+                self.captured
+                    .overlay
+                    .as_ref()
+                    .map(|document| (document, SourceRole::Overlay)),
+            )
+        {
+            view.sources.push(Source {
+                role,
+                path: document.path.clone(),
+            });
+            let mut declarations: Vec<_> = document.templates.iter().collect();
+            declarations.sort_by_key(|(_, template)| template.span.start);
+            for (key, template) in declarations {
+                let id = view.origins.len();
+                view.origins.push(Origin {
+                    id,
+                    span: template.span.clone(),
+                    occurrence: None,
+                });
+                histories.entry(key.clone()).or_default().push(Assignment {
+                    order: id,
+                    value: AssignmentValue::LiteralTemplate(template.text.clone()),
+                    origin: id,
+                });
+            }
+        }
+        for (key, assignments) in histories {
+            let id = view.histories.len();
+            // Every history was created by a declaration. Its final assignment
+            // supplies the whole flat template, with no synthetic binding.
+            let origin = assignments
+                .last()
+                .expect("a declared target has an assignment")
+                .origin;
+            if let Some(template) = templates.get(&key) {
+                view.commands.push(CommandView {
+                    key: key.clone(),
+                    binding: None,
+                    command: None,
+                    parameters: Vec::new(),
+                    words: template
+                        .words
+                        .iter()
+                        .map(|word| WordView {
+                            word: word.clone(),
+                            origins: vec![origin],
+                        })
+                        .collect(),
+                    origins: vec![origin],
+                    histories: vec![id],
+                });
+            } else {
+                view.non_admitted_keys.push(NonAdmittedKey {
+                    key: key.clone(),
+                    origins: assignments.iter().map(|a| a.origin).collect(),
+                    reason: "Only the overlay declares this key; primary policy must authorize it."
+                        .to_owned(),
+                });
+            }
+            view.histories.push(AssignmentHistory {
+                id,
+                setting: Setting::RouteTarget { key },
+                assignments,
+            });
+        }
+        view
+    }
+
     pub(crate) fn slot_names(&self) -> impl Iterator<Item = &str> {
         self.captured.slots.iter().map(|slot| slot.name.as_str())
     }
 }
 
 impl Templates {
+    /// Explain this captured resolution without reading sources or launching.
+    #[must_use]
+    pub fn inspect(&self) -> &Inspection {
+        &self.inspection
+    }
+
     /// Load a Catalog and resolve an empty explicit selection through the same
     /// validation path. Source discovery and selection policy belong to the caller.
     pub fn load(
@@ -247,7 +349,7 @@ needs a `Templates` — they run before one exists — and all five are private:
 `Catalog::load` is their entry point; Catalog resolution then produces
 Templates without invoking them again. The block is read in seven fragments.
 
-<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="462-664" parent="source-templates" -->
+<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="564-767" parent="source-templates" -->
 <!-- insert «compile-vocabulary» -->
 <!-- insert «read-primary» -->
 <!-- insert «read-overlay» -->
@@ -264,7 +366,7 @@ statement anywhere in the crate of why the duplicate is a refusal rather than a
 tolerated redundancy, and the reason is that the failure it would otherwise cause
 is silent and lands on the wrong file.
 
-<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="462-499" parent="reading-and-whole-document-validation" -->
+<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="564-601" parent="reading-and-whole-document-validation" -->
 ````rust
 
 /// Turn the borrowed vocabulary into the owned slot table `Templates` keeps, and
@@ -339,7 +441,7 @@ comment. They are worth reading side by side: the difference between them is the
 whole of what *the overlay is optional* means once a path has been handed in, and
 the source nowhere says so.
 
-<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="500-524" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="602-626" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_primary(path: &Path) -> Result<String, ConfigError> {
@@ -380,7 +482,7 @@ one case named, everything else reported verbatim.
 
 The overlay's reader has no such case.
 
-<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="525-544" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="627-646" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_overlay(path: &Path) -> Result<String, ConfigError> {
@@ -424,7 +526,7 @@ question be answered once, in `load`'s comment, rather than per error kind here.
 depends on and the rules it adds on top of them. It is nineteen lines, and eight
 of them are the message it builds when the parse fails.
 
-<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="545-582" parent="reading-and-whole-document-validation" -->
+<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="647-684" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn parse_and_validate(
@@ -501,7 +603,7 @@ three fragments below are those passes. The first walks the nodes, recording eac
 node's validation and building an index from key to every location that key was
 declared at.
 
-<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="583-602" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="685-704" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn validate_document(
@@ -538,7 +640,7 @@ were.
 The second pass is the duplicate check, and it is the one finding
 `validate_document` produces on its own rather than collecting from a node.
 
-<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="603-634" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="705-736" parent="reading-and-whole-document-validation" -->
 ````rust
     let mut diagnostics = Vec::new();
 
@@ -596,7 +698,7 @@ established that the vector is non-empty, the compiler cannot see it, and the
 The third pass drains everything into one result. It is where a document either
 becomes a map of templates or becomes a single refusal.
 
-<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="635-664" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="737-767" parent="reading-and-whole-document-validation" -->
 ````rust
 
     let mut templates = BTreeMap::new();
@@ -606,6 +708,7 @@ becomes a map of templates or becomes a single refusal.
             templates.insert(
                 validation.key,
                 Template {
+                    text: validation.text,
                     span: SourceSpan {
                         source: role.source(path),
                         start: validation.location.start,

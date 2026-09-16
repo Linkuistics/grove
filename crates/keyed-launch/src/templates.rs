@@ -10,6 +10,10 @@ use kdl::{KdlDocument, KdlNode};
 
 use crate::argv::{Argv, Slot};
 use crate::error::{ConfigError, Diagnostic, Occurrence};
+use crate::inspection::{
+    Assignment, AssignmentHistory, AssignmentValue, CommandView, CompiledWord, Inspection,
+    NonAdmittedKey, Origin, Setting, WordView,
+};
 use crate::vocabulary::{Requirement, Vocabulary};
 
 /// Which explicit input supplied a declaration.
@@ -76,6 +80,7 @@ pub struct Templates {
     /// somewhere still does not resolve — the difference between a typo and a
     /// misunderstanding of what an overlay may do.
     overlay_only: BTreeMap<String, SourceSpan>,
+    inspection: Inspection,
 }
 
 #[derive(Clone)]
@@ -94,17 +99,13 @@ struct SlotSpec {
 #[derive(Clone)]
 struct Template {
     span: SourceSpan,
+    text: String,
     words: Vec<Word>,
     source: PathBuf,
 }
 
-/// A compiled template word: a literal, or the slot it stands for by index into
-/// [`Templates::slots`].
-#[derive(Clone)]
-enum Word {
-    Literal(String),
-    Slot(usize),
-}
+/// Validation and expansion use the same literal/slot representation as inspection.
+type Word = CompiledWord;
 
 /// Which document is being validated, and so which file a diagnostic names.
 ///
@@ -158,6 +159,7 @@ struct NodeValidation {
     key: String,
     location: SourceLocation,
     template: Option<Vec<Word>>,
+    text: String,
     diagnostics: Vec<ValidationDiagnostic>,
 }
 
@@ -265,6 +267,7 @@ impl Catalog {
         }
 
         Ok(Templates {
+            inspection: self.inspect_flat(selection, &templates),
             _captured: Arc::clone(&self.captured),
             primary: self.captured.primary.path.clone(),
             overlay: self
@@ -278,12 +281,105 @@ impl Catalog {
         })
     }
 
+    /// Record declarations before projecting the winners. Sorting by span keeps
+    /// application order independent of the maps' alphabetical lookup order.
+    fn inspect_flat(
+        &self,
+        selection: &Selection,
+        templates: &BTreeMap<String, Template>,
+    ) -> Inspection {
+        let mut view = Inspection {
+            sources: Vec::new(),
+            selection: selection.clone(),
+            profile_occurrences: Vec::new(),
+            commands: Vec::new(),
+            non_admitted_keys: Vec::new(),
+            origins: Vec::new(),
+            histories: Vec::new(),
+        };
+        let mut histories: BTreeMap<String, Vec<Assignment>> = BTreeMap::new();
+        for (document, role) in std::iter::once((&self.captured.primary, SourceRole::Primary))
+            .chain(
+                self.captured
+                    .overlay
+                    .as_ref()
+                    .map(|document| (document, SourceRole::Overlay)),
+            )
+        {
+            view.sources.push(Source {
+                role,
+                path: document.path.clone(),
+            });
+            let mut declarations: Vec<_> = document.templates.iter().collect();
+            declarations.sort_by_key(|(_, template)| template.span.start);
+            for (key, template) in declarations {
+                let id = view.origins.len();
+                view.origins.push(Origin {
+                    id,
+                    span: template.span.clone(),
+                    occurrence: None,
+                });
+                histories.entry(key.clone()).or_default().push(Assignment {
+                    order: id,
+                    value: AssignmentValue::LiteralTemplate(template.text.clone()),
+                    origin: id,
+                });
+            }
+        }
+        for (key, assignments) in histories {
+            let id = view.histories.len();
+            // Every history was created by a declaration. Its final assignment
+            // supplies the whole flat template, with no synthetic binding.
+            let origin = assignments
+                .last()
+                .expect("a declared target has an assignment")
+                .origin;
+            if let Some(template) = templates.get(&key) {
+                view.commands.push(CommandView {
+                    key: key.clone(),
+                    binding: None,
+                    command: None,
+                    parameters: Vec::new(),
+                    words: template
+                        .words
+                        .iter()
+                        .map(|word| WordView {
+                            word: word.clone(),
+                            origins: vec![origin],
+                        })
+                        .collect(),
+                    origins: vec![origin],
+                    histories: vec![id],
+                });
+            } else {
+                view.non_admitted_keys.push(NonAdmittedKey {
+                    key: key.clone(),
+                    origins: assignments.iter().map(|a| a.origin).collect(),
+                    reason: "Only the overlay declares this key; primary policy must authorize it."
+                        .to_owned(),
+                });
+            }
+            view.histories.push(AssignmentHistory {
+                id,
+                setting: Setting::RouteTarget { key },
+                assignments,
+            });
+        }
+        view
+    }
+
     pub(crate) fn slot_names(&self) -> impl Iterator<Item = &str> {
         self.captured.slots.iter().map(|slot| slot.name.as_str())
     }
 }
 
 impl Templates {
+    /// Explain this captured resolution without reading sources or launching.
+    #[must_use]
+    pub fn inspect(&self) -> &Inspection {
+        &self.inspection
+    }
+
     /// Load a Catalog and resolve an empty explicit selection through the same
     /// validation path. Source discovery and selection policy belong to the caller.
     pub fn load(
@@ -357,11 +453,17 @@ impl Templates {
             )
         })?;
 
+        let offered: HashMap<_, _> = self
+            .slots
+            .iter()
+            .map(|slot| slot.name.as_str())
+            .zip(offered)
+            .collect();
         let mut words = Vec::with_capacity(template.words.len());
         for word in &template.words {
             words.push(match word {
                 Word::Literal(value) => OsString::from(value),
-                Word::Slot(index) => offered[*index].to_owned(),
+                Word::Slot(name) => offered[name.as_str()].to_owned(),
             });
         }
 
@@ -640,6 +742,7 @@ fn validate_document(
             templates.insert(
                 validation.key,
                 Template {
+                    text: validation.text,
                     span: SourceSpan {
                         source: role.source(path),
                         start: validation.location.start,
@@ -719,6 +822,11 @@ fn validate_node(source: &str, node: &KdlNode, slots: &[SlotSpec]) -> NodeValida
         key,
         location,
         template,
+        text: positional
+            .first()
+            .and_then(|entry| entry.value().as_string())
+            .unwrap_or_default()
+            .to_owned(),
         diagnostics,
     }
 }
@@ -770,8 +878,10 @@ fn validate_template(
                 "word zero must be a literal executable".to_owned(),
             ));
         }
-        if let Word::Slot(slot) = parsed {
-            counts[slot] += 1;
+        if let Word::Slot(ref name) = parsed {
+            if let Some(index) = slots.iter().position(|slot| &slot.name == name) {
+                counts[index] += 1;
+            }
         }
         compiled.push(parsed);
     }
@@ -846,8 +956,8 @@ fn parse_template_word(
     diagnostics: &mut Vec<ValidationDiagnostic>,
 ) -> Word {
     if let Some(name) = whole_substitution(word) {
-        if let Some(index) = slots.iter().position(|slot| slot.name == name) {
-            return Word::Slot(index);
+        if slots.iter().any(|slot| slot.name == name) {
+            return Word::Slot(name.to_owned());
         }
         diagnostics.push(at_template(
             location,

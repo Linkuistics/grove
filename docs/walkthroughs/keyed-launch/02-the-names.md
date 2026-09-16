@@ -82,7 +82,7 @@ a `Requirement` or a slot name anything. Every one of those calls happens inside
 
 What a loader without the names answers is not a weaker version of that; it is a
 different answer. `parse_template_word` looks a name up in the slot table and
-returns `Word::Slot(index)` when it finds it; when it does not, it records
+returns `Word::Slot(name.to_owned())` when it finds it; when it does not, it records
 `unknown substitution` and returns the word as a **literal**. A table with no
 matching name in it therefore turns every substitution into a literal, and the
 rule immediately after it — that word zero must be a literal executable — stops
@@ -310,7 +310,171 @@ it exists only while the loader holds the vocabulary.
 
 Both `Catalog::load` and the delegating `Templates::load` take the vocabulary.
 Conformance uses the vocabulary already captured by Catalog. Expansion receives
-only values: compiled words already identify runtime slots by index.
+only values: compiled words already identify validated runtime slot names.
+
+<a id="inspection-records"></a>
+## Explaining a captured resolution
+
+A caller borrowing `Templates::inspect()` needs to distinguish a winning command
+from the assignments it replaced. These output records make that distinction
+explicit. They are owned by the snapshot and remain available after Catalog and
+its files disappear. Chapter 3 builds the flat histories; chapter 5 consumes the
+same compiled words at expansion.
+
+<!-- fragment «inspection-records» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="1-106" parent="source-inspection" -->
+<!-- insert «inspection-assignments» -->
+<!-- insert «inspection-words» -->
+<!-- insert «inspection-commands» -->
+<!-- insert «inspection-snapshot» -->
+<!-- /fragment -->
+
+`Origin` locates a declaration in captured input. `Setting` names the scope
+being assigned, and `AssignmentHistory` keeps every applied value with its total
+order and origin ID. For a flat route, a primary template followed by a local
+replacement produces two `LiteralTemplate` assignments in one route history.
+The other setting/value variants define the public record vocabulary; the flat
+resolver emits none of their binding, parameter, unset or reset activity.
+
+<!-- fragment «inspection-assignments» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="1-46" parent="inspection-records" -->
+````rust
+//! Owned explanation records. These are output, never authority to construct an Argv.
+use crate::{Occurrence, Selection, Source, SourceSpan};
+
+/// One declaration's location. IDs are response-local indices into `origins`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Origin {
+    pub id: usize,
+    pub span: SourceSpan,
+    pub occurrence: Option<usize>,
+}
+
+/// The scope and name of an assigned setting.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Setting {
+    BindingTarget { binding: String },
+    RouteTarget { key: String },
+    ParameterDefault { command: String, parameter: String },
+    CommandParameter { command: String, parameter: String },
+    RouteParameter { key: String, parameter: String },
+}
+
+/// Literal templates remain distinct from binding names, even for identical text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AssignmentValue {
+    Set(String),
+    LiteralTemplate(String),
+    Unset,
+    Reset,
+}
+
+/// An application in total fold order, referencing an origin ID.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Assignment {
+    pub order: usize,
+    pub value: AssignmentValue,
+    pub origin: usize,
+}
+
+/// All assignments to a setting, including overwritten values.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AssignmentHistory {
+    pub id: usize,
+    pub setting: Setting,
+    pub assignments: Vec<Assignment>,
+}
+
+````
+<!-- /fragment -->
+
+`CompiledWord` is the representation validation builds and expansion reads.
+Inspection copies those words into `WordView` and associates origin IDs; it never
+parses a display string. In the carried flat example, every word references the
+winning template declaration, and `Slot("prompt")` still awaits a runtime value.
+
+<!-- fragment «inspection-words» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="47-61" parent="inspection-records" -->
+````rust
+/// A compiled word, shared by template validation, inspection and expansion.
+/// A runtime slot stays symbolic until expansion supplies its native value.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CompiledWord {
+    Literal(String),
+    Slot(String),
+}
+
+/// One word and every declaration contributing to it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WordView {
+    pub word: CompiledWord,
+    pub origins: Vec<usize>,
+}
+
+````
+<!-- /fragment -->
+
+`CommandView` exposes an admitted key's executable-first words and the IDs
+needed to explain them. Flat commands have no binding, named command or
+parameters. `NonAdmittedKey` keeps an overlay-only declaration visible without
+making it launchable; its reason explains the missing primary authority.
+
+<!-- fragment «inspection-commands» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="62-91" parent="inspection-records" -->
+````rust
+/// A resolved parameter and its contributing origin and history IDs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ParameterView {
+    pub name: String,
+    pub value: String,
+    pub origins: Vec<usize>,
+    pub histories: Vec<usize>,
+}
+
+/// One admitted command, executable first. Flat commands have no binding,
+/// named command or parameters; their target history retains replaced templates.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommandView {
+    pub key: String,
+    pub binding: Option<String>,
+    pub command: Option<String>,
+    pub parameters: Vec<ParameterView>,
+    pub words: Vec<WordView>,
+    pub origins: Vec<usize>,
+    pub histories: Vec<usize>,
+}
+
+/// A declared key that primary policy did not authorize.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NonAdmittedKey {
+    pub key: String,
+    pub origins: Vec<usize>,
+    pub reason: String,
+}
+
+````
+<!-- /fragment -->
+
+`Inspection` owns the response arrays. Origin and history IDs index those
+arrays within this response, while spans address the original UTF-8 source bytes
+and source paths remain native. The view carries no runtime values and grants no
+way to create an `Argv`; only validated Templates can expand one.
+
+<!-- fragment «inspection-snapshot» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="92-106" parent="inspection-records" -->
+````rust
+/// A captured resolution's explanation, independent of later source changes.
+/// Sources, origins and assignment order follow primary then overlay source
+/// order. Commands, non-admitted keys and flat target histories follow key order.
+/// Origin/history IDs index their respective vectors; spans address the original
+/// UTF-8 source bytes. The view is never accepted as input to expansion or launch.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Inspection {
+    pub sources: Vec<Source>,
+    pub selection: Selection,
+    pub profile_occurrences: Vec<Occurrence>,
+    pub commands: Vec<CommandView>,
+    pub non_admitted_keys: Vec<NonAdmittedKey>,
+    pub origins: Vec<Origin>,
+    pub histories: Vec<AssignmentHistory>,
+}
+````
+<!-- /fragment -->
 
 <a id="the-compiled-shapes"></a>
 ## What a loaded configuration is
@@ -320,7 +484,7 @@ Catalog captures the documents and vocabulary; Templates retains that capture
 and its winning commands. The validation helper types remain private. Chapters
 3 and 5 construct and consume these shapes respectively.
 
-<!-- fragment «template-shapes» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-163" parent="source-templates" -->
+<!-- fragment «template-shapes» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-165" parent="source-templates" -->
 <!-- insert «template-shapes-imports» -->
 <!-- insert «template-shapes-templates» -->
 <!-- insert «template-shapes-slot-spec» -->
@@ -339,7 +503,7 @@ is `kdl`, and the import names exactly two of its types, a document and a node.
 A third, `kdl::KdlError`, is named by full path in chapter 3, where the only
 parse call is.
 
-<!-- fragment «template-shapes-imports» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-14" parent="template-shapes" -->
+<!-- fragment «template-shapes-imports» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-18" parent="template-shapes" -->
 ````rust
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap};
@@ -353,6 +517,10 @@ use kdl::{KdlDocument, KdlNode};
 
 use crate::argv::{Argv, Slot};
 use crate::error::{ConfigError, Diagnostic, Occurrence};
+use crate::inspection::{
+    Assignment, AssignmentHistory, AssignmentValue, CommandView, CompiledWord, Inspection,
+    NonAdmittedKey, Origin, Setting, WordView,
+};
 use crate::vocabulary::{Requirement, Vocabulary};
 
 ````
@@ -371,9 +539,9 @@ resolution rejects a nonempty profile list while profile syntax is pending.
 parsed KDL and compiled declarations, so overwritten and overlay-only commands
 are not erased by resolution. Templates owns the merged map and shares this
 capture. Its underscore-prefixed retained fields are intentionally unread by the
-flat resolver; subsequent provenance can use them without loading files again.
+flat resolver; inspection uses their captured declarations without loading files again.
 
-<!-- fragment «template-shapes-templates» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="15-80" parent="template-shapes" -->
+<!-- fragment «template-shapes-templates» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="19-85" parent="template-shapes" -->
 ````rust
 /// Which explicit input supplied a declaration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -439,6 +607,7 @@ pub struct Templates {
     /// somewhere still does not resolve — the difference between a typo and a
     /// misunderstanding of what an overlay may do.
     overlay_only: BTreeMap<String, SourceSpan>,
+    inspection: Inspection,
 }
 
 ````
@@ -463,7 +632,7 @@ file disappears and distinguishes a typo from a declaration in the wrong file.
 `SlotSpec` is the owned form of a `SlotRule`, and it carries no comment because
 it needs none once its counterpart has one.
 
-<!-- fragment «template-shapes-slot-spec» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="81-86" parent="template-shapes" -->
+<!-- fragment «template-shapes-slot-spec» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="86-91" parent="template-shapes" -->
 ````rust
 #[derive(Clone)]
 struct SlotSpec {
@@ -489,7 +658,7 @@ These belong to each key because an overlay can replace one command while its
 neighbour still comes from the primary. The path serves `source()` and runtime
 errors; the span also survives when the declaration remains non-admitted.
 
-<!-- fragment «template-shapes-per-key-source» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="87-100" parent="template-shapes" -->
+<!-- fragment «template-shapes-per-key-source» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="92-106" parent="template-shapes" -->
 ````rust
 /// One key's compiled template together with **the file it was read from**.
 ///
@@ -501,6 +670,7 @@ errors; the span also survives when the declaration remains non-admitted.
 #[derive(Clone)]
 struct Template {
     span: SourceSpan,
+    text: String,
     words: Vec<Word>,
     source: PathBuf,
 }
@@ -534,34 +704,26 @@ the document's path as each template is inserted; the crate accepts that
 duplication rather than the ambiguity.
 
 <a id="a-word-and-a-role"></a>
-## A word by index, and a role that is only a noun
+## A named word, and a role that is only a noun
 
-`Word` is the compiled form of one shell word, and it is where the vocabulary
-finally disappears from the data.
+`Word` aliases `CompiledWord`, so validation, expansion and inspection share
+one representation. The alias keeps the validator concise without introducing
+a second word format.
 
-<!-- fragment «template-shapes-word» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="101-108" parent="template-shapes" -->
+<!-- fragment «template-shapes-word» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="107-109" parent="template-shapes" -->
 ````rust
-/// A compiled template word: a literal, or the slot it stands for by index into
-/// [`Templates::slots`].
-#[derive(Clone)]
-enum Word {
-    Literal(String),
-    Slot(usize),
-}
+/// Validation and expansion use the same literal/slot representation as inspection.
+type Word = CompiledWord;
 
 ````
 <!-- /fragment -->
 
-A slot is a `usize`, not a name. The index is a position in `Templates::slots`,
-the table `compile_vocabulary` built at the top of `load`, and it closes the
-thread this chapter began. The vocabulary is supplied at load, so a single owned
-table exists for the life of the configuration; because that table exists, a
-compiled word can refer to a slot by position; and because it refers by position,
-expansion never needs to compare a name against a template again — chapter 5's
-`match_values` builds a vector of offered values indexed by the *same* table and
-`expand` reads it with `offered[*index]`. Each step is a consequence of the one
-before it, and none of them is available to a loader handed its vocabulary per
-call.
+A slot retains its validated name. `compile_vocabulary` owns the names and
+cardinalities before validation, so a compiled slot can only name a declared
+runtime value. `match_values` later checks the offered values against that same
+vocabulary; expansion associates them by name and copies each native value as
+one word. Inspection can expose that name directly without reconstructing it
+from a private index.
 
 The two variants also settle what a template is not. There is no `Word::Command`,
 no `Word::Concat` and no variant for a word that is part literal and part slot: a
@@ -572,7 +734,7 @@ is the compiled restatement of the whole-word rule chapter 4 enforces and chapte
 `DocumentRole` is the last of the validation shapes to carry an argument, and the
 argument is about what it does *not* change.
 
-<!-- fragment «template-shapes-document-role» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="109-139" parent="template-shapes" -->
+<!-- fragment «template-shapes-document-role» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="110-140" parent="template-shapes" -->
 ````rust
 /// Which document is being validated, and so which file a diagnostic names.
 ///
@@ -626,7 +788,7 @@ the entire purpose of carrying the role that far.
 The last three types are the shape of a validation report. There is no comment
 on any of them, and what they are for is legible only from their fields.
 
-<!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="140-163" parent="template-shapes" -->
+<!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="141-165" parent="template-shapes" -->
 ````rust
 #[derive(Clone, Copy)]
 struct SourceLocation {
@@ -649,6 +811,7 @@ struct NodeValidation {
     key: String,
     location: SourceLocation,
     template: Option<Vec<Word>>,
+    text: String,
     diagnostics: Vec<ValidationDiagnostic>,
 }
 
@@ -683,12 +846,12 @@ nodes that individually failed; a `template` that is `Some` only when the node
 compiled; and this node's own diagnostics. A validator that returned
 `Result<Template, Error>` per node could not do the duplicate check at all,
 because a node that failed for some other reason would have left no key behind to
-compare. Chapter 3 owns `validate_document`, where those four fields are drained
+compare. Chapter 3 owns `validate_document`, where the captured fields are folded
 into one report, and chapter 4 owns `validate_node`, which fills them.
 
 Every shape the next three chapters need is now on the page, and each of them is
 a rule about a name or the residue of one: a table of names, a template compiled
-until only indices into that table remain, a role that changes a noun and no
+into literal words and validated slot names, a role that changes a noun and no
 rule, and a diagnostic that can say where without being asked what any of it
 meant.
 

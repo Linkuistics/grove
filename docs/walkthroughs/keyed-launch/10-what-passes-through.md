@@ -6,7 +6,7 @@
 ## Nine openings, one question
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The nine roots and 2,511 lines are
+This chapter owns no production source. The 10 roots and 2,733 lines are
 already reconstructed by the fragment graph the nine chapters before it built,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
@@ -160,9 +160,9 @@ so it can never move the boundary between one argument and the next.
 
 The structural half of the answer is in the compiled shape, and
 [chapter 2 read the line](02-the-names.md#a-word-and-a-role) that makes it
-structural: a compiled word is either a literal or `Word::Slot(usize)` — an index
-into the vocabulary's slot table, not a name to be looked up later. Expansion is
-then a walk that pushes either the literal or `offered[*index]`, and there is no
+structural: a compiled word is either a literal or `CompiledWord::Slot(String)`
+with a validated runtime name. Expansion pushes either the literal or that
+name's native offered value, and there is no
 line in it that can put two words together or take one apart. The value the
 caller handed in is moved, not read.
 
@@ -274,7 +274,7 @@ the one the next section qualifies.
 | The arm | The move | The cost | What this crate does instead |
 |---|---|---|---|
 | 1 · on the way in | one effective value assembled from a default, a file, a variable, a flag, an overlay — which needs to know which parts merge, override or concatenate | nobody can see the whole of a value in one place, and the precedence rule is a document nobody wrote | a key resolves to one complete template read whole out of one file, and the overlay replaces a whole template rather than introducing a key ([chapter 3](03-two-documents.md#never-assembled)) |
-| 2 · on the way through | the value read a second time in a grammar it was not written in — a split, a `$`, a quote, a glob, or a shell asked to do the reading | the failures are silent, and the program runs more or less than the operator wrote | split into words exactly once, at load, and never again; a substitution is a whole word or nothing, and a compiled word is an index rather than a name ([chapter 4](04-template-law.md#words-not-shell), [chapter 5](05-to-an-argv.md#whole-word-or-nothing)) |
+| 2 · on the way through | the value read a second time in a grammar it was not written in — a split, a `$`, a quote, a glob, or a shell asked to do the reading | the failures are silent, and the program runs more or less than the operator wrote | split into words exactly once, at load, and never again; a substitution is a whole word or nothing, and a compiled slot names one validated runtime value ([chapter 4](04-template-law.md#words-not-shell), [chapter 5](05-to-an-argv.md#whole-word-or-nothing)) |
 | 3 · on the way out | a conclusion the value did not carry — that the work is done, or that the launch wants something the operator did not write | a launcher that decides a child is done is sometimes wrong while looking exactly right, and a value not in the file cannot be changed by editing it | one variable holding one path is the whole of what is added and `Argv` has no public constructor; the appearance of a file the crate never wrote is the only completion event ([chapter 6](06-the-channel.md#the-thesis), [chapter 7](07-the-job.md#nothing-else-added), [chapter 8](08-the-escalation.md#three-observables)) |
 
 <a id="the-one-that-stays-open"></a>
@@ -369,7 +369,7 @@ cost. That is a judgement about what the layer is for. A crate that understands
 neither half of the pair it carries can serve a consumer with a different domain
 unchanged,
 and grove's entire presence in this book is one sentence — a session kind is a
-key. The corpus does name grove, in four of its nine files and in four kinds of
+key. The corpus does name grove, in four of its ten files and in four kinds of
 place, and not one of them is a thing the code knows: the comment over the
 release block, which is about how the package ships; `src/channel.rs`'s note on
 whose driver leaves files in a control directory; a shell line in an example; and
@@ -388,20 +388,19 @@ claim this chapter makes.
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-owned-by» of="understands-neither" -->
 <!-- rollup «ownership-blocks-not-owned-by» of="understands-neither" -->
-**Ownership.** 20 top-level blocks over 9 source roots, every one
+**Ownership.** 21 top-level blocks over 10 source roots, every one
 `resolved`. The table is the source index's
 [ownership blocks](source-index.md#ownership-blocks), and chapter 1's session
-created all 20 of its rows at the start — that chapter's own 3 resolved,
-the other 17 reserved by `defer` directives; each later chapter replaced its own defers with
-inserts and turned its own rows. No `defer` directive remains anywhere in the
+owns 3 blocks, with 18 owned by the other chapters. The inspection
+records extend the corpus under the same recursive rule. No `defer` directive remains anywhere in the
 book, and none may: `F003` reports any defer at all in final mode, so *every
 deferral has become an insertion* is a statement the validator refuses to let be
 false rather than one this page asserts.
 
 <!-- rollup «ownership-blocks» -->
 <!-- rollup «source-roots» -->
-20 blocks over 9 roots rather than 9 is the price of reading the crate
-in its own conceptual order. Six roots are owned whole by one chapter; the other
+21 blocks over 10 roots rather than 10 is the price of reading the crate
+in its own conceptual order. Seven roots are owned whole by one chapter; the other
 three split, and each split is the concept order disagreeing with the file's. The
 figure is those three files in file order, and what it carries that a list of
 ranges cannot is the interleaving: in two of the three, one chapter's block sits
@@ -438,15 +437,15 @@ in the book cut at a compilation condition rather than a conceptual one.
 <!-- rollup «early-use-rows» -->
 <!-- rollup «early-use-rows-declared» -->
 <!-- rollup «early-use-rows-at» of="01-orientation.md#the-cast" -->
-**Early use.** 11 rows, every one `explained`. 10 of them are the manifest's
-`[[early-use]]` entries, which are the rows the book may not omit: 8 forced
+**Early use.** 12 rows, every one `explained`. 11 of them are the manifest's
+`[[early-use]]` entries, which are the rows the book may not omit: 9 forced
 by [chapter 1's cast](01-orientation.md#the-cast) naming nearly every public type
 before its owner explains it, one by
 [chapter 3](03-two-documents.md#both-documents) reaching the two rule checks that
 `validate_document` drives and chapter 4 owns, and one by
 [chapter 7](07-the-job.md#the-spawn) reaching the handler, the latch and the
 supervisor that are `run`'s first and last acts and chapter 8's to explain. The
-eleventh was added under the clause that requires a row before any additional
+twelfth was added under the clause that requires a row before any additional
 later-owned name is introduced: chapter 3's parse reaches `source_location`,
 `format_location` and `render_diagnostics`, three of chapter 4's diagnostic
 helpers, and carries the minimum statement until that chapter explains them
@@ -454,16 +453,16 @@ together. Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 280 + 209 + 336 + 289 + 223 + 271 + 390 + 282 + 231 = 2,511
+**Owned source.** 286 + 317 + 431 + 296 + 229 + 271 + 390 + 282 + 231 = 2,733
 lines across 9 chapters, and 0 for this one. The tenth row of that table exists
 to be zero: a chapter that owns no source is the shape the structure brief chose
-for the assembly, and the total is the 2,511 lines in the current declared corpus.
+for the assembly, and the total is the 2,733 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces, and neither is part of the reading order. The source
 index is the authoritative record of how the fragment graph reconstructs each of
-the 9 files; the concept index is curated navigation into the arguments, and
+the 10 files; the concept index is curated navigation into the arguments, and
 makes no completeness claim.
 
 <a id="final-verification"></a>
@@ -475,14 +474,14 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/keyed-launch --final --check all
-valid: 9 files, 2145 resolved lines, 0 deferred lines, final=true
+valid: 10 files, 2733 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 2,511 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 2,733 resolved and 0 deferred is the whole corpus
 reconstructed — including `src/channel.rs` lines 272 to 404, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
@@ -496,7 +495,7 @@ valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/jj-workspace
 valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/keyed-launch
-valid: 9 files, 2145 resolved lines, 0 deferred lines, final=true
+valid: 10 files, 2733 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/ordinal-fs-tree
 valid: 17 files, 8720 resolved lines, 0 deferred lines, final=true
   book-check docs/walkthroughs/overview
@@ -565,7 +564,7 @@ Nothing in the corpus holds them; they hold the corpus.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 9 roots, 2,511 lines, 10 chapters, two lookup surfaces,
+The book is complete: 9 roots, 2,733 lines, 10 chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that nine refusals are one design, and
 what it leaves the reader with is the question — *where does this layer learn what
 the value means?* — together with the one case where this crate's own answer runs

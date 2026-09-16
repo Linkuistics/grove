@@ -121,7 +121,7 @@ lines = 47
 [[root]]
 id    = "source-library-root"
 path  = "crates/keyed-launch/src/lib.rs"
-lines = 85
+lines = 91
 
 [[root]]
 id    = "source-error-types"
@@ -136,7 +136,12 @@ lines = 46
 [[root]]
 id    = "source-templates"
 path  = "crates/keyed-launch/src/templates.rs"
-lines = 963
+lines = 1073
+
+[[root]]
+id = "source-inspection"
+path = "crates/keyed-launch/src/inspection.rs"
+lines = 106
 
 [[root]]
 id    = "source-argv"
@@ -168,7 +173,7 @@ lines = "1-47"
 id    = "library-root"
 root  = "source-library-root"
 owner = "understands-neither"
-lines = "1-85"
+lines = "1-91"
 
 [[block]]
 id    = "two-opaque-errors"
@@ -186,49 +191,56 @@ lines = "1-46"
 id    = "template-shapes"
 root  = "source-templates"
 owner = "rules-about-names"
-lines = "1-163"
+lines = "1-165"
 
 [[block]]
 id    = "templates-load"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "164-296"
+lines = "166-392"
 
 [[block]]
 id    = "resolution-and-expansion"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "297-461"
+lines = "393-563"
 
 [[block]]
 id    = "reading-and-whole-document-validation"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "462-664"
+lines = "564-767"
 
 [[block]]
 id    = "node-and-template-rules"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "665-790"
+lines = "768-900"
 
 [[block]]
 id    = "word-scanning"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "791-873"
+lines = "901-983"
 
 [[block]]
 id    = "diagnostics"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "874-953"
+lines = "984-1063"
 
 [[block]]
 id    = "templates-keys"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "954-963"
+lines = "1064-1073"
+
+[[block]]
+id = "inspection-records"
+root = "source-inspection"
+owner = "rules-about-names"
+lines = "1-106"
+
 
 [[block]]
 id    = "argv"
@@ -345,3 +357,10 @@ symbols = "`Catalog`, `Selection`, `SourceRole`, `Source`, `SourceSpan`"
 first-use = "01-orientation.md#the-cast"
 owner = "rules-about-names"
 statement = "Catalog owns captured documents and vocabulary; Selection supplies the explicit profile list and optional source origin; SourceRole, Source and SourceSpan identify that origin."
+
+
+[[early-use]]
+symbols = "`Inspection`, `CompiledWord`, `Origin`, `AssignmentHistory`"
+first-use = "01-orientation.md#the-cast"
+owner = "rules-about-names"
+statement = "Inspection explains captured commands and replaced assignments through response-local origins and histories; CompiledWord is the literal/slot representation also used by expansion."

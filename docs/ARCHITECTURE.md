@@ -327,7 +327,10 @@ with an empty selection, and conformance checks the captured Catalog. The
 current reader accepts only flat documents. `ConfigError::diagnostics` provides
 stable categories, available source byte ranges and remedies; structural reports
 from both explicit documents precede template-semantic validation reports.
-Inspection, wrapper/profile syntax and Grove selection policy remain pending.
+`Templates::inspect` explains the captured flat resolution, including overwritten
+target assignments, winning word origins and non-admitted overlay keys. Its
+literal/slot words share expansion's compiled representation. Wrapper/profile
+syntax, human inspection commands and Grove selection policy remain pending.
 
 **And it runs what it expanded.** The same crate allocates the launch's
 completion channel, spawns the argv directly with no shell, supervises the child

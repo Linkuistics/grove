@@ -348,8 +348,9 @@ paths, kinds or VCS. Catalog/Selection capture and resolution, the empty-selecti
 Templates convenience, and Catalog-based conformance are implemented for flat
 documents, including structured diagnostics from loading, resolution, require
 and expansion. Both loaders reserve the `param.` vocabulary prefix.
-Inspection/provenance, wrapper/profile syntax and Grove selection
-policy remain pending; those parts below describe the intended interface
+Flat inspection/provenance is implemented through `Templates::inspect`, retaining
+overwritten target assignments and non-admitted overlay keys. Wrapper/profile
+syntax and Grove selection policy remain pending; those parts below describe the intended interface
 alongside the unchanged launch surface.
 
 ```rust

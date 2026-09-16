@@ -10,8 +10,9 @@ The generic runner now captures flat sources in an owned `Catalog` and resolves
 an explicit empty `Selection` into `Templates`; the existing Grove loader uses
 that same path. Captured resolution and expansion do not reread files. The
 generic conformance kit takes Catalog plus Selection. Structured diagnostic
-records are available; inspection, wrapper/profile syntax and Grove's selection
-policy remain pending. Runtime vocabulary names beginning with `param.` are reserved;
+records and flat library inspection are available; human inspection commands,
+wrapper/profile syntax and Grove's selection policy remain pending.
+Runtime vocabulary names beginning with `param.` are reserved;
 Grove's existing four slots are unaffected.
 
 One personal file, `~/.config/grove/config.kdl`, gives each session kind you use
@@ -313,7 +314,25 @@ Runtime slot failures and invalid vocabulary use `invalid_value`; these names
 are consumer slots, not configuration parameters. Binding, command and parameter fields remain empty for flat declarations.
 Unknown selections carry their selection occurrence and zero-based list index. Unknown external
 profiles are named in the message and carry no source unless the caller supplies
-an origin. Inspection and profile composition remain pending.
+an origin. Human inspection commands and profile composition remain pending.
+
+Library consumers can call `Templates::inspect()` to borrow an owned explanation
+of the captured flat resolution. It lists sources in primary/overlay order,
+admitted commands and non-admitted keys in name order, and each route target's
+assignment history, including the primary template replaced by an overlay.
+Assignments and origins follow source order within each document; target histories
+are listed by key. Origin and history IDs index the corresponding response arrays.
+Each word references the winning whole-template declaration's byte span.
+Spans address the original captured UTF-8 contents, even after a path changes or
+disappears. Paths remain native `PathBuf` values. No binding, parameter or profile
+activity is invented for flat commands.
+
+Inspection words use the same `CompiledWord::Literal` and `CompiledWord::Slot`
+representation as expansion. Slots remain symbolic names; filling them with the
+same native runtime values gives the same argument vector as `expand`. Inspection
+records cannot construct an `Argv`, and reading them launches nothing. The
+convenience loader and Catalog resolved with an empty Selection expose equivalent
+views. This is a library API; the `grove config show` CLI remains planned.
 
 For example, a duplicate declaration produces a human report such as:
 

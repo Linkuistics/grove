@@ -26,8 +26,9 @@
 //! [`Templates::load`] delegates to that path with an empty selection.
 //!
 //! Only flat configuration is implemented: selection declarations are absent,
-//! and selecting any profile is an error. Wrapper commands, profiles and
-//! inspection are pending; no partial inspection API is exposed.
+//! and selecting any profile is an error. Wrapper commands and profiles remain
+//! pending. [`Templates::inspect`] explains flat command words, captured origins,
+//! overwritten assignments and non-admitted overlay keys without source I/O.
 //! [`ConfigError::diagnostics`] exposes stable categories, source byte ranges
 //! and remedies. Independent structural errors aggregate across both inputs.
 //!
@@ -71,6 +72,7 @@ pub mod conformance;
 mod argv;
 mod channel;
 mod error;
+mod inspection;
 mod run;
 mod templates;
 mod vocabulary;
@@ -78,6 +80,10 @@ mod vocabulary;
 pub use argv::{Argv, Slot};
 pub use channel::{signal, Channel, Token};
 pub use error::{ConfigError, Diagnostic, LaunchError, Occurrence};
+pub use inspection::{
+    Assignment, AssignmentHistory, AssignmentValue, CommandView, CompiledWord, Inspection,
+    NonAdmittedKey, Origin, ParameterView, Setting, WordView,
+};
 pub use run::{
     reraise, run, run_observed, take_interrupt, End, Ended, Escalation, Launch, LaunchEvent,
 };

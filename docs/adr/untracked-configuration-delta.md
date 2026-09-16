@@ -5,9 +5,7 @@ Launch policy may be overridden per session kind by a **configuration delta**: a
 repository root — the same two roots `${worktree}` and `${repo}` expand to. The
 first of the two paths that holds a candidate is *the* delta; the other is not
 read, and the two are never merged with each other. The personal configuration
-always participates. A local profile selection replaces the personal default
-list while using the personal definitions; direct local values apply after the
-selected profiles. A legacy local entry still replaces a whole template.
+always participates; the local file cannot replace its authority over kinds.
 [Modular configuration](../specs/modular-configuration.md) owns the composition
 grammar, and [complete session configuration](complete-session-configuration.md)
 requires the result to be complete and inspectable before launch.

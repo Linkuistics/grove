@@ -1,12 +1,9 @@
 # Modular configuration examples
 
-These are design examples for the [modular configuration
-contract](../../specs/modular-configuration.md). The current reader does not yet
-accept the modular form. The implementation must test these exact files through
-its reader before shipping them or installing them into the personal directory.
-Remove this delivery-status paragraph when that acceptance passes.
+These examples demonstrate reusable commands, profiles and local overrides.
+Use a Grove release supporting `grove config show` and `grove config examples`.
 
-The planned `grove-llm config-examples` verb places the files below in
+`grove config examples` places the files below in
 `~/.config/grove/` and installs these instructions as
 `CONFIGURATION.examples.md`. The verb never overwrites `config.kdl`, any active
 `.grove.kdl`, or a different existing file. Running it again leaves matching
@@ -33,7 +30,7 @@ inside `model_reasoning_effort=...`; the other receives it as a whole argument.
 Grove treats both as opaque words. The example names two familiar vendors, but
 neither name has meaning to the resolver and both can be replaced.
 
-After the feature is delivered, copy or adapt the personal sample into
+Copy or adapt the personal sample into
 `config.kdl` yourself. To activate a local example, first add `/.grove.kdl` to
 the workspace's ignore rules, then copy the chosen example into `.grove.kdl`
 beside `.grove/`. An already tracked delta must be ignored first and then
@@ -46,7 +43,7 @@ files. A local `select` is the complete selected list. To extend `daily`, write
 `select "daily" "high-effort"`, as the experiment sample does. `select` with no
 arguments disables profiles while retaining any personal base entries.
 
-Run `grove-llm config-show --kind impl` to inspect a route, or add `--json` for
+Run `grove config show --kind impl` to inspect a route, or add `--json` for
 structured words and origins. The report leaves runtime slots identified rather
 than inventing a prompt. Inspection changes no configuration or workspace file;
 its jj trackedness query may snapshot metadata, just as the launch check does.
@@ -56,8 +53,10 @@ Expected example outcomes: `daily` sends `impl` to the Codex wrapper and
 `review-impl` to the Claude wrapper. `routes` plus `claude-led` reverses them.
 Adding `high-effort` changes shared effort; removing it restores `medium`.
 `proof` retains its explicit `high` override until an `unset` removes it. The
-local override sample sends `impl` with `low` despite the selected shared
-`high`, and the legacy sample sends it to `my-other-policy`.
+local override sample selects `daily`: `impl` changes from shared `medium` to
+local `low`, while `unset` changes `proof` from its explicit `high` to inherited
+`medium`. Removing that `unset` restores `high`. The legacy sample sends `impl`
+to `my-other-policy`.
 
 Selecting `daily` followed by `unfinished` must fail with an unknown command
 reference and launch nothing. Leaving `unfinished` unselected must succeed.

@@ -15,6 +15,19 @@ or boundaries of arguments. Runtime slots remain consumer-declared. Inspection
 and launch share the compiled configuration rather than maintaining separate
 interpretations of it.
 
+Profile composition applies each occurrence, including repeated and diamond
+includes. Global deduplication is rejected: it would let an earlier override
+survive a later explicitly selected reuse of its base. Configurations authored
+against that order would change meaning under a visited-set optimisation.
+
+Parameter specificity survives composition: a route override beats a shared
+command value even when the shared assignment is later. A single chronological
+winner across scopes is rejected because a shared edit must leave explicit
+per-kind exceptions intact. `unset` removes the exception to expose inheritance.
+These two choices bind configuration meaning; changing either requires an
+explicit compatibility decision, not a resolver optimisation. The spec owns
+their fold mechanics and worked examples.
+
 The trade-off is deliberate. Requiring a whole independently authored template
 for every kind made the executable easy to read locally, but repeated almost
 identical commands and made a small experiment a many-entry edit. Shared

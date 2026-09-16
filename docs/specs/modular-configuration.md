@@ -188,8 +188,12 @@ Only explicit targets in the **active personal result** authorize keys for local
 override. A target declared solely in an unselected profile does not authorize
 a local route. A local selection can activate that profile, making its personal
 route available. A primary parameter-only route without a personal target is
-incomplete; a local target cannot repair that absence. Local values may complete
-missing *parameters* of a personally targeted route.
+an active semantic error (`missing_target`) that fails the entire resolution,
+including inspection and launches of other kinds. Report the personal patch's
+span, key and selected occurrence chain, with a remedy to add a personal target
+or deselect/remove the patch. It is not a `non_admitted_keys` entry and no
+Templates snapshot is returned. A local target cannot repair that absence.
+Local values may complete missing *parameters* of a personally targeted route.
 
 For compatibility, a valid local-only route is retained as a non-admitted key,
 as today's overlay-only keys are. It is excluded from resolved commands, appears
@@ -249,9 +253,9 @@ supply any of its contents.
   occurs exactly once after word zero, and `${session_name}`, `${worktree}`, and
   `${repo}` each occur at most once. Each occupies a whole word. A parameter
   named `prompt` is distinct from the runtime slot `prompt`.
-  Modular catalogs reserve the `param.` prefix and reject a runtime vocabulary
-  that collides with it; the flat-only compatibility interface keeps its
-  existing vocabulary rules.
+  Catalog reserves the `param.` prefix and rejects a runtime vocabulary that
+  collides with it, including through the `Templates::load` convenience. Grove's
+  existing vocabulary has no such names; its legacy templates remain unchanged.
 * In named templates only, `$$` escapes one literal dollar during compilation.
   Scanning is left to right: `$${param.name}` is literal text, not a parameter.
   Unknown or unterminated `${...}` forms are errors. Ordinary dollar text has
@@ -283,8 +287,15 @@ related spans where relevant, and an actionable remedy. Semantic errors also
 name the selected occurrence/include chain and the affected key, binding,
 command or parameter as applicable. Categories distinguish source read/admission,
 KDL syntax, shape, duplicate, unknown profile, include cycle, unknown reference,
-missing parameter, unknown parameter, invalid template, invalid value and
-unconfigured key. A cycle report shows the closed chain and the include spans;
+missing target, missing parameter, unknown parameter, invalid template, invalid
+value and unconfigured key. Codes are `source_read`, `source_admission`, `kdl_syntax`,
+`shape`, `duplicate`, `unknown_profile`, `include_cycle`, `unknown_reference`,
+`missing_target`, `missing_parameter`, `unknown_parameter`, `invalid_template`,
+`invalid_value` and `unconfigured_key`. CLI usage errors use `usage`.
+When no source location exists (for example an unreadable file, invalid runtime
+value, or externally supplied selection), the span is absent rather than invented;
+retain the source path and affected names wherever known.
+A cycle report shows the closed chain and the include spans;
 a missing parameter report names its declaration and the affected route.
 
 Provenance records every assignment's source span, profile occurrence path and
@@ -296,7 +307,7 @@ template source, with contributing settings available through inspection.
 
 ## Inspection
 
-`grove-llm config-show [--kind KIND] [--json]` is an operator-readable, read-only
+`grove config show [--kind KIND] [--json]` is an operator-readable, read-only
 verb as well as an agent interface. It resolves the current workspace and the
 same personal/local configuration as the driver, without requiring a task tree,
 an active session epoch, a driver lease, or a selected leaf. It creates no
@@ -305,9 +316,12 @@ or working-tree files. It reuses the existing VCS trackedness check, which may
 snapshot jj metadata before answering. This metadata effect is explicitly
 permitted for inspection; using a stale working-copy answer to avoid it would
 give inspection a different admission decision from launch.
-The CLI's overview must make these configuration verbs discoverable to humans.
-They dispatch before ambient session-epoch admission; a stale inherited signal
-path must neither block inspection nor grant it a tree-mutating capability.
+The human CLI's `config` group exposes `show` and `examples` in help, with
+invocation examples and exit codes. Both dispatch before driver lease acquisition
+or loop startup. Inspection resolves the workspace only to locate its sources;
+example delivery needs no workspace. Neither admits an ambient session epoch;
+a stale inherited signal path has no effect. This follows the existing human
+and agent audience split; no configuration verbs are added to `grove-llm`.
 
 Without `--kind`, show sources, the selection's origin, the selected list,
 include expansion occurrences, every admitted kind in name order, and
@@ -330,13 +344,24 @@ context. Source capture reads each participating file once per load; no
 cross-file transaction or live-child reconfiguration is promised.
 
 JSON success is one object on stdout with `schema_version: 1`, `sources`,
-`selection`, `profile_occurrences`, `commands` and `non_admitted_keys`.
+`selection`, `profile_occurrences`, `commands`, `non_admitted_keys`, `origins`
+and `histories`.
 `commands` is an array of records carrying `key`, `binding` (nullable for a
 legacy literal), `command` (likewise nullable), `parameters`, `words`, and
-`origins`. A word is a tagged `literal` value or `slot` name, not an ambiguous
+`origins` and `histories`. Each word record has `word` and `origins`; `word` is
+a tagged `literal` value or `slot` name, not an ambiguous
 `${...}` string; configured parameters have already become literal contents.
-Origin IDs reference source spans and ordered assignment histories in the same
-response. Native strings outside Unicode must have a lossless tagged encoding,
+Origin IDs reference the top-level origin records; history IDs reference the
+top-level assignment histories. The record fields are the `Inspection` types in
+the module contract, serialized with snake_case field names and enum tags.
+`CompiledWord` is `{"type":"literal","value":"..."}` or
+`{"type":"slot","name":"..."}`. `AssignmentValue` uses `type` with
+`set` or `literal_template` (each with `value`), `unset`, or `reset`. A route
+target's binding name uses `set`; a legacy whole template uses `literal_template`,
+even when their text is identical. `Setting` uses `type` with the
+snake_case variant name and its named fields. `SourceRole` is `primary` or
+`overlay`. Optional values are JSON null; IDs and source offsets are integers.
+Native strings outside Unicode must have a lossless tagged encoding,
 not lossy replacement; inspection normally leaves native runtime values symbolic.
 
 Exit 0 means a valid inspection; exit 1 is source/configuration/resolution
@@ -348,7 +373,7 @@ flag, pager, truncation, executable availability probe, or harness invocation.
 
 ## Example delivery
 
-`grove-llm config-examples` installs the packaged example set beside the personal
+`grove config examples` installs the packaged example set beside the personal
 configuration. It does not load active policy and works outside a workspace.
 The destination and filenames are fixed and reported; the set includes a new
 personal-form sample and separate local-selection/override samples with `.example`
@@ -373,7 +398,11 @@ to activate a local example only after ignoring its destination, and that only
 the chosen local candidate is read alongside global policy.
 
 The packaged bytes must be the repository example bytes, not a second hand-kept
-copy. Tests resolve the personal sample alone and with every local sample through
+copy. The example readme is self-contained when installed as
+`CONFIGURATION.examples.md`; it carries no repository-relative links or temporary
+delivery-status text. These files are design artifacts until implementation
+validates them; that delivery status belongs here, outside the packaged set.
+Tests resolve the personal sample alone and with every local sample through
 the production reader, then use fake executables to check the promised argv.
 An intentionally inactive unfinished profile is exercised both unselected
 (success) and selected (actionable error). The implementation session must also
@@ -400,10 +429,50 @@ Templates exposes `keys`, `require`, `expand` and a structured inspection view.
 argv as though it had passed configuration validation. Existing callers of
 `source(key)` receive the template text's source only; that accessor's documented
 meaning narrows, and provenance-aware diagnostics use the inspection view.
-The legacy `Templates::load` convenience remains for flat-only consumers, using
-an empty explicit selection and refusing modular wrappers with a message to use
-Catalog; Grove migrates to Catalog rather than giving that helper selection policy.
-The conformance kit takes the same explicit selection as the consumer.
+`Templates::load` is exactly `Catalog::load` followed by resolution with an empty
+explicit selection. It accepts wrappers and applies their base patches, ignores
+selection declarations, and shares Catalog's vocabulary and validation rules.
+It owns no second loader. Consumers needing profiles use Catalog; Grove chooses
+the captured local declaration, else the primary declaration, else an empty list.
+The conformance kit takes that same Catalog and explicit selection.
+
+The public call signatures are below; the
+[runner interface](module-decomposition.md#7--the-runner) owns the shared record
+definitions (`Selection`, `SourceSpan`, `Occurrence`, `Origin`, `AssignmentHistory`,
+`CompiledWord`, `Inspection` and `Diagnostic`). Both contracts use those types;
+no consumer-specific resolver types or arbitrary patch input are introduced.
+
+```rust
+impl Catalog {
+    pub fn load(primary: &Path, overlay: Option<&Path>, vocabulary: Vocabulary<'_>)
+        -> Result<Self, ConfigError>;
+    pub fn primary_selection(&self) -> Option<&Selection>;
+    pub fn overlay_selection(&self) -> Option<&Selection>;
+    pub fn resolve(&self, selection: &Selection) -> Result<Templates, ConfigError>;
+}
+impl Templates {
+    pub fn load(primary: &Path, overlay: Option<&Path>, vocabulary: Vocabulary<'_>)
+        -> Result<Self, ConfigError>;
+    pub fn inspect(&self) -> &Inspection;
+    pub fn source(&self, key: &str) -> Option<&Path>;
+    pub fn keys(&self) -> Vec<&str>;
+    pub fn require(&self, key: &str) -> Result<(), ConfigError>;
+    pub fn expand(&self, key: &str, values: &[Slot<'_>]) -> Result<Argv, ConfigError>;
+}
+impl ConfigError { pub fn diagnostics(&self) -> &[Diagnostic]; }
+pub mod conformance {
+    pub fn check(catalog: &Catalog, selection: &Selection) -> Outcome;
+}
+```
+
+An absent selection declaration and a present empty list are distinct.
+`Selection` contains profile names and an optional declaration span. Catalog
+owns captured sources and vocabulary; the returned snapshot owns its compiled
+commands and inspection data. No file or Catalog borrow is needed to keep a
+snapshot usable. Conformance resolves the supplied Catalog with the supplied
+selection and reports semantic failures or an empty admitted-key set as failures;
+successful loading is the caller's prerequisite, so structural errors are never
+swallowed by the conformance entry point.
 
 Grove's SessionConfig adapter retains personal path lookup, local discovery and
 admission, list selection, kind-specific errors, and runtime context values.
@@ -437,6 +506,8 @@ an arbitrary key and slot vocabulary unrelated to Grove.
 | Source discovery | Worktree candidate wins; otherwise repository candidate; tracked, unreadable and unprobeable candidates refuse without fallback |
 | Inactive work | Unknown references/missing values in unselected profiles coexist with success; selection makes surviving errors visible |
 | Partial building blocks | Routes, bindings and parameter values may arrive from different selected profiles and local parameter patches |
+| Missing personal target | An active personal parameter patch with no personal target fails all resolution with `missing_target`, even for another requested kind; a local target cannot repair it; no inspection snapshot is returned |
+| Loader convenience | `Templates::load` equals Catalog resolution with an empty selection, including wrapper base patches and identical vocabulary errors |
 | Local authorization | A local-only key or one present only in an inactive personal profile cannot resolve; selecting its personal profile admits it |
 | Legacy compatibility | Existing flat fixtures retain argv and eager diagnostics; new grammar words remain valid flat kind names |
 | Parameter safety | Spaces, quotes, dollar/slot text, empty values and shell punctuation preserve boundaries; NUL fails before spawn |

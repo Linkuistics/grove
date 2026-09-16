@@ -1,7 +1,7 @@
 config {
-    select "daily" "high-effort"
+    select "daily"
     // Direct local values apply after the selected profiles.
     route "impl" { param "effort" "low"; }
-    // Expose the shared value instead of the personal route's explicit value.
+    // Change proof from its explicit high override to inherited medium.
     route "proof" { unset "effort"; }
 }

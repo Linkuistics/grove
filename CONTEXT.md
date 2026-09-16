@@ -799,6 +799,26 @@ A named, reusable patch of [[Grove configuration]], optionally including other
 profiles, whose selected occurrences compose in order. It is distinct from a
 profile understood by a configured harness.
 
+<a id="command-definition"></a>
+### Command definition
+
+A named reusable template and its [[Command parameter]] declarations in
+[[Grove configuration]], referenced by any number of [[Command binding]]s.
+
+<a id="command-parameter"></a>
+### Command parameter
+
+An author-declared string value in a [[Command definition]], optionally with a
+default, whose contents fill an argument or argument fragment. Shared values and
+[[Kind route]] overrides supply it; it is distinct from a runtime slot.
+
+<a id="kind-route"></a>
+### Kind route
+
+An explicit [[Session kind]] mapping to a [[Command binding]], with optional
+[[Command parameter]] overrides, or to a complete legacy template. It is a
+configuration object, distinct from the driver's [[Kind routing]] procedure.
+
 <a id="command-binding"></a>
 ### Command binding
 

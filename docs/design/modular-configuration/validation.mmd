@@ -4,9 +4,9 @@ flowchart TD
     L[Check all legacy templates eagerly]
     P[Expand selected profiles; reject unknown names and cycles]
     F[Fold patches; preserve value origins]
-    C[Compile final active routes and validate parameters]
+    C[Require personal targets; compile active routes and validate parameters]
     T[Resolved Templates snapshot]
-    I[Inspection: structured words and origins]
+    I[grove config show: structured words and origins]
     R[Require selected kind; fill runtime slots]
     A[Argv: direct execution]
     D --> S --> L --> P --> F --> C --> T

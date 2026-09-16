@@ -354,11 +354,24 @@ pub struct Vocabulary<'a> { pub slots: &'a [SlotRule<'a>] }
 pub struct SlotRule<'a> { pub name: &'a str, pub requirement: Requirement }
 pub enum Requirement { ExactlyOnce, AtMostOnce }
 
+pub struct Catalog;
+pub struct Selection {
+    pub profiles: Vec<String>,
+    pub origin: Option<SourceSpan>, // None for a caller-supplied list
+}
+impl Catalog {
+    pub fn load(primary: &Path, overlay: Option<&Path>, vocabulary: Vocabulary<'_>)
+        -> Result<Self, ConfigError>;
+    pub fn primary_selection(&self) -> Option<&Selection>;
+    pub fn overlay_selection(&self) -> Option<&Selection>;
+    pub fn resolve(&self, selection: &Selection) -> Result<Templates, ConfigError>;
+}
+
 pub struct Templates;
 
 impl Templates {
-    /// Compatibility convenience for flat-only consumers, using an empty
-    /// explicit selection. Modular wrappers require the Catalog interface.
+    /// Exactly Catalog::load followed by resolve with an empty Selection.
+    /// Accepts wrapper base patches; ignores both selection declarations.
     pub fn load(
         primary: &Path,
         overlay: Option<&Path>,
@@ -373,10 +386,94 @@ impl Templates {
     /// wording has one owner. `expand` asks the same question on its own way in.
     pub fn require(&self, key: &str) -> Result<(), ConfigError>;
     pub fn expand(&self, key: &str, values: &[Slot<'_>]) -> Result<Argv, ConfigError>;
-    /// The admitted keys in the active result, in name order. The conformance
-    /// kit's one window into a loaded configuration — enough to say *this
-    /// checked nothing*, and nothing more.
+    /// The admitted keys in the active result, in name order. Conformance uses
+    /// this to reject a selection that checked no commands.
     pub fn keys(&self) -> Vec<&str>;
+    pub fn inspect(&self) -> &Inspection;
+}
+
+/// Read-only output records, never accepted as input to expansion or launch.
+pub enum SourceRole { Primary, Overlay }
+pub struct Source { pub role: SourceRole, pub path: PathBuf }
+/// Zero-based UTF-8 byte range in the captured source; end is exclusive.
+pub struct SourceSpan { pub source: Source, pub start: usize, pub end: usize }
+pub struct Occurrence {
+    pub id: usize, // unique within this resolution, including repeated profiles
+    pub profile: String,
+    pub parent: Option<usize>, // containing include occurrence, None at selection
+    pub selection_index: usize,
+    pub via: Option<SourceSpan>, // select/include edge; None for external selection
+}
+pub struct Origin {
+    pub id: usize,
+    pub span: SourceSpan,
+    pub occurrence: Option<usize>, // None for base, definitions or overlay
+}
+pub enum Setting {
+    BindingTarget { binding: String },
+    RouteTarget { key: String },
+    ParameterDefault { command: String, parameter: String },
+    CommandParameter { command: String, parameter: String },
+    RouteParameter { key: String, parameter: String },
+}
+pub enum AssignmentValue {
+    Set(String), // binding/command name or parameter value, per Setting
+    LiteralTemplate(String), // only RouteTarget; distinct even for identical text
+    Unset,
+    Reset,
+}
+pub struct Assignment {
+    pub order: usize, // total application order; repeated occurrences reappear
+    pub value: AssignmentValue,
+    pub origin: usize,
+}
+pub struct AssignmentHistory {
+    pub id: usize,
+    pub setting: Setting,
+    pub assignments: Vec<Assignment>,
+}
+pub enum CompiledWord { Literal(String), Slot(String) }
+pub struct WordView {
+    pub word: CompiledWord,
+    pub origins: Vec<usize>, // template plus every contributing parameter origin
+}
+pub struct ParameterView {
+    pub name: String,
+    pub value: String,
+    pub origins: Vec<usize>, // declaration and winning assignment
+    pub histories: Vec<usize>, // default, shared and route scopes, where present
+}
+pub struct CommandView {
+    pub key: String,
+    pub binding: Option<String>,
+    pub command: Option<String>,
+    pub parameters: Vec<ParameterView>,
+    pub words: Vec<WordView>, // executable first
+    pub origins: Vec<usize>, // route, binding, definition/template origins
+    pub histories: Vec<usize>,
+}
+pub struct NonAdmittedKey { pub key: String, pub origins: Vec<usize>, pub reason: String }
+pub struct Inspection {
+    pub sources: Vec<Source>,
+    pub selection: Selection,
+    pub profile_occurrences: Vec<Occurrence>,
+    pub commands: Vec<CommandView>,
+    pub non_admitted_keys: Vec<NonAdmittedKey>,
+    pub origins: Vec<Origin>,
+    pub histories: Vec<AssignmentHistory>,
+}
+pub struct Diagnostic {
+    pub category: String, // stable snake_case codes specified by modular config
+    pub message: String,
+    pub source: Option<Source>, // available even when a file could not be read
+    pub primary: Option<SourceSpan>, // absent when no source location exists
+    pub related: Vec<SourceSpan>,
+    pub occurrence_chain: Vec<Occurrence>, // self-contained on failed resolution
+    pub key: Option<String>,
+    pub binding: Option<String>,
+    pub command: Option<String>,
+    pub parameter: Option<String>,
+    pub remedy: String,
 }
 
 /// A value for one declared slot, at expansion. Substitution is whole-word: the
@@ -459,16 +556,41 @@ pub fn reraise(signal: i32) -> !;
 /// is the design's, not a variant list: every one names what is wrong, where —
 /// file and location for a configuration error — and what fixes it.
 pub struct ConfigError;
+impl ConfigError { pub fn diagnostics(&self) -> &[Diagnostic]; }
 pub struct LaunchError;
 
 pub mod conformance {
-    /// Flat-only compatibility check. Modular conformance accepts the same
-    /// explicit profile selection as the consumer through the Catalog seam.
-    pub fn check(config: &Path, vocabulary: Vocabulary<'_>) -> Outcome;
+    /// Exercise the captured sources with the consumer's exact selection.
+    pub fn check(catalog: &Catalog, selection: &Selection) -> Outcome;
     pub struct Outcome { pub failures: Vec<String> }
     impl Outcome { pub fn passed(&self) -> bool; }
 }
 ```
+
+`Catalog` owns the captured source contents and vocabulary; `resolve` and
+`conformance::check` do no further source I/O. An absent declaration is `None`;
+`Some(Selection { profiles: vec![], .. })` explicitly selects no profiles.
+Grove chooses overlay, then primary, then an empty list; the runner never makes
+that policy choice. A caller-created selection has no document origin, so an
+unknown selected profile reports its name and selection index without fabricating
+a source span. Include edges still have real spans.
+
+The output records above describe the public test seam, not resolver storage.
+Origin/history IDs are response-local, unique and referentially complete.
+Histories include overwritten settings and removals, including bindings/values
+unused by routes. A route transition that clears parameters records `Reset` in
+each affected parameter history; it cannot erase earlier provenance. Command
+histories include target histories and all parameter scopes contributing to or
+overridden for that route. Word origins identify all contributing source spans,
+including multiple parameters in one word. Their literal/slot representation is
+the same compiled representation used by `expand`; public records cannot create
+an `Argv`. Source roles and paths remain native paths, never lossy strings.
+
+The modular configuration spec owns validation scopes, diagnostics, deterministic
+ordering and the JSON encoding of these records. `ConfigError` remains opaque
+and implements `Error + Display`, while `diagnostics()` supplies structured
+records. Load, resolution, `require` and `expand` failures all use that surface.
+Grove maps its source-discovery/admission failures to the same diagnostic shape.
 
 The runner spawns the expanded argv directly, with no shell. The child's
 environment is the caller's, minus the scrubbed control values, plus the fresh

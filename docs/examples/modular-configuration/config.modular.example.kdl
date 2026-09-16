@@ -1,4 +1,3 @@
-// Design example: becomes usable when the modular reader is delivered.
 // Executables are illustrative wrappers supplied by you, not shipped tools.
 config {
     command "codex" "my-codex-policy --model ${param.model} -c model_reasoning_effort=${param.effort} ${prompt}" {

@@ -29,7 +29,8 @@ inspection's trackedness check. No change to VCS admission semantics is needed.
   delivery without losing legacy behavior or inactive-experiment support.
 - Each leaf names its observable test seam and documentation obligations.
 - All acceptance rows in the spec have an implementation/testing owner. Include
-  the generic non-Grove consumer and the existing flat conformance surface.
+  the generic non-Grove consumer, flat-load convenience equivalence, and the
+  Catalog/selection conformance surface.
 - The example installer validates the packaged repository bytes through the
   production reader and delivers them under separate filenames in
   `~/.config/grove/`, preserving the user's active configuration and collisions.
@@ -47,9 +48,10 @@ current graph and source before implementation):
 - `crates/grove-loop/src/session_config.rs`: preserve discovery/admissibility,
   choose local versus default selection, and expose inspection. Keep
   TemplateSource reload behavior and driver/verb validation load points.
-- `crates/grove-llm/src/cli.rs`: configuration verbs must dispatch before ambient
-  epoch admission; the current `run` admits every existing verb before dispatch.
-  Help currently calls all verbs session-only and must explain operator use.
+- `crates/grove/src/cli.rs`: expose `grove config show` and `grove config examples`
+  before driver lease acquisition or loop startup. Both ignore ambient session
+  epochs; inspection uses the shared adapter and examples need no workspace.
+  Preserve the human/agent split; no new `grove-llm` configuration verbs.
 - `docs/CONFIGURATION.md`, `docs/USAGE.md`, configuration sections of
   `docs/ARCHITECTURE.md`, crate docs/comments and release-facing descriptions
   must describe the delivered behavior. Remove pending-implementation notices
@@ -59,8 +61,9 @@ current graph and source before implementation):
   indexes, manifest root lengths, concept rows and corpus inventory.
 - `docs/walkthroughs/grove-loop/`: `18-which-files.md`, relevant driver/epoch
   explanations, indexes and `walkthrough.toml`.
-- `docs/walkthroughs/grove-llm/`: grammar, growing/order chapters, source index
-  and `walkthrough.toml`, particularly new dispatch before admission.
+- `docs/walkthroughs/overview/`: the human command surface and its source corpus.
+  Reconcile `grove-llm` walkthrough material only where shared adapter changes
+  affect its existing load points; there is no new dispatch before admission.
 - The walkthrough contracts require exact source reconstruction. A production
   source change must land with its book updates and final book validation.
   Discover any other affected book evidence via the manifests; do not assume

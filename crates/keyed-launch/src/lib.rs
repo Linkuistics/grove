@@ -4,15 +4,14 @@
 //! A consumer names a key; a template names a program. Nothing here understands
 //! either: a key is an opaque string, a slot is a name the consumer declares,
 //! and the words of a template are the words the file holds. What the crate owns
-//! is that a launch is *one complete template string, read whole out of one
-//! file* — never assembled from two — and that every rule about a template is
-//! checked before anything is spawned.
+//! is an explicit, complete resolved command, checked before anything is spawned.
+//! Flat templates coexist with parameter-free named commands, bindings and routes.
 //!
 //! # Two documents, and what the second one may do
 //!
 //! [`Catalog::load`] captures a primary file and an optional overlay. **A key
 //! resolves only if the primary declares it**: where the overlay also declares
-//! it the overlay's template is the one used, whole; where only the overlay
+//! it the overlay target wins, as a binding or whole literal; where only the overlay
 //! declares it the key does not resolve, and the refusal names the key and the
 //! primary file that must declare it. That is what keeps a second source unable
 //! to introduce a program the operator never chose, and it is checked without
@@ -25,10 +24,12 @@
 //! I/O; expansion still works after the files change and the Catalog is dropped.
 //! [`Templates::load`] delegates to that path with an empty selection.
 //!
-//! Only flat configuration is implemented: selection declarations are absent,
-//! and selecting any profile is an error. Wrapper commands and profiles remain
-//! pending. [`Templates::inspect`] explains flat command words, captured origins,
-//! overwritten assignments and non-admitted overlay keys without source I/O.
+//! The `config` wrapper accepts primary `command` definitions and `bind`/`route`
+//! targets in either source. Parameters, profiles and selection declarations remain
+//! explicit errors. Effective bindings activate named templates; dormant definitions
+//! are not compiled. Legacy flat templates still validate eagerly.
+//! [`Templates::inspect`] explains reference chains, command words, captured origins,
+//! replaced targets and non-admitted overlay keys without source I/O.
 //! [`ConfigError::diagnostics`] exposes stable categories, source byte ranges
 //! and remedies. Independent structural errors aggregate across both inputs.
 //!
@@ -43,7 +44,7 @@
 //! with no shell — and supervises the child until it ends. The two halves meet
 //! only at `Argv`, and each is usable without the other: a launcher that builds
 //! its argv some other way still cannot construct one, which is the point.
-//! Templates reject NUL at load; expansion rejects NUL in every offered runtime
+//! Active named and all flat templates reject NUL before resolution succeeds; expansion rejects NUL in every offered runtime
 //! value, including unused optional slots. Other native bytes remain unchanged.
 //!
 //! **The child is a job.** It is spawned into a process group of its own and

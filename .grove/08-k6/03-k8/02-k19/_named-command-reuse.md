@@ -1,4 +1,4 @@
-# named-command-reuse-k19
+# named-command-reuse-k19 — brief
 
 ## Goal
 
@@ -31,3 +31,17 @@ parser API waiting for another child.
 
 The next child adds assignment/removal patches and completes the parent's fold
 semantics. Include production modules in the existing recursive book corpus.
+
+## Decomposition
+
+1. `named-command-targets-k21`: usable parameter-free command reuse, active
+   reference validation, named dollar escaping, inspection and Grove acceptance.
+2. `named-command-parameters-k22`: parameter schemas/defaults, embedded safe
+   substitution and multi-origin provenance complete this node's contract.
+
+## Decisions (running log)
+
+Reference capture/folding and parameter fragment compilation are separate
+vertical increments. The former can launch shared commands independently, while
+explicitly refusing parameter syntax until the latter lands. Both own current
+user documentation and source-exact books at their boundary.

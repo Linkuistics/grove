@@ -20,7 +20,7 @@
 - [`release = false`, and the version it does not freeze](01-orientation.md#the-release-block)
 - [Publication as an answered question, and what it changes](01-orientation.md#the-release-block)
 - [The library root as the crate's own map](01-orientation.md#the-map)
-- [The spine: a launch is one string read whole out of one file](01-orientation.md#the-map)
+- [The spine: a launch is a complete explicit command](01-orientation.md#the-map)
 - [The overlay overrides and never supplies](01-orientation.md#the-map)
 - [The vocabulary section in the library root's seven-part map](01-orientation.md#the-map)
 - [The two halves meet only at `Argv`, and the compiler holds it](01-orientation.md#the-map)
@@ -63,14 +63,14 @@
 - [`DocumentRole` changes a noun and no rule](02-the-names.md#a-word-and-a-role)
 - [Why a diagnostic's location is optional](02-the-names.md#what-a-diagnostic-carries)
 - [`NodeValidation` keeps a key even when the node failed](02-the-names.md#what-a-diagnostic-carries)
-- [A launch is read whole out of one file, never assembled from two](03-two-documents.md#never-assembled)
+- [Captured declarations resolve without reopening sources](03-two-documents.md#never-assembled)
 - [Two blocks that are not adjacent, and the chapter between them](03-two-documents.md#never-assembled)
 - [Catalog loading and empty-selection Templates convenience](03-two-documents.md#one-entry-point)
 - [The three promises, and the line that enforces each](03-two-documents.md#one-entry-point)
 - [What *complete session configuration* settles, and where its lines are](03-two-documents.md#one-entry-point)
 - [Why an invalid overlay is not a fallback to the primary](03-two-documents.md#one-entry-point)
 - [The vocabulary is compiled before the filesystem is touched](03-two-documents.md#overrides-never-supplies)
-- [`Entry::Occupied` replaces one whole template with another](03-two-documents.md#overrides-never-supplies)
+- [Local targets replace personal targets without admitting new keys](03-two-documents.md#overrides-never-supplies)
 - [`Entry::Vacant` excludes an overlay-only key from resolution](03-two-documents.md#overrides-never-supplies)
 - [The per-key restatement of a retired completeness quantifier](03-two-documents.md#overrides-never-supplies)
 - [Two keys, two files, each naming its own](03-two-documents.md#both-documents)
@@ -333,7 +333,7 @@
 - [Counting the grammars a value is read in](10-what-passes-through.md#taking-the-test-away)
 - [What your rules would have to know to be correct](10-what-passes-through.md#taking-the-test-away)
 - [Two arms closed at load, and one closed by a type](10-what-passes-through.md#taking-the-test-away)
-- [21 blocks over 10 roots, and the three splits that explain the count](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «ownership-blocks» --> <!-- rollup «source-roots» -->
+- [27 blocks over 11 roots, and the four splits that explain the count](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «ownership-blocks» --> <!-- rollup «source-roots» -->
 - [12 early-use rows, 11 required by the manifest and one added](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «early-use-rows» --> <!-- rollup «early-use-rows-declared» -->
 - [The tenth owned-source row that exists to be zero](10-what-passes-through.md#the-closed-ledgers)
 - [What `--final` proves that a scoped run does not](10-what-passes-through.md#final-verification)
@@ -352,3 +352,12 @@ are explained in [The watch and the escalation](08-the-escalation.md).
 
 - [NUL template refusal before tokenization](04-template-law.md#the-comment-start)
 - [NUL runtime refusal with native-string preservation](05-to-an-argv.md#by-name)
+
+## Named command reuse
+
+- [Named declarations before resolution](03-two-documents.md#named-capture)
+- [Named semantic refusals](03-two-documents.md#named-diagnostics)
+- [Named dollar scanning](04-template-law.md#named-compile)
+- [Fold targets and retain declarations](03-two-documents.md#named-fold)
+- [Activate definitions and project commands](03-two-documents.md#named-resolve)
+- [Response-local identity](03-two-documents.md#named-lookups)

@@ -11,13 +11,13 @@ is this crate's central property seen from the operator's side. This reader has
 written a `config.kdl`, has had grove refuse a malformed one, and has watched a
 session end without ever seeing what ended it.
 
-`crates/keyed-launch` is 10 files and 2,753 lines, and it is the layer between
+`crates/keyed-launch` is 11 files and 3,172 lines, and it is the layer between
 a human's configuration file and a running process. A consumer names a key; a
 template names a program. **Nothing in the crate understands either.** A key is
 an opaque string, a slot is a name the consumer declares, and the words of a
 template are the words the file holds. Each chapter opens on the one thing this
 stage must not add and must not interpret — three dependencies and no domain; a
-rule about a slot's *name*; a launch read whole out of one file; a word that is a
+rule about a slot's *name*; a command resolved through explicit targets; a word that is a
 word; substitution that is whole-word or nothing; a file whose *appearance* is
 the event; a child handed nothing the operator did not write; an ending the
 launcher must perform because the child cannot; and a contract checked without
@@ -29,10 +29,9 @@ from a human's file to an effect in the world — a configuration to a process, 
 query to an engine, a route to a handler — and ask *where does this layer learn
 what the value means?* The right answer is nowhere, and you should be able to
 name the three places such a layer usually learns it anyway, what each costs, and
-the test that catches it: **on the way in**, by assembling one value out of more
-than one source; **on the way through**, by re-reading a value it has already
+the test that catches it: **on the way in**, by composing settings without visible precedence; **on the way through**, by re-reading a value it has already
 read; and **on the way out**, by inferring what came back or adding to the launch
-what the operator did not write. All three are provable inside these 2,753 lines,
+what the operator did not write. All three are provable inside these 3,172 lines,
 and the closing chapter states the test and applies it to all nine source-owning
 chapters.
 
@@ -64,7 +63,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and the source index records how those fragments
 reconstruct each in-scope file. During authoring a scoped check proves the
 completed prefix and reports later-owned ranges as deferred; only the final check
-proves complete reconstruction of all 10 files and 2,753 lines.
+proves complete reconstruction of all 11 files and 3,172 lines.
 
 <a id="reading-fragments"></a>
 ## Reading fragments
@@ -83,7 +82,7 @@ source.
 
 1. [Orientation](01-orientation.md)
 2. [The names a template is written against](02-the-names.md)
-3. [Two documents, neither one assembled](03-two-documents.md)
+3. [Two documents and explicit targets](03-two-documents.md)
 4. [What a template must be](04-template-law.md)
 5. [From a template to an argv](05-to-an-argv.md)
 6. [Appearance is the event](06-the-channel.md)

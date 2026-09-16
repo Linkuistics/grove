@@ -1164,3 +1164,61 @@ fn root_init(worktree: &Path, slug: &str) -> Vec<std::path::PathBuf> {
             .expect("scaffolding a grove");
     vec![initialized.brief, initialized.first_leaf]
 }
+
+#[test]
+fn named_wrapper_commands_launch_with_local_target_overrides_and_refuse_before_use() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("_BRIEF.md"), "root").unwrap();
+    fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
+    let log = fixture.path().join("argv");
+    let fake = fixture.path().join("fake command");
+    write_executable(
+        &fake,
+        "#!/bin/sh\nlog=$1\nshift\nprintf '%s\\0' \"$@\" > \"$log\"\n",
+    );
+    let command = format!(
+        "{} {} 'one argument' '' $${{literal}} ${{prompt}}",
+        shell_quote(&fake),
+        shell_quote(&log)
+    );
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    fs::write(config_dir.join("config.kdl"), format!("config {{\n command \"unused\" \"not-a-real-program ${{prompt}}\"\n command \"chosen\" {command:?}\n bind \"lead\" \"unused\"\n route \"impl\" \"lead\"\n}}\n")).unwrap();
+    fs::write(
+        worktree.join(".grove.kdl"),
+        "config { bind \"local\" \"chosen\"; route \"impl\" \"local\"; }\n",
+    )
+    .unwrap();
+    let output = run_grove(&home, &worktree);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let bytes = fs::read(&log).unwrap();
+    let words: Vec<_> = bytes.split(|b| *b == 0).collect();
+    assert_eq!(
+        &words[..3],
+        [b"one argument".as_slice(), b"", b"${literal}"]
+    );
+    assert!(String::from_utf8_lossy(words[3]).contains(&mandate_naming("work-k1")));
+    assert_eq!(words.len(), 5);
+    fs::remove_file(&log).unwrap();
+    fs::write(
+        worktree.join(".grove.kdl"),
+        "config { bind \"local\" \"missing\"; route \"impl\" \"local\"; }\n",
+    )
+    .unwrap();
+    let before = tree_snapshot(&grove);
+    let output = run_grove(&home, &worktree);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("missing"));
+    assert!(!log.exists());
+    assert_eq!(tree_snapshot(&grove), before);
+}

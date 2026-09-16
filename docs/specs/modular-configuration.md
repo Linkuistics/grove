@@ -5,12 +5,12 @@
 Grove configuration names reusable commands, composes differences through
 profiles, and resolves an explicit command for each configured session kind.
 This is the design contract for that configuration area. The running reader
-implements the legacy flat form through captured Catalog/Selection resolution
-and the same conformance path, with structured diagnostics and flat library
-inspection/provenance, and NUL rejection in flat templates and runtime values.
-Human inspection commands, wrapper/profile syntax and
-Grove selection policy remain pending; the
-[configuration reference](../CONFIGURATION.md) documents that boundary.
+implements captured Catalog/Selection resolution, diagnostics and inspection for
+legacy flat commands and parameter-free wrapper commands, bindings and routes.
+Named dollar escaping and effective-reference validation are implemented.
+Parameters, profiles, human inspection commands, example delivery and Grove
+selection policy remain pending; the [reference](../CONFIGURATION.md) describes
+the current boundary.
 
 The authority and execution constraints are owned by
 [complete session configuration](../adr/complete-session-configuration.md) and

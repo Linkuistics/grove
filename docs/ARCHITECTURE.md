@@ -310,9 +310,9 @@ The renderer performs no I/O.
 
 ## Session configuration
 
-`~/.config/grove/config.kdl` carries user launch policy: a flat map of session
-kinds to one complete command-template string each, with no defaults, families,
-or inheritance.
+`~/.config/grove/config.kdl` carries user launch policy: a map of session
+kinds to complete commands, either flat strings or explicit named-command
+bindings and routes. There are no implicit kind defaults or families.
 
 **The whole of that is `crates/keyed-launch`, which has never heard of a
 session.** It loads the file — and at most one overlay — into a key-to-template
@@ -324,13 +324,15 @@ it holds no set of keys. `Catalog::load` captures source bytes, parsed
 declarations and vocabulary once; `Catalog::resolve` produces an owned
 `Templates` snapshot without file I/O. `Templates::load` uses that same path
 with an empty selection, and conformance checks the captured Catalog. The
-current reader accepts only flat documents. `ConfigError::diagnostics` provides
+current reader accepts flat and parameter-free named base commands. `ConfigError::diagnostics` provides
 stable categories, available source byte ranges and remedies; structural reports
 from both explicit documents precede template-semantic validation reports.
-`Templates::inspect` explains the captured flat resolution, including overwritten
+`Templates::inspect` explains captured reference chains and resolution, including overwritten
 target assignments, winning word origins and non-admitted overlay keys. Its
-literal/slot words share expansion's compiled representation. Wrapper/profile
-syntax, human inspection commands and Grove selection policy remain pending.
+literal/slot words share expansion's compiled representation. Parameters, profiles,
+human inspection commands and Grove selection policy remain pending. Named definitions
+are primary-only; effective bindings validate their templates after local targets
+replace personal targets. Dormant definitions are not compiled; flat checks stay eager.
 
 **And it runs what it expanded.** The same crate allocates the launch's
 completion channel, spawns the argv directly with no shell, supervises the child
@@ -422,13 +424,12 @@ a leaf of that kind, and before it launches one.
 At most one second file takes part: an untracked `.grove.kdl` **configuration
 delta**, searched at the worktree root and then the main repository root, the
 first one found selected outright and the two never merged. It declares any
-subset of the kinds and each declared kind's whole template replaces the personal
-file's. **It overrides and never supplies**: a kind resolves only if the personal
-file declares it, so a file a project could hand you cannot introduce a program
-its operator never chose. Resolution is therefore two deep and flat rather than a precedence lattice, and a
-kind's launch remains one complete string read whole out of one file — which is
-why this leaves [complete session
-configuration](adr/complete-session-configuration.md) intact. The module takes
+subset of kinds through whole flat templates or named routes, and can redirect
+bindings to personal command definitions. **It overrides and never supplies**:
+a kind resolves only if the personal file targets it. Each launch resolves to a
+complete compiled command, with its reference origins retained, preserving
+[complete session configuration](adr/complete-session-configuration.md).
+The module takes
 both roots from the driver rather than deriving them, so the search order cannot
 disagree with what `${repo}` expands to in the template it selected.
 

@@ -44,7 +44,7 @@ slice = "rules-about-names"
 [[page]]
 file  = "03-two-documents.md"
 id    = "two-documents"
-title = "Two documents, neither one assembled"
+title = "Two documents and explicit targets"
 role  = "chapter"
 slice = "never-assembled"
 
@@ -121,7 +121,7 @@ lines = 47
 [[root]]
 id    = "source-library-root"
 path  = "crates/keyed-launch/src/lib.rs"
-lines = 93
+lines = 94
 
 [[root]]
 id    = "source-error-types"
@@ -136,7 +136,7 @@ lines = 46
 [[root]]
 id    = "source-templates"
 path  = "crates/keyed-launch/src/templates.rs"
-lines = 1091
+lines = 982
 
 [[root]]
 id = "source-inspection"
@@ -173,7 +173,7 @@ lines = "1-47"
 id    = "library-root"
 root  = "source-library-root"
 owner = "understands-neither"
-lines = "1-93"
+lines = "1-94"
 
 [[block]]
 id    = "two-opaque-errors"
@@ -191,49 +191,49 @@ lines = "1-46"
 id    = "template-shapes"
 root  = "source-templates"
 owner = "rules-about-names"
-lines = "1-165"
+lines = "1-164"
 
 [[block]]
 id    = "templates-load"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "166-392"
+lines = "165-278"
 
 [[block]]
 id    = "resolution-and-expansion"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "393-574"
+lines = "279-460"
 
 [[block]]
 id    = "reading-and-whole-document-validation"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "575-778"
+lines = "461-669"
 
 [[block]]
 id    = "node-and-template-rules"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "779-918"
+lines = "670-809"
 
 [[block]]
 id    = "word-scanning"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "919-1001"
+lines = "810-892"
 
 [[block]]
 id    = "diagnostics"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "1002-1081"
+lines = "893-972"
 
 [[block]]
 id    = "templates-keys"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "1082-1091"
+lines = "973-982"
 
 [[block]]
 id = "inspection-records"
@@ -364,3 +364,44 @@ symbols = "`Inspection`, `CompiledWord`, `Origin`, `AssignmentHistory`"
 first-use = "01-orientation.md#the-cast"
 owner = "rules-about-names"
 statement = "Inspection explains captured commands and replaced assignments through response-local origins and histories; CompiledWord is the literal/slot representation also used by expansion."
+
+[[root]]
+id = "source-named"
+path = "crates/keyed-launch/src/templates/named.rs"
+lines = 527
+
+[[block]]
+id = "named-capture"
+root = "source-named"
+owner = "never-assembled"
+lines = "1-169"
+
+[[block]]
+id = "named-diagnostics"
+root = "source-named"
+owner = "never-assembled"
+lines = "170-184"
+
+[[block]]
+id = "named-compile"
+root = "source-named"
+owner = "words-not-shell"
+lines = "185-247"
+
+[[block]]
+id = "named-fold"
+root = "source-named"
+owner = "never-assembled"
+lines = "248-358"
+
+[[block]]
+id = "named-resolve"
+root = "source-named"
+owner = "never-assembled"
+lines = "359-494"
+
+[[block]]
+id = "named-lookups"
+root = "source-named"
+owner = "never-assembled"
+lines = "495-527"

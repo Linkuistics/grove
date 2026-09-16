@@ -6,7 +6,7 @@
 ## Nine openings, one question
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The 10 roots and 2,753 lines are
+This chapter owns no production source. The 11 roots and 3,172 lines are
 already reconstructed by the fragment graph the nine chapters before it built,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
@@ -93,16 +93,15 @@ author owns it. The file an operator reads is not the value the program runs,
 and the difference is spread across a precedence rule nobody wrote down as a
 document.
 
-**What the crate does instead.** A key resolves to one complete command template,
-read whole out of one file. `keyed-launch` reads two documents, and
-[chapter 3](03-two-documents.md#never-assembled) is where it declines to merge
-them: the primary declares, the overlay may replace a whole template with a whole
-template, and there is no word-level precedence order, no base template with
-override fragments, and no way to write *the same command with a different
-model*. Because a template is never assembled, nothing in the crate has to
-decide which *words* of a launch came from where — and `Templates::source` can
-therefore answer, for every key that
-resolves, with exactly one path.
+**What the crate makes explicit.** Flat templates remain whole replacements.
+Named reuse adds two references: a route names a binding, and a binding names a
+personal command definition. The local file may replace either target, while
+primary policy still authorizes every key. [Chapter 3](03-two-documents.md#named-fold)
+shows the fold and its provenance. It interprets configuration names, not harness
+flags: the program and its arguments still belong to the command author.
+`Templates::source` names only the template text's file; inspection carries the
+route and binding sources as well. The generic grammar makes the precedence
+visible without adding a model, vendor or approval-policy schema.
 
 The second document exposes this arm's asymmetry. grove's overlay is a
 project-local file a repository can ship, and the property that stands between
@@ -273,7 +272,7 @@ the one the next section qualifies.
 
 | The arm | The move | The cost | What this crate does instead |
 |---|---|---|---|
-| 1 · on the way in | one effective value assembled from a default, a file, a variable, a flag, an overlay — which needs to know which parts merge, override or concatenate | nobody can see the whole of a value in one place, and the precedence rule is a document nobody wrote | a key resolves to one complete template read whole out of one file, and the overlay replaces a whole template rather than introducing a key ([chapter 3](03-two-documents.md#never-assembled)) |
+| 1 · on the way in | one effective value assembled from a default, a file, a variable, a flag, an overlay — which needs to know which parts merge, override or concatenate | nobody can see the whole of a value in one place, and the precedence rule is a document nobody wrote | explicit binding and route targets resolve to a complete command, and the overlay cannot authorize a new key ([chapter 3](03-two-documents.md#never-assembled)) |
 | 2 · on the way through | the value read a second time in a grammar it was not written in — a split, a `$`, a quote, a glob, or a shell asked to do the reading | the failures are silent, and the program runs more or less than the operator wrote | split into words exactly once, at load, and never again; a substitution is a whole word or nothing, and a compiled slot names one validated runtime value ([chapter 4](04-template-law.md#words-not-shell), [chapter 5](05-to-an-argv.md#whole-word-or-nothing)) |
 | 3 · on the way out | a conclusion the value did not carry — that the work is done, or that the launch wants something the operator did not write | a launcher that decides a child is done is sometimes wrong while looking exactly right, and a value not in the file cannot be changed by editing it | one variable holding one path is the whole of what is added and `Argv` has no public constructor; the appearance of a file the crate never wrote is the only completion event ([chapter 6](06-the-channel.md#the-thesis), [chapter 7](07-the-job.md#nothing-else-added), [chapter 8](08-the-escalation.md#three-observables)) |
 
@@ -388,10 +387,10 @@ claim this chapter makes.
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-owned-by» of="understands-neither" -->
 <!-- rollup «ownership-blocks-not-owned-by» of="understands-neither" -->
-**Ownership.** 21 top-level blocks over 10 source roots, every one
+**Ownership.** 27 top-level blocks over 11 source roots, every one
 `resolved`. The table is the source index's
 [ownership blocks](source-index.md#ownership-blocks), and chapter 1's session
-owns 3 blocks, with 18 owned by the other chapters. The inspection
+owns 3 blocks, with 24 owned by the other chapters. The inspection
 records extend the corpus under the same recursive rule. No `defer` directive remains anywhere in the
 book, and none may: `F003` reports any defer at all in final mode, so *every
 deferral has become an insertion* is a statement the validator refuses to let be
@@ -399,23 +398,23 @@ false rather than one this page asserts.
 
 <!-- rollup «ownership-blocks» -->
 <!-- rollup «source-roots» -->
-21 blocks over 10 roots rather than 10 is the price of reading the crate
+27 blocks over 11 roots is the price of reading the crate
 in its own conceptual order. Seven roots are owned whole by one chapter; the other
-three split, and each split is the concept order disagreeing with the file's. The
-figure is those three files in file order, and what it carries that a list of
+four split, and each split is the concept order disagreeing with the file's. The
+figure is the original three split files in file order, and what it carries that a list of
 ranges cannot is the interleaving: in two of the three, one chapter's block sits
 *inside* another chapter's pair.
 
 ```text
-src/templates.rs   1091 lines, 8 blocks, chapters 2 3 4 5
-       1-165   ch 2      the loaded shapes
-     166-392   ch 3      load and inspection
-     393-574   ch 5      resolution and expansion
-     575-778   ch 3      reading and whole-document validation
-     779-918   ch 4      node and template rules
-    919-1001   ch 4      word scan
-   1002-1081   ch 4      diagnostics
-   1082-1091   ch 5      keys
+src/templates.rs   982 lines, 8 blocks, chapters 2 3 4 5
+      1-164   template-shapes
+    165-278   templates-load
+    279-460   resolution-and-expansion
+    461-669   reading-and-whole-document-validation
+    670-809   node-and-template-rules
+    810-892   word-scanning
+    893-972   diagnostics
+    973-982   templates-keys
 
 src/run.rs         672 lines, 4 blocks, chapters 7 8
       1–123   ch 7   ┐  the launch's shape
@@ -428,6 +427,8 @@ src/channel.rs     404 lines, 2 blocks, chapters 6 9
     272–404   ch 9      the inline #[cfg(test)] module
 ```
 
+`src/templates/named.rs` adds six blocks: capture and diagnostics, target folding
+and projection in chapter 3, and named dollar scanning in chapter 4.
 `src/templates.rs` divides by what a reader needs when, and `src/run.rs` divides
 by whose signal a line is about — which is why chapter 8's watch and latch sit
 between chapter 7's launch shape and its spawn. `src/channel.rs`'s single
@@ -453,16 +454,16 @@ together. Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 288 + 317 + 431 + 303 + 240 + 271 + 390 + 282 + 231 = 2,753
+**Owned source.** 289 + 316 + 787 + 366 + 240 + 271 + 390 + 282 + 231 = 3,172
 lines across 9 chapters, and 0 for this one. The tenth row of that table exists
 to be zero: a chapter that owns no source is the shape the structure brief chose
-for the assembly, and the total is the 2,753 lines in the current declared corpus.
+for the assembly, and the total is the 3,172 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces, and neither is part of the reading order. The source
 index is the authoritative record of how the fragment graph reconstructs each of
-the 10 files; the concept index is curated navigation into the arguments, and
+the 11 files; the concept index is curated navigation into the arguments, and
 makes no completeness claim.
 
 <a id="final-verification"></a>
@@ -474,14 +475,14 @@ only one that reads the corpus byte for byte.
 ```console
 $ cargo run --quiet -p book-validation --bin book-check -- \
     --repo . --book docs/walkthroughs/keyed-launch --final --check all
-valid: 10 files, 2753 resolved lines, 0 deferred lines, final=true
+valid: 11 files, 3172 resolved lines, 0 deferred lines, final=true
 ```
 
 `--final` is what makes this different from every scoped run the drafting
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 2,753 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 3,172 resolved and 0 deferred is the whole corpus
 reconstructed — including `src/channel.rs` lines 272 to 404, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
@@ -489,18 +490,7 @@ specification's exception inventory carries no row for this book.
 ```console
 $ bash scripts/check.sh
 ...
-=== book-check
-  book-check docs/walkthroughs/grove-llm
-valid: 4 files, 1017 resolved lines, 0 deferred lines, final=true
-  book-check docs/walkthroughs/jj-workspace
-valid: 4 files, 752 resolved lines, 0 deferred lines, final=true
-  book-check docs/walkthroughs/keyed-launch
-valid: 10 files, 2753 resolved lines, 0 deferred lines, final=true
-  book-check docs/walkthroughs/ordinal-fs-tree
-valid: 17 files, 8720 resolved lines, 0 deferred lines, final=true
-  book-check docs/walkthroughs/overview
-valid: 3 files, 204 resolved lines, 0 deferred lines, final=true
-  5 book(s) checked, 0 failing
+  6 book(s) checked, 0 failing
   ✓ book-check
 
 check: all 8 principal checks pass
@@ -564,7 +554,7 @@ Nothing in the corpus holds them; they hold the corpus.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 10 roots, 2,753 lines, 10 chapters, two lookup surfaces,
+The book is complete: 11 roots, 3,172 lines, 10 chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that nine refusals are one design, and
 what it leaves the reader with is the question — *where does this layer learn what
 the value means?* — together with the one case where this crate's own answer runs

@@ -1,4 +1,3 @@
-use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 use std::fs;
@@ -15,6 +14,8 @@ use crate::inspection::{
     NonAdmittedKey, Origin, Setting, WordView,
 };
 use crate::vocabulary::{Requirement, Vocabulary};
+
+mod named;
 
 /// Which explicit input supplied a declaration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -38,7 +39,7 @@ pub struct SourceSpan {
     pub end: usize,
 }
 
-/// Explicit profile selection. Flat catalogs accept only an empty list.
+/// Explicit profile selection. Base-only catalogs accept only an empty list.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Selection {
     pub profiles: Vec<String>,
@@ -64,10 +65,10 @@ struct CapturedDocument {
     _source: String,
     _document: KdlDocument,
     templates: BTreeMap<String, Template>,
+    named: named::Declarations,
 }
 
-/// A loaded configuration: every key the primary document declares, mapped to
-/// one complete command template read whole out of one file.
+/// A resolved configuration: primary-authorized keys mapped to compiled commands.
 pub struct Templates {
     // Preserve both documents independently of the Catalog's lifetime.
     _captured: Arc<Captured>,
@@ -109,10 +110,8 @@ type Word = CompiledWord;
 
 /// Which document is being validated, and so which file a diagnostic names.
 ///
-/// The rules do **not** differ by role: syntax, duplicates, node shape and every
-/// template rule bind both documents identically, and the one asymmetry between
-/// them — that an overlay overrides and never supplies — is a resolution rule
-/// rather than a validation one, applied after both documents have passed.
+/// Both sources receive structural and eager flat checks. Named definitions are
+/// primary-only; primary key authority is enforced later during resolution.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum DocumentRole {
     Primary,
@@ -164,17 +163,10 @@ struct NodeValidation {
 }
 
 impl Catalog {
-    /// Read and fully validate both documents, retaining their original declarations.
-    ///
-    /// A key resolves from the primary file or the overlay, never from both, and
-    /// only if the **primary** declares it: the overlay overrides and never
-    /// supplies. Both documents are validated whole against `vocabulary` — a
-    /// malformed template for a key this run will never reach still fails here,
-    /// before anything is spawned.
-    ///
-    /// All-or-nothing in both halves: an unreadable, unparseable or invalid
-    /// overlay fails the load rather than falling back to the very policy its
-    /// owner was moving work away from.
+    /// Capture both documents with structural and eager legacy validation.
+    /// Named command templates validate only when an effective binding uses them,
+    /// after resolution folds local target replacements. An invalid input fails
+    /// closed rather than falling back to another policy.
     pub fn load(
         primary: &Path,
         overlay: Option<&Path>,
@@ -215,26 +207,26 @@ impl Catalog {
         })
     }
 
-    /// Flat documents contain no profile selection declaration.
+    /// Base-only documents contain no profile selection declaration.
     #[must_use]
     pub fn primary_selection(&self) -> Option<&Selection> {
         None
     }
 
-    /// Flat overlays contain no profile selection declaration.
+    /// Base-only overlays contain no profile selection declaration.
     #[must_use]
     pub fn overlay_selection(&self) -> Option<&Selection> {
         None
     }
 
-    /// Resolve captured declarations with primary authority and whole-template
-    /// overlay replacement. The returned snapshot owns its inputs independently.
+    /// Fold captured base targets with primary authority and local replacement.
+    /// Validate effective references and return an independently owned snapshot.
     pub fn resolve(&self, selection: &Selection) -> Result<Templates, ConfigError> {
         if !selection.profiles.is_empty() {
             let diagnostics = selection.profiles.iter().enumerate().map(|(index, profile)| {
                 let mut diagnostic = Diagnostic::new("unknown_profile", format!(
-                    "unknown profile `{profile}` at selection index {index}; flat configuration declares no profiles."
-                ), "Resolve with an empty selection; flat files declare no profiles.");
+                    "unknown profile `{profile}` at selection index {index}; base configuration declares no profiles."
+                ), "Resolve with an empty selection; base files declare no profiles.");
                 diagnostic.primary.clone_from(&selection.origin);
                 diagnostic.source = selection.origin.as_ref().map(|span| span.source.clone());
                 diagnostic.occurrence_chain.push(Occurrence {
@@ -245,29 +237,10 @@ impl Catalog {
             }).collect();
             return Err(ConfigError::from_diagnostics(diagnostics));
         }
-        let mut templates = self.captured.primary.templates.clone();
-
-        let mut overlay_only = BTreeMap::new();
-        if let Some(overlay) = &self.captured.overlay {
-            // Each key the primary already declares wins outright: one whole
-            // template replaces one whole template, so no rule has to decide
-            // which *words* of a launch come from where. A key the primary does
-            // not declare is set aside rather than admitted, which is the
-            // per-key form of what the old all-keys completeness rule bought.
-            for (key, template) in &overlay.templates {
-                match templates.entry(key.clone()) {
-                    Entry::Occupied(mut occupied) => {
-                        occupied.insert(template.clone());
-                    }
-                    Entry::Vacant(vacant) => {
-                        overlay_only.insert(vacant.into_key(), template.span.clone());
-                    }
-                }
-            }
-        }
+        let (templates, overlay_only, inspection) = named::resolve(&self.captured, selection)?;
 
         Ok(Templates {
-            inspection: self.inspect_flat(selection, &templates),
+            inspection,
             _captured: Arc::clone(&self.captured),
             primary: self.captured.primary.path.clone(),
             overlay: self
@@ -279,93 +252,6 @@ impl Catalog {
             templates,
             overlay_only,
         })
-    }
-
-    /// Record declarations before projecting the winners. Sorting by span keeps
-    /// application order independent of the maps' alphabetical lookup order.
-    fn inspect_flat(
-        &self,
-        selection: &Selection,
-        templates: &BTreeMap<String, Template>,
-    ) -> Inspection {
-        let mut view = Inspection {
-            sources: Vec::new(),
-            selection: selection.clone(),
-            profile_occurrences: Vec::new(),
-            commands: Vec::new(),
-            non_admitted_keys: Vec::new(),
-            origins: Vec::new(),
-            histories: Vec::new(),
-        };
-        let mut histories: BTreeMap<String, Vec<Assignment>> = BTreeMap::new();
-        for (document, role) in std::iter::once((&self.captured.primary, SourceRole::Primary))
-            .chain(
-                self.captured
-                    .overlay
-                    .as_ref()
-                    .map(|document| (document, SourceRole::Overlay)),
-            )
-        {
-            view.sources.push(Source {
-                role,
-                path: document.path.clone(),
-            });
-            let mut declarations: Vec<_> = document.templates.iter().collect();
-            declarations.sort_by_key(|(_, template)| template.span.start);
-            for (key, template) in declarations {
-                let id = view.origins.len();
-                view.origins.push(Origin {
-                    id,
-                    span: template.span.clone(),
-                    occurrence: None,
-                });
-                histories.entry(key.clone()).or_default().push(Assignment {
-                    order: id,
-                    value: AssignmentValue::LiteralTemplate(template.text.clone()),
-                    origin: id,
-                });
-            }
-        }
-        for (key, assignments) in histories {
-            let id = view.histories.len();
-            // Every history was created by a declaration. Its final assignment
-            // supplies the whole flat template, with no synthetic binding.
-            let origin = assignments
-                .last()
-                .expect("a declared target has an assignment")
-                .origin;
-            if let Some(template) = templates.get(&key) {
-                view.commands.push(CommandView {
-                    key: key.clone(),
-                    binding: None,
-                    command: None,
-                    parameters: Vec::new(),
-                    words: template
-                        .words
-                        .iter()
-                        .map(|word| WordView {
-                            word: word.clone(),
-                            origins: vec![origin],
-                        })
-                        .collect(),
-                    origins: vec![origin],
-                    histories: vec![id],
-                });
-            } else {
-                view.non_admitted_keys.push(NonAdmittedKey {
-                    key: key.clone(),
-                    origins: assignments.iter().map(|a| a.origin).collect(),
-                    reason: "Only the overlay declares this key; primary policy must authorize it."
-                        .to_owned(),
-                });
-            }
-            view.histories.push(AssignmentHistory {
-                id,
-                setting: Setting::RouteTarget { key },
-                assignments,
-            });
-        }
-        view
     }
 
     pub(crate) fn slot_names(&self) -> impl Iterator<Item = &str> {
@@ -685,12 +571,13 @@ fn parse_and_validate(
         ConfigError::from_diagnostics(vec![diagnostic])
     })?;
 
-    let templates = validate_document(path, &source, &document, role, slots)?;
+    let (templates, named) = validate_document(path, &source, &document, role, slots)?;
     Ok(CapturedDocument {
         path: path.to_path_buf(),
         _source: source,
         _document: document,
         templates,
+        named,
     })
 }
 
@@ -700,11 +587,14 @@ fn validate_document(
     document: &KdlDocument,
     role: DocumentRole,
     slots: &[SlotSpec],
-) -> Result<BTreeMap<String, Template>, ConfigError> {
+) -> Result<(BTreeMap<String, Template>, named::Declarations), ConfigError> {
     let mut validations = Vec::new();
     let mut occurrences: HashMap<String, Vec<SourceLocation>> = HashMap::new();
 
     for node in document.nodes() {
+        if named::is_wrapper(node) {
+            continue;
+        }
         let validation = validate_node(source, node, slots);
         occurrences
             .entry(validation.key.clone())
@@ -714,6 +604,7 @@ fn validate_document(
     }
 
     let mut diagnostics = Vec::new();
+    let named = named::parse(path, source, document, role, &mut diagnostics);
 
     // Duplicates, in declaration order of their first appearance, each naming
     // every one of its own locations.
@@ -774,7 +665,7 @@ fn validate_document(
         )));
     }
 
-    Ok(templates)
+    Ok((templates, named))
 }
 
 fn validate_node(source: &str, node: &KdlNode, slots: &[SlotSpec]) -> NodeValidation {

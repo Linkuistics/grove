@@ -574,3 +574,43 @@ fn grove_binary_does_not_expose_leaf_verbs() {
         "grove --help leaked leaf-insert: {s}"
     );
 }
+
+#[test]
+fn named_routes_admit_mutation_and_invalid_bindings_refuse_before_writing() {
+    let repo = init_repo();
+    let home = TempDir::new().unwrap();
+    let config_dir = home.path().join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let policy = "config { command \"runner\" \"runner ${prompt}\"; bind \"lead\" \"runner\"; route \"impl\" \"lead\"; }";
+    fs::write(config_dir.join("config.kdl"), policy).unwrap();
+    let invoke = |slug: &str| {
+        Command::cargo_bin("grove-llm")
+            .unwrap()
+            .env("HOME", home.path())
+            .current_dir(repo.path())
+            .args(["leaf-add", ".", slug, "--kind", "impl"])
+            .output()
+            .unwrap()
+    };
+    let result = invoke("accepted");
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(repo.path().join(".grove/01-impl--accepted-k1.md").exists());
+    fs::write(
+        config_dir.join("config.kdl"),
+        policy.replace("bind \"lead\" \"runner\"", "bind \"lead\" \"missing\""),
+    )
+    .unwrap();
+    let result = invoke("refused");
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("missing"));
+    let entries: Vec<_> = fs::read_dir(repo.path().join(".grove")).unwrap().collect();
+    assert_eq!(
+        entries.len(),
+        2,
+        "only the brief and accepted leaf may exist"
+    );
+}

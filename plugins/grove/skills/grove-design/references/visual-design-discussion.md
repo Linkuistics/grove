@@ -13,19 +13,51 @@ When the human corrects the design, update the diagram source and accompanying
 prose as well as the decision record. This presentation method does not itself
 authorize implementing the system or adding Grove stages.
 
-## Match notation to the question
+## Choose question, abstraction, notation, then renderer
 
-| Question | Representation |
-|---|---|
-| What owns behavior, and what depends on what? | Module/component diagram with labelled relationships |
-| What happens next, including branches and loops? | Flowchart |
-| Which events change persistent state? | State machine with explicit states, events and guards |
-| Who calls whom, and in what order? | Sequence diagram |
+Choose the question and level of detail before selecting a tool. The notation
+defines what the symbols and relationships mean; the renderer arranges and
+draws them. A good layout cannot repair an ambiguous boundary or transition.
 
-Prefer Mermaid when it expresses the design clearly; reuse another established
-notation or renderer when appropriate. Keep source as the editable artifact
-and let the renderer position nodes. A rendered state diagram is not evidence
-of model checking. Preserve agreed diagram sources with the design artifact.
+| Question | Notation or view | Tool candidates |
+|---|---|---|
+| Where does the system fit, and what runs inside it? | C4 context, container and component views at distinct zoom levels | Structurizr or LikeC4 for views derived from a shared model |
+| Which parts provide interfaces, and how are they connected? | UML component or composite-structure view, as needed | PlantUML for components and interfaces; verify support for the specific composition semantics required |
+| Which events change persistent state? | FSM / UML state machine with events, guards and effects; nested or concurrent states when relevant | PlantUML state diagrams |
+| What happens next, including decisions, loops and ownership? | Flowchart, or UML activity diagram when activity semantics help | D2 for a simple flow; PlantUML activity diagrams for richer activity notation |
+| Who interacts with whom, in what order? | Sequence diagram, with explicit alternatives and asynchronous messages where needed | PlantUML; D2 for simpler sequence views |
+| What depends on, contains or connects to what? | General labelled graph with a stated legend | D2 with a suitable layout engine |
+
+These are candidates, not a required toolchain. Mermaid remains useful when its
+notation and output fit the question. Compare a representative rendered view
+when layout quality is uncertain; install only the tools the selected views need.
+For D2, try TALA for architecture graphs and compare ELK or Dagre when flow or
+size makes that useful. Keep one discussion document even when it mixes renderers.
+
+Keep abstraction levels explicit. A C4 container denotes a running application
+or data store, not a source package. Use a component or package view for library
+boundaries instead of relabelling every box as a container. UML has different
+structural and behavioral views; use only the ones that answer the discussion.
+A flowchart is not automatically a state machine, and a rendered state machine
+is not evidence of model checking. Record unresolved semantics in its caption.
+
+Keep source as the editable artifact and let the renderer position nodes.
+Preserve agreed sources with the design, plus the tool version and build command
+for generated exports. When several views share a model, edit that model and
+regenerate the affected views together. An interactive C4 presentation may use
+its own viewer while retaining the topic hierarchy and stable discussion links.
+
+Primary references: [C4 views](https://c4model.com/diagrams),
+[C4 containers](https://c4model.com/abstractions/container),
+[UML overview](https://www.omg.org/uml/what-is-uml.htm),
+[Structurizr DSL](https://docs.structurizr.com/dsl),
+[LikeC4 views](https://likec4.dev/dsl/views/),
+[PlantUML components](https://plantuml.com/component-diagram),
+[states](https://plantuml.com/state-diagram),
+[activities](https://plantuml.com/activity-diagram-beta) and
+[sequences](https://plantuml.com/sequence-diagram),
+[D2 layouts](https://d2lang.com/tour/layouts/) and
+[sequences](https://d2lang.com/tour/sequence-diagrams/).
 
 ## Make the discussion locatable
 
@@ -98,11 +130,58 @@ only the views changed in that update. These optional fields also allow older
 flat manifests to render. Topic links use `#group-<id>` and diagram links use
 `#diagram-<id>`.
 
-The viewer fetches current source on reload, exposes source links, and shows
-load and syntax errors. It uses pinned Mermaid from jsDelivr, requiring network
-access; use a local renderer when offline delivery is required. Other preview
-tools may hold an in-memory snapshot: check whether edits reach the served page
-or require a restart. Serve the presentation directory, not the workspace root.
+### Mix rendered SVG with Mermaid
+
+The example above uses Mermaid: omitting `renderer` is equivalent to
+`"renderer": "mermaid"`, and `source` must end in `.mmd`. For an exported
+D2, PlantUML or other SVG, use this diagram entry instead:
+
+```json
+{
+  "id": "choices",
+  "group": "interaction",
+  "title": "Prepare choices before acting",
+  "renderer": "svg",
+  "source": "choices.d2",
+  "rendered": "choices.svg",
+  "caption": "The query supplies the state needed to derive options."
+}
+```
+
+For example, save this as `choices.d2`:
+
+```d2
+direction: down
+State: Query current state
+Choices: Derive available choices
+Present: Present contents
+State -> Choices: Requested snapshot
+Choices -> Present
+```
+
+With D2 0.9.0, generate the export using:
+
+```sh
+d2 --layout=tala --theme=0 --dark-theme=200 --tala-seeds=1,2,3 choices.d2 choices.svg
+```
+
+Use the same entry shape for other renderers, pointing `source` at their editable
+text and `rendered` at their SVG export. Both URLs must be on the presentation's
+origin; the exported URL must end in `.svg`. Export self-contained images with
+readable fonts. SVGs appear as images: interactive links and scripts inside them
+do not run. The viewer provides source and full-size export links, a fit view
+and a native-size option. D2's adaptive dark theme follows the browser's color
+scheme; other exporters may need a suitable neutral theme.
+
+The viewer fetches source and exports afresh on reload and shows load or render
+errors. It does not compile source for SVG entries: regenerate exports whenever
+source, imports, themes or layout settings change, then verify the served image.
+Mermaid entries load pinned Mermaid 12.0.0 from jsDelivr and require network
+access. A document containing only self-contained SVG entries needs no CDN.
+One renderer's failure leaves the other diagrams and their source accessible.
+Other preview tools may hold an in-memory snapshot: check whether edits reach
+the served page or require a restart. Serve the presentation directory, not the
+workspace root.
 
 ## Check meaning and delivery
 
@@ -117,9 +196,11 @@ the intended revision. Verify the topic outline, current-discussion panel and
 changed markers agree with the actual edits. Open a cited deep link in a fresh
 page and check it reaches and identifies the intended diagram after rendering.
 After a meaningful edit, check the affected view.
-HTTP success alone does not establish that a diagram rendered. Keep labels
-short and put explanation in captions; change the standard layout direction
-when necessary to avoid unreadable wrapping or misleading edge crossings.
+HTTP success alone does not establish that a diagram rendered. Inspect the
+actual layout at a readable scale, including mobile and dark appearance when
+supported. Keep labels short and put explanation in captions. Try another
+standard layout direction or engine when wrapping or edge crossings obscure
+meaning; preserve the notation's semantics through that change.
 
 ## Delegate bounded presentation work
 

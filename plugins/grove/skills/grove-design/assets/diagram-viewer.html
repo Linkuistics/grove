@@ -63,6 +63,11 @@
     .badge.updated { color: var(--accent); border-color: var(--accent); }
     .diagram { overflow: auto; max-width: 100%; padding: 16px 0; min-height: 60px; }
     .diagram svg { display: block; max-width: none; height: auto; margin: 0 auto; }
+    .diagram img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+    .diagram.native-size img { max-width: none; }
+    .svg-controls { margin-top: 12px; font-size: 0.85rem; color: var(--muted); }
+    .svg-controls label { display: inline-flex; align-items: center; gap: 7px; }
+    .svg-controls input { accent-color: var(--accent); }
     summary { cursor: pointer; width: fit-content; }
     pre { overflow: auto; max-width: 100%; padding: 12px; background: var(--surface); font-size: 0.85rem; }
     .error { color: light-dark(#a31b1b, #ffabab); border-left: 3px solid currentColor; padding-left: 12px; overflow-wrap: anywhere; }
@@ -90,14 +95,18 @@
     </aside>
     <main id="diagrams"></main>
   </div>
-  <footer class="secondary">Mermaid 12.0.0 · Local .mmd files are canonical · Wide diagrams scroll horizontally.</footer>
-  <noscript>This viewer requires JavaScript. Open diagrams.json to find the Mermaid source files.</noscript>
+  <footer class="secondary">Source-defined diagrams · Mermaid 12.0.0 when used · Wide diagrams scroll within their panels.</footer>
+  <noscript>This viewer requires JavaScript. Open diagrams.json to find diagram sources and rendered SVG files.</noscript>
   <script type="module">
     const status = document.getElementById('status');
     const appearance = window.matchMedia('(prefers-color-scheme: dark)');
     const loaded = [];
+    const objectUrls = new Set();
     let mermaid;
     let revision = 0;
+    window.addEventListener('pagehide', event => {
+      if (!event.persisted) for (const url of objectUrls) URL.revokeObjectURL(url);
+    });
 
     function element(tag, text = '', className = '') {
       const node = document.createElement(tag);
@@ -126,6 +135,14 @@
     function validId(value) {
       return typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_-]*$/.test(value);
     }
+    function localUrl(value, label, extension = '') {
+      if (typeof value !== 'string' || !value.trim()) throw new Error(label + ' must be a nonempty URL string.');
+      const url = new URL(value, document.baseURI);
+      if (url.origin !== location.origin || !/^https?:$/.test(url.protocol) || (extension && !url.pathname.endsWith(extension))) {
+        throw new Error(label + ' must be a same-origin HTTP(S) ' + (extension ? extension + ' ' : '') + 'URL.');
+      }
+      return url.href;
+    }
     function validate(value) {
       if (!isObject(value)) throw new Error('Manifest must be an object.');
       if (typeof value.title !== 'string' || !value.title.trim() || typeof value.intro !== 'string') throw new Error('Manifest needs a nonempty title and an intro string.');
@@ -147,10 +164,12 @@
         if (typeof item.title !== 'string' || !item.title.trim() || typeof item.source !== 'string' || !item.source.trim()) throw new Error(label + ' needs nonempty title and source strings.');
         if (item.caption !== undefined && typeof item.caption !== 'string') throw new Error(label + ' caption must be a string when present.');
         if (item.group !== undefined && (typeof item.group !== 'string' || !groupIds.has(item.group))) throw new Error(label + ' refers to an unknown group: ' + String(item.group));
-        const url = new URL(item.source, document.baseURI);
-        if (url.origin !== location.origin || !/^https?:$/.test(url.protocol) || !url.pathname.endsWith('.mmd')) throw new Error(label + ' source must be a same-origin .mmd URL.');
+        const renderer = item.renderer === undefined ? 'mermaid' : item.renderer;
+        if (renderer !== 'mermaid' && renderer !== 'svg') throw new Error(label + ' has an unknown renderer: ' + String(renderer));
+        const url = localUrl(item.source, label + ' source', renderer === 'mermaid' ? '.mmd' : '');
+        const renderedUrl = renderer === 'svg' ? localUrl(item.rendered, label + ' rendered', '.svg') : undefined;
         ids.add(item.id);
-        return { ...item, url: url.href };
+        return { ...item, renderer, url, renderedUrl };
       });
       let discussion;
       if (value.discussion !== undefined) {
@@ -211,7 +230,8 @@
       const links = element('div', '', 'heading-links');
       const permalink = link('Permalink', '#' + section.id);
       permalink.setAttribute('aria-label', 'Permalink to ' + item.title);
-      links.append(permalink, link('Mermaid source', item.url));
+      links.append(permalink, link('Diagram source', item.url));
+      if (item.renderer === 'svg') links.append(link('Full-size SVG', item.renderedUrl));
       heading.append(title, links);
       section.append(breadcrumb, heading);
       const markers = element('div', '', 'markers');
@@ -219,18 +239,31 @@
       if (updated.has(item.id)) markers.append(element('span', 'Updated', 'badge updated'));
       if (markers.childElementCount) section.append(markers);
       const target = element('div', 'Loading diagram…', 'diagram');
+      target.id = 'view-' + item.id;
       target.setAttribute('aria-label', item.title);
       target.tabIndex = 0;
+      if (item.renderer === 'svg') {
+        const controls = element('div', '', 'svg-controls');
+        const label = element('label');
+        const checkbox = element('input');
+        checkbox.type = 'checkbox';
+        checkbox.setAttribute('aria-controls', target.id);
+        checkbox.addEventListener('change', () => target.classList.toggle('native-size', checkbox.checked));
+        label.append(checkbox, 'Display at native size (scroll within diagram)');
+        controls.append(label);
+        section.append(controls);
+      }
       const code = element('code', 'Loading source…');
       const pre = element('pre');
       pre.append(code);
       const details = element('details');
       details.append(element('summary', 'Show source'), pre);
-      section.append(target);
+      const sourceStatus = element('div');
+      section.append(target, sourceStatus);
       if (item.caption) section.append(element('p', item.caption, 'secondary'));
       section.append(details);
       container.append(section);
-      return { ...item, target, code };
+      return { ...item, target, code, sourceStatus };
     }
     function addDocument(manifest) {
       const current = new Set(manifest.discussion?.diagramIds ?? []);
@@ -290,6 +323,37 @@
     function scheduleHashScroll() {
       requestAnimationFrame(scrollToHash);
     }
+    async function renderSvg(item) {
+      let objectUrl;
+      try {
+        const source = await read(item.renderedUrl);
+        const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
+        const root = parsed.documentElement;
+        if (parsed.querySelector('parsererror') || root.localName !== 'svg' || root.namespaceURI !== 'http://www.w3.org/2000/svg') {
+          throw new Error('The rendered file is not a valid SVG document.');
+        }
+        objectUrl = URL.createObjectURL(new Blob([source], { type: 'image/svg+xml' }));
+        objectUrls.add(objectUrl);
+        const image = new Image();
+        image.alt = item.title;
+        image.decoding = 'async';
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = () => reject(new Error('The SVG image could not be decoded.'));
+          image.src = objectUrl;
+        });
+        // Percentage-sized exports still have a usable native size in their viewBox.
+        const viewBox = root.getAttribute('viewBox')?.trim().split(/[\s,]+/).map(Number);
+        const width = root.getAttribute('width');
+        const useViewBox = (!width || width.trim().endsWith('%')) && viewBox?.length === 4 && viewBox.every(Number.isFinite) && viewBox[2] > 0 && viewBox[3] > 0;
+        image.width = useViewBox ? viewBox[2] : image.naturalWidth;
+        image.height = useViewBox ? viewBox[3] : image.naturalHeight;
+        item.target.replaceChildren(image);
+      } catch (error) {
+        if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrls.delete(objectUrl); }
+        report(item.target, 'SVG rendering failed for ' + item.title + '; source remains available', error);
+      }
+    }
     async function renderDiagrams() {
       const currentRevision = ++revision;
       mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true,
@@ -320,19 +384,22 @@
       const entries = addDocument(manifest);
       window.addEventListener('hashchange', scheduleHashScroll);
       scheduleHashScroll();
-      status.textContent = 'Loading sources and renderer…';
-      await Promise.all(entries.map(async item => {
+      status.textContent = 'Loading diagram sources and rendered assets…';
+      const sources = entries.map(async item => {
         try {
           item.sourceText = await read(item.url);
           item.code.textContent = item.sourceText;
         } catch (error) {
           item.code.textContent = 'Source could not be loaded.';
-          report(item.target, 'Source error for ' + item.title, error);
+          report(item.sourceStatus, 'Source error for ' + item.title, error);
+          if (item.renderer === 'mermaid') report(item.target, 'Mermaid needs its source to render', error);
         }
-      }));
-      loaded.push(...entries.filter(item => typeof item.sourceText === 'string'));
+      });
+      const images = entries.filter(item => item.renderer === 'svg').map(renderSvg);
+      await Promise.all([...sources, ...images]);
+      loaded.push(...entries.filter(item => item.renderer === 'mermaid' && typeof item.sourceText === 'string'));
       if (!loaded.length) {
-        status.textContent = 'No diagram sources could be loaded.';
+        status.textContent = '';
         scheduleHashScroll();
         return;
       }

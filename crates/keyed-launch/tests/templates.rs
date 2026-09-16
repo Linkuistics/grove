@@ -297,11 +297,11 @@ fn a_kdl_syntax_error_names_its_source_location() {
     assert_contains(&error, ":1:");
 }
 
-/// Aggregate, not first-error: one report carries every problem in the document.
+/// Semantic reports aggregate after the document passes structural validation.
 #[test]
-fn schema_and_template_failures_are_aggregated_with_source_locations() {
+fn template_failures_are_aggregated_with_source_locations() {
     let error = load_error(concat!(
-        "one \"wrapper ${prompt}\" extra=1\n",
+        "one \"wrapper ${prompt}\"\n",
         "two \"wrapper\"\n",
         "three \"wrapper ${prompt} ${label} ${label}\"\n",
         "four \"wrapper ${unknown} ${prompt}\"\n",
@@ -309,10 +309,6 @@ fn schema_and_template_failures_are_aggregated_with_source_locations() {
     ));
     for expected in [
         "invalid configuration at",
-        // A node-shape problem is reported at its location without the key
-        // prefix: the key is what the offending line *is*, and the line and
-        // column already point at it.
-        "properties and child blocks are not allowed",
         "key `two`: command template must contain `${prompt}` exactly once",
         "key `three`: `${label}` may appear at most once",
         "key `four`: unknown substitution `${unknown}`",

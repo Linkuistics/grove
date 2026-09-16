@@ -47,18 +47,18 @@ of the chapter against it.
 
 | Rule | Enforced at | The diagnostic | Pinned by |
 |---|---|---|---|
-| a node has no properties and no child block | 548 | `` properties and child blocks are not allowed `` | `schema_and_template_failures_are_aggregated_with_source_locations`, `a_child_block_is_refused_like_a_property` |
-| neither the node nor an entry carries a type annotation | 554 | `` type annotations are not allowed `` | `a_type_annotation_is_refused_on_the_node_and_on_its_argument` |
-| a node has exactly one positional argument | 566 | `` a key must have exactly one positional argument `` | `a_key_needs_exactly_one_positional_argument` |
-| that argument is a string | 574 | `` a key's sole argument must be a string `` | `a_keys_sole_argument_must_be_a_string` |
-| no key is declared twice in one document | 502–515, chapter 3's | `` duplicate key `one`; declarations at … `` naming every declaration | `a_duplicate_key_reports_every_declaration_location` |
-| no unquoted `#` begins a word | 603 | `` `#` starts a comment in a command template; quote it to pass it literally `` | `an_unquoted_hash_is_refused_rather_than_truncating_the_argv`, `quoted_and_midword_hashes_stay_literal` |
-| every quote closes | 612 | `` command template has unmatched quotes `` | `unmatched_quotes_are_refused` |
-| word zero is a literal, and not empty | 624 and 636 | `` word zero must be a literal executable ``, or `` word zero must be a literal non-empty executable `` | `word_zero_must_be_a_literal_executable` |
-| a substitution occupies a complete word | 729 | `` substitutions must occupy a complete shell word, got `pre${prompt}` `` | `schema_and_template_failures_are_aggregated_with_source_locations` |
-| a substitution names a declared slot | 719 | `` unknown substitution `${unknown}` `` | `schema_and_template_failures_are_aggregated_with_source_locations` |
-| a required slot appears exactly once | 650 | `` command template must contain `${prompt}` exactly once `` | `schema_and_template_failures_are_aggregated_with_source_locations` |
-| an optional slot appears at most once | 650 | `` `${label}` may appear at most once `` | `schema_and_template_failures_are_aggregated_with_source_locations` |
+| a node has no properties and no child block | 675 | `` properties and child blocks are not allowed `` | `structural_reports_aggregate_in_source_order_with_real_utf8_ranges`, `a_child_block_is_refused_like_a_property` |
+| neither the node nor an entry carries a type annotation | 681 | `` type annotations are not allowed `` | `a_type_annotation_is_refused_on_the_node_and_on_its_argument` |
+| a node has exactly one positional argument | 693 | `` a key must have exactly one positional argument `` | `a_key_needs_exactly_one_positional_argument` |
+| that argument is a string | 701 | `` a key's sole argument must be a string `` | `a_keys_sole_argument_must_be_a_string` |
+| no key is declared twice in one document | 617–634, chapter 3's | `` duplicate key `one`; declarations at … `` naming every declaration | `a_duplicate_key_reports_every_declaration_location` |
+| no unquoted `#` begins a word | 733 | `` `#` starts a comment in a command template; quote it to pass it literally `` | `an_unquoted_hash_is_refused_rather_than_truncating_the_argv`, `quoted_and_midword_hashes_stay_literal` |
+| every quote closes | 742 | `` command template has unmatched quotes `` | `unmatched_quotes_are_refused` |
+| word zero is a literal, and not empty | 754 and 766 | `` word zero must be a literal executable ``, or `` word zero must be a literal non-empty executable `` | `word_zero_must_be_a_literal_executable` |
+| a substitution occupies a complete word | 859 | `` substitutions must occupy a complete shell word, got `pre${prompt}` `` | `template_failures_are_aggregated_with_source_locations` |
+| a substitution names a declared slot | 849 | `` unknown substitution `${unknown}` `` | `template_failures_are_aggregated_with_source_locations` |
+| a required slot appears exactly once | 780 | `` command template must contain `${prompt}` exactly once `` | `template_failures_are_aggregated_with_source_locations` |
+| an optional slot appears at most once | 780 | `` `${label}` may appear at most once `` | `template_failures_are_aggregated_with_source_locations` |
 
 Every row carries a test, and three of them did not when this chapter was first
 written. The four node-shape rules at the top of the table were the gap: the
@@ -100,11 +100,9 @@ not learn the slot names until expansion. Chapter 2 read that argument at the
 signature. The closing loop of `validate_template` is the second of the two lines
 that keep it, and this chapter reads it.
 
-One obligation reaches this chapter from chapter 1 and is discharged nowhere
-else. `ConfigError`'s doc comment states what every message it carries must
-satisfy — name what is wrong, name **where**, and name what fixes it — and
-chapter 1 could only quote it, because the type is opaque and holds a `String`.
-The last section of this chapter is the five functions that build that string.
+The diagnostic contract names what failed, where it failed and how to repair it.
+ConfigError stores the public records described in chapter 1; this chapter
+shows how flat validation produces their categories and byte ranges.
 
 <a id="the-rules-on-one-line"></a>
 ## The rules on one line
@@ -170,7 +168,7 @@ sees a `KdlNode`. Everything below it works on a `&str`. The split matters
 because it is where the crate stops depending on its parser: one function asks
 KDL what shape the node has, and from there on the template is text.
 
-<!-- fragment «node-and-template-rules» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="541-660" parent="source-templates" -->
+<!-- fragment «node-and-template-rules» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="665-790" parent="source-templates" -->
 <!-- insert «validate-node-shape» -->
 <!-- insert «validate-node-one-argument» -->
 <!-- insert «validate-node-result» -->
@@ -183,12 +181,15 @@ KDL what shape the node has, and from there on the template is text.
 
 The first fragment takes the node's identity and its two shape rules.
 
-<!-- fragment «validate-node-shape» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="541-559" parent="node-and-template-rules" -->
+<!-- fragment «validate-node-shape» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="665-686" parent="node-and-template-rules" -->
 ````rust
 
 fn validate_node(source: &str, node: &KdlNode, slots: &[SlotSpec]) -> NodeValidation {
     let key = node.name().value().to_owned();
-    let location = source_location(source, node.span().offset());
+    // kdl 4.7 spans are byte offset/length pairs, excluding surrounding trivia:
+    // https://docs.rs/kdl/4.7.1/kdl/struct.KdlNode.html#method.span
+    let mut location = source_location(source, node.span().offset());
+    location.end = location.start + node.span().len();
     let mut diagnostics = Vec::new();
     let has_property = node.entries().iter().any(|entry| entry.name().is_some());
 
@@ -224,7 +225,7 @@ entry. This crate wants none of them, and says so rather than ignoring them. The
 cost of ignoring would fall entirely on the operator, who would write something
 with an obvious meaning — a `model=opus` property, a child block grouping two
 kinds — and get a launch that silently did not have it. The `has_property`
-binding on line 546 is the entry-level half of the first rule and line 548 is the
+binding on line 673 is the entry-level half of the first rule and line 675 is the
 node-level half; the two are combined into one condition, and so into one
 finding, because an operator who wrote both has made one mistake about what a
 node may carry.
@@ -243,7 +244,7 @@ that thing has to be text. Those are the last two rules `validate_node` owns, an
 the second of them is the point at which the node stops being a `KdlNode` and
 becomes a `&str` for the seven template rules to work on.
 
-<!-- fragment «validate-node-one-argument» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="560-586" parent="node-and-template-rules" -->
+<!-- fragment «validate-node-one-argument» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="687-713" parent="node-and-template-rules" -->
 ````rust
 
     let positional = node
@@ -258,7 +259,7 @@ becomes a `&str` for the seven template rules to work on.
         ));
     }
 
-    let template = if positional.len() == 1 {
+    let template = if diagnostics.is_empty() && positional.len() == 1 {
         match positional[0].value().as_string() {
             Some(template) => validate_template(&key, location, template, slots, &mut diagnostics),
             None => {
@@ -276,31 +277,29 @@ becomes a `&str` for the seven template rules to work on.
 <!-- /fragment -->
 
 The positional entries are the entries with no name, which is the same predicate
-line 546 used with the sense reversed — a KDL entry is a property when it has a
+line 673 used with the sense reversed — a KDL entry is a property when it has a
 name and an argument when it does not. Exactly one is required, and both failure
 directions are one message: none, and the key names no program at all; two or
 more, and there is no rule for deciding which is the template, so inventing one
 would be the crate assembling a launch out of more than one thing on the line.
 That is the same refusal chapter 3 made across two files, one scale down.
 
-The delegation on line 575 is the only call site of `validate_template`, and the
-shape around it is deliberate. `as_string` is `None` when the sole argument is a
-number, a boolean or a null — `impl 42` parses perfectly well as KDL — and that
-gets its own message rather than being folded into the count rule, because the
-two are different mistakes with different fixes. When the count rule fails the
-template is `None` and `validate_template` is never called, so a node with no
-argument, or with two, produces its own diagnostic and no cascade of template
-findings about a string that was never there. The two rules in the previous
-section do **not** gate it: a node carrying a stray property alongside a perfectly
-good template produces exactly one finding, and the template is compiled anyway.
-That is the aggregate test's first node.
+Only a structurally valid node delegates to `validate_template`. A missing or
+extra positional argument, a property, child block or type annotation leaves
+the template absent. A sole non-string argument reports its own shape failure.
+This prevents a malformed declaration from producing downstream slot errors.
+Catalog also suppresses semantic reports from other nodes until both documents
+pass structural validation.
 
 Note what the `else` arm does *not* do: it does not return early. The vector
 built above it survives, and so does the key.
 
-<!-- fragment «validate-node-result» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="587-594" parent="node-and-template-rules" -->
+<!-- fragment «validate-node-result» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="714-724" parent="node-and-template-rules" -->
 ````rust
 
+    for diagnostic in &mut diagnostics {
+        diagnostic.key = Some(key.clone());
+    }
     NodeValidation {
         key,
         location,
@@ -327,7 +326,7 @@ more, and it is the rest of this block. It takes the string `validate_node`
 extracted and returns the compiled words, and it opens with a signature that
 fixes what a rule check is allowed to do with what it finds.
 
-<!-- fragment «validate-template-signature» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="595-602" parent="node-and-template-rules" -->
+<!-- fragment «validate-template-signature» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="725-732" parent="node-and-template-rules" -->
 ````rust
 
 fn validate_template(
@@ -349,7 +348,7 @@ to the node's list and still return an `Option<Vec<Word>>` describing whether a
 template came out. `None` here does not mean *no diagnostic* — it means *no
 compiled template*, and the diagnostics have already been pushed.
 
-<!-- fragment «validate-template-comment-start» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="603-610" parent="node-and-template-rules" -->
+<!-- fragment «validate-template-comment-start» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="733-740" parent="node-and-template-rules" -->
 ````rust
     if contains_shell_comment_start(template) {
         diagnostics.push(at_template(
@@ -389,7 +388,7 @@ operator meant one of two things and both are quoting.
 With a comment start ruled out, the line can be split into words. This is the
 crate's only call into `shell-words`, and the only way that call can fail.
 
-<!-- fragment «validate-template-split» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="611-622" parent="node-and-template-rules" -->
+<!-- fragment «validate-template-split» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="741-752" parent="node-and-template-rules" -->
 ````rust
 
     let words = match shell_words::split(template) {
@@ -429,7 +428,7 @@ and nothing below re-reads them for meaning.
 Both rules above could refuse the template outright. Every rule below
 accumulates, and the first of them is about the first word.
 
-<!-- fragment «validate-template-word-zero» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="623-647" parent="node-and-template-rules" -->
+<!-- fragment «validate-template-word-zero» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="753-777" parent="node-and-template-rules" -->
 ````rust
 
     if words.is_empty() {
@@ -461,7 +460,7 @@ accumulates, and the first of them is about the first word.
 
 Word zero is one rule with two lines, because the empty case cannot be expressed
 by the loop that checks the other. An empty template splits to no words at all,
-so the loop never runs and line 636 never fires; line 624 catches it and says
+so the loop never runs and line 766 never fires; line 754 catches it and says
 *non-empty*, which is the more useful of the two words for an operator who typed
 `impl ""`. That template also fails its `${prompt}` requirement, and both
 findings come out together, because neither line returns.
@@ -500,7 +499,7 @@ stored rather than after.
 The counts the loop collected are spent in the last nine lines of the function,
 against the vocabulary that produced their positions.
 
-<!-- fragment «validate-template-cardinality» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="648-660" parent="node-and-template-rules" -->
+<!-- fragment «validate-template-cardinality» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="778-790" parent="node-and-template-rules" -->
 ````rust
 
     for (slot, count) in slots.iter().zip(counts) {
@@ -532,7 +531,7 @@ file. And the loop runs over the **vocabulary**, not over the template's words,
 which is what makes a *missing* required slot detectable at all: a rule about
 something that is not present cannot be checked by walking what is.
 
-The `Some(compiled)` on line 659 is returned whether or not diagnostics were
+The `Some(compiled)` on line 789 is returned whether or not diagnostics were
 pushed in this function, and that is not an oversight. The caller does not consult
 it in the failing case — `validate_document` refuses the whole document if any
 diagnostic exists — so the compiled words of an invalid template are built and
@@ -546,7 +545,7 @@ returning the words costs nothing and keeps the two gates above as the only two.
 The chapter's second block is one enum, the scan that walks it, and the two
 functions that decide what a single word is.
 
-<!-- fragment «word-scanning» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="661-743" parent="source-templates" -->
+<!-- fragment «word-scanning» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="791-873" parent="source-templates" -->
 <!-- insert «shell-word-scan-state» -->
 <!-- insert «contains-shell-comment-start» -->
 <!-- insert «parse-template-word» -->
@@ -557,7 +556,7 @@ The enum comes first, because it is the argument. Nothing else in the crate
 mentions it; it exists so that one function's positions can be named, and the
 names are the reason that function is readable as a rule rather than as a table.
 
-<!-- fragment «shell-word-scan-state» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="661-671" parent="word-scanning" -->
+<!-- fragment «shell-word-scan-state» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="791-801" parent="word-scanning" -->
 ````rust
 
 #[derive(Clone, Copy)]
@@ -597,7 +596,7 @@ the enum exists to avoid.
 The scan is that enum walked once over the template's characters, and the comment
 above it is one of only three in the chapter's 246 lines.
 
-<!-- fragment «contains-shell-comment-start» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="672-709" parent="word-scanning" -->
+<!-- fragment «contains-shell-comment-start» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="802-839" parent="word-scanning" -->
 ````rust
 
 /// Does a `#` start a comment anywhere in this template?
@@ -687,7 +686,7 @@ mid-word `#`, expands it, and compares the four resulting arguments.
 word of resolved text and returns the `Word` it compiles to, pushing a diagnostic
 on the way when the word is a substitution that breaks one of two rules.
 
-<!-- fragment «parse-template-word» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="710-737" parent="word-scanning" -->
+<!-- fragment «parse-template-word» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="840-867" parent="word-scanning" -->
 ````rust
 
 fn parse_template_word(
@@ -744,7 +743,7 @@ are not alternatives in this function, and the reason is the one from the last
 section: a template that fails is still compiled, and compiling it is what lets
 the remaining rules — word zero, and both cardinalities — report against it.
 
-<!-- fragment «whole-substitution» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="738-743" parent="word-scanning" -->
+<!-- fragment «whole-substitution» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="868-873" parent="word-scanning" -->
 ````rust
 
 /// The slot name in `${name}`, when the word is *nothing but* that substitution.
@@ -773,12 +772,12 @@ produces is worth at expansion.
 <a id="what-a-refusal-owes"></a>
 ## Name what is wrong, name where, name what fixes it
 
-The third block is forty-three lines and no rule at all. It is the machinery every
-refusal in both documents is rendered by, and it is where chapter 1's statement
-about `ConfigError` — that its obligation is a property of every message it holds
-rather than a variant list — stops being a promise.
+The final block converts validator findings into structured reports. Node shape
+errors use `shape`; template failures use `invalid_template`. Each report carries
+a remedy and the node's actual byte range, while duplicates retain every other
+declaration as a related span.
 
-<!-- fragment «diagnostics» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="744-786" parent="source-templates" -->
+<!-- fragment «diagnostics» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="874-953" parent="source-templates" -->
 <!-- insert «diagnostic-constructors» -->
 <!-- insert «render-diagnostics» -->
 <!-- insert «location-rendering» -->
@@ -787,18 +786,24 @@ rather than a variant list — stops being a promise.
 The two constructors come first, because every diagnostic in the chapter above
 was built by one of them.
 
-<!-- fragment «diagnostic-constructors» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="744-754" parent="diagnostics" -->
+<!-- fragment «diagnostic-constructors» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="874-890" parent="diagnostics" -->
 ````rust
 
 fn at_node(location: SourceLocation, message: String) -> ValidationDiagnostic {
     ValidationDiagnostic {
+        category: "shape", key: None, related: Vec::new(),
+        remedy: "Use a bare key with exactly one string argument and no properties, children or type annotations.",
         location: Some(location),
         message,
     }
 }
 
 fn at_template(location: SourceLocation, key: &str, message: String) -> ValidationDiagnostic {
-    at_node(location, format!("key `{key}`: {message}"))
+    let mut diagnostic = at_node(location, format!("key `{key}`: {message}"));
+    diagnostic.category = "invalid_template";
+    diagnostic.key = Some(key.to_owned());
+    diagnostic.remedy = "Use a literal executable and complete-word declared slots with the required counts; balance quotes and quote literal comment markers.";
+    diagnostic
 }
 ````
 <!-- /fragment -->
@@ -819,41 +824,64 @@ made non-empty, and so absorbs an `Option` the compiler cannot see through. The
 `None` is unreachable — and `render_diagnostics`, two fragments below, branches on
 it anyway.
 
-<!-- fragment «render-diagnostics» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="755-773" parent="diagnostics" -->
+<!-- fragment «render-diagnostics» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="891-935" parent="diagnostics" -->
 ````rust
 
-/// Aggregate, not first-error: one report lists every duplicate with all of its
-/// locations, every malformed node, and every invalid template with its key and
-/// location, so one edit fixes the file rather than uncovering the next problem.
+/// Convert validator findings into ordered records. Catalog decides whether
+/// structure permits semantic reports after both document results are available.
 fn render_diagnostics(
     path: &Path,
     role: DocumentRole,
-    diagnostics: Vec<ValidationDiagnostic>,
-) -> String {
-    let mut rendered = format!("invalid {} at {}:", role.noun(), path.display());
-    for diagnostic in diagnostics {
-        rendered.push_str("\n  - ");
-        if let Some(location) = diagnostic.location {
-            let _ = write!(rendered, "{}: ", format_location(path, location));
-        }
-        rendered.push_str(&diagnostic.message);
-    }
-    rendered
+    mut diagnostics: Vec<ValidationDiagnostic>,
+) -> Vec<Diagnostic> {
+    diagnostics.sort_by(|a, b| {
+        a.location
+            .map(|l| l.start)
+            .cmp(&b.location.map(|l| l.start))
+            .then(a.key.cmp(&b.key))
+    });
+    let source = role.source(path);
+    let span = |location: SourceLocation| SourceSpan {
+        source: source.clone(),
+        start: location.start,
+        end: location.end,
+    };
+    diagnostics
+        .into_iter()
+        .map(|item| {
+            let location = item
+                .location
+                .map(|l| format!("{}: ", format_location(path, l)))
+                .unwrap_or_default();
+            let mut diagnostic = Diagnostic::new(
+                item.category,
+                format!(
+                    "invalid {} at {}:\n  - {location}{}",
+                    role.noun(),
+                    path.display(),
+                    item.message
+                ),
+                item.remedy,
+            );
+            diagnostic.source = Some(source.clone());
+            diagnostic.primary = item.location.map(span);
+            diagnostic.related = item.related.into_iter().map(span).collect();
+            diagnostic.key = item.key;
+            diagnostic
+        })
+        .collect()
 }
 ````
 <!-- /fragment -->
 
-This is the one function in the chapter whose comment argues rather than
-describes, so the prose owes something other than a second copy of it. What the
-signature adds is that the policy is **structural**. `diagnostics` arrives by
-value as a finished `Vec`, and the function has exactly one call site — line 532,
-inside chapter 3's `if !diagnostics.is_empty()` — so there is no incremental
-form of it and no way to render a partial report by mistake. Aggregate, not
-first-error, is not a convention this function follows; it is the only thing its
-shape permits.
+Despite its historical name, `render_diagnostics` now returns public Diagnostic
+records. It sorts findings by byte position and key, attaches SourceRole and path,
+and formats the human message with line/column coordinates. ConfigError builds
+its Display string from these records; Catalog selects structural or semantic
+reports only after both document results are available.
 
 The header names the file and the *role* — `configuration` or `configuration
-overlay`, which is the only thing `DocumentRole` decides. That is *name where* at
+overlay`; DocumentRole also supplies the structured SourceRole. That is *name where* at
 document scale, and it is owed because the reader cannot infer it: chapter 3
 established that the rules do not differ by role, so a finding's text is the same
 whichever file produced it, and only the header says which one did.
@@ -867,7 +895,7 @@ format every terminal, editor and CI annotator already knows how to turn into a
 jump, and a reader who copies one line out of a report of nine gets a location
 that still works.
 
-<!-- fragment «location-rendering» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="774-786" parent="diagnostics" -->
+<!-- fragment «location-rendering» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="936-953" parent="diagnostics" -->
 ````rust
 
 fn format_location(path: &Path, location: SourceLocation) -> String {
@@ -880,7 +908,12 @@ fn source_location(source: &str, offset: usize) -> SourceLocation {
     let line = before.bytes().filter(|byte| *byte == b'\n').count() + 1;
     let line_start = before.rfind('\n').map_or(0, |index| index + 1);
     let column = source[line_start..offset].chars().count() + 1;
-    SourceLocation { line, column }
+    SourceLocation {
+        line,
+        column,
+        start: offset,
+        end: offset,
+    }
 }
 ````
 <!-- /fragment -->
@@ -900,7 +933,7 @@ screen, and a line holding an em dash or an accented path would otherwise be
 reported further right than the editor puts the cursor, by one column per extra
 byte.
 
-The clamp on line 780 is the defensive line. An offset past the end of the source
+The clamp on line 942 is the defensive line. An offset past the end of the source
 would panic on the slice below it rather than produce a wrong answer, and
 `min(source.len())` costs one comparison to make that unreachable regardless of
 what the parser hands over. It is the same instinct as `Err(_)` at the split: the

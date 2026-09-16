@@ -199,7 +199,7 @@ order is that account's order. The book reads it whole here, in seven fragments:
 six that follow the doc comment's own paragraph breaks, and one for the module
 declarations and exports, which this chapter reads after the worked example.
 
-<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-83" parent="source-library-root" -->
+<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-85" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-two-documents» -->
 <!-- insert «library-root-vocabulary» -->
@@ -267,7 +267,7 @@ expansion can check none of them. Chapter 2 owns that argument and takes the
 position the crate takes on it; chapter 3 then reads a `load` that has the names
 in hand.
 
-<!-- fragment «library-root-vocabulary» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="23-35" parent="library-root" -->
+<!-- fragment «library-root-vocabulary» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="23-37" parent="library-root" -->
 ````rust
 //! Catalog retains both original documents and their declarations. Resolving an
 //! explicit [`Selection`] returns an owned [`Templates`] snapshot without source
@@ -275,8 +275,10 @@ in hand.
 //! [`Templates::load`] delegates to that path with an empty selection.
 //!
 //! Only flat configuration is implemented: selection declarations are absent,
-//! and selecting any profile is an error. Wrapper commands, profiles, structured
-//! diagnostics and inspection are pending; no partial inspection API is exposed.
+//! and selecting any profile is an error. Wrapper commands, profiles and
+//! inspection are pending; no partial inspection API is exposed.
+//! [`ConfigError::diagnostics`] exposes stable categories, source byte ranges
+//! and remedies. Independent structural errors aggregate across both inputs.
 //!
 //! # The vocabulary is an input to `load`, not to `expand`
 //!
@@ -298,7 +300,7 @@ dependency — nothing in `run` compiles against `templates`, and nothing in
 shows the two lines that make it true, and this chapter's last section reads the
 error module that the claim is also visible in.
 
-<!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="36-42" parent="library-root" -->
+<!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="38-44" parent="library-root" -->
 ````rust
 //!
 //! # From a template to a running child
@@ -319,7 +321,7 @@ finishes rather than exiting, so its own exit is not the event anyone is waiting
 for, and the channel's *appearance* is. Those two sentences are the reason the
 crate has a `Channel` at all, and chapter 6 is where the appearance rule is built.
 
-<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="43-55" parent="library-root" -->
+<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="45-57" parent="library-root" -->
 ````rust
 //!
 //! **The child is a job.** It is spawned into a process group of its own and
@@ -343,7 +345,7 @@ holds a consumer's configuration to this crate's contract **from outside the
 consumer's own suite**. The distinction it draws in that clause is the whole of
 why the kit exists, and chapter 9 argues it.
 
-<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="56-65" parent="library-root" -->
+<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="58-67" parent="library-root" -->
 ````rust
 //!
 //! [`run_observed`] adds synchronous parent-side [`LaunchEvent`] notifications
@@ -476,7 +478,7 @@ The final module declarations and exports put the public surface in one place.
 This book reads them here rather than deferring each name to its own chapter, because the
 list is short and the map above has already said which chapter owns what.
 
-<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="66-83" parent="library-root" -->
+<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="68-85" parent="library-root" -->
 ````rust
 
 pub mod conformance;
@@ -490,7 +492,7 @@ mod vocabulary;
 
 pub use argv::{Argv, Slot};
 pub use channel::{signal, Channel, Token};
-pub use error::{ConfigError, LaunchError};
+pub use error::{ConfigError, Diagnostic, LaunchError, Occurrence};
 pub use run::{
     reraise, run, run_observed, take_interrupt, End, Ended, Escalation, Launch, LaunchEvent,
 };
@@ -526,7 +528,7 @@ last row is this chapter's own and is not one.
 | `run`, `Launch`, `Ended`, `End`, `Escalation` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | 7 |
 | `reraise`, `take_interrupt` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | 8 |
 | `conformance::check` | The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite. | 9 |
-| `ConfigError`, `LaunchError` | the two opaque error types, read in full in the next section | 1 |
+| `ConfigError`, `Diagnostic`, `Occurrence`, `LaunchError` | structured configuration refusals and separate launch errors, read next | 1 |
 
 The last row is the only one this chapter owns, and it is the last file this
 chapter reads.
@@ -534,12 +536,11 @@ chapter reads.
 <a id="the-two-errors"></a>
 ## Two opaque errors, and why there are two
 
-`src/error.rs` is eighty-one lines and holds two types with identical shape: a
-private `String`, a `Display`, a `Debug`, and an `Error`. Neither carries a
-variant, a code or a source. Read as code the file is repetitive; read as design
-it is two decisions, and its doc comments argue both.
+`ConfigError` retains structured Diagnostic records and a human rendering.
+`LaunchError` remains a message-only error for channel and process failures.
+Both implement Display, Debug and Error without an error-library dependency.
 
-<!-- fragment «two-opaque-errors» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="1-81" parent="source-error-types" -->
+<!-- fragment «two-opaque-errors» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="1-148" parent="source-error-types" -->
 <!-- insert «error-import» -->
 <!-- insert «error-config-type» -->
 <!-- insert «error-config-traits» -->
@@ -547,11 +548,9 @@ it is two decisions, and its doc comments argue both.
 <!-- insert «error-launch-traits» -->
 <!-- /fragment -->
 
-The file's one import is the first piece of evidence for the manifest's claim.
-Formatting is all either type needs, so `std::fmt` is the module's only `use`.
-The one other path it names is `std::error::Error`, written out in full at the
-`impl` line that closes each of the two types. No error library, no backtrace
-crate, no macro.
+The formatting import supports both error types. Source and SourceSpan come
+from the captured configuration model, allowing diagnostics to identify files
+and byte ranges without importing the launch half.
 
 <!-- fragment «error-import» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="1-1" parent="two-opaque-errors" -->
 ````rust
@@ -559,58 +558,119 @@ use std::fmt;
 ````
 <!-- /fragment -->
 
-The first type is everything that can go wrong reading, validating or expanding
-a configuration, and its doc comment carries the API decision that makes its
-opacity deliberate. **Opacity is stated as a design rather than an omission**,
-with the cost of the alternative named: a variant list would be a second
-interface, with every
-consumer matching on it and every new diagnostic a breaking change, for a value
-whose only use is being shown to the person who has to fix the file. In place of
-a taxonomy the type takes on an obligation that every message it holds must
-satisfy — **name what is wrong, name where, and name what fixes it** — and that
-obligation is the one this chapter states and chapter 4 discharges, because
-chapter 4 owns `render_diagnostics` and the location formatting behind it. The
-last sentence of the comment is the manifest's dependency argument restated from
-the consumer's side: the type implements `std::error::Error`, so a consumer using
-`anyhow`, `thiserror` or nothing at all takes on no dependency of this crate's.
+Diagnostic owns a stable category, message, remedy, optional source and primary
+span, related spans, affected names and an occurrence chain. ConfigError exposes
+these through `diagnostics()` while keeping its construction private.
+`from_diagnostics` derives the human rendering from the same records, so consumers
+can choose structured access without parsing prose. `contextualize` supplies a
+known source and key to runtime errors without inventing a source span.
+Occurrence records identify each selected entry, including an unknown external
+profile and its list index; absent selection origins stay absent. The binding,
+command and parameter names are reserved for later modular resolution.
+Chapter 4 explains how the flat validator supplies locations and categories.
 
-<!-- fragment «error-config-type» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="2-25" parent="two-opaque-errors" -->
+<!-- fragment «error-config-type» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="2-93" parent="two-opaque-errors" -->
 ````rust
 
-/// Everything that can go wrong reading, validating or expanding a template
-/// configuration.
-///
-/// **Opaque, and that is the design rather than an omission.** A variant list
-/// would be a second interface — every consumer matching on it, every new
-/// diagnostic a breaking change — for a value whose only use is being shown to
-/// the person who has to fix the file. The obligation this type carries instead
-/// is a property of every message it holds: name what is wrong, name *where*
-/// (path, line and column, wherever a document has one), and name what fixes it.
-///
-/// It implements [`std::error::Error`], so a consumer using `anyhow`,
-/// `thiserror` or nothing at all takes on no dependency of this crate's here.
+use crate::templates::{Source, SourceSpan};
+
+/// One selected/include occurrence, including an unresolved selection in an error.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Occurrence {
+    pub id: usize,
+    pub profile: String,
+    pub parent: Option<usize>,
+    pub selection_index: usize,
+    pub via: Option<SourceSpan>,
+}
+
+/// A stable machine-readable refusal with the locations and names available at
+/// the failing operation. Byte ranges refer to the captured UTF-8 source.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Diagnostic {
+    pub category: String,
+    pub message: String,
+    pub source: Option<Source>,
+    pub primary: Option<SourceSpan>,
+    pub related: Vec<SourceSpan>,
+    pub occurrence_chain: Vec<Occurrence>,
+    pub key: Option<String>,
+    pub binding: Option<String>,
+    pub command: Option<String>,
+    pub parameter: Option<String>,
+    pub remedy: String,
+}
+
+impl Diagnostic {
+    pub(crate) fn new(category: &str, message: impl Into<String>, remedy: &str) -> Self {
+        Self {
+            category: category.to_owned(),
+            message: message.into(),
+            source: None,
+            primary: None,
+            related: Vec::new(),
+            occurrence_chain: Vec::new(),
+            key: None,
+            binding: None,
+            command: None,
+            parameter: None,
+            remedy: remedy.to_owned(),
+        }
+    }
+}
+
+/// Reading, validation, resolution or expansion failed. Display is for humans;
+/// [`Self::diagnostics`] exposes stable categories without parsing that prose.
+/// The error remains opaque and implements `std::error::Error` without imposing
+/// an error-handling dependency on its consumers.
 pub struct ConfigError {
     message: String,
+    diagnostics: Vec<Diagnostic>,
 }
 
 impl ConfigError {
-    pub(crate) fn new(message: impl Into<String>) -> Self {
+    pub(crate) fn new(category: &str, message: impl Into<String>, remedy: &str) -> Self {
+        Self::from_diagnostics(vec![Diagnostic::new(category, message, remedy)])
+    }
+
+    pub(crate) fn from_diagnostics(diagnostics: Vec<Diagnostic>) -> Self {
+        let message = diagnostics
+            .iter()
+            .map(|d| format!("{}\n  {}", d.message, d.remedy))
+            .collect::<Vec<_>>()
+            .join("\n");
         Self {
-            message: message.into(),
+            message,
+            diagnostics,
         }
+    }
+
+    pub(crate) fn contextualize(mut self, source: Option<Source>, key: Option<&str>) -> Self {
+        for diagnostic in &mut self.diagnostics {
+            diagnostic.source.clone_from(&source);
+            diagnostic.key = key.map(str::to_owned);
+        }
+        self
+    }
+
+    pub(crate) fn into_diagnostics(self) -> Vec<Diagnostic> {
+        self.diagnostics
+    }
+
+    /// Independent refusals in source-role, byte-position and key order.
+    #[must_use]
+    pub fn diagnostics(&self) -> &[Diagnostic] {
+        &self.diagnostics
     }
 }
 ````
 <!-- /fragment -->
 
-The three trait implementations follow, and the only one that carries an argument
-is `Debug`. It writes the message rather than the struct, and the comment gives
-the reason: a `{:?}` of this error is read by a human in a panic or an `anyhow`
-chain, and the braces would be noise around the one field. That is a deliberate
-departure from `#[derive(Debug)]`, so the comment exists to stop a later reader
-restoring the derive as a tidy-up.
+Display and Debug both render the human report, including remedies. Debug
+deliberately avoids a record dump in panic output and error chains; callers
+wanting structured records use `diagnostics()` explicitly.
 
-<!-- fragment «error-config-traits» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="26-42" parent="two-opaque-errors" -->
+<!-- fragment «error-config-traits» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="94-109" parent="two-opaque-errors" -->
 ````rust
 
 impl fmt::Display for ConfigError {
@@ -620,8 +680,7 @@ impl fmt::Display for ConfigError {
 }
 
 /// The message, not a struct dump: a `{:?}` of this error is read by a human in
-/// a panic or an `anyhow` chain, and the braces would be noise around the one
-/// field.
+/// a panic or an `anyhow` chain, and a record dump would obscure the human report.
 impl fmt::Debug for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.message)
@@ -641,7 +700,7 @@ sentence that follows is the argument this chapter has been building toward —
 two types keep the two halves of this crate usable apart, which is the whole
 claim `Templates` and `run` make by not referring to each other.
 
-<!-- fragment «error-launch-type» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="43-66" parent="two-opaque-errors" -->
+<!-- fragment «error-launch-type» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="110-133" parent="two-opaque-errors" -->
 ````rust
 
 /// Everything that can go wrong allocating a channel, spawning a child, or
@@ -676,7 +735,7 @@ the file by pointing at the first type rather than repeating its argument. The
 economy the crate applies to its errors: state the reason once, in one place, and
 name that place from everywhere else.
 
-<!-- fragment «error-launch-traits» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="67-81" parent="two-opaque-errors" -->
+<!-- fragment «error-launch-traits» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="134-148" parent="two-opaque-errors" -->
 ````rust
 
 impl fmt::Display for LaunchError {

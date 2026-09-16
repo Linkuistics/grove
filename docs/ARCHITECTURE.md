@@ -324,8 +324,10 @@ it holds no set of keys. `Catalog::load` captures source bytes, parsed
 declarations and vocabulary once; `Catalog::resolve` produces an owned
 `Templates` snapshot without file I/O. `Templates::load` uses that same path
 with an empty selection, and conformance checks the captured Catalog. The
-current reader accepts only flat documents; structured diagnostic records,
-inspection, wrapper/profile syntax and Grove selection policy remain pending.
+current reader accepts only flat documents. `ConfigError::diagnostics` provides
+stable categories, available source byte ranges and remedies; structural reports
+from both explicit documents precede template-semantic validation reports.
+Inspection, wrapper/profile syntax and Grove selection policy remain pending.
 
 **And it runs what it expanded.** The same crate allocates the launch's
 completion channel, spawns the argv directly with no shell, supervises the child

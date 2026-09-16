@@ -26,8 +26,10 @@
 //! [`Templates::load`] delegates to that path with an empty selection.
 //!
 //! Only flat configuration is implemented: selection declarations are absent,
-//! and selecting any profile is an error. Wrapper commands, profiles, structured
-//! diagnostics and inspection are pending; no partial inspection API is exposed.
+//! and selecting any profile is an error. Wrapper commands, profiles and
+//! inspection are pending; no partial inspection API is exposed.
+//! [`ConfigError::diagnostics`] exposes stable categories, source byte ranges
+//! and remedies. Independent structural errors aggregate across both inputs.
 //!
 //! # The vocabulary is an input to `load`, not to `expand`
 //!
@@ -75,7 +77,7 @@ mod vocabulary;
 
 pub use argv::{Argv, Slot};
 pub use channel::{signal, Channel, Token};
-pub use error::{ConfigError, LaunchError};
+pub use error::{ConfigError, Diagnostic, LaunchError, Occurrence};
 pub use run::{
     reraise, run, run_observed, take_interrupt, End, Ended, Escalation, Launch, LaunchEvent,
 };

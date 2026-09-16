@@ -9,10 +9,10 @@
 | Root ID | Source path | Lines |
 |---|---|---|
 | `source-crate-manifest` | `crates/keyed-launch/Cargo.toml` | 47 |
-| `source-library-root` | `crates/keyed-launch/src/lib.rs` | 83 |
-| `source-error-types` | `crates/keyed-launch/src/error.rs` | 81 |
+| `source-library-root` | `crates/keyed-launch/src/lib.rs` | 85 |
+| `source-error-types` | `crates/keyed-launch/src/error.rs` | 148 |
 | `source-vocabulary` | `crates/keyed-launch/src/vocabulary.rs` | 46 |
-| `source-templates` | `crates/keyed-launch/src/templates.rs` | 796 |
+| `source-templates` | `crates/keyed-launch/src/templates.rs` | 963 |
 | `source-argv` | `crates/keyed-launch/src/argv.rs` | 48 |
 | `source-channel` | `crates/keyed-launch/src/channel.rs` | 404 |
 | `source-run` | `crates/keyed-launch/src/run.rs` | 672 |
@@ -21,16 +21,16 @@
 <!-- source-root «source-crate-manifest» source="crates/keyed-launch/Cargo.toml" lines="1-47" -->
 <!-- insert «manifest-three-dependencies» -->
 <!-- /source-root -->
-<!-- source-root «source-library-root» source="crates/keyed-launch/src/lib.rs" lines="1-83" -->
+<!-- source-root «source-library-root» source="crates/keyed-launch/src/lib.rs" lines="1-85" -->
 <!-- insert «library-root» -->
 <!-- /source-root -->
-<!-- source-root «source-error-types» source="crates/keyed-launch/src/error.rs" lines="1-81" -->
+<!-- source-root «source-error-types» source="crates/keyed-launch/src/error.rs" lines="1-148" -->
 <!-- insert «two-opaque-errors» -->
 <!-- /source-root -->
 <!-- source-root «source-vocabulary» source="crates/keyed-launch/src/vocabulary.rs" lines="1-46" -->
 <!-- insert «vocabulary» -->
 <!-- /source-root -->
-<!-- source-root «source-templates» source="crates/keyed-launch/src/templates.rs" lines="1-796" -->
+<!-- source-root «source-templates» source="crates/keyed-launch/src/templates.rs" lines="1-963" -->
 <!-- insert «template-shapes» -->
 <!-- insert «templates-load» -->
 <!-- insert «resolution-and-expansion» -->
@@ -63,17 +63,17 @@
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
 | `manifest-three-dependencies` | `source-crate-manifest` | `understands-neither` | `1-47` | 47 | `resolved` |
-| `library-root` | `source-library-root` | `understands-neither` | `1-83` | 83 | `resolved` |
-| `two-opaque-errors` | `source-error-types` | `understands-neither` | `1-81` | 81 | `resolved` |
+| `library-root` | `source-library-root` | `understands-neither` | `1-85` | 85 | `resolved` |
+| `two-opaque-errors` | `source-error-types` | `understands-neither` | `1-148` | 148 | `resolved` |
 | `vocabulary` | `source-vocabulary` | `rules-about-names` | `1-46` | 46 | `resolved` |
-| `template-shapes` | `source-templates` | `rules-about-names` | `1-147` | 147 | `resolved` |
-| `templates-load` | `source-templates` | `never-assembled` | `148-258` | 111 | `resolved` |
-| `resolution-and-expansion` | `source-templates` | `whole-word-or-nothing` | `259-388` | 130 | `resolved` |
-| `reading-and-whole-document-validation` | `source-templates` | `never-assembled` | `389-540` | 152 | `resolved` |
-| `node-and-template-rules` | `source-templates` | `words-not-shell` | `541-660` | 120 | `resolved` |
-| `word-scanning` | `source-templates` | `words-not-shell` | `661-743` | 83 | `resolved` |
-| `diagnostics` | `source-templates` | `words-not-shell` | `744-786` | 43 | `resolved` |
-| `templates-keys` | `source-templates` | `whole-word-or-nothing` | `787-796` | 10 | `resolved` |
+| `template-shapes` | `source-templates` | `rules-about-names` | `1-163` | 163 | `resolved` |
+| `templates-load` | `source-templates` | `never-assembled` | `164-296` | 133 | `resolved` |
+| `resolution-and-expansion` | `source-templates` | `whole-word-or-nothing` | `297-461` | 165 | `resolved` |
+| `reading-and-whole-document-validation` | `source-templates` | `never-assembled` | `462-664` | 203 | `resolved` |
+| `node-and-template-rules` | `source-templates` | `words-not-shell` | `665-790` | 126 | `resolved` |
+| `word-scanning` | `source-templates` | `words-not-shell` | `791-873` | 83 | `resolved` |
+| `diagnostics` | `source-templates` | `words-not-shell` | `874-953` | 80 | `resolved` |
+| `templates-keys` | `source-templates` | `whole-word-or-nothing` | `954-963` | 10 | `resolved` |
 | `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `resolved` |
 | `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `resolved` |
 | `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `272-404` | 133 | `resolved` |
@@ -95,76 +95,76 @@
 | `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `27-29` | `manifest-three-dependencies` | `—` |
 | `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `30-32` | `manifest-three-dependencies` | `—` |
 | `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `33-47` | `manifest-three-dependencies` | `—` |
-| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-83` | `—` | `library-root` |
+| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-85` | `—` | `library-root` |
 | `library-root-thesis` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `1-9` | `library-root` | `—` |
-| `library-root` | `orientation` | `source-library-root` | `composite` | `understands-neither` | `1-83` | `source-library-root` | `library-root-thesis`, `library-root-two-documents`, `library-root-vocabulary`, `library-root-to-a-child`, `library-root-job-and-out-of-band`, `library-root-conformance`, `library-root-modules-and-exports` |
+| `library-root` | `orientation` | `source-library-root` | `composite` | `understands-neither` | `1-85` | `source-library-root` | `library-root-thesis`, `library-root-two-documents`, `library-root-vocabulary`, `library-root-to-a-child`, `library-root-job-and-out-of-band`, `library-root-conformance`, `library-root-modules-and-exports` |
 | `library-root-two-documents` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `10-22` | `library-root` | `—` |
-| `library-root-vocabulary` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `23-35` | `library-root` | `—` |
-| `library-root-to-a-child` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `36-42` | `library-root` | `—` |
-| `library-root-job-and-out-of-band` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `43-55` | `library-root` | `—` |
-| `library-root-conformance` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `56-65` | `library-root` | `—` |
-| `library-root-modules-and-exports` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `66-83` | `library-root` | `—` |
-| `source-error-types` | `source-index` | `source-error-types` | `root` | `—` | `1-81` | `—` | `two-opaque-errors` |
+| `library-root-vocabulary` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `23-37` | `library-root` | `—` |
+| `library-root-to-a-child` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `38-44` | `library-root` | `—` |
+| `library-root-job-and-out-of-band` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `45-57` | `library-root` | `—` |
+| `library-root-conformance` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `58-67` | `library-root` | `—` |
+| `library-root-modules-and-exports` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `68-85` | `library-root` | `—` |
+| `source-error-types` | `source-index` | `source-error-types` | `root` | `—` | `1-148` | `—` | `two-opaque-errors` |
 | `error-import` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `1-1` | `two-opaque-errors` | `—` |
-| `two-opaque-errors` | `orientation` | `source-error-types` | `composite` | `understands-neither` | `1-81` | `source-error-types` | `error-import`, `error-config-type`, `error-config-traits`, `error-launch-type`, `error-launch-traits` |
-| `error-config-type` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `2-25` | `two-opaque-errors` | `—` |
-| `error-config-traits` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `26-42` | `two-opaque-errors` | `—` |
-| `error-launch-type` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `43-66` | `two-opaque-errors` | `—` |
-| `error-launch-traits` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `67-81` | `two-opaque-errors` | `—` |
+| `two-opaque-errors` | `orientation` | `source-error-types` | `composite` | `understands-neither` | `1-148` | `source-error-types` | `error-import`, `error-config-type`, `error-config-traits`, `error-launch-type`, `error-launch-traits` |
+| `error-config-type` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `2-93` | `two-opaque-errors` | `—` |
+| `error-config-traits` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `94-109` | `two-opaque-errors` | `—` |
+| `error-launch-type` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `110-133` | `two-opaque-errors` | `—` |
+| `error-launch-traits` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `134-148` | `two-opaque-errors` | `—` |
 | `source-vocabulary` | `source-index` | `source-vocabulary` | `root` | `—` | `1-46` | `—` | `vocabulary` |
 | `vocabulary-supplied-at-load` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `1-15` | `vocabulary` | `—` |
 | `vocabulary` | `the-names` | `source-vocabulary` | `composite` | `rules-about-names` | `1-46` | `source-vocabulary` | `vocabulary-supplied-at-load`, `vocabulary-slot-rule`, `vocabulary-requirement`, `vocabulary-cardinality-and-message` |
 | `vocabulary-slot-rule` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `16-22` | `vocabulary` | `—` |
 | `vocabulary-requirement` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `23-29` | `vocabulary` | `—` |
 | `vocabulary-cardinality-and-message` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `30-46` | `vocabulary` | `—` |
-| `source-templates` | `source-index` | `source-templates` | `root` | `—` | `1-796` | `—` | `template-shapes`, `templates-load`, `resolution-and-expansion`, `reading-and-whole-document-validation`, `node-and-template-rules`, `word-scanning`, `diagnostics`, `templates-keys` |
-| `template-shapes-imports` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `1-15` | `template-shapes` | `—` |
-| `template-shapes` | `the-names` | `source-templates` | `composite` | `rules-about-names` | `1-147` | `source-templates` | `template-shapes-imports`, `template-shapes-templates`, `template-shapes-slot-spec`, `template-shapes-per-key-source`, `template-shapes-word`, `template-shapes-document-role`, `template-shapes-diagnostics` |
-| `template-shapes-templates` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `16-81` | `template-shapes` | `—` |
-| `template-shapes-slot-spec` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `82-87` | `template-shapes` | `—` |
-| `template-shapes-per-key-source` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `88-100` | `template-shapes` | `—` |
+| `source-templates` | `source-index` | `source-templates` | `root` | `—` | `1-963` | `—` | `template-shapes`, `templates-load`, `resolution-and-expansion`, `reading-and-whole-document-validation`, `node-and-template-rules`, `word-scanning`, `diagnostics`, `templates-keys` |
+| `template-shapes-imports` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `1-14` | `template-shapes` | `—` |
+| `template-shapes` | `the-names` | `source-templates` | `composite` | `rules-about-names` | `1-163` | `source-templates` | `template-shapes-imports`, `template-shapes-templates`, `template-shapes-slot-spec`, `template-shapes-per-key-source`, `template-shapes-word`, `template-shapes-document-role`, `template-shapes-diagnostics` |
+| `template-shapes-templates` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `15-80` | `template-shapes` | `—` |
+| `template-shapes-slot-spec` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `81-86` | `template-shapes` | `—` |
+| `template-shapes-per-key-source` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `87-100` | `template-shapes` | `—` |
 | `template-shapes-word` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `101-108` | `template-shapes` | `—` |
-| `template-shapes-document-role` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `109-129` | `template-shapes` | `—` |
-| `template-shapes-diagnostics` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `130-147` | `template-shapes` | `—` |
-| `templates-load-three-promises` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `148-164` | `templates-load` | `—` |
-| `templates-load` | `two-documents` | `source-templates` | `composite` | `never-assembled` | `148-258` | `source-templates` | `templates-load-three-promises`, `templates-load-primary`, `templates-load-overlay`, `templates-load-value` |
-| `templates-load-primary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `165-209` | `templates-load` | `—` |
-| `templates-load-overlay` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `210-227` | `templates-load` | `—` |
-| `templates-load-value` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `228-258` | `templates-load` | `—` |
-| `templates-source` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `259-267` | `resolution-and-expansion` | `—` |
-| `resolution-and-expansion` | `to-an-argv` | `source-templates` | `composite` | `whole-word-or-nothing` | `259-388` | `source-templates` | `templates-source`, `templates-require`, `templates-expand`, `match-values`, `declared-slots`, `templates-unresolved` |
-| `templates-require` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `268-280` | `resolution-and-expansion` | `—` |
-| `templates-expand` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `281-312` | `resolution-and-expansion` | `—` |
-| `match-values` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `313-356` | `resolution-and-expansion` | `—` |
-| `declared-slots` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `357-364` | `resolution-and-expansion` | `—` |
-| `templates-unresolved` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `365-388` | `resolution-and-expansion` | `—` |
-| `compile-vocabulary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `389-418` | `reading-and-whole-document-validation` | `—` |
-| `reading-and-whole-document-validation` | `two-documents` | `source-templates` | `composite` | `never-assembled` | `389-540` | `source-templates` | `compile-vocabulary`, `read-primary`, `read-overlay`, `parse-and-validate`, `validate-document-nodes`, `validate-document-duplicates`, `validate-document-report` |
-| `read-primary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `419-432` | `reading-and-whole-document-validation` | `—` |
-| `read-overlay` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `433-441` | `reading-and-whole-document-validation` | `—` |
-| `parse-and-validate` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `442-467` | `reading-and-whole-document-validation` | `—` |
-| `validate-document-nodes` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `468-487` | `reading-and-whole-document-validation` | `—` |
-| `validate-document-duplicates` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `488-515` | `reading-and-whole-document-validation` | `—` |
-| `validate-document-report` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `516-540` | `reading-and-whole-document-validation` | `—` |
-| `validate-node-shape` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `541-559` | `node-and-template-rules` | `—` |
-| `node-and-template-rules` | `template-law` | `source-templates` | `composite` | `words-not-shell` | `541-660` | `source-templates` | `validate-node-shape`, `validate-node-one-argument`, `validate-node-result`, `validate-template-signature`, `validate-template-comment-start`, `validate-template-split`, `validate-template-word-zero`, `validate-template-cardinality` |
-| `validate-node-one-argument` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `560-586` | `node-and-template-rules` | `—` |
-| `validate-node-result` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `587-594` | `node-and-template-rules` | `—` |
-| `validate-template-signature` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `595-602` | `node-and-template-rules` | `—` |
-| `validate-template-comment-start` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `603-610` | `node-and-template-rules` | `—` |
-| `validate-template-split` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `611-622` | `node-and-template-rules` | `—` |
-| `validate-template-word-zero` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `623-647` | `node-and-template-rules` | `—` |
-| `validate-template-cardinality` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `648-660` | `node-and-template-rules` | `—` |
-| `shell-word-scan-state` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `661-671` | `word-scanning` | `—` |
-| `word-scanning` | `template-law` | `source-templates` | `composite` | `words-not-shell` | `661-743` | `source-templates` | `shell-word-scan-state`, `contains-shell-comment-start`, `parse-template-word`, `whole-substitution` |
-| `contains-shell-comment-start` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `672-709` | `word-scanning` | `—` |
-| `parse-template-word` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `710-737` | `word-scanning` | `—` |
-| `whole-substitution` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `738-743` | `word-scanning` | `—` |
-| `diagnostic-constructors` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `744-754` | `diagnostics` | `—` |
-| `diagnostics` | `template-law` | `source-templates` | `composite` | `words-not-shell` | `744-786` | `source-templates` | `diagnostic-constructors`, `render-diagnostics`, `location-rendering` |
-| `render-diagnostics` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `755-773` | `diagnostics` | `—` |
-| `location-rendering` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `774-786` | `diagnostics` | `—` |
-| `templates-keys` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `787-796` | `source-templates` | `—` |
+| `template-shapes-document-role` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `109-139` | `template-shapes` | `—` |
+| `template-shapes-diagnostics` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `140-163` | `template-shapes` | `—` |
+| `templates-load-three-promises` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `164-180` | `templates-load` | `—` |
+| `templates-load` | `two-documents` | `source-templates` | `composite` | `never-assembled` | `164-296` | `source-templates` | `templates-load-three-promises`, `templates-load-primary`, `templates-load-overlay`, `templates-load-value` |
+| `templates-load-primary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `181-247` | `templates-load` | `—` |
+| `templates-load-overlay` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `248-265` | `templates-load` | `—` |
+| `templates-load-value` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `266-296` | `templates-load` | `—` |
+| `templates-source` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `297-305` | `resolution-and-expansion` | `—` |
+| `resolution-and-expansion` | `to-an-argv` | `source-templates` | `composite` | `whole-word-or-nothing` | `297-461` | `source-templates` | `templates-source`, `templates-require`, `templates-expand`, `match-values`, `declared-slots`, `templates-unresolved` |
+| `templates-require` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `306-331` | `resolution-and-expansion` | `—` |
+| `templates-expand` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `332-376` | `resolution-and-expansion` | `—` |
+| `match-values` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `377-429` | `resolution-and-expansion` | `—` |
+| `declared-slots` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `430-437` | `resolution-and-expansion` | `—` |
+| `templates-unresolved` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `438-461` | `resolution-and-expansion` | `—` |
+| `compile-vocabulary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `462-499` | `reading-and-whole-document-validation` | `—` |
+| `reading-and-whole-document-validation` | `two-documents` | `source-templates` | `composite` | `never-assembled` | `462-664` | `source-templates` | `compile-vocabulary`, `read-primary`, `read-overlay`, `parse-and-validate`, `validate-document-nodes`, `validate-document-duplicates`, `validate-document-report` |
+| `read-primary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `500-524` | `reading-and-whole-document-validation` | `—` |
+| `read-overlay` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `525-544` | `reading-and-whole-document-validation` | `—` |
+| `parse-and-validate` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `545-582` | `reading-and-whole-document-validation` | `—` |
+| `validate-document-nodes` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `583-602` | `reading-and-whole-document-validation` | `—` |
+| `validate-document-duplicates` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `603-634` | `reading-and-whole-document-validation` | `—` |
+| `validate-document-report` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `635-664` | `reading-and-whole-document-validation` | `—` |
+| `validate-node-shape` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `665-686` | `node-and-template-rules` | `—` |
+| `node-and-template-rules` | `template-law` | `source-templates` | `composite` | `words-not-shell` | `665-790` | `source-templates` | `validate-node-shape`, `validate-node-one-argument`, `validate-node-result`, `validate-template-signature`, `validate-template-comment-start`, `validate-template-split`, `validate-template-word-zero`, `validate-template-cardinality` |
+| `validate-node-one-argument` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `687-713` | `node-and-template-rules` | `—` |
+| `validate-node-result` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `714-724` | `node-and-template-rules` | `—` |
+| `validate-template-signature` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `725-732` | `node-and-template-rules` | `—` |
+| `validate-template-comment-start` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `733-740` | `node-and-template-rules` | `—` |
+| `validate-template-split` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `741-752` | `node-and-template-rules` | `—` |
+| `validate-template-word-zero` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `753-777` | `node-and-template-rules` | `—` |
+| `validate-template-cardinality` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `778-790` | `node-and-template-rules` | `—` |
+| `shell-word-scan-state` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `791-801` | `word-scanning` | `—` |
+| `word-scanning` | `template-law` | `source-templates` | `composite` | `words-not-shell` | `791-873` | `source-templates` | `shell-word-scan-state`, `contains-shell-comment-start`, `parse-template-word`, `whole-substitution` |
+| `contains-shell-comment-start` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `802-839` | `word-scanning` | `—` |
+| `parse-template-word` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `840-867` | `word-scanning` | `—` |
+| `whole-substitution` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `868-873` | `word-scanning` | `—` |
+| `diagnostic-constructors` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `874-890` | `diagnostics` | `—` |
+| `diagnostics` | `template-law` | `source-templates` | `composite` | `words-not-shell` | `874-953` | `source-templates` | `diagnostic-constructors`, `render-diagnostics`, `location-rendering` |
+| `render-diagnostics` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `891-935` | `diagnostics` | `—` |
+| `location-rendering` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `936-953` | `diagnostics` | `—` |
+| `templates-keys` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `954-963` | `source-templates` | `—` |
 | `source-argv` | `source-index` | `source-argv` | `root` | `—` | `1-48` | `—` | `argv` |
 | `argv-slot` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `1-10` | `argv` | `—` |
 | `argv` | `to-an-argv` | `source-argv` | `composite` | `whole-word-or-nothing` | `1-48` | `source-argv` | `argv-slot`, `argv-authored-only-by-expand`, `argv-no-public-constructor`, `argv-program-and-args`, `argv-words` |
@@ -265,7 +265,7 @@
 ## Owned source totals
 
 Every line of the nine source roots is credited once, to the slice whose page
-owns it; the table shows how the 2,275 lines divide across the ten chapters, and
+owns it; the table shows how the 2,511 lines divide across the ten chapters, and
 its total is what a completed book must account for. Six of the nine roots are
 owned whole by one chapter; the three that split — `src/templates.rs` four ways,
 `src/run.rs` two ways, `src/channel.rs` at its `#[cfg(test)]` boundary — are why
@@ -273,14 +273,14 @@ the ownership table above has twenty rows rather than nine.
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `understands-neither` | `01-orientation.md` | 211 |
-| `rules-about-names` | `02-the-names.md` | 193 |
-| `never-assembled` | `03-two-documents.md` | 263 |
-| `words-not-shell` | `04-template-law.md` | 246 |
-| `whole-word-or-nothing` | `05-to-an-argv.md` | 188 |
+| `understands-neither` | `01-orientation.md` | 280 |
+| `rules-about-names` | `02-the-names.md` | 209 |
+| `never-assembled` | `03-two-documents.md` | 336 |
+| `words-not-shell` | `04-template-law.md` | 289 |
+| `whole-word-or-nothing` | `05-to-an-argv.md` | 223 |
 | `appearance-is-the-event` | `06-the-channel.md` | 271 |
 | `nothing-else-added` | `07-the-job.md` | 390 |
 | `the-launchers-job` | `08-the-escalation.md` | 282 |
 | `checked-without-meaning` | `09-how-checked.md` | 231 |
 | `assembly` | `10-what-passes-through.md` | 0 |
-| **Total** | 9 source roots | **2,275** |
+| **Total** | 9 source roots | **2,511** |

@@ -12,23 +12,23 @@ those captured declarations. `Templates::load` is the convenience composition
 of those operations with an empty selection. None of these operations decides
 which files a consumer should supply.
 
-The running example still resolves each key to one whole template. Capture now
-preserves both declarations when an overlay replaces a primary command; the
-losing text remains available for subsequent provenance work. The returned
-Templates shares ownership of captured inputs and owns its winning commands.
-Changing or removing a file cannot change that snapshot. Wrapper composition,
-structured diagnostic records and inspection remain pending.
+The running example resolves each key to one whole template. Capture preserves
+both original declarations when an overlay replaces a command, and Templates
+owns its snapshot independently. Changing or removing a file cannot change
+expansion or diagnostic locations. Wrapper composition and inspection remain
+pending; structured diagnostics are available.
 
 <a id="one-entry-point"></a>
 ## One validation path
 
-Both public loading routes reach Catalog's validator. The constructor first
-checks the consumer vocabulary, then reads and validates the primary and the
-explicit overlay. A malformed unused template still refuses the load. Current
-errors remain text-only and stop at the first failing document; independent
-cross-document aggregation belongs to the following diagnostic increment.
+Both public loading routes reach Catalog's validator. The constructor checks
+the vocabulary, then captures both explicit document results even when the
+primary fails. It reports read, syntax, shape and duplicate failures before
+template-semantic failures. With valid structure, unused flat templates still
+undergo eager checking. Errors are ordered by primary/overlay, byte position
+and key; a bad document never causes fallback to another configuration.
 
-<!-- fragment «templates-load» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="148-258" parent="source-templates" -->
+<!-- fragment «templates-load» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="164-296" parent="source-templates" -->
 <!-- insert «templates-load-three-promises» -->
 <!-- insert «templates-load-primary» -->
 <!-- insert «templates-load-overlay» -->
@@ -38,7 +38,7 @@ cross-document aggregation belongs to the following diagnostic increment.
 The opening fragment states the eager flat validation and fail-closed contract.
 Its output is a Catalog rather than an already merged map.
 
-<!-- fragment «templates-load-three-promises» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="148-164" parent="templates-load" -->
+<!-- fragment «templates-load-three-promises» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="164-180" parent="templates-load" -->
 ````rust
 impl Catalog {
     /// Read and fully validate both documents, retaining their original declarations.
@@ -63,24 +63,39 @@ impl Catalog {
 The next fragment captures the documents and implements selection accessors and
 the start of resolution. Flat documents have no selection declaration, so both
 accessors return `None`. Any nonempty explicit selection names an unknown
-profile and fails; an empty selection clones the captured primary command map.
+profile and fails. Every selected entry has a diagnostic occurrence with its
+zero-based selection index; external selections have no invented span. An empty
+selection clones the captured primary command map.
 The consumer chooses that list, even when the consumer is the convenience loader.
 
-<!-- fragment «templates-load-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="165-209" parent="templates-load" -->
+<!-- fragment «templates-load-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="181-247" parent="templates-load" -->
 ````rust
         let slots = compile_vocabulary(&vocabulary)?;
 
-        let primary = parse_and_validate(
-            primary,
-            read_primary(primary)?,
-            DocumentRole::Primary,
-            &slots,
-        )?;
-        let overlay = overlay
+        let primary_result = read_primary(primary)
+            .and_then(|text| parse_and_validate(primary, text, DocumentRole::Primary, &slots));
+        let overlay_result = overlay
             .map(|path| {
-                parse_and_validate(path, read_overlay(path)?, DocumentRole::Overlay, &slots)
+                read_overlay(path)
+                    .and_then(|text| parse_and_validate(path, text, DocumentRole::Overlay, &slots))
             })
-            .transpose()?;
+            .transpose();
+        let mut diagnostics = Vec::new();
+        let primary = primary_result
+            .map_err(|error| diagnostics.extend(error.into_diagnostics()))
+            .ok();
+        let overlay = overlay_result
+            .map_err(|error| diagnostics.extend(error.into_diagnostics()))
+            .ok();
+        if !diagnostics.is_empty() {
+            // Structure must pass before semantic reports are meaningful.
+            if diagnostics.iter().any(|d| d.category != "invalid_template") {
+                diagnostics.retain(|d| d.category != "invalid_template");
+            }
+            return Err(ConfigError::from_diagnostics(diagnostics));
+        }
+        let primary = primary.expect("successful primary capture");
+        let overlay = overlay.expect("successful overlay capture");
         Ok(Self {
             captured: Arc::new(Captured {
                 primary,
@@ -105,11 +120,20 @@ The consumer chooses that list, even when the consumer is the convenience loader
     /// Resolve captured declarations with primary authority and whole-template
     /// overlay replacement. The returned snapshot owns its inputs independently.
     pub fn resolve(&self, selection: &Selection) -> Result<Templates, ConfigError> {
-        if let Some(profile) = selection.profiles.first() {
-            return Err(ConfigError::new(format!(
-                "unknown profile `{profile}`; flat configuration declares no profiles. \
-                 Resolve with an empty selection."
-            )));
+        if !selection.profiles.is_empty() {
+            let diagnostics = selection.profiles.iter().enumerate().map(|(index, profile)| {
+                let mut diagnostic = Diagnostic::new("unknown_profile", format!(
+                    "unknown profile `{profile}` at selection index {index}; flat configuration declares no profiles."
+                ), "Resolve with an empty selection; flat files declare no profiles.");
+                diagnostic.primary.clone_from(&selection.origin);
+                diagnostic.source = selection.origin.as_ref().map(|span| span.source.clone());
+                diagnostic.occurrence_chain.push(Occurrence {
+                    id: index, profile: profile.clone(), parent: None,
+                    selection_index: index, via: selection.origin.clone(),
+                });
+                diagnostic
+            }).collect();
+            return Err(ConfigError::from_diagnostics(diagnostics));
         }
         let mut templates = self.captured.primary.templates.clone();
 
@@ -125,9 +149,9 @@ refusal, without admitting its command. The original overlay declaration remains
 in Captured even when it cannot enter the resolved map. This is the authority
 boundary; choosing an executable for an admitted key remains the caller's policy.
 
-<!-- fragment «templates-load-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="210-227" parent="templates-load" -->
+<!-- fragment «templates-load-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="248-265" parent="templates-load" -->
 ````rust
-        let mut overlay_only = BTreeSet::new();
+        let mut overlay_only = BTreeMap::new();
         if let Some(overlay) = &self.captured.overlay {
             // Each key the primary already declares wins outright: one whole
             // template replaces one whole template, so no rule has to decide
@@ -140,7 +164,7 @@ boundary; choosing an executable for an admitted key remains the caller's policy
                         occupied.insert(template.clone());
                     }
                     Entry::Vacant(vacant) => {
-                        overlay_only.insert(vacant.into_key());
+                        overlay_only.insert(vacant.into_key(), template.span.clone());
                     }
                 }
             }
@@ -153,7 +177,7 @@ through `Arc`. `slot_names` lends the captured vocabulary to conformance.
 Templates' convenience constructor delegates directly to the same Catalog path,
 so it cannot drift into a second reader or different vocabulary rules.
 
-<!-- fragment «templates-load-value» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="228-258" parent="templates-load" -->
+<!-- fragment «templates-load-value» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="266-296" parent="templates-load" -->
 ````rust
 
         Ok(Templates {
@@ -223,7 +247,7 @@ needs a `Templates` — they run before one exists — and all five are private:
 `Catalog::load` is their entry point; Catalog resolution then produces
 Templates without invoking them again. The block is read in seven fragments.
 
-<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="389-540" parent="source-templates" -->
+<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="462-664" parent="source-templates" -->
 <!-- insert «compile-vocabulary» -->
 <!-- insert «read-primary» -->
 <!-- insert «read-overlay» -->
@@ -240,7 +264,7 @@ statement anywhere in the crate of why the duplicate is a refusal rather than a
 tolerated redundancy, and the reason is that the failure it would otherwise cause
 is silent and lands on the wrong file.
 
-<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="389-418" parent="reading-and-whole-document-validation" -->
+<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="462-499" parent="reading-and-whole-document-validation" -->
 ````rust
 
 /// Turn the borrowed vocabulary into the owned slot table `Templates` keeps, and
@@ -253,17 +277,25 @@ fn compile_vocabulary(vocabulary: &Vocabulary<'_>) -> Result<Vec<SlotSpec>, Conf
     let mut slots: Vec<SlotSpec> = Vec::with_capacity(vocabulary.slots.len());
     for rule in vocabulary.slots {
         if rule.name.starts_with("param.") {
-            return Err(ConfigError::new(format!(
-                "slot `{}` uses the reserved `param.` prefix; choose a runtime slot name \
+            return Err(ConfigError::new(
+                "invalid_value",
+                format!(
+                    "slot `{}` uses the reserved `param.` prefix; choose a runtime slot name \
                  outside the configuration parameter namespace",
-                rule.name
-            )));
+                    rule.name
+                ),
+                "Use unique runtime slot names outside the reserved `param.` namespace.",
+            ));
         }
         if slots.iter().any(|slot| slot.name == rule.name) {
-            return Err(ConfigError::new(format!(
-                "the slot vocabulary declares `{}` more than once",
-                rule.name
-            )));
+            return Err(ConfigError::new(
+                "invalid_value",
+                format!(
+                    "the slot vocabulary declares `{}` more than once",
+                    rule.name
+                ),
+                "Use unique runtime slot names outside the reserved `param.` namespace.",
+            ));
         }
         slots.push(SlotSpec {
             name: rule.name.to_owned(),
@@ -307,21 +339,32 @@ comment. They are worth reading side by side: the difference between them is the
 whole of what *the overlay is optional* means once a path has been handed in, and
 the source nowhere says so.
 
-<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="419-432" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="500-524" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_primary(path: &Path) -> Result<String, ConfigError> {
-    match fs::read_to_string(path) {
-        Ok(source) => Ok(source),
-        Err(error) if error.kind() == ErrorKind::NotFound => Err(ConfigError::new(format!(
-            "configuration is missing at {}",
-            path.display()
-        ))),
-        Err(error) => Err(ConfigError::new(format!(
-            "failed to read the configuration at {}: {error}",
-            path.display()
-        ))),
-    }
+    fs::read_to_string(path).map_err(|error| {
+        let message = if error.kind() == ErrorKind::NotFound {
+            format!("configuration is missing at {}", path.display())
+        } else {
+            format!(
+                "failed to read the configuration at {}: {error}",
+                path.display()
+            )
+        };
+        ConfigError::new(
+            "source_read",
+            message,
+            "Create a readable UTF-8 configuration at this path.",
+        )
+        .contextualize(
+            Some(Source {
+                role: SourceRole::Primary,
+                path: path.to_owned(),
+            }),
+            None,
+        )
+    })
 }
 ````
 <!-- /fragment -->
@@ -337,15 +380,26 @@ one case named, everything else reported verbatim.
 
 The overlay's reader has no such case.
 
-<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="433-441" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="525-544" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_overlay(path: &Path) -> Result<String, ConfigError> {
     fs::read_to_string(path).map_err(|error| {
-        ConfigError::new(format!(
-            "failed to read the configuration overlay at {}: {error}",
-            path.display()
-        ))
+        ConfigError::new(
+            "source_read",
+            format!(
+                "failed to read the configuration overlay at {}: {error}",
+                path.display()
+            ),
+            "Make the selected overlay readable as UTF-8, or stop selecting it.",
+        )
+        .contextualize(
+            Some(Source {
+                role: SourceRole::Overlay,
+                path: path.to_owned(),
+            }),
+            None,
+        )
     })
 }
 ````
@@ -370,7 +424,7 @@ question be answered once, in `load`'s comment, rather than per error kind here.
 depends on and the rules it adds on top of them. It is nineteen lines, and eight
 of them are the message it builds when the parse fails.
 
-<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="442-467" parent="reading-and-whole-document-validation" -->
+<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="545-582" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn parse_and_validate(
@@ -381,13 +435,25 @@ fn parse_and_validate(
 ) -> Result<CapturedDocument, ConfigError> {
     let document: KdlDocument = source.parse().map_err(|error: kdl::KdlError| {
         let location = source_location(&source, error.span.offset());
-        ConfigError::new(format!(
-            "{}:{}:{}: KDL syntax error: {}",
-            path.display(),
-            location.line,
-            location.column,
-            error
-        ))
+        let mut diagnostic = Diagnostic::new(
+            "kdl_syntax",
+            format!(
+                "{}:{}:{}: KDL syntax error: {}",
+                path.display(),
+                location.line,
+                location.column,
+                error
+            ),
+            "Correct the KDL syntax at the reported location.",
+        );
+        let source = role.source(path);
+        diagnostic.primary = Some(SourceSpan {
+            source: source.clone(),
+            start: error.span.offset(),
+            end: error.span.offset() + error.span.len(),
+        });
+        diagnostic.source = Some(source);
+        ConfigError::from_diagnostics(vec![diagnostic])
     })?;
 
     let templates = validate_document(path, &source, &document, role, slots)?;
@@ -421,13 +487,10 @@ On success, `CapturedDocument` retains the source String, parsed KDL document,
 and validated map together. The parsed spans therefore still refer to the exact
 bytes that were read, even after the path changes.
 
-Two things are worth naming about the shape. A syntax error returns immediately
-and is *not* aggregated with anything: there is no document to walk, so the
-first-error rule that governs this function is a consequence of parsing, not a
-choice about reporting. And `role` is carried through untouched — it is not
-consulted here at all, and it reaches `validate_document` only to be handed to
-`render_diagnostics` at the end. `DocumentRole`, which chapter 2 read, changes a
-noun and no rule.
+A syntax error stops validation of that document because there is no parsed
+node list to walk. Its parser byte range becomes a `kdl_syntax` diagnostic.
+Catalog still collects errors from the other explicit document. DocumentRole
+attaches source identity to syntax and node reports; it changes no validity rule.
 
 <a id="one-refusal"></a>
 ## Every diagnostic in one refusal
@@ -438,7 +501,7 @@ three fragments below are those passes. The first walks the nodes, recording eac
 node's validation and building an index from key to every location that key was
 declared at.
 
-<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="468-487" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="583-602" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn validate_document(
@@ -475,7 +538,7 @@ were.
 The second pass is the duplicate check, and it is the one finding
 `validate_document` produces on its own rather than collecting from a node.
 
-<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="488-515" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="603-634" parent="reading-and-whole-document-validation" -->
 ````rust
     let mut diagnostics = Vec::new();
 
@@ -501,6 +564,10 @@ The second pass is the duplicate check, and it is the one finding
             .collect::<Vec<_>>()
             .join(", ");
         diagnostics.push(ValidationDiagnostic {
+            category: "duplicate",
+            key: Some(key.clone()),
+            related: locations.iter().skip(1).copied().collect(),
+            remedy: "Keep one declaration per key in each document.",
             location: locations.first().copied(),
             message: format!("duplicate key `{key}`; declarations at {declarations}"),
         });
@@ -529,7 +596,7 @@ established that the vector is non-empty, the compiler cannot see it, and the
 The third pass drains everything into one result. It is where a document either
 becomes a map of templates or becomes a single refusal.
 
-<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="516-540" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="635-664" parent="reading-and-whole-document-validation" -->
 ````rust
 
     let mut templates = BTreeMap::new();
@@ -539,6 +606,11 @@ becomes a map of templates or becomes a single refusal.
             templates.insert(
                 validation.key,
                 Template {
+                    span: SourceSpan {
+                        source: role.source(path),
+                        start: validation.location.start,
+                        end: validation.location.end,
+                    },
                     words,
                     source: path.to_path_buf(),
                 },
@@ -547,7 +619,7 @@ becomes a map of templates or becomes a single refusal.
     }
 
     if !diagnostics.is_empty() {
-        return Err(ConfigError::new(render_diagnostics(
+        return Err(ConfigError::from_diagnostics(render_diagnostics(
             path,
             role,
             diagnostics,
@@ -559,34 +631,23 @@ becomes a map of templates or becomes a single refusal.
 ````
 <!-- /fragment -->
 
-The order of the two loops matters and is easy to read past. Duplicate findings
-were pushed into `diagnostics` first, so they lead the report; per-node
-diagnostics follow in document order, extended one node at a time. Templates are
-collected in the same walk that drains the diagnostics, into a `BTreeMap` keyed
-by name — so `Templates::keys`, chapter 5's, returns them in name order for free,
-and a duplicate key silently keeps the last-inserted template, which is
-unreachable because a duplicate is always also a diagnostic.
+Duplicate and per-node findings enter one vector. `render_diagnostics` sorts
+them by source position and key, so duplicates do not jump ahead of an earlier
+shape failure. Templates are collected into a BTreeMap for deterministic keys.
+A duplicate may replace a temporary map entry, but that map cannot escape:
+any diagnostic makes the whole document fail.
 
-Then the decision, and it is one line of condition. A document with any
-diagnostic at all produces `Err` and no templates; a document with none produces
-every template it declared. There is no partial success, no "valid keys plus
-warnings", and no way for a caller to receive a `Templates` that dropped a key it
-could not compile. The aggregation is the point of the shape:
-`schema_and_template_failures_are_aggregated_with_source_locations` loads a
-five-node document in which every node is faulty in a different way and requires
-the *single* refusal to carry a finding for each — a node-shape problem, a
-missing required substitution, a doubled optional one, an unknown slot, and a
-partial substitution — each with a location. One edit fixes the file rather than
-uncovering the next problem, which is what a validator that returned on the first
-error could not offer.
+A document with diagnostics returns an error rather than a partial command
+map. Catalog combines that error with the other document result, reporting
+structure first and semantics only after structure passes. The template
+aggregation test supplies structurally valid declarations with missing, doubled,
+unknown and embedded substitutions, then checks that all those independent
+failures appear together with locations. The structured diagnostics suite covers
+the separate shape phase and cross-file ordering.
 
-Read against the alternative, that is the same decision as `NodeValidation`'s
-four fields, one level up. A `validate_document` that returned
-`Result<Template, ConfigError>` per node could report the first problem in each
-node and could not report the duplicate at all, because a node that failed for
-some other reason would have left no key behind to compare. Aggregating costs a
-`Vec` and a second walk; it reports every validation problem in the document it
-is walking, with locations, before anything is spawned.
+NodeValidation retains the key and location even when its node is malformed,
+so duplicate checking can still identify every declaration. The resulting load
+is all-or-nothing: no invalid template or partial source set reaches expansion.
 
 That is the whole of what a successful load has established. Both documents
 parsed, every node in both satisfied every rule the vocabulary makes checkable,

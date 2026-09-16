@@ -76,3 +76,14 @@ This is one generic-library increment within the complete feature tree. Do not
 move Grove selection policy into the runner to make a test easier. The later
 workspace leaf replaces the temporary declaration guard with selection policy
 and owns the complete live-loop acceptance.
+
+## Captured flat configuration handoff
+
+`captured-configuration-k7` delivered owned source snapshots and structured
+ConfigError diagnostics through load, resolve, require and expand. Flat template
+errors remain eager, with structural reports preceding semantic reports across
+both explicit sources. SourceSpan uses captured UTF-8 byte offsets; overlay-only
+refusals retain related declaration spans, and unknown external selections carry
+occurrence/index records without invented locations. Original source text and
+parsed declarations remain retained for `flat-provenance-k15`; inspection is
+still unexposed until that leaf implements it.

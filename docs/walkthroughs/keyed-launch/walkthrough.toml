@@ -121,12 +121,12 @@ lines = 47
 [[root]]
 id    = "source-library-root"
 path  = "crates/keyed-launch/src/lib.rs"
-lines = 83
+lines = 85
 
 [[root]]
 id    = "source-error-types"
 path  = "crates/keyed-launch/src/error.rs"
-lines = 81
+lines = 148
 
 [[root]]
 id    = "source-vocabulary"
@@ -136,7 +136,7 @@ lines = 46
 [[root]]
 id    = "source-templates"
 path  = "crates/keyed-launch/src/templates.rs"
-lines = 796
+lines = 963
 
 [[root]]
 id    = "source-argv"
@@ -168,13 +168,13 @@ lines = "1-47"
 id    = "library-root"
 root  = "source-library-root"
 owner = "understands-neither"
-lines = "1-83"
+lines = "1-85"
 
 [[block]]
 id    = "two-opaque-errors"
 root  = "source-error-types"
 owner = "understands-neither"
-lines = "1-81"
+lines = "1-148"
 
 [[block]]
 id    = "vocabulary"
@@ -186,49 +186,49 @@ lines = "1-46"
 id    = "template-shapes"
 root  = "source-templates"
 owner = "rules-about-names"
-lines = "1-147"
+lines = "1-163"
 
 [[block]]
 id    = "templates-load"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "148-258"
+lines = "164-296"
 
 [[block]]
 id    = "resolution-and-expansion"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "259-388"
+lines = "297-461"
 
 [[block]]
 id    = "reading-and-whole-document-validation"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "389-540"
+lines = "462-664"
 
 [[block]]
 id    = "node-and-template-rules"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "541-660"
+lines = "665-790"
 
 [[block]]
 id    = "word-scanning"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "661-743"
+lines = "791-873"
 
 [[block]]
 id    = "diagnostics"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "744-786"
+lines = "874-953"
 
 [[block]]
 id    = "templates-keys"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "787-796"
+lines = "954-963"
 
 [[block]]
 id    = "argv"

@@ -81,11 +81,11 @@
 - [`read_primary` names one error kind; `read_overlay` names none](03-two-documents.md#optional-at-the-filesystem)
 - [Where *optional* actually lives in the signature](03-two-documents.md#optional-at-the-filesystem)
 - [The one thing the crate adds to a KDL parse error](03-two-documents.md#parsed-then-validated)
-- [A syntax error is first-error because there is no document to walk](03-two-documents.md#parsed-then-validated)
+- [A syntax error stops one document; the other is still checked](03-two-documents.md#parsed-then-validated)
 - [Three passes over one document](03-two-documents.md#one-refusal)
-- [Every declaration location of a duplicate key, in first-appearance order](03-two-documents.md#one-refusal)
+- [Duplicate declaration spans, ordered by source position](03-two-documents.md#one-refusal)
 - [The line that makes a diagnostic's location an `Option`](03-two-documents.md#one-refusal)
-- [Aggregate, not first-error, and what the alternative could not report](03-two-documents.md#one-refusal)
+- [Aggregate records with structural failures reported first](03-two-documents.md#one-refusal)
 - [A word is a word: no shell ever sees the line](04-template-law.md#words-not-shell)
 - [The second arm of the test begins here, and the `#` is this chapter's third of it](04-template-law.md#words-not-shell)
 - [Every template rule, its line, its diagnostic and its test](04-template-law.md#the-rules)
@@ -345,3 +345,6 @@ are explained in [The watch and the escalation](08-the-escalation.md).
 
 - [Captured inputs survive source removal](03-two-documents.md#both-documents)
 - [Conformance resolves an explicit selection](09-how-checked.md#three-obligations)
+
+- [Diagnostic categories, remedies and selected occurrences](01-orientation.md#the-two-errors)
+- [Cross-document structural-first aggregation](03-two-documents.md#one-entry-point)

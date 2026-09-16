@@ -1,7 +1,6 @@
 use std::collections::btree_map::Entry;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
-use std::fmt::Write as _;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -10,7 +9,7 @@ use std::sync::Arc;
 use kdl::{KdlDocument, KdlNode};
 
 use crate::argv::{Argv, Slot};
-use crate::error::ConfigError;
+use crate::error::{ConfigError, Diagnostic, Occurrence};
 use crate::vocabulary::{Requirement, Vocabulary};
 
 /// Which explicit input supplied a declaration.
@@ -76,7 +75,7 @@ pub struct Templates {
     /// discarded so the refusal can say *why* a key that is plainly written down
     /// somewhere still does not resolve — the difference between a typo and a
     /// misunderstanding of what an overlay may do.
-    overlay_only: BTreeSet<String>,
+    overlay_only: BTreeMap<String, SourceSpan>,
 }
 
 #[derive(Clone)]
@@ -94,6 +93,7 @@ struct SlotSpec {
 /// or it points a reader at a file that never held the template.
 #[derive(Clone)]
 struct Template {
+    span: SourceSpan,
     words: Vec<Word>,
     source: PathBuf,
 }
@@ -119,6 +119,16 @@ enum DocumentRole {
 }
 
 impl DocumentRole {
+    fn source(self, path: &Path) -> Source {
+        Source {
+            role: match self {
+                Self::Primary => SourceRole::Primary,
+                Self::Overlay => SourceRole::Overlay,
+            },
+            path: path.to_owned(),
+        }
+    }
+
     fn noun(self) -> &'static str {
         match self {
             Self::Primary => "configuration",
@@ -131,9 +141,15 @@ impl DocumentRole {
 struct SourceLocation {
     line: usize,
     column: usize,
+    start: usize,
+    end: usize,
 }
 
 struct ValidationDiagnostic {
+    category: &'static str,
+    key: Option<String>,
+    related: Vec<SourceLocation>,
+    remedy: &'static str,
     location: Option<SourceLocation>,
     message: String,
 }
@@ -164,17 +180,30 @@ impl Catalog {
     ) -> Result<Self, ConfigError> {
         let slots = compile_vocabulary(&vocabulary)?;
 
-        let primary = parse_and_validate(
-            primary,
-            read_primary(primary)?,
-            DocumentRole::Primary,
-            &slots,
-        )?;
-        let overlay = overlay
+        let primary_result = read_primary(primary)
+            .and_then(|text| parse_and_validate(primary, text, DocumentRole::Primary, &slots));
+        let overlay_result = overlay
             .map(|path| {
-                parse_and_validate(path, read_overlay(path)?, DocumentRole::Overlay, &slots)
+                read_overlay(path)
+                    .and_then(|text| parse_and_validate(path, text, DocumentRole::Overlay, &slots))
             })
-            .transpose()?;
+            .transpose();
+        let mut diagnostics = Vec::new();
+        let primary = primary_result
+            .map_err(|error| diagnostics.extend(error.into_diagnostics()))
+            .ok();
+        let overlay = overlay_result
+            .map_err(|error| diagnostics.extend(error.into_diagnostics()))
+            .ok();
+        if !diagnostics.is_empty() {
+            // Structure must pass before semantic reports are meaningful.
+            if diagnostics.iter().any(|d| d.category != "invalid_template") {
+                diagnostics.retain(|d| d.category != "invalid_template");
+            }
+            return Err(ConfigError::from_diagnostics(diagnostics));
+        }
+        let primary = primary.expect("successful primary capture");
+        let overlay = overlay.expect("successful overlay capture");
         Ok(Self {
             captured: Arc::new(Captured {
                 primary,
@@ -199,15 +228,24 @@ impl Catalog {
     /// Resolve captured declarations with primary authority and whole-template
     /// overlay replacement. The returned snapshot owns its inputs independently.
     pub fn resolve(&self, selection: &Selection) -> Result<Templates, ConfigError> {
-        if let Some(profile) = selection.profiles.first() {
-            return Err(ConfigError::new(format!(
-                "unknown profile `{profile}`; flat configuration declares no profiles. \
-                 Resolve with an empty selection."
-            )));
+        if !selection.profiles.is_empty() {
+            let diagnostics = selection.profiles.iter().enumerate().map(|(index, profile)| {
+                let mut diagnostic = Diagnostic::new("unknown_profile", format!(
+                    "unknown profile `{profile}` at selection index {index}; flat configuration declares no profiles."
+                ), "Resolve with an empty selection; flat files declare no profiles.");
+                diagnostic.primary.clone_from(&selection.origin);
+                diagnostic.source = selection.origin.as_ref().map(|span| span.source.clone());
+                diagnostic.occurrence_chain.push(Occurrence {
+                    id: index, profile: profile.clone(), parent: None,
+                    selection_index: index, via: selection.origin.clone(),
+                });
+                diagnostic
+            }).collect();
+            return Err(ConfigError::from_diagnostics(diagnostics));
         }
         let mut templates = self.captured.primary.templates.clone();
 
-        let mut overlay_only = BTreeSet::new();
+        let mut overlay_only = BTreeMap::new();
         if let Some(overlay) = &self.captured.overlay {
             // Each key the primary already declares wins outright: one whole
             // template replaces one whole template, so no rule has to decide
@@ -220,7 +258,7 @@ impl Catalog {
                         occupied.insert(template.clone());
                     }
                     Entry::Vacant(vacant) => {
-                        overlay_only.insert(vacant.into_key());
+                        overlay_only.insert(vacant.into_key(), template.span.clone());
                     }
                 }
             }
@@ -276,7 +314,20 @@ impl Templates {
         if self.templates.contains_key(key) {
             return Ok(());
         }
-        Err(ConfigError::new(self.unresolved(key)))
+        let mut diagnostic = Diagnostic::new(
+            "unconfigured_key",
+            self.unresolved(key),
+            &format!("Declare `{key}` in {}.", self.primary.display()),
+        );
+        diagnostic.source = Some(Source {
+            role: SourceRole::Primary,
+            path: self.primary.clone(),
+        });
+        diagnostic.key = Some(key.to_owned());
+        if let Some(span) = self.overlay_only.get(key) {
+            diagnostic.related.push(span.clone());
+        }
+        Err(ConfigError::from_diagnostics(vec![diagnostic]))
     }
 
     /// Expand this key's template into an argv.
@@ -291,7 +342,20 @@ impl Templates {
     pub fn expand(&self, key: &str, values: &[Slot<'_>]) -> Result<Argv, ConfigError> {
         self.require(key)?;
         let template = &self.templates[key];
-        let offered = self.match_values(values)?;
+        let offered = self.match_values(values).map_err(|error| {
+            let role = if self.overlay.as_ref() == Some(&template.source) {
+                SourceRole::Overlay
+            } else {
+                SourceRole::Primary
+            };
+            error.contextualize(
+                Some(Source {
+                    role,
+                    path: template.source.clone(),
+                }),
+                Some(key),
+            )
+        })?;
 
         let mut words = Vec::with_capacity(template.words.len());
         for word in &template.words {
@@ -319,17 +383,22 @@ impl Templates {
         let mut offered: Vec<Option<&std::ffi::OsStr>> = vec![None; self.slots.len()];
         for value in values {
             let Some(index) = self.slots.iter().position(|slot| slot.name == value.name) else {
-                return Err(ConfigError::new(format!(
-                    "no slot named `{}` is declared; declared slots: {}",
-                    value.name,
-                    self.declared_slots()
-                )));
+                return Err(ConfigError::new(
+                    "invalid_value",
+                    format!(
+                        "no slot named `{}` is declared; declared slots: {}",
+                        value.name,
+                        self.declared_slots()
+                    ),
+                    "Supply exactly one value for each declared runtime slot and no other names.",
+                ));
             };
             if offered[index].is_some() {
-                return Err(ConfigError::new(format!(
-                    "slot `{}` was offered more than one value",
-                    value.name
-                )));
+                return Err(ConfigError::new(
+                    "invalid_value",
+                    format!("slot `{}` was offered more than one value", value.name),
+                    "Supply exactly one value for each declared runtime slot and no other names.",
+                ));
             }
             offered[index] = Some(value.value);
         }
@@ -342,11 +411,15 @@ impl Templates {
             .map(|(slot, _)| slot.name.as_str())
             .collect::<Vec<_>>();
         if !missing.is_empty() {
-            return Err(ConfigError::new(format!(
-                "no value offered for declared slot{}: {}",
-                if missing.len() == 1 { "" } else { "s" },
-                missing.join(", ")
-            )));
+            return Err(ConfigError::new(
+                "invalid_value",
+                format!(
+                    "no value offered for declared slot{}: {}",
+                    if missing.len() == 1 { "" } else { "s" },
+                    missing.join(", ")
+                ),
+                "Supply exactly one value for each declared runtime slot and no other names.",
+            ));
         }
 
         Ok(offered
@@ -368,7 +441,7 @@ impl Templates {
     /// overlay does declare it, because that reader has written the key down and
     /// needs to know it is in the wrong file rather than misspelled.
     fn unresolved(&self, key: &str) -> String {
-        if self.overlay_only.contains(key) {
+        if self.overlay_only.contains_key(key) {
             let overlay = self.overlay.as_deref().map_or_else(
                 || "the overlay".to_owned(),
                 |path| path.display().to_string(),
@@ -397,17 +470,25 @@ fn compile_vocabulary(vocabulary: &Vocabulary<'_>) -> Result<Vec<SlotSpec>, Conf
     let mut slots: Vec<SlotSpec> = Vec::with_capacity(vocabulary.slots.len());
     for rule in vocabulary.slots {
         if rule.name.starts_with("param.") {
-            return Err(ConfigError::new(format!(
-                "slot `{}` uses the reserved `param.` prefix; choose a runtime slot name \
+            return Err(ConfigError::new(
+                "invalid_value",
+                format!(
+                    "slot `{}` uses the reserved `param.` prefix; choose a runtime slot name \
                  outside the configuration parameter namespace",
-                rule.name
-            )));
+                    rule.name
+                ),
+                "Use unique runtime slot names outside the reserved `param.` namespace.",
+            ));
         }
         if slots.iter().any(|slot| slot.name == rule.name) {
-            return Err(ConfigError::new(format!(
-                "the slot vocabulary declares `{}` more than once",
-                rule.name
-            )));
+            return Err(ConfigError::new(
+                "invalid_value",
+                format!(
+                    "the slot vocabulary declares `{}` more than once",
+                    rule.name
+                ),
+                "Use unique runtime slot names outside the reserved `param.` namespace.",
+            ));
         }
         slots.push(SlotSpec {
             name: rule.name.to_owned(),
@@ -418,25 +499,47 @@ fn compile_vocabulary(vocabulary: &Vocabulary<'_>) -> Result<Vec<SlotSpec>, Conf
 }
 
 fn read_primary(path: &Path) -> Result<String, ConfigError> {
-    match fs::read_to_string(path) {
-        Ok(source) => Ok(source),
-        Err(error) if error.kind() == ErrorKind::NotFound => Err(ConfigError::new(format!(
-            "configuration is missing at {}",
-            path.display()
-        ))),
-        Err(error) => Err(ConfigError::new(format!(
-            "failed to read the configuration at {}: {error}",
-            path.display()
-        ))),
-    }
+    fs::read_to_string(path).map_err(|error| {
+        let message = if error.kind() == ErrorKind::NotFound {
+            format!("configuration is missing at {}", path.display())
+        } else {
+            format!(
+                "failed to read the configuration at {}: {error}",
+                path.display()
+            )
+        };
+        ConfigError::new(
+            "source_read",
+            message,
+            "Create a readable UTF-8 configuration at this path.",
+        )
+        .contextualize(
+            Some(Source {
+                role: SourceRole::Primary,
+                path: path.to_owned(),
+            }),
+            None,
+        )
+    })
 }
 
 fn read_overlay(path: &Path) -> Result<String, ConfigError> {
     fs::read_to_string(path).map_err(|error| {
-        ConfigError::new(format!(
-            "failed to read the configuration overlay at {}: {error}",
-            path.display()
-        ))
+        ConfigError::new(
+            "source_read",
+            format!(
+                "failed to read the configuration overlay at {}: {error}",
+                path.display()
+            ),
+            "Make the selected overlay readable as UTF-8, or stop selecting it.",
+        )
+        .contextualize(
+            Some(Source {
+                role: SourceRole::Overlay,
+                path: path.to_owned(),
+            }),
+            None,
+        )
     })
 }
 
@@ -448,13 +551,25 @@ fn parse_and_validate(
 ) -> Result<CapturedDocument, ConfigError> {
     let document: KdlDocument = source.parse().map_err(|error: kdl::KdlError| {
         let location = source_location(&source, error.span.offset());
-        ConfigError::new(format!(
-            "{}:{}:{}: KDL syntax error: {}",
-            path.display(),
-            location.line,
-            location.column,
-            error
-        ))
+        let mut diagnostic = Diagnostic::new(
+            "kdl_syntax",
+            format!(
+                "{}:{}:{}: KDL syntax error: {}",
+                path.display(),
+                location.line,
+                location.column,
+                error
+            ),
+            "Correct the KDL syntax at the reported location.",
+        );
+        let source = role.source(path);
+        diagnostic.primary = Some(SourceSpan {
+            source: source.clone(),
+            start: error.span.offset(),
+            end: error.span.offset() + error.span.len(),
+        });
+        diagnostic.source = Some(source);
+        ConfigError::from_diagnostics(vec![diagnostic])
     })?;
 
     let templates = validate_document(path, &source, &document, role, slots)?;
@@ -509,6 +624,10 @@ fn validate_document(
             .collect::<Vec<_>>()
             .join(", ");
         diagnostics.push(ValidationDiagnostic {
+            category: "duplicate",
+            key: Some(key.clone()),
+            related: locations.iter().skip(1).copied().collect(),
+            remedy: "Keep one declaration per key in each document.",
             location: locations.first().copied(),
             message: format!("duplicate key `{key}`; declarations at {declarations}"),
         });
@@ -521,6 +640,11 @@ fn validate_document(
             templates.insert(
                 validation.key,
                 Template {
+                    span: SourceSpan {
+                        source: role.source(path),
+                        start: validation.location.start,
+                        end: validation.location.end,
+                    },
                     words,
                     source: path.to_path_buf(),
                 },
@@ -529,7 +653,7 @@ fn validate_document(
     }
 
     if !diagnostics.is_empty() {
-        return Err(ConfigError::new(render_diagnostics(
+        return Err(ConfigError::from_diagnostics(render_diagnostics(
             path,
             role,
             diagnostics,
@@ -541,7 +665,10 @@ fn validate_document(
 
 fn validate_node(source: &str, node: &KdlNode, slots: &[SlotSpec]) -> NodeValidation {
     let key = node.name().value().to_owned();
-    let location = source_location(source, node.span().offset());
+    // kdl 4.7 spans are byte offset/length pairs, excluding surrounding trivia:
+    // https://docs.rs/kdl/4.7.1/kdl/struct.KdlNode.html#method.span
+    let mut location = source_location(source, node.span().offset());
+    location.end = location.start + node.span().len();
     let mut diagnostics = Vec::new();
     let has_property = node.entries().iter().any(|entry| entry.name().is_some());
 
@@ -570,7 +697,7 @@ fn validate_node(source: &str, node: &KdlNode, slots: &[SlotSpec]) -> NodeValida
         ));
     }
 
-    let template = if positional.len() == 1 {
+    let template = if diagnostics.is_empty() && positional.len() == 1 {
         match positional[0].value().as_string() {
             Some(template) => validate_template(&key, location, template, slots, &mut diagnostics),
             None => {
@@ -585,6 +712,9 @@ fn validate_node(source: &str, node: &KdlNode, slots: &[SlotSpec]) -> NodeValida
         None
     };
 
+    for diagnostic in &mut diagnostics {
+        diagnostic.key = Some(key.clone());
+    }
     NodeValidation {
         key,
         location,
@@ -744,32 +874,64 @@ fn whole_substitution(word: &str) -> Option<&str> {
 
 fn at_node(location: SourceLocation, message: String) -> ValidationDiagnostic {
     ValidationDiagnostic {
+        category: "shape", key: None, related: Vec::new(),
+        remedy: "Use a bare key with exactly one string argument and no properties, children or type annotations.",
         location: Some(location),
         message,
     }
 }
 
 fn at_template(location: SourceLocation, key: &str, message: String) -> ValidationDiagnostic {
-    at_node(location, format!("key `{key}`: {message}"))
+    let mut diagnostic = at_node(location, format!("key `{key}`: {message}"));
+    diagnostic.category = "invalid_template";
+    diagnostic.key = Some(key.to_owned());
+    diagnostic.remedy = "Use a literal executable and complete-word declared slots with the required counts; balance quotes and quote literal comment markers.";
+    diagnostic
 }
 
-/// Aggregate, not first-error: one report lists every duplicate with all of its
-/// locations, every malformed node, and every invalid template with its key and
-/// location, so one edit fixes the file rather than uncovering the next problem.
+/// Convert validator findings into ordered records. Catalog decides whether
+/// structure permits semantic reports after both document results are available.
 fn render_diagnostics(
     path: &Path,
     role: DocumentRole,
-    diagnostics: Vec<ValidationDiagnostic>,
-) -> String {
-    let mut rendered = format!("invalid {} at {}:", role.noun(), path.display());
-    for diagnostic in diagnostics {
-        rendered.push_str("\n  - ");
-        if let Some(location) = diagnostic.location {
-            let _ = write!(rendered, "{}: ", format_location(path, location));
-        }
-        rendered.push_str(&diagnostic.message);
-    }
-    rendered
+    mut diagnostics: Vec<ValidationDiagnostic>,
+) -> Vec<Diagnostic> {
+    diagnostics.sort_by(|a, b| {
+        a.location
+            .map(|l| l.start)
+            .cmp(&b.location.map(|l| l.start))
+            .then(a.key.cmp(&b.key))
+    });
+    let source = role.source(path);
+    let span = |location: SourceLocation| SourceSpan {
+        source: source.clone(),
+        start: location.start,
+        end: location.end,
+    };
+    diagnostics
+        .into_iter()
+        .map(|item| {
+            let location = item
+                .location
+                .map(|l| format!("{}: ", format_location(path, l)))
+                .unwrap_or_default();
+            let mut diagnostic = Diagnostic::new(
+                item.category,
+                format!(
+                    "invalid {} at {}:\n  - {location}{}",
+                    role.noun(),
+                    path.display(),
+                    item.message
+                ),
+                item.remedy,
+            );
+            diagnostic.source = Some(source.clone());
+            diagnostic.primary = item.location.map(span);
+            diagnostic.related = item.related.into_iter().map(span).collect();
+            diagnostic.key = item.key;
+            diagnostic
+        })
+        .collect()
 }
 
 fn format_location(path: &Path, location: SourceLocation) -> String {
@@ -782,7 +944,12 @@ fn source_location(source: &str, offset: usize) -> SourceLocation {
     let line = before.bytes().filter(|byte| *byte == b'\n').count() + 1;
     let line_start = before.rfind('\n').map_or(0, |index| index + 1);
     let column = source[line_start..offset].chars().count() + 1;
-    SourceLocation { line, column }
+    SourceLocation {
+        line,
+        column,
+        start: offset,
+        end: offset,
+    }
 }
 
 /// The keys the primary document declares, in name order. The conformance kit's

@@ -25,14 +25,9 @@ This is the one place in the book where the crate takes a position a reader coul
 reasonably take the other way, and it is argued here rather than asserted, with
 the alternative named and its cost stated.
 
-The chapter owns two blocks. `src/vocabulary.rs` is forty-four lines and three
-types, and it is the whole vocabulary a consumer has for talking to this crate
-about names. The first ninety-one lines of `src/templates.rs` are the imports and
-the eight shapes a loaded configuration compiles into; chapters 3, 4 and 5 are
-the functions that build and consume those shapes, and each of those chapters is
-shorter for having them already on the page. Nothing in either block reads a
-file, spawns a process, or produces a diagnostic of its own. This is the chapter
-of declarations.
+The chapter owns the vocabulary declarations and the shapes that hold captured
+and resolved configuration. Chapters 3, 4 and 5 build and consume these shapes.
+Neither block reads a file or spawns a process.
 
 <a id="an-input-to-load"></a>
 ## The vocabulary is an input to `load`, not to `expand`
@@ -239,7 +234,7 @@ contains `${prompt}`, not at a vocabulary that contains `prompt`.
 
 That table is the type's entire contract: the middle column is what decides, and
 the right-hand column is what an operator reads. Both strings are asserted
-verbatim by `schema_and_template_failures_are_aggregated_with_source_locations`
+verbatim by `template_failures_are_aggregated_with_source_locations`
 in `crates/keyed-launch/tests/templates.rs`, which loads one document with five
 faulty nodes and requires the single report to carry a finding for each.
 
@@ -325,7 +320,7 @@ Catalog captures the documents and vocabulary; Templates retains that capture
 and its winning commands. The validation helper types remain private. Chapters
 3 and 5 construct and consume these shapes respectively.
 
-<!-- fragment «template-shapes» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-147" parent="source-templates" -->
+<!-- fragment «template-shapes» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-163" parent="source-templates" -->
 <!-- insert «template-shapes-imports» -->
 <!-- insert «template-shapes-templates» -->
 <!-- insert «template-shapes-slot-spec» -->
@@ -344,12 +339,11 @@ is `kdl`, and the import names exactly two of its types, a document and a node.
 A third, `kdl::KdlError`, is named by full path in chapter 3, where the only
 parse call is.
 
-<!-- fragment «template-shapes-imports» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-15" parent="template-shapes" -->
+<!-- fragment «template-shapes-imports» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-14" parent="template-shapes" -->
 ````rust
 use std::collections::btree_map::Entry;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
-use std::fmt::Write as _;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -358,22 +352,15 @@ use std::sync::Arc;
 use kdl::{KdlDocument, KdlNode};
 
 use crate::argv::{Argv, Slot};
-use crate::error::ConfigError;
+use crate::error::{ConfigError, Diagnostic, Occurrence};
 use crate::vocabulary::{Requirement, Vocabulary};
 
 ````
 <!-- /fragment -->
 
-The standard-library imports say what the file does: read a path to a string,
-build ordered and unordered maps, hold an `OsString`, and write into a `String`
-with `fmt::Write`. `BTreeMap` and `BTreeSet` are ordered rather than hashed, and
-`HashMap` appears once beside them; chapter 3 reads the reason each is where it
-is. The three internal imports are the seam: this file names `Argv` and `Slot`
-from the argv module, `ConfigError` from the error module, and `Requirement` and
-`Vocabulary` from the vocabulary module — and it does not name `run`, `Channel`
-or anything else from the launch half. That absence is the compile-time half of
-the two-halves claim chapter 1 made; chapter 5 reads the other half at
-`Argv::new`.
+The standard-library imports support file reading, ordered template maps,
+duplicate lookup and native runtime strings. The internal imports connect argv,
+error records and vocabulary to the validator; no launch operation is imported.
 
 `SourceRole`, `Source` and `SourceSpan` identify an input and a byte range;
 Selection carries a profile list and an optional declaration origin. A caller's
@@ -386,7 +373,7 @@ are not erased by resolution. Templates owns the merged map and shares this
 capture. Its underscore-prefixed retained fields are intentionally unread by the
 flat resolver; subsequent provenance can use them without loading files again.
 
-<!-- fragment «template-shapes-templates» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="16-81" parent="template-shapes" -->
+<!-- fragment «template-shapes-templates» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="15-80" parent="template-shapes" -->
 ````rust
 /// Which explicit input supplied a declaration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -451,7 +438,7 @@ pub struct Templates {
     /// discarded so the refusal can say *why* a key that is plainly written down
     /// somewhere still does not resolve — the difference between a typo and a
     /// misunderstanding of what an overlay may do.
-    overlay_only: BTreeSet<String>,
+    overlay_only: BTreeMap<String, SourceSpan>,
 }
 
 ````
@@ -468,18 +455,15 @@ consumer's opaque strings and ordered because it is a `BTreeMap`, which is what
 makes `keys()` — chapter 5's ten lines — return names in a stable order for a
 diagnostic to print.
 
-`overlay_only` is the field with an argument attached, and its comment makes it:
-the keys an overlay declares that the primary does not are **kept** rather than
-dropped, purely so that a later refusal can distinguish a key that is misspelled
-from a key that is written down in the wrong file. Nothing reads the set except
-`unresolved`, and nothing about resolution would change if the set were discarded
-at load. It exists for the wording of one error message, and chapter 3 shows the
-two sentences it chooses between.
+`overlay_only` retains each non-admitted key and its captured declaration span.
+`unresolved` uses membership to explain why the key cannot run; `require` adds
+the span as a related location. This keeps the refusal useful after the overlay
+file disappears and distinguishes a typo from a declaration in the wrong file.
 
 `SlotSpec` is the owned form of a `SlotRule`, and it carries no comment because
 it needs none once its counterpart has one.
 
-<!-- fragment «template-shapes-slot-spec» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="82-87" parent="template-shapes" -->
+<!-- fragment «template-shapes-slot-spec» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="81-86" parent="template-shapes" -->
 ````rust
 #[derive(Clone)]
 struct SlotSpec {
@@ -500,11 +484,12 @@ startup and expanded much later requires.
 <a id="the-file-it-was-read-from"></a>
 ## The file it was read from
 
-`Template` is two fields, and the second is this chapter's other argued claim. A
-compiled template carries the path of the file it came from, per key, rather than
-the configuration carrying one path for all of them.
+`Template` carries compiled words, their source path and the declaration span.
+These belong to each key because an overlay can replace one command while its
+neighbour still comes from the primary. The path serves `source()` and runtime
+errors; the span also survives when the declaration remains non-admitted.
 
-<!-- fragment «template-shapes-per-key-source» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="88-100" parent="template-shapes" -->
+<!-- fragment «template-shapes-per-key-source» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="87-100" parent="template-shapes" -->
 ````rust
 /// One key's compiled template together with **the file it was read from**.
 ///
@@ -515,6 +500,7 @@ the configuration carrying one path for all of them.
 /// or it points a reader at a file that never held the template.
 #[derive(Clone)]
 struct Template {
+    span: SourceSpan,
     words: Vec<Word>,
     source: PathBuf,
 }
@@ -586,7 +572,7 @@ is the compiled restatement of the whole-word rule chapter 4 enforces and chapte
 `DocumentRole` is the last of the validation shapes to carry an argument, and the
 argument is about what it does *not* change.
 
-<!-- fragment «template-shapes-document-role» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="109-129" parent="template-shapes" -->
+<!-- fragment «template-shapes-document-role» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="109-139" parent="template-shapes" -->
 ````rust
 /// Which document is being validated, and so which file a diagnostic names.
 ///
@@ -601,6 +587,16 @@ enum DocumentRole {
 }
 
 impl DocumentRole {
+    fn source(self, path: &Path) -> Source {
+        Source {
+            role: match self {
+                Self::Primary => SourceRole::Primary,
+                Self::Overlay => SourceRole::Overlay,
+            },
+            path: path.to_owned(),
+        }
+    }
+
     fn noun(self) -> &'static str {
         match self {
             Self::Primary => "configuration",
@@ -612,17 +608,12 @@ impl DocumentRole {
 ````
 <!-- /fragment -->
 
-The comment's claim is checkable in one pass: `role` is threaded through
-`parse_and_validate` into `validate_document`, and inside `validate_document` it
-is used in exactly one place — the call to `render_diagnostics` that builds the
-failure message. It never reaches `validate_node`, `validate_template` or
-`parse_template_word`, so no rule can consult it. An overlay is held to the same
-syntax, the same node shape, the same duplicate check and the same slot rules as
-the primary, and the single asymmetry between the two documents — that an overlay
-overrides a key and never supplies one — is applied after both have passed, in
-`load`. `an_invalid_overlay_fails_the_load_against_its_own_path` is the test:
-it puts a template with no `${prompt}` in the overlay alone, and the load fails
-with `invalid configuration overlay at` and the overlay's own path.
+DocumentRole supplies the human noun and structured SourceRole. It is threaded
+through parsing and document validation to attach the correct file identity,
+including each compiled template span. Node shape and template rules do not
+branch on it. Primary authority is applied later by `Catalog::resolve`, after
+both documents pass. The overlay refusal test confirms that invalid local
+templates name the overlay rather than the primary.
 
 `noun` is the whole of the type's behaviour, and its two strings are the only
 words in the crate that distinguish the documents. A reader who gets
@@ -635,15 +626,21 @@ the entire purpose of carrying the role that far.
 The last three types are the shape of a validation report. There is no comment
 on any of them, and what they are for is legible only from their fields.
 
-<!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="130-147" parent="template-shapes" -->
+<!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="140-163" parent="template-shapes" -->
 ````rust
 #[derive(Clone, Copy)]
 struct SourceLocation {
     line: usize,
     column: usize,
+    start: usize,
+    end: usize,
 }
 
 struct ValidationDiagnostic {
+    category: &'static str,
+    key: Option<String>,
+    related: Vec<SourceLocation>,
+    remedy: &'static str,
     location: Option<SourceLocation>,
     message: String,
 }
@@ -658,10 +655,11 @@ struct NodeValidation {
 ````
 <!-- /fragment -->
 
-`SourceLocation` is a one-based line and column, `Copy` so it can be recorded in
-several places without ceremony. It is computed once per node from a byte offset
-and then carried, which is why every diagnostic about a key points at the key's
-own line rather than at the character the problem was noticed on.
+`SourceLocation` carries one-based line/column coordinates for human output and
+zero-based start/end byte positions for structured reports. The parser supplies
+the node span; computing columns counts Unicode scalar values rather than bytes.
+The captured document stays immutable, so those positions refer to its original
+UTF-8 text.
 
 `ValidationDiagnostic` has an **optional** location, and the `Option` has one
 source, which is worth naming because it is not a document-level case. Both
@@ -673,9 +671,10 @@ established is non-empty; the compiler cannot see that, so the field absorbs the
 anyway, which is why `render_diagnostics` — chapter 4's — branches on a location
 that is always there.
 
-The report itself is a `Vec<ValidationDiagnostic>` rather than a first error, and
-that is the same decision from the other side: a finding that has to survive
-alongside its neighbours cannot be a return value.
+ValidationDiagnostic additionally carries a category, remedy, optional key and
+related declaration locations. `render_diagnostics` turns these internal values
+into public records. The vector preserves independent findings for Catalog to
+combine across documents.
 
 `NodeValidation` is what one node yields, and its four fields are what makes an
 aggregate report possible. It carries the `key` and its `location` **whether or

@@ -533,6 +533,14 @@ fn delta_diagnostics_are_aggregated_against_the_deltas_own_path_and_location() {
     );
     assert!(error.contains("exactly one positional argument"), "{error}");
     assert!(
+        !error.contains("must contain `${prompt}` exactly once"),
+        "structural failures precede template-semantic reports: {error}"
+    );
+    // Repair the structure, leaving the independent invalid flat template.
+    fs::write(&delta_path, "finish \"runner\"\n").unwrap();
+    let error = load_error_from(home.path(), worktree.path(), worktree.path());
+    assert!(error.contains(&format!("{display_path}:1:1")), "{error}");
+    assert!(
         error.contains("must contain `${prompt}` exactly once"),
         "{error}"
     );

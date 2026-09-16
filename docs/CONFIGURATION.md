@@ -10,8 +10,8 @@ The generic runner now captures flat sources in an owned `Catalog` and resolves
 an explicit empty `Selection` into `Templates`; the existing Grove loader uses
 that same path. Captured resolution and expansion do not reread files. The
 generic conformance kit takes Catalog plus Selection. Structured diagnostic
-records and inspection remain pending, as do wrapper/profile syntax and Grove's
-selection policy. Runtime vocabulary names beginning with `param.` are reserved;
+records are available; inspection, wrapper/profile syntax and Grove's selection
+policy remain pending. Runtime vocabulary names beginning with `param.` are reserved;
 Grove's existing four slots are unaffected.
 
 One personal file, `~/.config/grove/config.kdl`, gives each session kind you use
@@ -293,23 +293,38 @@ are *present* — that question is asked per kind, when the kind is used.
 A missing file names the exact path. A KDL syntax error names the path with its
 line and column.
 
-Past syntax, diagnostics are **aggregate, not first-error**: one report lists
-every duplicate with all of its source locations, every malformed node, and every
-invalid template with its kind and location.
+Diagnostics aggregate across both explicit files in primary/overlay and source
+position order. Structural errors (including duplicate declarations) are reported
+first. Once structure passes, invalid templates are reported together. Malformed
+nodes do not produce downstream slot errors. A syntax failure in one file does
+not hide an independent structural error in the other.
 
-A delta gets the same aggregate report, reported against its own path, line and
-column — never the personal file's.
+Library consumers can read `ConfigError::diagnostics()` for stable categories,
+messages, remedies, affected names and source locations. A `SourceSpan` is a
+zero-based UTF-8 byte range with an exclusive end. Duplicate reports carry the
+first declaration as primary and the other declarations as related spans.
+Unreadable files retain their source path without a span. Caller-supplied
+selection, vocabulary and runtime errors have no invented source range; runtime
+errors retain the winning template's source and key.
+
+The flat reader reports `source_read`, `kdl_syntax`, `shape`, `duplicate`,
+`invalid_template`, `unknown_profile`, `unconfigured_key` and `invalid_value`.
+Runtime slot failures and invalid vocabulary use `invalid_value`; these names
+are consumer slots, not configuration parameters. Binding, command and parameter fields remain empty for flat declarations.
+Unknown selections carry their selection occurrence and zero-based list index. Unknown external
+profiles are named in the message and carry no source unless the caller supplies
+an origin. Inspection and profile composition remain pending.
+
+For example, a duplicate declaration produces a human report such as:
 
 ```text
 invalid configuration at ~/.config/grove/config.kdl:
   - ~/.config/grove/config.kdl:14:1: duplicate key `impl`; declarations at ~/.config/grove/config.kdl:14:1, ~/.config/grove/config.kdl:31:1
-  - ~/.config/grove/config.kdl:22:1: key `review-impl`: command template must contain `${prompt}` exactly once
+  Keep one declaration per key in each document.
 ```
 
-(Grove prints the absolute path; `~` stands in for your home directory here. The
-report says *key* rather than *session kind* because the code that produces it —
-`crates/keyed-launch` — is a general template runner that has never heard of a
-session.)
+Grove prints the absolute path; `~` stands in for your home directory here.
+The report says *key* because the generic runner does not know session kinds.
 
 No diagnostic silently fills a target or falls back to another kind.
 

@@ -159,7 +159,7 @@ interleaving is the cost of ordering the book by concept, and the ownership
 ledger in the source index is where it is visible: eight blocks of one root,
 divided across four chapters.
 
-<!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="259-388" parent="source-templates" -->
+<!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="297-461" parent="source-templates" -->
 <!-- insert «templates-source» -->
 <!-- insert «templates-require» -->
 <!-- insert «templates-expand» -->
@@ -179,7 +179,7 @@ the input is a borrowed key and the output is a borrowed path, so the caller
 learns which file to name in its own diagnostics without the configuration having
 to be re-read.
 
-<!-- fragment «templates-source» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="259-267" parent="resolution-and-expansion" -->
+<!-- fragment «templates-source» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="297-305" parent="resolution-and-expansion" -->
 ````rust
     /// The file this key's template was actually read from — the primary file,
     /// or the overlay that overrode it. `None` when the primary does not declare
@@ -231,7 +231,13 @@ input is a key and its output is `Ok(())` or a refusal; it reads the same map
 establishes is a precondition rather than a value, which is why it exists at all
 as a separate call from `expand`.
 
-<!-- fragment «templates-require» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="268-280" parent="resolution-and-expansion" -->
+The refusal is `unconfigured_key`. Its source names the primary that must
+admit the key, and its remedy names that key. An overlay-only key contributes
+its captured declaration as a related span. `expand` returns this same refusal
+before matching runtime values. Runtime mismatches use `invalid_value`, carry
+the requested key and winning source, and have no fabricated file span.
+
+<!-- fragment «templates-require» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="306-331" parent="resolution-and-expansion" -->
 ````rust
 
     /// Does this key resolve to exactly one complete template?
@@ -244,7 +250,20 @@ as a separate call from `expand`.
         if self.templates.contains_key(key) {
             return Ok(());
         }
-        Err(ConfigError::new(self.unresolved(key)))
+        let mut diagnostic = Diagnostic::new(
+            "unconfigured_key",
+            self.unresolved(key),
+            &format!("Declare `{key}` in {}.", self.primary.display()),
+        );
+        diagnostic.source = Some(Source {
+            role: SourceRole::Primary,
+            path: self.primary.clone(),
+        });
+        diagnostic.key = Some(key.to_owned());
+        if let Some(span) = self.overlay_only.get(key) {
+            diagnostic.related.push(span.clone());
+        }
+        Err(ConfigError::from_diagnostics(vec![diagnostic]))
     }
 ````
 <!-- /fragment -->
@@ -276,7 +295,7 @@ load, so what remains is a single question about the caller's values — and the
 comment on it is the longest in the block precisely because that question is
 stated over something other than what a reader would first expect.
 
-<!-- fragment «templates-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="281-312" parent="resolution-and-expansion" -->
+<!-- fragment «templates-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="332-376" parent="resolution-and-expansion" -->
 ````rust
 
     /// Expand this key's template into an argv.
@@ -291,7 +310,20 @@ stated over something other than what a reader would first expect.
     pub fn expand(&self, key: &str, values: &[Slot<'_>]) -> Result<Argv, ConfigError> {
         self.require(key)?;
         let template = &self.templates[key];
-        let offered = self.match_values(values)?;
+        let offered = self.match_values(values).map_err(|error| {
+            let role = if self.overlay.as_ref() == Some(&template.source) {
+                SourceRole::Overlay
+            } else {
+                SourceRole::Primary
+            };
+            error.contextualize(
+                Some(Source {
+                    role,
+                    path: template.source.clone(),
+                }),
+                Some(key),
+            )
+        })?;
 
         let mut words = Vec::with_capacity(template.words.len());
         for word in &template.words {
@@ -353,7 +385,7 @@ the line that keeps it.
 
 The body is four steps and each is a line or a loop. `require` runs first, so a
 key that does not resolve is refused before any value is looked at; the index on
-line 293 cannot panic because `require` has just returned `Ok`. `match_values`
+line 344 cannot panic because `require` has just returned `Ok`. `match_values`
 runs second and produces the offered vector. The loop then walks the compiled
 words in order, and its two arms are the entire substitution mechanism:
 `Word::Literal` becomes an `OsString` of the bytes the file held, and
@@ -381,7 +413,7 @@ consumes it. Its input is the caller's slice of `Slot` values; its output is a
 vector of borrowed `OsStr`s indexed by the *same* table the compiled words index
 into, which is what lets `expand` read `offered[*index]` with no lookup.
 
-<!-- fragment «match-values» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="313-356" parent="resolution-and-expansion" -->
+<!-- fragment «match-values» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="377-429" parent="resolution-and-expansion" -->
 ````rust
 
     /// Line up the offered values with the declared slots, by name.
@@ -392,17 +424,22 @@ into, which is what lets `expand` read `offered[*index]` with no lookup.
         let mut offered: Vec<Option<&std::ffi::OsStr>> = vec![None; self.slots.len()];
         for value in values {
             let Some(index) = self.slots.iter().position(|slot| slot.name == value.name) else {
-                return Err(ConfigError::new(format!(
-                    "no slot named `{}` is declared; declared slots: {}",
-                    value.name,
-                    self.declared_slots()
-                )));
+                return Err(ConfigError::new(
+                    "invalid_value",
+                    format!(
+                        "no slot named `{}` is declared; declared slots: {}",
+                        value.name,
+                        self.declared_slots()
+                    ),
+                    "Supply exactly one value for each declared runtime slot and no other names.",
+                ));
             };
             if offered[index].is_some() {
-                return Err(ConfigError::new(format!(
-                    "slot `{}` was offered more than one value",
-                    value.name
-                )));
+                return Err(ConfigError::new(
+                    "invalid_value",
+                    format!("slot `{}` was offered more than one value", value.name),
+                    "Supply exactly one value for each declared runtime slot and no other names.",
+                ));
             }
             offered[index] = Some(value.value);
         }
@@ -415,11 +452,15 @@ into, which is what lets `expand` read `offered[*index]` with no lookup.
             .map(|(slot, _)| slot.name.as_str())
             .collect::<Vec<_>>();
         if !missing.is_empty() {
-            return Err(ConfigError::new(format!(
-                "no value offered for declared slot{}: {}",
-                if missing.len() == 1 { "" } else { "s" },
-                missing.join(", ")
-            )));
+            return Err(ConfigError::new(
+                "invalid_value",
+                format!(
+                    "no value offered for declared slot{}: {}",
+                    if missing.len() == 1 { "" } else { "s" },
+                    missing.join(", ")
+                ),
+                "Supply exactly one value for each declared runtime slot and no other names.",
+            ));
         }
 
         Ok(offered
@@ -454,14 +495,14 @@ with chapter 3's aggregate document report: the loop cannot continue past an
 unknown name because it has no index to write to, whereas *missing* is only
 knowable once every offered value has been placed, and at that moment every
 missing slot is known at once. So the third message names all of them, joined
-with `, `, and pluralises its own noun on line 347 — `declared slot: label` for
+with `, `, and pluralises its own noun on line 417 — `declared slot: label` for
 one and `declared slots: worktree, repo` for two, rather than one spelling that
 is wrong half the time.
 
 `declared_slots` exists for the first of the three messages and for nothing else.
 It has exactly one call site, in `match_values` above it.
 
-<!-- fragment «declared-slots» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="357-364" parent="resolution-and-expansion" -->
+<!-- fragment «declared-slots» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="430-437" parent="resolution-and-expansion" -->
 ````rust
 
     fn declared_slots(&self) -> String {
@@ -500,7 +541,7 @@ this chapter keeps. It takes a key that failed `require` and returns the sentenc
 the operator will read. It has one caller, and it is the reason `require` exists
 as a named obligation rather than as a `contains_key` at each call site.
 
-<!-- fragment «templates-unresolved» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="365-388" parent="resolution-and-expansion" -->
+<!-- fragment «templates-unresolved» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="438-461" parent="resolution-and-expansion" -->
 ````rust
 
     /// The refusal for a key that does not resolve — naming the key and the
@@ -508,7 +549,7 @@ as a named obligation rather than as a `contains_key` at each call site.
     /// overlay does declare it, because that reader has written the key down and
     /// needs to know it is in the wrong file rather than misspelled.
     fn unresolved(&self, key: &str) -> String {
-        if self.overlay_only.contains(key) {
+        if self.overlay_only.contains_key(key) {
             let overlay = self.overlay.as_deref().map_or_else(
                 || "the overlay".to_owned(),
                 |path| path.display().to_string(),
@@ -529,7 +570,7 @@ as a named obligation rather than as a `contains_key` at each call site.
 ````
 <!-- /fragment -->
 
-Two wordings, chosen by one set membership. `overlay_only` is the field chapter 2
+Two wordings, chosen by membership in the non-admitted-key map. `overlay_only` is the field chapter 2
 found had an argument attached to it — the keys an overlay declares and the
 primary does not, kept rather than dropped — and this is the only thing in the
 crate that reads it. The choice it makes is not about correctness; both messages
@@ -588,7 +629,7 @@ another module, and its placement says so: it is not part of the block a reader
 of the type's public surface walks, and it was added where it could be read
 against its purpose rather than against its neighbours.
 
-<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="787-796" parent="source-templates" -->
+<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="954-963" parent="source-templates" -->
 ````rust
 
 /// The keys the primary document declares, in name order. The conformance kit's
@@ -723,7 +764,7 @@ Five lines, and the load-bearing token in them is `pub(crate)`. `argv` is a
 private module — chapter 1 read the module list — so the only things visible
 outside the crate are what `pub use argv::{Argv, Slot}` re-exports: the two
 types, and none of the constructor. Inside the crate, `Argv::new` has exactly one
-caller. It is line 311 of `src/templates.rs`, the last line of `expand`, and a
+caller. It is line 375 of `src/templates.rs`, the last line of `expand`, and a
 search of the whole workspace finds no other. The figure below is that count
 stated as what it proves.
 

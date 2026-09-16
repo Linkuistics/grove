@@ -58,7 +58,8 @@ grove's **Session** and the methodology's, adding a row to the collision table
 below for nothing — the crate never learns what a launch is *for*. Grove's
 mapping is one line: a **Session kind** is a key. Its decisions live in the grove
 context that owns them:
-[decision 7](./docs/specs/module-decomposition.md) for the interface,
+[decision 7](./docs/specs/module-decomposition.md) for the interface and
+[modular configuration](./docs/specs/modular-configuration.md) for composition,
 [*complete session configuration*](./docs/adr/complete-session-configuration.md)
 for what a template must be,
 [*the untracked configuration delta*](./docs/adr/untracked-configuration-delta.md)
@@ -210,11 +211,12 @@ consumer names, and no call site passes one where the other is expected.
   [`evidence-outlives-the-instrument`](docs/adr/evidence-outlives-the-instrument.md),
   [`the-launched-child-is-a-job`](docs/adr/the-launched-child-is-a-job.md),
   [`a-book-cannot-witness-its-own-corpus`](docs/adr/a-book-cannot-witness-its-own-corpus.md),
-  and the three specs
+  and the specs
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
-  [`module-decomposition`](docs/specs/module-decomposition.md) and
-  [`walkthrough-books`](docs/specs/walkthrough-books.md). The last two rows are
-  the walkthrough book system, and they are **grove's while its validator is**:
+  [`module-decomposition`](docs/specs/module-decomposition.md),
+  [`modular-configuration`](docs/specs/modular-configuration.md) and
+  [`walkthrough-books`](docs/specs/walkthrough-books.md). The walkthrough records
+  describe the book system and are **grove's while its validator is**:
   `crates/book-validation/` is a member of this workspace and
   `docs/walkthroughs/` is a surface `scripts/check.sh` gates and
   [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#documentation-ownership) accounts
@@ -257,7 +259,7 @@ consumer names, and no call site passes one where the other is expected.
   participates in the review-ownership and promotion contracts, but the mandate,
   task tree, review routing, and lifecycle are Grove's maintaining seam.
 
-  A fourth spec, `semantic-contract`, stated the tool-neutral semantics of the
+  The former spec `semantic-contract` stated the tool-neutral semantics of the
   task tree, the finish protocol and the lifecycle joining them, and was
   **deleted** with the formal-methods apparatus that checked it
   (`delete-formal-models-k29`, whose last directory —
@@ -268,7 +270,7 @@ consumer names, and no call site passes one where the other is expected.
   it specified is being dismantled, `docs/ARCHITECTURE.md` was where the
   current-state description belonged.
 
-  The third earns its place on the grain rule rather than on novelty.
+  The module contract earns its place on the grain rule rather than on novelty.
   `module-decomposition` was written as the agreement point a whole chain of
   leaves built against, across many sessions and three bounded contexts; it
   carried a retirement condition — *delete it once the crates exist* — and

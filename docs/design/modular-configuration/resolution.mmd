@@ -1,0 +1,20 @@
+flowchart TD
+    G[Read personal configuration]
+    L[Choose at most one admissible local file]
+    S{Local select present?}
+    LS[Use local list, including an empty list]
+    GS[Use personal list, or empty list]
+    B[Apply personal base]
+    P[Expand selected profiles in order]
+    IN[For each occurrence: includes, then own values]
+    A[Remember personally routed keys]
+    O[Apply direct local values]
+    V[Validate final configuration]
+    G --> S
+    L --> S
+    S -->|yes| LS
+    S -->|no| GS
+    LS --> B
+    GS --> B
+    B --> P --> IN --> A --> O --> V
+    A -. local routes cannot add keys .-> O

@@ -313,25 +313,23 @@ literal that would silently produce a *wrong* leaf rather than an error.
 
 ### 6 — Configuration completeness is per-kind and just-in-time
 
-The whole of the personal document — and of any second source — is validated
-eagerly, before every tree mutation and again before every launch, for syntax,
-duplicates, node shape, and every template rule, so a malformed entry for a kind
-this iteration will not reach fails before anything is spawned. What is asked at
-the moment of use is *presence*: before writing a leaf of kind K, and before
-launching kind K, K must resolve to exactly one complete template read whole out
-of one file.
+Before every tree mutation and again before every launch, the sources are read
+and the active configuration is validated. Syntax, duplicates and node shapes
+are document-wide; legacy flat template rules remain eager; modular semantic
+validation applies to the selected combination after composition. The
+[modular configuration contract](modular-configuration.md) owns those scopes.
+Presence is asked at use: before writing or launching kind K, K must resolve to
+one complete compiled command. Unfinished inactive profiles do not block it.
 
 The quantifier is per-kind because grove can no longer state a set: it holds no
 set of kinds, writes no skill directory and keeps no registry, so it cannot
 enumerate what the methodology declares.
 
-**The overlay overrides and never supplies**, one kind at a time: a key resolves
-only if the primary file declares it; where the overlay also declares it, the
-overlay's template is the one used, whole; where only the overlay declares it, the
-key does not resolve, and the refusal names the key and the primary file that must
-declare it. That is what stands between a file a project could hand you and a
-program its operator never chose, and it is enforceable without either source
-knowing what a kind is
+**The overlay overrides and never supplies**: only an explicit route target in
+the personal base plus selected personal profiles admits a key for local
+override. An inactive profile does not count, and a local-only key fails on use,
+naming the key and personal file. Local parameters may complete a personally
+targeted route. The generic library enforces this without knowing what a kind is
 ([`complete-session-configuration`](../adr/complete-session-configuration.md) for
 what a template must be,
 [`untracked-configuration-delta`](../adr/untracked-configuration-delta.md) for the
@@ -339,9 +337,19 @@ second document and the safety property it now states as its own).
 
 ### 7 — The runner
 
+The modular interface is specified in
+[modular configuration — module interfaces](modular-configuration.md#module-interfaces).
+It adds a parsed `Catalog` before the resolved `Templates` snapshot: explicit
+source paths and slot vocabulary enter Catalog loading; the consumer chooses a
+selection declaration; Catalog resolution returns validated Templates and
+provenance. Grove retains source discovery, local admissibility, profile-list
+selection policy and runtime context. The runner understands none of Grove's
+paths, kinds or VCS. The modular implementation is pending; the contracts below
+describe its intended interface alongside the unchanged launch surface.
+
 ```rust
 /// The slot vocabulary a consumer's templates are written against. Supplied at
-/// load, because every template rule is checked there.
+/// catalog load; template validation uses it before a resolved snapshot exists.
 pub struct Vocabulary<'a> { pub slots: &'a [SlotRule<'a>] }
 pub struct SlotRule<'a> { pub name: &'a str, pub requirement: Requirement }
 pub enum Requirement { ExactlyOnce, AtMostOnce }
@@ -349,16 +357,15 @@ pub enum Requirement { ExactlyOnce, AtMostOnce }
 pub struct Templates;
 
 impl Templates {
-    /// A key resolves from the primary file or the overlay, never from both, and
-    /// only if the **primary** declares it: the overlay overrides and never
-    /// supplies. Validates the whole of both documents against `vocabulary`.
+    /// Compatibility convenience for flat-only consumers, using an empty
+    /// explicit selection. Modular wrappers require the Catalog interface.
     pub fn load(
         primary: &Path,
         overlay: Option<&Path>,
         vocabulary: Vocabulary<'_>,
     ) -> Result<Self, ConfigError>;
-    /// The file this key's template was actually read from. `None` when the
-    /// primary does not declare it, whatever the overlay says.
+    /// The file supplying this key's template text. Parameter origins can differ;
+    /// the structured inspection view reports them. None for a non-admitted key.
     pub fn source(&self, key: &str) -> Option<&Path>;
     /// Does this key resolve to exactly one complete template? The obligation a
     /// consumer discharges *before* it commits to a key — before it writes down
@@ -366,14 +373,15 @@ impl Templates {
     /// wording has one owner. `expand` asks the same question on its own way in.
     pub fn require(&self, key: &str) -> Result<(), ConfigError>;
     pub fn expand(&self, key: &str, values: &[Slot<'_>]) -> Result<Argv, ConfigError>;
-    /// The keys the primary document declares, in name order. The conformance
+    /// The admitted keys in the active result, in name order. The conformance
     /// kit's one window into a loaded configuration — enough to say *this
     /// checked nothing*, and nothing more.
     pub fn keys(&self) -> Vec<&str>;
 }
 
 /// A value for one declared slot, at expansion. Substitution is whole-word: the
-/// runner never learns what a name means, and never rewrites part of a word.
+/// runner never learns what a runtime name means. Configured parameters are
+/// separate and may already have filled fragments inside a literal word.
 pub struct Slot<'a> { pub name: &'a str, pub value: &'a OsStr }
 
 /// A program and its arguments, in order, ready to spawn. Built only by
@@ -454,8 +462,8 @@ pub struct ConfigError;
 pub struct LaunchError;
 
 pub mod conformance {
-    /// Holds a consumer's configuration to the crate's own contract, so
-    /// *reusable outside grove* is checked without a second repository.
+    /// Flat-only compatibility check. Modular conformance accepts the same
+    /// explicit profile selection as the consumer through the Catalog seam.
     pub fn check(config: &Path, vocabulary: Vocabulary<'_>) -> Outcome;
     pub struct Outcome { pub failures: Vec<String> }
     impl Outcome { pub fn passed(&self) -> bool; }
@@ -471,16 +479,15 @@ group**, so a command the session itself launched is reaped with it, and the
 runner hands the terminal to the child and takes it back
 ([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)).
 
-**The vocabulary is an input to `load` and not to `expand`, and that is what keeps
-decision 6's *document-eager* half true.** Every template rule the runner enforces
-is a rule about slot *names* — that a substitution is a whole word and not
-embedded in one, that it names a declared slot, that a required slot appears
-exactly once, that an optional one appears at most once. None is checkable by a
-loader that will not learn the slot names until expansion, so a vocabulary
-supplied per call would make every one of them just-in-time and reduce decision 6
-from *presence* to *everything*. Supplied at load, the whole of both documents is
-checked before anything is spawned, and expansion is left with one obligation:
-that the values offered fill the slots the vocabulary declared.
+**The vocabulary enters at Catalog loading, not runtime expansion.** Legacy
+templates can therefore be checked eagerly, and active modular templates can be
+checked during resolution, before Templates exists. Runtime slots retain their
+whole-word and cardinality rules; author-declared parameters have a distinct
+namespace and can fill argument fragments without re-splitting. Templates also
+exposes one structured inspection view of its compiled words and provenance,
+used by diagnostics and Grove's inspector. Runtime expansion fills declared
+slots and checks their values without reparsing configuration or selecting
+profiles again. Launch/channel supervision is unchanged.
 
 ### 8 — The VCS seam
 
@@ -831,19 +838,25 @@ a kind label literally only for the two leaves it authors itself.
   or none of them lands, and no list of kinds appears in the machinery
 
 ### Requirement: a second configuration source overrides and never supplies
-Launch policy SHALL resolve a key only when the primary file declares it, and an
-overlay SHALL be able to replace such a key's template but never to introduce
-one.
+Launch policy SHALL resolve a key only when the active personal composition
+gives it an explicit route target. An overlay SHALL be able to override it but
+never independently introduce one.
 
 #### Scenario: a key only the overlay declares
-- **WHEN** a project-supplied overlay declares kind K and the personal file does
-  not
+- **WHEN** an overlay declares kind K and the active personal composition does
+  not target K
 - **THEN** K does not resolve, and the refusal names K and the personal file that
   must declare it
 
 #### Scenario: a malformed template for a kind this run will not reach
-- **WHEN** any template in either source violates a rule of the slot vocabulary
+- **WHEN** any legacy flat template, or an active modular template after
+  composition, violates a rule of the slot vocabulary
 - **THEN** it is refused at load, before any tree mutation and before any launch
+
+#### Scenario: an inactive unfinished profile
+- **WHEN** an unselected profile has valid structure but unresolved references
+- **THEN** it does not block a working selection; selecting it validates the
+  effective references of the resulting combination
 
 ### Requirement: no module implements a version-control guarantee
 The VCS seam SHALL take commits and SHALL implement no transaction, witness,

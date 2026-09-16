@@ -149,9 +149,24 @@ is which executable and exact arguments Grove launches.
 - Current user-facing reference: `docs/CONFIGURATION.md`.
 - Module contract: the runner and configuration sections of
   `docs/specs/module-decomposition.md`.
+- Design contract: `docs/specs/modular-configuration.md`; examples under
+  `docs/examples/modular-configuration/` and the visual document under
+  `docs/design/modular-configuration/` are reviewed with it.
 - Glossary terms: Grove configuration, Configuration delta, Configuration
   profile, Session kind, Kind routing, and Loop control channel.
 - Existing evidence and source locations are in the requirements leaf's notes.
+
+## Design handoff
+
+`modular-configuration-k2` owns the design. The review is
+`modular-configuration-k3`, followed by `modular-configuration-k4` for
+implementation planning; any review integration goes before planning.
+The design and ADRs describe the intended modular contract; production code and
+the flat user reference remain at the pre-implementation boundary.
+
+The user explicitly approved inspection reusing the existing jj trackedness
+check. It edits no configuration or working-tree files and launches no session;
+jj may snapshot metadata. This preserves the same admission decision as launch.
 
 ## Design obligations
 

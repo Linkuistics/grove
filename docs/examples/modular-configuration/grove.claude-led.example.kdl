@@ -1,0 +1,2 @@
+// The kind map is shared; this arrangement swaps just the two bindings.
+config { select "routes" "claude-led"; }

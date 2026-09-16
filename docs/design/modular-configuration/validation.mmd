@@ -1,0 +1,16 @@
+flowchart TD
+    D[Personal document and chosen local document]
+    S[Check KDL, shapes and duplicates everywhere]
+    L[Check all legacy templates eagerly]
+    P[Expand selected profiles; reject unknown names and cycles]
+    F[Fold patches; preserve value origins]
+    C[Compile final active routes and validate parameters]
+    T[Resolved Templates snapshot]
+    I[Inspection: structured words and origins]
+    R[Require selected kind; fill runtime slots]
+    A[Argv: direct execution]
+    D --> S --> L --> P --> F --> C --> T
+    T --> I
+    T --> R --> A
+    X[Unselected profile bodies and unused command templates]
+    S -. structural validation only .-> X

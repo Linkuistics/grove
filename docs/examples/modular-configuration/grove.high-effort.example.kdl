@@ -1,0 +1,2 @@
+// Include daily explicitly: a local list replaces, rather than extends, it.
+config { select "daily" "high-effort"; }

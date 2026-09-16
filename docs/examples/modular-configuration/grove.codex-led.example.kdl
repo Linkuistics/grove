@@ -1,0 +1,2 @@
+// Replaces the global selection while reusing the global definitions.
+config { select "routes" "codex-led"; }

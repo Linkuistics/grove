@@ -3,24 +3,25 @@
 Launch policy may be overridden per session kind by a **configuration delta**: a
 `.grove.kdl` searched at the leased worktree root and, failing that, at the main
 repository root — the same two roots `${worktree}` and `${repo}` expand to. The
-first of the two paths that holds a file is *the* delta; the other is not read,
-and the two are never merged with each other. Each kind the delta declares **and
-the personal file also declares** wins outright, and every other kind comes from
-the personal file untouched, so search order is never merge order and resolution
-is two deep and flat. What a delta may supply is unchanged by its existence: one kind's whole
-template, read whole, exactly as [complete session
-configuration](complete-session-configuration.md) requires.
+first of the two paths that holds a candidate is *the* delta; the other is not
+read, and the two are never merged with each other. The personal configuration
+always participates. A local profile selection replaces the personal default
+list while using the personal definitions; direct local values apply after the
+selected profiles. A legacy local entry still replaces a whole template.
+[Modular configuration](../specs/modular-configuration.md) owns the composition
+grammar, and [complete session configuration](complete-session-configuration.md)
+requires the result to be complete and inspectable before launch.
 
 **A delta overrides and never supplies, and that is this record's own property.**
-A kind resolves only if the *personal* file declares it; where only the delta
-declares one, the kind does not resolve, and the refusal names the kind and the
-personal file that must declare it. This is what stands between an untracked file
-a project ships and a program its operator never chose, and it has to be stated
-here because nothing else states it any more: it used to be inherited from the
-personal file's all-kinds completeness rule — a delta could only ever override a
-kind the operator had already written down — and that quantifier is gone.
-Refusing per kind buys the same thing at the moment the kind is used, and buys it
-without either file having to know what the whole set of kinds is.
+A kind resolves only if the personal base plus the selected personal profiles
+gives it an explicit route target, before direct local overrides. A declaration
+solely in an inactive profile does not count. A local selection can activate a
+personal profile; local values may complete that profile's required parameters.
+Where only the delta supplies a route target, the kind remains non-admitted and
+its use fails naming the kind and personal file. This preserves the existing
+per-kind refusal without either source knowing a closed kind set. It is a
+boundary on who introduces a kind; an admitted untracked local override may
+still choose another executable, as it could in the legacy form.
 
 The delta is **untracked, and Grove enforces it** rather than asking for it. A
 tracked candidate is refused and the session fails closed. The property is worth
@@ -54,10 +55,11 @@ ordering is forced and the documentation says so: `jj file untrack` refuses a
 path that is not already ignored, so a delta committed by accident is ignored
 first and untracked second.
 
-An unreadable, unparseable, or otherwise invalid delta likewise fails closed —
-at both load points, before every tree mutation and again before every launch,
-with the same aggregate rather than first-error diagnostics the personal file
-gets, reported against the delta's own path and location. Trackedness is
+An unreadable, unparseable, structurally invalid, or actively invalid delta
+likewise fails closed — at both load points, before every tree mutation and
+again before every launch. The modular specification defines the validation
+scopes, including legacy eager template checks, and aggregate diagnostics carry
+the delta's own path and location. Trackedness is
 validated on the delta, never used to choose it: a tracked file at the first
 searched path is a refusal, not a reason to read the second path. Selection is
 held to the same rule one step earlier: only a candidate Grove positively
@@ -75,8 +77,9 @@ not to one grove. A delta at the main repository root is inherited by every
 workspace of that project, which is what makes this per-project rather than
 per-grove; one in a workspace's own worktree shadows it for a one-off. The two
 roots coincide in a single-worktree repository and diverge in the
-secondary-workspace family. Grove creates and edits no configuration file and
-writes no ignore rule.
+secondary-workspace family. Grove creates and edits no active configuration file
+and writes no ignore rule. Explicit example delivery creates only separately
+named sample files, refusing to replace personal contents.
 
 ## Considered options
 

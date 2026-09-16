@@ -1,5 +1,11 @@
 # Grove Configuration
 
+This reference describes the implemented flat reader. The
+[modular configuration design](specs/modular-configuration.md) specifies reusable
+commands, profiles, inspection and separate example delivery; its new grammar
+and verbs are pending implementation. The configuration ADRs describe that
+intended contract. Existing configurations require no rewrite.
+
 One personal file, `~/.config/grove/config.kdl`, gives each session kind you use
 one complete command template. Grove parses a template into arguments, expands
 its own substitutions, and executes the result directly as its foreground child.

@@ -1,0 +1,59 @@
+// Design example: becomes usable when the modular reader is delivered.
+// Executables are illustrative wrappers supplied by you, not shipped tools.
+config {
+    command "codex" "my-codex-policy --model ${param.model} -c model_reasoning_effort=${param.effort} ${prompt}" {
+        param "model" "your-codex-model"
+        param "effort" "medium"
+    }
+    command "claude" "my-claude-policy --model ${param.model} --effort ${param.effort} ${prompt}" {
+        param "model" "your-claude-model"
+        param "effort" "medium"
+    }
+    profile "routes" {
+        route "requirements" "lead"
+        route "review-requirements" "review"
+        route "integrate-review-requirements" "lead"
+        route "design" "lead"
+        route "review-design" "review"
+        route "integrate-review-design" "lead"
+        route "planning" "lead"
+        route "review-planning" "review"
+        route "integrate-review-planning" "lead"
+        route "prototype" "lead"
+        route "review-prototype" "review"
+        route "integrate-review-prototype" "lead"
+        route "impl" "lead"
+        route "review-impl" "review"
+        route "integrate-review-impl" "lead"
+        route "research-a" "lead"
+        route "research-b" "review"
+        route "combine-research" "lead"
+        route "draft" "lead"
+        route "copy-edit" "review"
+        route "art" "lead"
+        route "proof" "review" {
+            param "effort" "high"
+        }
+        route "finish" "lead"
+    }
+    profile "codex-led" {
+        bind "lead" "codex"
+        bind "review" "claude"
+    }
+    profile "claude-led" {
+        bind "lead" "claude"
+        bind "review" "codex"
+    }
+    profile "daily" {
+        include "routes" "codex-led"
+    }
+    profile "high-effort" {
+        values "codex" { param "effort" "high"; }
+        values "claude" { param "effort" "high"; }
+    }
+    // Valid document structure, deliberately unresolved if selected.
+    profile "unfinished" {
+        bind "lead" "not-written-yet"
+    }
+    select "daily"
+}

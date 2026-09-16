@@ -778,29 +778,15 @@ into that cycle's own confirmation, giving up to four questions about one fact.
 <a id="grove-configuration"></a>
 ### Grove configuration (`~/.config/grove/config.kdl`)
 
-The complete source of Grove's user configuration: a flat document assigning each
-[[Session kind]] one complete command-template string, which
-chooses the executable or wrapper and every user-controlled argument — harness,
-model, reasoning effort, approval, permission, and sandbox policy included.
-Templates use POSIX shell-word quoting but Grove invokes no shell: it parses the
-template into argv, expands only its own substitutions (`${prompt}` exactly once
-in any position after a literal word-zero executable, plus optional
-`${session_name}`, `${worktree}`, and `${repo}`), and executes the result
-directly, adding no hidden harness-specific argv fragments. A launch has no
-precedence lattice, no defaults, families, profiles, or inheritance, and no
-user-settable `GROVE_*` environment configuration — task files, flags, and
-variables neither override nor supplement it, and there is no `GROVE_LLM_BIN`
-override. The one thing that may replace an entry is a [[Configuration delta]],
-which supplies a kind's *whole* template or nothing. Grove never creates or edits
-either file because it cannot choose personal policy, and fully validates this
-one — completeness included, whatever a delta says — before **any** task-tree
-mutation and again before every launch, so a validation failure launches nothing
-and leaves an existing selected leaf live and resumable.
+Personal launch policy: explicit [[Session kind]] routes, reusable command
+definitions, [[Command binding]]s, and named [[Configuration profile]]s, with an
+optional [[Configuration delta]]. The modular design is specified in
+[modular configuration](docs/specs/modular-configuration.md); the currently
+implemented flat form is documented in [the reference](docs/CONFIGURATION.md).
 _Avoid_: "primary harness" — harness selection is a property of each session kind,
 not of the grove as a whole.
 _Avoid_: "thinking effort" — use **reasoning effort**, the launch-policy term.
-_Avoid_: a fallback chain — a kind resolves from one file or the other, and the
-two are never merged within a kind.
+_Avoid_: a fallback on configuration error — a failed selection launches nothing.
 _Avoid_: executing the template with `sh -c` or an interactive login shell — the
 configured process remains Grove's direct foreground child.
 _Avoid_: describing a diagnostic environment override as configuration; a
@@ -809,30 +795,24 @@ delta is the only second source, and it is still personal policy.
 <a id="configuration-profile"></a>
 ### Configuration profile
 
-A named, reusable set of launch-policy choices in Grove's planned modular
-configuration, composable with other profiles and selectable through a
-[[Configuration delta]]. This is a Grove concept, distinct from any profile
-understood by the configured harness; the current flat configuration reader does
-not yet implement it.
+A named, reusable patch of [[Grove configuration]], optionally including other
+profiles, whose selected occurrences compose in order. It is distinct from a
+profile understood by a configured harness.
+
+<a id="command-binding"></a>
+### Command binding
+
+An author-named reference to one reusable command definition in [[Grove
+configuration]], shared by any number of explicit [[Session kind]] routes.
+Names such as `lead` and `review` are personal policy, not Grove-defined roles.
 
 <a id="configuration-delta"></a>
 ### Configuration delta (`.grove.kdl`)
 
-The untracked, worktree-local partial that overrides [[Grove configuration]] per
-[[Session kind]]. Searched at the worktree root and then the main repository root
-— the two paths `${worktree}` and `${repo}` expand to — with the first file found
-taken as *the* delta and the other left unread; the two are never merged with
-each other, so resolution stays two deep and flat. Each kind it declares wins
-outright and every kind it omits falls through untouched, which is what lets the
-personal file stay mandatorily complete. Grove **enforces** its untrackedness
-rather than asking for it: a candidate the owning VCS reports as tracked is
-refused, because the file names a program to execute and a tracked one would let
-a repository choose what Grove spawns in any checkout of it. Unreadable,
-unparseable, invalid, or unanswerable-by-probe all fail closed at both load
-points, with aggregate diagnostics carrying the delta's own path and location.
-It sits *beside* `.grove/`, so the finish teardown — which deletes the task root
-wholesale and commits one `.grove/`-scoped fileset — neither commits nor deletes
-it.
+The untracked local part of [[Grove configuration]], selected from the worktree
+root or, when absent there, the main repository root. It may replace the selected
+[[Configuration profile]] list and override values for kinds explicitly routed
+by the active personal configuration; the global definitions still participate.
 _Avoid_: "project configuration" — it is untracked personal policy that happens
 to be scoped to a checkout, and no clone reproduces it.
 _Avoid_: treating a tracked delta as absent and falling back; the refusal is what
@@ -854,8 +834,8 @@ Bootstraps the resolved leaf, and does not pick again. A session started outside
 `grove` has no mandate and is not a Grove loop session; Grove executes the
 configured command directly and is not a model router or proxy.
 _Avoid_: describing environment variables, a harness stamp, `--harness`, or a
-leaf-level `**Harness:**` declaration as configuration fallbacks. Grove has one
-configuration source.
+leaf-level `**Harness:**` declaration as configuration fallbacks. Grove uses
+personal configuration and at most one admitted configuration delta.
 _Avoid_: recovering the kind from `${prompt}`. The kind is the routing *key* and
 the core is the *payload*, so every substring test is indirect and unsound: the
 core names a reference file a whole family shares, and the driver's sentence

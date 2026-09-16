@@ -1,0 +1,21 @@
+flowchart LR
+    subgraph Routes[Explicit kind routes]
+        I[impl]
+        D[design]
+        R[review-impl]
+    end
+    subgraph Bindings[Author-defined bindings]
+        L[lead]
+        V[review]
+    end
+    subgraph Commands[Reusable commands]
+        A[agent-a template]
+        B[agent-b template]
+    end
+    I --> L
+    D --> L
+    R --> V
+    L -->|selected binding| A
+    V -->|selected binding| B
+    P[Alternative profile] -. changes binding targets .-> Bindings
+    E[Parameter-only profile] -. changes one named value .-> Commands

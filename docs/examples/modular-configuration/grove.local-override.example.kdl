@@ -1,0 +1,7 @@
+config {
+    select "daily" "high-effort"
+    // Direct local values apply after the selected profiles.
+    route "impl" { param "effort" "low"; }
+    // Expose the shared value instead of the personal route's explicit value.
+    route "proof" { unset "effort"; }
+}

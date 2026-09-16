@@ -1,0 +1,2 @@
+// The global daily selection still applies. This replaces one whole route.
+impl "my-other-policy ${prompt}"

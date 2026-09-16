@@ -1,0 +1,21 @@
+{
+  "title": "Modular Grove configuration",
+  "intro": "Design against the approved requirements. The grammar and resolver are specified here; implementation follows review.",
+  "groups": [
+    {"id": "reuse", "title": "Command reuse", "description": "Explicit routes, reusable bindings and parameterized commands."},
+    {"id": "composition", "title": "Composition", "description": "Which sources contribute, and in what order."},
+    {"id": "validation", "title": "Validation and inspection", "description": "One resolver supplies inspection and launch."}
+  ],
+  "discussion": {
+    "title": "Resolve one inspectable command per kind",
+    "status": "Design for review",
+    "summary": "Profiles patch named settings; includes apply before a profile's own values. Local selection replaces the default list. Direct local values apply last, over kinds explicitly routed by active personal policy.",
+    "diagramIds": ["commands", "resolution", "validation"],
+    "updatedDiagramIds": ["commands", "resolution", "validation"]
+  },
+  "diagrams": [
+    {"id": "commands", "group": "reuse", "title": "Change bindings without copying the kind map", "source": "commands.mmd", "caption": "Solid arrows are references in one resolved arrangement. Dashed arrows show which object a profile changes. The binding names and commands are user policy; Grove supplies none."},
+    {"id": "resolution", "group": "composition", "title": "Personal base, selected profiles, then local values", "source": "resolution.mmd", "caption": "A data-flow view of resolution. Include expansion is depth first and repeats are reapplied. Source discovery refuses an inadmissible candidate; failure does not select a fallback."},
+    {"id": "validation", "group": "validation", "title": "Inspection and launch share the resolved snapshot", "source": "validation.mmd", "caption": "A flowchart, not a model-checking result. All admitted routes are compiled before use. Runtime slots remain identified placeholders during inspection; only launch supplies a mandate."}
+  ]
+}

@@ -814,8 +814,9 @@ A named reusable template and its [[Command parameter]] declarations in
 
 An author-declared string value in a [[Command definition]], optionally with a
 default, whose contents fill an argument or argument fragment without changing
-word boundaries. Defaults are implemented; shared values and [[Kind route]]
-overrides remain pending. It is distinct from a runtime slot.
+word boundaries. Defaults and shared `values` assignments/removals are implemented;
+local shared values override personal ones, and `unset` exposes the default.
+[[Kind route]] overrides remain pending. It is distinct from a runtime slot.
 
 <a id="kind-route"></a>
 ### Kind route

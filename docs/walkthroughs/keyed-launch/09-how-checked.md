@@ -629,7 +629,8 @@ of these nine chapters proved that here the answer is nowhere.
 Named parameter acceptance is exercised through the public Catalog/Templates
 seam in `crates/keyed-launch/tests/named_commands.rs`. The tests distinguish
 structural validation of dormant declarations from active template validation
-and admitted-route completeness. They check shared and edited defaults,
+and admitted-route completeness. They check defaults, shared primary/local
+assignments, removal fallback, final-schema validation and unused required values,
 repeated embedded references, empty and adversarial values, native runtime
 strings, exact source spans, multi-origin words and replacement histories.
 Grove's lifecycle and leaf-mutation tests then observe real fake-executable argv

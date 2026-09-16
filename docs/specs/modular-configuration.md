@@ -9,7 +9,8 @@ implements captured Catalog/Selection resolution, diagnostics and inspection for
 legacy flat commands and parameterized wrapper commands, bindings and routes.
 Parameter declarations/defaults, safe embedded substitution, multi-origin words,
 named dollar escaping and effective-reference validation are implemented.
-Parameter patches, profiles, human inspection commands, example delivery and Grove
+Shared values and removals fold across primary/local sources with retained histories.
+Route parameter patches, profiles, human inspection commands, example delivery and Grove
 selection policy remain pending; the [reference](../CONFIGURATION.md) describes
 the current boundary.
 

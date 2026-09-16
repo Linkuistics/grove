@@ -274,12 +274,12 @@ in hand.
 //! [`Templates::load`] delegates to that path with an empty selection.
 //!
 //! The `config` wrapper accepts primary `command` definitions and `bind`/`route`
-//! targets in either source. Command param declarations supply defaults; required
-//! parameters must be complete on admitted routes. Parameter patches, profiles and
+//! targets and shared `values` patches in either source. Defaults yield to shared
+//! assignments; `unset` restores inheritance. Route parameter patches, profiles and
 //! selection declarations remain explicit errors. Effective bindings activate named
 //! templates; dormant definitions are not compiled. Flat templates validate eagerly.
 //! [`Templates::inspect`] explains reference chains, command words, captured origins,
-//! parameter defaults, multi-origin words, replaced targets and non-admitted overlay
+//! parameter defaults/assignments/removals, multi-origin words and non-admitted overlay
 //! keys without source I/O.
 //! [`ConfigError::diagnostics`] exposes stable categories, source byte ranges
 //! and remedies. Independent structural errors aggregate across both inputs.

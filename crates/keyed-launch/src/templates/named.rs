@@ -12,6 +12,17 @@ pub(super) struct Declarations {
     commands: BTreeMap<String, Command>,
     bindings: BTreeMap<String, Target>,
     routes: BTreeMap<String, Target>,
+    values: BTreeMap<String, Values>,
+}
+
+struct Values {
+    target: Target,
+    parameters: BTreeMap<String, ParameterPatch>,
+}
+
+struct ParameterPatch {
+    value: Option<String>,
+    span: SourceSpan,
 }
 
 #[derive(Clone)]
@@ -96,8 +107,12 @@ pub(super) fn parse(
         for child in children.nodes() {
             let loc = location(source, child);
             let kind = child.name().value();
+            if kind == "values" {
+                parse_values(path, source, child, role, &mut result.values, diagnostics);
+                continue;
+            }
             if !matches!(kind, "command" | "bind" | "route") {
-                diagnostics.push(at_node(loc, format!("unsupported config node `{kind}`; parameter patches, profiles and selections are not yet supported")));
+                diagnostics.push(at_node(loc, format!("unsupported config node `{kind}`; route parameter patches, profiles and selections are not yet supported")));
                 continue;
             }
             let values: Option<Vec<_>> = child
@@ -113,7 +128,7 @@ pub(super) fn parse(
                 || (kind == "route" && child.children().is_some_and(|c| !c.nodes().is_empty()))
                 || (kind == "bind" && child.children().is_some())
             {
-                diagnostics.push(at_node(loc, format!("`{kind}` does not accept properties or types; only commands accept param declaration children; parameter patches are not yet supported")));
+                diagnostics.push(at_node(loc, format!("`{kind}` does not accept properties or types; only commands accept param declaration children; route parameter patches are not yet supported")));
                 continue;
             }
             let name = values[0];
@@ -173,10 +188,82 @@ pub(super) fn parse(
     }
     for diagnostic in &mut diagnostics[first_diagnostic..] {
         if diagnostic.category == "shape" {
-            diagnostic.remedy = "Use config { command \"name\" \"template\" { param \"name\" \"default\"; }; bind \"binding\" \"name\"; route \"key\" \"binding\"; }; keep definitions in primary policy and omit parameter patches/profiles/selections.";
+            diagnostic.remedy = "Use command declarations, bind/route targets and values blocks inside config; values children are param \"name\" \"value\" or unset \"name\". Keep definitions in primary policy; omit route parameter patches/profiles/selections.";
         }
     }
     result
+}
+
+fn parse_values(
+    path: &Path,
+    source: &str,
+    node: &KdlNode,
+    role: DocumentRole,
+    values: &mut BTreeMap<String, Values>,
+    diagnostics: &mut Vec<ValidationDiagnostic>,
+) {
+    let loc = location(source, node);
+    let name = node
+        .entries()
+        .first()
+        .and_then(|entry| entry.value().as_string());
+    let Some(name) = name.filter(|name| valid_name(name)) else {
+        diagnostics.push(at_node(loc, "values requires a valid command name".into()));
+        return;
+    };
+    if !plain(node) || node.entries().len() != 1 || node.children().is_none() {
+        diagnostics.push(at_node(
+            loc,
+            "values requires one command name and a child block, without properties or types"
+                .into(),
+        ));
+        return;
+    }
+    let mut parameters: BTreeMap<String, ParameterPatch> = BTreeMap::new();
+    for child in node.children().into_iter().flat_map(KdlDocument::nodes) {
+        let child_loc = location(source, child);
+        let kind = child.name().value();
+        let args: Option<Vec<_>> = child
+            .entries()
+            .iter()
+            .map(|entry| entry.value().as_string())
+            .collect();
+        let Some(args) = args.filter(|args| {
+            plain(child)
+                && child.children().is_none()
+                && ((kind == "param" && args.len() == 2) || (kind == "unset" && args.len() == 1))
+                && valid_name(args[0])
+        }) else {
+            diagnostics.push(at_node(child_loc, "values children require param with a name and value string, or unset with a name; no properties, types or children".into()));
+            continue;
+        };
+        let patch = ParameterPatch {
+            value: args.get(1).map(|value| (*value).to_owned()),
+            span: SourceSpan {
+                source: role.source(path),
+                start: child_loc.start,
+                end: child_loc.end,
+            },
+        };
+        if let Some(previous) = parameters.insert(args[0].into(), patch) {
+            let mut earlier = source_location(source, previous.span.start);
+            earlier.end = previous.span.end;
+            duplicate(args[0], earlier, child_loc, diagnostics);
+        }
+    }
+    let target = Target {
+        value: name.into(),
+        span: SourceSpan {
+            source: role.source(path),
+            start: loc.start,
+            end: loc.end,
+        },
+    };
+    if let Some(previous) = values.insert(name.into(), Values { target, parameters }) {
+        let mut earlier = source_location(source, previous.target.span.start);
+        earlier.end = previous.target.span.end;
+        duplicate(name, earlier, loc, diagnostics);
+    }
 }
 
 fn parse_parameters(
@@ -426,6 +513,8 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
     };
     let mut bindings = BTreeMap::new();
     let mut routes = BTreeMap::new();
+    let mut value_targets = BTreeMap::new();
+    let mut shared: BTreeMap<String, BTreeMap<String, Target>> = BTreeMap::new();
     let mut admitted = std::collections::BTreeSet::new();
     for document in std::iter::once(&captured.primary).chain(captured.overlay.iter()) {
         let primary = std::ptr::eq(document, &captured.primary);
@@ -438,6 +527,38 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
             path: document.path.clone(),
         });
         let mut declarations = Vec::new();
+        for (command, values) in &document.named.values {
+            value_targets.insert(command.clone(), values.target.clone());
+            declarations.push((
+                &values.target.span,
+                None,
+                AssignmentValue::Set(command.clone()),
+            ));
+            let effective = shared.entry(command.clone()).or_default();
+            for (name, patch) in &values.parameters {
+                let value = if let Some(value) = &patch.value {
+                    effective.insert(
+                        name.clone(),
+                        Target {
+                            value: value.clone(),
+                            span: patch.span.clone(),
+                        },
+                    );
+                    AssignmentValue::Set(value.clone())
+                } else {
+                    effective.remove(name);
+                    AssignmentValue::Unset
+                };
+                declarations.push((
+                    &patch.span,
+                    Some(Setting::CommandParameter {
+                        command: command.clone(),
+                        parameter: name.clone(),
+                    }),
+                    value,
+                ));
+            }
+        }
         for (name, command) in &document.named.commands {
             declarations.push((
                 &command.template.span,
@@ -524,6 +645,50 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
     let definitions = &captured.primary.named.commands;
     let mut compiled = BTreeMap::new();
     let mut diagnostics = Vec::new();
+    let mut invalid_values = std::collections::BTreeSet::new();
+    for (name, target) in &value_targets {
+        let Some(command) = definitions.get(name) else {
+            let mut diagnostic = problem(
+                "unknown_reference",
+                target,
+                format!("values refers to unknown command `{name}`"),
+            );
+            diagnostic.command = Some(name.clone());
+            diagnostic.remedy =
+                "Define this command in primary policy, or correct the values target.".into();
+            diagnostics.push(diagnostic);
+            continue;
+        };
+        for (parameter, value) in &shared[name] {
+            let category = if !command.parameters.contains_key(parameter) {
+                Some("unknown_parameter")
+            } else if value.value.contains('\0') {
+                Some("invalid_value")
+            } else {
+                None
+            };
+            if let Some(category) = category {
+                let mut diagnostic = problem(
+                    category,
+                    value,
+                    format!(
+                        "command `{name}`, shared parameter `{parameter}`: {}",
+                        if category == "unknown_parameter" {
+                            "parameter is not declared"
+                        } else {
+                            "value contains NUL"
+                        }
+                    ),
+                );
+                diagnostic.command = Some(name.clone());
+                diagnostic.parameter = Some(parameter.clone());
+                diagnostic.related.push(command.template.span.clone());
+                diagnostic.remedy = "Supply a NUL-free value for a declared parameter, or unset the shared override.".into();
+                diagnostics.push(diagnostic);
+                invalid_values.insert(name.clone());
+            }
+        }
+    }
     for (binding, target) in &bindings {
         let Some(command) = definitions.get(&target.value) else {
             let mut diagnostic = problem(
@@ -600,9 +765,18 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                     continue;
                 };
                 let definition = &definitions[&binding.value];
+                if invalid_values.contains(&binding.value) {
+                    continue;
+                }
                 let before = diagnostics.len();
                 for (name, parameter) in &definition.parameters {
-                    let category = match &parameter.default {
+                    let assigned = shared
+                        .get(&binding.value)
+                        .and_then(|values| values.get(name));
+                    let value = assigned
+                        .map(|target| &target.value)
+                        .or(parameter.default.as_ref());
+                    let category = match value {
                         None => Some("missing_parameter"),
                         Some(value) if value.contains('\0') => Some("invalid_value"),
                         Some(_) => None,
@@ -630,21 +804,38 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                         diagnostic.binding = Some(route.value.clone());
                         diagnostic.command = Some(binding.value.clone());
                         diagnostic.parameter = Some(name.clone());
-                        diagnostic.remedy = "Supply a NUL-free default string in the command's parameter declaration; parameter override patches are not yet supported.".into();
+                        diagnostic.remedy = "Supply a NUL-free declaration default or shared values assignment in primary or local configuration.".into();
                         diagnostics.push(diagnostic);
                         continue;
                     }
+                    let mut origins = vec![origin_id(&view, &parameter.span)];
+                    if let Some(assigned) = assigned {
+                        origins.push(origin_id(&view, &assigned.span));
+                    }
+                    let settings = [
+                        Setting::ParameterDefault {
+                            command: binding.value.clone(),
+                            parameter: name.clone(),
+                        },
+                        Setting::CommandParameter {
+                            command: binding.value.clone(),
+                            parameter: name.clone(),
+                        },
+                    ];
+                    let histories = settings
+                        .iter()
+                        .filter_map(|setting| {
+                            view.histories
+                                .iter()
+                                .find(|h| &h.setting == setting)
+                                .map(|h| h.id)
+                        })
+                        .collect();
                     parameters.push(ParameterView {
                         name: name.clone(),
-                        value: parameter.default.clone().expect("checked default"),
-                        origins: vec![origin_id(&view, &parameter.span)],
-                        histories: vec![history_id(
-                            &view,
-                            &Setting::ParameterDefault {
-                                command: binding.value.clone(),
-                                parameter: name.clone(),
-                            },
-                        )],
+                        value: value.expect("checked value").clone(),
+                        origins,
+                        histories,
                     });
                 }
                 if diagnostics.len() != before {
@@ -720,7 +911,8 @@ fn setting_key(setting: &Setting) -> (u8, &str, &str) {
         Setting::RouteTarget { key } => (0, key, ""),
         Setting::BindingTarget { binding } => (1, binding, ""),
         Setting::ParameterDefault { command, parameter } => (2, command, parameter),
-        _ => unreachable!("parameter patches are not yet supported"),
+        Setting::CommandParameter { command, parameter } => (3, command, parameter),
+        Setting::RouteParameter { key, parameter } => (4, key, parameter),
     }
 }
 

@@ -555,3 +555,223 @@ fn changing_binding_schema_uses_only_final_defaults_and_literal_replacement_has_
         2
     );
 }
+
+const SHARED_VALUES: &str = r#"config {
+    command "shared" "runner mode=${param.mode}/${param.mode} ${param.empty} ${payload}" {
+        param "mode" "default"
+        param "empty" "fallback"
+        param "unused"
+    }
+    values "shared" { param "mode" "primary"; param "empty" ""; }
+    bind "lead" "shared"
+    route "alpha" "lead"
+    route "beta" "lead"
+}"#;
+
+#[test]
+fn shared_values_fold_before_instantiation_and_survive_source_removal() {
+    let overlay = r#"config { values "shared" {
+        param "mode" "space 'quotes' ${payload}; #"
+        param "unused" "completed locally"
+    }; }"#;
+    let dir = TempDir::new().unwrap();
+    let primary = dir.path().join("primary.kdl");
+    let local = dir.path().join("local.kdl");
+    fs::write(&primary, SHARED_VALUES).unwrap();
+    fs::write(&local, overlay).unwrap();
+    let catalog = Catalog::load(&primary, Some(&local), vocabulary()).unwrap();
+    let convenience = Templates::load(&primary, Some(&local), vocabulary()).unwrap();
+    fs::remove_file(&primary).unwrap();
+    fs::remove_file(&local).unwrap();
+    let templates = catalog.resolve(&Selection::default()).unwrap();
+    drop(catalog);
+    assert_eq!(templates.inspect(), convenience.inspect());
+    for key in ["alpha", "beta"] {
+        let argv = templates
+            .expand(
+                key,
+                &[Slot {
+                    name: "payload",
+                    value: OsStr::new("runtime"),
+                }],
+            )
+            .unwrap();
+        assert_eq!(
+            argv.words(),
+            [
+                "runner",
+                "mode=space 'quotes' ${payload}; #/space 'quotes' ${payload}; #",
+                "",
+                "runtime"
+            ]
+        );
+        let view = templates.inspect();
+        let command = view.commands.iter().find(|c| c.key == key).unwrap();
+        let parameter = command
+            .parameters
+            .iter()
+            .find(|p| p.name == "mode")
+            .unwrap();
+        assert_eq!(
+            parameter.origins.len(),
+            2,
+            "declaration and winning shared assignment"
+        );
+        assert_eq!(
+            command.words[1].origins.len(),
+            3,
+            "template plus both contributors, without repeats"
+        );
+        let spans: Vec<_> = parameter
+            .origins
+            .iter()
+            .map(|id| &view.origins[*id].span)
+            .collect();
+        assert_eq!(
+            &SHARED_VALUES[spans[0].start..spans[0].end],
+            "param \"mode\" \"default\""
+        );
+        assert_eq!(spans[1].source.path, local);
+        assert_eq!(
+            &overlay[spans[1].start..spans[1].end],
+            "param \"mode\" \"space 'quotes' ${payload}; #\""
+        );
+        let history = view
+            .histories
+            .iter()
+            .find(|h| {
+                h.setting
+                    == Setting::CommandParameter {
+                        command: "shared".into(),
+                        parameter: "mode".into(),
+                    }
+            })
+            .unwrap();
+        assert_eq!(
+            history
+                .assignments
+                .iter()
+                .map(|a| a.value.clone())
+                .collect::<Vec<_>>(),
+            [
+                AssignmentValue::Set("primary".into()),
+                AssignmentValue::Set("space 'quotes' ${payload}; #".into())
+            ]
+        );
+        assert!(parameter.histories.contains(&history.id));
+        assert!(command.histories.contains(&history.id));
+    }
+}
+
+#[test]
+fn shared_unset_exposes_defaults_and_retains_absent_removals() {
+    let primary = SHARED_VALUES.replace("param \"unused\"", "param \"unused\" \"default\"");
+    let templates = load(
+        &primary,
+        Some(
+            r#"config { values "shared" {
+        unset "mode"
+        unset "absent"
+    }; }"#,
+        ),
+    )
+    .unwrap();
+    for key in ["alpha", "beta"] {
+        assert_eq!(
+            templates
+                .expand(
+                    key,
+                    &[Slot {
+                        name: "payload",
+                        value: OsStr::new("runtime")
+                    }]
+                )
+                .unwrap()
+                .words(),
+            ["runner", "mode=default/default", "", "runtime"]
+        );
+    }
+    let view = templates.inspect();
+    let mode = view.commands[0]
+        .parameters
+        .iter()
+        .find(|p| p.name == "mode")
+        .unwrap();
+    assert_eq!(mode.origins.len(), 1);
+    let history = &view.histories[*mode.histories.last().unwrap()];
+    assert_eq!(
+        history.assignments.last().unwrap().value,
+        AssignmentValue::Unset
+    );
+    assert!(view.histories.iter().any(|h| h.setting
+        == Setting::CommandParameter {
+            command: "shared".into(),
+            parameter: "absent".into()
+        }
+        && h.assignments[0].value == AssignmentValue::Unset));
+}
+
+#[test]
+fn shared_values_validate_final_assignments_without_activating_templates() {
+    let primary = r#"config {
+        command "dormant" "'broken" { param "x"; }
+        values "dormant" { param "old" "wrong schema"; param "x" "bad\u{0}value"; }
+    }"#;
+    load(
+        primary,
+        Some(r#"config { values "dormant" { unset "old"; param "x" "fixed"; }; }"#),
+    )
+    .unwrap();
+    for (body, category, parameter) in [
+        (r#"values "missing" {}"#, "unknown_reference", None),
+        (
+            r#"values "dormant" { param "unknown" "value"; }"#,
+            "unknown_parameter",
+            Some("unknown"),
+        ),
+        (
+            r#"values "dormant" { param "x" "bad\u{0}value"; }"#,
+            "invalid_value",
+            Some("x"),
+        ),
+    ] {
+        let text =
+            format!("config {{ command \"dormant\" \"'broken\" {{ param \"x\"; }}; {body}; }}");
+        let error = load(&text, None).err().unwrap();
+        assert_eq!(error.diagnostics().len(), 1, "{error}");
+        let diagnostic = &error.diagnostics()[0];
+        assert_eq!(diagnostic.category, category);
+        assert_eq!(diagnostic.parameter.as_deref(), parameter);
+        assert!(diagnostic.command.is_some());
+        assert!(diagnostic.primary.is_some());
+    }
+    let error = load(SHARED_VALUES, None).err().unwrap();
+    assert_eq!(error.diagnostics().len(), 2);
+    assert!(error
+        .diagnostics()
+        .iter()
+        .all(|d| d.category == "missing_parameter" && d.parameter.as_deref() == Some("unused")));
+}
+
+#[test]
+fn shared_values_reject_duplicate_and_malformed_patches() {
+    for (body, category) in [
+        (r#"values "c" {}; values "c" {}"#, "duplicate"),
+        (r#"values "c" { param "x" "v"; unset "x"; }"#, "duplicate"),
+        (r#"values "c" { unset "x"; unset "x"; }"#, "duplicate"),
+        (r#"values "c""#, "shape"),
+        (r#"values "Bad" {}"#, "shape"),
+        (r#"values "c" "extra" {}"#, "shape"),
+        (r#"values "c" { param "x"; }"#, "shape"),
+        (r#"values "c" { param "x" 1; }"#, "shape"),
+        (r#"values "c" { unset "x" "v"; }"#, "shape"),
+        (r#"values "c" { param "x" "v" {}; }"#, "shape"),
+        (r#"values "c" { (typed)param "x" "v"; }"#, "shape"),
+        (r#"values "c" { param (typed)"x" "v"; }"#, "shape"),
+        (r#"values "c" { param name="x" "v"; }"#, "shape"),
+    ] {
+        let text = format!("config {{ {body}; }}");
+        let error = load(&text, None).err().unwrap();
+        assert_eq!(error.diagnostics()[0].category, category, "{text}: {error}");
+    }
+}

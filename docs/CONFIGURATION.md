@@ -1,15 +1,15 @@
 # Grove Configuration
 
 This reference describes flat commands and named command reuse with parameter
-declarations and defaults. The [modular design](specs/modular-configuration.md)
-also specifies parameter override patches, profiles, human inspection and example
+declarations, defaults and shared values. The [modular design](specs/modular-configuration.md)
+also specifies route parameter patches, profiles, human inspection and example
 delivery; those parts remain pending.
 Existing configurations require no rewrite.
 
 The generic runner captures sources in an owned `Catalog` and resolves an empty
 `Selection` into `Templates`; Grove uses the same path. Captured resolution,
 inspection and expansion do not reread files. Structured diagnostics and library
-inspection cover flat commands, named reference chains, parameter defaults and
+inspection cover flat commands, named reference chains, parameter histories and
 every contributing origin in a resolved word.
 Runtime vocabulary names beginning with `param.` are reserved;
 Grove's existing four slots are unaffected.
@@ -33,7 +33,7 @@ template. A named binding can share that template across several routes.
 
 Exactly one other source may take part: an untracked, worktree-local
 [configuration delta](#the-configuration-delta) named `.grove.kdl`, which
-replaces binding targets, route targets, or whole flat templates. Nothing else does — task
+replaces shared values, binding targets, route targets, or whole flat templates. Nothing else does — task
 files, command-line flags, and environment variables neither override nor
 supplement your configuration, and Grove never creates or edits either file. It
 cannot choose your model or approval policy for you.
@@ -124,7 +124,7 @@ enforces. A configuration declaring fewer is valid; you find out about a kind yo
 have not configured at the moment you use it.
 
 There are no implicit defaults or kind families. Named reuse is explicit;
-parameter override patches and profiles are not yet accepted.
+route parameter patches and profiles are not yet accepted.
 The disciplines behind these names are in
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
 
@@ -176,8 +176,8 @@ checks remain eager even when replaced. Failures identify their source and names
 
 A command child `param "name" "default"` declares a string default. Omitting the
 second string declares a required parameter: every admitted route must supply a
-value, even when its template does not reference that parameter. Because parameter
-patches are not implemented yet, add a default before routing such a command.
+value, even when its template does not reference that parameter. A shared value
+in either source can complete a required declaration before routing the command.
 Names follow the same grammar as command names, in a namespace local to that
 command; each name is declared once. All declarations are structurally checked,
 including those in dormant commands.
@@ -191,10 +191,33 @@ appear in the executable. A parameter named `prompt` is separate from the runtim
 slot `${prompt}`. Required values are checked only on admitted routes; an active
 binding without routes still validates its template.
 
-`values`, parameter-only routes and nonempty route blocks remain explicitly
-unsupported, as do profiles and `select` declarations. They are never silently
-ignored. Local deltas may change targets or replace whole templates, but cannot
-redeclare command parameters or assign their values.
+A `values` block changes shared parameters without copying a command. For example,
+this local delta changes every route using `agent`:
+
+```kdl
+config {
+    values "agent" { param "mode" "quick"; }
+}
+```
+
+Primary shared values override declaration defaults; local shared values override
+primary ones by parameter name. `unset "mode"` removes the shared override and
+exposes the declaration default, or a missing-value error if it has none. Empty
+strings are values, not removals. Unsetting an absent or undeclared parameter is
+legal; only surviving assignments must name declared parameters. Each document
+has at most one `values` block per command, and a block mentions each parameter
+once, whether assigning or removing it. Blocks require a command name and children;
+`param` takes a name and value, and `unset` takes a name.
+
+Every effective values target and surviving assignment validates, even without
+routes. Invalid earlier assignments can be overwritten or removed locally.
+Values alone do not activate a dormant template or authorize a kind. Inspection
+retains assignment and removal histories; a resolved parameter identifies its
+declaration and winning assignment, and a word includes all contributing origins.
+
+Parameter-only routes and nonempty route blocks remain explicitly unsupported,
+as do profiles and `select` declarations. They are never silently ignored.
+Local deltas cannot redeclare command schemas.
 
 ## The configuration delta
 

@@ -18,7 +18,7 @@
 | `source-channel` | `crates/keyed-launch/src/channel.rs` | 404 |
 | `source-run` | `crates/keyed-launch/src/run.rs` | 672 |
 | `source-conformance` | `crates/keyed-launch/src/conformance.rs` | 98 |
-| `source-named` | `crates/keyed-launch/src/templates/named.rs` | 751 |
+| `source-named` | `crates/keyed-launch/src/templates/named.rs` | 943 |
 
 <!-- source-root «source-crate-manifest» source="crates/keyed-launch/Cargo.toml" lines="1-47" -->
 <!-- insert «manifest-three-dependencies» -->
@@ -62,7 +62,7 @@
 <!-- insert «conformance» -->
 <!-- /source-root -->
 
-<!-- source-root «source-named» source="crates/keyed-launch/src/templates/named.rs" lines="1-751" -->
+<!-- source-root «source-named» source="crates/keyed-launch/src/templates/named.rs" lines="1-943" -->
 <!-- insert «named-capture» -->
 <!-- insert «named-diagnostics» -->
 <!-- insert «named-compile» -->
@@ -97,12 +97,12 @@
 | `terminal-and-spawn` | `source-run` | `nothing-else-added` | `244-510` | 267 | `resolved` |
 | `supervise-and-escalate` | `source-run` | `the-launchers-job` | `511-672` | 162 | `resolved` |
 | `conformance` | `source-conformance` | `checked-without-meaning` | `1-98` | 98 | `resolved` |
-| `named-capture` | `source-named` | `never-assembled` | `1-241` | 241 | `resolved` |
-| `named-diagnostics` | `source-named` | `never-assembled` | `242-257` | 16 | `resolved` |
-| `named-compile` | `source-named` | `words-not-shell` | `258-395` | 138 | `resolved` |
-| `named-fold` | `source-named` | `never-assembled` | `396-523` | 128 | `resolved` |
-| `named-resolve` | `source-named` | `never-assembled` | `524-717` | 194 | `resolved` |
-| `named-lookups` | `source-named` | `never-assembled` | `718-751` | 34 | `resolved` |
+| `named-capture` | `source-named` | `never-assembled` | `1-328` | 328 | `resolved` |
+| `named-diagnostics` | `source-named` | `never-assembled` | `329-344` | 16 | `resolved` |
+| `named-compile` | `source-named` | `words-not-shell` | `345-482` | 138 | `resolved` |
+| `named-fold` | `source-named` | `never-assembled` | `483-644` | 162 | `resolved` |
+| `named-resolve` | `source-named` | `never-assembled` | `645-908` | 264 | `resolved` |
+| `named-lookups` | `source-named` | `never-assembled` | `909-943` | 35 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -270,13 +270,13 @@
 | `conformance-no-keys` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `67-76` | `conformance` | `—` |
 | `conformance-values` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `77-84` | `conformance` | `—` |
 | `conformance-expands` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `85-98` | `conformance` | `—` |
-| `source-named` | `source-index` | `source-named` | `root` | `—` | `1-751` | `—` | `named-capture`, `named-diagnostics`, `named-compile`, `named-fold`, `named-resolve`, `named-lookups` |
-| `named-capture` | `two-documents` | `source-named` | `literal` | `never-assembled` | `1-241` | `source-named` | `—` |
-| `named-diagnostics` | `two-documents` | `source-named` | `literal` | `never-assembled` | `242-257` | `source-named` | `—` |
-| `named-compile` | `template-law` | `source-named` | `literal` | `words-not-shell` | `258-395` | `source-named` | `—` |
-| `named-fold` | `two-documents` | `source-named` | `literal` | `never-assembled` | `396-523` | `source-named` | `—` |
-| `named-resolve` | `two-documents` | `source-named` | `literal` | `never-assembled` | `524-717` | `source-named` | `—` |
-| `named-lookups` | `two-documents` | `source-named` | `literal` | `never-assembled` | `718-751` | `source-named` | `—` |
+| `source-named` | `source-index` | `source-named` | `root` | `—` | `1-943` | `—` | `named-capture`, `named-diagnostics`, `named-compile`, `named-fold`, `named-resolve`, `named-lookups` |
+| `named-capture` | `two-documents` | `source-named` | `literal` | `never-assembled` | `1-328` | `source-named` | `—` |
+| `named-diagnostics` | `two-documents` | `source-named` | `literal` | `never-assembled` | `329-344` | `source-named` | `—` |
+| `named-compile` | `template-law` | `source-named` | `literal` | `words-not-shell` | `345-482` | `source-named` | `—` |
+| `named-fold` | `two-documents` | `source-named` | `literal` | `never-assembled` | `483-644` | `source-named` | `—` |
+| `named-resolve` | `two-documents` | `source-named` | `literal` | `never-assembled` | `645-908` | `source-named` | `—` |
+| `named-lookups` | `two-documents` | `source-named` | `literal` | `never-assembled` | `909-943` | `source-named` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -300,7 +300,7 @@
 ## Owned source totals
 
 Every source line is credited once to its owning chapter. The 11 roots
-contain 3,399 lines, divided below by the manifest's ownership
+contain 3,591 lines, divided below by the manifest's ownership
 blocks. Templates, run and channel split across chapters; the remaining roots
 are owned whole.
 
@@ -308,7 +308,7 @@ are owned whole.
 |---|---|---:|
 | `understands-neither` | `01-orientation.md` | 292 |
 | `rules-about-names` | `02-the-names.md` | 316 |
-| `never-assembled` | `03-two-documents.md` | 936 |
+| `never-assembled` | `03-two-documents.md` | 1,128 |
 | `words-not-shell` | `04-template-law.md` | 441 |
 | `whole-word-or-nothing` | `05-to-an-argv.md` | 240 |
 | `appearance-is-the-event` | `06-the-channel.md` | 271 |
@@ -316,4 +316,4 @@ are owned whole.
 | `the-launchers-job` | `08-the-escalation.md` | 282 |
 | `checked-without-meaning` | `09-how-checked.md` | 231 |
 | `assembly` | `10-what-passes-through.md` | 0 |
-| **Total** | 11 source roots | **3,399** |
+| **Total** | 11 source roots | **3,591** |

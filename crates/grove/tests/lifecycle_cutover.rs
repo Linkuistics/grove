@@ -1294,3 +1294,80 @@ fn parameter_defaults_reach_shared_launches_and_reload_without_changing_words() 
         assert_eq!(tree_snapshot(&grove), before);
     }
 }
+
+#[test]
+fn shared_local_values_reach_launch_and_invalid_values_refuse_tree_creation() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("_BRIEF.md"), "root").unwrap();
+    fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
+    let log = fixture.path().join("argv");
+    let fake = fixture.path().join("fake command");
+    write_executable(
+        &fake,
+        "#!/bin/sh\nlog=$1\nshift\nprintf '%s\\0' \"$@\" > \"$log\"\n",
+    );
+    let command = format!(
+        "{} {} mode=${{param.mode}} ${{param.empty}} ${{prompt}}",
+        shell_quote(&fake),
+        shell_quote(&log)
+    );
+    let policy = format!(
+        r#"config {{
+        command "shared" {command:?} {{ param "mode" "default"; param "empty"; param "unused"; }}
+        values "shared" {{ param "mode" "primary"; }}
+        bind "lead" "shared"
+        route "impl" "lead"
+    }}"#
+    );
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    fs::write(config_dir.join("config.kdl"), policy).unwrap();
+    let local = worktree.join(".grove.kdl");
+    for (patch, expected) in [
+        (
+            r#"param "mode" "space 'quotes' ${prompt}; #""#,
+            "mode=space 'quotes' ${prompt}; #",
+        ),
+        (r#"unset "mode""#, "mode=default"),
+    ] {
+        fs::write(&local, format!("config {{ values \"shared\" {{ {patch}; param \"empty\" \"\"; param \"unused\" \"complete\"; }}; }}")).unwrap();
+        let output = run_grove(&home, &worktree);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let bytes = fs::read(&log).unwrap();
+        let words: Vec<_> = bytes.split(|b| *b == 0).collect();
+        assert_eq!(words.len(), 4);
+        assert_eq!(words[0], expected.as_bytes());
+        assert_eq!(words[1], b"");
+        assert!(String::from_utf8_lossy(words[2]).contains(&mandate_naming("work-k1")));
+        fs::remove_file(&log).unwrap();
+    }
+    fs::remove_dir_all(&grove).unwrap();
+    for patch in [
+        r#"param "unknown" "bad""#,
+        r#"param "mode" "bad\u{0}value""#,
+    ] {
+        fs::write(
+            &local,
+            format!("config {{ values \"shared\" {{ {patch}; }}; }}"),
+        )
+        .unwrap();
+        let output = run_grove(&home, &worktree);
+        assert!(!output.status.success());
+        assert!(
+            !grove.exists(),
+            "invalid values must refuse before scaffolding"
+        );
+        assert!(!log.exists());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("shared"));
+    }
+}

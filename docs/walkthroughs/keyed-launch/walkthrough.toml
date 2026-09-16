@@ -368,40 +368,40 @@ statement = "Inspection explains captured commands and replaced assignments thro
 [[root]]
 id = "source-named"
 path = "crates/keyed-launch/src/templates/named.rs"
-lines = 751
+lines = 943
 
 [[block]]
 id = "named-capture"
 root = "source-named"
 owner = "never-assembled"
-lines = "1-241"
+lines = "1-328"
 
 [[block]]
 id = "named-diagnostics"
 root = "source-named"
 owner = "never-assembled"
-lines = "242-257"
+lines = "329-344"
 
 [[block]]
 id = "named-compile"
 root = "source-named"
 owner = "words-not-shell"
-lines = "258-395"
+lines = "345-482"
 
 [[block]]
 id = "named-fold"
 root = "source-named"
 owner = "never-assembled"
-lines = "396-523"
+lines = "483-644"
 
 [[block]]
 id = "named-resolve"
 root = "source-named"
 owner = "never-assembled"
-lines = "524-717"
+lines = "645-908"
 
 [[block]]
 id = "named-lookups"
 root = "source-named"
 owner = "never-assembled"
-lines = "718-751"
+lines = "909-943"

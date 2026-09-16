@@ -1,4 +1,4 @@
-# parameter-overlays-k20
+# parameter-overlays-k20 — brief
 
 ## Goal
 
@@ -29,3 +29,15 @@ remain profile-composition-k9's work.
 - Docs, glossary and all affected books describe the completed wrapper/base
   contract, narrowing pending status to profiles and remaining adapter/CLI work.
   Root checks pass and the parent close audits its full original Done when.
+
+## Decomposition
+
+The existing resolver instantiates only declaration defaults. Shared value
+folding is a usable increment before route maps introduce target transitions,
+resets and primary parameter-only authorization errors. Both need public tests,
+Grove acceptance and source-exact documentation, so each is a focused session:
+
+1. `shared-command-values-k23`: shared primary/local assignments and removals,
+   final-state validation, exact expansion and provenance.
+2. `route-parameter-overrides-k24`: route exceptions and transitions, authority,
+   remaining parent acceptance and closure of both parent nodes.

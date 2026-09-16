@@ -414,12 +414,17 @@ the chosen local candidate is read alongside global policy.
 The packaged bytes must be the repository example bytes, not a second hand-kept
 copy. The example readme is self-contained when installed as
 `CONFIGURATION.examples.md`; it carries no repository-relative links or temporary
-delivery-status text. These files are design artifacts until implementation
-validates them; that delivery status belongs here, outside the packaged set.
-Tests resolve the personal sample alone and with every local sample through
-the production reader, then use fake executables to check the promised argv.
-An intentionally inactive unfinished profile is exercised both unselected
-(success) and selected (actionable error). The implementation session must also
+delivery-status text. The repository examples are validated by
+`crates/grove/tests/config_examples.rs`: the personal sample alone and with every
+local sample passes through SessionConfig and JSON inspection, then fake
+executables capture the promised argv with a fixed prompt. The tests cover both
+lead arrangements, include occurrences and replacement selection, shared effort,
+route overrides/unset and legacy literal replacement. Removing the effort
+experiment or the unset restores the documented inherited or explicit value.
+The inactive unfinished profile succeeds unselected; selecting it produces
+source-attributed diagnostics and prevents the driver from bootstrapping or
+launching, preserving any existing task tree. Installer packaging and actual
+personal-directory delivery remain pending. The implementation session must also
 deliver the tested examples to the requested personal configuration directory;
 writing the installer alone does not satisfy example delivery.
 

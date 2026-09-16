@@ -1,4 +1,4 @@
-# configuration-examples-k12
+# configuration-examples-k12 — brief
 
 
 ## Goal
@@ -87,3 +87,20 @@ No new documentation-only catch-up task should be necessary: earlier producers
 own documentation at each landing. This leaf reconciles the final feature claim
 and real delivery evidence. Driver-owned finish/teardown still belongs to the
 later finish session, not to this installer or this leaf.
+
+## Decomposition
+
+The repository examples can be verified through the existing reader, inspection
+and executable seams independently of the installer. The filesystem installer
+adds a separate command surface and failure/race contract, with source-exact book
+updates and actual personal-directory delivery. Keeping those two boundaries in
+separate sessions leaves each increment independently checkable.
+
+- `validated-configuration-examples-k34` validates the exact six KDL examples,
+  their promised argv and inspection agreement, reversible variations and
+  inactive/selected unfinished behavior. It narrows the documentation boundary
+  to installer/delivery work still pending.
+- `configuration-example-installation-k35` packages those bytes and the README,
+  implements/tests/documents the complete safe command, and performs actual
+  delivery and final root acceptance reconciliation. It owns every remaining
+  installer, CLI/help, corpus and actual-delivery criterion above.

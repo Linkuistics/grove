@@ -2,7 +2,11 @@
 
 This reference describes flat commands, named command reuse, parameters and
 ordered profile composition with workspace selection. The [modular design](specs/modular-configuration.md)
-also specifies example delivery, which remains pending.
+also specifies example delivery, which remains pending. The
+[repository examples](examples/modular-configuration/README.md) are validated
+through the production reader, JSON inspection and fake executable launches;
+`grove config examples` and installation into the personal directory are not yet
+implemented.
 `grove config show [--kind KIND] [--json]` is available now.
 Existing configurations require no rewrite.
 

@@ -274,9 +274,9 @@ in hand.
 //! [`Templates::load`] delegates to that path with an empty selection.
 //!
 //! The `config` wrapper accepts primary `command` definitions and `bind`/`route`
-//! targets and shared `values` patches in either source. Defaults yield to shared
-//! assignments; `unset` restores inheritance. Route parameter patches, profiles and
-//! selection declarations remain explicit errors. Effective bindings activate named
+//! targets and shared/route parameter patches in either source. Route overrides beat
+//! shared values and defaults; unset restores inheritance, literal replacement resets.
+//! Profiles and selections remain explicit errors. Effective bindings activate named
 //! templates; dormant definitions are not compiled. Flat templates validate eagerly.
 //! [`Templates::inspect`] explains reference chains, command words, captured origins,
 //! parameter defaults/assignments/removals, multi-origin words and non-admitted overlay

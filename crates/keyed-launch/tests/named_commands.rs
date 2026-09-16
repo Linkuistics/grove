@@ -775,3 +775,240 @@ fn shared_values_reject_duplicate_and_malformed_patches() {
         assert_eq!(error.diagnostics()[0].category, category, "{text}: {error}");
     }
 }
+
+#[test]
+fn route_specificity_unset_and_capture_preserve_exact_words() {
+    let primary = SHARED_VALUES.replace(
+        "route \"alpha\" \"lead\"",
+        "route \"alpha\" \"lead\" { param \"mode\" \"exception\"; param \"unused\" \"personal\"; }",
+    );
+    let overlay = r#"config {
+        values "shared" { param "mode" "later shared"; param "unused" "local"; }
+        route "alpha" { param "empty" "space 'quotes' ${payload}; #"; unset "unused"; unset "absent"; }
+    }"#;
+    let dir = TempDir::new().unwrap();
+    let p = dir.path().join("p.kdl");
+    let o = dir.path().join("o.kdl");
+    fs::write(&p, &primary).unwrap();
+    fs::write(&o, overlay).unwrap();
+    let catalog = Catalog::load(&p, Some(&o), vocabulary()).unwrap();
+    let convenience = Templates::load(&p, Some(&o), vocabulary()).unwrap();
+    fs::remove_file(&p).unwrap();
+    fs::remove_file(&o).unwrap();
+    let templates = catalog.resolve(&Selection::default()).unwrap();
+    drop(catalog);
+    assert_eq!(templates.inspect(), convenience.inspect());
+    for (key, expected) in [
+        (
+            "alpha",
+            [
+                "runner",
+                "mode=exception/exception",
+                "space 'quotes' ${payload}; #",
+                "runtime",
+            ],
+        ),
+        (
+            "beta",
+            ["runner", "mode=later shared/later shared", "", "runtime"],
+        ),
+    ] {
+        assert_eq!(
+            templates
+                .expand(
+                    key,
+                    &[Slot {
+                        name: "payload",
+                        value: OsStr::new("runtime")
+                    }]
+                )
+                .unwrap()
+                .words(),
+            expected
+        );
+    }
+    let view = templates.inspect();
+    let alpha = &view.commands[0];
+    let mode = alpha.parameters.iter().find(|p| p.name == "mode").unwrap();
+    assert_eq!(mode.histories.len(), 3);
+    assert_eq!(mode.origins.len(), 2);
+    assert_eq!(alpha.words[1].origins.len(), 3);
+    let origin = &view.origins[mode.origins[1]].span;
+    assert_eq!(
+        &primary[origin.start..origin.end],
+        "param \"mode\" \"exception\""
+    );
+    let unused = alpha
+        .parameters
+        .iter()
+        .find(|p| p.name == "unused")
+        .unwrap();
+    assert_eq!(unused.value, "local");
+    let absent = view
+        .histories
+        .iter()
+        .find(|h| {
+            h.setting
+                == Setting::RouteParameter {
+                    key: "alpha".into(),
+                    parameter: "absent".into(),
+                }
+        })
+        .unwrap();
+    assert_eq!(absent.assignments[0].value, AssignmentValue::Unset);
+    assert!(alpha.histories.contains(&absent.id));
+}
+
+#[test]
+fn route_switches_preserve_maps_and_literal_replacement_records_resets() {
+    let primary = r#"config {
+        command "old" "runner ${param.old} ${payload}" { param "old" "default"; }
+        command "new" "other ${param.new} ${payload}" { param "new" "default"; }
+        bind "lead" "old"
+        bind "next" "new"
+        route "alpha" "lead" { param "old" "exception"; }
+    }"#;
+    for overlay in [
+        r#"config { route "alpha" "next" { unset "old"; param "new" ""; }; }"#,
+        r#"config { bind "lead" "new"; route "alpha" { unset "old"; param "new" ""; }; }"#,
+    ] {
+        let templates = load(primary, Some(overlay)).unwrap();
+        assert_eq!(
+            templates
+                .expand(
+                    "alpha",
+                    &[Slot {
+                        name: "payload",
+                        value: OsStr::new("runtime")
+                    }]
+                )
+                .unwrap()
+                .words(),
+            ["other", "", "runtime"]
+        );
+    }
+    let error = load(primary, Some(r#"config { route "alpha" "next"; }"#))
+        .err()
+        .unwrap();
+    assert_eq!(error.diagnostics()[0].category, "unknown_parameter");
+    assert_eq!(error.diagnostics()[0].parameter.as_deref(), Some("old"));
+    let templates = load(primary, Some("alpha \"literal ${payload}\"")).unwrap();
+    let view = templates.inspect();
+    let history = view
+        .histories
+        .iter()
+        .find(|h| {
+            h.setting
+                == Setting::RouteParameter {
+                    key: "alpha".into(),
+                    parameter: "old".into(),
+                }
+        })
+        .unwrap();
+    assert_eq!(
+        history
+            .assignments
+            .iter()
+            .map(|a| a.value.clone())
+            .collect::<Vec<_>>(),
+        [
+            AssignmentValue::Set("exception".into()),
+            AssignmentValue::Reset
+        ]
+    );
+    assert!(view.commands[0].histories.contains(&history.id));
+    assert_eq!(
+        view.origins[history.assignments[1].origin].span.source.role,
+        keyed_launch::SourceRole::Overlay
+    );
+    let literal = primary.replace(
+        "route \"alpha\" \"lead\" { param \"old\" \"exception\"; }",
+        "",
+    );
+    let literal = format!("alpha \"literal ${{payload}}\"\n{literal}");
+    let templates = load(
+        &literal,
+        Some(r#"config { route "alpha" "next" { param "new" "fresh"; }; }"#),
+    )
+    .unwrap();
+    assert_eq!(templates.inspect().commands[0].parameters[0].value, "fresh");
+    let error = load(
+        &literal,
+        Some(r#"config { route "alpha" { unset "absent"; }; }"#),
+    )
+    .err()
+    .unwrap();
+    assert_eq!(error.diagnostics()[0].category, "invalid_value");
+}
+
+#[test]
+fn personal_parameter_only_routes_cannot_be_repaired_locally() {
+    let primary = "good \"runner ${payload}\"\nconfig { route \"missing\" { unset \"absent\"; }; }";
+    for overlay in [None, Some("missing \"runner ${payload}\"")] {
+        let error = load(primary, overlay).err().unwrap();
+        assert_eq!(error.diagnostics().len(), 1);
+        let diagnostic = &error.diagnostics()[0];
+        assert_eq!(diagnostic.category, "missing_target");
+        assert_eq!(diagnostic.key.as_deref(), Some("missing"));
+        let span = diagnostic.primary.as_ref().unwrap();
+        assert_eq!(span.source.role, keyed_launch::SourceRole::Primary);
+        assert!(primary[span.start..span.end].starts_with("route \"missing\""));
+    }
+    let templates = load(
+        "good \"runner ${payload}\"",
+        Some(
+            r#"config {
+        route "only-params" { param "unknown" "bad\u{0}"; }
+        route "only-target" "missing" { param "unknown" "bad\u{0}"; }
+    }"#,
+        ),
+    )
+    .unwrap();
+    assert_eq!(templates.keys(), ["good"]);
+    assert_eq!(templates.inspect().non_admitted_keys.len(), 2);
+    for key in ["only-params", "only-target"] {
+        assert!(templates.require(key).is_err());
+    }
+}
+
+#[test]
+fn route_patches_validate_structure_and_surviving_assignments() {
+    for (body, category) in [
+        (r#"route "x" { param "p" "v"; unset "p"; }"#, "duplicate"),
+        (r#"route "x" { param "p"; }"#, "shape"),
+        (r#"route "x" { unset "p" "v"; }"#, "shape"),
+        (r#"route "x" { param "Bad" "v"; }"#, "shape"),
+        (r#"route "x" { param "p" "v" {}; }"#, "shape"),
+        (r#"route "x" { (typed)unset "p"; }"#, "shape"),
+        (r#"route "x" { unset name="p"; }"#, "shape"),
+        (r#"route "x" 42"#, "shape"),
+        (r#"route "x" "b" "extra""#, "shape"),
+        (r#"route "x"; route "x" "b""#, "duplicate"),
+    ] {
+        let error = load(&format!("config {{ {body}; }}"), None).err().unwrap();
+        assert_eq!(error.diagnostics()[0].category, category, "{body}: {error}");
+    }
+    let primary = r#"config {
+        command "c" "runner ${payload}" { param "unused"; }
+        bind "b" "c"
+        route "x" "b" { param "unused" "bad\u{0}"; param "old" "obsolete"; }
+    }"#;
+    let error = load(primary, None).err().unwrap();
+    assert_eq!(
+        error
+            .diagnostics()
+            .iter()
+            .map(|d| d.category.as_str())
+            .collect::<Vec<_>>(),
+        ["invalid_value", "unknown_parameter"]
+    );
+    assert!(error
+        .diagnostics()
+        .iter()
+        .all(|d| d.key.as_deref() == Some("x") && d.primary.is_some()));
+    load(
+        primary,
+        Some(r#"config { route "x" { param "unused" "completed"; unset "old"; }; }"#),
+    )
+    .unwrap();
+}

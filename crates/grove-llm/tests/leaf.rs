@@ -656,3 +656,59 @@ fn parameterized_policy_admits_mutation_and_missing_unused_defaults_refuse_it() 
     assert!(String::from_utf8_lossy(&result.stderr).contains("unused"));
     assert_eq!(fs::read_dir(repo.path().join(".grove")).unwrap().count(), 2);
 }
+
+#[test]
+fn local_route_values_admit_mutation_but_local_targets_cannot_authorize_it() {
+    let repo = init_repo();
+    let home = TempDir::new().unwrap();
+    let config_dir = home.path().join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    fs::write(repo.path().join(".gitignore"), ".grove.kdl\n").unwrap();
+    let policy = r#"config {
+        command "runner" "runner ${prompt}" { param "unused"; }
+        bind "lead" "runner"
+        route "impl" "lead"
+    }"#;
+    let config = config_dir.join("config.kdl");
+    fs::write(&config, policy).unwrap();
+    fs::write(
+        repo.path().join(".grove.kdl"),
+        r#"config {
+        route "impl" { param "unused" "completed locally"; }
+        route "other" "lead"
+    }"#,
+    )
+    .unwrap();
+    let invoke = |slug: &str| {
+        Command::cargo_bin("grove-llm")
+            .unwrap()
+            .env("HOME", home.path())
+            .current_dir(repo.path())
+            .args(["leaf-add", ".", slug, "--kind", "impl"])
+            .output()
+            .unwrap()
+    };
+    let result = invoke("accepted");
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(repo.path().join(".grove/01-impl--accepted-k1.md").exists());
+    fs::write(
+        &config,
+        policy.replace(
+            "bind \"lead\"",
+            "route \"other\" { unset \"old\"; }; bind \"lead\"",
+        ),
+    )
+    .unwrap();
+    let result = invoke("refused");
+    assert!(!result.status.success());
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        error.contains("other") && error.contains("personal"),
+        "{error}"
+    );
+    assert_eq!(fs::read_dir(repo.path().join(".grove")).unwrap().count(), 2);
+}

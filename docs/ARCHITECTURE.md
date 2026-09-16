@@ -330,7 +330,7 @@ from both explicit documents precede template-semantic validation reports.
 `Templates::inspect` explains captured reference chains and resolution, including overwritten
 target assignments, winning word origins and non-admitted overlay keys. Its
 literal/slot words share expansion's compiled representation. Parameter defaults
-and shared values fill pre-split words and retain contributing origins and assignment/removal histories. Route parameter patches, profiles,
+and shared/route values fill pre-split words and retain contributing origins and assignment/removal/reset histories. Profiles,
 human inspection commands and Grove selection policy remain pending. Named definitions
 are primary-only; effective bindings validate their templates after local targets
 replace personal targets. Dormant definitions are not compiled; flat checks stay eager.

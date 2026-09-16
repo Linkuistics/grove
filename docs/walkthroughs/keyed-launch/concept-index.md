@@ -359,6 +359,6 @@ are explained in [The watch and the escalation](08-the-escalation.md).
 - [Named semantic refusals](03-two-documents.md#named-diagnostics)
 - [Named dollar scanning and opaque parameter fragments](04-template-law.md#named-compile)
 - [Fold targets and retain declarations](03-two-documents.md#named-fold)
-- [Shared assignments, removals and default fallback](03-two-documents.md#named-resolve)
+- [Route specificity, removals, resets and default fallback](03-two-documents.md#named-resolve)
 - [Active templates, route completeness and parameter provenance](03-two-documents.md#named-resolve)
 - [Response-local identity](03-two-documents.md#named-lookups)

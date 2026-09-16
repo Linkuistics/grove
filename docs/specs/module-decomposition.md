@@ -349,8 +349,8 @@ Templates convenience, and Catalog-based conformance are implemented for flat
 commands and parameterized wrapper commands/bindings/routes, including diagnostics from loading, resolution, require
 and expansion. Both loaders reserve the `param.` vocabulary prefix.
 Inspection/provenance is implemented through `Templates::inspect`, retaining
-reference chains, parameter defaults/shared values/removals, multi-origin words, overwritten targets and
-non-admitted overlay keys. Route parameter patches, profiles, human inspection and Grove
+reference chains, parameter defaults/shared values/route overrides/removals/resets, multi-origin words, overwritten targets and
+non-admitted overlay keys. Profiles, human inspection and Grove
 selection policy remain pending; those parts below describe the intended interface
 alongside the unchanged launch surface.
 

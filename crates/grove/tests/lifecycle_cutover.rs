@@ -1371,3 +1371,101 @@ fn shared_local_values_reach_launch_and_invalid_values_refuse_tree_creation() {
         assert!(String::from_utf8_lossy(&output.stderr).contains("shared"));
     }
 }
+
+#[test]
+fn route_overrides_reach_launch_and_missing_personal_targets_refuse_before_use() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("_BRIEF.md"), "root").unwrap();
+    fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
+    let log = fixture.path().join("argv");
+    let fake = fixture.path().join("fake command");
+    write_executable(
+        &fake,
+        "#!/bin/sh\nlog=$1\nshift\nprintf '%s\\0' \"$@\" > \"$log\"\n",
+    );
+    let command = format!(
+        "{} {} mode=${{param.mode}} ${{param.empty}} ${{prompt}}",
+        shell_quote(&fake),
+        shell_quote(&log)
+    );
+    let policy = format!(
+        r#"config {{
+        command "shared" {command:?} {{ param "mode" "default"; param "empty"; param "unused"; }}
+        values "shared" {{ param "mode" "primary"; }}
+        bind "lead" "shared"
+        route "impl" "lead" {{ param "mode" "exception"; }}
+    }}"#
+    );
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let config = config_dir.join("config.kdl");
+    fs::write(&config, &policy).unwrap();
+    let local = worktree.join(".grove.kdl");
+    for (patch, expected) in [
+        ("", "mode=exception"),
+        (
+            r#"param "mode" "space 'quotes' ${prompt}; #";"#,
+            "mode=space 'quotes' ${prompt}; #",
+        ),
+        (r#"unset "mode";"#, "mode=later shared"),
+    ] {
+        fs::write(
+            &local,
+            format!(
+                r#"config {{
+            values "shared" {{ param "mode" "later shared"; }}
+            route "impl" {{ {patch} param "empty" ""; param "unused" "complete"; }}
+        }}"#
+            ),
+        )
+        .unwrap();
+        let output = run_grove(&home, &worktree);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let bytes = fs::read(&log).unwrap();
+        let words: Vec<_> = bytes.split(|b| *b == 0).collect();
+        assert_eq!(words.len(), 4);
+        assert_eq!(words[0], expected.as_bytes());
+        assert!(words[1].is_empty());
+        assert!(String::from_utf8_lossy(words[2]).contains(&mandate_naming("work-k1")));
+        fs::remove_file(&log).unwrap();
+    }
+    // A missing target for another kind invalidates the whole policy. Even a
+    // complete local literal for that kind cannot supply personal authority.
+    fs::write(
+        &config,
+        policy.replace(
+            "bind \"lead\"",
+            "route \"missing\" { unset \"old\"; }; bind \"lead\"",
+        ),
+    )
+    .unwrap();
+    fs::write(&local, "missing \"runner ${prompt}\"\nconfig { route \"impl\" { param \"empty\" \"\"; param \"unused\" \"complete\"; }; }").unwrap();
+    let before = tree_snapshot(&grove);
+    let output = run_grove(&home, &worktree);
+    assert!(!output.status.success());
+    assert_eq!(tree_snapshot(&grove), before);
+    assert!(!log.exists());
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        error.contains("missing") && error.contains("personal"),
+        "{error}"
+    );
+    fs::remove_dir_all(&grove).unwrap();
+    let output = run_grove(&home, &worktree);
+    assert!(!output.status.success());
+    assert!(
+        !grove.exists(),
+        "missing targets must refuse before scaffolding"
+    );
+    assert!(!log.exists());
+}

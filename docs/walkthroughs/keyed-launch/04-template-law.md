@@ -970,7 +970,7 @@ Named commands use the same shell-word splitter and comment refusal as flat temp
 
 `NamedWord::instantiate` runs after route completeness has been checked. It concatenates literal fragments and opaque parameter values into one string and collects their contributing origins. For example, `mode=${param.mode}` with the value `space ${payload}` becomes one literal argument `mode=space ${payload}`; neither spaces nor slot-looking text are scanned again. An empty whole-word parameter remains an empty string. This internal representation becomes the public literal/slot words shared by inspection and launch.
 
-<!-- fragment «named-compile» owner="words-not-shell" source="crates/keyed-launch/src/templates/named.rs" lines="345-482" parent="source-named" -->
+<!-- fragment «named-compile» owner="words-not-shell" source="crates/keyed-launch/src/templates/named.rs" lines="370-507" parent="source-named" -->
 ````rust
 /// Shell-word splitting precedes named dollar scanning. Escaping a dollar must
 /// not turn escaped runtime-looking text into a slot on a second pass.

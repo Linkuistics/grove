@@ -87,3 +87,30 @@ refusals retain related declaration spans, and unknown external selections carry
 occurrence/index records without invented locations. Original source text and
 parsed declarations remain retained for `flat-provenance-k15`; inspection is
 still unexposed until that leaf implements it.
+
+## Reusable base configuration handoff
+
+`reusable-commands-k8` is complete. Catalog/Templates and Grove now accept the
+full command/bind/route/values base grammar, including route parameter-only
+patches, scope specificity, removals and literal-transition reset histories.
+Named compilation, exact native/opaque argv, structured diagnostics and captured
+inspection share one resolver. The k24 acceptance audit covers the original k8
+and k20 contracts; all principal checks and all six source-exact books pass.
+
+For `profile-composition-k9`, preserve route maps across binding switches, clear
+and explain them at literal transitions, and validate surviving names against
+the final schema. Shared assignments must not displace route exceptions. Primary
+parameter-only routes currently fail immediately because base uniqueness means
+there can be no other personal target; profiles must instead check primary target
+presence after folding all selected personal occurrences and before local patches.
+A local target never repairs missing personal authority, although local values
+can complete required parameters. Non-admitted local routes skip semantic
+reference/parameter resolution. Effective bindings and shared values still validate
+without routes; only admitted routes demand required parameters.
+
+The named fold retains one origin per declaration and separate ordered assignment
+records, allowing several reset histories to share the literal target's origin.
+Command views link removed/reset route names even when absent from the final
+schema. Profile occurrence identity must extend these base records without
+collapsing repeated applications. Profiles/selections remain explicitly refused;
+k9 owns the generic composition and the Grove declaration guard described above.

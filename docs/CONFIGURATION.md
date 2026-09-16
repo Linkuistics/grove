@@ -1,8 +1,8 @@
 # Grove Configuration
 
 This reference describes flat commands and named command reuse with parameter
-declarations, defaults and shared values. The [modular design](specs/modular-configuration.md)
-also specifies route parameter patches, profiles, human inspection and example
+declarations, defaults, shared values and route overrides. The [modular design](specs/modular-configuration.md)
+also specifies profiles, human inspection and example
 delivery; those parts remain pending.
 Existing configurations require no rewrite.
 
@@ -33,7 +33,7 @@ template. A named binding can share that template across several routes.
 
 Exactly one other source may take part: an untracked, worktree-local
 [configuration delta](#the-configuration-delta) named `.grove.kdl`, which
-replaces shared values, binding targets, route targets, or whole flat templates. Nothing else does — task
+replaces shared values, route parameters, binding targets, route targets, or whole flat templates. Nothing else does — task
 files, command-line flags, and environment variables neither override nor
 supplement your configuration, and Grove never creates or edits either file. It
 cannot choose your model or approval policy for you.
@@ -124,7 +124,7 @@ enforces. A configuration declaring fewer is valid; you find out about a kind yo
 have not configured at the moment you use it.
 
 There are no implicit defaults or kind families. Named reuse is explicit;
-route parameter patches and profiles are not yet accepted.
+profiles and selection declarations are not yet accepted.
 The disciplines behind these names are in
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
 
@@ -159,8 +159,8 @@ lowercase letters, digits and single interior dashes. Each namespace is separate
 Within a document each command, binding and route appears once. Flat keys and
 wrapper routes share the route namespace, but a flat `config "runner ${prompt}"`
 can coexist with the wrapper. Properties and type annotations are invalid.
-Commands accept `param` declarations; targeted routes may have empty blocks.
-Bindings have no block.
+Commands accept `param` declarations; routes accept `param`/`unset` patches or
+empty blocks. Bindings have no block.
 
 Named templates are shell-word split before dollar scanning. Runtime slots still
 occupy whole arguments. `$$` escapes one dollar: `$${prompt}` is literal text,
@@ -192,7 +192,7 @@ slot `${prompt}`. Required values are checked only on admitted routes; an active
 binding without routes still validates its template.
 
 A `values` block changes shared parameters without copying a command. For example,
-this local delta changes every route using `agent`:
+this local delta changes every route using `agent` except explicit route overrides:
 
 ```kdl
 config {
@@ -215,9 +215,35 @@ Values alone do not activate a dormant template or authorize a kind. Inspection
 retains assignment and removal histories; a resolved parameter identifies its
 declaration and winning assignment, and a word includes all contributing origins.
 
-Parameter-only routes and nonempty route blocks remain explicitly unsupported,
-as do profiles and `select` declarations. They are never silently ignored.
-Local deltas cannot redeclare command schemas.
+A route block supplies per-kind exceptions. This local delta changes only `impl`:
+
+```kdl
+config {
+    route "impl" { param "mode" "careful"; }
+}
+```
+
+Route values override shared values, even when a shared assignment comes later.
+`unset "mode"` in the route removes that exception, exposing the final shared
+value or declaration default. A block mentions each parameter at most once.
+A route may give its binding and parameter block together, or omit the binding
+to patch a personally targeted kind. A personal parameter-only route without a
+personal target fails the entire load, even for another requested kind; a local
+target cannot repair it. Local parameters can complete required declarations.
+Local-only routes remain non-admitted and do not resolve their references or
+parameters, so they cannot prevent a valid personal kind from running.
+
+Changing bindings preserves route exceptions, which must fit the final command's
+schema. Use `unset` to remove an old-schema parameter; absent removals are legal.
+A whole flat template replacement clears route overrides and records their resets.
+Switching a literal route to a binding starts a fresh map before applying its own
+parameters. A parameter-only patch on a route still literal at the end is an error.
+Inspection retains overwritten assignments, removals and resets, including names
+absent from the final schema. Flat entries and wrapper routes share the same
+per-document key namespace, including parameter-only patches.
+
+Profiles and `select` declarations remain explicit errors. Local deltas cannot
+redeclare command schemas.
 
 ## The configuration delta
 

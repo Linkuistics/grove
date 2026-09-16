@@ -114,3 +114,12 @@ only for admitted routes. Add assignment/removal maps and reset histories at
 that resolution boundary, preserving dormant definitions, active binding checks,
 native runtime values, and source-independent snapshots. Parameter patches and
 profiles/selections remain explicit errors at this handoff.
+
+## Parameter-overlay handoff
+
+`parameter-overlays-k20` completes shared and route parameter maps, removals,
+final-schema validation, binding preservation, literal resets and primary target
+authority. `route-parameter-overrides-k24` audits every original criterion in
+this brief and k20's brief against the public Catalog/Templates tests and Grove
+launch/mutation seams; all principal checks pass. No reusable-base work remains.
+The complete reusable-command handoff is promoted to `configuration-engine-k6`.

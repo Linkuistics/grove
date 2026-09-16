@@ -636,4 +636,10 @@ strings, exact source spans, multi-origin words and replacement histories.
 Grove's lifecycle and leaf-mutation tests then observe real fake-executable argv
 and refusal before any task-tree write; they do not need an agent harness.
 
+The route acceptance cases in `tests/named_commands.rs` exercise scope specificity,
+binding switches, literal resets, final-schema removals and personal authorization.
+They compare captured inspection with loader convenience after source removal.
+Grove’s `lifecycle_cutover` acceptance records exact child argv for local route
+patches and refuses missing personal targets before launch or tree creation.
+
 [Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md) | [Next: What passes through](10-what-passes-through.md)

@@ -9,6 +9,7 @@ use crate::ParameterView;
 
 #[derive(Default)]
 pub(super) struct Declarations {
+    pub(super) selection: Option<Selection>,
     commands: BTreeMap<String, Command>,
     bindings: BTreeMap<String, Target>,
     routes: BTreeMap<String, RoutePatch>,
@@ -113,12 +114,23 @@ pub(super) fn parse(
         for child in children.nodes() {
             let loc = location(source, child);
             let kind = child.name().value();
+            if kind == "select" {
+                parse_selection(
+                    path,
+                    source,
+                    child,
+                    role,
+                    &mut result.selection,
+                    diagnostics,
+                );
+                continue;
+            }
             if kind == "values" {
                 parse_values(path, source, child, role, &mut result.values, diagnostics);
                 continue;
             }
             if !matches!(kind, "command" | "bind" | "route") {
-                diagnostics.push(at_node(loc, format!("unsupported config node `{kind}`; profiles and selections are not yet supported")));
+                diagnostics.push(at_node(loc, format!("unsupported config node `{kind}`; profile definitions are not yet supported")));
                 continue;
             }
             let values: Option<Vec<_>> = child
@@ -202,10 +214,49 @@ pub(super) fn parse(
     }
     for diagnostic in &mut diagnostics[first_diagnostic..] {
         if diagnostic.category == "shape" {
-            diagnostic.remedy = "Use command declarations, bind/route targets and values blocks inside config; values/route children are param \"name\" \"value\" or unset \"name\". Keep definitions in primary policy; omit profiles/selections.";
+            diagnostic.remedy = "Use command declarations, bind/route targets, values blocks and at most one select list inside config; select takes only valid profile-name strings. Keep definitions in primary policy; omit profile definitions.";
         }
     }
     result
+}
+
+fn parse_selection(
+    path: &Path,
+    source: &str,
+    node: &KdlNode,
+    role: DocumentRole,
+    selection: &mut Option<Selection>,
+    diagnostics: &mut Vec<ValidationDiagnostic>,
+) {
+    let loc = location(source, node);
+    let names: Option<Vec<_>> = node
+        .entries()
+        .iter()
+        .map(|entry| entry.value().as_string())
+        .collect();
+    let Some(names) = names.filter(|names| {
+        plain(node) && node.children().is_none() && names.iter().all(|name| valid_name(name))
+    }) else {
+        diagnostics.push(at_node(loc, "select requires zero or more valid profile-name strings, without properties, types or children".into()));
+        return;
+    };
+    if let Some(previous) = selection
+        .as_ref()
+        .and_then(|selection| selection.origin.as_ref())
+    {
+        let mut earlier = source_location(source, previous.start);
+        earlier.end = previous.end;
+        duplicate("select", earlier, loc, diagnostics);
+        return;
+    }
+    *selection = Some(Selection {
+        profiles: names.into_iter().map(str::to_owned).collect(),
+        origin: Some(SourceSpan {
+            source: role.source(path),
+            start: loc.start,
+            end: loc.end,
+        }),
+    });
 }
 
 fn parse_values(

@@ -18,7 +18,7 @@
 | `source-driver` | `crates/grove-loop/src/driver.rs` | 57 |
 | `source-complete` | `crates/grove-loop/src/complete.rs` | 96 |
 | `source-driver-lease` | `crates/grove-loop/src/driver_lease.rs` | 2,079 |
-| `source-session-config` | `crates/grove-loop/src/session_config.rs` | 358 |
+| `source-session-config` | `crates/grove-loop/src/session_config.rs` | 371 |
 | `source-prompt` | `crates/grove-loop/src/prompt.rs` | 245 |
 | `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 752 |
 | `source-observation` | `crates/grove-loop/src/observation.rs` | 218 |
@@ -82,7 +82,7 @@
 <!-- insert «lease-and-epoch» -->
 <!-- insert «lease-tests» -->
 <!-- /source-root -->
-<!-- source-root «source-session-config» source="crates/grove-loop/src/session_config.rs" lines="1-358" -->
+<!-- source-root «source-session-config» source="crates/grove-loop/src/session_config.rs" lines="1-371" -->
 <!-- insert «whose-file» -->
 <!-- /source-root -->
 <!-- source-root «source-prompt» source="crates/grove-loop/src/prompt.rs" lines="1-245" -->
@@ -145,7 +145,7 @@
 | `complete-verb` | `source-complete` | `twelve-not-fourteen` | `1-96` | 96 | `resolved` |
 | `lease-and-epoch` | `source-driver-lease` | `one-per-working-tree` | `1-974` | 974 | `resolved` |
 | `lease-tests` | `source-driver-lease` | `which-calls-are-admitted` | `975-2079` | 1,105 | `resolved` |
-| `whose-file` | `source-session-config` | `whose-file-and-whether` | `1-358` | 358 | `resolved` |
+| `whose-file` | `source-session-config` | `whose-file-and-whether` | `1-371` | 371 | `resolved` |
 | `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-245` | 245 | `resolved` |
 | `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-752` | 752 | `resolved` |
 | `observation-tree` | `source-observation` | `one-spelling-of-grove` | `1-218` | 218 | `resolved` |
@@ -616,9 +616,9 @@
 | `epoch-tests-probe-releases` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2001-2042` | `lease-tests` | `—` |
 | `epoch-tests-active-no-lease` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2043-2062` | `lease-tests` | `—` |
 | `epoch-tests-malformed` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2063-2079` | `lease-tests` | `—` |
-| `source-session-config` | `source-index` | `source-session-config` | `root` | `—` | `1-358` | `—` | `whose-file` |
+| `source-session-config` | `source-index` | `source-session-config` | `root` | `—` | `1-371` | `—` | `whose-file` |
 | `config-header` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `1-17` | `whose-file` | `—` |
-| `whose-file` | `which-files` | `source-session-config` | `composite` | `whose-file-and-whether` | `1-358` | `source-session-config` | `config-header`, `config-imports`, `config-two-paths`, `config-four-slots`, `config-vocabulary`, `config-expansion-context`, `config-delta-roots`, `config-template-source`, `config-template-source-open`, `config-from-env`, `config-personal-path`, `config-template-source-load`, `config-session-config`, `config-path-and-candidates`, `config-load`, `config-read`, `config-load-for-worktree`, `config-source-and-require`, `config-expand`, `config-find-delta`, `config-refuse-tracked`, `config-delta-is-tracked` |
+| `whose-file` | `which-files` | `source-session-config` | `composite` | `whose-file-and-whether` | `1-371` | `source-session-config` | `config-header`, `config-imports`, `config-two-paths`, `config-four-slots`, `config-vocabulary`, `config-expansion-context`, `config-delta-roots`, `config-template-source`, `config-template-source-open`, `config-from-env`, `config-personal-path`, `config-template-source-load`, `config-session-config`, `config-path-and-candidates`, `config-load`, `config-read`, `config-load-for-worktree`, `config-source-and-require`, `config-expand`, `config-find-delta`, `config-refuse-tracked`, `config-delta-is-tracked` |
 | `config-imports` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `18-25` | `whose-file` | `—` |
 | `config-two-paths` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `26-30` | `whose-file` | `—` |
 | `config-four-slots` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `31-56` | `whose-file` | `—` |
@@ -633,13 +633,13 @@
 | `config-session-config` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `137-140` | `whose-file` | `—` |
 | `config-path-and-candidates` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `141-155` | `whose-file` | `—` |
 | `config-load` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `156-171` | `whose-file` | `—` |
-| `config-read` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `172-181` | `whose-file` | `—` |
-| `config-load-for-worktree` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `182-200` | `whose-file` | `—` |
-| `config-source-and-require` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `201-220` | `whose-file` | `—` |
-| `config-expand` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `221-260` | `whose-file` | `—` |
-| `config-find-delta` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `261-293` | `whose-file` | `—` |
-| `config-refuse-tracked` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `294-326` | `whose-file` | `—` |
-| `config-delta-is-tracked` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `327-358` | `whose-file` | `—` |
+| `config-read` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `172-194` | `whose-file` | `—` |
+| `config-load-for-worktree` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `195-213` | `whose-file` | `—` |
+| `config-source-and-require` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `214-233` | `whose-file` | `—` |
+| `config-expand` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `234-273` | `whose-file` | `—` |
+| `config-find-delta` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `274-306` | `whose-file` | `—` |
+| `config-refuse-tracked` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `307-339` | `whose-file` | `—` |
+| `config-delta-is-tracked` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `340-371` | `whose-file` | `—` |
 | `source-prompt` | `source-index` | `source-prompt` | `root` | `—` | `1-245` | `—` | `the-prompt-core` |
 | `core-header` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `1-41` | `the-prompt-core` | `—` |
 | `the-prompt-core` | `the-core` | `source-prompt` | `composite` | `too-late-to-say-later` | `1-245` | `source-prompt` | `core-header`, `core-imports`, `core-plugin`, `core-skill-name`, `core-load-instruction`, `core-runtime-facts`, `core-signalling-contract`, `core-mandate`, `core-compose`, `core-stated-vcs` |
@@ -802,7 +802,7 @@
 ## Owned source totals
 
 Each source line is credited once to its owning slice. The tables above record
-the roots and fragment relationships; this rollup totals 14,477 lines across
+the roots and fragment relationships; this rollup totals 14,490 lines across
 the declared corpus.
 
 | Slice | Page | Owned lines |
@@ -824,9 +824,9 @@ the declared corpus.
 | `twelve-not-fourteen` | `15-the-verbs.md` | 514 |
 | `one-per-working-tree` | `16-the-lease.md` | 1,149 |
 | `which-calls-are-admitted` | `17-the-epoch.md` | 3,824 |
-| `whose-file-and-whether` | `18-which-files.md` | 358 |
+| `whose-file-and-whether` | `18-which-files.md` | 371 |
 | `too-late-to-say-later` | `19-the-core.md` | 245 |
 | `four-things-a-runner-cannot-choose` | `20-the-loop.md` | 752 |
 | `assembly` | `21-what-could-not-move.md` | 0 |
-| **Total** | 16 source roots | **14,477** |
+| **Total** | 16 source roots | **14,490** |
 

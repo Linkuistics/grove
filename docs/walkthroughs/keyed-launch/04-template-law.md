@@ -166,7 +166,7 @@ sees a `KdlNode`. Everything below it works on a `&str`. The split matters
 because it is where the crate stops depending on its parser: one function asks
 KDL what shape the node has, and from there on the template is text.
 
-<!-- fragment «node-and-template-rules» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="670-809" parent="source-templates" -->
+<!-- fragment «node-and-template-rules» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="673-812" parent="source-templates" -->
 <!-- insert «validate-node-shape» -->
 <!-- insert «validate-node-one-argument» -->
 <!-- insert «validate-node-result» -->
@@ -179,7 +179,7 @@ KDL what shape the node has, and from there on the template is text.
 
 The first fragment takes the node's identity and its two shape rules.
 
-<!-- fragment «validate-node-shape» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="670-691" parent="node-and-template-rules" -->
+<!-- fragment «validate-node-shape» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="673-694" parent="node-and-template-rules" -->
 ````rust
 
 fn validate_node(source: &str, node: &KdlNode, slots: &[SlotSpec]) -> NodeValidation {
@@ -242,7 +242,7 @@ that thing has to be text. Those are the last two rules `validate_node` owns, an
 the second of them is the point at which the node stops being a `KdlNode` and
 becomes a `&str` for the seven template rules to work on.
 
-<!-- fragment «validate-node-one-argument» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="692-718" parent="node-and-template-rules" -->
+<!-- fragment «validate-node-one-argument» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="695-721" parent="node-and-template-rules" -->
 ````rust
 
     let positional = node
@@ -292,7 +292,7 @@ pass structural validation.
 Note what the `else` arm does *not* do: it does not return early. The vector
 built above it survives, and so does the key.
 
-<!-- fragment «validate-node-result» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="719-734" parent="node-and-template-rules" -->
+<!-- fragment «validate-node-result» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="722-737" parent="node-and-template-rules" -->
 ````rust
 
     for diagnostic in &mut diagnostics {
@@ -333,7 +333,7 @@ it. The diagnostic keeps the node span and tells the operator to remove NUL.
 This applies eagerly to both sources, even if an overlay would replace the
 invalid template; no compiled snapshot is returned.
 
-<!-- fragment «validate-template-signature» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="735-749" parent="node-and-template-rules" -->
+<!-- fragment «validate-template-signature» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="738-752" parent="node-and-template-rules" -->
 ````rust
 
 fn validate_template(
@@ -362,7 +362,7 @@ to the node's list and still return an `Option<Vec<Word>>` describing whether a
 template came out. `None` here does not mean *no diagnostic* — it means *no
 compiled template*, and the diagnostics have already been pushed.
 
-<!-- fragment «validate-template-comment-start» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="750-757" parent="node-and-template-rules" -->
+<!-- fragment «validate-template-comment-start» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="753-760" parent="node-and-template-rules" -->
 ````rust
     if contains_shell_comment_start(template) {
         diagnostics.push(at_template(
@@ -402,7 +402,7 @@ operator meant one of two things and both are quoting.
 With a comment start ruled out, the line can be split into words. This is the
 crate's only call into `shell-words`, and the only way that call can fail.
 
-<!-- fragment «validate-template-split» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="758-769" parent="node-and-template-rules" -->
+<!-- fragment «validate-template-split» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="761-772" parent="node-and-template-rules" -->
 ````rust
 
     let words = match shell_words::split(template) {
@@ -442,7 +442,7 @@ and nothing below re-reads them for meaning.
 Both rules above could refuse the template outright. Every rule below
 accumulates, and the first of them is about the first word.
 
-<!-- fragment «validate-template-word-zero» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="770-796" parent="node-and-template-rules" -->
+<!-- fragment «validate-template-word-zero» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="773-799" parent="node-and-template-rules" -->
 ````rust
 
     if words.is_empty() {
@@ -511,7 +511,7 @@ stored rather than after.
 The counts the loop collected are spent in the last nine lines of the function,
 against the vocabulary that produced their positions.
 
-<!-- fragment «validate-template-cardinality» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="797-809" parent="node-and-template-rules" -->
+<!-- fragment «validate-template-cardinality» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="800-812" parent="node-and-template-rules" -->
 ````rust
 
     for (slot, count) in slots.iter().zip(counts) {
@@ -557,7 +557,7 @@ returning the words costs nothing and keeps the two gates above as the only two.
 The chapter's second block is one enum, the scan that walks it, and the two
 functions that decide what a single word is.
 
-<!-- fragment «word-scanning» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="810-892" parent="source-templates" -->
+<!-- fragment «word-scanning» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="813-895" parent="source-templates" -->
 <!-- insert «shell-word-scan-state» -->
 <!-- insert «contains-shell-comment-start» -->
 <!-- insert «parse-template-word» -->
@@ -568,7 +568,7 @@ The enum comes first, because it is the argument. Nothing else in the crate
 mentions it; it exists so that one function's positions can be named, and the
 names are the reason that function is readable as a rule rather than as a table.
 
-<!-- fragment «shell-word-scan-state» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="810-820" parent="word-scanning" -->
+<!-- fragment «shell-word-scan-state» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="813-823" parent="word-scanning" -->
 ````rust
 
 #[derive(Clone, Copy)]
@@ -608,7 +608,7 @@ the enum exists to avoid.
 The scan is that enum walked once over the template's characters, and the comment
 above it is one of only three in the chapter's 246 lines.
 
-<!-- fragment «contains-shell-comment-start» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="821-858" parent="word-scanning" -->
+<!-- fragment «contains-shell-comment-start» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="824-861" parent="word-scanning" -->
 ````rust
 
 /// Does a `#` start a comment anywhere in this template?
@@ -698,7 +698,7 @@ mid-word `#`, expands it, and compares the four resulting arguments.
 word of resolved text and returns the `Word` it compiles to, pushing a diagnostic
 on the way when the word is a substitution that breaks one of two rules.
 
-<!-- fragment «parse-template-word» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="859-886" parent="word-scanning" -->
+<!-- fragment «parse-template-word» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="862-889" parent="word-scanning" -->
 ````rust
 
 fn parse_template_word(
@@ -755,7 +755,7 @@ are not alternatives in this function, and the reason is the one from the last
 section: a template that fails is still compiled, and compiling it is what lets
 the remaining rules — word zero, and both cardinalities — report against it.
 
-<!-- fragment «whole-substitution» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="887-892" parent="word-scanning" -->
+<!-- fragment «whole-substitution» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="890-895" parent="word-scanning" -->
 ````rust
 
 /// The slot name in `${name}`, when the word is *nothing but* that substitution.
@@ -789,7 +789,7 @@ errors use `shape`; template failures use `invalid_template`. Each report carrie
 a remedy and the node's actual byte range, while duplicates retain every other
 declaration as a related span.
 
-<!-- fragment «diagnostics» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="893-972" parent="source-templates" -->
+<!-- fragment «diagnostics» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="896-975" parent="source-templates" -->
 <!-- insert «diagnostic-constructors» -->
 <!-- insert «render-diagnostics» -->
 <!-- insert «location-rendering» -->
@@ -798,7 +798,7 @@ declaration as a related span.
 The two constructors come first, because every diagnostic in the chapter above
 was built by one of them.
 
-<!-- fragment «diagnostic-constructors» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="893-909" parent="diagnostics" -->
+<!-- fragment «diagnostic-constructors» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="896-912" parent="diagnostics" -->
 ````rust
 
 fn at_node(location: SourceLocation, message: String) -> ValidationDiagnostic {
@@ -836,7 +836,7 @@ made non-empty, and so absorbs an `Option` the compiler cannot see through. The
 `None` is unreachable — and `render_diagnostics`, two fragments below, branches on
 it anyway.
 
-<!-- fragment «render-diagnostics» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="910-954" parent="diagnostics" -->
+<!-- fragment «render-diagnostics» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="913-957" parent="diagnostics" -->
 ````rust
 
 /// Convert validator findings into ordered records. Catalog decides whether
@@ -907,7 +907,7 @@ format every terminal, editor and CI annotator already knows how to turn into a
 jump, and a reader who copies one line out of a report of nine gets a location
 that still works.
 
-<!-- fragment «location-rendering» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="955-972" parent="diagnostics" -->
+<!-- fragment «location-rendering» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="958-975" parent="diagnostics" -->
 ````rust
 
 fn format_location(path: &Path, location: SourceLocation) -> String {
@@ -970,7 +970,7 @@ Named commands use the same shell-word splitter and comment refusal as flat temp
 
 `NamedWord::instantiate` runs after route completeness has been checked. It concatenates literal fragments and opaque parameter values into one string and collects their contributing origins. For example, `mode=${param.mode}` with the value `space ${payload}` becomes one literal argument `mode=space ${payload}`; neither spaces nor slot-looking text are scanned again. An empty whole-word parameter remains an empty string. This internal representation becomes the public literal/slot words shared by inspection and launch.
 
-<!-- fragment «named-compile» owner="words-not-shell" source="crates/keyed-launch/src/templates/named.rs" lines="370-507" parent="source-named" -->
+<!-- fragment «named-compile» owner="words-not-shell" source="crates/keyed-launch/src/templates/named.rs" lines="421-558" parent="source-named" -->
 ````rust
 /// Shell-word splitting precedes named dollar scanning. Escaping a dollar must
 /// not turn escaped runtime-looking text into a slot on a second pass.

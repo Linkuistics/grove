@@ -27,7 +27,8 @@
 //! The `config` wrapper accepts primary `command` definitions and `bind`/`route`
 //! targets and shared/route parameter patches in either source. Route overrides beat
 //! shared values and defaults; unset restores inheritance, literal replacement resets.
-//! Profiles and selections remain explicit errors. Effective bindings activate named
+//! Catalog captures optional select declarations; the convenience loader ignores
+//! them. Profile definitions remain errors. Effective bindings activate named
 //! templates; dormant definitions are not compiled. Flat templates validate eagerly.
 //! [`Templates::inspect`] explains reference chains, command words, captured origins,
 //! parameter defaults/assignments/removals, multi-origin words and non-admitted overlay

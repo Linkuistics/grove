@@ -17,6 +17,106 @@ fn vocabulary() -> Vocabulary<'static> {
 }
 
 #[test]
+fn selection_declarations_are_captured_without_choosing_policy() {
+    let dir = TempDir::new().unwrap();
+    let primary = dir.path().join("personal.kdl");
+    let overlay = dir.path().join("local.kdl");
+    let text = "// λ keeps byte offsets honest\nopaque \"base ${payload}\"\nconfig { select \"daily\" \"daily\"; }\n";
+    fs::write(&primary, text).unwrap();
+    fs::write(&overlay, "config { select; }\n").unwrap();
+    let catalog = Catalog::load(&primary, Some(&overlay), vocabulary()).unwrap();
+    let declared = catalog.primary_selection().unwrap();
+    assert_eq!(declared.profiles, ["daily", "daily"]);
+    let span = declared.origin.as_ref().unwrap();
+    assert_eq!(span.source.path, primary);
+    assert_eq!(span.source.role, keyed_launch::SourceRole::Primary);
+    assert!(text[span.start..span.end].starts_with("select \"daily\" \"daily\""));
+    let empty = catalog.overlay_selection().unwrap();
+    assert!(empty.profiles.is_empty());
+    assert_eq!(empty.origin.as_ref().unwrap().source.path, overlay);
+    assert_eq!(
+        empty.origin.as_ref().unwrap().source.role,
+        keyed_launch::SourceRole::Overlay
+    );
+    let convenience = Templates::load(&primary, Some(&overlay), vocabulary()).unwrap();
+    assert_eq!(convenience.inspect().selection, Selection::default());
+    fs::remove_file(&primary).unwrap();
+    fs::remove_file(&overlay).unwrap();
+    let snapshot = catalog.resolve(empty).unwrap();
+    assert_eq!(snapshot.inspect().selection, *empty);
+    assert_eq!(snapshot.keys(), ["opaque"]);
+    assert!(conformance::check(&catalog, empty).passed());
+    let error = catalog.resolve(declared).err().unwrap();
+    assert_eq!(error.diagnostics().len(), 2);
+    for (index, diagnostic) in error.diagnostics().iter().enumerate() {
+        assert_eq!(diagnostic.category, "unknown_profile");
+        assert_eq!(diagnostic.primary.as_ref(), Some(span));
+        assert_eq!(diagnostic.occurrence_chain[0].selection_index, index);
+        assert_eq!(diagnostic.occurrence_chain[0].via.as_ref(), Some(span));
+    }
+    assert!(!conformance::check(&catalog, declared).passed());
+    let values = [Slot {
+        name: "payload",
+        value: OsStr::new("one word"),
+    }];
+    assert_eq!(
+        snapshot.expand("opaque", &values).unwrap().words(),
+        convenience.expand("opaque", &values).unwrap().words()
+    );
+}
+
+#[test]
+fn selection_shapes_are_checked_in_both_sources_even_when_not_used() {
+    let dir = TempDir::new().unwrap();
+    let primary = dir.path().join("personal.kdl");
+    let overlay = dir.path().join("local.kdl");
+    for declaration in [
+        "select 1",
+        "select true",
+        "select \"Bad\"",
+        "select \"\"",
+        "select \"trailing-\"",
+        "select \"two--dashes\"",
+        "select name=\"daily\"",
+        "(typed)select \"daily\"",
+        "select (typed)\"daily\"",
+        "select {}",
+        "select; select",
+    ] {
+        for local in [false, true] {
+            fs::write(&primary, "opaque \"base ${payload}\"\n").unwrap();
+            fs::write(&overlay, "").unwrap();
+            fs::write(
+                if local { &overlay } else { &primary },
+                format!("config {{ {declaration}; }}\n"),
+            )
+            .unwrap();
+            let error = Catalog::load(&primary, Some(&overlay), vocabulary())
+                .err()
+                .expect(declaration);
+            assert!(
+                error
+                    .diagnostics()
+                    .iter()
+                    .all(|d| d.category == "shape" || d.category == "duplicate"),
+                "{error}"
+            );
+        }
+    }
+    fs::write(
+        &primary,
+        "select \"base ${payload}\"\nprofile \"other ${payload}\"\n",
+    )
+    .unwrap();
+    let catalog = Catalog::load(&primary, None, vocabulary()).unwrap();
+    assert!(catalog.primary_selection().is_none());
+    assert_eq!(
+        catalog.resolve(&Selection::default()).unwrap().keys(),
+        ["profile", "select"]
+    );
+}
+
+#[test]
 fn snapshots_and_conformance_use_captured_inputs_after_sources_disappear() {
     let dir = TempDir::new().unwrap();
     let primary = dir.path().join("personal.kdl");

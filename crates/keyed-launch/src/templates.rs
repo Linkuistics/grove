@@ -207,16 +207,19 @@ impl Catalog {
         })
     }
 
-    /// Base-only documents contain no profile selection declaration.
+    /// Captured primary declaration; absence differs from an explicit empty list.
     #[must_use]
     pub fn primary_selection(&self) -> Option<&Selection> {
-        None
+        self.captured.primary.named.selection.as_ref()
     }
 
-    /// Base-only overlays contain no profile selection declaration.
+    /// Captured overlay declaration; choosing between sources belongs to the caller.
     #[must_use]
     pub fn overlay_selection(&self) -> Option<&Selection> {
-        None
+        self.captured
+            .overlay
+            .as_ref()
+            .and_then(|document| document.named.selection.as_ref())
     }
 
     /// Fold captured base targets with primary authority and local replacement.

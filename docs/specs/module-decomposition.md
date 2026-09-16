@@ -350,7 +350,10 @@ commands and parameterized wrapper commands/bindings/routes, including diagnosti
 and expansion. Both loaders reserve the `param.` vocabulary prefix.
 Inspection/provenance is implemented through `Templates::inspect`, retaining
 reference chains, parameter defaults/shared values/route overrides/removals/resets, multi-origin words, overwritten targets and
-non-admitted overlay keys. Profiles, human inspection and Grove
+non-admitted overlay keys. Both optional selection declarations are captured with
+their origins; the convenience loader ignores them. Grove captures Catalog after
+source admission and refuses either declaration, including an empty list, before
+resolution until its selection policy lands. Profiles, human inspection and Grove
 selection policy remain pending; those parts below describe the intended interface
 alongside the unchanged launch surface.
 

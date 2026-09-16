@@ -10,7 +10,10 @@ legacy flat commands and parameterized wrapper commands, bindings and routes.
 Parameter declarations/defaults, safe embedded substitution, multi-origin words,
 named dollar escaping and effective-reference validation are implemented.
 Shared and route values/removals fold across primary/local sources with retained
-histories, literal resets and personal target authorization. Profiles, human
+histories, literal resets and personal target authorization. Optional selection
+declarations are captured with source spans; the convenience loader ignores them
+and Grove refuses either declaration before use, including explicit empty lists.
+Profiles, human
 inspection commands, example delivery and Grove
 selection policy remain pending; the [reference](../CONFIGURATION.md) describes
 the current boundary.

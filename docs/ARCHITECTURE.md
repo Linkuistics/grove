@@ -331,7 +331,10 @@ from both explicit documents precede template-semantic validation reports.
 target assignments, winning word origins and non-admitted overlay keys. Its
 literal/slot words share expansion's compiled representation. Parameter defaults
 and shared/route values fill pre-split words and retain contributing origins and assignment/removal/reset histories. Profiles,
-human inspection commands and Grove selection policy remain pending. Named definitions
+human inspection commands and Grove selection policy remain pending. Catalog
+captures optional selection declarations; the convenience loader ignores them,
+while Grove refuses either source declaration before resolving the empty list.
+Named definitions
 are primary-only; effective bindings validate their templates after local targets
 replace personal targets. Dormant definitions are not compiled; flat checks stay eager.
 

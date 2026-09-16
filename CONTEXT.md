@@ -787,6 +787,10 @@ implemented flat and parameterized named forms are documented in
 The generic runner's **Catalog** is the captured source documents and slot
 vocabulary; **Templates** is an owned resolved command snapshot; its **Inspection** is the
 read-only explanation of captured sources, compiled words and assignment histories.
+Catalog captures an optional **Selection** declaration from each source, retaining
+the difference between absence and an empty list; callers supply the selection
+to resolve. Grove currently refuses these declarations until its selection
+policy is implemented.
 _Avoid_: "primary harness" — harness selection is a property of each session kind,
 not of the grove as a whole.
 _Avoid_: "thinking effort" — use **reasoning effort**, the launch-policy term.

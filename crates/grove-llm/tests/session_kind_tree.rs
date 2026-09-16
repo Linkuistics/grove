@@ -43,6 +43,46 @@ fn stderr(output: &std::process::Output) -> String {
 }
 
 #[test]
+fn selection_declarations_refuse_leaf_add_before_mutation() {
+    let repository = init_repo();
+    let grove = current_grove(repository.path());
+    let original = write_leaf(&grove, "01-impl--original-k1.md", "original bytes");
+    fs::write(repository.path().join(".gitignore"), ".grove.kdl\n").unwrap();
+    let home = TempDir::new().unwrap();
+    let config_dir = home.path().join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let primary = config_dir.join("config.kdl");
+    let local = repository.path().join(".grove.kdl");
+    let base = "impl \"runner ${prompt}\"\n";
+    for in_local in [false, true] {
+        for declaration in ["select", "select \"daily\""] {
+            fs::write(&primary, base).unwrap();
+            fs::write(&local, "").unwrap();
+            let source = if in_local { &local } else { &primary };
+            let prefix = if in_local { "" } else { base };
+            fs::write(source, format!("{prefix}config {{ {declaration}; }}\n")).unwrap();
+            let output = Command::cargo_bin("grove-llm")
+                .unwrap()
+                .env("HOME", home.path())
+                .current_dir(repository.path())
+                .args(["leaf-add", ".", "new-work", "--kind", "impl"])
+                .output()
+                .unwrap();
+            let error = stderr(&output);
+            assert!(!output.status.success(), "{error}");
+            assert!(
+                error.contains("profile selection is not yet supported"),
+                "{error}"
+            );
+            assert!(error.contains(source.to_str().unwrap()), "{error}");
+            assert!(output.stdout.is_empty());
+            assert_eq!(fs::read_to_string(&original).unwrap(), "original bytes");
+            assert_eq!(fs::read_dir(&grove).unwrap().count(), 2);
+        }
+    }
+}
+
+#[test]
 fn filename_kind_is_unambiguous_and_body_routing_metadata_is_ignored() {
     let repository = init_repo();
     let grove = current_grove(repository.path());

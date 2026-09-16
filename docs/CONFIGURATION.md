@@ -124,7 +124,8 @@ enforces. A configuration declaring fewer is valid; you find out about a kind yo
 have not configured at the moment you use it.
 
 There are no implicit defaults or kind families. Named reuse is explicit;
-profiles and selection declarations are not yet accepted.
+profiles are not yet accepted. Grove refuses selection declarations as described
+below, including an empty declaration.
 The disciplines behind these names are in
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
 
@@ -242,8 +243,18 @@ Inspection retains overwritten assignments, removals and resets, including names
 absent from the final schema. Flat entries and wrapper routes share the same
 per-document key namespace, including parameter-only patches.
 
-Profiles and `select` declarations remain explicit errors. Local deltas cannot
-redeclare command schemas.
+Profile definitions remain explicit errors. Local deltas cannot redeclare
+command schemas. Grove refuses a wrapper `select` declaration in either source,
+including `select` with no arguments, before tree mutation or launch. Remove the
+declaration and use base commands until Grove selection policy is available.
+
+The generic `Catalog` API captures one optional `select` per document, with its
+source span, ordered names and repeated entries intact. Its arguments are zero
+or more valid profile-name strings; properties, types and child blocks are
+invalid. Absence differs from a present empty list. Catalog never chooses policy:
+`resolve` uses only its explicit `Selection`, and `Templates::load` ignores both
+declarations and resolves an empty selection. Nonempty explicit selections still
+fail with `unknown_profile` while profile definitions remain unsupported.
 
 ## The configuration delta
 

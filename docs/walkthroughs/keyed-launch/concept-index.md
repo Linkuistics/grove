@@ -66,6 +66,7 @@
 - [Captured declarations resolve without reopening sources](03-two-documents.md#never-assembled)
 - [Two blocks that are not adjacent, and the chapter between them](03-two-documents.md#never-assembled)
 - [Catalog loading and empty-selection Templates convenience](03-two-documents.md#one-entry-point)
+- [Captured selections and the distinction between absent and empty](03-two-documents.md#one-entry-point)
 - [The three promises, and the line that enforces each](03-two-documents.md#one-entry-point)
 - [What *complete session configuration* settles, and where its lines are](03-two-documents.md#one-entry-point)
 - [Why an invalid overlay is not a fallback to the primary](03-two-documents.md#one-entry-point)

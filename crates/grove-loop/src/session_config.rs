@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use jj_workspace::Workspace;
-use keyed_launch::{Argv, Requirement, Slot, SlotRule, Templates, Vocabulary};
+use keyed_launch::{Argv, Catalog, Requirement, Selection, Slot, SlotRule, Templates, Vocabulary};
 
 const CONFIG_PATH: &str = ".config/grove/config.kdl";
 /// The configuration delta's fixed name, searched at the two roots
@@ -175,7 +175,20 @@ impl SessionConfig {
         if let Some(delta) = &delta {
             refuse_a_tracked_delta(delta)?;
         }
-        let templates = Templates::load(&path, delta.as_deref(), vocabulary())?;
+        let catalog = Catalog::load(&path, delta.as_deref(), vocabulary())?;
+        // Refuse declarations until Grove implements local/default selection policy.
+        for selection in [catalog.primary_selection(), catalog.overlay_selection()]
+            .into_iter()
+            .flatten()
+        {
+            if let Some(origin) = &selection.origin {
+                bail!(
+                    "{} (bytes {}..{}): profile selection is not yet supported by Grove; remove the select declaration, including an empty one, and use base commands until selection policy is available.",
+                    origin.source.path.display(), origin.start, origin.end
+                );
+            }
+        }
+        let templates = catalog.resolve(&Selection::default())?;
         Ok(SessionConfig { templates })
     }
 

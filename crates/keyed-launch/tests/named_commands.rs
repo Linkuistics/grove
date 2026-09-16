@@ -152,7 +152,6 @@ fn structural_errors_and_pending_syntax_are_explicit() {
         "config { values \"a\" { param \"x\" \"y\"; }; }",
         "config { route \"alpha\" { unset \"x\"; }; }",
         "config { profile \"a\" {}; }",
-        "config { select; }",
         "config { bind \"lead\" \"a\" extra=\"bad\"; }",
         "config { (typed)route \"alpha\" \"lead\"; }",
     ] {

@@ -28,7 +28,9 @@ Every transcript below is real output with the working tree rewritten to
 
 Personal policy may use flat commands or share named commands with parameter
 defaults through explicit bindings and routes. Local deltas can replace those
-targets, shared command values or route parameters. Profiles are not yet accepted; see [named command reuse](CONFIGURATION.md#named-commands-and-routes).
+targets, shared command values or route parameters. Profiles are not yet accepted.
+Grove also refuses any wrapper `select` declaration, including an empty one,
+until profile selection is available; see [named command reuse](CONFIGURATION.md#named-commands-and-routes).
 
 <a id="usage-viewing-tree"></a>
 ## Viewing a tree

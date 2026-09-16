@@ -1,4 +1,4 @@
-# profile-composition-k9
+# profile-composition-k9 — brief
 
 
 ## Goal
@@ -83,7 +83,17 @@ keep Grove selection/CLI/example delivery explicitly pending. `k10` removes the
 guard and its temporary documentation when actual selection works. Run
 common checks and close the configuration-engine brief against its Done when.
 
-## Notes
+## Decomposition
+
+- `selection-declarations-k25` captures selection declarations and lands Grove's
+  temporary guard, while profile syntax remains explicitly refused.
+- `profile-occurrences-k26` completes profile composition and the remaining
+  acceptance cases, including meaningful inactive/selected profile fixtures.
+
+The declaration/consumer boundary is independently usable through Catalog and
+keeps Grove fail-closed before profile syntax can be accepted.
+
+## Constraints carried forward
 
 Do not implement a global default-selection policy in Catalog. Do not suppress
 an active error because a particular caller will request a different key. The

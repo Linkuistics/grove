@@ -806,6 +806,15 @@ configured process remains Grove's direct foreground child.
 _Avoid_: describing a diagnostic environment override as configuration; a
 delta is the only second source, and it is still personal policy.
 
+<a id="configuration-profile"></a>
+### Configuration profile
+
+A named, reusable set of launch-policy choices in Grove's planned modular
+configuration, composable with other profiles and selectable through a
+[[Configuration delta]]. This is a Grove concept, distinct from any profile
+understood by the configured harness; the current flat configuration reader does
+not yet implement it.
+
 <a id="configuration-delta"></a>
 ### Configuration delta (`.grove.kdl`)
 

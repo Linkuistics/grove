@@ -1,20 +1,25 @@
-//! Named base commands: capture structure first, then resolve effective targets.
+//! Named commands and profiles: capture structure, expand occurrences, fold targets.
 use super::{
     at_node, contains_shell_comment_start, source_location, Assignment, AssignmentHistory,
     AssignmentValue, BTreeMap, Captured, CommandView, ConfigError, Diagnostic, DocumentRole,
     Inspection, KdlDocument, KdlNode, NonAdmittedKey, Origin, Path, Selection, Setting, SlotSpec,
     SourceLocation, SourceRole, SourceSpan, Template, ValidationDiagnostic, Word, WordView,
 };
-use crate::ParameterView;
+use crate::{Occurrence, ParameterView};
 
 #[derive(Default)]
 pub(super) struct Declarations {
     pub(super) selection: Option<Selection>,
-    pub(super) profiles: BTreeMap<String, SourceSpan>,
+    profiles: BTreeMap<String, Profile>,
     commands: BTreeMap<String, Command>,
     bindings: BTreeMap<String, Target>,
     routes: BTreeMap<String, RoutePatch>,
     values: BTreeMap<String, Values>,
+}
+
+struct Profile {
+    span: SourceSpan,
+    patch: Declarations,
 }
 
 struct RoutePatch {
@@ -37,6 +42,20 @@ struct ParameterPatch {
 struct Target {
     value: String,
     span: SourceSpan,
+    chain: Vec<Occurrence>,
+}
+
+impl Target {
+    fn applied(&self, chain: &[Occurrence]) -> Self {
+        Self {
+            chain: chain.to_vec(),
+            ..self.clone()
+        }
+    }
+
+    fn occurrence(&self) -> Option<usize> {
+        self.chain.last().map(|o| o.id)
+    }
 }
 
 struct Command {
@@ -219,6 +238,7 @@ fn parse_scope(
             continue;
         }
         let target = Target {
+            chain: Vec::new(),
             value: values.get(1).unwrap_or(&name).to_string(),
             span: SourceSpan {
                 source: role.source(path),
@@ -271,7 +291,7 @@ fn parse_profile(
     source: &str,
     node: &KdlNode,
     role: DocumentRole,
-    profiles: &mut BTreeMap<String, SourceSpan>,
+    profiles: &mut BTreeMap<String, Profile>,
     diagnostics: &mut Vec<ValidationDiagnostic>,
 ) {
     let loc = location(source, node);
@@ -299,13 +319,8 @@ fn parse_profile(
         start: loc.start,
         end: loc.end,
     };
-    if let Some(previous) = profiles.insert(name.into(), span) {
-        let mut earlier = source_location(source, previous.start);
-        earlier.end = previous.end;
-        duplicate(name, earlier, loc, diagnostics);
-    }
+    let mut patch = Declarations::default();
     if let Some(children) = node.children() {
-        // Validate without folding; the captured KDL retains the complete profile.
         parse_scope(
             ParseSource {
                 path,
@@ -314,10 +329,15 @@ fn parse_profile(
             },
             children,
             true,
-            &mut Declarations::default(),
+            &mut patch,
             &mut BTreeMap::new(),
             diagnostics,
         );
+    }
+    if let Some(previous) = profiles.insert(name.into(), Profile { span, patch }) {
+        let mut earlier = source_location(source, previous.span.start);
+        earlier.end = previous.span.end;
+        duplicate(name, earlier, loc, diagnostics);
     }
 }
 
@@ -387,6 +407,7 @@ fn parse_values(
     }
     let parameters = parse_patches(path, source, node, role, diagnostics);
     let target = Target {
+        chain: Vec::new(),
         value: name.into(),
         span: SourceSpan {
             source: role.source(path),
@@ -514,6 +535,7 @@ fn problem(category: &str, target: &Target, message: String) -> Diagnostic {
         ),
         "Correct the named command or its effective binding/route target in the reported source.",
     );
+    diagnostic.occurrence_chain.clone_from(&target.chain);
     diagnostic.primary = Some(target.span.clone());
     diagnostic.source = Some(target.span.source.clone());
     diagnostic
@@ -679,6 +701,116 @@ type Resolved = (
     Inspection,
 );
 
+fn occurrence_chain(occurrences: &[Occurrence], mut id: Option<usize>) -> Vec<Occurrence> {
+    let mut chain = Vec::new();
+    while let Some(index) = id {
+        let occurrence = &occurrences[index];
+        chain.push(occurrence.clone());
+        id = occurrence.parent;
+    }
+    chain.reverse();
+    chain
+}
+
+// Enter/exit events keep deep includes off the call stack. IDs follow discovery;
+// applications follow postorder, so every include precedes its owner's patch.
+fn expand_profiles(
+    declarations: &Declarations,
+    selection: &Selection,
+) -> Result<(Vec<Occurrence>, Vec<usize>), ConfigError> {
+    enum Visit {
+        Enter(String, Option<usize>, usize, Option<SourceSpan>),
+        Exit(usize),
+    }
+    let mut pending: Vec<_> = selection
+        .profiles
+        .iter()
+        .enumerate()
+        .rev()
+        .map(|(index, name)| Visit::Enter(name.clone(), None, index, selection.origin.clone()))
+        .collect();
+    let mut occurrences = Vec::new();
+    let mut applications = Vec::new();
+    let mut diagnostics = Vec::new();
+    while let Some(visit) = pending.pop() {
+        let Visit::Enter(profile, parent, selection_index, via) = visit else {
+            if let Visit::Exit(id) = visit {
+                applications.push(id);
+            }
+            continue;
+        };
+        let ancestors = occurrence_chain(&occurrences, parent);
+        let cycle = ancestors.iter().any(|o| o.profile == profile);
+        let id = occurrences.len();
+        occurrences.push(Occurrence {
+            id,
+            profile: profile.clone(),
+            parent,
+            selection_index,
+            via: via.clone(),
+        });
+        let definition = declarations.profiles.get(&profile);
+        if cycle || definition.is_none() {
+            let chain = occurrence_chain(&occurrences, Some(id));
+            let names = chain
+                .iter()
+                .map(|o| o.profile.as_str())
+                .collect::<Vec<_>>()
+                .join(" -> ");
+            let mut diagnostic = if cycle {
+                Diagnostic::new(
+                    "include_cycle",
+                    format!("profile include cycle: {names}"),
+                    "Remove an include edge from the reported cycle.",
+                )
+            } else {
+                Diagnostic::new(
+                    "unknown_profile",
+                    format!("unknown profile `{profile}` in {names}"),
+                    "Declare the profile in primary policy, or correct the selection/include name.",
+                )
+            };
+            diagnostic.source = via.as_ref().map(|s| s.source.clone());
+            diagnostic.primary = via;
+            diagnostic.related = chain.iter().filter_map(|o| o.via.clone()).collect();
+            diagnostic.occurrence_chain = chain;
+            diagnostics.push(diagnostic);
+            continue;
+        }
+        pending.push(Visit::Exit(id));
+        if let Some(include) = definition.and_then(|d| d.patch.selection.as_ref()) {
+            pending.extend(include.profiles.iter().rev().map(|name| {
+                Visit::Enter(
+                    name.clone(),
+                    Some(id),
+                    selection_index,
+                    include.origin.clone(),
+                )
+            }));
+        }
+    }
+    if !diagnostics.is_empty() {
+        diagnostics.sort_by(|a, b| diagnostic_order(a).cmp(&diagnostic_order(b)));
+        return Err(ConfigError::from_diagnostics(diagnostics));
+    }
+    Ok((occurrences, applications))
+}
+
+fn check_personal_targets(routes: &BTreeMap<String, Route>, diagnostics: &mut Vec<Diagnostic>) {
+    for (key, route) in routes {
+        if let Route::Missing(target) = route {
+            let mut diagnostic = problem(
+                "missing_target",
+                target,
+                format!("key `{key}` has a personal parameter patch but no personal target"),
+            );
+            diagnostic.key = Some(key.clone());
+            diagnostic.remedy = "Add an explicit target for this key in personal policy, or deselect/remove the personal parameter patch; a local target cannot authorize it.".into();
+            diagnostics.push(diagnostic);
+        }
+    }
+}
+
 pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Resolved, ConfigError> {
     let mut view = Inspection {
         sources: Vec::new(),
@@ -698,19 +830,50 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
     let mut diagnostics = Vec::new();
     let mut assignment_order = 0;
     let mut admitted = std::collections::BTreeSet::new();
-    for document in std::iter::once(&captured.primary).chain(captured.overlay.iter()) {
-        let primary = std::ptr::eq(document, &captured.primary);
+    let (occurrences, applications) = expand_profiles(&captured.primary.named, selection)?;
+    view.profile_occurrences = occurrences;
+    view.sources.push(super::Source {
+        role: SourceRole::Primary,
+        path: captured.primary.path.clone(),
+    });
+    if let Some(overlay) = &captured.overlay {
         view.sources.push(super::Source {
-            role: if primary {
-                SourceRole::Primary
-            } else {
-                SourceRole::Overlay
-            },
-            path: document.path.clone(),
+            role: SourceRole::Overlay,
+            path: overlay.path.clone(),
         });
+    }
+    let empty_templates = BTreeMap::new();
+    let layers = std::iter::once((
+        &captured.primary.named,
+        &captured.primary.templates,
+        None,
+        true,
+    ))
+    .chain(applications.iter().map(|id| {
+        let occurrence = &view.profile_occurrences[*id];
+        (
+            &captured.primary.named.profiles[&occurrence.profile].patch,
+            &empty_templates,
+            Some(*id),
+            true,
+        )
+    }))
+    .chain(
+        captured
+            .overlay
+            .iter()
+            .map(|document| (&document.named, &document.templates, None, false)),
+    )
+    .collect::<Vec<_>>();
+    for (named, literals, occurrence, primary) in layers {
+        // Personal authority is settled before any local target can repair it.
+        if !primary {
+            check_personal_targets(&routes, &mut diagnostics);
+        }
+        let chain = occurrence_chain(&view.profile_occurrences, occurrence);
         let mut declarations = Vec::new();
-        for (command, values) in &document.named.values {
-            value_targets.insert(command.clone(), values.target.clone());
+        for (command, values) in &named.values {
+            value_targets.insert(command.clone(), values.target.applied(&chain));
             declarations.push((
                 &values.target.span,
                 None,
@@ -722,6 +885,7 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                     effective.insert(
                         name.clone(),
                         Target {
+                            chain: chain.clone(),
                             value: value.clone(),
                             span: patch.span.clone(),
                         },
@@ -741,7 +905,7 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                 ));
             }
         }
-        for (name, command) in &document.named.commands {
+        for (name, command) in &named.commands {
             declarations.push((
                 &command.template.span,
                 None,
@@ -761,8 +925,8 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                 ));
             }
         }
-        for (binding, target) in &document.named.bindings {
-            bindings.insert(binding.clone(), target.clone());
+        for (binding, target) in &named.bindings {
+            bindings.insert(binding.clone(), target.applied(&chain));
             declarations.push((
                 &target.span,
                 Some(Setting::BindingTarget {
@@ -771,16 +935,27 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                 AssignmentValue::Set(target.value.clone()),
             ));
         }
-        for (key, patch) in &document.named.routes {
+        for (key, patch) in &named.routes {
             let effective = route_values.entry(key.clone()).or_default();
             if let Some(binding) = &patch.binding {
                 if matches!(routes.get(key), Some(Route::Literal(_))) {
                     effective.clear();
                     literal_patches.remove(key);
+                    for history in &view.histories {
+                        if matches!(&history.setting, Setting::RouteParameter { key: owner, .. } if owner == key)
+                        {
+                            declarations.push((
+                                &patch.declaration.span,
+                                Some(history.setting.clone()),
+                                AssignmentValue::Reset,
+                            ));
+                        }
+                    }
                 }
                 routes.insert(
                     key.clone(),
                     Route::Binding(Target {
+                        chain: chain.clone(),
                         value: binding.clone(),
                         span: patch.declaration.span.clone(),
                     }),
@@ -796,22 +971,10 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
             } else {
                 routes
                     .entry(key.clone())
-                    .or_insert_with(|| Route::Missing(patch.declaration.clone()));
+                    .or_insert_with(|| Route::Missing(patch.declaration.applied(&chain)));
                 declarations.push((&patch.declaration.span, None, AssignmentValue::Unset));
-                if primary {
-                    let mut diagnostic = problem(
-                        "missing_target",
-                        &patch.declaration,
-                        format!(
-                            "key `{key}` has a personal parameter patch but no personal target"
-                        ),
-                    );
-                    diagnostic.key = Some(key.clone());
-                    diagnostic.remedy = "Add an explicit target for this key in personal policy, or remove the personal parameter patch; a local target cannot authorize it.".into();
-                    diagnostics.push(diagnostic);
-                }
                 if matches!(routes.get(key), Some(Route::Literal(_))) {
-                    literal_patches.insert(key.clone(), patch.declaration.clone());
+                    literal_patches.insert(key.clone(), patch.declaration.applied(&chain));
                 }
             }
             for (name, parameter) in &patch.parameters {
@@ -819,6 +982,7 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                     effective.insert(
                         name.clone(),
                         Target {
+                            chain: chain.clone(),
                             value: value.clone(),
                             span: parameter.span.clone(),
                         },
@@ -838,7 +1002,7 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                 ));
             }
         }
-        for (key, template) in &document.templates {
+        for (key, template) in literals {
             route_values.remove(key);
             literal_patches.remove(key);
             for history in &view.histories {
@@ -863,14 +1027,18 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
         }
         declarations.sort_by_key(|(span, _, _)| span.start);
         for (span, setting, value) in declarations {
-            let origin = if let Some(origin) = view.origins.iter().find(|o| &o.span == span) {
+            let origin = if let Some(origin) = view
+                .origins
+                .iter()
+                .find(|o| &o.span == span && o.occurrence == occurrence)
+            {
                 origin.id
             } else {
                 let id = view.origins.len();
                 view.origins.push(Origin {
                     id,
                     span: span.clone(),
-                    occurrence: None,
+                    occurrence,
                 });
                 id
             };
@@ -892,6 +1060,9 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                 }
             }
         }
+    }
+    if captured.overlay.is_none() {
+        check_personal_targets(&routes, &mut diagnostics);
     }
     view.histories
         .sort_by(|a, b| setting_key(&a.setting).cmp(&setting_key(&b.setting)));
@@ -967,6 +1138,7 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                 compiled.insert(target.value.clone(), Some(words));
             }
             Err(mut diagnostic) => {
+                diagnostic.occurrence_chain.clone_from(&target.chain);
                 diagnostic.command = Some(target.value.clone());
                 diagnostic.binding = Some(binding.clone());
                 diagnostic.related.push(target.span.clone());
@@ -978,7 +1150,14 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
     let mut templates = BTreeMap::new();
     let mut overlay_only = BTreeMap::new();
     for (key, route) in routes {
-        let route_origin = origin_id(&view, route.span());
+        let route_origin = origin_id(
+            &view,
+            route.span(),
+            match &route {
+                Route::Binding(t) | Route::Missing(t) => t.occurrence(),
+                Route::Literal(_) => None,
+            },
+        );
         if !admitted.contains(&key) {
             overlay_only.insert(key.clone(), route.span().clone());
             view.non_admitted_keys.push(NonAdmittedKey {
@@ -1090,6 +1269,7 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                     };
                     if let Some(category) = category {
                         let target = Target {
+                            chain: Vec::new(),
                             value: String::new(),
                             span: parameter.span.clone(),
                         };
@@ -1106,6 +1286,11 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                                 }
                             ),
                         );
+                        diagnostic.occurrence_chain = if route.chain.is_empty() {
+                            binding.chain.clone()
+                        } else {
+                            route.chain.clone()
+                        };
                         diagnostic.related = vec![route.span.clone(), binding.span.clone()];
                         diagnostic.key = Some(key.clone());
                         diagnostic.binding = Some(route.value.clone());
@@ -1115,9 +1300,9 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                         diagnostics.push(diagnostic);
                         continue;
                     }
-                    let mut origins = vec![origin_id(&view, &parameter.span)];
+                    let mut origins = vec![origin_id(&view, &parameter.span, None)];
                     if let Some(assigned) = assigned {
-                        origins.push(origin_id(&view, &assigned.span));
+                        origins.push(origin_id(&view, &assigned.span, assigned.occurrence()));
                     }
                     let settings = [
                         Setting::RouteParameter {
@@ -1155,13 +1340,16 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                 let words: Vec<_> = words
                     .iter()
                     .map(|word| {
-                        word.instantiate(&parameters, origin_id(&view, &definition.template.span))
+                        word.instantiate(
+                            &parameters,
+                            origin_id(&view, &definition.template.span, None),
+                        )
                     })
                     .collect();
                 let origins = vec![
                     route_origin,
-                    origin_id(&view, &binding.span),
-                    origin_id(&view, &definition.template.span),
+                    origin_id(&view, &binding.span, binding.occurrence()),
+                    origin_id(&view, &definition.template.span, None),
                 ];
                 let mut histories = vec![
                     route_history,
@@ -1194,7 +1382,7 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                 histories.push(history);
             }
         }
-        let template_origin = origin_id(&view, &template.span);
+        let template_origin = origin_id(&view, &template.span, None);
         view.commands.push(CommandView {
             key: key.clone(),
             binding,
@@ -1244,10 +1432,10 @@ fn diagnostic_order(diagnostic: &Diagnostic) -> (u8, usize, &Option<String>) {
     )
 }
 
-fn origin_id(view: &Inspection, span: &SourceSpan) -> usize {
+fn origin_id(view: &Inspection, span: &SourceSpan, occurrence: Option<usize>) -> usize {
     view.origins
         .iter()
-        .position(|origin| &origin.span == span)
+        .position(|origin| &origin.span == span && origin.occurrence == occurrence)
         .expect("captured declaration has an origin")
 }
 

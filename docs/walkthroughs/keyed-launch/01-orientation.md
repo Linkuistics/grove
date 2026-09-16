@@ -277,8 +277,8 @@ in hand.
 //! targets and shared/route parameter patches in either source. Route overrides beat
 //! shared values and defaults; unset restores inheritance, literal replacement resets.
 //! Catalog captures optional select declarations; the convenience loader ignores
-//! them. Inactive primary profiles are structurally checked; selecting a known
-//! profile explicitly refuses until composition is available. Effective bindings activate named
+//! them. Selected profiles expand includes before their own patches, once per
+//! occurrence; inactive profiles receive structural checks only. Effective bindings activate named
 //! templates; dormant definitions are not compiled. Flat templates validate eagerly.
 //! [`Templates::inspect`] explains reference chains, command words, captured origins,
 //! parameter defaults/assignments/removals, multi-origin words and non-admitted overlay

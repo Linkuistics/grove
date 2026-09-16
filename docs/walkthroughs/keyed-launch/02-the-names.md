@@ -321,7 +321,7 @@ explicit. They are owned by the snapshot and remain available after Catalog and
 its files disappear. Chapter 3 builds target histories; chapter 5 consumes the
 same compiled words at expansion.
 
-<!-- fragment «inspection-records» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="1-106" parent="source-inspection" -->
+<!-- fragment «inspection-records» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="1-107" parent="source-inspection" -->
 <!-- insert «inspection-assignments» -->
 <!-- insert «inspection-words» -->
 <!-- insert «inspection-commands» -->
@@ -457,11 +457,12 @@ arrays within this response, while spans address the original UTF-8 source bytes
 and source paths remain native. The view carries no runtime values and grants no
 way to create an `Argv`; only validated Templates can expand one.
 
-<!-- fragment «inspection-snapshot» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="92-106" parent="inspection-records" -->
+<!-- fragment «inspection-snapshot» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="92-107" parent="inspection-records" -->
 ````rust
 /// A captured resolution's explanation, independent of later source changes.
-/// Sources, origins and assignment order follow primary then overlay source
-/// order. Commands, non-admitted keys and flat target histories follow key order.
+/// Sources follow primary then overlay order. Origins and assignments follow
+/// base, included/selected patches and overlay, in source order within each patch.
+/// Commands, non-admitted keys and flat target histories follow key order.
 /// Origin/history IDs index their respective vectors; spans address the original
 /// UTF-8 source bytes. The view is never accepted as input to expansion or launch.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -516,7 +517,7 @@ use std::sync::Arc;
 use kdl::{KdlDocument, KdlNode};
 
 use crate::argv::{Argv, Slot};
-use crate::error::{ConfigError, Diagnostic, Occurrence};
+use crate::error::{ConfigError, Diagnostic};
 use crate::inspection::{
     Assignment, AssignmentHistory, AssignmentValue, CommandView, CompiledWord, Inspection,
     NonAdmittedKey, Origin, Setting, WordView,
@@ -534,9 +535,9 @@ error records and vocabulary to the validator; no launch operation is imported.
 
 `SourceRole`, `Source` and `SourceSpan` identify an input and a byte range;
 Selection carries a profile list and an optional declaration origin. A caller's
-list normally has no origin. Flat Catalog loading returns no declarations, and
-resolution rejects a nonempty profile list while composition is pending. Known
-profiles have a definition span in the refusal; unknown names remain distinct.
+list normally has no origin. Flat Catalog loading returns no declarations.
+Resolution expands explicit selections and includes into distinct occurrences;
+unknown names and active-stack cycles retain the path that reached them.
 
 `Catalog` owns an `Arc<Captured>`. Each CapturedDocument keeps its original text,
 parsed KDL and compiled declarations, so overwritten and overlay-only commands
@@ -568,7 +569,7 @@ pub struct SourceSpan {
     pub end: usize,
 }
 
-/// Explicit profile selection. Resolution currently accepts only an empty list.
+/// Explicit profile selection, applied left to right with each include occurrence.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Selection {
     pub profiles: Vec<String>,
@@ -577,7 +578,7 @@ pub struct Selection {
 
 /// Validated input documents and vocabulary, captured once at load.
 /// Resolution never opens their paths again. Inactive profiles are structurally
-/// validated; selected profile composition is not yet supported.
+/// validated; selected occurrences compose before the local overlay.
 pub struct Catalog {
     captured: Arc<Captured>,
 }

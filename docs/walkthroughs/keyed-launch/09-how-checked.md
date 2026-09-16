@@ -642,4 +642,16 @@ They compare captured inspection with loader convenience after source removal.
 Grove’s `lifecycle_cutover` acceptance records exact child argv for local route
 patches and refuses missing personal targets before launch or tree creation.
 
+
+
+
+The public profile tests in `crates/keyed-launch/tests/profiles.rs` use arbitrary
+keys and a `payload` slot. They distinguish diamond reapplication from global
+deduplication, check occurrence-specific winning origins, and compare inspection
+words with expanded argv after removing sources and dropping Catalog. Separate
+fixtures exercise personal authority before local targets, scope specificity,
+closed cycle chains and literal-transition resets. The existing Grove adapter
+tests retain declaration refusal, including empty lists, and inactive-profile
+base launches until Grove’s selection policy is implemented.
+
 [Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md) | [Next: What passes through](10-what-passes-through.md)

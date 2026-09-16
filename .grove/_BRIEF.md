@@ -262,6 +262,27 @@ The user explicitly approved inspection reusing the existing jj trackedness
 check. It edits no configuration or working-tree files and launches no session;
 jj may snapshot metadata. This preserves the same admission decision as launch.
 
+## Generic engine handoff
+
+`selected-profile-fold-k28` closes `profile-occurrences-k26`,
+`profile-composition-k9` and `configuration-engine-k6`. The generic Catalog now
+implements the reviewed language: explicit selections expand every include and
+selected occurrence, fold personal patches before local patches, validate the
+active result globally, and retain occurrence-specific diagnostics and inspection
+histories. Captured sources, conformance and snapshots require no subsequent file
+I/O. The public profile tests include diamonds, repeated selections, specificity,
+literal resets, personal authority and a consumer with non-Grove keys/vocabulary.
+All eight principal checks and all six source-exact books pass.
+
+`workspace-configuration-k10` should replace SessionConfig's declaration guard
+with local/default/empty selection policy through this Catalog API. Generic
+`Templates::load` deliberately continues to ignore captured declarations and
+resolve an empty list. Preserve admission before use, global missing-target
+failure, local-only non-admission and the existing source protections. k11 owns
+the human/JSON inspector and k12 owns validated example delivery; neither is
+claimed by the completed engine. The current configuration reference and module
+spec distinguish these remaining consumer features from implemented composition.
+
 ## Implementation constraints carried from design
 
 - Implement the reviewed KDL grammar and parameter/reference namespaces without baking

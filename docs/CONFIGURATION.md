@@ -2,12 +2,14 @@
 
 This reference describes flat commands and named command reuse with parameter
 declarations, defaults, shared values and route overrides. The [modular design](specs/modular-configuration.md)
-also specifies profiles, human inspection and example
-delivery; those parts remain pending.
+also specifies human inspection and example delivery, which remain pending.
+The generic Catalog API supports explicit profile composition; Grove selection
+policy remains pending.
 Existing configurations require no rewrite.
 
-The generic runner captures sources in an owned `Catalog` and resolves an empty
-`Selection` into `Templates`; Grove uses the same path. Captured resolution,
+The generic runner captures sources in an owned `Catalog` and resolves an explicit
+`Selection` into `Templates`; Grove currently resolves an empty selection after
+refusing either source’s selection declaration. Captured resolution,
 inspection and expansion do not reread files. Structured diagnostics and library
 inspection cover flat commands, named reference chains, parameter histories and
 every contributing origin in a resolved word.
@@ -271,10 +273,25 @@ source span, ordered names and repeated entries intact. Its arguments are zero
 or more valid profile-name strings; properties, types and child blocks are
 invalid. Absence differs from a present empty list. Catalog never chooses policy:
 `resolve` uses only its explicit `Selection`, and `Templates::load` ignores both
-declarations and resolves an empty selection. Nonempty explicit selections still
-refuse: unknown names report `unknown_profile`; known names report `shape` with
-a composition-not-yet-supported remedy and the profile definition span. No
-profile patch is silently applied or ignored in an explicit selection.
+declarations and resolves an empty selection. Explicit selections fold the personal
+base, then each selected profile's includes left to right before its own patch,
+then the local delta. Repeated selections and diamond includes reapply every
+occurrence. Unknown selected/included names report `unknown_profile`; active-stack
+cycles report `include_cycle` with a closed chain and include spans.
+
+Later assignments replace earlier assignments within a setting. Route parameters
+remain more specific than shared command values regardless of application order.
+`unset` removes that scope's override; changing a literal route to a binding starts
+an empty route parameter map, with the reset retained in inspection. Only final
+references and surviving assignments need to resolve, so partial selected profiles
+can supply routes, bindings and values separately. Legacy flat checks stay eager.
+
+Personal targets are checked after all selected profiles and before local patches.
+A personal parameter-only route without a target fails the entire selection with
+`missing_target`, even if a local target exists. Local values can complete required
+parameters of an admitted route. Every effective binding/template and shared values
+assignment validates even without routes; required parameters are checked per
+admitted route. There is no implicit route or catch-all.
 
 ## The configuration delta
 
@@ -466,19 +483,23 @@ selection, vocabulary and runtime errors have no invented source range; runtime
 errors retain the winning template's source and key.
 
 The reader reports `source_read`, `kdl_syntax`, `shape`, `duplicate`,
-`invalid_template`, `unknown_reference`, `unknown_profile`, `unconfigured_key` and `invalid_value`.
+`invalid_template`, `unknown_reference`, `unknown_profile`, `include_cycle`,
+`missing_target`, `missing_parameter`, `unknown_parameter`, `unconfigured_key` and `invalid_value`.
 Runtime slot failures and invalid vocabulary use `invalid_value`; these names
 are consumer slots, not configuration parameters. Binding, command and parameter fields remain empty for flat declarations.
 Unknown selections carry their selection occurrence and zero-based list index. Unknown external
 profiles are named in the message and carry no source unless the caller supplies
-an origin. Human inspection commands and profile composition remain pending.
+an origin. Semantic diagnostics retain the selected occurrence/include chain.
+Human inspection commands remain pending.
 
 Library consumers can call `Templates::inspect()` to borrow an owned explanation
 of the captured resolution. Named commands include their binding and command
 names, contributing route/binding/template origins, and replaced target histories. It lists sources in primary/overlay order,
 admitted commands and non-admitted keys in name order, and each route target's
 assignment history, including the primary template replaced by an overlay.
-Assignments and origins follow source order within each document; target histories
+Assignments and origins follow application order, with source order within each
+patch. Occurrence IDs and parent links distinguish repeated applications of the
+same declaration; contributing words reference the winning occurrence. Target histories
 are listed by route key, then binding name. Origin and history IDs index the corresponding response arrays.
 Each word references the winning whole-template declaration's byte span.
 Spans address the original captured UTF-8 contents, even after a path changes or

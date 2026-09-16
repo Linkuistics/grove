@@ -90,8 +90,9 @@ pub struct NonAdmittedKey {
 }
 
 /// A captured resolution's explanation, independent of later source changes.
-/// Sources, origins and assignment order follow primary then overlay source
-/// order. Commands, non-admitted keys and flat target histories follow key order.
+/// Sources follow primary then overlay order. Origins and assignments follow
+/// base, included/selected patches and overlay, in source order within each patch.
+/// Commands, non-admitted keys and flat target histories follow key order.
 /// Origin/history IDs index their respective vectors; spans address the original
 /// UTF-8 source bytes. The view is never accepted as input to expansion or launch.
 #[derive(Clone, Debug, PartialEq, Eq)]

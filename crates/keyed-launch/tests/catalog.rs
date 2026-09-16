@@ -311,13 +311,14 @@ config {
     let selected = catalog.primary_selection().unwrap();
     let error = catalog.resolve(selected).err().unwrap();
     let diagnostic = &error.diagnostics()[0];
-    assert_eq!(diagnostic.category, "shape");
-    assert!(diagnostic
-        .message
-        .contains("profile composition is not yet supported"));
-    assert_eq!(diagnostic.primary, selected.origin);
-    assert!(text[diagnostic.related[0].start..diagnostic.related[0].end]
-        .starts_with("profile \"experiment\""));
+    assert_eq!(diagnostic.category, "unknown_profile");
+    assert_eq!(diagnostic.occurrence_chain[0].via, selected.origin);
+    let span = diagnostic.primary.as_ref().unwrap();
+    assert!(text[span.start..span.end].starts_with("include \"missing\""));
+    assert!(error
+        .diagnostics()
+        .iter()
+        .any(|d| d.category == "include_cycle"));
     assert!(!conformance::check(&catalog, selected).passed());
 }
 

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use kdl::{KdlDocument, KdlNode};
 
 use crate::argv::{Argv, Slot};
-use crate::error::{ConfigError, Diagnostic, Occurrence};
+use crate::error::{ConfigError, Diagnostic};
 use crate::inspection::{
     Assignment, AssignmentHistory, AssignmentValue, CommandView, CompiledWord, Inspection,
     NonAdmittedKey, Origin, Setting, WordView,
@@ -39,7 +39,7 @@ pub struct SourceSpan {
     pub end: usize,
 }
 
-/// Explicit profile selection. Resolution currently accepts only an empty list.
+/// Explicit profile selection, applied left to right with each include occurrence.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Selection {
     pub profiles: Vec<String>,
@@ -48,7 +48,7 @@ pub struct Selection {
 
 /// Validated input documents and vocabulary, captured once at load.
 /// Resolution never opens their paths again. Inactive profiles are structurally
-/// validated; selected profile composition is not yet supported.
+/// validated; selected occurrences compose before the local overlay.
 pub struct Catalog {
     captured: Arc<Captured>,
 }
@@ -223,33 +223,9 @@ impl Catalog {
             .and_then(|document| document.named.selection.as_ref())
     }
 
-    /// Fold captured base targets with primary authority and local replacement.
+    /// Fold base, selected profile occurrences and local patches with primary authority.
     /// Validate effective references and return an independently owned snapshot.
     pub fn resolve(&self, selection: &Selection) -> Result<Templates, ConfigError> {
-        if !selection.profiles.is_empty() {
-            let diagnostics = selection.profiles.iter().enumerate().map(|(index, profile)| {
-                let definition = self.captured.primary.named.profiles.get(profile);
-                let mut diagnostic = if let Some(definition) = definition {
-                    let mut diagnostic = Diagnostic::new("shape", format!(
-                        "profile composition is not yet supported: `{profile}` at selection index {index}"
-                    ), "Resolve with an empty selection until profile composition is available; inactive profiles may remain in primary policy.");
-                    diagnostic.related.push(definition.clone());
-                    diagnostic
-                } else {
-                    Diagnostic::new("unknown_profile", format!(
-                        "unknown profile `{profile}` at selection index {index}"
-                    ), "Use a declared profile name; resolution currently requires an empty selection until profile composition is available.")
-                };
-                diagnostic.primary.clone_from(&selection.origin);
-                diagnostic.source = selection.origin.as_ref().map(|span| span.source.clone());
-                diagnostic.occurrence_chain.push(Occurrence {
-                    id: index, profile: profile.clone(), parent: None,
-                    selection_index: index, via: selection.origin.clone(),
-                });
-                diagnostic
-            }).collect();
-            return Err(ConfigError::from_diagnostics(diagnostics));
-        }
         let (templates, overlay_only, inspection) = named::resolve(&self.captured, selection)?;
 
         Ok(Templates {

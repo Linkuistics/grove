@@ -330,9 +330,11 @@ from both explicit documents precede template-semantic validation reports.
 `Templates::inspect` explains captured reference chains and resolution, including overwritten
 target assignments, winning word origins and non-admitted overlay keys. Its
 literal/slot words share expansion's compiled representation. Parameter defaults
-and shared/route values fill pre-split words and retain contributing origins and assignment/removal/reset histories. Inactive personal profiles are structurally checked and leave base resolution
-unchanged; explicit profile composition,
-human inspection commands and Grove selection policy remain pending. Catalog
+and shared/route values fill pre-split words and retain contributing origins and
+assignment/removal/reset histories. Explicit generic selections expand includes
+before each profile patch, repeating every occurrence and checking personal target
+authority before local patches. Inactive profiles receive structural checks only.
+Human inspection commands and Grove selection policy remain pending. Catalog
 captures optional selection declarations; the convenience loader ignores them,
 while Grove refuses either source declaration before resolving the empty list.
 Named definitions

@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.5.0
+
 - `grove` / `grove-design`: choose diagram notation and renderer by the design
   question and abstraction level, with guidance for C4, UML, D2 and Mermaid.
   Support exported SVG alongside Mermaid in one visual document, including

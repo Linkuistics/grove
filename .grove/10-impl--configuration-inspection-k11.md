@@ -64,6 +64,14 @@ books and manifests if adapter exports/errors change. Remove inspection-pending
 notices once true; examples remain delivery-pending. Keep the generic and Grove
 specs/ADRs/glossary coherent and run the root brief's common checks.
 
+In this same leaf, extend `docs/specs/user-guide-coverage.md` with inventory
+rows for the working `config`/`config show` surface, options, streams and exit
+codes. Supply their `docs/USAGE.md` anchors and update
+`crates/grove/tests/user_guide_coverage.rs` as required to enforce those rows.
+Update the CLI subcommand-surface assertions to the delivered help. The guide,
+its coverage inventory and the binary must agree; no future examples row or
+placeholder command is required before `k12`.
+
 ## Notes
 
 `configuration-examples-k12` adds the second config subcommand. This leaf need

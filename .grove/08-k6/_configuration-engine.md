@@ -5,7 +5,7 @@
 
 Deliver the generic modular configuration engine through Catalog, Templates,
 structured inspection and diagnostics, preserving validated Argv construction
-and the existing flat Grove consumer throughout.
+and legacy Grove behavior throughout, with explicit interim language boundaries.
 
 
 
@@ -30,24 +30,30 @@ the consumer.
   conformance accepts Catalog plus Selection, reports semantic failures and
   rejects vacuous checks. A non-Grove consumer proves there is no hidden Grove
   vocabulary, key registry, source discovery or default-selection policy.
-- The existing Grove adapter and launch tests remain green before its later
-  migration. All affected source-exact books and principal checks pass.
+- Grove uses wrapper base commands after `reusable-commands-k8`. Once profiles
+  parse, `profile-composition-k9` guards the adapter against silently dropping
+  either source's selection declaration. No declaration means empty selection;
+  a present declaration refuses until `workspace-configuration-k10` implements
+  the policy. Existing launch tests and all affected books/checks remain green.
 
 ## Decomposition
 
-1. Captured configuration: the Catalog/Selection and output seams work for flat
-   policy, with source snapshots, legacy inspection and diagnostic records.
-2. Reusable commands: base command definitions, bindings and per-key parameters
+1. `captured-configuration-k7`: Catalog/Selection, source snapshots, structured
+   diagnostics and conformance work for flat policy, without stub inspection.
+2. `flat-provenance-k15`: flat inspection and provenance explain the captured
+   commands and agree with expansion after source changes and Catalog disposal.
+3. Reusable commands: base command definitions, bindings and per-key parameters
    produce complete inspectable argv, including explicit local overrides.
-3. Profile composition: the full language adds selected occurrences, include
-   order, selection declarations and active-only semantic validation.
+4. Profile composition: the full generic language adds selected occurrences,
+   include order, declarations and active-only validation; Grove explicitly
+   refuses declarations until its selection policy lands.
 
 Each child extends a usable public configuration API with behavior observable
 without its successor. Keep unsupported new forms explicitly rejected until
 their owning child lands; do not accept and silently ignore unfinished syntax.
 Do not expose stubbed resolution or inspection methods. In-progress notices in
-the specs and user reference must distinguish the delivered generic subset from
-Grove's still-flat adapter, and narrow as each child lands.
+the specs and user reference must describe both the delivered generic subset and
+Grove's actual accepted/refused forms, and narrow as each child lands.
 
 ## Pointers
 
@@ -59,9 +65,14 @@ Grove's still-flat adapter, and narrow as each child lands.
 - Book ownership: `docs/walkthroughs/keyed-launch/`, plus any consumer source
   changed while migrating a public signature. Discover affected corpora from
   manifests, including new modules, and validate final reconstruction.
+  Any `[[corpus.add]]` or `[[corpus.exclude]]` change also updates the matching
+  exception inventory in `docs/specs/walkthrough-books.md` and passes the
+  repository inventory test. New inline test files do not earn an exclusion
+  merely by appearing in a manifest; production modules remain in the corpus.
 
 ## Notes
 
 This is one generic-library increment within the complete feature tree. Do not
 move Grove selection policy into the runner to make a test easier. The later
-workspace leaf owns the adapter cutover and live-loop acceptance.
+workspace leaf replaces the temporary declaration guard with selection policy
+and owns the complete live-loop acceptance.

@@ -69,10 +69,17 @@ meta-grove signal guard.
 
 Update `docs/CONFIGURATION.md`, `docs/USAGE.md`, the modular spec's delivery status,
 sample instructions where needed and all affected crate/source-exact books.
+Extend `docs/specs/user-guide-coverage.md` for `config examples`, its invocation,
+destinations, conflicts/partial failures and exit codes, with matching
+`docs/USAGE.md` anchors and coverage-test updates in
+`crates/grove/tests/user_guide_coverage.rs` as required. Update CLI surface/help
+assertions for the newly working command in this leaf.
 Ensure installed instructions contain no repository-relative links or transient
 status text. Discover new modules through manifests rather than extending only
-a remembered file list. Run `bash scripts/check.sh` with final source/books;
-the complete feature must finish with all principal checks green.
+a remembered file list, and pair any corpus exception with its
+`docs/specs/walkthrough-books.md` inventory row. Run `bash scripts/check.sh`
+with final source/books; the complete feature must finish with all principal
+checks green.
 
 ## Notes
 

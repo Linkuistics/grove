@@ -144,19 +144,23 @@ is which executable and exact arguments Grove launches.
   review `modular-configuration-k13` precedes the implementation work below;
   any review integration must also precede the first implementation entry.
 - `configuration-engine-k6` delivers the generic Catalog/Templates increment:
-  captured legacy configuration (`captured-configuration-k7`), reusable base
+  captured legacy configuration (`captured-configuration-k7`), flat inspection
+  and provenance (`flat-provenance-k15`), reusable base
   commands (`reusable-commands-k8`), then selected profile composition
-  (`profile-composition-k9`). Each child supplies working public behavior and
-  retains the existing Grove caller until its migration.
+  (`profile-composition-k9`). Each child supplies working public behavior.
+  Grove gains wrapper base behavior in `k8`; `k9` captures Catalog at its adapter
+  and temporarily refuses either source's selection declaration rather than
+  silently resolving the base. Without declarations it resolves an empty list.
 - `workspace-configuration-k10` makes Grove selection, admission, tree mutation
-  and launches use the resolver, with isolation and next-session reload.
+  and launches use selected profiles, replacing `k9`'s declaration guard with
+  local/default/empty selection policy, with isolation and next-session reload.
 - `configuration-inspection-k11` adds human/JSON inspection of that same result.
 - `configuration-examples-k12` validates and packages the repository examples,
   adds safe installation, and performs actual personal-directory delivery.
 
 These are dependency-ordered working increments inside the approved complete
 feature scope. The generic engine is useful through its public API before the
-Grove adapter switches; Grove launches work before the inspection command; and
+Grove selection policy lands; Grove launches work before the inspection command;
 inspection works before example installation. Later work must not be needed to
 repair a predecessor's checks or source-exact documentation. The planning leaf's
 running log records why the complete root contract remains in this grove.
@@ -177,6 +181,15 @@ indices, concept rows, root lengths and corpus inventory where required, and
 run final book validation in the same task. New production modules are included
 by recursive corpus rules; a new file does not escape this obligation. Discover
 the complete affected set instead of assuming the named book is the only one.
+Any added/changed `[[corpus.add]]` or `[[corpus.exclude]]` entry also requires
+its matching exception inventory row in `docs/specs/walkthrough-books.md` and
+the repository corpus-exception check. This includes new inline test files;
+production modules stay inside the recursive corpus.
+
+Each human-command producer updates `docs/specs/user-guide-coverage.md` in the
+same leaf that changes help, with matching `docs/USAGE.md` anchors, coverage-test
+updates and CLI surface assertions. `configuration-inspection-k11` owns
+`config show`; `configuration-examples-k12` owns `config examples`.
 
 Run focused public-seam acceptance as appropriate, then `bash scripts/check.sh`
 before committing each implementation task. It is the principal check list,
@@ -193,11 +206,11 @@ each named leaf must carry its part, not assume another owner tested it.
 
 | Spec acceptance case | Implementation/testing owner and observation |
 |---|---|
-| Shared command | `reusable-commands-k8`: public expansion changes all shared users while preserving explicit route overrides |
+| Shared command | `reusable-commands-k8`: public expansion changes all shared users while preserving explicit route overrides; Grove wrapper-base/local-override launch and mutation acceptance |
 | Lead arrangements | `profile-composition-k9`: unchanged route map reaches swapped bindings; `workspace-configuration-k10`: opposite launches and workspace isolation |
 | Small experiment | `profile-composition-k9`: add/remove profile changes embedded parameter contents with stable word count; `workspace-configuration-k10`: exact launched argv |
 | Ordering | `profile-composition-k9`: within-scope last write, cross-scope specificity, includes before own patch, repeats/diamonds, full cycle chain |
-| Selection | `profile-composition-k9`: declaration capture and explicit selection; `workspace-configuration-k10`: absent/replacement/empty local policy with global definitions |
+| Selection | `profile-composition-k9`: declaration capture and explicit generic selection, plus Grove refusal of any declaration before mutation/launch while policy is pending; `workspace-configuration-k10`: replace guard with absent/replacement/empty local policy using global definitions |
 | Source discovery | `workspace-configuration-k10`: worktree/repository precedence, tracked/unreadable/unprobeable refusal without fallback; `configuration-inspection-k11`: same admission |
 | Inactive work | `profile-composition-k9`: inactive success versus surviving selected errors; `configuration-examples-k12`: packaged unfinished profile and no launch on failure |
 | Partial building blocks | `profile-composition-k9`: split routes/bindings/values and local completion; `workspace-configuration-k10`: production adapter uses the result |
@@ -206,14 +219,15 @@ each named leaf must carry its part, not assume another owner tested it.
 | Local authorization | `reusable-commands-k8`: local-only non-admission; `profile-composition-k9`: inactive versus selected personal target; `workspace-configuration-k10`: refusal before use |
 | Legacy compatibility | `captured-configuration-k7`: unchanged flat argv and eager checks; `reusable-commands-k8` and `profile-composition-k9`: shape-disambiguated grammar words, mixed forms and overrides; `workspace-configuration-k10`: existing launch fixtures |
 | Parameter safety | `reusable-commands-k8`: exact words for adversarial strings, empty values, NUL rejection, native runtime values and named/legacy scanner differences; `workspace-configuration-k10`: fake executable receives those boundaries |
-| Provenance | `captured-configuration-k7`: captured legacy source/history; `reusable-commands-k8`: multi-origin words, winners, removals/resets; `profile-composition-k9`: repeated occurrence histories; `configuration-inspection-k11`: encoded/displayed records |
+| Provenance | `captured-configuration-k7`: capture original sources/declarations; `flat-provenance-k15`: flat histories, origins and inspection/expansion equality after source removal; `reusable-commands-k8`: multi-origin words, winners, removals/resets; `profile-composition-k9`: repeated occurrence histories; `configuration-inspection-k11`: encoded/displayed records |
 | Inspection | `configuration-inspection-k11`: shared compiled words equal captured argv with fixed inputs/context, full validation, read-only bytes, no launch/lease/epoch dependence, JSON and usage contract |
 | Reload | `workspace-configuration-k10`: edits change the next child and preserve the running child |
 | Delivery | `configuration-examples-k12`: all exact repository examples through the reader and fake launch, safe installer success/conflict/failure/races, actual personal-directory files and preserved active policy |
 
 Additional interface obligations have explicit owners: the generic non-Grove
 consumer and captured-source independence start in `captured-configuration-k7`
-and are extended through `profile-composition-k9`; Catalog/Selection conformance
+and gain inspection equality in `flat-provenance-k15`, then are extended through
+`profile-composition-k9`; Catalog/Selection conformance
 migrates in the first child and tests modular resolution in the last. CLI help,
 streams, exit codes, native path encoding and stale-epoch independence belong
 to the two human-command leaves. Complete example delivery remains root work

@@ -11,10 +11,11 @@ isolated workspace arrangements and reload on the next session.
 
 ## Context
 
-Depends on completed `configuration-engine-k6`. SessionConfig currently admits
-at most one local candidate before calling Templates::load; migrate it to
-Catalog and choose overlay selection, then primary selection, then an empty
-list. TemplateSource remains a source, not a cached resolved snapshot.
+Depends on completed `configuration-engine-k6`. SessionConfig now admits at most
+one local candidate, captures Catalog and refuses any selection declaration as
+an explicit interim guard. Remove that guard and choose overlay selection, then
+primary selection, then an empty list, preserving declaration origins.
+TemplateSource remains a source, not a cached resolved snapshot.
 
 Keep discovery/trackedness in Grove and the existing jj-workspace seam. The
 generic runner must not learn Grove paths, session kinds or the default-list
@@ -27,6 +28,8 @@ structured result/error surface.
   replaces the default list, including explicit empty selection; absent local
   selection inherits it. Direct local values apply last and may complete
   parameters on a personally targeted kind.
+  Replace `k9`'s guard assertions with successful selection cases through the
+  same mutation and launch seams; active errors must still refuse before either.
 - The worktree's candidate wins; only positive absence permits repository
   fallback. Tracked, unreadable, unparseable, structurally invalid, actively
   invalid or unprobeable chosen candidates refuse with source-attributed
@@ -58,10 +61,11 @@ executables. Test both the pre-transition and pre-launch error boundaries;
 observe no partial tree mutation or accidental fallback. Reuse existing jj
 fixtures and loop seams instead of inventing a parallel driver.
 
-Update the delivered configuration grammar and selection/reload behavior in
+Extend the delivered base grammar reference with selection/reload behavior in
 `docs/CONFIGURATION.md`, relevant usage/architecture prose, public crate docs,
 specs/ADRs/glossary and release-facing descriptions. Clearly leave the pending
 human CLI/example installation surfaces marked pending until their leaves land.
+Remove every temporary selection-refusal notice introduced by `k9`.
 Update the grove-loop source-exact book, especially configuration discovery and
 driver/epoch explanations, plus any other manifest-covered source touched.
 Run the root brief's common checks.
@@ -72,3 +76,9 @@ The binary running the current Grove loop does not acquire edited Rust behavior
 until rebuilt and installed. Acceptance tests must execute the new build, using
 the repository's cargo signal guard for fake children; actual Grove tree verbs
 in this task still use `grove-llm` directly.
+
+The earlier engine leaves own their delivered grammar documentation. Keep this
+leaf focused on the adapter policy, structured error mapping and composed Grove
+observations. If those exceed one session, decompose at a usable selection/error
+adapter with focused mutation/launch acceptance, followed by the broader
+isolation/reload scenarios; each child owns its touched books and common checks.

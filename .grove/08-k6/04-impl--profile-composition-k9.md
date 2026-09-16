@@ -12,10 +12,11 @@ experiments beside a working selection.
 
 ## Context
 
-Build on `reusable-commands-k8` and finish the complete Catalog contract. Grove
-has not yet switched its adapter; the next root leaf owns choosing local versus
-personal defaults. Catalog exposes those declarations and obeys only the
-Selection the consumer supplies.
+Build on `reusable-commands-k8` and finish the complete Catalog contract. The
+next root leaf owns choosing local versus personal defaults. Catalog exposes
+those declarations and obeys only the Selection the consumer supplies. This
+leaf also guards Grove's interim adapter so accepting the grammar cannot make
+a declared selection disappear through the empty-selection convenience.
 
 ## Done when
 
@@ -50,6 +51,18 @@ Selection the consumer supplies.
   Catalog/Selection, reports active failures and empty admitted sets, and never
   rereads edited source files. A non-Grove test exercises profiles with its own
   key/slot vocabulary and explicitly selected policy.
+- At the Grove SessionConfig seam, replace convenience loading with Catalog
+  capture after the existing source admission. Before resolution, refuse if
+  either source has a selection declaration, including an explicit empty one,
+  with that declaration's source and a clear selection-not-yet-supported remedy.
+  With neither declaration, resolve an explicit empty list; inactive profile
+  definitions may coexist with valid base commands. Never change the generic
+  convenience contract or add another parser to implement this temporary guard.
+- Grove regression cases use valid base routes plus personal and local
+  declarations whose selection would change argv. Through both mutating verbs
+  and launch, each refuses before tree mutation or child spawn, including empty
+  declarations. A no-declaration file with inactive profiles still launches its
+  base command. Keep all existing source-discovery protections in force.
 
 ## Verification and documentation
 
@@ -62,8 +75,12 @@ through Catalog where useful, while leaving actual packaging/delivery ownership
 with `configuration-examples-k12`.
 
 Finish the generic engine's source-exact book, crate docs and module-interface
-documentation. Remove pending-generic-engine notices once true; keep the Grove
-adapter/CLI/example-delivery boundary explicit until those leaves land. Run
+documentation, plus the grove-loop book and any other corpus changed by the
+adapter guard. Update `docs/CONFIGURATION.md`, usage and glossary to distinguish
+generic explicit selection from Grove's temporary declaration refusal and
+no-selection base behavior. Remove pending-generic-engine notices once true;
+keep Grove selection/CLI/example delivery explicitly pending. `k10` removes the
+guard and its temporary documentation when actual selection works. Run
 common checks and close the configuration-engine brief against its Done when.
 
 ## Notes

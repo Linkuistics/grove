@@ -12,11 +12,13 @@ Templates, including useful inspection and errors.
 
 ## Context
 
-Build on `captured-configuration-k7`. Implement command definitions and the
+Build on `flat-provenance-k15`. Implement command definitions and the
 wrapper's base `values`, `bind` and `route` patches under the reviewed grammar;
 profile declarations, selection declarations and include traversal belong to
 `profile-composition-k9`. Keep not-yet-supported forms explicit errors, never
 silently accepted configuration. Legacy flat names remain shape-disambiguated.
+Grove still calls `Templates::load`, so wrapper base patches become usable
+through SessionConfig as soon as this leaf lands. Own that delivered behavior.
 
 ## Done when
 
@@ -51,6 +53,10 @@ silently accepted configuration. Legacy flat names remain shape-disambiguated.
   Active diagnostics aggregate deterministically with related spans and names.
   `Templates::load` is equivalent to empty-selection Catalog resolution for
   wrapper base patches and vocabulary errors as well as flat files.
+- Grove's existing SessionConfig and composed launch/mutation seams use wrapper
+  base routes and local parameter overrides correctly. A fake executable sees
+  the exact resolved argv; invalid base policy refuses before mutation/launch.
+  Profile and selection declarations still fail explicitly at this increment.
 
 ## Verification and documentation
 
@@ -59,9 +65,12 @@ reuse, per-route exceptions, literal transitions, missing targets and exact argv
 as complete user cases. Retain conformance and legacy regression coverage.
 Update the keyed-launch book and crate documentation alongside implementation,
 including all newly introduced modules and changed manifest bytes. Narrow the
-spec's pending status to profiles and Grove integration as appropriate; the
-user-facing Grove reference must not advertise a selection policy that has not
-landed. Run the root brief's common checks.
+spec's pending status to profiles and the remaining Grove adapter/CLI work.
+Update `docs/CONFIGURATION.md`, relevant usage/architecture prose and the glossary
+to document the wrapper base grammar Grove now accepts, its local overrides and
+its explicit refusal of profiles/selections. Update affected consumer books if
+their sources change. Do not postpone delivered Grove documentation to `k10` or
+advertise selection policy yet. Run the root brief's common checks.
 
 ## Notes
 

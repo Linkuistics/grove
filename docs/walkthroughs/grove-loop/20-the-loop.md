@@ -814,7 +814,7 @@ guarding — a lease revalidation and a configuration load, immediately before
 
 <!-- fragment «loop-drive-selection» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="244-261" parent="loop-driver" -->
 ````rust
-        crate::driver::transition_to_current(worktree)?;
+        crate::driver::transition_to_current(worktree, &pre_transition_config)?;
         let selected = match picked(worktree)? {
             Sought::Match(selection) => selection,
             Sought::Nothing => {
@@ -851,10 +851,13 @@ the walk between them. They are two reads for two reasons:
 
 | | Bound to | Read *before* | Asked for |
 |---:|---|---|---|
-| 1 | `pre_transition_config` | `transition_to_current` | whether a `finish` template exists at all |
+| 1 | `pre_transition_config` | `transition_to_current` | admission of `requirements` for a fresh root, or `finish` before its leaf is written |
 | 2 | `config` | the launch | the selected kind's template, expanded |
 
-**The first read is a snapshot taken deliberately early.** The finish sentinel is
+**The first read is a snapshot taken deliberately early.** The transition uses
+it to admit `requirements` only when its locked opening reports a vacancy, before
+creating `.grove/`. A missing, local-only or inactive personal route refuses
+without a scaffold; an existing tree bypasses this check. The finish sentinel is
 a leaf grove writes itself, so — as the comment says — the just-in-time presence
 rule binds it exactly as it binds `leaf-add`: *before the write, not at the launch
 that follows*. If a grove has no live leaf and no `finish` template is configured,
@@ -909,12 +912,12 @@ The pre-transition timing is a guarantee about a race with an external writer,
 and a fixture that exercises it would have to be one — which is also why the
 guarantee is argued in a record rather than in a test.
 
-One consequence follows from reading the arms rather than the calls: on the
-ordinary path — a grove with a live leaf, which is every iteration but the last —
-`pre_transition_config` is loaded and then **never used**, because the only thing
-that reads it is the `Sought::Nothing` arm. The loop parses the configuration
-twice per iteration and discards one of the two results. That is the cost the
-placement buys, and it is visible in the block above rather than inferred.
+For an existing grove with a live leaf, the transition receives
+`pre_transition_config` but skips kind admission, and selection skips the
+finish check. The first load still validates the active configuration globally.
+For a fresh root, that same snapshot supplies requirements admission before the
+write. Both paths reload after selection, so the command expanded for launch
+comes from the second snapshot.
 
 The claim and its refutation were both inside this book's corpus, and it is
 worth naming what that bought. Several of this book's adjudications rest on

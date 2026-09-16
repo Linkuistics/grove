@@ -414,6 +414,7 @@
 - [A refusal expressed as an argument type rather than a check](15-the-verbs.md#the-one-that-consumes-a-vacancy)
 - [Report structs that name what the store reported](15-the-verbs.md#the-one-that-consumes-a-vacancy)
 - [`Sought::Nothing` as the finish trigger, in the store's word](15-the-verbs.md#the-four-that-read)
+- [Initial-kind admission under the vacancy lock, using the pre-transition configuration](20-the-loop.md#the-two-reads)
 - [Ambiguity answered in the success channel](15-the-verbs.md#the-four-that-read)
 - [A lint that is the second half of a mutation's contract](15-the-verbs.md#the-first-that-is-not-a-verb)
 - [One `flock` fact told at four sites, each needing a different half](15-the-verbs.md#the-first-that-is-not-a-verb)

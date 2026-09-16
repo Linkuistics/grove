@@ -71,16 +71,22 @@ pub enum CurrentTransition {
 /// of its own since `collapse-tree-access-k13`, and the store answers *there is
 /// no tree here* as a **shape** rather than an error, so the whole transition is
 /// one [`task_tree::write_or_vacancy`] and the vacancy arm creates the grove
-/// under the lock it already holds.
-pub(crate) fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
+/// under the lock it already holds, after `admit_kind` accepts the first leaf.
+/// Existing trees never call admission: they do not create that leaf.
+pub(crate) fn transition_to_current(
+    worktree: &Path,
+    admit_kind: impl FnOnce(&Kind) -> Result<()>,
+) -> Result<CurrentTransition> {
     let grove_root = worktree.join(".grove");
     match task_tree::write_or_vacancy(&grove_root)? {
         Opening::Vacancy(vacancy) => {
+            let kind = Kind::requirements();
+            admit_kind(&kind).context("initializing the driver-owned requirements leaf")?;
             initialize_grove(
                 vacancy,
                 &grove_name(&grove_root),
                 &default_root_slug(),
-                &Kind::requirements(),
+                &kind,
             )?;
             Ok(CurrentTransition::RootInitialized)
         }
@@ -1372,7 +1378,7 @@ mod tests {
         let (_temporary, worktree) = worktree();
         crate::task_tree::reset_read_count();
 
-        let outcome = transition_to_current(&worktree).unwrap();
+        let outcome = transition_to_current(&worktree, |_| Ok(())).unwrap();
 
         let grove_root = worktree.join(".grove");
         assert_eq!(outcome, CurrentTransition::RootInitialized);
@@ -1428,7 +1434,7 @@ mod tests {
             let created = root_init_at(&worktree, "plan").unwrap();
             let grove_root = worktree.join(".grove");
             let picked = crate::task_tree::tests::pick(&grove_root).unwrap().unwrap();
-            let again = transition_to_current(&worktree).unwrap();
+            let again = transition_to_current(&worktree, |_| Ok(())).unwrap();
             sender.send((created, picked, again)).unwrap();
         });
 
@@ -1486,7 +1492,9 @@ mod tests {
         fs::create_dir(&grove_root).unwrap();
         touch(&grove_root, "_BRIEF.md", "my-grove — brief");
 
-        let error = transition_to_current(&wt).unwrap_err().to_string();
+        let error = transition_to_current(&wt, |_| Ok(()))
+            .unwrap_err()
+            .to_string();
 
         assert!(error.contains("holds no task"), "{error}");
         assert!(
@@ -1605,7 +1613,7 @@ mod tests {
         let leaf = touch(&grove_root, "01-impl--task-k1.md", "task-k1");
         crate::task_tree::reset_read_count();
 
-        let outcome = transition_to_current(&worktree).unwrap();
+        let outcome = transition_to_current(&worktree, |_| Ok(())).unwrap();
 
         assert_eq!(outcome, CurrentTransition::AlreadyCurrent);
         assert_eq!(crate::task_tree::read_count(), 1);
@@ -1634,7 +1642,7 @@ mod tests {
         touch(&grove_root, "_BRIEF.md", "my-grove — brief");
         touch(&grove_root, "01-task-k1.md", "task-k1");
 
-        let error = transition_to_current(&worktree).unwrap_err();
+        let error = transition_to_current(&worktree, |_| Ok(())).unwrap_err();
 
         assert!(
             format!("{error:#}").contains("01-task-k1.md"),
@@ -1658,7 +1666,7 @@ mod tests {
         fs::create_dir(grove_root.join("notes")).unwrap();
         let before = list(&grove_root);
 
-        let error = transition_to_current(&worktree).unwrap_err();
+        let error = transition_to_current(&worktree, |_| Ok(())).unwrap_err();
 
         let message = format!("{error:#}");
         assert!(message.contains("holds no Grove entries"), "{message}");
@@ -1680,7 +1688,7 @@ mod tests {
         let grove_root = worktree.join(".grove");
         symlink(worktree.join("missing-grove"), &grove_root).unwrap();
 
-        let error = transition_to_current(&worktree).unwrap_err();
+        let error = transition_to_current(&worktree, |_| Ok(())).unwrap_err();
 
         // The store's own sentence, not grove's *not found*: something is at
         // the root, and `is_dir` reading a dangling link as absent is exactly

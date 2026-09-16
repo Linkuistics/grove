@@ -33,3 +33,28 @@ this absent-tree case when repairing the production boundary.
 - Active configuration errors still precede mutation and launch globally.
 - Focused real-driver acceptance and bash scripts/check.sh pass. Update all
   affected source-exact books and contract prose in this same leaf.
+
+## Decisions (running log)
+
+- The real-driver selected-policy test now exercises a local-only requirements
+  route with no tree; it fails because `.grove/` remains after refusal. Keep the
+  existing locked vacancy observation and admit its initial kind before creation.
+- The public driver transition will take the already resolved SessionConfig;
+  the lifecycle helper receives a fallible kind-admission callback, invoked only
+  in its vacancy branch. This keeps configuration out of the generic store and
+  avoids an unguarded existence probe or a reload inside the critical section.
+- Driver acceptance now proves inactive-profile and local-only bootstrap refusal,
+  active selected-profile initialization and launch, and existing-tree launch
+  without requirements authority. The original failing case passes after the
+  repair. The public two-scaffolding-doors test now supplies resolved policy.
+- The production edits belong only to the grove-loop book's recursive corpus;
+  all six manifests were inspected. Its literals, ranges, root lengths, indices
+  and owned-source totals are synchronized, with final validation passing.
+- The leaf's one fresh-context review examined admission, locking, error paths,
+  acceptance tests and updated contract prose; it reported no violations.
+- `bash scripts/check.sh` passed all eight principal checks, including the full
+  workspace suite and final validation of all six books. SHA-256 comparison of
+  all 1,809 tracked source, manifest, documentation, script and fixture inputs
+  before and after the run found no changes. The existing configuration ADRs
+  already state the repaired just-in-time authority rule and need no revision.
+- `workspace-reload-k30` remains live, so this retirement does not close k10.

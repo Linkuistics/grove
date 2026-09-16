@@ -1263,11 +1263,6 @@ fn selected_policy_launches_and_active_errors_refuse_before_root_creation() {
             ),
             ("select", "impl \"local ${prompt}\"", None),
         ] {
-            // Missing-kind bootstrap admission is tracked by bootstrap-kind-admission-k31.
-            // Here the absent-tree cases exercise globally invalid active policy.
-            if !existing_tree && local_text == "impl \"local ${prompt}\"" {
-                continue;
-            }
             if grove.exists() {
                 fs::remove_dir_all(&grove).unwrap();
             }
@@ -1289,6 +1284,11 @@ fn selected_policy_launches_and_active_errors_refuse_before_root_creation() {
                 profile "missing-target" {{ route "design" {{ param "effort" "high"; }}; }}
                 {selection}
             }}"#)).unwrap();
+            let local_text = if !existing_tree && local_only {
+                "requirements \"local ${prompt}\""
+            } else {
+                local_text
+            };
             fs::write(&local, local_text).unwrap();
             let before = existing_tree.then(|| tree_snapshot(&grove));
             let output = run_grove(&home, &worktree);
@@ -1312,6 +1312,71 @@ fn selected_policy_launches_and_active_errors_refuse_before_root_creation() {
                 } else {
                     assert!(!grove.exists());
                 }
+            }
+        }
+    }
+}
+
+#[test]
+fn bootstrap_requires_active_personal_authority_only_for_a_fresh_tree() {
+    for existing_tree in [false, true] {
+        for (selection, local_route, admitted) in [
+            ("", "", false),
+            ("", "requirements \"local ${prompt}\"", false),
+            ("select \"bootstrap\"", "", true),
+        ] {
+            let fixture = TempDir::new().unwrap();
+            let home = fixture.path().join("home");
+            let worktree = fixture.path().join("worktree");
+            init_worktree(&worktree);
+            fs::write(worktree.join(".gitignore"), ".grove.kdl\n").unwrap();
+            fs::write(worktree.join(".grove.kdl"), local_route).unwrap();
+            let grove = worktree.join(".grove");
+            if existing_tree {
+                fs::create_dir(&grove).unwrap();
+                fs::write(grove.join("_BRIEF.md"), "root").unwrap();
+                fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
+            }
+            let before = existing_tree.then(|| tree_snapshot(&grove));
+            let log = fixture.path().join("launched");
+            let fake = fixture.path().join("fake");
+            write_executable(&fake, "#!/bin/sh\nprintf '%s' \"$2\" > \"$1\"\n");
+            let command = format!("{} {} ${{prompt}}", shell_quote(&fake), shell_quote(&log));
+            let config_dir = home.join(".config/grove");
+            fs::create_dir_all(&config_dir).unwrap();
+            let primary = config_dir.join("config.kdl");
+            fs::write(
+                &primary,
+                format!(
+                    r#"impl {command:?}
+                config {{
+                    command "agent" {command:?}
+                    profile "bootstrap" {{ bind "lead" "agent"; route "requirements" "lead"; }}
+                    {selection}
+                }}"#
+                ),
+            )
+            .unwrap();
+
+            let output = run_grove(&home, &worktree);
+            let error = String::from_utf8_lossy(&output.stderr);
+            let launches = existing_tree || admitted;
+            assert_eq!(output.status.success(), launches, "{error}");
+            assert_eq!(log.exists(), launches, "{error}");
+            if launches {
+                let handle = if existing_tree { "work-k1" } else { "plan-k1" };
+                assert!(fs::read_to_string(&log)
+                    .unwrap()
+                    .contains(&mandate_naming(handle)));
+                if let Some(before) = before {
+                    assert_eq!(tree_snapshot(&grove), before);
+                } else {
+                    assert!(grove.join("01-requirements--plan-k1.md").is_file());
+                }
+            } else {
+                assert!(error.contains("requirements"), "{error}");
+                assert!(error.contains(primary.to_str().unwrap()), "{error}");
+                assert!(!grove.exists(), "refused bootstrap left a root");
             }
         }
     }

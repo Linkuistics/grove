@@ -118,7 +118,7 @@ composite whose children are the items below in file order.
 <!-- insert «verbs-signalled» -->
 <!-- insert «verbs-sought» -->
 <!-- /fragment -->
-<!-- fragment «driver-operations» owner="twelve-not-fourteen" source="crates/grove-loop/src/driver.rs" lines="1-57" parent="source-driver" -->
+<!-- fragment «driver-operations» owner="twelve-not-fourteen" source="crates/grove-loop/src/driver.rs" lines="1-65" parent="source-driver" -->
 <!-- insert «driver-not-fourteen-header» -->
 <!-- insert «driver-imports» -->
 <!-- insert «driver-transition-to-current» -->
@@ -869,7 +869,7 @@ exists purely to keep a vocabulary boundary in one place.
 <a id="the-two-that-would-have-made-it-fourteen"></a>
 ## The two operations that would have made it fourteen
 
-The second file is 57 lines long and holds two functions. Twenty-six of those
+The second file is 65 lines long and holds two functions. Twenty-six of those
 lines are the header arguing that the two do not belong next to the twelve.
 
 <!-- fragment «driver-not-fourteen-header» owner="twelve-not-fourteen" source="crates/grove-loop/src/driver.rs" lines="1-26" parent="driver-operations" -->
@@ -954,7 +954,7 @@ runs these before it has an opening, so there is nothing to hand them.
 ````rust
 use std::path::Path;
 
-use crate::{task_tree, tree_lifecycle, Error, Selection};
+use crate::{session_config::SessionConfig, task_tree, tree_lifecycle, Error, Selection};
 
 pub use tree_lifecycle::CurrentTransition;
 
@@ -963,19 +963,30 @@ pub use tree_lifecycle::CurrentTransition;
 
 The first brings a working tree to a state the loop can drive — a grove that was
 already there, or a fresh one — and it runs before there is a session to invoke
-it.
+it. Its `SessionConfig` is the snapshot the loop loaded before transitioning.
+The callback asks that snapshot to admit the initial kind only if the lifecycle
+finds a vacancy under its lock, before it writes anything. Existing trees do not
+need the bootstrap kind configured.
 
-<!-- fragment «driver-transition-to-current» owner="twelve-not-fourteen" source="crates/grove-loop/src/driver.rs" lines="33-42" parent="driver-operations" -->
+<!-- fragment «driver-transition-to-current» owner="twelve-not-fourteen" source="crates/grove-loop/src/driver.rs" lines="33-50" parent="driver-operations" -->
 ````rust
 /// Bring a worktree to a state the loop can drive: a grove, or a fresh one.
+/// The pre-transition configuration must admit the initial kind before a fresh
+/// root is written. Admission runs under the vacancy lock and is skipped for an
+/// existing tree; this function does not reload configuration.
 ///
 /// # Errors
 ///
 /// A tree that holds only its charter, or one whose entries are in no grammar
 /// grove reads — both of which grove names and refuses rather than repairs
-/// (principle 2).
-pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition, Error> {
-    Ok(tree_lifecycle::transition_to_current(worktree)?)
+/// (principle 2), or an unconfigured initial kind when no tree exists.
+pub fn transition_to_current(
+    worktree: &Path,
+    config: &SessionConfig,
+) -> Result<CurrentTransition, Error> {
+    Ok(tree_lifecycle::transition_to_current(worktree, |kind| {
+        Ok(config.require(kind.label())?)
+    })?)
 }
 ````
 <!-- /fragment -->
@@ -983,7 +994,7 @@ pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition, Error
 The second writes the leaf the growing verbs refuse to write, and it is the only
 function in either file that opens the tree in its own body.
 
-<!-- fragment «driver-materialize-finish» owner="twelve-not-fourteen" source="crates/grove-loop/src/driver.rs" lines="43-57" parent="driver-operations" -->
+<!-- fragment «driver-materialize-finish» owner="twelve-not-fourteen" source="crates/grove-loop/src/driver.rs" lines="51-65" parent="driver-operations" -->
 ````rust
 
 /// The resumable `finish` leaf for an otherwise empty tree — or the live leaf
@@ -1003,8 +1014,8 @@ pub fn materialize_finish(worktree: &Path) -> Result<Selection, Error> {
 ````
 <!-- /fragment -->
 
-Two bodies of one and two lines. `transition_to_current` forwards; only
-`materialize_finish` does anything here, and what it does is open the tree, which
+`transition_to_current` supplies configuration admission to the lifecycle;
+`materialize_finish` opens the tree itself, which
 is the whole reason it cannot be a verb taking a `TreeWrite`. Its comment states
 the snapshot discipline chapter 14 read from the other side — *the re-selection
 that may return early and the append that happens when it does not read the

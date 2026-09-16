@@ -546,10 +546,12 @@ launches K**. An add given several kinds asks about every one of them, before
 any of them lands. The check runs before the tree is mutated, so a refusal leaves the
 task tree byte-identical.
 
-The driver's automatic fresh-root bootstrap currently checks a missing
-`requirements` kind at launch, after creating the root. Repairing that earlier
-admission boundary remains pending; invalid active compositions already fail
-before root creation.
+The driver's automatic fresh-root bootstrap also requires an active personal
+`requirements` route before creating `.grove/`. It checks while holding the lock
+that established the root's absence. An inactive personal profile or local-only
+route cannot authorize creation. An existing tree needs no `requirements` route
+unless that kind is selected for launch. Invalid active compositions fail before
+either initialization or launch.
 
 ```text
 Error: refusing to write a leaf of kind `prototype`: no launch template resolves for it

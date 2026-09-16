@@ -241,7 +241,7 @@ fn drive(
             .context("revalidating driver lease before loop transition")?;
         let pre_transition_config = templates.load(&delta_roots)?;
 
-        crate::driver::transition_to_current(worktree)?;
+        crate::driver::transition_to_current(worktree, &pre_transition_config)?;
         let selected = match picked(worktree)? {
             Sought::Match(selection) => selection,
             Sought::Nothing => {

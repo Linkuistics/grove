@@ -225,7 +225,7 @@ lines = 518
 [[root]]
 id    = "source-tree-lifecycle"
 path  = "crates/grove-loop/src/tree_lifecycle.rs"
-lines = 2734
+lines = 2742
 
 [[root]]
 id    = "source-verbs"
@@ -235,7 +235,7 @@ lines = 361
 [[root]]
 id    = "source-driver"
 path  = "crates/grove-loop/src/driver.rs"
-lines = 57
+lines = 65
 
 [[root]]
 id    = "source-complete"
@@ -403,55 +403,55 @@ lines = "1-518"
 id    = "finish-transition"
 root  = "source-tree-lifecycle"
 owner = "the-tree-deletes-itself"
-lines = "1-326"
+lines = "1-332"
 
 [[block]]
 id    = "grove-beginning"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "327-487"
+lines = "333-493"
 
 [[block]]
 id    = "decompose-production"
 root  = "source-tree-lifecycle"
 owner = "the-key-survives"
-lines = "488-705"
+lines = "494-711"
 
 [[block]]
 id    = "outcomes-in-place"
 root  = "source-tree-lifecycle"
 owner = "marked-in-place"
-lines = "706-1022"
+lines = "712-1028"
 
 [[block]]
 id    = "body-helpers"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "1023-1086"
+lines = "1029-1092"
 
 [[block]]
 id    = "root-init-tests"
 root  = "source-tree-lifecycle"
 owner = "never-mistaken-for-finished"
-lines = "1087-1502"
+lines = "1093-1510"
 
 [[block]]
 id    = "finish-tests"
 root  = "source-tree-lifecycle"
 owner = "the-tree-deletes-itself"
-lines = "1503-1697"
+lines = "1511-1705"
 
 [[block]]
 id    = "decompose-tests"
 root  = "source-tree-lifecycle"
 owner = "the-key-survives"
-lines = "1698-2243"
+lines = "1706-2251"
 
 [[block]]
 id    = "retire-and-prune-tests"
 root  = "source-tree-lifecycle"
 owner = "marked-in-place"
-lines = "2244-2734"
+lines = "2252-2742"
 
 [[block]]
 id    = "the-twelve-verbs"
@@ -463,7 +463,7 @@ lines = "1-361"
 id    = "driver-operations"
 root  = "source-driver"
 owner = "twelve-not-fourteen"
-lines = "1-57"
+lines = "1-65"
 
 [[block]]
 id    = "complete-verb"

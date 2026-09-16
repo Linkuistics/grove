@@ -431,6 +431,12 @@ whole before every tree mutation and every launch, but whether a *particular*
 kind resolves is asked at the two moments grove commits to it — before it writes
 a leaf of that kind, and before it launches one.
 
+Automatic bootstrap passes the pre-transition `SessionConfig` into the driver
+transition. The lifecycle's locked vacancy branch admits `requirements` before
+initializing the root; an existing tree bypasses that admission. No separate
+existence probe or configuration reload splits the vacancy observation from the
+write, and the generic store has no knowledge of session kinds.
+
 At most one second file takes part: an untracked `.grove.kdl` **configuration
 delta**, searched at the worktree root and then the main repository root, the
 first one found selected outright and the two never merged. It declares any

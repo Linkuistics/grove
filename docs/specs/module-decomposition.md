@@ -321,6 +321,12 @@ validation applies to the selected combination after composition. The
 Presence is asked at use: before writing or launching kind K, K must resolve to
 one complete compiled command. Unfinished inactive profiles do not block it.
 
+The driver transition accepts the pre-transition `SessionConfig`. Its lifecycle
+helper invokes kind admission only after opening a locked vacancy and before
+creating the initial requirements leaf. Existing trees do not require that kind
+merely to transition; the second configuration load still validates the selected
+kind before launch.
+
 The quantifier is per-kind because grove can no longer state a set: it holds no
 set of kinds, writes no skill directory and keeps no registry, so it cannot
 enumerate what the methodology declares.

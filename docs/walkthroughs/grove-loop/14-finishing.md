@@ -118,7 +118,7 @@ them and depends on all of them.
 The file's first forty-three lines are its module header, and they are the
 crate's clearest statement of what the domain-free libraries left behind.
 
-<!-- fragment «finish-transition» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1-326" parent="source-tree-lifecycle" -->
+<!-- fragment «finish-transition» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1-332" parent="source-tree-lifecycle" -->
 <!-- insert «finishing-module-header» -->
 <!-- insert «finishing-imports» -->
 <!-- insert «finishing-default-slug» -->
@@ -351,7 +351,7 @@ The type is `pub` here and re-exported by `crate::driver`, which is [chapter
 15's](README.md#contents) module and the only thing outside this crate that
 names it.
 
-<!-- fragment «finishing-transition-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="64-74" parent="finish-transition" -->
+<!-- fragment «finishing-transition-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="64-75" parent="finish-transition" -->
 ````rust
 /// Classify or perform the one lifecycle transition needed before current-tree
 /// selection: a working tree with no grove gets one.
@@ -363,7 +363,8 @@ names it.
 /// of its own since `collapse-tree-access-k13`, and the store answers *there is
 /// no tree here* as a **shape** rather than an error, so the whole transition is
 /// one [`task_tree::write_or_vacancy`] and the vacancy arm creates the grove
-/// under the lock it already holds.
+/// under the lock it already holds, after `admit_kind` accepts the first leaf.
+/// Existing trees never call admission: they do not create that leaf.
 ````
 <!-- /fragment -->
 
@@ -386,17 +387,29 @@ over a live grove, because it takes a `Vacancy` and a live grove does not yield
 one. That is [chapter 1's stated claim](01-orientation.md#the-cast) and [chapter
 5's opening](05-opening.md#the-four-openings).
 
-<!-- fragment «finishing-transition-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="75-108" parent="finish-transition" -->
+The vacancy alone establishes filesystem authority, not personal launch policy.
+Before consuming it, the lifecycle invokes `admit_kind` for `requirements`.
+The public driver wrapper supplies the pre-transition configuration's `require`
+check. Refusal drops the vacancy without creating a root; the existing-tree arm
+never calls admission. That placement keeps the absence decision and creation
+under one lock without teaching the generic store about kinds.
+
+<!-- fragment «finishing-transition-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="76-114" parent="finish-transition" -->
 ````rust
-pub(crate) fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
+pub(crate) fn transition_to_current(
+    worktree: &Path,
+    admit_kind: impl FnOnce(&Kind) -> Result<()>,
+) -> Result<CurrentTransition> {
     let grove_root = worktree.join(".grove");
     match task_tree::write_or_vacancy(&grove_root)? {
         Opening::Vacancy(vacancy) => {
+            let kind = Kind::requirements();
+            admit_kind(&kind).context("initializing the driver-owned requirements leaf")?;
             initialize_grove(
                 vacancy,
                 &grove_name(&grove_root),
                 &default_root_slug(),
-                &Kind::requirements(),
+                &kind,
             )?;
             Ok(CurrentTransition::RootInitialized)
         }
@@ -488,7 +501,7 @@ node's first child — and each takes a kind from its caller. The finish leaf is
 the exception in both directions: nobody asks for it, and its kind is one the
 verbs that could have written it are required to refuse.
 
-<!-- fragment «finishing-materialize-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="109-112" parent="finish-transition" -->
+<!-- fragment «finishing-materialize-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="115-118" parent="finish-transition" -->
 ````rust
 /// Materialize the driver-owned finish sentinel after a shared selection found
 /// no live work. The exclusive re-selection closes the gap between that read
@@ -513,7 +526,7 @@ same leaf rather than a second one. The
 [guide's account of finishing](../../USAGE.md#usage-finish) states the operator's
 half of that contract.
 
-<!-- fragment «finishing-materialize-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="113-139" parent="finish-transition" -->
+<!-- fragment «finishing-materialize-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="119-145" parent="finish-transition" -->
 ````rust
 pub(crate) fn materialize_finish(tree: Guard) -> Result<crate::task_tree::Selection> {
     if let Some(selection) = task_tree::select_in_write(&tree)? {
@@ -573,7 +586,7 @@ itself. Here it matters more than usual, because a leaf whose predicted key was
 wrong would not merely be misnamed — it would contain an instruction telling an
 operator to run `grove-llm finish-commit` on a handle that does not exist.
 
-<!-- fragment «finishing-new-finish-leaf» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="140-153" parent="finish-transition" -->
+<!-- fragment «finishing-new-finish-leaf» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="146-159" parent="finish-transition" -->
 ````rust
 /// The driver's finish sentinel, as an entry to create.
 ///
@@ -607,7 +620,7 @@ an append that is going to be refused. It has a consequence the next fragment's
 prose returns to — the `.context` guard in `materialize_finish` that would report
 a sentinel created without a key is, because of this ordering, unreachable.
 
-<!-- fragment «finishing-finish-handle» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="154-160" parent="finish-transition" -->
+<!-- fragment «finishing-finish-handle» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="160-166" parent="finish-transition" -->
 ````rust
 /// The driver's own leaf wears the handle `finish-k<key>`, composed through
 /// [`Handle`] rather than spelled here — one of the five hand-rolled produce
@@ -628,7 +641,7 @@ reproduces the header that makes the claim and chapter 3 reads the renderer; the
 value here is that the driver's own leaf gets its name from the same grammar as
 every operator-written leaf, so there is no second spelling to keep in step.
 
-<!-- fragment «finishing-finish-slug» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="161-168" parent="finish-transition" -->
+<!-- fragment «finishing-finish-slug» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="167-174" parent="finish-transition" -->
 ````rust
 /// `finish`, validated as a [`Slug`]. A constant that has to go through the
 /// validating constructor is still one constant, and going through it is what
@@ -656,7 +669,7 @@ The measurable consequence is that this function's error arm is dead code that
 earns its place: replacing the `map_err` with a silent panic changes no test's
 result, because nothing can reach it.
 
-<!-- fragment «finishing-finish-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="169-180" parent="finish-transition" -->
+<!-- fragment «finishing-finish-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="175-186" parent="finish-transition" -->
 ````rust
 fn finish_body(handle: &Handle) -> String {
     format!(
@@ -723,7 +736,7 @@ against what used to be here. The teardown once hand-built a transaction: a
 witness file, a manifest, an evacuation, a rollback proof, a quarantine
 directory and a recovery path. `delete-finish-transaction-k8` deleted all of it.
 
-<!-- fragment «finishing-commit-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="181-194" parent="finish-transition" -->
+<!-- fragment «finishing-commit-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="187-200" parent="finish-transition" -->
 ````rust
 /// Revalidate the complete finish cycle's tree facts, delete `.grove/`, and
 /// take the commit that records the deletion. This is a deterministic
@@ -760,7 +773,7 @@ library function has no way to know what a person was asked or what they said.
 The guide calls teardown grove's one routine human confirmation point; that
 confirmation lives in the session, and this verb assumes it happened.
 
-<!-- fragment «finishing-commit-classify» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="195-226" parent="finish-transition" -->
+<!-- fragment «finishing-commit-classify» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="201-232" parent="finish-transition" -->
 ````rust
 pub(crate) fn finish_commit(workspace: &Workspace, finish: &Handle) -> Result<Commit> {
     let worktree = workspace.root();
@@ -821,7 +834,7 @@ remedy is jj's, which is the division this whole section keeps.
 case falling through to the opening below; the three before it are the three
 things that are wrong before a lock is worth taking.
 
-<!-- fragment «finishing-commit-revalidate» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="227-254" parent="finish-transition" -->
+<!-- fragment «finishing-commit-revalidate» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="233-260" parent="finish-transition" -->
 ````rust
     let tree = task_tree::write(&grove_root)?;
     let selection = task_tree::select_in_write(&tree)?
@@ -887,7 +900,7 @@ is created and through its deletion, so root initialization, finish allocation
 and deletion all share one invariant. This chapter is the only place in the book
 where the *through its deletion* half of that sentence is exercised.
 
-<!-- fragment «finishing-delete-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="255-259" parent="finish-transition" -->
+<!-- fragment «finishing-delete-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="261-265" parent="finish-transition" -->
 ````rust
 /// Delete `.grove/` and commit the deletion. Two steps, and each names the
 /// operation-log command that puts the tree back if it is the one that failed.
@@ -899,7 +912,7 @@ where the *through its deletion* half of that sentence is exercised.
 The body is the two steps the contract promised, and three comments inside it
 carry more argument than the code does.
 
-<!-- fragment «finishing-delete-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="260-302" parent="finish-transition" -->
+<!-- fragment «finishing-delete-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="266-308" parent="finish-transition" -->
 ````rust
 fn delete_and_commit(workspace: &Workspace, tree: Guard, finish_handle: &Handle) -> Result<Commit> {
     let grove_root = tree.root().to_path_buf();
@@ -974,7 +987,7 @@ copy*, so the advice is to get it back, fix what made the commit fail, and rerun
 Each message names the operation-log command for its own failure, which is what
 the contract above promises.
 
-<!-- fragment «finishing-recoverable-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="303-312" parent="finish-transition" -->
+<!-- fragment «finishing-recoverable-contract» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="309-318" parent="finish-transition" -->
 ````rust
 /// The one precondition deletion has: jj can only put back what it tracks.
 ///
@@ -991,7 +1004,7 @@ the contract above promises.
 The function itself is four lines: ask the seam whether jj tracks anything under
 the root, return if it does, and otherwise refuse.
 
-<!-- fragment «finishing-recoverable-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="313-326" parent="finish-transition" -->
+<!-- fragment «finishing-recoverable-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="319-332" parent="finish-transition" -->
 ````rust
 fn require_recoverable_grove(workspace: &Workspace, grove_root: &Path) -> Result<()> {
     if workspace.is_tracked(grove_root)? {
@@ -1058,7 +1071,7 @@ reproduce them. The measurement section below is where that split does its work.
 <a id="the-three-spellings-pinned"></a>
 ### The sentinel, and the three spellings of its key
 
-<!-- fragment «finish-tests» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1503-1697" parent="source-tree-lifecycle" -->
+<!-- fragment «finish-tests» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1511-1705" parent="source-tree-lifecycle" -->
 <!-- insert «finishing-test-three-spellings» -->
 <!-- insert «finishing-test-last-key» -->
 <!-- insert «finishing-test-last-ordinal» -->
@@ -1071,7 +1084,7 @@ reproduce them. The measurement section below is where that split does its work.
 The first test is the chapter's named pin, and the one the structure brief
 nominates for the rule this page carries.
 
-<!-- fragment «finishing-test-three-spellings» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1503-1531" parent="finish-tests" -->
+<!-- fragment «finishing-test-three-spellings» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1511-1539" parent="finish-tests" -->
 ````rust
     /// The driver's sentinel embeds its own key in its handle, its body and the
     /// `finish-commit` command it tells the session to run — so a key the library
@@ -1132,7 +1145,7 @@ The next two tests take the sentinel to the two exhaustion boundaries the
 library can refuse at — the key space and the ordinal space — and they are not
 equally strong.
 
-<!-- fragment «finishing-test-last-key» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1532-1558" parent="finish-tests" -->
+<!-- fragment «finishing-test-last-key» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1540-1566" parent="finish-tests" -->
 ````rust
     /// **The two refusals this leaf's own table row predicts, transcribed.**
     /// `materialize-finish` is an `append` at the root level, so it reaches
@@ -1185,7 +1198,7 @@ succeed on the tree whose `next_key` returned `None`. This test looks like the
 one that covers the `None` key and is in fact the demonstration that grove's own
 handling of it is dead. The measurement below confirms it.
 
-<!-- fragment «finishing-test-last-ordinal» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1559-1575" parent="finish-tests" -->
+<!-- fragment «finishing-test-last-ordinal» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1567-1583" parent="finish-tests" -->
 ````rust
     #[test]
     fn a_root_level_at_the_last_ordinal_refuses_the_sentinel_rather_than_wrapping() {
@@ -1226,7 +1239,7 @@ intent and not in strength.
 The fourth `materialize_finish` test is the one that pins resumability, and it
 does it with two assertions that have to be read together.
 
-<!-- fragment «finishing-test-reuse» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1576-1598" parent="finish-tests" -->
+<!-- fragment «finishing-test-reuse» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1584-1606" parent="finish-tests" -->
 ````rust
     /// The re-selection and the allocation read one snapshot under one exclusive
     /// guard, so nothing can appear between finding no live work and creating the
@@ -1279,7 +1292,7 @@ narrower half is the half that is checked.
 The block's last four tests exercise `transition_to_current`. Two of them reach
 its `match` and two, as the measurement below shows, never do.
 
-<!-- fragment «finishing-test-already-current» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1599-1617" parent="finish-tests" -->
+<!-- fragment «finishing-test-already-current» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1607-1625" parent="finish-tests" -->
 ````rust
     #[test]
     fn transition_leaves_a_current_grove_unchanged_and_ready_for_pick() {
@@ -1290,7 +1303,7 @@ its `match` and two, as the measurement below shows, never do.
         let leaf = touch(&grove_root, "01-impl--task-k1.md", "task-k1");
         crate::task_tree::reset_read_count();
 
-        let outcome = transition_to_current(&worktree).unwrap();
+        let outcome = transition_to_current(&worktree, |_| Ok(())).unwrap();
 
         assert_eq!(outcome, CurrentTransition::AlreadyCurrent);
         assert_eq!(crate::task_tree::read_count(), 1);
@@ -1319,7 +1332,7 @@ technique is present in the same block and simply is not used here. The
 *unchanged* in the name is carried by the read count, which is good evidence and
 is not the same claim.
 
-<!-- fragment «finishing-test-malformed-name» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1618-1648" parent="finish-tests" -->
+<!-- fragment «finishing-test-malformed-name» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1626-1656" parent="finish-tests" -->
 ````rust
     /// **A tree grove cannot read is not a tree grove scaffolds over.** A
     /// malformed name is an entry — held badly — and appending a first leaf
@@ -1340,7 +1353,7 @@ is not the same claim.
         touch(&grove_root, "_BRIEF.md", "my-grove — brief");
         touch(&grove_root, "01-task-k1.md", "task-k1");
 
-        let error = transition_to_current(&worktree).unwrap_err();
+        let error = transition_to_current(&worktree, |_| Ok(())).unwrap_err();
 
         assert!(
             format!("{error:#}").contains("01-task-k1.md"),
@@ -1379,7 +1392,7 @@ The assertion that carries real weight is the second — that
 *scaffolds past* failure the test is named for, and it is the one an
 implementation could plausibly get wrong.
 
-<!-- fragment «finishing-test-no-grove-entries» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1649-1673" parent="finish-tests" -->
+<!-- fragment «finishing-test-no-grove-entries» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1657-1681" parent="finish-tests" -->
 ````rust
     /// A valid root node file plus foreign material is Unrecognised when no
     /// positioned work exists. It is refused without changing that material.
@@ -1393,7 +1406,7 @@ implementation could plausibly get wrong.
         fs::create_dir(grove_root.join("notes")).unwrap();
         let before = list(&grove_root);
 
-        let error = transition_to_current(&worktree).unwrap_err();
+        let error = transition_to_current(&worktree, |_| Ok(())).unwrap_err();
 
         let message = format!("{error:#}");
         assert!(message.contains("holds no Grove entries"), "{message}");
@@ -1433,7 +1446,7 @@ this block. Of the four message assertions, three name strings the arm
 interpolates and one names the grammar template it hard-codes; that last one is
 the assertion that would notice the message losing its actionable half.
 
-<!-- fragment «finishing-test-dangling-symlink» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1674-1697" parent="finish-tests" -->
+<!-- fragment «finishing-test-dangling-symlink» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="1682-1705" parent="finish-tests" -->
 ````rust
     #[cfg(unix)]
     #[test]
@@ -1444,7 +1457,7 @@ the assertion that would notice the message losing its actionable half.
         let grove_root = worktree.join(".grove");
         symlink(worktree.join("missing-grove"), &grove_root).unwrap();
 
-        let error = transition_to_current(&worktree).unwrap_err();
+        let error = transition_to_current(&worktree, |_| Ok(())).unwrap_err();
 
         // The store's own sentence, not grove's *not found*: something is at
         // the root, and `is_dir` reading a dangling link as absent is exactly

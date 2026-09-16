@@ -167,7 +167,15 @@ fn both_scaffolding_doors_name_the_first_leaf_the_same() {
     let by_root_init = rel_line(&stdout, repo.path(), 1);
 
     let scaffold = TempDir::new().unwrap();
-    grove_loop::driver::transition_to_current(scaffold.path()).unwrap();
+    let config = grove_loop::session_config::SessionConfig::load(
+        support::fixture_home(),
+        &grove_loop::session_config::DeltaRoots {
+            worktree: scaffold.path(),
+            repository: scaffold.path(),
+        },
+    )
+    .unwrap();
+    grove_loop::driver::transition_to_current(scaffold.path(), &config).unwrap();
     let by_driver = sole_leaf(scaffold.path());
 
     assert_eq!(

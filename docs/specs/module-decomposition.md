@@ -346,11 +346,12 @@ provenance. Grove retains source discovery, local admissibility, profile-list
 selection policy and runtime context. The runner understands none of Grove's
 paths, kinds or VCS. Catalog/Selection capture and resolution, the empty-selection
 Templates convenience, and Catalog-based conformance are implemented for flat
-commands and parameter-free wrapper commands/bindings/routes, including diagnostics from loading, resolution, require
+commands and parameterized wrapper commands/bindings/routes, including diagnostics from loading, resolution, require
 and expansion. Both loaders reserve the `param.` vocabulary prefix.
 Inspection/provenance is implemented through `Templates::inspect`, retaining
-reference chains, overwritten targets and non-admitted overlay keys. Parameters,
-profiles, human inspection and Grove selection policy remain pending; those parts below describe the intended interface
+reference chains, parameter defaults, multi-origin words, overwritten targets and
+non-admitted overlay keys. Parameter patches, profiles, human inspection and Grove
+selection policy remain pending; those parts below describe the intended interface
 alongside the unchanged launch surface.
 
 ```rust

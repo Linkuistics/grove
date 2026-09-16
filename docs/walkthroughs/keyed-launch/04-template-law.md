@@ -966,30 +966,37 @@ the one type no caller can construct.
 <a id="named-compile"></a>
 ## Named dollar scanning
 
-Named commands use the same shell-word splitter and comment refusal as flat templates, but a distinct left-to-right dollar scan. `$$` contributes one literal dollar without rescanning it, while a runtime slot must occupy a complete argument. Thus `$${payload}` remains text and cannot satisfy the required slot count. Unknown, unterminated and parameter substitutions fail; the executable must be literal and nonempty. `compile` runs only for definitions reached by effective bindings, before any route expansion.
+Named commands use the same shell-word splitter and comment refusal as flat templates, but a distinct left-to-right dollar scan. `$$` contributes one literal dollar without rescanning it, while a runtime slot must occupy a complete argument. Thus `$${payload}` remains text and cannot satisfy the required slot count. Unknown or unterminated substitutions fail; the executable must be literal and nonempty. Declared `${param.name}` references compile into fragments alongside literal text, including repeated references inside one word. A runtime slot remains a separate whole-word variant. `compile` runs only for definitions reached by effective bindings, before any route expansion.
 
-<!-- fragment «named-compile» owner="words-not-shell" source="crates/keyed-launch/src/templates/named.rs" lines="185-247" parent="source-named" -->
+`NamedWord::instantiate` runs after route completeness has been checked. It concatenates literal fragments and opaque parameter values into one string and collects their contributing origins. For example, `mode=${param.mode}` with the value `space ${payload}` becomes one literal argument `mode=space ${payload}`; neither spaces nor slot-looking text are scanned again. An empty whole-word parameter remains an empty string. This internal representation becomes the public literal/slot words shared by inspection and launch.
+
+<!-- fragment «named-compile» owner="words-not-shell" source="crates/keyed-launch/src/templates/named.rs" lines="258-395" parent="source-named" -->
 ````rust
-
 /// Shell-word splitting precedes named dollar scanning. Escaping a dollar must
 /// not turn escaped runtime-looking text into a slot on a second pass.
-fn compile(target: &Target, slots: &[SlotSpec]) -> Result<Vec<Word>, String> {
-    let text = &target.value;
+fn compile(command: &Command, slots: &[SlotSpec]) -> Result<Vec<NamedWord>, Box<Diagnostic>> {
+    let invalid =
+        |message: String| Box::new(problem("invalid_template", &command.template, message));
+    let text = &command.template.value;
     if text.contains('\0') {
-        return Err("command template contains NUL".into());
+        return Err(invalid("command template contains NUL".into()));
     }
     if contains_shell_comment_start(text) {
-        return Err("quote literal comment-starting `#`".into());
+        return Err(invalid("quote literal comment-starting `#`".into()));
     }
-    let words = shell_words::split(text).map_err(|_| "command template has unmatched quotes")?;
+    let words = shell_words::split(text)
+        .map_err(|_| invalid("command template has unmatched quotes".into()))?;
     if words.is_empty() {
-        return Err("word zero must be a literal non-empty executable".into());
+        return Err(invalid(
+            "word zero must be a literal non-empty executable".into(),
+        ));
     }
     let mut result = Vec::new();
     let mut counts = vec![0; slots.len()];
     for (index, word) in words.iter().enumerate() {
         let mut rest = word.as_str();
         let mut literal = String::new();
+        let mut fragments = Vec::new();
         let mut slot_word = None;
         while !rest.is_empty() {
             if let Some(next) = rest.strip_prefix("$$") {
@@ -997,17 +1004,38 @@ fn compile(target: &Target, slots: &[SlotSpec]) -> Result<Vec<Word>, String> {
                 rest = next;
             } else if let Some(next) = rest.strip_prefix("${") {
                 let Some(end) = next.find('}') else {
-                    return Err("unterminated substitution".into());
+                    return Err(invalid("unterminated substitution".into()));
                 };
                 let name = &next[..end];
-                if name.starts_with("param.") {
-                    return Err("parameter substitution is not yet supported".into());
+                if name.contains("${") {
+                    return Err(invalid("unterminated substitution".into()));
+                }
+                if index == 0 {
+                    return Err(invalid(
+                        "word zero must be a literal non-empty executable".into(),
+                    ));
+                }
+                if let Some(parameter) = name.strip_prefix("param.") {
+                    if !command.parameters.contains_key(parameter) {
+                        let mut diagnostic = problem(
+                            "unknown_parameter",
+                            &command.template,
+                            format!("undeclared parameter `{parameter}`"),
+                        );
+                        diagnostic.parameter = Some(parameter.into());
+                        diagnostic.remedy = "Declare the referenced parameter in this command, or correct the reference.".into();
+                        return Err(Box::new(diagnostic));
+                    }
+                    fragments.push(Fragment::Literal(std::mem::take(&mut literal)));
+                    fragments.push(Fragment::Parameter(parameter.into()));
+                    rest = &next[end + 1..];
+                    continue;
                 }
                 let Some(slot) = slots.iter().position(|slot| slot.name == name) else {
-                    return Err(format!("unknown substitution `${{{name}}}`"));
+                    return Err(invalid(format!("unknown substitution `${{{name}}}`")));
                 };
                 if rest.len() != word.len() || end + 3 != word.len() || index == 0 {
-                    return Err("runtime substitutions must occupy a whole argument; word zero must be literal".into());
+                    return Err(invalid("runtime substitutions must occupy a whole argument; word zero must be literal".into()));
                 }
                 counts[slot] += 1;
                 slot_word = Some(Word::Slot(name.into()));
@@ -1021,16 +1049,65 @@ fn compile(target: &Target, slots: &[SlotSpec]) -> Result<Vec<Word>, String> {
             }
         }
         if index == 0 && literal.is_empty() {
-            return Err("word zero must be a literal non-empty executable".into());
+            return Err(invalid(
+                "word zero must be a literal non-empty executable".into(),
+            ));
         }
-        result.push(slot_word.unwrap_or(Word::Literal(literal)));
+        result.push(if let Some(slot) = slot_word {
+            NamedWord::Runtime(slot)
+        } else {
+            fragments.push(Fragment::Literal(literal));
+            NamedWord::Fragments(fragments)
+        });
     }
     for (slot, count) in slots.iter().zip(counts) {
         if !slot.requirement.admits(count) {
-            return Err(slot.requirement.violation(&slot.name));
+            return Err(invalid(slot.requirement.violation(&slot.name)));
         }
     }
     Ok(result)
+}
+
+enum Fragment {
+    Literal(String),
+    Parameter(String),
+}
+
+enum NamedWord {
+    Runtime(Word),
+    Fragments(Vec<Fragment>),
+}
+
+impl NamedWord {
+    fn instantiate(&self, parameters: &[ParameterView], template_origin: usize) -> WordView {
+        let mut origins = vec![template_origin];
+        let word = match self {
+            Self::Runtime(word) => word.clone(),
+            Self::Fragments(fragments) => {
+                let mut text = String::new();
+                for fragment in fragments {
+                    match fragment {
+                        Fragment::Literal(literal) => text.push_str(literal),
+                        Fragment::Parameter(name) => {
+                            // Schema compilation and route completeness precede instantiation.
+                            let parameter = parameters
+                                .iter()
+                                .find(|p| &p.name == name)
+                                .expect("validated parameter");
+                            text.push_str(&parameter.value);
+                            for origin in &parameter.origins {
+                                if !origins.contains(origin) {
+                                    origins.push(*origin);
+                                }
+                            }
+                        }
+                    }
+                }
+                Word::Literal(text)
+            }
+        };
+        WordView { word, origins }
+    }
 }
 
 ````

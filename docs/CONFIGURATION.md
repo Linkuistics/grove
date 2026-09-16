@@ -1,20 +1,24 @@
 # Grove Configuration
 
-This reference describes flat commands and parameter-free named command reuse.
-The [modular design](specs/modular-configuration.md) also specifies parameters,
-profiles, human inspection and example delivery; those parts remain pending.
+This reference describes flat commands and named command reuse with parameter
+declarations and defaults. The [modular design](specs/modular-configuration.md)
+also specifies parameter override patches, profiles, human inspection and example
+delivery; those parts remain pending.
 Existing configurations require no rewrite.
 
 The generic runner captures sources in an owned `Catalog` and resolves an empty
 `Selection` into `Templates`; Grove uses the same path. Captured resolution,
 inspection and expansion do not reread files. Structured diagnostics and library
-inspection cover flat commands and named reference chains.
+inspection cover flat commands, named reference chains, parameter defaults and
+every contributing origin in a resolved word.
 Runtime vocabulary names beginning with `param.` are reserved;
 Grove's existing four slots are unaffected.
 
 NUL is refused before an argument vector is returned: a NUL in either file's
 flat template is an `invalid_template` error at load, including overridden templates.
 Named templates receive that check when an effective binding activates them.
+Resolved parameter values containing NUL fail with `invalid_value`, including
+parameters an admitted route declares but does not use in its template.
 A NUL in any offered runtime slot is an `invalid_value` error at expansion,
 including an unused optional slot. Empty values and non-Unicode native paths
 remain intact; values are never split or interpreted as template syntax.
@@ -120,7 +124,7 @@ enforces. A configuration declaring fewer is valid; you find out about a kind yo
 have not configured at the moment you use it.
 
 There are no implicit defaults or kind families. Named reuse is explicit;
-parameters and profiles are not yet accepted.
+parameter override patches and profiles are not yet accepted.
 The disciplines behind these names are in
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
 
@@ -131,7 +135,9 @@ file and share them through explicit bindings and routes:
 
 ```kdl
 config {
-    command "agent" "my-agent --mode careful ${prompt}"
+    command "agent" "my-agent --mode=${param.mode} ${prompt}" {
+        param "mode" "careful"
+    }
     command "reviewer" "my-reviewer ${prompt}"
     bind "lead" "agent"
     bind "review" "reviewer"
@@ -141,8 +147,8 @@ config {
 }
 ```
 
-Changing `agent` changes both its users. A local delta can redirect one route
-with `config { route "impl" "review"; }`, or every use of a binding with
+Changing `agent` or its `mode` default changes both its users on the next load.
+A local delta can redirect one route with `config { route "impl" "review"; }`, or every use of a binding with
 `config { bind "lead" "reviewer"; }`. A legacy local `impl "other ${prompt}"`
 replaces that route with a whole literal. A named local route can likewise
 replace a personally configured flat command. Only personally targeted kinds
@@ -153,7 +159,8 @@ lowercase letters, digits and single interior dashes. Each namespace is separate
 Within a document each command, binding and route appears once. Flat keys and
 wrapper routes share the route namespace, but a flat `config "runner ${prompt}"`
 can coexist with the wrapper. Properties and type annotations are invalid.
-Commands and targeted routes may have empty blocks; bindings have no block.
+Commands accept `param` declarations; targeted routes may have empty blocks.
+Bindings have no block.
 
 Named templates are shell-word split before dollar scanning. Runtime slots still
 occupy whole arguments. `$$` escapes one dollar: `$${prompt}` is literal text,
@@ -167,9 +174,27 @@ not poison the result. Every effective binding validates its command template,
 even with no routes; a definition without a binding remains dormant. Flat template
 checks remain eager even when replaced. Failures identify their source and names.
 
-Parameter declarations/references, `values`, parameter-only routes and nonempty
-route blocks are explicitly unsupported, as are profiles and `select` declarations.
-They are not silently ignored, including in unused definitions.
+A command child `param "name" "default"` declares a string default. Omitting the
+second string declares a required parameter: every admitted route must supply a
+value, even when its template does not reference that parameter. Because parameter
+patches are not implemented yet, add a default before routing such a command.
+Names follow the same grammar as command names, in a namespace local to that
+command; each name is declared once. All declarations are structurally checked,
+including those in dormant commands.
+
+`${param.mode}` can fill a whole argument or part of one, and can repeat in the
+same word. The compiler splits the template first and inserts each value once.
+Spaces, quotes, `${prompt}`, `#` and shell punctuation in a value stay literal
+contents of that word. An empty whole-word value preserves an empty argument.
+`$${param.mode}` is literal text. Parameter references must be declared and cannot
+appear in the executable. A parameter named `prompt` is separate from the runtime
+slot `${prompt}`. Required values are checked only on admitted routes; an active
+binding without routes still validates its template.
+
+`values`, parameter-only routes and nonempty route blocks remain explicitly
+unsupported, as do profiles and `select` declarations. They are never silently
+ignored. Local deltas may change targets or replace whole templates, but cannot
+redeclare command parameters or assign their values.
 
 ## The configuration delta
 

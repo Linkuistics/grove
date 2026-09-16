@@ -782,7 +782,7 @@ Personal launch policy: explicit [[Session kind]] routes, reusable command
 definitions, [[Command binding]]s, and named [[Configuration profile]]s, with an
 optional [[Configuration delta]]. The modular design is specified in
 [modular configuration](docs/specs/modular-configuration.md); the currently
-implemented flat and parameter-free named forms are documented in
+implemented flat and parameterized named forms are documented in
 [the reference](docs/CONFIGURATION.md).
 The generic runner's **Catalog** is the captured source documents and slot
 vocabulary; **Templates** is an owned resolved command snapshot; its **Inspection** is the
@@ -813,8 +813,9 @@ A named reusable template and its [[Command parameter]] declarations in
 ### Command parameter
 
 An author-declared string value in a [[Command definition]], optionally with a
-default, whose contents fill an argument or argument fragment. Shared values and
-[[Kind route]] overrides supply it; it is distinct from a runtime slot.
+default, whose contents fill an argument or argument fragment without changing
+word boundaries. Defaults are implemented; shared values and [[Kind route]]
+overrides remain pending. It is distinct from a runtime slot.
 
 <a id="kind-route"></a>
 ### Kind route

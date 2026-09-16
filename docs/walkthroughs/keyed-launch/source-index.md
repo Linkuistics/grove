@@ -9,7 +9,7 @@
 | Root ID | Source path | Lines |
 |---|---|---|
 | `source-crate-manifest` | `crates/keyed-launch/Cargo.toml` | 47 |
-| `source-library-root` | `crates/keyed-launch/src/lib.rs` | 94 |
+| `source-library-root` | `crates/keyed-launch/src/lib.rs` | 97 |
 | `source-error-types` | `crates/keyed-launch/src/error.rs` | 148 |
 | `source-vocabulary` | `crates/keyed-launch/src/vocabulary.rs` | 46 |
 | `source-templates` | `crates/keyed-launch/src/templates.rs` | 982 |
@@ -18,12 +18,12 @@
 | `source-channel` | `crates/keyed-launch/src/channel.rs` | 404 |
 | `source-run` | `crates/keyed-launch/src/run.rs` | 672 |
 | `source-conformance` | `crates/keyed-launch/src/conformance.rs` | 98 |
-| `source-named` | `crates/keyed-launch/src/templates/named.rs` | 527 |
+| `source-named` | `crates/keyed-launch/src/templates/named.rs` | 751 |
 
 <!-- source-root «source-crate-manifest» source="crates/keyed-launch/Cargo.toml" lines="1-47" -->
 <!-- insert «manifest-three-dependencies» -->
 <!-- /source-root -->
-<!-- source-root «source-library-root» source="crates/keyed-launch/src/lib.rs" lines="1-94" -->
+<!-- source-root «source-library-root» source="crates/keyed-launch/src/lib.rs" lines="1-97" -->
 <!-- insert «library-root» -->
 <!-- /source-root -->
 <!-- source-root «source-error-types» source="crates/keyed-launch/src/error.rs" lines="1-148" -->
@@ -62,7 +62,7 @@
 <!-- insert «conformance» -->
 <!-- /source-root -->
 
-<!-- source-root «source-named» source="crates/keyed-launch/src/templates/named.rs" lines="1-527" -->
+<!-- source-root «source-named» source="crates/keyed-launch/src/templates/named.rs" lines="1-751" -->
 <!-- insert «named-capture» -->
 <!-- insert «named-diagnostics» -->
 <!-- insert «named-compile» -->
@@ -77,7 +77,7 @@
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
 | `manifest-three-dependencies` | `source-crate-manifest` | `understands-neither` | `1-47` | 47 | `resolved` |
-| `library-root` | `source-library-root` | `understands-neither` | `1-94` | 94 | `resolved` |
+| `library-root` | `source-library-root` | `understands-neither` | `1-97` | 97 | `resolved` |
 | `two-opaque-errors` | `source-error-types` | `understands-neither` | `1-148` | 148 | `resolved` |
 | `vocabulary` | `source-vocabulary` | `rules-about-names` | `1-46` | 46 | `resolved` |
 | `template-shapes` | `source-templates` | `rules-about-names` | `1-164` | 164 | `resolved` |
@@ -97,12 +97,12 @@
 | `terminal-and-spawn` | `source-run` | `nothing-else-added` | `244-510` | 267 | `resolved` |
 | `supervise-and-escalate` | `source-run` | `the-launchers-job` | `511-672` | 162 | `resolved` |
 | `conformance` | `source-conformance` | `checked-without-meaning` | `1-98` | 98 | `resolved` |
-| `named-capture` | `source-named` | `never-assembled` | `1-169` | 169 | `resolved` |
-| `named-diagnostics` | `source-named` | `never-assembled` | `170-184` | 15 | `resolved` |
-| `named-compile` | `source-named` | `words-not-shell` | `185-247` | 63 | `resolved` |
-| `named-fold` | `source-named` | `never-assembled` | `248-358` | 111 | `resolved` |
-| `named-resolve` | `source-named` | `never-assembled` | `359-494` | 136 | `resolved` |
-| `named-lookups` | `source-named` | `never-assembled` | `495-527` | 33 | `resolved` |
+| `named-capture` | `source-named` | `never-assembled` | `1-241` | 241 | `resolved` |
+| `named-diagnostics` | `source-named` | `never-assembled` | `242-257` | 16 | `resolved` |
+| `named-compile` | `source-named` | `words-not-shell` | `258-395` | 138 | `resolved` |
+| `named-fold` | `source-named` | `never-assembled` | `396-523` | 128 | `resolved` |
+| `named-resolve` | `source-named` | `never-assembled` | `524-717` | 194 | `resolved` |
+| `named-lookups` | `source-named` | `never-assembled` | `718-751` | 34 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -116,15 +116,15 @@
 | `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `27-29` | `manifest-three-dependencies` | `—` |
 | `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `30-32` | `manifest-three-dependencies` | `—` |
 | `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `33-47` | `manifest-three-dependencies` | `—` |
-| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-94` | `—` | `library-root` |
+| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-97` | `—` | `library-root` |
 | `library-root-thesis` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `1-8` | `library-root` | `—` |
-| `library-root` | `orientation` | `source-library-root` | `composite` | `understands-neither` | `1-94` | `source-library-root` | `library-root-thesis`, `library-root-two-documents`, `library-root-vocabulary`, `library-root-to-a-child`, `library-root-job-and-out-of-band`, `library-root-conformance`, `library-root-modules-and-exports` |
+| `library-root` | `orientation` | `source-library-root` | `composite` | `understands-neither` | `1-97` | `source-library-root` | `library-root-thesis`, `library-root-two-documents`, `library-root-vocabulary`, `library-root-to-a-child`, `library-root-job-and-out-of-band`, `library-root-conformance`, `library-root-modules-and-exports` |
 | `library-root-two-documents` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `9-21` | `library-root` | `—` |
-| `library-root-vocabulary` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `22-39` | `library-root` | `—` |
-| `library-root-to-a-child` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `40-48` | `library-root` | `—` |
-| `library-root-job-and-out-of-band` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `49-61` | `library-root` | `—` |
-| `library-root-conformance` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `62-71` | `library-root` | `—` |
-| `library-root-modules-and-exports` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `72-94` | `library-root` | `—` |
+| `library-root-vocabulary` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `22-41` | `library-root` | `—` |
+| `library-root-to-a-child` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `42-51` | `library-root` | `—` |
+| `library-root-job-and-out-of-band` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `52-64` | `library-root` | `—` |
+| `library-root-conformance` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `65-74` | `library-root` | `—` |
+| `library-root-modules-and-exports` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `75-97` | `library-root` | `—` |
 | `source-error-types` | `source-index` | `source-error-types` | `root` | `—` | `1-148` | `—` | `two-opaque-errors` |
 | `error-import` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `1-1` | `two-opaque-errors` | `—` |
 | `two-opaque-errors` | `orientation` | `source-error-types` | `composite` | `understands-neither` | `1-148` | `source-error-types` | `error-import`, `error-config-type`, `error-config-traits`, `error-launch-type`, `error-launch-traits` |
@@ -270,13 +270,13 @@
 | `conformance-no-keys` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `67-76` | `conformance` | `—` |
 | `conformance-values` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `77-84` | `conformance` | `—` |
 | `conformance-expands` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `85-98` | `conformance` | `—` |
-| `source-named` | `source-index` | `source-named` | `root` | `—` | `1-527` | `—` | `named-capture`, `named-diagnostics`, `named-compile`, `named-fold`, `named-resolve`, `named-lookups` |
-| `named-capture` | `two-documents` | `source-named` | `literal` | `never-assembled` | `1-169` | `source-named` | `—` |
-| `named-diagnostics` | `two-documents` | `source-named` | `literal` | `never-assembled` | `170-184` | `source-named` | `—` |
-| `named-compile` | `template-law` | `source-named` | `literal` | `words-not-shell` | `185-247` | `source-named` | `—` |
-| `named-fold` | `two-documents` | `source-named` | `literal` | `never-assembled` | `248-358` | `source-named` | `—` |
-| `named-resolve` | `two-documents` | `source-named` | `literal` | `never-assembled` | `359-494` | `source-named` | `—` |
-| `named-lookups` | `two-documents` | `source-named` | `literal` | `never-assembled` | `495-527` | `source-named` | `—` |
+| `source-named` | `source-index` | `source-named` | `root` | `—` | `1-751` | `—` | `named-capture`, `named-diagnostics`, `named-compile`, `named-fold`, `named-resolve`, `named-lookups` |
+| `named-capture` | `two-documents` | `source-named` | `literal` | `never-assembled` | `1-241` | `source-named` | `—` |
+| `named-diagnostics` | `two-documents` | `source-named` | `literal` | `never-assembled` | `242-257` | `source-named` | `—` |
+| `named-compile` | `template-law` | `source-named` | `literal` | `words-not-shell` | `258-395` | `source-named` | `—` |
+| `named-fold` | `two-documents` | `source-named` | `literal` | `never-assembled` | `396-523` | `source-named` | `—` |
+| `named-resolve` | `two-documents` | `source-named` | `literal` | `never-assembled` | `524-717` | `source-named` | `—` |
+| `named-lookups` | `two-documents` | `source-named` | `literal` | `never-assembled` | `718-751` | `source-named` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -300,20 +300,20 @@
 ## Owned source totals
 
 Every source line is credited once to its owning chapter. The 11 roots
-contain 3,172 lines, divided below by the manifest's ownership
+contain 3,399 lines, divided below by the manifest's ownership
 blocks. Templates, run and channel split across chapters; the remaining roots
 are owned whole.
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `understands-neither` | `01-orientation.md` | 289 |
+| `understands-neither` | `01-orientation.md` | 292 |
 | `rules-about-names` | `02-the-names.md` | 316 |
-| `never-assembled` | `03-two-documents.md` | 787 |
-| `words-not-shell` | `04-template-law.md` | 366 |
+| `never-assembled` | `03-two-documents.md` | 936 |
+| `words-not-shell` | `04-template-law.md` | 441 |
 | `whole-word-or-nothing` | `05-to-an-argv.md` | 240 |
 | `appearance-is-the-event` | `06-the-channel.md` | 271 |
 | `nothing-else-added` | `07-the-job.md` | 390 |
 | `the-launchers-job` | `08-the-escalation.md` | 282 |
 | `checked-without-meaning` | `09-how-checked.md` | 231 |
 | `assembly` | `10-what-passes-through.md` | 0 |
-| **Total** | 11 source roots | **3,172** |
+| **Total** | 11 source roots | **3,399** |

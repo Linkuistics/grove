@@ -626,4 +626,13 @@ code. Chapter 10 owns no source and is where it is stated: where a layer learns
 what its values mean, what it costs when the answer is anywhere at all, and which
 of these nine chapters proved that here the answer is nowhere.
 
+Named parameter acceptance is exercised through the public Catalog/Templates
+seam in `crates/keyed-launch/tests/named_commands.rs`. The tests distinguish
+structural validation of dormant declarations from active template validation
+and admitted-route completeness. They check shared and edited defaults,
+repeated embedded references, empty and adversarial values, native runtime
+strings, exact source spans, multi-origin words and replacement histories.
+Grove's lifecycle and leaf-mutation tests then observe real fake-executable argv
+and refusal before any task-tree write; they do not need an agent harness.
+
 [Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md) | [Next: What passes through](10-what-passes-through.md)

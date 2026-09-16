@@ -6,9 +6,10 @@ Grove configuration names reusable commands, composes differences through
 profiles, and resolves an explicit command for each configured session kind.
 This is the design contract for that configuration area. The running reader
 implements captured Catalog/Selection resolution, diagnostics and inspection for
-legacy flat commands and parameter-free wrapper commands, bindings and routes.
-Named dollar escaping and effective-reference validation are implemented.
-Parameters, profiles, human inspection commands, example delivery and Grove
+legacy flat commands and parameterized wrapper commands, bindings and routes.
+Parameter declarations/defaults, safe embedded substitution, multi-origin words,
+named dollar escaping and effective-reference validation are implemented.
+Parameter patches, profiles, human inspection commands, example delivery and Grove
 selection policy remain pending; the [reference](../CONFIGURATION.md) describes
 the current boundary.
 

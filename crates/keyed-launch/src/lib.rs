@@ -5,7 +5,7 @@
 //! either: a key is an opaque string, a slot is a name the consumer declares,
 //! and the words of a template are the words the file holds. What the crate owns
 //! is an explicit, complete resolved command, checked before anything is spawned.
-//! Flat templates coexist with parameter-free named commands, bindings and routes.
+//! Flat templates coexist with parameterized named commands, bindings and routes.
 //!
 //! # Two documents, and what the second one may do
 //!
@@ -25,11 +25,13 @@
 //! [`Templates::load`] delegates to that path with an empty selection.
 //!
 //! The `config` wrapper accepts primary `command` definitions and `bind`/`route`
-//! targets in either source. Parameters, profiles and selection declarations remain
-//! explicit errors. Effective bindings activate named templates; dormant definitions
-//! are not compiled. Legacy flat templates still validate eagerly.
+//! targets in either source. Command param declarations supply defaults; required
+//! parameters must be complete on admitted routes. Parameter patches, profiles and
+//! selection declarations remain explicit errors. Effective bindings activate named
+//! templates; dormant definitions are not compiled. Flat templates validate eagerly.
 //! [`Templates::inspect`] explains reference chains, command words, captured origins,
-//! replaced targets and non-admitted overlay keys without source I/O.
+//! parameter defaults, multi-origin words, replaced targets and non-admitted overlay
+//! keys without source I/O.
 //! [`ConfigError::diagnostics`] exposes stable categories, source byte ranges
 //! and remedies. Independent structural errors aggregate across both inputs.
 //!
@@ -44,7 +46,8 @@
 //! with no shell — and supervises the child until it ends. The two halves meet
 //! only at `Argv`, and each is usable without the other: a launcher that builds
 //! its argv some other way still cannot construct one, which is the point.
-//! Active named and all flat templates reject NUL before resolution succeeds; expansion rejects NUL in every offered runtime
+//! Active named templates, resolved parameters and all flat templates reject NUL
+//! before resolution succeeds; expansion rejects NUL in every offered runtime
 //! value, including unused optional slots. Other native bytes remain unchanged.
 //!
 //! **The child is a job.** It is spawned into a process group of its own and

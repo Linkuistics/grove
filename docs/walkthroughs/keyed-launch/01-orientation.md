@@ -199,7 +199,7 @@ order is that account's order. The book reads it whole here, in seven fragments:
 six that follow the doc comment's own paragraph breaks, and one for the module
 declarations and exports, which this chapter reads after the worked example.
 
-<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-94" parent="source-library-root" -->
+<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-97" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-two-documents» -->
 <!-- insert «library-root-vocabulary» -->
@@ -212,7 +212,7 @@ declarations and exports, which this chapter reads after the worked example.
 The first fragment is the spine, and every chapter of this book is a reading of
 its second sentence. The claim has two halves. The crate understands neither the
 key nor the template: a consumer names one and a template names the other, and
-nothing in these 3,172 lines interprets either. What the crate does own is
+nothing in these 3,399 lines interprets either. What the crate does own is
 stated positively: a launch resolves to one explicit, complete command and is
 checked before anything is spawned. Chapters 3 and 4 explain reference resolution
 and template validation without interpreting a harness or its flags.
@@ -226,7 +226,7 @@ and template validation without interpreting a harness or its flags.
 //! either: a key is an opaque string, a slot is a name the consumer declares,
 //! and the words of a template are the words the file holds. What the crate owns
 //! is an explicit, complete resolved command, checked before anything is spawned.
-//! Flat templates coexist with parameter-free named commands, bindings and routes.
+//! Flat templates coexist with parameterized named commands, bindings and routes.
 ````
 <!-- /fragment -->
 
@@ -258,7 +258,7 @@ questions.
 ````
 <!-- /fragment -->
 
-The third fragment is five lines and it is the one this book moves. In the file
+The third fragment introduces captured snapshots and the vocabulary that makes them checkable. In the file
 it follows the two documents; in the book it precedes them, because the argument
 it makes is what makes the two documents checkable at all. Every template rule is
 a rule about slot *names*, so a loader that will not learn the names until
@@ -266,7 +266,7 @@ expansion can check none of them. Chapter 2 owns that argument and takes the
 position the crate takes on it; chapter 3 then reads a `load` that has the names
 in hand.
 
-<!-- fragment «library-root-vocabulary» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="22-39" parent="library-root" -->
+<!-- fragment «library-root-vocabulary» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="22-41" parent="library-root" -->
 ````rust
 //! Catalog retains both original documents and their declarations. Resolving an
 //! explicit [`Selection`] returns an owned [`Templates`] snapshot without source
@@ -274,11 +274,13 @@ in hand.
 //! [`Templates::load`] delegates to that path with an empty selection.
 //!
 //! The `config` wrapper accepts primary `command` definitions and `bind`/`route`
-//! targets in either source. Parameters, profiles and selection declarations remain
-//! explicit errors. Effective bindings activate named templates; dormant definitions
-//! are not compiled. Legacy flat templates still validate eagerly.
+//! targets in either source. Command param declarations supply defaults; required
+//! parameters must be complete on admitted routes. Parameter patches, profiles and
+//! selection declarations remain explicit errors. Effective bindings activate named
+//! templates; dormant definitions are not compiled. Flat templates validate eagerly.
 //! [`Templates::inspect`] explains reference chains, command words, captured origins,
-//! replaced targets and non-admitted overlay keys without source I/O.
+//! parameter defaults, multi-origin words, replaced targets and non-admitted overlay
+//! keys without source I/O.
 //! [`ConfigError::diagnostics`] exposes stable categories, source byte ranges
 //! and remedies. Independent structural errors aggregate across both inputs.
 //!
@@ -302,7 +304,7 @@ dependency — nothing in `run` compiles against `templates`, and nothing in
 shows the two lines that make it true, and this chapter's last section reads the
 error module that the claim is also visible in.
 
-<!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="40-48" parent="library-root" -->
+<!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="42-51" parent="library-root" -->
 ````rust
 //!
 //! # From a template to a running child
@@ -311,7 +313,8 @@ error module that the claim is also visible in.
 //! with no shell — and supervises the child until it ends. The two halves meet
 //! only at `Argv`, and each is usable without the other: a launcher that builds
 //! its argv some other way still cannot construct one, which is the point.
-//! Active named and all flat templates reject NUL before resolution succeeds; expansion rejects NUL in every offered runtime
+//! Active named templates, resolved parameters and all flat templates reject NUL
+//! before resolution succeeds; expansion rejects NUL in every offered runtime
 //! value, including unused optional slots. Other native bytes remain unchanged.
 ````
 <!-- /fragment -->
@@ -325,7 +328,7 @@ finishes rather than exiting, so its own exit is not the event anyone is waiting
 for, and the channel's *appearance* is. Those two sentences are the reason the
 crate has a `Channel` at all, and chapter 6 is where the appearance rule is built.
 
-<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="49-61" parent="library-root" -->
+<!-- fragment «library-root-job-and-out-of-band» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="52-64" parent="library-root" -->
 ````rust
 //!
 //! **The child is a job.** It is spawned into a process group of its own and
@@ -349,7 +352,7 @@ holds a consumer's configuration to this crate's contract **from outside the
 consumer's own suite**. The distinction it draws in that clause is the whole of
 why the kit exists, and chapter 9 argues it.
 
-<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="62-71" parent="library-root" -->
+<!-- fragment «library-root-conformance» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="65-74" parent="library-root" -->
 ````rust
 //!
 //! [`run_observed`] adds synchronous parent-side [`LaunchEvent`] notifications
@@ -483,7 +486,7 @@ The final module declarations and exports put the public surface in one place.
 This book reads them here rather than deferring each name to its own chapter, because the
 list is short and the map above has already said which chapter owns what.
 
-<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="72-94" parent="library-root" -->
+<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="75-97" parent="library-root" -->
 ````rust
 
 pub mod conformance;
@@ -576,8 +579,8 @@ these through `diagnostics()` while keeping its construction private.
 can choose structured access without parsing prose. `contextualize` supplies a
 known source and key to runtime errors without inventing a source span.
 Occurrence records identify each selected entry, including an unknown external
-profile and its list index; absent selection origins stay absent. The binding,
-command and parameter names are reserved for later modular resolution.
+profile and its list index; absent selection origins stay absent. Named resolution supplies binding,
+command and parameter names when those declarations cause a failure.
 Chapter 4 explains how the flat validator supplies locations and categories.
 
 <!-- fragment «error-config-type» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="2-93" parent="two-opaque-errors" -->

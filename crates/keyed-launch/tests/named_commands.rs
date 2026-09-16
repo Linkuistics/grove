@@ -149,7 +149,6 @@ fn structural_errors_and_pending_syntax_are_explicit() {
         "alpha \"runner ${payload}\"\nconfig { route \"alpha\" \"lead\"; }",
         "config { bind \"lead\" \"a\"; bind \"lead\" \"b\"; }",
         "config { route \"alpha\" \"a\"; route \"alpha\" \"b\"; }",
-        "config { command \"a\" \"runner ${payload}\" { param \"x\" \"y\"; }; }",
         "config { values \"a\" { param \"x\" \"y\"; }; }",
         "config { route \"alpha\" { unset \"x\"; }; }",
         "config { profile \"a\" {}; }",
@@ -273,7 +272,16 @@ fn local_binding_redirects_shared_users_and_named_routes_replace_flat_targets() 
 #[test]
 fn named_commands_preserve_native_runtime_values_and_refuse_nul() {
     use std::os::unix::ffi::OsStrExt;
-    let templates = load(BASE, None).unwrap();
+    let templates = load(
+        &BASE
+            .replace("runner 'one argument'", "runner ${param.native}")
+            .replace(
+                "$${escaped} ${payload}\"",
+                "$${escaped} ${payload}\" { param \"native\" \"configuration value\"; }",
+            ),
+        None,
+    )
+    .unwrap();
     let native = OsStr::from_bytes(b"native\xff path");
     let argv = templates
         .expand(
@@ -303,4 +311,247 @@ fn named_commands_preserve_native_runtime_values_and_refuse_nul() {
     .err()
     .unwrap();
     assert_eq!(invalid.diagnostics()[0].category, "invalid_template");
+}
+
+#[test]
+fn parameter_defaults_are_opaque_words_with_exact_provenance_and_snapshot_lifetime() {
+    let text = r#"config {
+        command "shared" "runner pre=${param.first}/${param.second}/${param.first} ${param.empty} ${param.prompt} $${param.unknown} ${payload}" {
+            param "first" "space 'quote' ${payload}; #"
+            param "second" "雪"
+            param "empty" ""
+            param "prompt" "ordinary parameter"
+            param "unused" "still inspected"
+        }
+        bind "lead" "shared"
+        route "alpha" "lead"
+        route "beta" "lead"
+    }"#;
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("policy.kdl");
+    fs::write(&path, text).unwrap();
+    let catalog = Catalog::load(&path, None, vocabulary()).unwrap();
+    let convenience = Templates::load(&path, None, vocabulary()).unwrap();
+    fs::write(&path, text.replace("雪", "changed")).unwrap();
+    let edited = Templates::load(&path, None, vocabulary()).unwrap();
+    fs::remove_file(&path).unwrap();
+    let templates = catalog.resolve(&Selection::default()).unwrap();
+    drop(catalog);
+    assert_eq!(templates.inspect(), convenience.inspect());
+    for key in ["alpha", "beta"] {
+        let slots = [Slot {
+            name: "payload",
+            value: OsStr::new("runtime value"),
+        }];
+        let argv = templates.expand(key, &slots).unwrap();
+        assert_eq!(
+            argv.words(),
+            [
+                "runner",
+                "pre=space 'quote' ${payload}; #/雪/space 'quote' ${payload}; #",
+                "",
+                "ordinary parameter",
+                "${param.unknown}",
+                "runtime value"
+            ]
+        );
+        assert_eq!(
+            edited.expand(key, &slots).unwrap().args()[0],
+            "pre=space 'quote' ${payload}; #/changed/space 'quote' ${payload}; #"
+        );
+        let view = templates.inspect();
+        let command = view.commands.iter().find(|c| c.key == key).unwrap();
+        assert_eq!(command.parameters.len(), 5);
+        for parameter in &command.parameters {
+            assert_eq!(parameter.origins.len(), 1);
+            assert_eq!(parameter.histories.len(), 1);
+            let history = &view.histories[parameter.histories[0]];
+            assert_eq!(
+                history.setting,
+                Setting::ParameterDefault {
+                    command: "shared".into(),
+                    parameter: parameter.name.clone()
+                }
+            );
+            assert_eq!(
+                history.assignments[0].value,
+                AssignmentValue::Set(parameter.value.clone())
+            );
+            let span = &view.origins[parameter.origins[0]].span;
+            assert!(text[span.start..span.end].starts_with(&format!("param {:?}", parameter.name)));
+            assert!(command.histories.contains(&history.id));
+        }
+        let mixed = &command.words[1];
+        assert_eq!(
+            mixed.origins.len(),
+            3,
+            "template and both parameters, deduplicated"
+        );
+        for name in ["first", "second"] {
+            let parameter = command.parameters.iter().find(|p| p.name == name).unwrap();
+            assert!(mixed.origins.contains(&parameter.origins[0]));
+        }
+        assert_eq!(
+            command.words[4].origins.len(),
+            1,
+            "escaped reference is literal"
+        );
+        assert_eq!(
+            command.words[5].origins.len(),
+            1,
+            "runtime slot has template origin"
+        );
+    }
+}
+
+#[test]
+fn required_parameters_are_demanded_only_on_admitted_routes_even_when_unused() {
+    let base = r#"config {
+        command "shared" "runner ${payload}" { param "required"; }
+        bind "lead" "shared"
+    }"#;
+    load(base, Some("config { route \"local-only\" \"lead\"; }")).unwrap();
+    let text = base.replace(
+        "bind \"lead\" \"shared\"",
+        "bind \"lead\" \"shared\"; route \"alpha\" \"lead\"; route \"beta\" \"lead\"",
+    );
+    let error = load(&text, None).err().unwrap();
+    assert_eq!(error.diagnostics().len(), 2);
+    for (diagnostic, key) in error.diagnostics().iter().zip(["alpha", "beta"]) {
+        assert_eq!(diagnostic.category, "missing_parameter");
+        assert_eq!(diagnostic.key.as_deref(), Some(key));
+        assert_eq!(diagnostic.parameter.as_deref(), Some("required"));
+        assert_eq!(diagnostic.command.as_deref(), Some("shared"));
+        assert_eq!(diagnostic.binding.as_deref(), Some("lead"));
+        let span = diagnostic.primary.as_ref().unwrap();
+        assert_eq!(&text[span.start..span.end], "param \"required\"");
+        assert!(diagnostic
+            .related
+            .iter()
+            .any(|span| text[span.start..span.end].starts_with("route")));
+    }
+    load(
+        &text,
+        Some("alpha \"literal ${payload}\"\nbeta \"literal ${payload}\""),
+    )
+    .unwrap();
+}
+
+#[test]
+fn parameter_schemas_are_checked_even_on_dormant_definitions() {
+    for (declarations, category) in [
+        ("param \"a\"; param \"a\" \"b\";", "duplicate"),
+        ("param \"Bad\";", "shape"),
+        ("param \"bad--name\";", "shape"),
+        ("param \"a\" 1;", "shape"),
+        ("param \"a\" \"b\" \"c\";", "shape"),
+        ("param \"a\" {};", "shape"),
+        ("param name=\"a\";", "shape"),
+        ("(typed)param \"a\";", "shape"),
+        ("param (typed)\"a\";", "shape"),
+        ("unset \"a\";", "shape"),
+        ("param;", "shape"),
+    ] {
+        let text = format!("config {{ command \"dormant\" \"'broken\" {{ {declarations} }}; }}");
+        let error = load(&text, None).err().unwrap();
+        assert_eq!(error.diagnostics()[0].category, category, "{text}");
+    }
+}
+
+#[test]
+fn active_parameter_errors_are_classified_without_cascading_missing_values() {
+    for (template, declaration, category, parameter) in [
+        (
+            "runner ${param.unknown} ${payload}",
+            "param \"required\";",
+            "unknown_parameter",
+            Some("unknown"),
+        ),
+        (
+            "runner ${param.broken ${payload}",
+            "param \"required\";",
+            "invalid_template",
+            None,
+        ),
+        (
+            "${param.executable} ${payload}",
+            "param \"executable\" \"runner\";",
+            "invalid_template",
+            None,
+        ),
+        (
+            "run${param.executable} ${payload}",
+            "param \"executable\" \"ner\";",
+            "invalid_template",
+            None,
+        ),
+        (
+            "runner ${payload}",
+            "param \"unused\" \"bad\\u{0}value\";",
+            "invalid_value",
+            Some("unused"),
+        ),
+    ] {
+        let text = format!("config {{ command \"a\" {template:?} {{ {declaration} }}; bind \"b\" \"a\"; route \"key\" \"b\"; }}");
+        let error = load(&text, None).err().unwrap();
+        assert_eq!(error.diagnostics().len(), 1, "{text}: {error}");
+        let diagnostic = &error.diagnostics()[0];
+        assert_eq!(diagnostic.category, category, "{text}: {error}");
+        assert_eq!(diagnostic.parameter.as_deref(), parameter);
+    }
+    load("config { command \"dormant\" \"${param.unknown}\" { param \"unused\" \"bad\\u{0}value\"; }; }", None).unwrap();
+    let error = load(
+        "config { command \"a\" \"runner ${param.unknown} ${payload}\"; bind \"b\" \"a\"; }",
+        None,
+    )
+    .err()
+    .unwrap();
+    assert_eq!(error.diagnostics()[0].category, "unknown_parameter");
+}
+
+#[test]
+fn changing_binding_schema_uses_only_final_defaults_and_literal_replacement_has_none() {
+    let primary = r#"config {
+        command "old" "runner ${param.old} ${payload}" { param "old" "first"; }
+        command "new" "runner ${param.new} ${payload}" { param "new" "second"; }
+        bind "lead" "old"
+        route "alpha" "lead"
+        route "beta" "lead"
+    }"#;
+    let templates = load(
+        primary,
+        Some("config { bind \"lead\" \"new\"; }\nbeta \"literal ${payload}\""),
+    )
+    .unwrap();
+    let view = templates.inspect();
+    let alpha = &view.commands[0];
+    assert_eq!(alpha.parameters.len(), 1);
+    assert_eq!(alpha.parameters[0].name, "new");
+    assert_eq!(alpha.parameters[0].value, "second");
+    assert!(view.commands[1].parameters.is_empty());
+    assert_eq!(
+        templates
+            .expand(
+                "alpha",
+                &[Slot {
+                    name: "payload",
+                    value: OsStr::new("value")
+                }]
+            )
+            .unwrap()
+            .words(),
+        ["runner", "second", "value"]
+    );
+    assert_eq!(
+        view.histories
+            .iter()
+            .find(|h| h.setting
+                == Setting::BindingTarget {
+                    binding: "lead".into()
+                })
+            .unwrap()
+            .assignments
+            .len(),
+        2
+    );
 }

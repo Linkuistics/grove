@@ -97,3 +97,20 @@ The existing loader already reserves the parameter vocabulary prefix, but NUL
 can reach Argv from both flat template words and offered runtime values. Deliver
 this independently observable validation boundary first. The remaining children
 own every other original acceptance criterion; profiles remain with `k9`.
+
+## Named-command reuse handoff
+
+`named-command-reuse-k19` now delivers command schemas/defaults, explicit target
+reuse and local target replacement, safe named fragments, complete admitted
+routes and multi-origin inspection through Catalog/Templates and Grove. Its
+public tests and Grove fake-launch/mutation seams pass the principal checks.
+The final child audits the complete k19 contract; no k19 work remains.
+
+For `parameter-overlays-k20`, defaults already have ParameterDefault histories
+and declaration origins. Named compilation retains internal literal/parameter
+fragments until route instantiation; inspection and expansion then share public
+literal/slot words. Required values (including unused declarations) are demanded
+only for admitted routes. Add assignment/removal maps and reset histories at
+that resolution boundary, preserving dormant definitions, active binding checks,
+native runtime values, and source-independent snapshots. Parameter patches and
+profiles/selections remain explicit errors at this handoff.

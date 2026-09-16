@@ -653,9 +653,9 @@ line, and the diagnostics all three of this chapter's aggregating passes carry.
 <a id="named-capture"></a>
 ## Named declarations before resolution
 
-The private named module captures command definitions, binding targets and route targets with their original spans. `is_wrapper` distinguishes a child-bearing `config` from a flat key named config. `parse` checks both namespaces and document roles without compiling dormant templates. Flat keys enter the route duplicate table before wrapper traversal, so textual order cannot hide a duplicate. Empty command and route blocks are accepted; parameter-bearing blocks and all profile syntax fail explicitly at this increment.
+The private named module captures command definitions, binding targets and route targets with their original spans. `is_wrapper` distinguishes a child-bearing `config` from a flat key named config. `parse` checks both namespaces and document roles without compiling dormant templates. Flat keys enter the route duplicate table before wrapper traversal, so textual order cannot hide a duplicate. Command children declare parameters and optional defaults; their names, shapes and uniqueness are checked even when the command stays dormant. Empty route blocks are accepted, while parameter patch blocks and profile syntax still fail explicitly.
 
-<!-- fragment «named-capture» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1-169" parent="source-named" -->
+<!-- fragment «named-capture» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1-241" parent="source-named" -->
 ````rust
 //! Named base commands: capture structure first, then resolve effective targets.
 use super::{
@@ -664,10 +664,11 @@ use super::{
     Inspection, KdlDocument, KdlNode, NonAdmittedKey, Origin, Path, Selection, Setting, SlotSpec,
     SourceLocation, SourceRole, SourceSpan, Template, ValidationDiagnostic, Word, WordView,
 };
+use crate::ParameterView;
 
 #[derive(Default)]
 pub(super) struct Declarations {
-    commands: BTreeMap<String, Target>,
+    commands: BTreeMap<String, Command>,
     bindings: BTreeMap<String, Target>,
     routes: BTreeMap<String, Target>,
 }
@@ -675,6 +676,16 @@ pub(super) struct Declarations {
 #[derive(Clone)]
 struct Target {
     value: String,
+    span: SourceSpan,
+}
+
+struct Command {
+    template: Target,
+    parameters: BTreeMap<String, Parameter>,
+}
+
+struct Parameter {
+    default: Option<String>,
     span: SourceSpan,
 }
 
@@ -758,10 +769,10 @@ pub(super) fn parse(
                 continue;
             };
             if !plain(child)
-                || child.children().is_some_and(|c| !c.nodes().is_empty())
+                || (kind == "route" && child.children().is_some_and(|c| !c.nodes().is_empty()))
                 || (kind == "bind" && child.children().is_some())
             {
-                diagnostics.push(at_node(loc, format!("`{kind}` does not accept properties, types or child nodes; parameters are not yet supported")));
+                diagnostics.push(at_node(loc, format!("`{kind}` does not accept properties or types; only commands accept param declaration children; parameter patches are not yet supported")));
                 continue;
             }
             let name = values[0];
@@ -787,8 +798,22 @@ pub(super) fn parse(
                     end: loc.end,
                 },
             };
+            if kind == "command" {
+                let parameters = parse_parameters(path, source, child, role, diagnostics);
+                if let Some(previous) = result.commands.insert(
+                    name.into(),
+                    Command {
+                        template: target,
+                        parameters,
+                    },
+                ) {
+                    let mut earlier = source_location(source, previous.template.span.start);
+                    earlier.end = previous.template.span.end;
+                    duplicate(name, earlier, loc, diagnostics);
+                }
+                continue;
+            }
             let table = match kind {
-                "command" => &mut result.commands,
                 "bind" => &mut result.bindings,
                 _ => {
                     if let Some(previous) = routes.insert(name.into(), loc) {
@@ -807,10 +832,57 @@ pub(super) fn parse(
     }
     for diagnostic in &mut diagnostics[first_diagnostic..] {
         if diagnostic.category == "shape" {
-            diagnostic.remedy = "Use config { command \"name\" \"template\"; bind \"binding\" \"name\"; route \"key\" \"binding\"; }; keep definitions in primary policy and omit parameters/profiles/selections.";
+            diagnostic.remedy = "Use config { command \"name\" \"template\" { param \"name\" \"default\"; }; bind \"binding\" \"name\"; route \"key\" \"binding\"; }; keep definitions in primary policy and omit parameter patches/profiles/selections.";
         }
     }
     result
+}
+
+fn parse_parameters(
+    path: &Path,
+    source: &str,
+    command: &KdlNode,
+    role: DocumentRole,
+    diagnostics: &mut Vec<ValidationDiagnostic>,
+) -> BTreeMap<String, Parameter> {
+    let mut parameters: BTreeMap<String, Parameter> = BTreeMap::new();
+    for node in command.children().into_iter().flat_map(KdlDocument::nodes) {
+        let loc = location(source, node);
+        let values: Option<Vec<_>> = node
+            .entries()
+            .iter()
+            .map(|entry| entry.value().as_string())
+            .collect();
+        let Some(values) = values.filter(|v| (1..=2).contains(&v.len())) else {
+            diagnostics.push(at_node(
+                loc,
+                "param requires a name and optional default string".into(),
+            ));
+            continue;
+        };
+        if node.name().value() != "param"
+            || !plain(node)
+            || node.children().is_some()
+            || !valid_name(values[0])
+        {
+            diagnostics.push(at_node(loc, "command children must be param declarations with a valid lowercase name, no properties, types or children".into()));
+            continue;
+        }
+        let parameter = Parameter {
+            default: values.get(1).map(|value| (*value).to_owned()),
+            span: SourceSpan {
+                source: role.source(path),
+                start: loc.start,
+                end: loc.end,
+            },
+        };
+        if let Some(previous) = parameters.insert(values[0].into(), parameter) {
+            let mut earlier = source_location(source, previous.span.start);
+            earlier.end = previous.span.end;
+            duplicate(values[0], earlier, loc, diagnostics);
+        }
+    }
+    parameters
 }
 
 fn duplicate(
@@ -834,7 +906,7 @@ fn duplicate(
 
 `problem` attaches a target’s source and byte range to a semantic diagnostic. Reference resolution adds the affected names. This gives a failed binding a useful file location even though it was resolved after capture, and no file needs to be reopened.
 
-<!-- fragment «named-diagnostics» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="170-184" parent="source-named" -->
+<!-- fragment «named-diagnostics» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="242-257" parent="source-named" -->
 ````rust
 fn problem(category: &str, target: &Target, message: String) -> Diagnostic {
     let mut diagnostic = Diagnostic::new(
@@ -851,6 +923,7 @@ fn problem(category: &str, target: &Target, message: String) -> Diagnostic {
     diagnostic.source = Some(target.span.source.clone());
     diagnostic
 }
+
 ````
 <!-- /fragment -->
 
@@ -859,7 +932,7 @@ fn problem(category: &str, target: &Target, message: String) -> Diagnostic {
 
 `resolve` collects primary targets before applying the overlay. Its admitted-key set is filled only by primary declarations, independently of later target changes. Both flat and named routes enter the same map. Every captured declaration receives an origin in source order; target assignments append to histories rather than erasing their predecessors. Definition origins have no target history, because definitions cannot be overridden. This is where a local binding change redirects several routes without granting a new key.
 
-<!-- fragment «named-fold» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="248-358" parent="source-named" -->
+<!-- fragment «named-fold» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="396-523" parent="source-named" -->
 ````rust
 #[derive(Clone)]
 enum Route {
@@ -907,7 +980,24 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
         });
         let mut declarations = Vec::new();
         for (name, command) in &document.named.commands {
-            declarations.push((&command.span, None, AssignmentValue::Set(name.clone())));
+            declarations.push((
+                &command.template.span,
+                None,
+                AssignmentValue::Set(name.clone()),
+            ));
+            for (parameter, declaration) in &command.parameters {
+                declarations.push((
+                    &declaration.span,
+                    declaration
+                        .default
+                        .as_ref()
+                        .map(|_| Setting::ParameterDefault {
+                            command: name.clone(),
+                            parameter: parameter.clone(),
+                        }),
+                    AssignmentValue::Set(declaration.default.clone().unwrap_or_default()),
+                ));
+            }
         }
         for (binding, target) in &document.named.bindings {
             bindings.insert(binding.clone(), target.clone());
@@ -978,9 +1068,9 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
 <a id="named-resolve"></a>
 ## Activate definitions and project commands
 
-After the fold, every effective binding must name a definition whose template compiles. Compilation is cached per definition, and dormant definitions are never parsed as command words. Admitted routes then resolve through those bindings; local-only routes become explanatory non-admission records before reference lookup. Each successful command exposes its route, binding and template origins, both target histories, and the very words expansion uses. A flat replacement instead has only its literal target origin. Independent failures aggregate in source-role and byte order; any failure prevents a Templates snapshot.
+After the fold, every effective binding must name a definition whose template compiles. Compilation is cached per definition, and dormant definitions are never parsed as command words. Admitted routes then resolve through those bindings; local-only routes become explanatory non-admission records before reference lookup. Every admitted route must have values for all declared parameters, including unused ones. Missing values and NUL-bearing defaults report the declaration and related route/binding spans. Only a complete route instantiates its fragments. Each successful command exposes its route, binding and template origins, target and default histories, resolved parameters, and the very words expansion uses. A word carries its template origin plus each contributing parameter origin, deduplicated when a parameter repeats. A flat replacement instead has only its literal target origin and no parameter map. Independent failures aggregate in source-role and byte order; any failure prevents a Templates snapshot.
 
-<!-- fragment «named-resolve» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="359-494" parent="source-named" -->
+<!-- fragment «named-resolve» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="524-717" parent="source-named" -->
 ````rust
     let definitions = &captured.primary.named.commands;
     let mut compiled = BTreeMap::new();
@@ -1007,15 +1097,11 @@ After the fold, every effective binding must name a definition whose template co
             Ok(words) => {
                 compiled.insert(target.value.clone(), Some(words));
             }
-            Err(message) => {
-                let mut diagnostic = problem(
-                    "invalid_template",
-                    command,
-                    format!("command `{}`: {message}", target.value),
-                );
+            Err(mut diagnostic) => {
                 diagnostic.command = Some(target.value.clone());
+                diagnostic.binding = Some(binding.clone());
                 diagnostic.related.push(target.span.clone());
-                diagnostics.push(diagnostic);
+                diagnostics.push(*diagnostic);
                 compiled.insert(target.value.clone(), None);
             }
         }
@@ -1039,6 +1125,8 @@ After the fold, every effective binding must name a definition whose template co
             });
             continue;
         }
+        let mut parameters = Vec::new();
+        let mut resolved_words = None;
         let (template, binding, command, origins, histories) = match route {
             Route::Literal(template) => (
                 template,
@@ -1063,12 +1151,68 @@ After the fold, every effective binding must name a definition whose template co
                     continue;
                 };
                 let definition = &definitions[&binding.value];
+                let before = diagnostics.len();
+                for (name, parameter) in &definition.parameters {
+                    let category = match &parameter.default {
+                        None => Some("missing_parameter"),
+                        Some(value) if value.contains('\0') => Some("invalid_value"),
+                        Some(_) => None,
+                    };
+                    if let Some(category) = category {
+                        let target = Target {
+                            value: String::new(),
+                            span: parameter.span.clone(),
+                        };
+                        let mut diagnostic = problem(
+                            category,
+                            &target,
+                            format!(
+                                "key `{key}`, command `{}`, parameter `{name}`: {}",
+                                binding.value,
+                                if category == "missing_parameter" {
+                                    "a value is required"
+                                } else {
+                                    "value contains NUL"
+                                }
+                            ),
+                        );
+                        diagnostic.related = vec![route.span.clone(), binding.span.clone()];
+                        diagnostic.key = Some(key.clone());
+                        diagnostic.binding = Some(route.value.clone());
+                        diagnostic.command = Some(binding.value.clone());
+                        diagnostic.parameter = Some(name.clone());
+                        diagnostic.remedy = "Supply a NUL-free default string in the command's parameter declaration; parameter override patches are not yet supported.".into();
+                        diagnostics.push(diagnostic);
+                        continue;
+                    }
+                    parameters.push(ParameterView {
+                        name: name.clone(),
+                        value: parameter.default.clone().expect("checked default"),
+                        origins: vec![origin_id(&view, &parameter.span)],
+                        histories: vec![history_id(
+                            &view,
+                            &Setting::ParameterDefault {
+                                command: binding.value.clone(),
+                                parameter: name.clone(),
+                            },
+                        )],
+                    });
+                }
+                if diagnostics.len() != before {
+                    continue;
+                }
+                let words: Vec<_> = words
+                    .iter()
+                    .map(|word| {
+                        word.instantiate(&parameters, origin_id(&view, &definition.template.span))
+                    })
+                    .collect();
                 let origins = vec![
                     route_origin,
                     origin_id(&view, &binding.span),
-                    origin_id(&view, &definition.span),
+                    origin_id(&view, &definition.template.span),
                 ];
-                let histories = vec![
+                let mut histories = vec![
                     route_history,
                     history_id(
                         &view,
@@ -1077,12 +1221,14 @@ After the fold, every effective binding must name a definition whose template co
                         },
                     ),
                 ];
+                histories.extend(parameters.iter().flat_map(|p| p.histories.iter().copied()));
                 let template = Template {
-                    span: definition.span.clone(),
-                    text: definition.value.clone(),
-                    words: words.clone(),
-                    source: definition.span.source.path.clone(),
+                    span: definition.template.span.clone(),
+                    text: definition.template.value.clone(),
+                    words: words.iter().map(|word| word.word.clone()).collect(),
+                    source: definition.template.span.source.path.clone(),
                 };
+                resolved_words = Some(words);
                 (
                     template,
                     Some(route.value),
@@ -1097,15 +1243,17 @@ After the fold, every effective binding must name a definition whose template co
             key: key.clone(),
             binding,
             command,
-            parameters: Vec::new(),
-            words: template
-                .words
-                .iter()
-                .map(|word| WordView {
-                    word: word.clone(),
-                    origins: vec![template_origin],
-                })
-                .collect(),
+            parameters,
+            words: resolved_words.unwrap_or_else(|| {
+                template
+                    .words
+                    .iter()
+                    .map(|word| WordView {
+                        word: word.clone(),
+                        origins: vec![template_origin],
+                    })
+                    .collect()
+            }),
             origins,
             histories,
         });
@@ -1126,13 +1274,14 @@ After the fold, every effective binding must name a definition whose template co
 
 The final helpers order route histories before binding histories and locate captured origins and histories by identity. These lookups operate only on declarations already recorded by the fold; their expectations express that internal invariant. The response keeps native source paths and captured byte offsets, so deleting either input file cannot invalidate an origin or change a compiled word.
 
-<!-- fragment «named-lookups» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="495-527" parent="source-named" -->
+<!-- fragment «named-lookups» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="718-751" parent="source-named" -->
 ````rust
-fn setting_key(setting: &Setting) -> (u8, &str) {
+fn setting_key(setting: &Setting) -> (u8, &str, &str) {
     match setting {
-        Setting::RouteTarget { key } => (0, key),
-        Setting::BindingTarget { binding } => (1, binding),
-        _ => unreachable!("only target histories are created here"),
+        Setting::RouteTarget { key } => (0, key, ""),
+        Setting::BindingTarget { binding } => (1, binding, ""),
+        Setting::ParameterDefault { command, parameter } => (2, command, parameter),
+        _ => unreachable!("parameter patches are not yet supported"),
     }
 }
 

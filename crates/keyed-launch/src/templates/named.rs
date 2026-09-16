@@ -5,10 +5,11 @@ use super::{
     Inspection, KdlDocument, KdlNode, NonAdmittedKey, Origin, Path, Selection, Setting, SlotSpec,
     SourceLocation, SourceRole, SourceSpan, Template, ValidationDiagnostic, Word, WordView,
 };
+use crate::ParameterView;
 
 #[derive(Default)]
 pub(super) struct Declarations {
-    commands: BTreeMap<String, Target>,
+    commands: BTreeMap<String, Command>,
     bindings: BTreeMap<String, Target>,
     routes: BTreeMap<String, Target>,
 }
@@ -16,6 +17,16 @@ pub(super) struct Declarations {
 #[derive(Clone)]
 struct Target {
     value: String,
+    span: SourceSpan,
+}
+
+struct Command {
+    template: Target,
+    parameters: BTreeMap<String, Parameter>,
+}
+
+struct Parameter {
+    default: Option<String>,
     span: SourceSpan,
 }
 
@@ -99,10 +110,10 @@ pub(super) fn parse(
                 continue;
             };
             if !plain(child)
-                || child.children().is_some_and(|c| !c.nodes().is_empty())
+                || (kind == "route" && child.children().is_some_and(|c| !c.nodes().is_empty()))
                 || (kind == "bind" && child.children().is_some())
             {
-                diagnostics.push(at_node(loc, format!("`{kind}` does not accept properties, types or child nodes; parameters are not yet supported")));
+                diagnostics.push(at_node(loc, format!("`{kind}` does not accept properties or types; only commands accept param declaration children; parameter patches are not yet supported")));
                 continue;
             }
             let name = values[0];
@@ -128,8 +139,22 @@ pub(super) fn parse(
                     end: loc.end,
                 },
             };
+            if kind == "command" {
+                let parameters = parse_parameters(path, source, child, role, diagnostics);
+                if let Some(previous) = result.commands.insert(
+                    name.into(),
+                    Command {
+                        template: target,
+                        parameters,
+                    },
+                ) {
+                    let mut earlier = source_location(source, previous.template.span.start);
+                    earlier.end = previous.template.span.end;
+                    duplicate(name, earlier, loc, diagnostics);
+                }
+                continue;
+            }
             let table = match kind {
-                "command" => &mut result.commands,
                 "bind" => &mut result.bindings,
                 _ => {
                     if let Some(previous) = routes.insert(name.into(), loc) {
@@ -148,10 +173,57 @@ pub(super) fn parse(
     }
     for diagnostic in &mut diagnostics[first_diagnostic..] {
         if diagnostic.category == "shape" {
-            diagnostic.remedy = "Use config { command \"name\" \"template\"; bind \"binding\" \"name\"; route \"key\" \"binding\"; }; keep definitions in primary policy and omit parameters/profiles/selections.";
+            diagnostic.remedy = "Use config { command \"name\" \"template\" { param \"name\" \"default\"; }; bind \"binding\" \"name\"; route \"key\" \"binding\"; }; keep definitions in primary policy and omit parameter patches/profiles/selections.";
         }
     }
     result
+}
+
+fn parse_parameters(
+    path: &Path,
+    source: &str,
+    command: &KdlNode,
+    role: DocumentRole,
+    diagnostics: &mut Vec<ValidationDiagnostic>,
+) -> BTreeMap<String, Parameter> {
+    let mut parameters: BTreeMap<String, Parameter> = BTreeMap::new();
+    for node in command.children().into_iter().flat_map(KdlDocument::nodes) {
+        let loc = location(source, node);
+        let values: Option<Vec<_>> = node
+            .entries()
+            .iter()
+            .map(|entry| entry.value().as_string())
+            .collect();
+        let Some(values) = values.filter(|v| (1..=2).contains(&v.len())) else {
+            diagnostics.push(at_node(
+                loc,
+                "param requires a name and optional default string".into(),
+            ));
+            continue;
+        };
+        if node.name().value() != "param"
+            || !plain(node)
+            || node.children().is_some()
+            || !valid_name(values[0])
+        {
+            diagnostics.push(at_node(loc, "command children must be param declarations with a valid lowercase name, no properties, types or children".into()));
+            continue;
+        }
+        let parameter = Parameter {
+            default: values.get(1).map(|value| (*value).to_owned()),
+            span: SourceSpan {
+                source: role.source(path),
+                start: loc.start,
+                end: loc.end,
+            },
+        };
+        if let Some(previous) = parameters.insert(values[0].into(), parameter) {
+            let mut earlier = source_location(source, previous.span.start);
+            earlier.end = previous.span.end;
+            duplicate(values[0], earlier, loc, diagnostics);
+        }
+    }
+    parameters
 }
 
 fn duplicate(
@@ -185,23 +257,29 @@ fn problem(category: &str, target: &Target, message: String) -> Diagnostic {
 
 /// Shell-word splitting precedes named dollar scanning. Escaping a dollar must
 /// not turn escaped runtime-looking text into a slot on a second pass.
-fn compile(target: &Target, slots: &[SlotSpec]) -> Result<Vec<Word>, String> {
-    let text = &target.value;
+fn compile(command: &Command, slots: &[SlotSpec]) -> Result<Vec<NamedWord>, Box<Diagnostic>> {
+    let invalid =
+        |message: String| Box::new(problem("invalid_template", &command.template, message));
+    let text = &command.template.value;
     if text.contains('\0') {
-        return Err("command template contains NUL".into());
+        return Err(invalid("command template contains NUL".into()));
     }
     if contains_shell_comment_start(text) {
-        return Err("quote literal comment-starting `#`".into());
+        return Err(invalid("quote literal comment-starting `#`".into()));
     }
-    let words = shell_words::split(text).map_err(|_| "command template has unmatched quotes")?;
+    let words = shell_words::split(text)
+        .map_err(|_| invalid("command template has unmatched quotes".into()))?;
     if words.is_empty() {
-        return Err("word zero must be a literal non-empty executable".into());
+        return Err(invalid(
+            "word zero must be a literal non-empty executable".into(),
+        ));
     }
     let mut result = Vec::new();
     let mut counts = vec![0; slots.len()];
     for (index, word) in words.iter().enumerate() {
         let mut rest = word.as_str();
         let mut literal = String::new();
+        let mut fragments = Vec::new();
         let mut slot_word = None;
         while !rest.is_empty() {
             if let Some(next) = rest.strip_prefix("$$") {
@@ -209,17 +287,38 @@ fn compile(target: &Target, slots: &[SlotSpec]) -> Result<Vec<Word>, String> {
                 rest = next;
             } else if let Some(next) = rest.strip_prefix("${") {
                 let Some(end) = next.find('}') else {
-                    return Err("unterminated substitution".into());
+                    return Err(invalid("unterminated substitution".into()));
                 };
                 let name = &next[..end];
-                if name.starts_with("param.") {
-                    return Err("parameter substitution is not yet supported".into());
+                if name.contains("${") {
+                    return Err(invalid("unterminated substitution".into()));
+                }
+                if index == 0 {
+                    return Err(invalid(
+                        "word zero must be a literal non-empty executable".into(),
+                    ));
+                }
+                if let Some(parameter) = name.strip_prefix("param.") {
+                    if !command.parameters.contains_key(parameter) {
+                        let mut diagnostic = problem(
+                            "unknown_parameter",
+                            &command.template,
+                            format!("undeclared parameter `{parameter}`"),
+                        );
+                        diagnostic.parameter = Some(parameter.into());
+                        diagnostic.remedy = "Declare the referenced parameter in this command, or correct the reference.".into();
+                        return Err(Box::new(diagnostic));
+                    }
+                    fragments.push(Fragment::Literal(std::mem::take(&mut literal)));
+                    fragments.push(Fragment::Parameter(parameter.into()));
+                    rest = &next[end + 1..];
+                    continue;
                 }
                 let Some(slot) = slots.iter().position(|slot| slot.name == name) else {
-                    return Err(format!("unknown substitution `${{{name}}}`"));
+                    return Err(invalid(format!("unknown substitution `${{{name}}}`")));
                 };
                 if rest.len() != word.len() || end + 3 != word.len() || index == 0 {
-                    return Err("runtime substitutions must occupy a whole argument; word zero must be literal".into());
+                    return Err(invalid("runtime substitutions must occupy a whole argument; word zero must be literal".into()));
                 }
                 counts[slot] += 1;
                 slot_word = Some(Word::Slot(name.into()));
@@ -233,16 +332,65 @@ fn compile(target: &Target, slots: &[SlotSpec]) -> Result<Vec<Word>, String> {
             }
         }
         if index == 0 && literal.is_empty() {
-            return Err("word zero must be a literal non-empty executable".into());
+            return Err(invalid(
+                "word zero must be a literal non-empty executable".into(),
+            ));
         }
-        result.push(slot_word.unwrap_or(Word::Literal(literal)));
+        result.push(if let Some(slot) = slot_word {
+            NamedWord::Runtime(slot)
+        } else {
+            fragments.push(Fragment::Literal(literal));
+            NamedWord::Fragments(fragments)
+        });
     }
     for (slot, count) in slots.iter().zip(counts) {
         if !slot.requirement.admits(count) {
-            return Err(slot.requirement.violation(&slot.name));
+            return Err(invalid(slot.requirement.violation(&slot.name)));
         }
     }
     Ok(result)
+}
+
+enum Fragment {
+    Literal(String),
+    Parameter(String),
+}
+
+enum NamedWord {
+    Runtime(Word),
+    Fragments(Vec<Fragment>),
+}
+
+impl NamedWord {
+    fn instantiate(&self, parameters: &[ParameterView], template_origin: usize) -> WordView {
+        let mut origins = vec![template_origin];
+        let word = match self {
+            Self::Runtime(word) => word.clone(),
+            Self::Fragments(fragments) => {
+                let mut text = String::new();
+                for fragment in fragments {
+                    match fragment {
+                        Fragment::Literal(literal) => text.push_str(literal),
+                        Fragment::Parameter(name) => {
+                            // Schema compilation and route completeness precede instantiation.
+                            let parameter = parameters
+                                .iter()
+                                .find(|p| &p.name == name)
+                                .expect("validated parameter");
+                            text.push_str(&parameter.value);
+                            for origin in &parameter.origins {
+                                if !origins.contains(origin) {
+                                    origins.push(*origin);
+                                }
+                            }
+                        }
+                    }
+                }
+                Word::Literal(text)
+            }
+        };
+        WordView { word, origins }
+    }
 }
 
 #[derive(Clone)]
@@ -291,7 +439,24 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
         });
         let mut declarations = Vec::new();
         for (name, command) in &document.named.commands {
-            declarations.push((&command.span, None, AssignmentValue::Set(name.clone())));
+            declarations.push((
+                &command.template.span,
+                None,
+                AssignmentValue::Set(name.clone()),
+            ));
+            for (parameter, declaration) in &command.parameters {
+                declarations.push((
+                    &declaration.span,
+                    declaration
+                        .default
+                        .as_ref()
+                        .map(|_| Setting::ParameterDefault {
+                            command: name.clone(),
+                            parameter: parameter.clone(),
+                        }),
+                    AssignmentValue::Set(declaration.default.clone().unwrap_or_default()),
+                ));
+            }
         }
         for (binding, target) in &document.named.bindings {
             bindings.insert(binding.clone(), target.clone());
@@ -381,15 +546,11 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
             Ok(words) => {
                 compiled.insert(target.value.clone(), Some(words));
             }
-            Err(message) => {
-                let mut diagnostic = problem(
-                    "invalid_template",
-                    command,
-                    format!("command `{}`: {message}", target.value),
-                );
+            Err(mut diagnostic) => {
                 diagnostic.command = Some(target.value.clone());
+                diagnostic.binding = Some(binding.clone());
                 diagnostic.related.push(target.span.clone());
-                diagnostics.push(diagnostic);
+                diagnostics.push(*diagnostic);
                 compiled.insert(target.value.clone(), None);
             }
         }
@@ -413,6 +574,8 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
             });
             continue;
         }
+        let mut parameters = Vec::new();
+        let mut resolved_words = None;
         let (template, binding, command, origins, histories) = match route {
             Route::Literal(template) => (
                 template,
@@ -437,12 +600,68 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                     continue;
                 };
                 let definition = &definitions[&binding.value];
+                let before = diagnostics.len();
+                for (name, parameter) in &definition.parameters {
+                    let category = match &parameter.default {
+                        None => Some("missing_parameter"),
+                        Some(value) if value.contains('\0') => Some("invalid_value"),
+                        Some(_) => None,
+                    };
+                    if let Some(category) = category {
+                        let target = Target {
+                            value: String::new(),
+                            span: parameter.span.clone(),
+                        };
+                        let mut diagnostic = problem(
+                            category,
+                            &target,
+                            format!(
+                                "key `{key}`, command `{}`, parameter `{name}`: {}",
+                                binding.value,
+                                if category == "missing_parameter" {
+                                    "a value is required"
+                                } else {
+                                    "value contains NUL"
+                                }
+                            ),
+                        );
+                        diagnostic.related = vec![route.span.clone(), binding.span.clone()];
+                        diagnostic.key = Some(key.clone());
+                        diagnostic.binding = Some(route.value.clone());
+                        diagnostic.command = Some(binding.value.clone());
+                        diagnostic.parameter = Some(name.clone());
+                        diagnostic.remedy = "Supply a NUL-free default string in the command's parameter declaration; parameter override patches are not yet supported.".into();
+                        diagnostics.push(diagnostic);
+                        continue;
+                    }
+                    parameters.push(ParameterView {
+                        name: name.clone(),
+                        value: parameter.default.clone().expect("checked default"),
+                        origins: vec![origin_id(&view, &parameter.span)],
+                        histories: vec![history_id(
+                            &view,
+                            &Setting::ParameterDefault {
+                                command: binding.value.clone(),
+                                parameter: name.clone(),
+                            },
+                        )],
+                    });
+                }
+                if diagnostics.len() != before {
+                    continue;
+                }
+                let words: Vec<_> = words
+                    .iter()
+                    .map(|word| {
+                        word.instantiate(&parameters, origin_id(&view, &definition.template.span))
+                    })
+                    .collect();
                 let origins = vec![
                     route_origin,
                     origin_id(&view, &binding.span),
-                    origin_id(&view, &definition.span),
+                    origin_id(&view, &definition.template.span),
                 ];
-                let histories = vec![
+                let mut histories = vec![
                     route_history,
                     history_id(
                         &view,
@@ -451,12 +670,14 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
                         },
                     ),
                 ];
+                histories.extend(parameters.iter().flat_map(|p| p.histories.iter().copied()));
                 let template = Template {
-                    span: definition.span.clone(),
-                    text: definition.value.clone(),
-                    words: words.clone(),
-                    source: definition.span.source.path.clone(),
+                    span: definition.template.span.clone(),
+                    text: definition.template.value.clone(),
+                    words: words.iter().map(|word| word.word.clone()).collect(),
+                    source: definition.template.span.source.path.clone(),
                 };
+                resolved_words = Some(words);
                 (
                     template,
                     Some(route.value),
@@ -471,15 +692,17 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
             key: key.clone(),
             binding,
             command,
-            parameters: Vec::new(),
-            words: template
-                .words
-                .iter()
-                .map(|word| WordView {
-                    word: word.clone(),
-                    origins: vec![template_origin],
-                })
-                .collect(),
+            parameters,
+            words: resolved_words.unwrap_or_else(|| {
+                template
+                    .words
+                    .iter()
+                    .map(|word| WordView {
+                        word: word.clone(),
+                        origins: vec![template_origin],
+                    })
+                    .collect()
+            }),
             origins,
             histories,
         });
@@ -492,11 +715,12 @@ pub(super) fn resolve(captured: &Captured, selection: &Selection) -> Result<Reso
     Ok((templates, overlay_only, view))
 }
 
-fn setting_key(setting: &Setting) -> (u8, &str) {
+fn setting_key(setting: &Setting) -> (u8, &str, &str) {
     match setting {
-        Setting::RouteTarget { key } => (0, key),
-        Setting::BindingTarget { binding } => (1, binding),
-        _ => unreachable!("only target histories are created here"),
+        Setting::RouteTarget { key } => (0, key, ""),
+        Setting::BindingTarget { binding } => (1, binding, ""),
+        Setting::ParameterDefault { command, parameter } => (2, command, parameter),
+        _ => unreachable!("parameter patches are not yet supported"),
     }
 }
 

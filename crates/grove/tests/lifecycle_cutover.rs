@@ -1222,3 +1222,75 @@ fn named_wrapper_commands_launch_with_local_target_overrides_and_refuse_before_u
     assert!(!log.exists());
     assert_eq!(tree_snapshot(&grove), before);
 }
+
+#[test]
+fn parameter_defaults_reach_shared_launches_and_reload_without_changing_words() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("_BRIEF.md"), "root").unwrap();
+    let leaf = grove.join("01-impl--work-k1.md");
+    fs::write(&leaf, "work").unwrap();
+    let log = fixture.path().join("argv");
+    let fake = fixture.path().join("fake command");
+    write_executable(
+        &fake,
+        "#!/bin/sh\nlog=$1\nshift\nprintf '%s\\0' \"$@\" > \"$log\"\n",
+    );
+    let command = format!(
+        "{} {} mode=${{param.mode}} ${{param.empty}} ${{prompt}}",
+        shell_quote(&fake),
+        shell_quote(&log)
+    );
+    let policy = format!(
+        r#"config {{
+        command "shared" {command:?} {{ param "mode" "careful"; param "empty" ""; }}
+        bind "lead" "shared"
+        route "impl" "lead"
+        route "design" "lead"
+    }}"#
+    );
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let config = config_dir.join("config.kdl");
+    for mode in ["careful", "space 'quotes' ${prompt}; #"] {
+        fs::write(&config, policy.replace("careful", mode)).unwrap();
+        let mut current_leaf = leaf.clone();
+        for kind in ["impl", "design"] {
+            let next_leaf = grove.join(format!("01-{kind}--work-k1.md"));
+            if current_leaf != next_leaf {
+                fs::rename(&current_leaf, &next_leaf).unwrap();
+                current_leaf = next_leaf;
+            }
+            let output = run_grove(&home, &worktree);
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let bytes = fs::read(&log).unwrap();
+            let words: Vec<_> = bytes.split(|b| *b == 0).collect();
+            assert_eq!(words.len(), 4);
+            assert_eq!(words[0], format!("mode={mode}").as_bytes());
+            assert!(words[1].is_empty());
+            assert!(String::from_utf8_lossy(words[2]).contains(&mandate_naming("work-k1")));
+            fs::remove_file(&log).unwrap();
+        }
+        fs::rename(current_leaf, &leaf).unwrap();
+    }
+    for invalid in [
+        policy.replace("param \"empty\" \"\"", "param \"empty\""),
+        policy.replace("${param.mode}", "${param.unknown}"),
+        policy.replace("careful", "bad\\u{0}value"),
+    ] {
+        fs::write(&config, invalid).unwrap();
+        let before = tree_snapshot(&grove);
+        let output = run_grove(&home, &worktree);
+        assert!(!output.status.success());
+        assert!(!log.exists());
+        assert_eq!(tree_snapshot(&grove), before);
+    }
+}

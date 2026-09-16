@@ -324,12 +324,13 @@ it holds no set of keys. `Catalog::load` captures source bytes, parsed
 declarations and vocabulary once; `Catalog::resolve` produces an owned
 `Templates` snapshot without file I/O. `Templates::load` uses that same path
 with an empty selection, and conformance checks the captured Catalog. The
-current reader accepts flat and parameter-free named base commands. `ConfigError::diagnostics` provides
+current reader accepts flat and parameterized named base commands. `ConfigError::diagnostics` provides
 stable categories, available source byte ranges and remedies; structural reports
 from both explicit documents precede template-semantic validation reports.
 `Templates::inspect` explains captured reference chains and resolution, including overwritten
 target assignments, winning word origins and non-admitted overlay keys. Its
-literal/slot words share expansion's compiled representation. Parameters, profiles,
+literal/slot words share expansion's compiled representation. Parameter defaults
+fill pre-split words and retain all contributing origins. Parameter patches, profiles,
 human inspection commands and Grove selection policy remain pending. Named definitions
 are primary-only; effective bindings validate their templates after local targets
 replace personal targets. Dormant definitions are not compiled; flat checks stay eager.

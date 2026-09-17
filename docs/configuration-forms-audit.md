@@ -1,6 +1,7 @@
 # Configuration forms after modular-only removal
 
-This records the `modular-audit-k16` audit of the removal delivered by
+This records the `modular-audit-k16` audit, corrected after review by
+`modular-audit-k18`, of the removal delivered by
 `modular-input-k11`, `modular-parser-k13` and `modular-types-k15`. The
 [configuration specification](specs/modular-configuration.md) remains the
 language contract; this inventory records where its examples and counterexamples
@@ -31,8 +32,10 @@ command text/parameter values, unsupported-input tests, historical evidence,
 or non-configuration text (shell commands, Rust expressions, JSON, prose and
 other configuration languages). A separate enumeration of runtime/parameter
 slots and configuration path references reached generated documents and
-unquoted structural forms. Follow-up searches for old prose claims covered
-summaries, tables, indexes and diagrams as well as detailed sections.
+unquoted structural forms. That token enumeration did not adequately check
+prose: the subsequent review found stale claims in the spec, reference, source
+comments and book explanations. The separate prose pass below addresses that
+gap; a quoted-token control is not evidence about unquoted claims.
 
 Controls used the same `rg -n --hidden` enumeration against a scratch hidden
 directory: modular declarations were found; replacing them with an arbitrary
@@ -48,6 +51,61 @@ configuration files and excluded documentation and scripts. Coverage pagination
 was exhausted; current file reads and text searches supplied the missing
 evidence. Stale graph line locations and inferred generic-call edges were not
 used to establish behavior.
+
+## Prose enumeration and review corrections
+
+The integration pass used the same repository file enumeration, including hidden
+notes and root documents. It grouped Markdown outside fenced code into
+blank-line-delimited paragraphs, Rust `//` comment runs and shell `#` comment
+runs into blocks, and Mermaid text into paragraphs. Tables, headings, indexes
+and summaries stayed in scope. Candidate blocks matched this case-insensitive
+expression, applied to joined lines so wrapping did not hide a claim:
+
+```text
+config(?:uration)?|template|binding|\broute\b|\bprofile\b|AssignmentValue|CommandView
+```
+
+This enumerates configuration-bearing text independently of retired spellings
+and quoted declaration tokens. It also admits unrelated senses of these words;
+classification follows the enclosing subject, rather than treating every match
+as a defect. Fenced configuration examples remain covered by the forms inventory;
+production comments and exact fragments are paired when corrected. The semantic
+questions were validation timing, source authority, composition, inspection
+values and diagnostic shape. Their source anchors are Catalog capture,
+`named::resolve`, `Templates::source`/`expand`, `AssignmentValue`, `duplicate`
+and `render_diagnostics`, read from current files because graph metadata was stale.
+
+| Claim family | Classification and disposition |
+|---|---|
+| Eager checking of every definition; templates read whole from one file | Stale current claims in the modular spec, grove-llm comment/book, grove-loop book and keyed-launch job explanation. Corrected to structural capture and semantic checking of active composition. The keyed-launch structure brief and grove-loop Vocabulary explanation had related timing drift and were corrected too. |
+| A base namespace shared with flat entries; compatibility wording for local-only keys | Stale spec language. Flat input is rejected before wrapper traversal. The retained local-only-key behavior is stated directly as non-admission. |
+| Literal-template and reset inspection assignments | Stale overview explanation. The enum and renderer expose Set and Unset; the prose now explains those operations. Literal argument words remain valid and are a different concept. |
+| Local delta as the command-definition source | Stale driver comments, book explanation and operator reference. Definitions are personal-only; inspection explains local route, binding and parameter contributions. The personal-path fallback comment was reconciled with the same rule. |
+| Duplicate-key report with both locations inline | Retired reference rendering. The current message says duplicate declaration; the second location is a structured related span. |
+| Primary error attribution at runtime | Removed the obsolete overlay-role branch from expansion. Templates still retains the overlay path for non-admitted-key diagnostics. |
+| Retained original bytes and parse tree | Accepted storage trade-off predating this removal. Resolution reads captured declarations; the retention comment no longer promises a reader of the original bytes. |
+| Current composition, parameters, provenance, authority and load points | Retained; checked against the resolver and existing public load/expansion evidence. Launch obtains the resolved argv without appending arguments. |
+| Older whole-file grammar and replacement claims | Historical in the preservation baseline's explicitly superseded configuration section, release history and completed task notes; rejected alternatives in the ADR remain labeled as such. |
+| Other uses of template, route, profile, eager or reset | Prompt construction, VCS output templates, tree/research sequencing and process signal handling are outside configuration grammar. Lookup rows and fragment metadata identify source rather than promise behavior. |
+
+Controls exercised prose independently of KDL tokens. A hidden scratch Markdown
+file containing an unquoted eager-template claim was found by the candidate
+expression; replacing it with unrelated prose made the same command return no
+match. For the spec, overview explanation and both source comments, whitespace-
+normalized text from review commit `9b93069b` matched the obsolete-claim probes
+below, while corrected text retained configuration candidates and no longer
+matched those probes:
+
+```text
+eager.{0,90}(?:validat|check)|(?:validat|check).{0,90}eager|read whole|literal template, unset|flat entries and wrapper|delta.supplied|personal or delta|delta that overrode
+```
+
+The same probes still found the historical whole-file claim in
+`docs/preservation-baseline.md`, the cross-tree control. These controls establish
+that enumeration and regression probes see known bad prose; they do not turn
+text matching into a proof of semantic completeness. The classification and
+source comparison supply the judgment. Source-exact validation separately checks
+fragment bytes, ranges, ownership tables and roll-ups; it cannot validate prose.
 
 ## Forms inventory
 
@@ -94,6 +152,7 @@ diagram describe the same composition and validation scopes.
 
 `bash scripts/check.sh` is the required verification command, including the
 public load/expansion suites and final source-exact validation of every book.
-The task commit records its observed result. A separate `review-impl` leaf
-reviews rejection, authority, expansion, provenance and this audit against the
-completed subsystem; this inventory does not substitute for that review.
+The task commit records its observed result. `modular-audit-k17` reviewed
+rejection, authority, expansion, provenance and this audit against the completed
+subsystem; its findings are classified in `modular-audit-k18`. This inventory
+does not substitute for that review.

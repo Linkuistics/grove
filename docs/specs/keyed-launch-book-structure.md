@@ -205,9 +205,8 @@ final completeness. Explain how to recognise a fragment definition, insertion,
 source root and deferred hole without duplicating the full grammar. State the
 pass-through outcome. Cite [`USAGE.md`](../USAGE.md) at `usage-running-grove` —
 the one guide link the contract permits and requires from this page, and the
-section whose line 92 states this crate's eager-validation property from the
-reader's side: *a missing or malformed `config.kdl` leaves your working tree
-byte-identical*. State the book's boundary: it explains one crate, and it stops
+section that states validation's pre-mutation boundary from the reader's side:
+*a missing or malformed `config.kdl` leaves your working tree byte-identical*. State the book's boundary: it explains one crate, and it stops
 at the words in the file and at the process it spawned.
 
 ### 1 · Orientation — understands neither

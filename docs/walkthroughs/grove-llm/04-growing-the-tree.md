@@ -299,7 +299,7 @@ mutation — in one function.
 /// The **just-in-time presence rule**, asked at the moment grove writes a leaf.
 ///
 /// Before writing a leaf of kind K, K must resolve to exactly one complete
-/// template read whole out of one file
+/// command composed from active personal policy and optional local overrides
 /// (`docs/adr/complete-session-configuration.md`). This replaces the
 /// all-nineteen completeness check, which grove can no longer make: nothing here
 /// enumerates the kinds a methodology declares — since `open-kind-k20` there is
@@ -308,10 +308,10 @@ mutation — in one function.
 ///
 /// It runs **before** the tree is opened, so a refusal leaves the tree
 /// byte-identical and takes no exclusive lock on the way — and it loads the
-/// whole configuration to ask, which is what keeps the other half of the
-/// amendment true: every template rule in both documents is still checked
-/// eagerly, and a malformed entry for a kind this call will never touch still
-/// fails here.
+/// whole configuration to ask. Both documents receive structural validation,
+/// then effective bindings, routes, templates and values are checked after
+/// composition. Invalid active policy fails even for an unrelated kind;
+/// dormant definitions and unselected profiles need only be structurally valid.
 fn require_declared(worktree: &Path, kinds: &[Kind]) -> Result<()> {
     let config = SessionConfig::load_for_worktree(worktree)?;
     for kind in kinds {
@@ -330,8 +330,8 @@ fn require_declared(worktree: &Path, kinds: &[Kind]) -> Result<()> {
 
 The rule it enforces is the just-in-time presence rule of
 `docs/adr/complete-session-configuration.md`: before grove writes a leaf of kind
-K, K must resolve to exactly one complete launch template read whole out of one
-file. It replaced an older check that enumerated every kind a methodology
+K, K must resolve to exactly one complete command composed from active personal
+policy and optional local overrides. It replaced an older check that enumerated every kind a methodology
 declared and confirmed the configuration was complete for all of them — a check
 grove can no longer make, because since `docs/adr/a-kind-is-an-open-token.md`
 grove holds no set of kinds to enumerate. The only honest question left is about
@@ -347,14 +347,13 @@ refusal never waits on the exclusive lock and never mutates: measured under a
 lock held from outside the process, an undeclared `leaf-add` returns its refusal
 at once while a declared one blocks on the lock and prints *waiting for active
 Grove tree operation*. And it loads the **whole** configuration to ask about one
-kind. `SessionConfig::load_for_worktree` reads and validates the entire file —
-every template rule, eagerly — which is the other half of the ADR's amendment:
-presence is per-kind, but everything else about the document is checked at once,
-so a malformed entry for a kind this call will never write still fails here.
-Measured, a configuration whose unrelated `design` entry is empty, or which
-declares `impl` twice, refuses a `leaf-add --kind review-impl` with a
-configuration error rather than the presence one — the document is rejected
-before the one kind is asked about.
+kind. `SessionConfig::load_for_worktree` structurally validates both documents
+and semantically validates their active composition before checking presence.
+An invalid template reached by an effective binding fails even if the requested
+kind does not use it; a dormant command definition is not compiled. Duplicate
+routes in one patch fail structurally. These failures precede the requested
+kind's presence check, while unfinished inactive profiles can coexist with a
+working selection.
 
 `slug` is the other name a grow verb reads, and it is read the same way, by its
 own type.

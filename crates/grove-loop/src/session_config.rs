@@ -127,8 +127,8 @@ impl TemplateSource {
         Ok(Self { home })
     }
 
-    /// The personal file's path — the one a diagnostic names when nothing
-    /// overrode it.
+    /// The personal policy path, also used as a diagnostic fallback
+    /// when no command resolves for the requested kind.
     #[must_use]
     pub fn personal_path(&self) -> PathBuf {
         SessionConfig::path(&self.home)

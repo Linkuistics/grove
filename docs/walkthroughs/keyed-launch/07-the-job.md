@@ -358,7 +358,7 @@ whole of the chapter's claim.
 `argv` argues about **who authored the words**. It borrows a `crate::Argv`, which
 chapter 5 showed has no public constructor, so the only thing that can reach this
 field is the output of `Templates::expand` — and the only thing that can
-reach *that* is a template read whole out of a configuration file. The chain is
+reach *that* is a command compiled from resolved configuration. The chain is
 enforced by the compiler rather than by this crate's own care, which is why the
 promise *no appended argument* is checkable at all rather than merely intended.
 `arguments_reach_the_child_as_written` walks the whole of it, from a template

@@ -283,8 +283,8 @@ literal text is `${prompt}`. The renderer never reconstructs a shell command.
 
 The final tables retain all non-admitted keys, origins and histories, including
 when one command is requested. This keeps every printed ID resolvable. Each
-assignment retains fold order and distinguishes set, literal template, unset
-and reset. A winner is explained by the command/parameter origins above, not by
+assignment retains fold order and distinguishes setting a value from removing
+an override to expose inheritance. A winner is explained by the command/parameter origins above, not by
 assuming the chronologically last assignment across scopes wins. The closing
 sentence bounds the report to this load: launch reloads, and runtime values
 remain symbolic here. The process tests compare configuration, tree, signal and

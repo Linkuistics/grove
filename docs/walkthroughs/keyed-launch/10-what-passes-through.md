@@ -6,7 +6,7 @@
 ## Nine openings, one question
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The 11 roots and 3,715 lines are
+This chapter owns no production source. The 11 roots and 3,710 lines are
 already reconstructed by the fragment graph the nine chapters before it built,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
@@ -413,14 +413,14 @@ ranges cannot is the interleaving: in two of the three, one chapter's block sits
 *inside* another chapter's pair.
 
 ```text
-src/templates.rs   702 lines, 7 blocks, chapters 2 3 4 5
-      1-157   template-shapes
-    158-259   templates-load
-    260-441   resolution-and-expansion
-    442-571   reading-and-whole-document-validation
-    572-621   word-scanning
-    622-692   diagnostics
-    693-702   templates-keys
+src/templates.rs   685 lines, 7 blocks, chapters 2 3 4 5
+      1-150   template-shapes
+    151-248   templates-load
+    249-425   resolution-and-expansion
+    426-554   reading-and-whole-document-validation
+    555-604   word-scanning
+    605-675   diagnostics
+    676-685   templates-keys
 
 src/run.rs         672 lines, 4 blocks, chapters 7 8
       1–123   ch 7   ┐  the launch's shape
@@ -461,10 +461,10 @@ together. Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 294 + 300 + 1,448 + 259 + 240 + 271 + 390 + 282 + 231 = 3,715
+**Owned source.** 294 + 300 + 1,448 + 259 + 235 + 271 + 390 + 282 + 231 = 3,710
 lines across 9 chapters, and 0 for this one. The tenth row of that table exists
 to be zero: a chapter that owns no source is the shape the structure brief chose
-for the assembly, and the total is the 3,715 lines in the current declared corpus.
+for the assembly, and the total is the 3,710 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
@@ -489,7 +489,7 @@ valid: 11 files, 3172 resolved lines, 0 deferred lines, final=true
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 3,715 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 3,710 resolved and 0 deferred is the whole corpus
 reconstructed — including `src/channel.rs` lines 272 to 404, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
@@ -561,7 +561,7 @@ Nothing in the corpus holds them; they hold the corpus.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 11 roots, 3,715 lines, 10 chapters, two lookup surfaces,
+The book is complete: 11 roots, 3,710 lines, 10 chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that nine refusals are one design, and
 what it leaves the reader with is the question — *where does this layer learn what
 the value means?* — together with the one case where this crate's own answer runs

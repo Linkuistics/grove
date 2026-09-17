@@ -136,8 +136,6 @@ whether by `param` or `unset`. Each profile has at most one `include` node.
 Duplicate entries in an include or selection *list* are permitted occurrences,
 not duplicate declarations.
 
-Flat entries and wrapper-level routes share a document's base route namespace:
-declaring the same key in both is an error, even for a parameter-only patch.
 Across different profiles or layers the same named setting is an intentional
 override. Document ordering does not settle duplicate declarations.
 
@@ -202,8 +200,8 @@ or deselect/remove the patch. It is not a `non_admitted_keys` entry and no
 Templates snapshot is returned. A local target cannot repair that absence.
 Local values may complete missing *parameters* of a personally targeted route.
 
-For compatibility, a valid local-only route is retained as a non-admitted key,
-as today's overlay-only keys are. It is excluded from resolved commands, appears
+A valid local-only route is retained as a non-admitted key.
+It is excluded from resolved commands, appears
 in inspection with the reason, and `require`/`expand` for it fails naming the
 personal file. It does not independently block another configured kind. Local
 definitions never enlarge the command/profile catalog. There is no implicit
@@ -211,7 +209,7 @@ route for any key, whether a profile happens to mention it or not.
 
 ## Validation and expansion
 
-Loading has three distinct scopes. Every failure is an error before launch or
+Configuration validation has two distinct scopes. Every failure is an error before launch or
 tree mutation, with no fallback to a different profile list or local source.
 
 | Scope | Checks |
@@ -223,8 +221,7 @@ Unselected profiles are structurally checked but their references, includes and
 parameter completeness are not evaluated. Unused command definitions retain
 their declared parameter shapes; their template strings are not shell-split or
 semantically checked until active. This is how an unfinished experiment can
-coexist with a working selection. Legacy eager template checking remains a
-deliberate compatibility rule rather than silently weakening old files.
+coexist with a working selection.
 
 After folding, validate every effective binding's command reference and each
 referenced command template, even if no route uses that binding. Validate every

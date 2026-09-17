@@ -59,8 +59,8 @@ struct Captured {
     slots: Vec<SlotSpec>,
 }
 
-/// Keep original bytes and parsed declarations, including overridden and
-/// overlay-only entries, for subsequent provenance without rereading a file.
+/// Retain the loaded bytes and parse tree alongside captured declarations.
+/// Resolution uses `named`; source spans retain offsets without reading these bytes.
 struct CapturedDocument {
     path: PathBuf,
     _source: String,
@@ -287,8 +287,8 @@ impl Templates {
     /// The values must fill the slots the vocabulary declared: one value per
     /// declared slot, no duplicates, no name the vocabulary does not hold, and
     /// no NUL in any offered value, even for an unused optional slot. Every
-    /// other template rule was checked
-    /// at load — and it is stated over the vocabulary rather than over this
+    /// other template rule for this command was checked during resolution.
+    /// The runtime value contract is stated over the vocabulary rather than this
     /// template's own words so a consumer cannot have a call that works for one
     /// key and fails for its neighbour purely because the two templates mention
     /// different optional slots.
@@ -296,14 +296,9 @@ impl Templates {
         self.require(key)?;
         let template = &self.templates[key];
         let offered = self.match_values(values).map_err(|error| {
-            let role = if self.overlay.as_ref() == Some(&template.source) {
-                SourceRole::Overlay
-            } else {
-                SourceRole::Primary
-            };
             error.contextualize(
                 Some(Source {
-                    role,
+                    role: SourceRole::Primary,
                     path: template.source.clone(),
                 }),
                 Some(key),

@@ -961,10 +961,10 @@ the page where both are reached.
 <!-- fragment «loop-drive-expand» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="262-281" parent="loop-driver" -->
 ````rust
         let config = templates.load(&delta_roots)?;
-        // The file this kind actually resolved from — the personal file, or the
-        // delta that overrode it. Every diagnostic below names *that*, because
-        // naming the personal file for a delta-supplied kind points a reader at
-        // a file which never held the failing template.
+        // The personal file holding this kind's command definition. Local
+        // routes, bindings and parameters may contribute to the resolved argv;
+        // their origins are available through inspection. An unresolved kind
+        // uses the personal policy path so the owner can add its route.
         let resolved_source = config
             .source(selection.kind.label())
             .unwrap_or(config_path.as_path())
@@ -983,13 +983,12 @@ the page where both are reached.
 ````
 <!-- /fragment -->
 
-**`resolved_source` exists for the error message, and the comment argues the
-case.** *Naming the personal file for a delta-supplied kind points a reader at a
-file which never held the failing template* — so every diagnostic below names the
-file the kind actually resolved from. The `unwrap_or` fallback to `config_path`
-is what happens when `source()` cannot attribute the kind, which is the case
-where the personal file genuinely is the answer. `docs/adr/untracked-configuration-delta.md`
-is the record, cited here and at `launch_configured_session` for the same reason.
+**`resolved_source` locates the command definition for launch diagnostics.**
+Definitions belong to personal policy, even when local bindings, routes or
+parameters contribute to the argv. Inspection retains those separate origins.
+When `source()` returns no command, `unwrap_or` supplies `config_path`, the
+personal file where the missing kind must be authorized.
+`docs/adr/untracked-configuration-delta.md` records that authority boundary.
 
 **The kind is passed, never re-read**, and the chain is visible in this block:
 `selection.kind` indexes `config.source`, indexes `config.expand`, and is handed
@@ -1232,13 +1231,13 @@ Twenty-five lines of contract, then a signature and a single diagnostic line.
 /// was working on, so it names the **stable handle** rather than a path, which
 /// moves under `leaf-insert`.
 ///
-/// A spawn failure names `resolved_source` — the file this kind's template was
-/// actually read from, personal or delta — rather than the personal path
-/// unconditionally, which would name a file that never held the failing
-/// template (`docs/adr/untracked-configuration-delta.md`). The runner's own
-/// message names the program and says to check that it is executable; grove
-/// adds the two things only grove knows, the kind and the file that supplied
-/// it.
+/// A spawn failure names `resolved_source`, the personal file holding the
+/// resolved command definition. Local contributions to the argv retain their
+/// separate origins in configuration inspection; this path alone does not
+/// explain every argument (`docs/adr/untracked-configuration-delta.md`).
+/// The runner's own message names the program and says to check that it is
+/// executable; grove adds the session kind and the command-definition path
+/// so the operator can locate the configured executable.
 ///
 /// The epoch is activated **before** the spawn and never after: a child that is
 /// already running under an inactive epoch would have its own `grove-llm` verbs

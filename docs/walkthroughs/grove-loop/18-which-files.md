@@ -318,11 +318,10 @@ pub fn vocabulary() -> Vocabulary<'static> {
 ````
 <!-- /fragment -->
 
-The doc comment's citation of `docs/specs/module-decomposition.md`,
-decision 7, checks out exactly: that decision's sketch of `Vocabulary` carries
-the same sentence — *supplied at load, because every template rule is checked
-there*. It is the one bare citation in this block that names a record holding
-precisely the claim on which the comment depends.
+Decision 7 in `docs/specs/module-decomposition.md` places the vocabulary at
+capture and active template checking at resolution. The slot names must be
+known before compilation; runtime values arrive later at expansion. Supplying
+the vocabulary at load does not compile dormant definitions.
 
 What the comment does not say is why the function is `pub`. Production reaches it
 once, at `read` below. Its only other callers are the two conformance-kit tests,
@@ -520,8 +519,8 @@ production call site, so this refusal is the human binary's front door.
 
 <!-- fragment «config-personal-path» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="130-136" parent="whose-file" -->
 ````rust
-    /// The personal file's path — the one a diagnostic names when nothing
-    /// overrode it.
+    /// The personal policy path, also used as a diagnostic fallback
+    /// when no command resolves for the requested kind.
     #[must_use]
     pub fn personal_path(&self) -> PathBuf {
         SessionConfig::path(&self.home)
@@ -530,8 +529,8 @@ production call site, so this refusal is the human binary's front door.
 ````
 <!-- /fragment -->
 
-*The one a diagnostic names when nothing overrode it* — used once, at
-`loop_driver.rs` line 215, to hold the fallback path every launch diagnostic
+*The personal policy path* — used once, at
+`loop_driver.rs` line 216, to hold the fallback path every launch diagnostic
 falls back to when a kind resolved from no file at all.
 
 <!-- fragment «config-template-source-load» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="137-142" parent="whose-file" -->
@@ -631,8 +630,8 @@ configuration the delta existed to displace, which is a worse outcome than
 refusing.
 
 The decision record `complete-session-configuration` is what the file is holding
-to: both documents receive structural and eager legacy validation; effective
-named targets and values are checked during resolution. These checks run before
+to: both documents receive structural validation; effective bindings, routes,
+command templates and values are checked during resolution. These checks run before
 tree mutation and again before launch; kind presence is asked at use.
 
 <!-- fragment «config-read» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="180-196" parent="whose-file" -->

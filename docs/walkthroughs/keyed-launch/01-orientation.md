@@ -212,7 +212,7 @@ declarations and exports, which this chapter reads after the worked example.
 The first fragment is the spine, and every chapter of this book is a reading of
 its second sentence. The claim has two halves. The crate understands neither the
 key nor the template: a consumer names one and a template names the other, and
-nothing in these 3,715 lines interprets either. What the crate does own is
+nothing in these 3,710 lines interprets either. What the crate does own is
 stated positively: a launch resolves to one explicit, complete command and is
 checked before anything is spawned. Chapters 3 and 4 explain reference resolution
 and template validation without interpreting a harness or its flags.

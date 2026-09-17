@@ -220,7 +220,7 @@ needs a `Templates` — they run before one exists — and all four are private:
 `Catalog::load` is their entry point; Catalog resolution then produces
 Templates without invoking them again. The block is read in four fragments.
 
-<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="431-559" parent="source-templates" -->
+<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="426-554" parent="source-templates" -->
 <!-- insert «compile-vocabulary» -->
 <!-- insert «read-primary» -->
 <!-- insert «read-overlay» -->
@@ -234,7 +234,7 @@ statement anywhere in the crate of why the duplicate is a refusal rather than a
 tolerated redundancy, and the reason is that the failure it would otherwise cause
 is silent and lands on the wrong file.
 
-<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="431-468" parent="reading-and-whole-document-validation" -->
+<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="426-463" parent="reading-and-whole-document-validation" -->
 ````rust
 
 /// Turn the borrowed vocabulary into the owned slot table `Templates` keeps, and
@@ -309,7 +309,7 @@ comment. They are worth reading side by side: the difference between them is the
 whole of what *the overlay is optional* means once a path has been handed in, and
 the source nowhere says so.
 
-<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="469-493" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="464-488" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_primary(path: &Path) -> Result<String, ConfigError> {
@@ -350,7 +350,7 @@ one case named, everything else reported verbatim.
 
 The overlay's reader has no such case.
 
-<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="494-513" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="489-508" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_overlay(path: &Path) -> Result<String, ConfigError> {
@@ -394,7 +394,7 @@ question be answered once, in `load`'s comment, rather than per error kind here.
 depends on and the rules it adds on top of them. It is nineteen lines, and eight
 of them are the message it builds when the parse fails.
 
-<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="514-559" parent="reading-and-whole-document-validation" -->
+<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="509-554" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn parse_and_validate(

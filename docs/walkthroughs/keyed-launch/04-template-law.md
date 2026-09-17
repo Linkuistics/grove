@@ -69,7 +69,7 @@ returns to `Delimiter`, matching a continued line rather than inventing a word.
 A plain substring check would also reject quoted hashes, including the remedy
 that the diagnostic recommends.
 
-<!-- fragment «word-scanning» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="560-609" parent="source-templates" -->
+<!-- fragment «word-scanning» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="555-604" parent="source-templates" -->
 ````rust
 
 #[derive(Clone, Copy)]
@@ -142,7 +142,7 @@ characters for human columns. `format_location` adds the path without reopening
 it. Every location continues to describe the immutable captured bytes, even if
 the file is later edited or removed.
 
-<!-- fragment «diagnostics» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="610-680" parent="source-templates" -->
+<!-- fragment «diagnostics» owner="words-not-shell" source="crates/keyed-launch/src/templates.rs" lines="605-675" parent="source-templates" -->
 ````rust
 fn at_node(location: SourceLocation, message: String) -> ValidationDiagnostic {
     ValidationDiagnostic {

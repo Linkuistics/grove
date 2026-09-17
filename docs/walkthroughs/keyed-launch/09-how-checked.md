@@ -609,7 +609,7 @@ abandoned completion channel(s) … remove them by hand* — needs a directory t
 lists and an entry that will not delete, and is named by no test. Line 404 is the
 module's closing brace and the last byte of `src/channel.rs`.
 
-With it, every byte of the crate is on a page: 11 roots, 3,715 lines, nine
+With it, every byte of the crate is on a page: 11 roots, 3,710 lines, nine
 chapters that own source, and nothing deferred.
 
 The two halves of this chapter check in opposite directions and neither

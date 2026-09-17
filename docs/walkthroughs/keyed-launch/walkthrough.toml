@@ -136,7 +136,7 @@ lines = 46
 [[root]]
 id    = "source-templates"
 path  = "crates/keyed-launch/src/templates.rs"
-lines = 690
+lines = 685
 
 [[root]]
 id = "source-inspection"
@@ -203,32 +203,32 @@ lines = "151-248"
 id    = "resolution-and-expansion"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "249-430"
+lines = "249-425"
 
 [[block]]
 id    = "reading-and-whole-document-validation"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "431-559"
+lines = "426-554"
 
 
 [[block]]
 id    = "word-scanning"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "560-609"
+lines = "555-604"
 
 [[block]]
 id    = "diagnostics"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "610-680"
+lines = "605-675"
 
 [[block]]
 id    = "templates-keys"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "681-690"
+lines = "676-685"
 
 [[block]]
 id = "inspection-records"

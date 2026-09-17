@@ -524,8 +524,8 @@ struct Captured {
     slots: Vec<SlotSpec>,
 }
 
-/// Keep original bytes and parsed declarations, including overridden and
-/// overlay-only entries, for subsequent provenance without rereading a file.
+/// Retain the loaded bytes and parse tree alongside captured declarations.
+/// Resolution uses `named`; source spans retain offsets without reading these bytes.
 struct CapturedDocument {
     path: PathBuf,
     _source: String,

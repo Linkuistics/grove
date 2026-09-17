@@ -12,7 +12,7 @@
 | `source-library-root` | `crates/keyed-launch/src/lib.rs` | 99 |
 | `source-error-types` | `crates/keyed-launch/src/error.rs` | 148 |
 | `source-vocabulary` | `crates/keyed-launch/src/vocabulary.rs` | 46 |
-| `source-templates` | `crates/keyed-launch/src/templates.rs` | 690 |
+| `source-templates` | `crates/keyed-launch/src/templates.rs` | 685 |
 | `source-inspection` | `crates/keyed-launch/src/inspection.rs` | 104 |
 | `source-argv` | `crates/keyed-launch/src/argv.rs` | 48 |
 | `source-channel` | `crates/keyed-launch/src/channel.rs` | 404 |
@@ -32,7 +32,7 @@
 <!-- source-root «source-vocabulary» source="crates/keyed-launch/src/vocabulary.rs" lines="1-46" -->
 <!-- insert «vocabulary» -->
 <!-- /source-root -->
-<!-- source-root «source-templates» source="crates/keyed-launch/src/templates.rs" lines="1-690" -->
+<!-- source-root «source-templates» source="crates/keyed-launch/src/templates.rs" lines="1-685" -->
 <!-- insert «template-shapes» -->
 <!-- insert «templates-load» -->
 <!-- insert «resolution-and-expansion» -->
@@ -81,11 +81,11 @@
 | `vocabulary` | `source-vocabulary` | `rules-about-names` | `1-46` | 46 | `resolved` |
 | `template-shapes` | `source-templates` | `rules-about-names` | `1-150` | 150 | `resolved` |
 | `templates-load` | `source-templates` | `never-assembled` | `151-248` | 98 | `resolved` |
-| `resolution-and-expansion` | `source-templates` | `whole-word-or-nothing` | `249-430` | 182 | `resolved` |
-| `reading-and-whole-document-validation` | `source-templates` | `never-assembled` | `431-559` | 129 | `resolved` |
-| `word-scanning` | `source-templates` | `words-not-shell` | `560-609` | 50 | `resolved` |
-| `diagnostics` | `source-templates` | `words-not-shell` | `610-680` | 71 | `resolved` |
-| `templates-keys` | `source-templates` | `whole-word-or-nothing` | `681-690` | 10 | `resolved` |
+| `resolution-and-expansion` | `source-templates` | `whole-word-or-nothing` | `249-425` | 177 | `resolved` |
+| `reading-and-whole-document-validation` | `source-templates` | `never-assembled` | `426-554` | 129 | `resolved` |
+| `word-scanning` | `source-templates` | `words-not-shell` | `555-604` | 50 | `resolved` |
+| `diagnostics` | `source-templates` | `words-not-shell` | `605-675` | 71 | `resolved` |
+| `templates-keys` | `source-templates` | `whole-word-or-nothing` | `676-685` | 10 | `resolved` |
 | `inspection-records` | `source-inspection` | `rules-about-names` | `1-104` | 104 | `resolved` |
 | `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `resolved` |
 | `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `resolved` |
@@ -136,7 +136,7 @@
 | `vocabulary-slot-rule` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `16-22` | `vocabulary` | `—` |
 | `vocabulary-requirement` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `23-29` | `vocabulary` | `—` |
 | `vocabulary-cardinality-and-message` | `the-names` | `source-vocabulary` | `literal` | `rules-about-names` | `30-46` | `vocabulary` | `—` |
-| `source-templates` | `source-index` | `source-templates` | `root` | `—` | `1-690` | `—` | `template-shapes`, `templates-load`, `resolution-and-expansion`, `reading-and-whole-document-validation`, `word-scanning`, `diagnostics`, `templates-keys` |
+| `source-templates` | `source-index` | `source-templates` | `root` | `—` | `1-685` | `—` | `template-shapes`, `templates-load`, `resolution-and-expansion`, `reading-and-whole-document-validation`, `word-scanning`, `diagnostics`, `templates-keys` |
 | `template-shapes-imports` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `1-19` | `template-shapes` | `—` |
 | `template-shapes` | `the-names` | `source-templates` | `composite` | `rules-about-names` | `1-150` | `source-templates` | `template-shapes-imports`, `template-shapes-templates`, `template-shapes-slot-spec`, `template-shapes-per-key-source`, `template-shapes-word`, `template-shapes-document-role`, `template-shapes-diagnostics` |
 | `template-shapes-templates` | `the-names` | `source-templates` | `literal` | `rules-about-names` | `20-86` | `template-shapes` | `—` |
@@ -151,20 +151,20 @@
 | `templates-load-overlay` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `210-210` | `templates-load` | `—` |
 | `templates-load-value` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `211-248` | `templates-load` | `—` |
 | `templates-source` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `249-257` | `resolution-and-expansion` | `—` |
-| `resolution-and-expansion` | `to-an-argv` | `source-templates` | `composite` | `whole-word-or-nothing` | `249-430` | `source-templates` | `templates-source`, `templates-require`, `templates-expand`, `match-values`, `declared-slots`, `templates-unresolved` |
+| `resolution-and-expansion` | `to-an-argv` | `source-templates` | `composite` | `whole-word-or-nothing` | `249-425` | `source-templates` | `templates-source`, `templates-require`, `templates-expand`, `match-values`, `declared-slots`, `templates-unresolved` |
 | `templates-require` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `258-283` | `resolution-and-expansion` | `—` |
-| `templates-expand` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `284-335` | `resolution-and-expansion` | `—` |
-| `match-values` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `336-398` | `resolution-and-expansion` | `—` |
-| `declared-slots` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `399-406` | `resolution-and-expansion` | `—` |
-| `templates-unresolved` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `407-430` | `resolution-and-expansion` | `—` |
-| `compile-vocabulary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `431-468` | `reading-and-whole-document-validation` | `—` |
-| `reading-and-whole-document-validation` | `two-documents` | `source-templates` | `composite` | `never-assembled` | `431-559` | `source-templates` | `compile-vocabulary`, `read-primary`, `read-overlay`, `parse-and-validate` |
-| `read-primary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `469-493` | `reading-and-whole-document-validation` | `—` |
-| `read-overlay` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `494-513` | `reading-and-whole-document-validation` | `—` |
-| `parse-and-validate` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `514-559` | `reading-and-whole-document-validation` | `—` |
-| `word-scanning` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `560-609` | `source-templates` | `—` |
-| `diagnostics` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `610-680` | `source-templates` | `—` |
-| `templates-keys` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `681-690` | `source-templates` | `—` |
+| `templates-expand` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `284-330` | `resolution-and-expansion` | `—` |
+| `match-values` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `331-393` | `resolution-and-expansion` | `—` |
+| `declared-slots` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `394-401` | `resolution-and-expansion` | `—` |
+| `templates-unresolved` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `402-425` | `resolution-and-expansion` | `—` |
+| `compile-vocabulary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `426-463` | `reading-and-whole-document-validation` | `—` |
+| `reading-and-whole-document-validation` | `two-documents` | `source-templates` | `composite` | `never-assembled` | `426-554` | `source-templates` | `compile-vocabulary`, `read-primary`, `read-overlay`, `parse-and-validate` |
+| `read-primary` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `464-488` | `reading-and-whole-document-validation` | `—` |
+| `read-overlay` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `489-508` | `reading-and-whole-document-validation` | `—` |
+| `parse-and-validate` | `two-documents` | `source-templates` | `literal` | `never-assembled` | `509-554` | `reading-and-whole-document-validation` | `—` |
+| `word-scanning` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `555-604` | `source-templates` | `—` |
+| `diagnostics` | `template-law` | `source-templates` | `literal` | `words-not-shell` | `605-675` | `source-templates` | `—` |
+| `templates-keys` | `to-an-argv` | `source-templates` | `literal` | `whole-word-or-nothing` | `676-685` | `source-templates` | `—` |
 | `source-inspection` | `source-index` | `source-inspection` | `root` | `—` | `1-104` | `—` | `inspection-records` |
 | `inspection-assignments` | `the-names` | `source-inspection` | `literal` | `rules-about-names` | `1-44` | `inspection-records` | `—` |
 | `inspection-records` | `the-names` | `source-inspection` | `composite` | `rules-about-names` | `1-104` | `source-inspection` | `inspection-assignments`, `inspection-words`, `inspection-commands`, `inspection-snapshot` |
@@ -279,7 +279,7 @@
 ## Owned source totals
 
 Every source line is credited once to its owning chapter. The 11 roots
-contain 3,715 lines, divided below by the manifest's ownership
+contain 3,710 lines, divided below by the manifest's ownership
 blocks. Templates, run and channel split across chapters; the remaining roots
 are owned whole.
 
@@ -289,10 +289,10 @@ are owned whole.
 | `rules-about-names` | `02-the-names.md` | 300 |
 | `never-assembled` | `03-two-documents.md` | 1,448 |
 | `words-not-shell` | `04-template-law.md` | 259 |
-| `whole-word-or-nothing` | `05-to-an-argv.md` | 240 |
+| `whole-word-or-nothing` | `05-to-an-argv.md` | 235 |
 | `appearance-is-the-event` | `06-the-channel.md` | 271 |
 | `nothing-else-added` | `07-the-job.md` | 390 |
 | `the-launchers-job` | `08-the-escalation.md` | 282 |
 | `checked-without-meaning` | `09-how-checked.md` | 231 |
 | `assembly` | `10-what-passes-through.md` | 0 |
-| **Total** | 11 source roots | **3,715** |
+| **Total** | 11 source roots | **3,710** |

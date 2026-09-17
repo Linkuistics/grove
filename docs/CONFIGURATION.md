@@ -589,12 +589,13 @@ For example, a duplicate declaration produces a human report such as:
 
 ```text
 invalid configuration at ~/.config/grove/config.kdl:
-  - ~/.config/grove/config.kdl:14:1: duplicate key `impl`; declarations at ~/.config/grove/config.kdl:14:1, ~/.config/grove/config.kdl:31:1
-  Keep one declaration per key in each document.
+  - ~/.config/grove/config.kdl:14:1: duplicate declaration `impl`
+  Keep one declaration per name in this namespace and document.
 ```
 
 Grove prints the absolute path; `~` stands in for your home directory here.
-The report says *key* because the generic runner does not know session kinds.
+The first declaration supplies the primary location. The structured diagnostic
+retains the second declaration in `related`; the human message does not list it.
 
 No diagnostic silently fills a target or falls back to another kind.
 
@@ -629,9 +630,9 @@ that kind, and only then asks you for a template.
 
 Validation does not try to identify the configured program or understand its
 arguments. If the literal executable cannot be resolved or spawned, that is a
-launch error naming the selected kind, the executable, and **the file that kind's
-template was actually read from** — the personal file, or the delta that
-overrode it; a wrapper's own failures stay opaque by design.
+launch error naming the selected kind, the executable, and **the personal file
+holding the resolved command definition**. Inspection records any local binding,
+route and parameter contributions; a wrapper's own failures stay opaque by design.
 
 When a session ends without a completion signal, Grove reports the child's exit
 status and elapsed time. A nonzero status additionally names the session kind,

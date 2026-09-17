@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.8.0
+
 - Configuration now accepts only modular `config { ... }` declarations. Flat
   top-level kind-to-command entries, including mixed flat/modular documents,
   are rejected in personal policy and the selected local delta with

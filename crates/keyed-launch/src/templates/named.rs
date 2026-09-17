@@ -107,14 +107,21 @@ pub(super) fn parse(
     let first_diagnostic = diagnostics.len();
     let mut result = Declarations::default();
     let mut wrapper = None;
-    // Flat and named routes share a namespace, independent of textual order.
-    let mut routes: BTreeMap<String, SourceLocation> = document
-        .nodes()
-        .iter()
-        .filter(|node| !is_wrapper(node))
-        .map(|node| (node.name().value().to_owned(), location(source, node)))
-        .collect();
-    for node in document.nodes().iter().filter(|node| is_wrapper(node)) {
+    for node in document.nodes().iter().filter(|node| !is_wrapper(node)) {
+        diagnostics.push(at_node(
+            location(source, node),
+            format!(
+                "unsupported top-level declaration `{}`",
+                node.name().value()
+            ),
+        ));
+    }
+    if diagnostics.len() != first_diagnostic {
+        return result;
+    }
+
+    let mut routes = BTreeMap::new();
+    for node in document.nodes() {
         let loc = location(source, node);
         if let Some(previous) = wrapper {
             duplicate("config wrapper", previous, loc, diagnostics);

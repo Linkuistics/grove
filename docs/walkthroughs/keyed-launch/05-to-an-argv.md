@@ -5,7 +5,7 @@
 <a id="whole-word-or-nothing"></a>
 ## Whole word, or nothing
 
-Chapter 4 read every rule a template must satisfy and the five functions that
+Chapter 4 read the rules an active template must satisfy and the helpers that
 turn a broken one into a sentence an operator can act on. All of those rules bind
 at load, and none of them binds again. This chapter is what happens afterwards:
 the rest of the public `impl` that chapter 3 stepped over on its way
@@ -159,7 +159,7 @@ interleaving is the cost of ordering the book by concept, and the ownership
 ledger in the source index is where it is visible: eight blocks of one root,
 divided across four chapters.
 
-<!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="268-449" parent="source-templates" -->
+<!-- fragment «resolution-and-expansion» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="260-441" parent="source-templates" -->
 <!-- insert «templates-source» -->
 <!-- insert «templates-require» -->
 <!-- insert «templates-expand» -->
@@ -178,7 +178,7 @@ the input is a borrowed key and the output is a borrowed path, so the caller
 learns which file to name in its own diagnostics without the configuration having
 to be re-read.
 
-<!-- fragment «templates-source» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="268-276" parent="resolution-and-expansion" -->
+<!-- fragment «templates-source» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="260-268" parent="resolution-and-expansion" -->
 ````rust
     /// The file this key's template was actually read from — the primary file,
     /// or the overlay that overrode it. `None` when the primary does not declare
@@ -236,7 +236,7 @@ its captured declaration as a related span. `expand` returns this same refusal
 before matching runtime values. Runtime mismatches use `invalid_value`, carry
 the requested key and winning source, and have no fabricated file span.
 
-<!-- fragment «templates-require» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="277-302" parent="resolution-and-expansion" -->
+<!-- fragment «templates-require» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="269-294" parent="resolution-and-expansion" -->
 ````rust
 
     /// Does this key resolve to exactly one complete template?
@@ -294,7 +294,7 @@ load, so what remains is a single question about the caller's values — and the
 comment on it is the longest in the block precisely because that question is
 stated over something other than what a reader would first expect.
 
-<!-- fragment «templates-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="303-354" parent="resolution-and-expansion" -->
+<!-- fragment «templates-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="295-346" parent="resolution-and-expansion" -->
 ````rust
 
     /// Expand this key's template into an argv.
@@ -418,7 +418,7 @@ consumes it. Its input is the caller's slice of `Slot` values; its output is a
 vector of borrowed `OsStr`s in vocabulary order. Expansion pairs them with
 validated names before it walks the compiled words.
 
-<!-- fragment «match-values» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="355-417" parent="resolution-and-expansion" -->
+<!-- fragment «match-values» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="347-409" parent="resolution-and-expansion" -->
 ````rust
 
     /// Line up the offered values with the declared slots, by name.
@@ -489,7 +489,7 @@ validated names before it walks the compiled words.
 The vector starts as one `None` per declared slot, in vocabulary order, and the
 function fills it. Names are compared with `==` inside `position`, which is the
 third and last of the three sites chapter 2 counted: `compile_vocabulary`
-compares names to reject a duplicate, `parse_template_word` compares them to
+compares names to reject a duplicate, `named::compile` compares them to
 resolve a substitution, and this compares them to pair a value with a slot. No
 site anywhere in the crate branches on a *particular* name, and this one is the
 easiest place to see why that is a property rather than an accident — the
@@ -514,7 +514,7 @@ pluralises its noun: `declared slot: label` or `declared slots: worktree, repo`.
 `declared_slots` exists for the unknown-name message and for nothing else.
 It has exactly one call site, in `match_values` above it.
 
-<!-- fragment «declared-slots» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="418-425" parent="resolution-and-expansion" -->
+<!-- fragment «declared-slots» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="410-417" parent="resolution-and-expansion" -->
 ````rust
 
     fn declared_slots(&self) -> String {
@@ -532,7 +532,7 @@ them in, not sorted — so an operator who reads `declared slots: prompt,
 session_name, worktree, repo` sees the list in the shape their own code declares
 it. It is a `String` rather than a `Vec<&str>` because its one caller
 interpolates it directly. It is a method rather than a free function taking
-`&[SlotSpec]` — which the file's own `parse_template_word` shows would compile —
+`&[SlotSpec]`
 because it is a question about a loaded configuration rather than a step in
 building one, and every free function in this file is the second sort.
 
@@ -553,7 +553,7 @@ this chapter keeps. It takes a key that failed `require` and returns the sentenc
 the operator will read. It has one caller, and it is the reason `require` exists
 as a named obligation rather than as a `contains_key` at each call site.
 
-<!-- fragment «templates-unresolved» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="426-449" parent="resolution-and-expansion" -->
+<!-- fragment «templates-unresolved» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="418-441" parent="resolution-and-expansion" -->
 ````rust
 
     /// The refusal for a key that does not resolve — naming the key and the
@@ -641,7 +641,7 @@ another module, and its placement says so: it is not part of the block a reader
 of the type's public surface walks, and it was added where it could be read
 against its purpose rather than against its neighbours.
 
-<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="985-994" parent="source-templates" -->
+<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="693-702" parent="source-templates" -->
 ````rust
 
 /// The keys the primary document declares, in name order. The conformance kit's

@@ -69,51 +69,19 @@ pub struct Vocabulary<'a> {
 ````
 <!-- /fragment -->
 
-The comment's central sentence lists three rules and says none of them is
-checkable by a loader that will not learn the names until expansion. The
-mechanism behind that sentence is one table threaded through five functions, and
-chapters 3 and 4 read all five. `load`'s first act is `compile_vocabulary`, which
-copies the borrowed rules into the owned `Vec<SlotSpec>` the `Templates` value
-keeps. That slice is then a parameter of `parse_and_validate`, of
-`validate_document`, of `validate_node`, of `validate_template` and of
-`parse_template_word` — the last two being the only places in the crate that ask
-a `Requirement` or a slot name anything. Every one of those calls happens inside
-`load`, before it returns, and for both documents.
+The comment's central sentence lists rules that require the consumer's slot
+names before expansion. `Catalog::load` first calls `compile_vocabulary`, copying
+the borrowed rules into an owned table. Structural capture does not need those
+names; the resolver supplies them to `named::compile` for every effective command
+definition. A slot name is checked there, and its cardinality is checked before
+the resolved Templates snapshot is returned.
 
-What a loader without the names answers is not a weaker version of that; it is a
-different answer. `parse_template_word` looks a name up in the slot table and
-returns `Word::Slot(name.to_owned())` when it finds it; when it does not, it records
-`unknown substitution` and returns the word as a **literal**. A table with no
-matching name in it therefore turns every substitution into a literal, and the
-rule immediately after it — that word zero must be a literal executable — stops
-firing, because a `${prompt}` standing alone as word zero now *is* a non-empty
-literal. The template `impl "${prompt}"` is refused when the loader holds the
-name and accepted when it does not.
-`word_zero_must_be_a_literal_executable` in
-`crates/keyed-launch/tests/templates.rs` pins the refusal the table makes
-possible. That is the shape of the cost, and it is not laxity: the answers move
-in both directions at once, since the same empty table also reports a perfectly
-good `${prompt}` as an unknown substitution.
-
-The alternative is a vocabulary supplied per call, as an argument to `expand`. It
-takes a parameter off `load`, and it would let one loaded configuration be
-expanded against more than one slot set. Its cost is that every rule above
-becomes just-in-time and per key. A document would load whatever it contained;
-`review-impl`'s missing `${prompt}` would surface the first time a launch of that
-key was attempted, which is a running program's failure rather than a
-configuration's. `load`'s own doc comment states the property the current shape
-buys — that a malformed template for a key this run will never reach still fails
-at load, before anything is spawned — and that sentence is not true under the
-alternative. Chapter 3 owns that comment and the function under it.
-
-`docs/specs/module-decomposition.md`'s decision 7 is the record this chapter
-keeps. It settles the vocabulary's position in the signature on exactly this
-ground, and states the consequence in the same terms the comment does: a
-vocabulary supplied per call would make every template rule just-in-time. The two
-lines that keep it are `load`'s third parameter and `validate_template`'s closing
-loop over the slot table. The book names that record and does not link it; a
-book's local link targets are its own pages, its own roots, the guide and the
-glossary, and a specification is none of those.
+A vocabulary supplied only to `expand` would move those failures to the first
+attempt to launch a key. The current API can instead validate a selected
+configuration before launching any of its commands. Dormant definitions remain
+structurally checked without compiling their templates; an effective binding is
+what activates compilation. The module-decomposition spec records this placement
+of the vocabulary at load, and chapter 4 explains the compiler's count check.
 
 There is a second cost, and the signature shows it. `Vocabulary<'a>` and
 `SlotRule<'a>` borrow, because a consumer's rules are normally a `const` array
@@ -142,16 +110,15 @@ pub struct SlotRule<'a> {
 <!-- /fragment -->
 
 A slot is named bare in the vocabulary and written `${name}` in a template.
-`whole_substitution` is the four lines that convert between the two — it strips
-`${` and `}` and rejects a word holding a second `}` — and chapter 4 reads them.
-There is no second spelling: no `$name`, no `%name%`, no nesting, and no escape
-for a literal `${`. A word that contains `${` without being one is what chapter
-4 refuses as `substitutions must occupy a complete shell word`.
+`named::compile` recognizes `${name}` during its left-to-right dollar scan and
+requires a runtime slot to fill a whole argument. `$$` escapes one literal dollar,
+so `$${name}` remains text. Parameter references use the distinct `${param.name}`
+namespace and may fill part of a word; chapter 4 explains both forms.
 
 The comment's closing clause is the crate's whole position on meaning, and it is
 checkable rather than aspirational: a slot name is compared with `==` in three
 places and interpreted in none. `compile_vocabulary` compares names to reject a
-duplicate, `parse_template_word` compares them to resolve a substitution, and
+duplicate, `named::compile` compares them to resolve a substitution, and
 `match_values` compares them to pair an offered value with a declared slot.
 Chapter 5 reads the third. No fourth site exists, and no site anywhere in the
 crate branches on a particular name.
@@ -189,7 +156,7 @@ API rather than about this crate's own needs.
 
 The two methods below are the whole of the type's behaviour, and both are
 `pub(crate)`. A consumer constructs a `Requirement` and never asks it anything;
-the only caller of either is `validate_template`, in chapter 4.
+the only caller of either is `named::compile`, in chapter 4.
 
 <!-- fragment «vocabulary-cardinality-and-message» owner="rules-about-names" source="crates/keyed-launch/src/vocabulary.rs" lines="30-46" parent="vocabulary" -->
 ````rust
@@ -214,7 +181,7 @@ impl Requirement {
 <!-- /fragment -->
 
 `admits` is the predicate and `violation` is the sentence for the case where the
-predicate is false. `validate_template` compiles a template's words, counts how
+predicate is false. `named::compile` compiles a template's words, counts how
 many of them resolved to each slot, and then walks the slot table calling
 `admits` with that count; a `false` sends it straight to `violation` for the
 message. Splitting a predicate from its message this way is what keeps both arms
@@ -252,61 +219,34 @@ than over the template's own words.
 <a id="the-four-slots"></a>
 ## The four slots
 
-The example the book carries is grove's own configuration, and this chapter takes
-the first step of it: the vocabulary value, and what holding it lets `load`
-refuse. The primary document is the two lines chapter 1 put on disk, at
-`~/.config/grove/config.kdl`. The vocabulary is grove's four slots — `prompt`
-declared `ExactlyOnce`, and `session_name`, `worktree` and `repo` declared
-`AtMostOnce` — built once as a slice of four `SlotRule`s and handed to `load` as
-its third argument. The crate learns their spelling and their cardinality, and
-nothing else; the four names are meaningful to grove and opaque here.
+Grove supplies four slots: `prompt` is `ExactlyOnce`, while `session_name`,
+`worktree` and `repo` are `AtMostOnce`. The runner knows these names and counts,
+without knowing what their values mean. Consider an active review definition
+whose author omitted the prompt:
 
-Loaded as chapter 1 wrote them, both lines pass. Now suppose the operator edits
-the second line and drops its substitution, a plausible mistake because the line
-still reads as a complete command.
-
-```text
-impl "claude --model opus ${prompt}"
-review-impl "codex exec --model gpt-5"
+```kdl
+config {
+    command "reviewer" "codex exec --model gpt-5"
+    bind "review" "reviewer"
+    route "review-impl" "review"
+}
 ```
 
-That document is well-formed KDL. Both nodes have one positional string
-argument, neither declares a property or a child block, there is no duplicate
-key, and `shell_words::split` splits the second line into four ordinary words
-with nothing to object to. Every check that does not consult the vocabulary
-passes it. The load nevertheless fails, and it fails at the moment grove reads
-its configuration rather than at the moment it launches a review.
+Its declaration shape and quoting are valid, but compilation reports that the
+command template must contain `${prompt}` exactly once. The diagnostic points
+at the command definition's captured span. The binding activates compilation
+even before any caller requests expansion of `review-impl`.
 
-```console
-invalid configuration at ~/.config/grove/config.kdl:
-  - ~/.config/grove/config.kdl:2:1: key `review-impl`: command template must contain `${prompt}` exactly once
-```
+| Rule about a runtime substitution | Decided by | Needs the slot table |
+|---|---|---|
+| It occupies a complete argument | `named::compile` | no |
+| Its name is declared | `named::compile` | yes |
+| Its count satisfies its requirement | `named::compile`, through `Requirement::admits` | yes |
 
-Those two lines are the observable end of this chapter's example, and every part
-of them comes from a different place in the crate. `invalid configuration at`
-comes from `DocumentRole::Primary`'s noun, in this chapter's last fragment but
-one. The location `2:1` is a `SourceLocation`, computed from the node's byte
-offset. The ``key `review-impl`:`` prefix is `at_template`. And the sentence itself
-is `Requirement::ExactlyOnce`'s arm of `violation`, from
-`src/vocabulary.rs` line 41. Chapters 3 and 4 own the functions that assemble
-them; this chapter owns the two types that supply the last two.
-
-The refusal is available at load because — and only because — the loader was
-holding the names. The table below is what the vocabulary buys, rule by rule.
-
-| Rule about a substitution | Decided by | The diagnostic | Needs the slot table |
-|---|---|---|---|
-| it occupies a complete word | `parse_template_word` | ``substitutions must occupy a complete shell word, got `pre${prompt}` `` | no |
-| the name inside it is declared | `parse_template_word` | ``unknown substitution `${prmopt}` `` | yes |
-| it appears as often as its cardinality allows | `validate_template`, through `Requirement::admits` | ``command template must contain `${prompt}` exactly once`` | yes |
-
-Read the last column downward: one of the three rules survives a loader that does
-not know the names, and it is the one that decides nothing on its own. It is also
-the precondition for the other two — `parse_template_word` asks
-`whole_substitution` first, and only a word that is *nothing but* `${name}`
-reaches the lookup at all, so a partial substitution never becomes a slot and
-never gets counted. The three are one discipline with one gate, and two thirds of
-it exists only while the loader holds the vocabulary.
+Parameter references are checked against the command's declarations instead of
+the runtime vocabulary. They may occupy fragments inside an argument, while a
+runtime slot remains a whole argument. Both preserve boundaries when their
+values are eventually filled.
 
 Both `Catalog::load` and the delegating `Templates::load` take the vocabulary.
 Conformance uses the vocabulary already captured by Catalog. Expansion receives
@@ -330,7 +270,7 @@ same compiled words at expansion.
 
 `Origin` locates a declaration in captured input. `Setting` names the scope
 being assigned, and `AssignmentHistory` keeps every applied value with its total
-order and origin ID. For a flat route, a primary template followed by a local
+order and origin ID. For the retained, unreachable flat-route representation, a primary template followed by a local
 replacement produces two `LiteralTemplate` assignments in one route history.
 BindingTarget and Set also describe named target changes. Parameter-specific
 setting/value variants define the pending public record vocabulary; the flat
@@ -389,7 +329,7 @@ pub struct AssignmentHistory {
 
 `CompiledWord` is the representation validation builds and expansion reads.
 Inspection copies those words into `WordView` and associates origin IDs; it never
-parses a display string. In the carried flat example, every word references the
+parses a display string. In the retained literal-route branch, every word references the
 winning template declaration, and `Slot("prompt")` still awaits a runtime value.
 
 <!-- fragment «inspection-words» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="47-61" parent="inspection-records" -->
@@ -486,7 +426,7 @@ Catalog captures the documents and vocabulary; Templates retains that capture
 and its winning commands. The validation helper types remain private. Chapters
 3 and 5 construct and consume these shapes respectively.
 
-<!-- fragment «template-shapes» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-165" parent="source-templates" -->
+<!-- fragment «template-shapes» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-157" parent="source-templates" -->
 <!-- insert «template-shapes-imports» -->
 <!-- insert «template-shapes-templates» -->
 <!-- insert «template-shapes-slot-spec» -->
@@ -535,7 +475,7 @@ error records and vocabulary to the validator; no launch operation is imported.
 
 `SourceRole`, `Source` and `SourceSpan` identify an input and a byte range;
 Selection carries a profile list and an optional declaration origin. A caller's
-list normally has no origin. Flat Catalog loading returns no declarations.
+list normally has no origin. An empty document returns no selection declaration.
 Resolution expands explicit selections and includes into distinct occurrences;
 unknown names and active-stack cycles retain the path that reached them.
 
@@ -743,7 +683,7 @@ argument is about what it does *not* change.
 ````rust
 /// Which document is being validated, and so which file a diagnostic names.
 ///
-/// Both sources receive structural and eager flat checks. Named definitions are
+/// Both sources receive structural checks. Named definitions are
 /// primary-only; primary key authority is enforced later during resolution.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum DocumentRole {
@@ -788,10 +728,10 @@ the entire purpose of carrying the role that far.
 <a id="what-a-diagnostic-carries"></a>
 ## What a diagnostic carries
 
-The last three types are the shape of a validation report. There is no comment
+The last two types are the shape of a validation report. There is no comment
 on any of them, and what they are for is legible only from their fields.
 
-<!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="141-165" parent="template-shapes" -->
+<!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="141-157" parent="template-shapes" -->
 ````rust
 #[derive(Clone, Copy)]
 struct SourceLocation {
@@ -810,14 +750,6 @@ struct ValidationDiagnostic {
     message: String,
 }
 
-struct NodeValidation {
-    key: String,
-    location: SourceLocation,
-    template: Option<Vec<Word>>,
-    text: String,
-    diagnostics: Vec<ValidationDiagnostic>,
-}
-
 ````
 <!-- /fragment -->
 
@@ -827,30 +759,11 @@ the node span; computing columns counts Unicode scalar values rather than bytes.
 The captured document stays immutable, so those positions refer to its original
 UTF-8 text.
 
-`ValidationDiagnostic` has an **optional** location, and the `Option` has one
-source, which is worth naming because it is not a document-level case. Both
-constructors, `at_node` and `at_template`, always fill it. The only other
-construction is `validate_document`'s duplicate-key finding, which takes
-`locations.first().copied()` from a vector the surrounding code has already
-established is non-empty; the compiler cannot see that, so the field absorbs the
-`Option` that `first` returns. The `None` is unreachable and the type carries it
-anyway, which is why `render_diagnostics` — chapter 4's — branches on a location
-that is always there.
-
-ValidationDiagnostic additionally carries a category, remedy, optional key and
-related declaration locations. `render_diagnostics` turns these internal values
-into public records. The vector preserves independent findings for Catalog to
-combine across documents.
-
-`NodeValidation` is what one node yields, and its four fields are what makes an
-aggregate report possible. It carries the `key` and its `location` **whether or
-not** the node was valid, so the duplicate-key check can compare keys across
-nodes that individually failed; a `template` that is `Some` only when the node
-compiled; and this node's own diagnostics. A validator that returned
-`Result<Template, Error>` per node could not do the duplicate check at all,
-because a node that failed for some other reason would have left no key behind to
-compare. Chapter 3 owns `validate_document`, where the captured fields are folded
-into one report, and chapter 4 owns `validate_node`, which fills them.
+`ValidationDiagnostic` carries a category, remedy, optional key and location,
+and related declaration locations. `at_node` supplies a concrete node location;
+modular duplicate checks attach the earlier declaration as a related span.
+`render_diagnostics` turns these internal values into public records, and Catalog
+combines independent findings across documents before resolution.
 
 Every shape the next three chapters need is now on the page, and each of them is
 a rule about a name or the residue of one: a table of names, a template compiled

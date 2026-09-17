@@ -6,7 +6,7 @@
 ## Nine openings, one question
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The 11 roots and 4,110 lines are
+This chapter owns no production source. The 11 roots and 3,825 lines are
 already reconstructed by the fragment graph the nine chapters before it built,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
@@ -157,7 +157,7 @@ happens afterwards, which is nothing. No variable is expanded, no `$(…)` is ru
 no glob is matched, no redirection or pipeline is honoured, no `~` is a home
 directory, and no shell is anywhere in the path. The crate's own `${name}` is not
 an exception: it resolves against the slot table the consumer declared, and
-[a substitution may only ever stand for a whole word](04-template-law.md#a-whole-word),
+[a substitution may only ever stand for a whole word](04-template-law.md#named-compile),
 so it can never move the boundary between one argument and the next.
 
 The structural half of the answer is in the compiled shape, and
@@ -179,7 +179,7 @@ split it and the `$(…)` was not run. `shell_metacharacters_stay_literal` expan
 
 The third is the case where a dependency adds meaning even though the crate
 declines to interpret the value itself.
-[Chapter 4's comment-start scan](04-template-law.md#the-comment-start) exists
+[Chapter 4's comment-start scan](04-template-law.md#the-scan) exists
 because `shell-words`, the splitter this crate depends on, *does* interpret an
 unquoted `#` as starting a comment and drops the rest of the line — silently, and
 legally, because that is what a shell does. A crate that merely refrained from
@@ -336,7 +336,7 @@ turns out to be *somewhere after all*.
    reading is a parse. Two readings in different grammars is where this arm's
    failures live, and the second reading is often not in your code: a splitter, a
    templating layer, a shell invoked for convenience, a serialiser that
-   round-trips. The `#` in [chapter 4](04-template-law.md#the-comment-start) is a
+   round-trips. The `#` in [chapter 4](04-template-law.md#the-scan) is a
    dependency's second reading, and it took a scan to refuse rather than a
    decision to abstain.
 3. **Ask what your layer would have to know for each of its own rules to be
@@ -390,10 +390,10 @@ claim this chapter makes.
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-owned-by» of="understands-neither" -->
 <!-- rollup «ownership-blocks-not-owned-by» of="understands-neither" -->
-**Ownership.** 27 top-level blocks over 11 source roots, every one
+**Ownership.** 26 top-level blocks over 11 source roots, every one
 `resolved`. The table is the source index's
 [ownership blocks](source-index.md#ownership-blocks), and chapter 1's session
-owns 3 blocks, with 24 owned by the other chapters. The inspection
+owns 3 blocks, with 23 owned by the other chapters. The inspection
 records extend the corpus under the same recursive rule. No `defer` directive remains anywhere in the
 book, and none may: `F003` reports any defer at all in final mode, so *every
 deferral has become an insertion* is a statement the validator refuses to let be
@@ -401,7 +401,7 @@ false rather than one this page asserts.
 
 <!-- rollup «ownership-blocks» -->
 <!-- rollup «source-roots» -->
-27 blocks over 11 roots is the price of reading the crate
+26 blocks over 11 roots is the price of reading the crate
 in its own conceptual order. Seven roots are owned whole by one chapter; the other
 four split, and each split is the concept order disagreeing with the file's. The
 figure is the original three split files in file order, and what it carries that a list of
@@ -409,15 +409,14 @@ ranges cannot is the interleaving: in two of the three, one chapter's block sits
 *inside* another chapter's pair.
 
 ```text
-src/templates.rs   982 lines, 8 blocks, chapters 2 3 4 5
-      1-164   template-shapes
-    165-278   templates-load
-    279-460   resolution-and-expansion
-    461-669   reading-and-whole-document-validation
-    670-809   node-and-template-rules
-    810-892   word-scanning
-    893-972   diagnostics
-    973-982   templates-keys
+src/templates.rs   702 lines, 7 blocks, chapters 2 3 4 5
+      1-157   template-shapes
+    158-259   templates-load
+    260-441   resolution-and-expansion
+    442-571   reading-and-whole-document-validation
+    572-621   word-scanning
+    622-692   diagnostics
+    693-702   templates-keys
 
 src/run.rs         672 lines, 4 blocks, chapters 7 8
       1–123   ch 7   ┐  the launch's shape
@@ -447,8 +446,7 @@ in the book cut at a compilation condition rather than a conceptual one.
 `[[early-use]]` entries, which are the rows the book may not omit: 9 forced
 by [chapter 1's cast](01-orientation.md#the-cast) naming nearly every public type
 before its owner explains it, one by
-[chapter 3](03-two-documents.md#both-documents) reaching the two rule checks that
-`validate_document` drives and chapter 4 owns, and one by
+[chapter 3](03-two-documents.md#both-documents) reaching `named::compile`, whose template rules chapter 4 owns, and one by
 [chapter 7](07-the-job.md#the-spawn) reaching the handler, the latch and the
 supervisor that are `run`'s first and last acts and chapter 8's to explain. The
 twelfth was added under the clause that requires a row before any additional
@@ -459,10 +457,10 @@ together. Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 294 + 318 + 1,643 + 441 + 240 + 271 + 390 + 282 + 231 = 4,110
+**Owned source.** 294 + 310 + 1,548 + 259 + 240 + 271 + 390 + 282 + 231 = 3,825
 lines across 9 chapters, and 0 for this one. The tenth row of that table exists
 to be zero: a chapter that owns no source is the shape the structure brief chose
-for the assembly, and the total is the 4,110 lines in the current declared corpus.
+for the assembly, and the total is the 3,825 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
@@ -487,7 +485,7 @@ valid: 11 files, 3172 resolved lines, 0 deferred lines, final=true
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 4,110 resolved and 0 deferred is the whole corpus
+match the manifest exactly. 3,825 resolved and 0 deferred is the whole corpus
 reconstructed — including `src/channel.rs` lines 272 to 404, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
@@ -559,7 +557,7 @@ Nothing in the corpus holds them; they hold the corpus.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 11 roots, 4,110 lines, 10 chapters, two lookup surfaces,
+The book is complete: 11 roots, 3,825 lines, 10 chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that nine refusals are one design, and
 what it leaves the reader with is the question — *where does this layer learn what
 the value means?* — together with the one case where this crate's own answer runs

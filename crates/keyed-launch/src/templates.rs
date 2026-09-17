@@ -111,7 +111,7 @@ type Word = CompiledWord;
 
 /// Which document is being validated, and so which file a diagnostic names.
 ///
-/// Both sources receive structural and eager flat checks. Named definitions are
+/// Both sources receive structural checks. Named definitions are
 /// primary-only; primary key authority is enforced later during resolution.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum DocumentRole {
@@ -155,16 +155,8 @@ struct ValidationDiagnostic {
     message: String,
 }
 
-struct NodeValidation {
-    key: String,
-    location: SourceLocation,
-    template: Option<Vec<Word>>,
-    text: String,
-    diagnostics: Vec<ValidationDiagnostic>,
-}
-
 impl Catalog {
-    /// Capture both documents with structural and eager legacy validation.
+    /// Capture both documents with structural validation.
     /// Named command templates validate only when an effective binding uses them,
     /// after resolution folds local target replacements. An invalid input fails
     /// closed rather than falling back to another policy.
@@ -176,11 +168,11 @@ impl Catalog {
         let slots = compile_vocabulary(&vocabulary)?;
 
         let primary_result = read_primary(primary)
-            .and_then(|text| parse_and_validate(primary, text, DocumentRole::Primary, &slots));
+            .and_then(|text| parse_and_validate(primary, text, DocumentRole::Primary));
         let overlay_result = overlay
             .map(|path| {
                 read_overlay(path)
-                    .and_then(|text| parse_and_validate(path, text, DocumentRole::Overlay, &slots))
+                    .and_then(|text| parse_and_validate(path, text, DocumentRole::Overlay))
             })
             .transpose();
         let mut diagnostics = Vec::new();
@@ -535,7 +527,6 @@ fn parse_and_validate(
     path: &Path,
     source: String,
     role: DocumentRole,
-    slots: &[SlotSpec],
 ) -> Result<CapturedDocument, ConfigError> {
     let document: KdlDocument = source.parse().map_err(|error: kdl::KdlError| {
         let location = source_location(&source, error.span.offset());
@@ -560,115 +551,8 @@ fn parse_and_validate(
         ConfigError::from_diagnostics(vec![diagnostic])
     })?;
 
-    let unsupported: Vec<_> = document
-        .nodes()
-        .iter()
-        .filter(|node| !named::is_wrapper(node))
-        .map(|node| {
-            let mut location = source_location(&source, node.span().offset());
-            location.end += node.span().len();
-            let mut diagnostic = at_node(
-                location,
-                format!("unsupported top-level declaration `{}`", node.name().value()),
-            );
-            diagnostic.remedy = "Use config { ... } with command definitions, bind targets and route declarations; local overlays may select or override personal bindings and routes.";
-            diagnostic
-        })
-        .collect();
-    if !unsupported.is_empty() {
-        return Err(ConfigError::from_diagnostics(render_diagnostics(
-            path,
-            role,
-            unsupported,
-        )));
-    }
-
-    let (templates, named) = validate_document(path, &source, &document, role, slots)?;
-    Ok(CapturedDocument {
-        path: path.to_path_buf(),
-        _source: source,
-        _document: document,
-        templates,
-        named,
-    })
-}
-
-fn validate_document(
-    path: &Path,
-    source: &str,
-    document: &KdlDocument,
-    role: DocumentRole,
-    slots: &[SlotSpec],
-) -> Result<(BTreeMap<String, Template>, named::Declarations), ConfigError> {
-    let mut validations = Vec::new();
-    let mut occurrences: HashMap<String, Vec<SourceLocation>> = HashMap::new();
-
-    for node in document.nodes() {
-        if named::is_wrapper(node) {
-            continue;
-        }
-        let validation = validate_node(source, node, slots);
-        occurrences
-            .entry(validation.key.clone())
-            .or_default()
-            .push(validation.location);
-        validations.push(validation);
-    }
-
     let mut diagnostics = Vec::new();
-    let named = named::parse(path, source, document, role, &mut diagnostics);
-
-    // Duplicates, in declaration order of their first appearance, each naming
-    // every one of its own locations.
-    let mut duplicates: Vec<String> = Vec::new();
-    for validation in &validations {
-        if occurrences
-            .get(&validation.key)
-            .is_some_and(|items| items.len() > 1)
-            && !duplicates.contains(&validation.key)
-        {
-            duplicates.push(validation.key.clone());
-        }
-    }
-    for key in duplicates {
-        let Some(locations) = occurrences.get(&key) else {
-            continue;
-        };
-        let declarations = locations
-            .iter()
-            .map(|location| format_location(path, *location))
-            .collect::<Vec<_>>()
-            .join(", ");
-        diagnostics.push(ValidationDiagnostic {
-            category: "duplicate",
-            key: Some(key.clone()),
-            related: locations.iter().skip(1).copied().collect(),
-            remedy: "Keep one declaration per key in each document.",
-            location: locations.first().copied(),
-            message: format!("duplicate key `{key}`; declarations at {declarations}"),
-        });
-    }
-
-    let mut templates = BTreeMap::new();
-    for validation in validations {
-        diagnostics.extend(validation.diagnostics);
-        if let Some(words) = validation.template {
-            templates.insert(
-                validation.key,
-                Template {
-                    text: validation.text,
-                    span: SourceSpan {
-                        source: role.source(path),
-                        start: validation.location.start,
-                        end: validation.location.end,
-                    },
-                    words,
-                    source: path.to_path_buf(),
-                },
-            );
-        }
-    }
-
+    let named = named::parse(path, &source, &document, role, &mut diagnostics);
     if !diagnostics.is_empty() {
         return Err(ConfigError::from_diagnostics(render_diagnostics(
             path,
@@ -677,147 +561,13 @@ fn validate_document(
         )));
     }
 
-    Ok((templates, named))
-}
-
-fn validate_node(source: &str, node: &KdlNode, slots: &[SlotSpec]) -> NodeValidation {
-    let key = node.name().value().to_owned();
-    // kdl 4.7 spans are byte offset/length pairs, excluding surrounding trivia:
-    // https://docs.rs/kdl/4.7.1/kdl/struct.KdlNode.html#method.span
-    let mut location = source_location(source, node.span().offset());
-    location.end = location.start + node.span().len();
-    let mut diagnostics = Vec::new();
-    let has_property = node.entries().iter().any(|entry| entry.name().is_some());
-
-    if has_property || node.children().is_some() {
-        diagnostics.push(at_node(
-            location,
-            "properties and child blocks are not allowed".to_owned(),
-        ));
-    }
-    if node.ty().is_some() || node.entries().iter().any(|entry| entry.ty().is_some()) {
-        diagnostics.push(at_node(
-            location,
-            "type annotations are not allowed".to_owned(),
-        ));
-    }
-
-    let positional = node
-        .entries()
-        .iter()
-        .filter(|entry| entry.name().is_none())
-        .collect::<Vec<_>>();
-    if positional.len() != 1 {
-        diagnostics.push(at_node(
-            location,
-            "a key must have exactly one positional argument".to_owned(),
-        ));
-    }
-
-    let template = if diagnostics.is_empty() && positional.len() == 1 {
-        match positional[0].value().as_string() {
-            Some(template) => validate_template(&key, location, template, slots, &mut diagnostics),
-            None => {
-                diagnostics.push(at_node(
-                    location,
-                    "a key's sole argument must be a string".to_owned(),
-                ));
-                None
-            }
-        }
-    } else {
-        None
-    };
-
-    for diagnostic in &mut diagnostics {
-        diagnostic.key = Some(key.clone());
-    }
-    NodeValidation {
-        key,
-        location,
-        template,
-        text: positional
-            .first()
-            .and_then(|entry| entry.value().as_string())
-            .unwrap_or_default()
-            .to_owned(),
-        diagnostics,
-    }
-}
-
-fn validate_template(
-    key: &str,
-    location: SourceLocation,
-    template: &str,
-    slots: &[SlotSpec],
-    diagnostics: &mut Vec<ValidationDiagnostic>,
-) -> Option<Vec<Word>> {
-    if template.contains('\0') {
-        let mut diagnostic = at_template(location, key, "command template contains NUL".to_owned());
-        diagnostic.remedy =
-            "Remove NUL from the command template; executables and arguments cannot contain NUL.";
-        diagnostics.push(diagnostic);
-        return None;
-    }
-    if contains_shell_comment_start(template) {
-        diagnostics.push(at_template(
-            location,
-            key,
-            "`#` starts a comment in a command template; quote it to pass it literally".to_owned(),
-        ));
-        return None;
-    }
-
-    let words = match shell_words::split(template) {
-        Ok(words) => words,
-        Err(_) => {
-            diagnostics.push(at_template(
-                location,
-                key,
-                "command template has unmatched quotes".to_owned(),
-            ));
-            return None;
-        }
-    };
-
-    if words.is_empty() {
-        diagnostics.push(at_template(
-            location,
-            key,
-            "word zero must be a literal non-empty executable".to_owned(),
-        ));
-    }
-
-    let mut compiled = Vec::with_capacity(words.len());
-    let mut counts = vec![0usize; slots.len()];
-    for (index, word) in words.into_iter().enumerate() {
-        let parsed = parse_template_word(key, &word, location, slots, diagnostics);
-        if index == 0 && !matches!(parsed, Word::Literal(ref value) if !value.is_empty()) {
-            diagnostics.push(at_template(
-                location,
-                key,
-                "word zero must be a literal executable".to_owned(),
-            ));
-        }
-        if let Word::Slot(ref name) = parsed {
-            if let Some(index) = slots.iter().position(|slot| &slot.name == name) {
-                counts[index] += 1;
-            }
-        }
-        compiled.push(parsed);
-    }
-
-    for (slot, count) in slots.iter().zip(counts) {
-        if !slot.requirement.admits(count) {
-            diagnostics.push(at_template(
-                location,
-                key,
-                slot.requirement.violation(&slot.name),
-            ));
-        }
-    }
-
-    Some(compiled)
+    Ok(CapturedDocument {
+        path: path.to_path_buf(),
+        _source: source,
+        _document: document,
+        templates: BTreeMap::new(),
+        named,
+    })
 }
 
 #[derive(Clone, Copy)]
@@ -869,55 +619,13 @@ fn contains_shell_comment_start(template: &str) -> bool {
     false
 }
 
-fn parse_template_word(
-    key: &str,
-    word: &str,
-    location: SourceLocation,
-    slots: &[SlotSpec],
-    diagnostics: &mut Vec<ValidationDiagnostic>,
-) -> Word {
-    if let Some(name) = whole_substitution(word) {
-        if slots.iter().any(|slot| slot.name == name) {
-            return Word::Slot(name.to_owned());
-        }
-        diagnostics.push(at_template(
-            location,
-            key,
-            format!("unknown substitution `{word}`"),
-        ));
-        return Word::Literal(word.to_owned());
-    }
-    if word.contains("${") {
-        diagnostics.push(at_template(
-            location,
-            key,
-            format!("substitutions must occupy a complete shell word, got `{word}`"),
-        ));
-    }
-    Word::Literal(word.to_owned())
-}
-
-/// The slot name in `${name}`, when the word is *nothing but* that substitution.
-fn whole_substitution(word: &str) -> Option<&str> {
-    let inner = word.strip_prefix("${")?.strip_suffix('}')?;
-    (!inner.contains('}')).then_some(inner)
-}
-
 fn at_node(location: SourceLocation, message: String) -> ValidationDiagnostic {
     ValidationDiagnostic {
         category: "shape", key: None, related: Vec::new(),
-        remedy: "Use a bare key with exactly one string argument and no properties, children or type annotations.",
+        remedy: "Use config { ... } with command definitions, bind targets and route declarations; local overlays may select or override personal bindings and routes.",
         location: Some(location),
         message,
     }
-}
-
-fn at_template(location: SourceLocation, key: &str, message: String) -> ValidationDiagnostic {
-    let mut diagnostic = at_node(location, format!("key `{key}`: {message}"));
-    diagnostic.category = "invalid_template";
-    diagnostic.key = Some(key.to_owned());
-    diagnostic.remedy = "Use a literal executable and complete-word declared slots with the required counts; balance quotes and quote literal comment markers.";
-    diagnostic
 }
 
 /// Convert validator findings into ordered records. Catalog decides whether

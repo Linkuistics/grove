@@ -1,4 +1,4 @@
-# modular-cleanup-k12
+# modular-cleanup-k12 — brief
 
 ## Goal
 
@@ -29,6 +29,14 @@ modular resolution, authority, parameters, provenance or expansion semantics.
 
 Keep the public load/expansion test seam; no new CLI acceptance suite. The root
 handoff and this node's preceding child record the migrated compatibility cases.
+
+## Decomposition
+
+`modular-parser-k13` deletes unreachable flat validation, moves rejection into
+modular capture, and updates the affected source-exact fragments and parser prose.
+`modular-representation-k14` removes the remaining resolver/inspection machinery
+and finishes documentation, the forms audit and the subsystem review decision.
+The public resolver types can stay unchanged during the first green increment.
 
 ## Handoff from modular-input-k11
 

@@ -5,8 +5,8 @@
 <a id="never-assembled"></a>
 ## Capture once, resolve without reading
 
-`Catalog::load` reads the explicit primary and optional overlay, validates document structure and retains original bytes, parsed KDL, eager flat
-commands and named declarations.
+`Catalog::load` reads the explicit primary and optional overlay, validates document structure and retains original bytes, parsed KDL and modular
+declarations.
 `Catalog::resolve` folds binding and route targets, applies primary authority,
 and compiles effective named commands from those captured declarations. `Templates::load` is the convenience composition
 of those operations with an empty selection. None of these operations decides
@@ -15,7 +15,7 @@ which files a consumer should supply.
 The running example resolves each key to one whole template. Capture preserves
 both original declarations when an overlay replaces a command, and Templates
 owns its snapshot independently. Changing or removing a file cannot change
-expansion, inspection or diagnostic locations. Inspection explains flat commands, named reference chains and parameter
+expansion, inspection or diagnostic locations. Inspection explains named reference chains and parameter
 composition, including every selected profile occurrence. Inactive profiles pass
 structural validation without activating their references.
 
@@ -25,24 +25,24 @@ structural validation without activating their references.
 Both public loading routes reach Catalog's validator. The constructor checks
 the vocabulary, then captures both explicit document results even when the
 primary fails. It reports read, syntax, shape and duplicate failures before
-template-semantic failures. With valid structure, unused flat templates still
-undergo eager checking. Errors are ordered by primary/overlay, byte position
+template-semantic failures. Effective bindings determine which command
+templates compile. Errors are ordered by primary/overlay, byte position
 and key; a bad document never causes fallback to another configuration.
 
-<!-- fragment «templates-load» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="166-267" parent="source-templates" -->
+<!-- fragment «templates-load» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="158-259" parent="source-templates" -->
 <!-- insert «templates-load-three-promises» -->
 <!-- insert «templates-load-primary» -->
 <!-- insert «templates-load-overlay» -->
 <!-- insert «templates-load-value» -->
 <!-- /fragment -->
 
-The opening fragment states the eager flat validation and fail-closed contract.
+The opening fragment states the structural validation and fail-closed contract.
 Its output is a Catalog rather than an already merged map.
 
-<!-- fragment «templates-load-three-promises» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="166-175" parent="templates-load" -->
+<!-- fragment «templates-load-three-promises» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="158-167" parent="templates-load" -->
 ````rust
 impl Catalog {
-    /// Capture both documents with structural and eager legacy validation.
+    /// Capture both documents with structural validation.
     /// Named command templates validate only when an effective binding uses them,
     /// after resolution folds local target replacements. An invalid input fails
     /// closed rather than falling back to another policy.
@@ -64,16 +64,16 @@ the captured base declarations.
 The consumer chooses that list. The convenience loader always supplies an empty
 selection, ignoring captured declarations rather than choosing between them.
 
-<!-- fragment «templates-load-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="176-228" parent="templates-load" -->
+<!-- fragment «templates-load-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="168-220" parent="templates-load" -->
 ````rust
         let slots = compile_vocabulary(&vocabulary)?;
 
         let primary_result = read_primary(primary)
-            .and_then(|text| parse_and_validate(primary, text, DocumentRole::Primary, &slots));
+            .and_then(|text| parse_and_validate(primary, text, DocumentRole::Primary));
         let overlay_result = overlay
             .map(|path| {
                 read_overlay(path)
-                    .and_then(|text| parse_and_validate(path, text, DocumentRole::Overlay, &slots))
+                    .and_then(|text| parse_and_validate(path, text, DocumentRole::Overlay))
             })
             .transpose();
         let mut diagnostics = Vec::new();
@@ -130,7 +130,7 @@ and binding targets. Primary declarations authorize keys before local replacemen
 a local-only route is retained for an explanatory refusal. The declaration fold
 and reference validation are explained [below](#named-fold).
 
-<!-- fragment «templates-load-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="229-229" parent="templates-load" -->
+<!-- fragment «templates-load-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="221-221" parent="templates-load" -->
 ````rust
         let (templates, overlay_only, inspection) = named::resolve(&self.captured, selection)?;
 ````
@@ -146,7 +146,7 @@ Origins follow base, profile applications and overlay, with source order inside
 each patch; histories retain replaced targets and repeated applications. Empty documents still appear in `sources`. The returned Templates owns
 that explanation alongside compiled words, without reopening any source path.
 
-<!-- fragment «templates-load-value» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="230-267" parent="templates-load" -->
+<!-- fragment «templates-load-value» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="222-259" parent="templates-load" -->
 ````rust
 
         Ok(Templates {
@@ -195,9 +195,9 @@ impl Templates {
 For a primary declaring `impl` and `review-impl`, and an overlay replacing only
 `impl`, resolution keeps the primary review command and the overlay impl command.
 `source("impl")` names the overlay; `source("review-impl")` names the primary.
-`validate_node` and `validate_template` are the per-node and per-template rule
-checks `validate_document` drives over both documents; each returns diagnostics
-with locations rather than stopping at the first. Chapter 4 explains those rules.
+`named::compile` turns each effective command definition into argument fragments
+and runtime slots, checking the consumer vocabulary before expansion. Chapter 4
+explains those template rules.
 
 `crates/keyed-launch/tests/catalog.rs` uses the unrelated key `opaque` and runtime
 slot `payload` to test the same boundary. It edits the primary and removes the
@@ -210,27 +210,24 @@ and equality with the convenience loader; native non-UTF-8 slot bytes survive.
 
 A valid overlay-only command is retained but does not appear in `keys()` and has
 no `source()`. `require` and `expand` refuse it, naming the primary file where the
-key must be declared. Validation and admission are distinct: an invalid
-overlay-only command still prevents loading, because flat template checks are
-eager in both documents. A valid one lets other admitted keys resolve normally.
+key must be declared. Validation and admission are distinct: malformed overlay declarations prevent
+loading even when they cannot admit a key. A structurally valid overlay-only
+route is retained as non-admitted while other admitted keys resolve normally.
 
 <a id="the-slot-table-first"></a>
 ## The slot table first, and the duplicate it refuses
 
-The rest of the chapter is the five functions `load` reaches, in the order it
+The rest of the chapter is the four capture helpers `load` reaches, in the order it
 reaches them. They are free functions rather than methods because none of them
-needs a `Templates` — they run before one exists — and all five are private:
+needs a `Templates` — they run before one exists — and all four are private:
 `Catalog::load` is their entry point; Catalog resolution then produces
-Templates without invoking them again. The block is read in seven fragments.
+Templates without invoking them again. The block is read in four fragments.
 
-<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="450-681" parent="source-templates" -->
+<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="442-571" parent="source-templates" -->
 <!-- insert «compile-vocabulary» -->
 <!-- insert «read-primary» -->
 <!-- insert «read-overlay» -->
 <!-- insert «parse-and-validate» -->
-<!-- insert «validate-document-nodes» -->
-<!-- insert «validate-document-duplicates» -->
-<!-- insert «validate-document-report» -->
 <!-- /fragment -->
 
 `compile_vocabulary` is the first, and it validates names before copying them: it
@@ -240,7 +237,7 @@ statement anywhere in the crate of why the duplicate is a refusal rather than a
 tolerated redundancy, and the reason is that the failure it would otherwise cause
 is silent and lands on the wrong file.
 
-<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="450-487" parent="reading-and-whole-document-validation" -->
+<!-- fragment «compile-vocabulary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="442-479" parent="reading-and-whole-document-validation" -->
 ````rust
 
 /// Turn the borrowed vocabulary into the owned slot table `Templates` keeps, and
@@ -294,7 +291,7 @@ report.
 
 The comment's second paragraph is the argument this section owes, and it is the
 kind the source states only here. A duplicated slot would be counted twice
-against its own cardinality rule: `validate_template` walks the slot table and
+against its own cardinality rule: `named::compile` walks the slot table and
 asks each entry's `Requirement` whether the occurrence count admits it, so a
 `prompt` declared twice would be asked twice about the same one occurrence, and a
 template containing `${prompt}` once would be refused by the second copy under
@@ -315,7 +312,7 @@ comment. They are worth reading side by side: the difference between them is the
 whole of what *the overlay is optional* means once a path has been handed in, and
 the source nowhere says so.
 
-<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="488-512" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-primary» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="480-504" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_primary(path: &Path) -> Result<String, ConfigError> {
@@ -356,7 +353,7 @@ one case named, everything else reported verbatim.
 
 The overlay's reader has no such case.
 
-<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="513-532" parent="reading-and-whole-document-validation" -->
+<!-- fragment «read-overlay» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="505-524" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn read_overlay(path: &Path) -> Result<String, ConfigError> {
@@ -400,14 +397,13 @@ question be answered once, in `load`'s comment, rather than per error kind here.
 depends on and the rules it adds on top of them. It is nineteen lines, and eight
 of them are the message it builds when the parse fails.
 
-<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="533-594" parent="reading-and-whole-document-validation" -->
+<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="525-571" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn parse_and_validate(
     path: &Path,
     source: String,
     role: DocumentRole,
-    slots: &[SlotSpec],
 ) -> Result<CapturedDocument, ConfigError> {
     let document: KdlDocument = source.parse().map_err(|error: kdl::KdlError| {
         let location = source_location(&source, error.span.offset());
@@ -432,48 +428,32 @@ fn parse_and_validate(
         ConfigError::from_diagnostics(vec![diagnostic])
     })?;
 
-    let unsupported: Vec<_> = document
-        .nodes()
-        .iter()
-        .filter(|node| !named::is_wrapper(node))
-        .map(|node| {
-            let mut location = source_location(&source, node.span().offset());
-            location.end += node.span().len();
-            let mut diagnostic = at_node(
-                location,
-                format!("unsupported top-level declaration `{}`", node.name().value()),
-            );
-            diagnostic.remedy = "Use config { ... } with command definitions, bind targets and route declarations; local overlays may select or override personal bindings and routes.";
-            diagnostic
-        })
-        .collect();
-    if !unsupported.is_empty() {
+    let mut diagnostics = Vec::new();
+    let named = named::parse(path, &source, &document, role, &mut diagnostics);
+    if !diagnostics.is_empty() {
         return Err(ConfigError::from_diagnostics(render_diagnostics(
             path,
             role,
-            unsupported,
+            diagnostics,
         )));
     }
 
-    let (templates, named) = validate_document(path, &source, &document, role, slots)?;
     Ok(CapturedDocument {
         path: path.to_path_buf(),
         _source: source,
         _document: document,
-        templates,
+        templates: BTreeMap::new(),
         named,
     })
 }
 ````
 <!-- /fragment -->
 
-Before validation, capture rejects every top-level node other than a wrapper.
-The rejection retains each node's source span and directs the owner to command,
-binding and route declarations. This applies in both sources, including mixed
-input and former flat keys named `config`. Empty documents have no nodes to
-reject. The flat validation and literal-folding internals shown later in this
-chapter are now unreachable compatibility code awaiting removal; they do not
-describe accepted input.
+`named::parse` rejects every top-level node other than a wrapper before checking
+wrapper contents. The rejection retains each node's span and the modular-form
+remedy. It applies in both sources, including mixed documents and former flat
+keys named `config`; empty documents have nothing to reject. Capture stores the
+modular declarations only when the parser reports no findings.
 
 The parse is `source.parse::<KdlDocument>()`, and the crate adds one thing to
 `kdl`'s own error: a position a human can act on. `kdl` reports a byte offset in
@@ -492,7 +472,7 @@ and its list of diagnostics. Chapter 4 explains all three together, as the
 machinery behind *name what is wrong, name where, name what fixes it*.
 
 On success, `CapturedDocument` retains the source String, parsed KDL document,
-and validated map together. The parsed spans therefore still refer to the exact
+and validated declarations together. The parsed spans therefore still refer to the exact
 bytes that were read, even after the path changes.
 
 A syntax error stops validation of that document because there is no parsed
@@ -504,178 +484,21 @@ command definitions to primary policy.
 <a id="one-refusal"></a>
 ## Every diagnostic in one refusal
 
-`validate_document` is the last function in the block and the one that decides
-what a refusal looks like. It runs in three passes over one document, and the
-three fragments below are those passes. The first walks flat nodes, recording
-validation and each key’s declaration locations. Wrapper nodes are captured by
-`named::parse`, whose duplicate checks share the flat route namespace.
+`parse_and_validate` gives the modular parser one diagnostic vector. Any finding
+returns an error instead of a partial capture; `render_diagnostics` sorts the
+records by source position and key. Catalog combines the two explicit document
+results before deciding whether structural validity permits resolution.
 
-<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="595-617" parent="reading-and-whole-document-validation" -->
-````rust
-
-fn validate_document(
-    path: &Path,
-    source: &str,
-    document: &KdlDocument,
-    role: DocumentRole,
-    slots: &[SlotSpec],
-) -> Result<(BTreeMap<String, Template>, named::Declarations), ConfigError> {
-    let mut validations = Vec::new();
-    let mut occurrences: HashMap<String, Vec<SourceLocation>> = HashMap::new();
-
-    for node in document.nodes() {
-        if named::is_wrapper(node) {
-            continue;
-        }
-        let validation = validate_node(source, node, slots);
-        occurrences
-            .entry(validation.key.clone())
-            .or_default()
-            .push(validation.location);
-        validations.push(validation);
-    }
-
-````
-<!-- /fragment -->
-
-Nothing is rejected in this pass. `validate_node` is called for every node in the
-document, and the `NodeValidation` it returns is pushed whether or not the node
-was valid — which is the design chapter 2 read from the type's side, where its
-`key` and `location` fields are filled unconditionally and its `template` field
-is `Some` only when the node compiled. The `occurrences` map is a
-`HashMap<String, Vec<SourceLocation>>` rather than a count, because the finding
-this pass makes possible has to name every declaration, not say how many there
-were.
-
-The second pass is the duplicate check, and it is the one finding
-`validate_document` produces on its own rather than collecting from a node.
-
-<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="618-650" parent="reading-and-whole-document-validation" -->
-````rust
-    let mut diagnostics = Vec::new();
-    let named = named::parse(path, source, document, role, &mut diagnostics);
-
-    // Duplicates, in declaration order of their first appearance, each naming
-    // every one of its own locations.
-    let mut duplicates: Vec<String> = Vec::new();
-    for validation in &validations {
-        if occurrences
-            .get(&validation.key)
-            .is_some_and(|items| items.len() > 1)
-            && !duplicates.contains(&validation.key)
-        {
-            duplicates.push(validation.key.clone());
-        }
-    }
-    for key in duplicates {
-        let Some(locations) = occurrences.get(&key) else {
-            continue;
-        };
-        let declarations = locations
-            .iter()
-            .map(|location| format_location(path, *location))
-            .collect::<Vec<_>>()
-            .join(", ");
-        diagnostics.push(ValidationDiagnostic {
-            category: "duplicate",
-            key: Some(key.clone()),
-            related: locations.iter().skip(1).copied().collect(),
-            remedy: "Keep one declaration per key in each document.",
-            location: locations.first().copied(),
-            message: format!("duplicate key `{key}`; declarations at {declarations}"),
-        });
-    }
-````
-<!-- /fragment -->
-
-The two loops are two different jobs. The first builds `duplicates` by walking
-`validations` in document order and taking each key whose occurrence list has
-more than one entry, guarded by `!duplicates.contains` so a key declared three
-times is reported once; the comment above it fixes the resulting order as
-*declaration order of their first appearance*, which is a stable, file-shaped
-order rather than the `HashMap`'s. The second loop turns each into a diagnostic
-whose message joins every location for that key with `format_location`.
-`a_duplicate_key_reports_every_declaration_location` is the adjudication: it
-loads a document declaring `one` twice and requires both `:1:1,` and `:2:1` in
-the single message — the trailing comma in the first assertion is what pins that
-the locations are joined rather than only the first being reported.
-
-The `location` field of that diagnostic is `locations.first().copied()`, and it
-is the sole reason `ValidationDiagnostic::location` is an `Option` at all.
-Chapter 2 named this from the type's side: the surrounding code has already
-established that the vector is non-empty, the compiler cannot see it, and the
-`None` is unreachable. This is the line that makes it so.
-
-The third pass drains everything into one result. It is where a document either
-becomes a map of templates or becomes a single refusal.
-
-<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="651-681" parent="reading-and-whole-document-validation" -->
-````rust
-
-    let mut templates = BTreeMap::new();
-    for validation in validations {
-        diagnostics.extend(validation.diagnostics);
-        if let Some(words) = validation.template {
-            templates.insert(
-                validation.key,
-                Template {
-                    text: validation.text,
-                    span: SourceSpan {
-                        source: role.source(path),
-                        start: validation.location.start,
-                        end: validation.location.end,
-                    },
-                    words,
-                    source: path.to_path_buf(),
-                },
-            );
-        }
-    }
-
-    if !diagnostics.is_empty() {
-        return Err(ConfigError::from_diagnostics(render_diagnostics(
-            path,
-            role,
-            diagnostics,
-        )));
-    }
-
-    Ok((templates, named))
-}
-````
-<!-- /fragment -->
-
-Duplicate and per-node findings enter one vector. `render_diagnostics` sorts
-them by source position and key, so duplicates do not jump ahead of an earlier
-shape failure. Templates are collected into a BTreeMap for deterministic keys.
-A duplicate may replace a temporary map entry, but that map cannot escape:
-any diagnostic makes the whole document fail.
-
-A document with diagnostics returns an error rather than a partial command
-map. Catalog combines that error with the other document result, reporting
-structure first and semantics only after structure passes. The template
-aggregation test supplies structurally valid declarations with missing, doubled,
-unknown and embedded substitutions, then checks that all those independent
-failures appear together with locations. The structured diagnostics suite covers
-the separate shape phase and cross-file ordering.
-
-NodeValidation retains the key and location even when its node is malformed,
-so duplicate checking can still identify every declaration. The resulting load
-is all-or-nothing: no invalid template or partial source set reaches expansion.
-
-That is the whole of what a successful load has established. Both documents
-parsed, every node in both satisfied every rule the vocabulary makes checkable,
-no key was declared twice in either, and each key that resolves resolves to one
-complete template together with the file it was read from. What none of it
-established is what any of those words mean. Chapter 4 reads the rules
-themselves — the node shape, the words, the `#` that would silently truncate a
-line, and the diagnostics all three of this chapter's aggregating passes carry.
-
+The template aggregation test supplies structurally valid active definitions
+with missing, doubled, unknown and embedded runtime slots. Their independent
+semantic failures appear together with locations. The diagnostics suite checks
+the separate structural phase and cross-file ordering. Neither path can expose
+an invalid Templates snapshot to expansion.
 
 <a id="named-capture"></a>
 ## Named declarations before resolution
 
-The private named module captures command definitions, binding targets, optional route targets and shared/route parameter maps with their original spans. `is_wrapper` distinguishes a child-bearing `config` from a flat key named config. `parse` checks namespaces and document roles without compiling dormant templates. Flat keys enter the route duplicate table before wrapper traversal, so textual order cannot hide a duplicate. Command children declare parameters and optional defaults; their names, shapes and uniqueness are checked even when the command stays dormant. `parse_values` and route parsing share `parse_patches`, which captures assignments and removals in either source and rejects duplicate mentions even when one is an `unset`. Parameter-only routes are structurally valid; personal target authority is checked during resolution. Profile definitions are primary-only. `ParseSource` groups the source path, captured text and document role for
+The private named module captures command definitions, binding targets, optional route targets and shared/route parameter maps with their original spans. `is_wrapper` distinguishes a child-bearing `config` from a flat key named config. `parse` checks namespaces and document roles without compiling dormant templates. Unsupported top-level nodes are rejected before wrapper traversal. Modular routes have their own duplicate namespace. Command children declare parameters and optional defaults; their names, shapes and uniqueness are checked even when the command stays dormant. `parse_values` and route parsing share `parse_patches`, which captures assignments and removals in either source and rejects duplicate mentions even when one is an `unset`. Parameter-only routes are structurally valid; personal target authority is checked during resolution. Profile definitions are primary-only. `ParseSource` groups the source path, captured text and document role for
 `parse_scope`, which shares patch validation while
 using a fresh duplicate namespace for each profile. It restricts profile children
 to include lists and patches; nested definitions and selection declarations fail.
@@ -689,7 +512,7 @@ children, and reports duplicate declarations against both source spans. This
 lets a consumer inspect the declaration before deciding policy; Grove uses that
 boundary to refuse declarations until its selection policy is implemented.
 
-<!-- fragment «named-capture» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1-526" parent="source-named" -->
+<!-- fragment «named-capture» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1-533" parent="source-named" -->
 ````rust
 //! Named commands and profiles: capture structure, expand occurrences, fold targets.
 use super::{
@@ -800,14 +623,21 @@ pub(super) fn parse(
     let first_diagnostic = diagnostics.len();
     let mut result = Declarations::default();
     let mut wrapper = None;
-    // Flat and named routes share a namespace, independent of textual order.
-    let mut routes: BTreeMap<String, SourceLocation> = document
-        .nodes()
-        .iter()
-        .filter(|node| !is_wrapper(node))
-        .map(|node| (node.name().value().to_owned(), location(source, node)))
-        .collect();
-    for node in document.nodes().iter().filter(|node| is_wrapper(node)) {
+    for node in document.nodes().iter().filter(|node| !is_wrapper(node)) {
+        diagnostics.push(at_node(
+            location(source, node),
+            format!(
+                "unsupported top-level declaration `{}`",
+                node.name().value()
+            ),
+        ));
+    }
+    if diagnostics.len() != first_diagnostic {
+        return result;
+    }
+
+    let mut routes = BTreeMap::new();
+    for node in document.nodes() {
         let loc = location(source, node);
         if let Some(previous) = wrapper {
             duplicate("config wrapper", previous, loc, diagnostics);
@@ -1225,7 +1055,7 @@ fn duplicate(
 
 `problem` attaches a target’s source and byte range to a semantic diagnostic. Reference resolution adds the affected names. This gives a failed binding a useful file location even though it was resolved after capture, and no file needs to be reopened.
 
-<!-- fragment «named-diagnostics» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="527-543" parent="source-named" -->
+<!-- fragment «named-diagnostics» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="534-550" parent="source-named" -->
 ````rust
 fn problem(category: &str, target: &Target, message: String) -> Diagnostic {
     let mut diagnostic = Diagnostic::new(
@@ -1266,7 +1096,9 @@ and selection indices explain how each application was reached.
 admitted-key set is filled only by personal explicit targets. At the boundary
 before local patches, `check_personal_targets` refuses any surviving personal
 parameter-only route without a target. A local target cannot supply authority;
-a later personal profile can. Both flat and named routes enter the same map.
+a later personal profile can. The fold still contains literal-route branches,
+but capture rejects flat input and leaves its literal template map empty; only
+named routes can reach those maps from supported input.
 
 Shared values fold per command and parameter; route maps fold separately,
 preserving route exceptions across binding changes. `unset` removes only its
@@ -1281,7 +1113,7 @@ word origins. Histories append instead of erasing predecessors. Definitions have
 no occurrence because profiles cannot redefine them. This is where a selected
 binding redirects several routes without duplicating their declarations.
 
-<!-- fragment «named-fold» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="682-1071" parent="source-named" -->
+<!-- fragment «named-fold» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="689-1078" parent="source-named" -->
 ````rust
 #[derive(Clone)]
 enum Route {
@@ -1683,9 +1515,9 @@ After the fold, every effective values target must name a command, and surviving
 
 Every admitted route must have values for all declared parameters, including unused ones. A route assignment wins over the shared value and default; `unset` exposes the next lower scope. Surviving route names are checked against the final command schema, while removed old-schema names remain only in history. Non-admitted local routes skip semantic resolution. For example, personal `mode = primary` followed by local `unset mode` yields the declaration default, while both operations remain in the shared history. Missing values and NUL-bearing defaults report the declaration and related route/binding spans; invalid route assignments identify the assignment and final command. A malformed shared map prevents downstream route-completeness noise for that command. Only a complete route instantiates its fragments. Command views link all route histories, including removals and resets for names absent from the final schema; word origins contain only the declaration and winning value contributors.
 
-Each successful command exposes its route, binding and template origins, target and parameter histories, resolved parameters, and the very words expansion uses. A parameter keeps its declaration origin plus the winning shared assignment, if present, and both default and shared histories where they exist. A word adds the template origin and deduplicates contributors when a parameter repeats. A flat replacement instead has only its literal target origin and no parameter map. Independent failures aggregate in source-role and byte order; any failure prevents a Templates snapshot.
+Each successful command exposes its route, binding and template origins, target and parameter histories, resolved parameters, and the very words expansion uses. A parameter keeps its declaration origin plus the winning shared assignment, if present, and both default and shared histories where they exist. A word adds the template origin and deduplicates contributors when a parameter repeats. The unreachable literal-replacement branch has only a literal target origin and no parameter map. Independent failures aggregate in source-role and byte order; any failure prevents a Templates snapshot.
 
-<!-- fragment «named-resolve» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1072-1412" parent="source-named" -->
+<!-- fragment «named-resolve» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1079-1419" parent="source-named" -->
 ````rust
     let definitions = &captured.primary.named.commands;
     let mut compiled = BTreeMap::new();
@@ -2036,7 +1868,7 @@ Each successful command exposes its route, binding and template origins, target 
 
 The final helpers order route histories before binding histories and locate captured origins and histories by identity. These lookups operate only on declarations already recorded by the fold; their expectations express that internal invariant. The response keeps native source paths and captured byte offsets, so deleting either input file cannot invalidate an origin or change a compiled word.
 
-<!-- fragment «named-lookups» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1413-1447" parent="source-named" -->
+<!-- fragment «named-lookups» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1420-1454" parent="source-named" -->
 ````rust
 fn setting_key(setting: &Setting) -> (u8, &str, &str) {
     match setting {

@@ -136,7 +136,7 @@ lines = 46
 [[root]]
 id    = "source-templates"
 path  = "crates/keyed-launch/src/templates.rs"
-lines = 994
+lines = 702
 
 [[root]]
 id = "source-inspection"
@@ -191,49 +191,44 @@ lines = "1-46"
 id    = "template-shapes"
 root  = "source-templates"
 owner = "rules-about-names"
-lines = "1-165"
+lines = "1-157"
 
 [[block]]
 id    = "templates-load"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "166-267"
+lines = "158-259"
 
 [[block]]
 id    = "resolution-and-expansion"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "268-449"
+lines = "260-441"
 
 [[block]]
 id    = "reading-and-whole-document-validation"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "450-681"
+lines = "442-571"
 
-[[block]]
-id    = "node-and-template-rules"
-root  = "source-templates"
-owner = "words-not-shell"
-lines = "682-821"
 
 [[block]]
 id    = "word-scanning"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "822-904"
+lines = "572-621"
 
 [[block]]
 id    = "diagnostics"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "905-984"
+lines = "622-692"
 
 [[block]]
 id    = "templates-keys"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "985-994"
+lines = "693-702"
 
 [[block]]
 id = "inspection-records"
@@ -333,10 +328,10 @@ owner     = "checked-without-meaning"
 statement = "The kit that holds a consumer's configuration to this crate's contract from outside the consumer's own suite."
 
 [[early-use]]
-symbols   = "`validate_node`, `validate_template`"
+symbols   = "`named::compile`"
 first-use = "03-two-documents.md#both-documents"
 owner     = "words-not-shell"
-statement = "The per-node and per-template rule checks `validate_document` drives over both documents; each returns diagnostics with locations rather than stopping at the first."
+statement = "The compiler turns an effective command definition into argument fragments and runtime slots, checking the captured vocabulary before expansion."
 
 [[early-use]]
 symbols   = "`install_termination_handler`, `INTERRUPTED_BY`, `supervise`"
@@ -368,40 +363,40 @@ statement = "Inspection explains captured commands and replaced assignments thro
 [[root]]
 id = "source-named"
 path = "crates/keyed-launch/src/templates/named.rs"
-lines = 1447
+lines = 1454
 
 [[block]]
 id = "named-capture"
 root = "source-named"
 owner = "never-assembled"
-lines = "1-526"
+lines = "1-533"
 
 [[block]]
 id = "named-diagnostics"
 root = "source-named"
 owner = "never-assembled"
-lines = "527-543"
+lines = "534-550"
 
 [[block]]
 id = "named-compile"
 root = "source-named"
 owner = "words-not-shell"
-lines = "544-681"
+lines = "551-688"
 
 [[block]]
 id = "named-fold"
 root = "source-named"
 owner = "never-assembled"
-lines = "682-1071"
+lines = "689-1078"
 
 [[block]]
 id = "named-resolve"
 root = "source-named"
 owner = "never-assembled"
-lines = "1072-1412"
+lines = "1079-1419"
 
 [[block]]
 id = "named-lookups"
 root = "source-named"
 owner = "never-assembled"
-lines = "1413-1447"
+lines = "1420-1454"

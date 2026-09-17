@@ -1127,7 +1127,7 @@ mod tests {
             crate::ActivityObservation::Unavailable(_)
         ));
         let config = temp.path().join("launch.kdl");
-        fs::write(&config, "test \"/bin/sh -c 'echo launched > proof'\"\n").unwrap();
+        fs::write(&config, "config { command \"run\" \"/bin/sh -c 'echo launched > proof'\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
         let templates =
             keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
                 .unwrap();
@@ -1292,7 +1292,7 @@ mod tests {
             let private_path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
             let private = File::open(&private_path).unwrap();
             let config = temp.path().join("launch.kdl");
-            fs::write(&config, format!("test \"{program} -c true\"\n")).unwrap();
+            fs::write(&config, format!("config {{ command \"run\" \"{program} -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }}\n")).unwrap();
             let templates = keyed_launch::Templates::load(
                 &config,
                 None,

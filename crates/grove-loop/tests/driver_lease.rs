@@ -119,10 +119,12 @@ fn grove_driver(root: &Path, harness: &Path, home: &Path) -> Command {
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
     let template = format!("{} '${{prompt}}'", shell_quote(harness));
-    let document = SESSION_KINDS
+    let routes = SESSION_KINDS
         .iter()
-        .map(|kind| format!("{kind} {template:?}\n"))
+        .map(|kind| format!("route {kind:?} \"run\"\n"))
         .collect::<String>();
+    let document =
+        format!("config {{\ncommand \"run\" {template:?}\nbind \"run\" \"run\"\n{routes}}}\n");
     fs::write(config_dir.join("config.kdl"), document).unwrap();
 
     let mut command = Command::new(support::grove_bin());

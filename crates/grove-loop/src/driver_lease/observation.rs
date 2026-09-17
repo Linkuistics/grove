@@ -904,7 +904,7 @@ mod tests {
             .unwrap();
         assert!(matches!(sample(work.path()), ActivityObservation::Busy(_)));
         let config = work.path().join("launch.kdl");
-        fs::write(&config, "test \"/bin/sh -c true\"\n").unwrap();
+        fs::write(&config, "config { command \"run\" \"/bin/sh -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
         let templates =
             keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
                 .unwrap();
@@ -1577,7 +1577,7 @@ mod tests {
         }
         let (work, mut lease) = fixture();
         let config = work.path().join("launch.kdl");
-        fs::write(&config, "test \"/bin/sh -c true\"\n").unwrap();
+        fs::write(&config, "config { command \"run\" \"/bin/sh -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
         let templates =
             keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
                 .unwrap();
@@ -1945,7 +1945,7 @@ mod tests {
         let config = work.join("launch.kdl");
         fs::write(
             &config,
-            "test \"/usr/bin/env ${exe} --exact driver_lease::observation::tests::witness_native_exec_child --nocapture\"\n",
+            "config { command \"run\" \"/usr/bin/env ${exe} --exact driver_lease::observation::tests::witness_native_exec_child --nocapture\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n",
         )
         .unwrap();
         let templates = keyed_launch::Templates::load(

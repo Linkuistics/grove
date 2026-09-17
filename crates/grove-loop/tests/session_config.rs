@@ -21,21 +21,38 @@ use tempfile::TempDir;
 const FIXTURE_KINDS: &[&str] = &["requirements", "design", "impl", "finish"];
 
 fn complete_document(template_for_requirements: &str) -> String {
-    let mut document = String::new();
+    let mut document = String::from("config {\n");
     for kind in FIXTURE_KINDS {
         let template = if *kind == "requirements" {
             template_for_requirements
         } else {
             "runner ${prompt}"
         };
-        document.push_str(&format!("{kind} {template:?}\n"));
+        document.push_str(&format!(
+            "command {kind:?} {template:?}\nbind {kind:?} {kind:?}\nroute {kind:?} {kind:?}\n"
+        ));
     }
+    document.push_str("}\n");
     document
 }
 
 fn write_config(home: &Path, template_for_requirements: &str) {
     write_raw_config(home, &complete_document(template_for_requirements));
 }
+
+/// Local overrides select commands defined by the personal policy.
+fn write_config_with_alternative(home: &Path, template: &str) {
+    let document = complete_document("runner ${prompt}");
+    let document = document.replacen(
+        "config {\n",
+        &format!("config {{\ncommand \"alternative\" {template:?}\n"),
+        1,
+    );
+    write_raw_config(home, &document);
+}
+
+const ALTERNATIVE_DELTA: &str =
+    "config { bind \"local\" \"alternative\"; route \"impl\" \"local\"; }\n";
 
 fn write_raw_config(home: &Path, document: &str) -> PathBuf {
     let config_dir = home.join(".config/grove");
@@ -207,7 +224,7 @@ fn the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one() {
 #[test]
 fn a_kind_the_file_does_not_declare_is_refused_only_when_it_is_used() {
     let home = TempDir::new().unwrap();
-    write_raw_config(home.path(), "impl \"runner ${prompt}\"\n");
+    write_raw_config(home.path(), "config { command \"runner\" \"runner ${prompt}\"; bind \"lead\" \"runner\"; route \"impl\" \"lead\"; }\n");
 
     let config = load(home.path()).expect("an incomplete document is not an invalid one");
 
@@ -237,23 +254,26 @@ fn a_kind_the_file_does_not_declare_is_refused_only_when_it_is_used() {
     );
 }
 
-/// The eager half survives whole: a malformed template for a kind this run will
-/// never reach still fails the load.
+/// Every active route is validated, even for a kind this run will never reach.
 #[test]
-fn every_template_in_the_document_is_validated_however_few_kinds_it_declares() {
+fn every_active_route_is_validated_however_few_kinds_the_run_reaches() {
     let home = TempDir::new().unwrap();
-    write_raw_config(
-        home.path(),
-        "impl \"runner ${prompt}\"\nnever-reached \"runner\"\n",
-    );
-
-    let error = load_error(home.path());
-
+    let document = "config { command \"valid\" \"runner ${prompt}\"; command \"invalid\" \"runner\"; bind \"valid\" \"valid\"; bind \"invalid\" \"invalid\"; route \"impl\" \"valid\"; route \"never-reached\" \"invalid\"; }\n";
+    let primary = write_raw_config(home.path(), document);
+    let error = load(home.path()).err().unwrap();
+    let diagnostic = &error.diagnostics()[0];
     assert!(
-        error.contains(
-            "key `never-reached`: command template must contain `${prompt}` exactly once"
-        ),
+        diagnostic
+            .message
+            .contains("command template must contain `${prompt}` exactly once"),
         "{error}"
+    );
+    assert_eq!(diagnostic.category, "invalid_template");
+    assert_eq!(diagnostic.source.as_ref().unwrap().path, primary);
+    let span = diagnostic.primary.as_ref().unwrap();
+    assert_eq!(
+        &document[span.start..span.end],
+        "command \"invalid\" \"runner\""
     );
 }
 
@@ -315,6 +335,8 @@ fn catalog_and_grove_refuse_the_same_document() {
         None,
         grove_loop::session_config::vocabulary(),
     )
+    .unwrap()
+    .resolve(&keyed_launch::Selection::default())
     .err()
     .unwrap()
     .to_string();
@@ -399,8 +421,8 @@ fn run_jj(dir: &Path, args: &[&str]) -> String {
 fn a_delta_overrides_only_the_kinds_it_declares() {
     let home = TempDir::new().unwrap();
     let worktree = TempDir::new().unwrap();
-    write_config(home.path(), "runner ${prompt}");
-    write_delta(worktree.path(), "impl \"other --model opus ${prompt}\"\n");
+    write_config_with_alternative(home.path(), "other --model opus ${prompt}");
+    write_delta(worktree.path(), ALTERNATIVE_DELTA);
 
     let config = load_from(home.path(), worktree.path(), worktree.path()).unwrap();
 
@@ -420,19 +442,31 @@ fn a_delta_overrides_only_the_kinds_it_declares() {
 }
 
 #[test]
-fn each_kind_reports_the_file_it_resolved_from() {
+fn each_kind_reports_its_command_source_and_route_origin() {
     let home = TempDir::new().unwrap();
     let worktree = TempDir::new().unwrap();
-    write_config(home.path(), "runner ${prompt}");
-    let delta_path = write_delta(worktree.path(), "impl \"other ${prompt}\"\n");
+    write_config_with_alternative(home.path(), "other ${prompt}");
+    let delta_path = write_delta(worktree.path(), ALTERNATIVE_DELTA);
 
     let config = load_from(home.path(), worktree.path(), worktree.path()).unwrap();
 
-    assert_eq!(config.source("impl"), Some(delta_path.as_path()));
-    assert_eq!(
-        config.source("design"),
-        Some(home.path().join(".config/grove/config.kdl").as_path())
-    );
+    let personal = home.path().join(".config/grove/config.kdl");
+    for (kind, route_source) in [("impl", &delta_path), ("design", &personal)] {
+        assert_eq!(config.source(kind), Some(personal.as_path()));
+        let inspection = config.inspect();
+        let history = inspection
+            .histories
+            .iter()
+            .find(|history| {
+                history.setting == keyed_launch::Setting::RouteTarget { key: kind.into() }
+            })
+            .unwrap();
+        let winner = history.assignments.last().unwrap();
+        assert_eq!(
+            &inspection.origins[winner.origin].span.source.path,
+            route_source
+        );
+    }
 }
 
 #[test]
@@ -440,10 +474,10 @@ fn the_worktree_delta_shadows_the_repository_root_and_the_loser_is_not_read() {
     let home = TempDir::new().unwrap();
     let worktree = TempDir::new().unwrap();
     let repository = TempDir::new().unwrap();
-    write_config(home.path(), "runner ${prompt}");
-    write_delta(worktree.path(), "impl \"chosen ${prompt}\"\n");
+    write_config_with_alternative(home.path(), "chosen ${prompt}");
+    write_delta(worktree.path(), ALTERNATIVE_DELTA);
     // Unparseable, and never merged or even opened: a load that reads it fails.
-    write_delta(repository.path(), "impl 1.\n");
+    write_delta(repository.path(), "config { route 1. }\n");
 
     let config = load_from(home.path(), worktree.path(), repository.path()).unwrap();
 
@@ -458,8 +492,8 @@ fn a_repository_root_delta_is_read_when_the_worktree_has_none() {
     let home = TempDir::new().unwrap();
     let worktree = TempDir::new().unwrap();
     let repository = TempDir::new().unwrap();
-    write_config(home.path(), "runner ${prompt}");
-    write_delta(repository.path(), "impl \"inherited ${prompt}\"\n");
+    write_config_with_alternative(home.path(), "inherited ${prompt}");
+    write_delta(repository.path(), ALTERNATIVE_DELTA);
 
     let config = load_from(home.path(), worktree.path(), repository.path()).unwrap();
 
@@ -476,9 +510,9 @@ fn a_kind_only_the_delta_declares_does_not_resolve() {
     let home = TempDir::new().unwrap();
     let worktree = TempDir::new().unwrap();
     let mut document = complete_document("runner ${prompt}");
-    document = document.replace("impl \"runner ${prompt}\"\n", "");
+    document = document.replace("route \"impl\" \"impl\"\n", "");
     write_raw_config(home.path(), &document);
-    let delta_path = write_delta(worktree.path(), "impl \"other ${prompt}\"\n");
+    let delta_path = write_delta(worktree.path(), "config { route \"impl\" \"impl\"; }\n");
 
     let config = load_from(home.path(), worktree.path(), worktree.path()).unwrap();
 
@@ -501,8 +535,9 @@ fn a_kind_only_the_delta_declares_does_not_resolve() {
     );
 }
 
+// Flat-only shape and eager-template compatibility; removed or replaced in k3.
 #[test]
-fn delta_diagnostics_are_aggregated_against_the_deltas_own_path_and_location() {
+fn legacy_delta_diagnostics_are_aggregated_against_the_deltas_own_path_and_location() {
     let home = TempDir::new().unwrap();
     let worktree = TempDir::new().unwrap();
     write_config(home.path(), "runner ${prompt}");
@@ -555,7 +590,7 @@ fn an_unparseable_delta_names_its_own_source_location() {
     let home = TempDir::new().unwrap();
     let worktree = TempDir::new().unwrap();
     write_config(home.path(), "runner ${prompt}");
-    let delta_path = write_delta(worktree.path(), "impl \"runner ${prompt}\"\ndesign 1.\n");
+    let delta_path = write_delta(worktree.path(), "config {\nroute \"design\" 1.\n}\n");
 
     let error = load_error_from(home.path(), worktree.path(), worktree.path());
 
@@ -583,8 +618,10 @@ fn an_unreadable_delta_fails_closed() {
     );
 }
 
+// Local modular files select personal commands and cannot carry templates.
+// This legacy-only validation contract remains for the removal leaf k3.
 #[test]
-fn every_delta_template_rule_still_binds() {
+fn legacy_delta_templates_are_eagerly_validated() {
     for (template, expected) in [
         ("runner", "must contain `${prompt}` exactly once"),
         ("${prompt} runner", "word zero must be a literal executable"),
@@ -620,7 +657,7 @@ fn a_snapshotted_jj_delta_is_refused_in_both_jj_shapes() {
     for colocate in [false, true] {
         let home = TempDir::new().unwrap();
         write_config(home.path(), "runner ${prompt}");
-        let tree = jj_tree_with_delta("impl \"other ${prompt}\"\n", colocate, false);
+        let tree = jj_tree_with_delta(ALTERNATIVE_DELTA, colocate, false);
 
         let error = load_error_from(home.path(), tree.path(), tree.path());
 
@@ -645,8 +682,8 @@ fn a_snapshotted_jj_delta_is_refused_in_both_jj_shapes() {
 fn an_ignored_jj_delta_is_read_in_both_jj_shapes() {
     for colocate in [false, true] {
         let home = TempDir::new().unwrap();
-        write_config(home.path(), "runner ${prompt}");
-        let tree = jj_tree_with_delta("impl \"other ${prompt}\"\n", colocate, true);
+        write_config_with_alternative(home.path(), "other ${prompt}");
+        let tree = jj_tree_with_delta(ALTERNATIVE_DELTA, colocate, true);
 
         let config = load_from(home.path(), tree.path(), tree.path()).unwrap();
 
@@ -666,7 +703,7 @@ fn a_trackedness_probe_that_cannot_be_completed_fails_closed() {
     // A `.jj` directory with no repository inside it: a jj working tree by the
     // test Grove applies — the marker walk — and one no probe can answer about.
     fs::create_dir(worktree.path().join(".jj")).unwrap();
-    write_delta(worktree.path(), "impl \"other ${prompt}\"\n");
+    write_delta(worktree.path(), ALTERNATIVE_DELTA);
 
     let error = load_error_from(home.path(), worktree.path(), worktree.path());
 
@@ -705,7 +742,7 @@ fn a_candidate_grove_cannot_stat_fails_closed_instead_of_reading_the_next_one() 
     fs::create_dir(&repository).unwrap();
     // The delta that must not be reached: it is second in the search order, and
     // the first candidate did not answer "absent".
-    write_delta(&repository, "impl \"repository ${prompt}\"\n");
+    write_delta(&repository, ALTERNATIVE_DELTA);
     fs::set_permissions(&worktree, fs::Permissions::from_mode(0o000)).unwrap();
 
     let outcome = load_from(home.path(), &worktree, &repository);
@@ -730,8 +767,10 @@ fn profile_selection_uses_local_then_default_then_empty_and_local_values_last() 
     let work = TempDir::new().unwrap();
     let repo = TempDir::new().unwrap();
     let document = r#"
-impl "base ${prompt}"
 config {
+    command "base" "base ${prompt}"
+    bind "base" "base"
+    route "impl" "base"
     command "agent" "agent --effort=${param.effort} ${prompt}" { param "effort"; }
     profile "daily" { bind "lead" "agent"; route "impl" "lead"; }
     profile "experiment" { values "agent" { param "effort" "high"; }; }
@@ -791,7 +830,7 @@ fn selected_snapshot_retains_origins_and_structured_errors_without_source_io() {
     );
     let local = write_delta(
         work.path(),
-        "config { select \"daily\"; }\ndesign \"local ${prompt}\"\n",
+        "config { select \"daily\"; route \"design\" \"lead\"; }\n",
     );
     let config = load_from(home.path(), work.path(), work.path()).unwrap();
     let inspection = config.inspect().clone();
@@ -826,14 +865,16 @@ fn selected_missing_target_fails_globally_and_local_target_cannot_repair_it() {
     let work = TempDir::new().unwrap();
     let primary = write_raw_config(
         home.path(),
-        r#"impl "valid ${prompt}"
-config {
+        r#"config {
+    command "valid" "valid ${prompt}"
+    bind "lead" "valid"
+    route "impl" "lead"
     profile "broken" { route "design" { param "effort" "high"; }; }
     select "broken"
 }
 "#,
     );
-    write_delta(work.path(), "design \"local ${prompt}\"\n");
+    write_delta(work.path(), "config { route \"design\" \"lead\"; }\n");
     let error = load_from(home.path(), work.path(), work.path())
         .err()
         .unwrap();

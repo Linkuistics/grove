@@ -1,4 +1,4 @@
-# consumer-fixtures-k5
+# consumer-fixtures-k5 — brief
 
 ## Goal
 
@@ -26,3 +26,24 @@ specific cases identified for `modular-only-k3`.
 
 Keep fake executables and the cargo signal guard. Do not run real agents.
 Production removal and durable language-documentation changes belong to k3.
+
+## Decomposition
+
+- `loop-fixtures-k6`: grove-loop SessionConfig, driver-lease and inline launch fixtures.
+- `cli-fixtures-k7`: grove CLI config inspection, loop and lifecycle fixtures.
+- `admission-fixtures-k8`: grove-llm admission/shared helpers, grove-tui witnessed
+  fixtures, and the final remaining-consumer inventory.
+
+## Decisions (running log)
+
+The consumer inventory spans separate configuration, lifecycle and admission
+suites. Split along crate boundaries into independently green migrations; this
+session completes only the first child, with production removal still in k3.
+
+## Compatibility handoff
+
+`loop-fixtures-k6` leaves two explicitly named `legacy_delta_*` cases in
+`crates/grove-loop/tests/session_config.rs` for k3: flat-only shape aggregation
+with eager-template validation, and eager validation of local flat templates.
+Retained loop configuration/lease fixtures use modular declarations. Carry this
+handoff upward when closing this node so the removal leaf can find it.

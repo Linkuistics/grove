@@ -612,7 +612,7 @@ mod tests {
                 std::fs::write(work.join(".grove/01-impl--work-k1.md"), "reused key").unwrap();
             }
             let config = work.join("launch.kdl");
-            std::fs::write(&config, "impl \"/bin/sh child.sh\"\n").unwrap();
+            std::fs::write(&config, "config { command \"run\" \"/bin/sh child.sh\"; bind \"run\" \"run\"; route \"impl\" \"run\"; }\n").unwrap();
             std::fs::write(work.join("child.sh"), "touch launched\n").unwrap();
             let templates = keyed_launch::Templates::load(
                 &config,

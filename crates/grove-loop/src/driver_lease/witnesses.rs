@@ -369,7 +369,7 @@ mod tests {
         lock(&File::open(temp.path()).unwrap()).unwrap();
 
         let config = temp.path().join("launch.kdl");
-        fs::write(&config, "test \"/bin/sh -c 'echo launched > proof'\"\n").unwrap();
+        fs::write(&config, "config { command \"run\" \"/bin/sh -c 'echo launched > proof'\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
         let templates =
             keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
                 .unwrap();
@@ -486,7 +486,7 @@ mod tests {
         let directory = File::open(temp.path().join(".grove")).unwrap();
         let epoch_path = lease.control_dir().join(EPOCH_FILE_NAME);
         let config = temp.path().join("launch.kdl");
-        fs::write(&config, "test \"/bin/sh -c true\"\n").unwrap();
+        fs::write(&config, "config { command \"run\" \"/bin/sh -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
         let templates =
             keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
                 .unwrap();

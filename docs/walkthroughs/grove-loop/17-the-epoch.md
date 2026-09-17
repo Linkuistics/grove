@@ -394,7 +394,7 @@ held until Reaped; successful spawn leaves exactly eight bytes, failed spawn non
             crate::ActivityObservation::Unavailable(_)
         ));
         let config = temp.path().join("launch.kdl");
-        fs::write(&config, "test \"/bin/sh -c 'echo launched > proof'\"\n").unwrap();
+        fs::write(&config, "config { command \"run\" \"/bin/sh -c 'echo launched > proof'\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
         let templates =
             keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
                 .unwrap();
@@ -559,7 +559,7 @@ held until Reaped; successful spawn leaves exactly eight bytes, failed spawn non
             let private_path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
             let private = File::open(&private_path).unwrap();
             let config = temp.path().join("launch.kdl");
-            fs::write(&config, format!("test \"{program} -c true\"\n")).unwrap();
+            fs::write(&config, format!("config {{ command \"run\" \"{program} -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }}\n")).unwrap();
             let templates = keyed_launch::Templates::load(
                 &config,
                 None,
@@ -3147,7 +3147,7 @@ The generic runner actually spawns and reaps a shell. Its parent callbacks first
             .unwrap();
         assert!(matches!(sample(work.path()), ActivityObservation::Busy(_)));
         let config = work.path().join("launch.kdl");
-        fs::write(&config, "test \"/bin/sh -c true\"\n").unwrap();
+        fs::write(&config, "config { command \"run\" \"/bin/sh -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
         let templates =
             keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
                 .unwrap();
@@ -3915,7 +3915,7 @@ Three continuous observers span four real launches. Each preparation must retain
         }
         let (work, mut lease) = fixture();
         let config = work.path().join("launch.kdl");
-        fs::write(&config, "test \"/bin/sh -c true\"\n").unwrap();
+        fs::write(&config, "config { command \"run\" \"/bin/sh -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
         let templates =
             keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
                 .unwrap();
@@ -4530,7 +4530,7 @@ preparation succeeds. The internal preparation callback defaults to the normal
         lock(&File::open(temp.path()).unwrap()).unwrap();
 
         let config = temp.path().join("launch.kdl");
-        fs::write(&config, "test \"/bin/sh -c 'echo launched > proof'\"\n").unwrap();
+        fs::write(&config, "config { command \"run\" \"/bin/sh -c 'echo launched > proof'\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
         let templates =
             keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
                 .unwrap();
@@ -4659,7 +4659,7 @@ locks remain held. The real-launch marker failure keeps both locks until Reaped.
         let directory = File::open(temp.path().join(".grove")).unwrap();
         let epoch_path = lease.control_dir().join(EPOCH_FILE_NAME);
         let config = temp.path().join("launch.kdl");
-        fs::write(&config, "test \"/bin/sh -c true\"\n").unwrap();
+        fs::write(&config, "config { command \"run\" \"/bin/sh -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
         let templates =
             keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
                 .unwrap();
@@ -4953,7 +4953,7 @@ The separate holder uses the real lease, preparation and runner callbacks. Start
         let config = work.join("launch.kdl");
         fs::write(
             &config,
-            "test \"/usr/bin/env ${exe} --exact driver_lease::observation::tests::witness_native_exec_child --nocapture\"\n",
+            "config { command \"run\" \"/usr/bin/env ${exe} --exact driver_lease::observation::tests::witness_native_exec_child --nocapture\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n",
         )
         .unwrap();
         let templates = keyed_launch::Templates::load(

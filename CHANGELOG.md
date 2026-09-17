@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.7.0
+
 - `grove` / `grove-design`: pair every changed diagram or prose-section link
   with a brief description of its actual change. The reusable viewer accepts
   `updatedDiagrams` entries with summaries while preserving legacy manifests.

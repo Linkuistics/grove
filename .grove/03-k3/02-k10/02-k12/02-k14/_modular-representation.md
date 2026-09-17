@@ -1,4 +1,4 @@
-# modular-representation-k14
+# modular-representation-k14 — brief
 
 
 ## Goal
@@ -33,3 +33,8 @@ structural diagnostics; remove that dead phase filter when reconciling remaining
 compatibility code and its book fragment. The module-decomposition public type
 spec and keyed-launch structure brief also need their final current-state sweep.
 The parser increment's complete repository check passed with all six books green.
+
+## Decomposition
+modular-types-k15 removes the representation and reconciles its immediate public
+and source-exact consumers. modular-audit-k16 finishes the repository-wide forms
+and prose audit and decides review of the completed subsystem.

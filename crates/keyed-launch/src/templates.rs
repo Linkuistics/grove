@@ -65,7 +65,6 @@ struct CapturedDocument {
     path: PathBuf,
     _source: String,
     _document: KdlDocument,
-    templates: BTreeMap<String, Template>,
     named: named::Declarations,
 }
 
@@ -91,17 +90,11 @@ struct SlotSpec {
     requirement: Requirement,
 }
 
-/// One key's compiled template together with **the file it was read from**.
-///
-/// Carried per key rather than once per configuration, because after an overlay
-/// resolves there is no single answer: one key's launch may come from the
-/// overlay while its neighbour's comes from the primary file. Every diagnostic
-/// that names a file has to name the one that actually supplied the failing key,
-/// or it points a reader at a file that never held the template.
+/// One key's compiled words and the command definition's source path.
+/// Runtime expansion errors name that definition; inspection retains the
+/// separate route, binding and parameter origins that contributed to the words.
 #[derive(Clone)]
 struct Template {
-    span: SourceSpan,
-    text: String,
     words: Vec<Word>,
     source: PathBuf,
 }
@@ -183,10 +176,6 @@ impl Catalog {
             .map_err(|error| diagnostics.extend(error.into_diagnostics()))
             .ok();
         if !diagnostics.is_empty() {
-            // Structure must pass before semantic reports are meaningful.
-            if diagnostics.iter().any(|d| d.category != "invalid_template") {
-                diagnostics.retain(|d| d.category != "invalid_template");
-            }
             return Err(ConfigError::from_diagnostics(diagnostics));
         }
         let primary = primary.expect("successful primary capture");
@@ -565,7 +554,6 @@ fn parse_and_validate(
         path: path.to_path_buf(),
         _source: source,
         _document: document,
-        templates: BTreeMap::new(),
         named,
     })
 }

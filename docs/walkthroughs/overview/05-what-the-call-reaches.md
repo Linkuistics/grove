@@ -6,7 +6,7 @@
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 968 source lines. The preceding chapters explain parsing,
+The book reconstructs 959 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns the configuration report formatter,
 which turns validated records into human text or versioned JSON, plus the\ninactive example installer and its filesystem failure seam.
@@ -87,7 +87,7 @@ active design route still fails this request before output. Adding `--json`
 preserves the same words with explicit literal/slot tags and complete provenance
 tables; both formatters consume the same captured inspection.
 
-<!-- fragment «configuration-report» owner="assembly" source="crates/grove/src/config.rs" lines="1-165" parent="source-configuration-report" -->
+<!-- fragment «configuration-report» owner="assembly" source="crates/grove/src/config.rs" lines="1-160" parent="source-configuration-report" -->
 <!-- insert «inspection-load» -->
 <!-- insert «inspection-labels» -->
 <!-- insert «inspection-selection» -->
@@ -231,19 +231,18 @@ is the executable; later words are arguments. Quoted literals escape controls
 and remain distinct from a `slot <prompt>` placeholder, even when a parameter's
 literal text is `${prompt}`. The renderer never reconstructs a shell command.
 
-<!-- fragment «inspection-words» owner="assembly" source="crates/grove/src/config.rs" lines="84-126" parent="configuration-report" -->
+<!-- fragment «inspection-words» owner="assembly" source="crates/grove/src/config.rs" lines="84-125" parent="configuration-report" -->
 ````rust
     for command in &view.commands {
         if kind.is_some_and(|kind| kind != command.key) {
             continue;
         }
         writeln!(out, "Kind {:?}:", command.key)?;
-        match (&command.binding, &command.command) {
-            (Some(binding), Some(name)) => {
-                writeln!(out, "  reference: binding {binding:?} -> command {name:?}")?;
-            }
-            _ => writeln!(out, "  reference: literal template")?,
-        }
+        writeln!(
+            out,
+            "  reference: binding {:?} -> command {:?}",
+            command.binding, command.command
+        )?;
         writeln!(
             out,
             "  origins {:?}; histories {:?}",
@@ -291,7 +290,7 @@ sentence bounds the report to this load: launch reloads, and runtime values
 remain symbolic here. The process tests compare configuration, tree, signal and
 Grove coordination bytes before and after inspection, allowing jj metadata.
 
-<!-- fragment «inspection-histories» owner="assembly" source="crates/grove/src/config.rs" lines="127-165" parent="configuration-report" -->
+<!-- fragment «inspection-histories» owner="assembly" source="crates/grove/src/config.rs" lines="126-160" parent="configuration-report" -->
 ````rust
     writeln!(out, "Non-admitted keys:")?;
     for key in &view.non_admitted_keys {
@@ -321,11 +320,7 @@ Grove coordination bytes before and after inspection, allowing jj metadata.
             write!(out, "    order {}: ", assignment.order)?;
             match &assignment.value {
                 AssignmentValue::Set(value) => write!(out, "set {value:?}")?,
-                AssignmentValue::LiteralTemplate(value) => {
-                    write!(out, "literal template {value:?}")?
-                }
                 AssignmentValue::Unset => write!(out, "unset")?,
-                AssignmentValue::Reset => write!(out, "reset")?,
             }
             writeln!(out, "; origin #{}", assignment.origin)?;
         }
@@ -377,7 +372,7 @@ steps. The grammar explains its own path and command types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 58 + 106 + 58 + 100 + 646 = 968 lines across 5 source-owning chapters.
+Owned source is 58 + 106 + 58 + 100 + 637 = 959 lines across 5 source-owning chapters.
 Assembly owns configuration presentation and example delivery. The ledgers are maintained with source changes;
 production files remain authoritative.
 
@@ -397,7 +392,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 6 roots and 968 lines, explained across 5 chapters and two
+The corpus contains 6 roots and 959 lines, explained across 5 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 
@@ -409,7 +404,7 @@ The wire module consumes the same records as the human formatter. Its root
 assembles location encoding, tagged values, inspection and errors; none of these
 functions loads configuration or participates in driver setup.
 
-<!-- fragment «configuration-json» owner="assembly" source="crates/grove/src/config_json.rs" lines="1-167" parent="source-configuration-json" -->
+<!-- fragment «configuration-json» owner="assembly" source="crates/grove/src/config_json.rs" lines="1-163" parent="source-configuration-json" -->
 <!-- insert «json-native-paths» -->
 <!-- insert «json-locations» -->
 <!-- insert «json-assignment-tags» -->
@@ -484,9 +479,9 @@ fn occurrence(occurrence: &Occurrence) -> Value {
 <a id="json-assignment-tags"></a>
 ### Keeping assignment kinds distinct
 
-The formatter exhaustively matches setting scopes and assignment variants. A binding target and a legacy template retain different tags even when their text is identical; unset and reset have no invented value.
+The formatter exhaustively matches setting scopes and assignment variants. `set` carries a string value; `unset` removes a parameter override and has no invented value. Successful commands always carry binding and command names.
 
-<!-- fragment «json-assignment-tags» owner="assembly" source="crates/grove/src/config_json.rs" lines="44-70" parent="configuration-json" -->
+<!-- fragment «json-assignment-tags» owner="assembly" source="crates/grove/src/config_json.rs" lines="44-66" parent="configuration-json" -->
 ````rust
 fn setting(setting: &Setting) -> Value {
     match setting {
@@ -507,11 +502,7 @@ fn setting(setting: &Setting) -> Value {
 fn assignment(value: &AssignmentValue) -> Value {
     match value {
         AssignmentValue::Set(value) => json!({"type": "set", "value": value}),
-        AssignmentValue::LiteralTemplate(value) => {
-            json!({"type": "literal_template", "value": value})
-        }
         AssignmentValue::Unset => json!({"type": "unset"}),
-        AssignmentValue::Reset => json!({"type": "reset"}),
     }
 }
 
@@ -523,7 +514,7 @@ fn assignment(value: &AssignmentValue) -> Value {
 
 The projection accepts the already validated Inspection. Only the command array is filtered; origin, history and occurrence tables remain complete. Compiled literals and runtime slots have distinct tags, preventing a slot-like parameter value from being reinterpreted by a consumer.
 
-<!-- fragment «json-inspection» owner="assembly" source="crates/grove/src/config_json.rs" lines="71-100" parent="configuration-json" -->
+<!-- fragment «json-inspection» owner="assembly" source="crates/grove/src/config_json.rs" lines="67-96" parent="configuration-json" -->
 ````rust
 /// Only commands are filtered: all response-local references retain their targets.
 pub fn inspection(view: &Inspection, kind: Option<&str>) -> Value {
@@ -563,7 +554,7 @@ pub fn inspection(view: &Inspection, kind: Option<&str>) -> Value {
 
 Resolver diagnostics retain every available source, related span and occurrence chain. Workspace or I/O failures without such records and parser usage failures use the same shape with null locations. The CLI chooses stderr and the exit code before returning to main.
 
-<!-- fragment «json-diagnostics» owner="assembly" source="crates/grove/src/config_json.rs" lines="101-131" parent="configuration-json" -->
+<!-- fragment «json-diagnostics» owner="assembly" source="crates/grove/src/config_json.rs" lines="97-127" parent="configuration-json" -->
 ````rust
 fn diagnostic(d: &Diagnostic) -> Value {
     json!({"category": d.category, "message": d.message,
@@ -604,7 +595,7 @@ pub fn error(error: &anyhow::Error) -> Value {
 
 The test constructs native paths directly because a host filesystem may reject their names. It checks shared source/span encoding and ordinary Unicode. Process acceptance separately exercises missing native paths, argv capture, parser refusals and read-only inspection.
 
-<!-- fragment «json-native-tests» owner="assembly" source="crates/grove/src/config_json.rs" lines="132-167" parent="configuration-json" -->
+<!-- fragment «json-native-tests» owner="assembly" source="crates/grove/src/config_json.rs" lines="128-163" parent="configuration-json" -->
 ````rust
 #[cfg(test)]
 mod tests {

@@ -60,11 +60,7 @@ fn setting(setting: &Setting) -> Value {
 fn assignment(value: &AssignmentValue) -> Value {
     match value {
         AssignmentValue::Set(value) => json!({"type": "set", "value": value}),
-        AssignmentValue::LiteralTemplate(value) => {
-            json!({"type": "literal_template", "value": value})
-        }
         AssignmentValue::Unset => json!({"type": "unset"}),
-        AssignmentValue::Reset => json!({"type": "reset"}),
     }
 }
 

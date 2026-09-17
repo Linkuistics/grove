@@ -446,9 +446,7 @@ pub enum Setting {
 }
 pub enum AssignmentValue {
     Set(String), // binding/command name or parameter value, per Setting
-    LiteralTemplate(String), // unreachable for supported modular input
     Unset,
-    Reset, // unreachable for supported modular input
 }
 pub struct Assignment {
     pub order: usize, // total application order; repeated occurrences reappear
@@ -473,8 +471,8 @@ pub struct ParameterView {
 }
 pub struct CommandView {
     pub key: String,
-    pub binding: Option<String>,
-    pub command: Option<String>,
+    pub binding: String,
+    pub command: String,
     pub parameters: Vec<ParameterView>,
     pub words: Vec<WordView>, // executable first
     pub origins: Vec<usize>, // route, binding, definition/template origins

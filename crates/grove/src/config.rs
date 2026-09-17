@@ -86,12 +86,11 @@ fn write_human(out: &mut impl Write, view: &Inspection, kind: Option<&str>) -> i
             continue;
         }
         writeln!(out, "Kind {:?}:", command.key)?;
-        match (&command.binding, &command.command) {
-            (Some(binding), Some(name)) => {
-                writeln!(out, "  reference: binding {binding:?} -> command {name:?}")?;
-            }
-            _ => writeln!(out, "  reference: literal template")?,
-        }
+        writeln!(
+            out,
+            "  reference: binding {:?} -> command {:?}",
+            command.binding, command.command
+        )?;
         writeln!(
             out,
             "  origins {:?}; histories {:?}",
@@ -152,11 +151,7 @@ fn write_human(out: &mut impl Write, view: &Inspection, kind: Option<&str>) -> i
             write!(out, "    order {}: ", assignment.order)?;
             match &assignment.value {
                 AssignmentValue::Set(value) => write!(out, "set {value:?}")?,
-                AssignmentValue::LiteralTemplate(value) => {
-                    write!(out, "literal template {value:?}")?
-                }
                 AssignmentValue::Unset => write!(out, "unset")?,
-                AssignmentValue::Reset => write!(out, "reset")?,
             }
             writeln!(out, "; origin #{}", assignment.origin)?;
         }

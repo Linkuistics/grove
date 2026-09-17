@@ -74,8 +74,8 @@ fn shared_commands_capture_inspect_and_expand_without_sources() {
             .iter()
             .find(|c| c.key == key)
             .unwrap();
-        assert_eq!(view.binding.as_deref(), Some("lead"));
-        assert_eq!(view.command.as_deref(), Some("shared"));
+        assert_eq!(view.binding, "lead");
+        assert_eq!(view.command, "shared");
         assert_eq!(view.origins.len(), 3);
         assert_eq!(templates.source(key), Some(path.as_path()));
     }
@@ -123,10 +123,10 @@ fn local_targets_replace_before_validation_and_preserve_histories() {
         ]
     );
     let beta = view.commands.iter().find(|c| c.key == "beta").unwrap();
-    assert_eq!(beta.binding.as_deref(), Some("alternate"));
-    assert_eq!(beta.command.as_deref(), Some("alternate"));
+    assert_eq!(beta.binding, "alternate");
+    assert_eq!(beta.command, "alternate");
     let alpha = view.commands.iter().find(|c| c.key == "alpha").unwrap();
-    assert_eq!(alpha.command.as_deref(), Some("good"));
+    assert_eq!(alpha.command, "good");
 }
 
 #[test]

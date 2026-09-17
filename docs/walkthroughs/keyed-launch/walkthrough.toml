@@ -136,12 +136,12 @@ lines = 46
 [[root]]
 id    = "source-templates"
 path  = "crates/keyed-launch/src/templates.rs"
-lines = 702
+lines = 690
 
 [[root]]
 id = "source-inspection"
 path = "crates/keyed-launch/src/inspection.rs"
-lines = 107
+lines = 104
 
 [[root]]
 id    = "source-argv"
@@ -191,50 +191,50 @@ lines = "1-46"
 id    = "template-shapes"
 root  = "source-templates"
 owner = "rules-about-names"
-lines = "1-157"
+lines = "1-150"
 
 [[block]]
 id    = "templates-load"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "158-259"
+lines = "151-248"
 
 [[block]]
 id    = "resolution-and-expansion"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "260-441"
+lines = "249-430"
 
 [[block]]
 id    = "reading-and-whole-document-validation"
 root  = "source-templates"
 owner = "never-assembled"
-lines = "442-571"
+lines = "431-559"
 
 
 [[block]]
 id    = "word-scanning"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "572-621"
+lines = "560-609"
 
 [[block]]
 id    = "diagnostics"
 root  = "source-templates"
 owner = "words-not-shell"
-lines = "622-692"
+lines = "610-680"
 
 [[block]]
 id    = "templates-keys"
 root  = "source-templates"
 owner = "whole-word-or-nothing"
-lines = "693-702"
+lines = "681-690"
 
 [[block]]
 id = "inspection-records"
 root = "source-inspection"
 owner = "rules-about-names"
-lines = "1-107"
+lines = "1-104"
 
 
 [[block]]
@@ -363,7 +363,7 @@ statement = "Inspection explains captured commands and replaced assignments thro
 [[root]]
 id = "source-named"
 path = "crates/keyed-launch/src/templates/named.rs"
-lines = 1454
+lines = 1359
 
 [[block]]
 id = "named-capture"
@@ -387,16 +387,16 @@ lines = "551-688"
 id = "named-fold"
 root = "source-named"
 owner = "never-assembled"
-lines = "689-1078"
+lines = "689-1027"
 
 [[block]]
 id = "named-resolve"
 root = "source-named"
 owner = "never-assembled"
-lines = "1079-1419"
+lines = "1028-1324"
 
 [[block]]
 id = "named-lookups"
 root = "source-named"
 owner = "never-assembled"
-lines = "1420-1454"
+lines = "1325-1359"

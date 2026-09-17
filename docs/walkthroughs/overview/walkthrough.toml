@@ -157,24 +157,24 @@ anchors = ["driver-lease", "stated-vcs", "loop-control-channel", "guaranteed-cor
 [[root]]
 id = "source-configuration-report"
 path = "crates/grove/src/config.rs"
-lines = 165
+lines = 160
 
 [[block]]
 id = "configuration-report"
 root = "source-configuration-report"
 owner = "assembly"
-lines = "1-165"
+lines = "1-160"
 
 [[root]]
 id = "source-configuration-json"
 path = "crates/grove/src/config_json.rs"
-lines = 167
+lines = 163
 
 [[block]]
 id = "configuration-json"
 root = "source-configuration-json"
 owner = "assembly"
-lines = "1-167"
+lines = "1-163"
 
 [[root]]
 id = "source-configuration-examples"

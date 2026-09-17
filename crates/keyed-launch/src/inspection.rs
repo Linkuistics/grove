@@ -19,13 +19,11 @@ pub enum Setting {
     RouteParameter { key: String, parameter: String },
 }
 
-/// Literal templates remain distinct from binding names, even for identical text.
+/// An assignment sets a value or removes an override to expose inheritance.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AssignmentValue {
     Set(String),
-    LiteralTemplate(String),
     Unset,
-    Reset,
 }
 
 /// An application in total fold order, referencing an origin ID.
@@ -68,13 +66,12 @@ pub struct ParameterView {
     pub histories: Vec<usize>,
 }
 
-/// One admitted command, executable first. Flat commands have no binding,
-/// named command or parameters; their target history retains replaced templates.
+/// One admitted command, executable first, with its binding and definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommandView {
     pub key: String,
-    pub binding: Option<String>,
-    pub command: Option<String>,
+    pub binding: String,
+    pub command: String,
     pub parameters: Vec<ParameterView>,
     pub words: Vec<WordView>,
     pub origins: Vec<usize>,
@@ -92,7 +89,7 @@ pub struct NonAdmittedKey {
 /// A captured resolution's explanation, independent of later source changes.
 /// Sources follow primary then overlay order. Origins and assignments follow
 /// base, included/selected patches and overlay, in source order within each patch.
-/// Commands, non-admitted keys and flat target histories follow key order.
+/// Commands and non-admitted keys follow key order; histories follow setting order.
 /// Origin/history IDs index their respective vectors; spans address the original
 /// UTF-8 source bytes. The view is never accepted as input to expansion or launch.
 #[derive(Clone, Debug, PartialEq, Eq)]

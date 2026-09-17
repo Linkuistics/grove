@@ -5,16 +5,16 @@
 //! either: a key is an opaque string, a slot is a name the consumer declares,
 //! and the words of a template are the words the file holds. What the crate owns
 //! is an explicit, complete resolved command, checked before anything is spawned.
-//! Flat templates coexist with parameterized named commands, bindings and routes.
+//! Modular configuration supplies named commands, parameters, bindings and routes.
 //!
 //! # Two documents, and what the second one may do
 //!
 //! [`Catalog::load`] captures a primary file and an optional overlay. **A key
 //! resolves only if the primary declares it**: where the overlay also declares
-//! it the overlay target wins, as a binding or whole literal; where only the overlay
+//! it the overlay binding target wins; where only the overlay
 //! declares it the key does not resolve, and the refusal names the key and the
 //! primary file that must declare it. That is what keeps a second source unable
-//! to introduce a program the operator never chose, and it is checked without
+//! to authorize a key the operator never chose, and it is checked without
 //! either document knowing what a key means.
 //!
 //! Which files those two are, and whether the overlay is admissible at all, are
@@ -26,11 +26,11 @@
 //!
 //! The `config` wrapper accepts primary `command` definitions and `bind`/`route`
 //! targets and shared/route parameter patches in either source. Route overrides beat
-//! shared values and defaults; unset restores inheritance, literal replacement resets.
+//! shared values and defaults; unset restores inheritance.
 //! Catalog captures optional select declarations; the convenience loader ignores
 //! them. Selected profiles expand includes before their own patches, once per
 //! occurrence; inactive profiles receive structural checks only. Effective bindings activate named
-//! templates; dormant definitions are not compiled. Flat templates validate eagerly.
+//! templates; dormant definitions are not compiled. Flat declarations are rejected.
 //! [`Templates::inspect`] explains reference chains, command words, captured origins,
 //! parameter defaults/assignments/removals, multi-origin words and non-admitted overlay
 //! keys without source I/O.
@@ -48,7 +48,7 @@
 //! with no shell — and supervises the child until it ends. The two halves meet
 //! only at `Argv`, and each is usable without the other: a launcher that builds
 //! its argv some other way still cannot construct one, which is the point.
-//! Active named templates, resolved parameters and all flat templates reject NUL
+//! Active named templates and resolved parameters reject NUL
 //! before resolution succeeds; expansion rejects NUL in every offered runtime
 //! value, including unused optional slots. Other native bytes remain unchanged.
 //!

@@ -261,7 +261,7 @@ explicit. They are owned by the snapshot and remain available after Catalog and
 its files disappear. Chapter 3 builds target histories; chapter 5 consumes the
 same compiled words at expansion.
 
-<!-- fragment «inspection-records» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="1-107" parent="source-inspection" -->
+<!-- fragment «inspection-records» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="1-104" parent="source-inspection" -->
 <!-- insert «inspection-assignments» -->
 <!-- insert «inspection-words» -->
 <!-- insert «inspection-commands» -->
@@ -270,13 +270,11 @@ same compiled words at expansion.
 
 `Origin` locates a declaration in captured input. `Setting` names the scope
 being assigned, and `AssignmentHistory` keeps every applied value with its total
-order and origin ID. For the retained, unreachable flat-route representation, a primary template followed by a local
-replacement produces two `LiteralTemplate` assignments in one route history.
-BindingTarget and Set also describe named target changes. Parameter-specific
-setting/value variants define the pending public record vocabulary; the flat
-resolver emits none of their binding, parameter, unset or reset activity.
+order and origin ID. A route or binding replacement adds another `Set` to its
+target history. Parameter assignments use their own setting scopes; `Unset`
+removes an override while retaining its place in the history.
 
-<!-- fragment «inspection-assignments» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="1-46" parent="inspection-records" -->
+<!-- fragment «inspection-assignments» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="1-44" parent="inspection-records" -->
 ````rust
 //! Owned explanation records. These are output, never authority to construct an Argv.
 use crate::{Occurrence, Selection, Source, SourceSpan};
@@ -299,13 +297,11 @@ pub enum Setting {
     RouteParameter { key: String, parameter: String },
 }
 
-/// Literal templates remain distinct from binding names, even for identical text.
+/// An assignment sets a value or removes an override to expose inheritance.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AssignmentValue {
     Set(String),
-    LiteralTemplate(String),
     Unset,
-    Reset,
 }
 
 /// An application in total fold order, referencing an origin ID.
@@ -329,10 +325,10 @@ pub struct AssignmentHistory {
 
 `CompiledWord` is the representation validation builds and expansion reads.
 Inspection copies those words into `WordView` and associates origin IDs; it never
-parses a display string. In the retained literal-route branch, every word references the
-winning template declaration, and `Slot("prompt")` still awaits a runtime value.
+parses a display string. Every word references its command definition and any
+contributing parameter origins; `Slot("prompt")` still awaits a runtime value.
 
-<!-- fragment «inspection-words» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="47-61" parent="inspection-records" -->
+<!-- fragment «inspection-words» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="45-59" parent="inspection-records" -->
 ````rust
 /// A compiled word, shared by template validation, inspection and expansion.
 /// A runtime slot stays symbolic until expansion supplies its native value.
@@ -353,11 +349,11 @@ pub struct WordView {
 <!-- /fragment -->
 
 `CommandView` exposes an admitted key's executable-first words and the IDs
-needed to explain them. Flat commands have no binding, named command or
-parameters. `NonAdmittedKey` keeps an overlay-only declaration visible without
+needed to explain them. Every successful command has a binding and a named
+command definition, with resolved parameters when that definition declares them. `NonAdmittedKey` keeps an overlay-only declaration visible without
 making it launchable; its reason explains the missing primary authority.
 
-<!-- fragment «inspection-commands» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="62-91" parent="inspection-records" -->
+<!-- fragment «inspection-commands» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="60-88" parent="inspection-records" -->
 ````rust
 /// A resolved parameter and its contributing origin and history IDs.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -368,13 +364,12 @@ pub struct ParameterView {
     pub histories: Vec<usize>,
 }
 
-/// One admitted command, executable first. Flat commands have no binding,
-/// named command or parameters; their target history retains replaced templates.
+/// One admitted command, executable first, with its binding and definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommandView {
     pub key: String,
-    pub binding: Option<String>,
-    pub command: Option<String>,
+    pub binding: String,
+    pub command: String,
     pub parameters: Vec<ParameterView>,
     pub words: Vec<WordView>,
     pub origins: Vec<usize>,
@@ -397,12 +392,12 @@ arrays within this response, while spans address the original UTF-8 source bytes
 and source paths remain native. The view carries no runtime values and grants no
 way to create an `Argv`; only validated Templates can expand one.
 
-<!-- fragment «inspection-snapshot» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="92-107" parent="inspection-records" -->
+<!-- fragment «inspection-snapshot» owner="rules-about-names" source="crates/keyed-launch/src/inspection.rs" lines="89-104" parent="inspection-records" -->
 ````rust
 /// A captured resolution's explanation, independent of later source changes.
 /// Sources follow primary then overlay order. Origins and assignments follow
 /// base, included/selected patches and overlay, in source order within each patch.
-/// Commands, non-admitted keys and flat target histories follow key order.
+/// Commands and non-admitted keys follow key order; histories follow setting order.
 /// Origin/history IDs index their respective vectors; spans address the original
 /// UTF-8 source bytes. The view is never accepted as input to expansion or launch.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -426,7 +421,7 @@ Catalog captures the documents and vocabulary; Templates retains that capture
 and its winning commands. The validation helper types remain private. Chapters
 3 and 5 construct and consume these shapes respectively.
 
-<!-- fragment «template-shapes» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-157" parent="source-templates" -->
+<!-- fragment «template-shapes» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="1-150" parent="source-templates" -->
 <!-- insert «template-shapes-imports» -->
 <!-- insert «template-shapes-templates» -->
 <!-- insert «template-shapes-slot-spec» -->
@@ -485,7 +480,7 @@ are not erased by resolution. Templates owns the merged map and shares this
 capture. Its underscore-prefixed retained fields are intentionally unread by the
 base resolver; inspection uses their captured declarations without loading files again.
 
-<!-- fragment «template-shapes-templates» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="20-87" parent="template-shapes" -->
+<!-- fragment «template-shapes-templates» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="20-86" parent="template-shapes" -->
 ````rust
 /// Which explicit input supplied a declaration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -535,7 +530,6 @@ struct CapturedDocument {
     path: PathBuf,
     _source: String,
     _document: KdlDocument,
-    templates: BTreeMap<String, Template>,
     named: named::Declarations,
 }
 
@@ -577,7 +571,7 @@ file disappears and distinguishes a typo from a declaration in the wrong file.
 `SlotSpec` is the owned form of a `SlotRule`, and it carries no comment because
 it needs none once its counterpart has one.
 
-<!-- fragment «template-shapes-slot-spec» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="88-93" parent="template-shapes" -->
+<!-- fragment «template-shapes-slot-spec» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="87-92" parent="template-shapes" -->
 ````rust
 #[derive(Clone)]
 struct SlotSpec {
@@ -598,24 +592,17 @@ startup and expanded much later requires.
 <a id="the-file-it-was-read-from"></a>
 ## The file it was read from
 
-`Template` carries compiled words, their source path and the declaration span.
-These belong to each key because an overlay can replace one command while its
-neighbour still comes from the primary. The path serves `source()` and runtime
-errors; the span also survives when the declaration remains non-admitted.
+`Template` carries compiled words and the command definition's source path.
+The path serves `source()` and runtime errors. Inspection separately retains
+route, binding and parameter spans, including declarations in the overlay.
 
-<!-- fragment «template-shapes-per-key-source» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="94-108" parent="template-shapes" -->
+<!-- fragment «template-shapes-per-key-source» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="93-101" parent="template-shapes" -->
 ````rust
-/// One key's compiled template together with **the file it was read from**.
-///
-/// Carried per key rather than once per configuration, because after an overlay
-/// resolves there is no single answer: one key's launch may come from the
-/// overlay while its neighbour's comes from the primary file. Every diagnostic
-/// that names a file has to name the one that actually supplied the failing key,
-/// or it points a reader at a file that never held the template.
+/// One key's compiled words and the command definition's source path.
+/// Runtime expansion errors name that definition; inspection retains the
+/// separate route, binding and parameter origins that contributed to the words.
 #[derive(Clone)]
 struct Template {
-    span: SourceSpan,
-    text: String,
     words: Vec<Word>,
     source: PathBuf,
 }
@@ -623,30 +610,12 @@ struct Template {
 ````
 <!-- /fragment -->
 
-The claim rests on a fact about resolution that chapter 3 proves and this chapter
-only needs stated: an overlay replaces a key's template whole, key by key. After
-a load with an overlay, `impl` may have come from the overlay and `review-impl`
-from the primary, and the two are equally valid outcomes of one call. There is
-therefore no single answer to *which file did this configuration come from*, and
-a diagnostic that named the configuration's path would be naming a file that, for
-the failing key, may never have held a template at all.
-
-The cost of the alternative is a specific and quiet one. A per-configuration path
-is one `PathBuf` instead of one per key, and it would be right whenever no
-overlay is in play — which is most of the time, and is why the defect would
-survive a casual test. It would be wrong exactly when an overlay is in use, which
-is the case an operator is least able to reason about unaided, because the file
-they are reading is not the only file in play.
-`an_overlay_replaces_a_whole_template_and_reports_its_own_path` in
-`crates/keyed-launch/tests/templates.rs` is the test that holds it: it loads a
-primary declaring two keys and an overlay declaring one, and then asserts that
-`source` returns the primary's path for one key and the overlay's for the other
-in the same loaded value.
-
-The public reader for this field is `Templates::source`, and chapter 3 reads it
-together with `load`. What the field costs is one `PathBuf` per key, cloned from
-the document's path as each template is inserted; the crate accepts that
-duplication rather than the ambiguity.
+Definitions are personal-only, so even a route redirected by an overlay uses a
+personal command definition. `Templates::source` reports that definition's file,
+not the source of the route or parameter override. The inspection record is the
+surface for explaining the full composition; a single path cannot express it.
+The per-key path remains beside the compiled words so expansion can report the
+relevant definition without rereading configuration.
 
 <a id="a-word-and-a-role"></a>
 ## A named word, and a role that is only a noun
@@ -655,7 +624,7 @@ duplication rather than the ambiguity.
 one representation. The alias keeps the validator concise without introducing
 a second word format.
 
-<!-- fragment «template-shapes-word» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="109-111" parent="template-shapes" -->
+<!-- fragment «template-shapes-word» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="102-104" parent="template-shapes" -->
 ````rust
 /// Validation and expansion use the same literal/slot representation as inspection.
 type Word = CompiledWord;
@@ -679,7 +648,7 @@ is the compiled restatement of the whole-word rule chapter 4 enforces and chapte
 `DocumentRole` is the last of the validation shapes to carry an argument, and the
 argument is about what it does *not* change.
 
-<!-- fragment «template-shapes-document-role» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="112-140" parent="template-shapes" -->
+<!-- fragment «template-shapes-document-role» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="105-133" parent="template-shapes" -->
 ````rust
 /// Which document is being validated, and so which file a diagnostic names.
 ///
@@ -731,7 +700,7 @@ the entire purpose of carrying the role that far.
 The last two types are the shape of a validation report. There is no comment
 on any of them, and what they are for is legible only from their fields.
 
-<!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="141-157" parent="template-shapes" -->
+<!-- fragment «template-shapes-diagnostics» owner="rules-about-names" source="crates/keyed-launch/src/templates.rs" lines="134-150" parent="template-shapes" -->
 ````rust
 #[derive(Clone, Copy)]
 struct SourceLocation {

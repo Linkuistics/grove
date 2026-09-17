@@ -28,8 +28,10 @@ fn load(primary: &str, overlay: Option<&str>) -> Result<Templates, keyed_launch:
 }
 
 const BASE: &str = r#"
-config "flat ${payload}"
 config {
+    command "base" "base ${payload}"
+    bind "base" "base"
+    route "config" "base"
     command "shared" "runner 'one argument' '' $${escaped} ${payload}"
     command "other" "alternate ${payload}"
     command "dormant" "'broken"
@@ -83,12 +85,14 @@ fn shared_commands_capture_inspect_and_expand_without_sources() {
 fn local_targets_replace_before_validation_and_preserve_histories() {
     let primary = r#"config {
         command "good" "runner ${payload}"
+        command "alternate" "alternate ${payload}"
         bind "lead" "missing"
         route "alpha" "missing-binding"
         route "beta" "lead"
     }"#;
-    let overlay = r#"beta "literal ${payload}"
-    config {
+    let overlay = r#"config {
+        bind "alternate" "alternate"
+        route "beta" "alternate"
         bind "lead" "good"
         route "alpha" "lead"
         route "local-only" "missing"
@@ -119,8 +123,8 @@ fn local_targets_replace_before_validation_and_preserve_histories() {
         ]
     );
     let beta = view.commands.iter().find(|c| c.key == "beta").unwrap();
-    assert_eq!(beta.binding, None);
-    assert_eq!(beta.command, None);
+    assert_eq!(beta.binding.as_deref(), Some("alternate"));
+    assert_eq!(beta.command.as_deref(), Some("alternate"));
     let alpha = view.commands.iter().find(|c| c.key == "alpha").unwrap();
     assert_eq!(alpha.command.as_deref(), Some("good"));
 }
@@ -229,8 +233,13 @@ fn duplicate_wrapper_reports_first_declaration_as_primary() {
 
 #[test]
 fn local_binding_redirects_shared_users_and_named_routes_replace_flat_targets() {
+    // Dedicated compatibility case; the shared fixture is modular.
+    let primary = format!(
+        "config \"flat ${{payload}}\"\n{}",
+        BASE.replace("    route \"config\" \"base\"\n", "")
+    );
     let templates = load(
-        BASE,
+        &primary,
         Some("config { bind \"lead\" \"other\"; route \"config\" \"lead\"; }"),
     )
     .unwrap();
@@ -407,6 +416,7 @@ fn parameter_defaults_are_opaque_words_with_exact_provenance_and_snapshot_lifeti
 fn required_parameters_are_demanded_only_on_admitted_routes_even_when_unused() {
     let base = r#"config {
         command "shared" "runner ${payload}" { param "required"; }
+        command "plain" "plain ${payload}"
         bind "lead" "shared"
     }"#;
     load(base, Some("config { route \"local-only\" \"lead\"; }")).unwrap();
@@ -431,7 +441,7 @@ fn required_parameters_are_demanded_only_on_admitted_routes_even_when_unused() {
     }
     load(
         &text,
-        Some("alpha \"literal ${payload}\"\nbeta \"literal ${payload}\""),
+        Some("config { bind \"plain\" \"plain\"; route \"alpha\" \"plain\"; route \"beta\" \"plain\"; }"),
     )
     .unwrap();
 }
@@ -509,17 +519,20 @@ fn active_parameter_errors_are_classified_without_cascading_missing_values() {
 }
 
 #[test]
-fn changing_binding_schema_uses_only_final_defaults_and_literal_replacement_has_none() {
+fn changing_binding_schema_uses_final_defaults_and_parameter_free_routes_have_none() {
     let primary = r#"config {
         command "old" "runner ${param.old} ${payload}" { param "old" "first"; }
         command "new" "runner ${param.new} ${payload}" { param "new" "second"; }
+        command "plain" "plain ${payload}"
         bind "lead" "old"
         route "alpha" "lead"
         route "beta" "lead"
     }"#;
     let templates = load(
         primary,
-        Some("config { bind \"lead\" \"new\"; }\nbeta \"literal ${payload}\""),
+        Some(
+            "config { bind \"lead\" \"new\"; bind \"plain\" \"plain\"; route \"beta\" \"plain\"; }",
+        ),
     )
     .unwrap();
     let view = templates.inspect();
@@ -942,8 +955,8 @@ fn route_switches_preserve_maps_and_literal_replacement_records_resets() {
 
 #[test]
 fn personal_parameter_only_routes_cannot_be_repaired_locally() {
-    let primary = "good \"runner ${payload}\"\nconfig { route \"missing\" { unset \"absent\"; }; }";
-    for overlay in [None, Some("missing \"runner ${payload}\"")] {
+    let primary = "config { command \"good\" \"runner ${payload}\"; bind \"lead\" \"good\"; route \"good\" \"lead\"; route \"missing\" { unset \"absent\"; }; }";
+    for overlay in [None, Some("config { route \"missing\" \"lead\"; }")] {
         let error = load(primary, overlay).err().unwrap();
         assert_eq!(error.diagnostics().len(), 1);
         let diagnostic = &error.diagnostics()[0];
@@ -954,7 +967,7 @@ fn personal_parameter_only_routes_cannot_be_repaired_locally() {
         assert!(primary[span.start..span.end].starts_with("route \"missing\""));
     }
     let templates = load(
-        "good \"runner ${payload}\"",
+        "config { command \"good\" \"runner ${payload}\"; bind \"lead\" \"good\"; route \"good\" \"lead\"; }",
         Some(
             r#"config {
         route "only-params" { param "unknown" "bad\u{0}"; }

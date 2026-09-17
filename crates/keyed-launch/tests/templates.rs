@@ -83,7 +83,7 @@ fn assert_contains(haystack: &str, needle: &str) {
 /// prompt is never re-parsed as several arguments.
 #[test]
 fn a_slot_value_is_one_argument_whatever_it_contains() {
-    let (_dir, loaded) = load(r#"run "wrapper --flag 'a b' ${prompt}""#);
+    let (_dir, loaded) = load("config {\n    command \"run\" \"wrapper --flag 'a b' ${prompt}\"\n    bind \"run\" \"run\"\n    route \"run\" \"run\"\n}\n");
     let templates = loaded.unwrap();
     let words = expand_words(&templates, "run", "two words $(not a command)");
     assert_eq!(
@@ -99,7 +99,7 @@ fn a_slot_value_is_one_argument_whatever_it_contains() {
 
 #[test]
 fn program_and_arguments_split_at_word_zero() {
-    let (_dir, loaded) = load(r#"run "wrapper --flag ${prompt}""#);
+    let (_dir, loaded) = load("config {\n    command \"run\" \"wrapper --flag ${prompt}\"\n    bind \"run\" \"run\"\n    route \"run\" \"run\"\n}\n");
     let templates = loaded.unwrap();
     let prompt = OsString::from("P");
     let label = OsString::from("L");
@@ -115,7 +115,7 @@ fn program_and_arguments_split_at_word_zero() {
 /// a pipe is a word.
 #[test]
 fn shell_metacharacters_stay_literal() {
-    let (_dir, loaded) = load(r#"run "wrapper '|' '>' ${prompt}""#);
+    let (_dir, loaded) = load("config {\n    command \"run\" \"wrapper '|' '>' ${prompt}\"\n    bind \"run\" \"run\"\n    route \"run\" \"run\"\n}\n");
     let words = expand_words(&loaded.unwrap(), "run", "P");
     assert_eq!(
         words,
@@ -133,7 +133,7 @@ fn shell_metacharacters_stay_literal() {
 /// works for one key and fails for its neighbour.
 #[test]
 fn expansion_refuses_values_that_do_not_fill_the_vocabulary() {
-    let (_dir, loaded) = load(r#"run "wrapper ${prompt}""#);
+    let (_dir, loaded) = load("config {\n    command \"run\" \"wrapper ${prompt}\"\n    bind \"run\" \"run\"\n    route \"run\" \"run\"\n}\n");
     let templates = loaded.unwrap();
     let prompt = OsString::from("P");
 
@@ -178,14 +178,26 @@ fn expansion_refuses_values_that_do_not_fill_the_vocabulary() {
 // The primary declares; the overlay overrides
 
 #[test]
-fn an_overlay_replaces_a_whole_template_and_reports_its_own_path() {
+fn an_overlay_redirects_a_command_and_retains_both_sources() {
     let dir = TempDir::new().unwrap();
     let primary = write(
         dir.path(),
         "config.kdl",
-        "one \"first ${prompt}\"\ntwo \"second ${prompt}\"\n",
+        r#"config {
+    command "first" "first ${prompt}"
+    command "second" "second ${prompt}"
+    command "replacement" "replaced ${prompt}"
+    bind "one" "first"
+    bind "two" "second"
+    route "one" "one"
+    route "two" "two"
+}"#,
     );
-    let overlay = write(dir.path(), "overlay.kdl", "two \"replaced ${prompt}\"\n");
+    let overlay = write(
+        dir.path(),
+        "overlay.kdl",
+        "config { bind \"two\" \"replacement\"; route \"two\" \"two\"; }\n",
+    );
 
     let templates = Templates::load(&primary, Some(&overlay), vocabulary()).unwrap();
 
@@ -198,7 +210,24 @@ fn an_overlay_replaces_a_whole_template_and_reports_its_own_path() {
         OsString::from("replaced")
     );
     assert_eq!(templates.source("one"), Some(primary.as_path()));
-    assert_eq!(templates.source("two"), Some(overlay.as_path()));
+    assert_eq!(templates.source("two"), Some(primary.as_path()));
+    let view = templates.inspect();
+    let history = view
+        .histories
+        .iter()
+        .find(|history| {
+            history.setting
+                == keyed_launch::Setting::BindingTarget {
+                    binding: "two".into(),
+                }
+        })
+        .unwrap();
+    let assignment = history.assignments.last().unwrap();
+    assert_eq!(
+        assignment.value,
+        keyed_launch::AssignmentValue::Set("replacement".into())
+    );
+    assert_eq!(view.origins[assignment.origin].span.source.path, overlay);
 }
 
 /// The per-key restatement of what a completeness quantifier used to buy: a
@@ -206,8 +235,12 @@ fn an_overlay_replaces_a_whole_template_and_reports_its_own_path() {
 #[test]
 fn a_key_only_the_overlay_declares_does_not_resolve() {
     let dir = TempDir::new().unwrap();
-    let primary = write(dir.path(), "config.kdl", "one \"first ${prompt}\"\n");
-    let overlay = write(dir.path(), "overlay.kdl", "two \"smuggled ${prompt}\"\n");
+    let primary = write(dir.path(), "config.kdl", "config { command \"first\" \"first ${prompt}\"; bind \"lead\" \"first\"; route \"one\" \"lead\"; }\n");
+    let overlay = write(
+        dir.path(),
+        "overlay.kdl",
+        "config { route \"two\" \"lead\"; }\n",
+    );
 
     let templates = Templates::load(&primary, Some(&overlay), vocabulary()).unwrap();
 
@@ -233,7 +266,7 @@ fn a_key_only_the_overlay_declares_does_not_resolve() {
 #[test]
 fn a_key_nobody_declares_names_the_primary_file() {
     let dir = TempDir::new().unwrap();
-    let primary = write(dir.path(), "config.kdl", "one \"first ${prompt}\"\n");
+    let primary = write(dir.path(), "config.kdl", "config {\n    command \"one\" \"first ${prompt}\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n}\n");
     let templates = Templates::load(&primary, None, vocabulary()).unwrap();
     let refusal = templates.require("absent").err().unwrap().to_string();
     assert_contains(&refusal, "key `absent` does not resolve");
@@ -266,7 +299,7 @@ fn an_invalid_overlay_fails_the_load_against_its_own_path() {
 #[test]
 fn an_unreadable_overlay_fails_closed() {
     let dir = TempDir::new().unwrap();
-    let primary = write(dir.path(), "config.kdl", "one \"first ${prompt}\"\n");
+    let primary = write(dir.path(), "config.kdl", "config {\n    command \"one\" \"first ${prompt}\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n}\n");
     let missing = dir.path().join("nowhere.kdl");
     let error = Templates::load(&primary, Some(&missing), vocabulary())
         .err()
@@ -292,28 +325,48 @@ fn a_missing_primary_names_its_path() {
 
 #[test]
 fn a_kdl_syntax_error_names_its_source_location() {
-    let error = load_error("one \"unterminated\nrun\n");
+    let error = load_error("config {\n    command \"one\" \"unterminated\n}\n");
     assert_contains(&error, "KDL syntax error");
-    assert_contains(&error, ":1:");
+    assert_contains(&error, ":4:1:");
 }
 
 /// Semantic reports aggregate after the document passes structural validation.
 #[test]
 fn template_failures_are_aggregated_with_source_locations() {
-    let error = load_error(concat!(
-        "one \"wrapper ${prompt}\"\n",
-        "two \"wrapper\"\n",
-        "three \"wrapper ${prompt} ${label} ${label}\"\n",
-        "four \"wrapper ${unknown} ${prompt}\"\n",
-        "five \"wrapper pre${prompt} ${prompt}\"\n",
-    ));
+    let document = r#"config {
+    command "one" "wrapper ${prompt}"
+    command "two" "wrapper"
+    command "three" "wrapper ${prompt} ${label} ${label}"
+    command "four" "wrapper ${unknown} ${prompt}"
+    command "five" "wrapper pre${prompt} ${prompt}"
+    bind "one" "one"
+    bind "two" "two"
+    bind "three" "three"
+    bind "four" "four"
+    bind "five" "five"
+    route "one" "one"
+    route "two" "two"
+    route "three" "three"
+    route "four" "four"
+    route "five" "five"
+}"#;
+    let (dir, loaded) = load(document);
+    let error = loaded.err().unwrap();
+    let diagnostics = error.diagnostics();
+    assert_eq!(diagnostics.len(), 4);
+    for (diagnostic, command) in diagnostics.iter().zip(["two", "three", "four", "five"]) {
+        assert_eq!(diagnostic.category, "invalid_template");
+        assert_eq!(diagnostic.command.as_deref(), Some(command));
+        let span = diagnostic.primary.as_ref().unwrap();
+        assert_eq!(span.source.path, dir.path().join("config.kdl"));
+        assert!(document[span.start..span.end].starts_with(&format!("command {command:?}")));
+    }
+    let error = error.to_string();
     for expected in [
-        "invalid configuration at",
-        "key `two`: command template must contain `${prompt}` exactly once",
-        "key `three`: `${label}` may appear at most once",
-        "key `four`: unknown substitution `${unknown}`",
-        "key `five`: substitutions must occupy a complete shell word, got `pre${prompt}`",
-        ":2:1:",
+        "must contain `${prompt}` exactly once",
+        "`${label}` may appear at most once",
+        "unknown substitution `${unknown}`",
+        "runtime substitutions must occupy a whole argument",
     ] {
         assert_contains(&error, expected);
     }
@@ -381,11 +434,11 @@ fn a_duplicate_key_reports_every_declaration_location() {
 #[test]
 fn word_zero_must_be_a_literal_executable() {
     assert_contains(
-        &load_error("one \"${prompt}\"\n"),
-        "word zero must be a literal executable",
+        &load_error("config {\n    command \"one\" \"${prompt}\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n}\n"),
+        "word zero must be a literal non-empty executable",
     );
     assert_contains(
-        &load_error("one \"\"\n"),
+        &load_error("config {\n    command \"one\" \"\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n}\n"),
         "word zero must be a literal non-empty executable",
     );
 }
@@ -394,13 +447,13 @@ fn word_zero_must_be_a_literal_executable() {
 /// the rest of the line, so the template is refused instead of truncated.
 #[test]
 fn an_unquoted_hash_is_refused_rather_than_truncating_the_argv() {
-    let error = load_error("one \"wrapper # ${prompt}\"\n");
-    assert_contains(&error, "`#` starts a comment in a command template");
+    let error = load_error("config {\n    command \"one\" \"wrapper # ${prompt}\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n}\n");
+    assert_contains(&error, "quote literal comment-starting `#`");
 }
 
 #[test]
 fn quoted_and_midword_hashes_stay_literal() {
-    let (_dir, loaded) = load(r##"one "wrapper '#tag' mid#word ${prompt}""##);
+    let (_dir, loaded) = load("config {\n    command \"one\" \"wrapper '#tag' mid#word ${prompt}\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n}\n");
     let words = expand_words(&loaded.unwrap(), "one", "P");
     assert_eq!(
         words,
@@ -416,7 +469,7 @@ fn quoted_and_midword_hashes_stay_literal() {
 #[test]
 fn unmatched_quotes_are_refused() {
     assert_contains(
-        &load_error("one \"wrapper 'unclosed ${prompt}\"\n"),
+        &load_error("config {\n    command \"one\" \"wrapper 'unclosed ${prompt}\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n}\n"),
         "command template has unmatched quotes",
     );
 }
@@ -425,7 +478,7 @@ fn unmatched_quotes_are_refused() {
 /// what a key means is the consumer's, and one nobody asks for costs nothing.
 #[test]
 fn an_unused_key_is_not_an_error() {
-    let (_dir, loaded) = load("anything-at-all \"wrapper ${prompt}\"\n");
+    let (_dir, loaded) = load("config {\n    command \"anything-at-all\" \"wrapper ${prompt}\"\n    bind \"anything-at-all\" \"anything-at-all\"\n    route \"anything-at-all\" \"anything-at-all\"\n}\n");
     let templates = loaded.unwrap();
     assert_eq!(templates.keys(), vec!["anything-at-all"]);
 }
@@ -436,7 +489,7 @@ fn an_unused_key_is_not_an_error() {
 #[test]
 fn a_duplicated_slot_name_is_refused_at_load() {
     let dir = TempDir::new().unwrap();
-    let path = write(dir.path(), "config.kdl", "one \"wrapper ${prompt}\"\n");
+    let path = write(dir.path(), "config.kdl", "config {\n    command \"one\" \"wrapper ${prompt}\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n}\n");
     let slots = [
         SlotRule {
             name: "prompt",
@@ -498,8 +551,12 @@ fn nul_templates_fail_eagerly_in_both_sources_with_real_spans() {
 #[test]
 fn nul_runtime_values_fail_even_for_unused_optional_slots() {
     let dir = TempDir::new().unwrap();
-    let primary = write(dir.path(), "primary.kdl", "run \"original ${prompt}\"");
-    let overlay = write(dir.path(), "overlay.kdl", "run \"replacement ${prompt}\"");
+    let primary = write(dir.path(), "primary.kdl", "config { command \"original\" \"original ${prompt}\"; command \"replacement\" \"replacement ${prompt}\"; bind \"lead\" \"original\"; route \"run\" \"lead\"; }\n");
+    let overlay = write(
+        dir.path(),
+        "overlay.kdl",
+        "config { bind \"lead\" \"replacement\"; route \"run\" \"lead\"; }\n",
+    );
     let templates = Templates::load(&primary, Some(&overlay), vocabulary()).unwrap();
     for (prompt, label, slot) in [
         ("bad\0value", "ok", "prompt"),
@@ -513,7 +570,7 @@ fn nul_runtime_values_fail_even_for_unused_optional_slots() {
         let diagnostic = &diagnostics[0];
         assert_eq!(diagnostic.category, "invalid_value");
         assert_eq!(diagnostic.key.as_deref(), Some("run"));
-        assert_eq!(diagnostic.source.as_ref().unwrap().path, overlay);
+        assert_eq!(diagnostic.source.as_ref().unwrap().path, primary);
         assert!(diagnostic.primary.is_none());
         assert!(diagnostic.message.contains(slot));
         assert!(diagnostic.message.contains("NUL"));
@@ -523,7 +580,7 @@ fn nul_runtime_values_fail_even_for_unused_optional_slots() {
 
 #[test]
 fn empty_and_parameter_looking_runtime_values_stay_opaque_words() {
-    let (_dir, loaded) = load("run \"wrapper ${prompt} ${label}\"");
+    let (_dir, loaded) = load("config {\n    command \"run\" \"wrapper ${prompt} ${label}\"\n    bind \"run\" \"run\"\n    route \"run\" \"run\"\n}\n");
     let templates = loaded.unwrap();
     let opaque = OsStr::new("quotes ' \" ${param.name} ${prompt} # ; $(anything)");
     assert_eq!(
@@ -544,7 +601,7 @@ fn empty_and_parameter_looking_runtime_values_stay_opaque_words() {
 fn native_runtime_values_preserve_non_unicode_and_reject_embedded_nul() {
     use std::os::unix::ffi::OsStrExt;
 
-    let (_dir, loaded) = load("run \"wrapper ${prompt}\"");
+    let (_dir, loaded) = load("config {\n    command \"run\" \"wrapper ${prompt}\"\n    bind \"run\" \"run\"\n    route \"run\" \"run\"\n}\n");
     let templates = loaded.unwrap();
     let native = OsStr::from_bytes(b"path/\xff two words");
     let argv = templates

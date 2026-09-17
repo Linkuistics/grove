@@ -31,7 +31,7 @@ fn write(document: &str) -> (TempDir, PathBuf) {
 
 #[test]
 fn a_conforming_configuration_passes() {
-    let (_dir, path) = write("one \"wrapper ${prompt}\"\ntwo \"other ${label} ${prompt}\"\n");
+    let (_dir, path) = write("config {\n    command \"one\" \"wrapper ${prompt}\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n    command \"two\" \"other ${label} ${prompt}\"\n    bind \"two\" \"two\"\n    route \"two\" \"two\"\n}\n");
     let catalog = Catalog::load(&path, None, vocabulary()).unwrap();
     let outcome = conformance::check(&catalog, &Selection::default());
     assert!(outcome.passed(), "{}", outcome.failures.join("\n"));
@@ -39,11 +39,11 @@ fn a_conforming_configuration_passes() {
 
 #[test]
 fn a_violated_template_rule_is_reported_as_a_failure() {
-    let (_dir, path) = write("one \"wrapper\"\n");
-    let error = Catalog::load(&path, None, vocabulary())
-        .err()
-        .unwrap()
-        .to_string();
+    let (_dir, path) = write("config {\n    command \"one\" \"wrapper\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n}\n");
+    let catalog = Catalog::load(&path, None, vocabulary()).unwrap();
+    let outcome = conformance::check(&catalog, &Selection::default());
+    assert!(!outcome.passed());
+    let error = outcome.failures.join("\n");
     assert!(
         error.contains("must contain `${prompt}` exactly once"),
         "{error}"
@@ -82,8 +82,12 @@ fn a_missing_file_is_a_failure_rather_than_a_panic() {
 /// searched for, because *which* files take part is the consumer's question.
 #[test]
 fn the_kit_reads_only_the_file_it_is_given() {
-    let (dir, path) = write("one \"wrapper ${prompt}\"\n");
-    fs::write(dir.path().join(".grove.kdl"), "two \"broken\"\n").unwrap();
+    let (dir, path) = write("config {\n    command \"one\" \"wrapper ${prompt}\"\n    bind \"one\" \"one\"\n    route \"one\" \"one\"\n}\n");
+    fs::write(
+        dir.path().join(".grove.kdl"),
+        "config { bind \"one\" \"missing\"; }\n",
+    )
+    .unwrap();
     let catalog = Catalog::load(&path, None, vocabulary()).unwrap();
     let outcome = conformance::check(&catalog, &Selection::default());
     assert!(outcome.passed(), "{}", outcome.failures.join("\n"));

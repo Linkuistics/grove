@@ -24,8 +24,9 @@ fn load_error(primary: &str, overlay: Option<&str>) -> (TempDir, ConfigError) {
 
 #[test]
 fn structural_reports_aggregate_in_source_order_with_real_utf8_ranges() {
-    let primary = "// é\nwrong 42\ndup \"run\"\ndup \"again\"\n";
-    let overlay = "local \"run\" extra=1\n";
+    let primary =
+        "// é\nconfig {\nroute \"wrong\" 42\nroute \"dup\" \"run\"\nroute \"dup\" \"again\"\n}\n";
+    let overlay = "config { route \"local\" \"run\" extra=1; }\n";
     let (dir, error) = load_error(primary, Some(overlay));
     let reports = error.diagnostics();
     assert_eq!(
@@ -35,34 +36,76 @@ fn structural_reports_aggregate_in_source_order_with_real_utf8_ranges() {
             .collect::<Vec<_>>(),
         ["shape", "duplicate", "shape"]
     );
-    for (report, text, name, role) in [
-        (&reports[0], primary, "primary.kdl", SourceRole::Primary),
-        (&reports[1], primary, "primary.kdl", SourceRole::Primary),
-        (&reports[2], overlay, "overlay.kdl", SourceRole::Overlay),
+    for (report, text, name, role, declaration) in [
+        (
+            &reports[0],
+            primary,
+            "primary.kdl",
+            SourceRole::Primary,
+            "route \"wrong\" 42",
+        ),
+        (
+            &reports[1],
+            primary,
+            "primary.kdl",
+            SourceRole::Primary,
+            "route \"dup\" \"run\"",
+        ),
+        (
+            &reports[2],
+            overlay,
+            "overlay.kdl",
+            SourceRole::Overlay,
+            "route \"local\" \"run\" extra=1",
+        ),
     ] {
         let span = report.primary.as_ref().unwrap();
         assert_eq!(span.source.path, dir.path().join(name));
         assert_eq!(span.source.role, role);
         assert_eq!(report.source.as_ref(), Some(&span.source));
-        assert!(text[span.start..span.end].starts_with(report.key.as_deref().unwrap()));
+        assert_eq!(&text[span.start..span.end], declaration);
         assert!(!report.remedy.is_empty());
         assert!(report.occurrence_chain.is_empty());
     }
     let duplicate = &reports[1];
     assert_eq!(duplicate.related.len(), 1);
     let related = &duplicate.related[0];
-    assert_eq!(&primary[related.start..related.end], "dup \"again\"");
-    assert_eq!(reports[0].primary.as_ref().unwrap().start, "// é\n".len());
+    assert_eq!(
+        &primary[related.start..related.end],
+        "route \"dup\" \"again\""
+    );
+    assert_eq!(
+        reports[0].primary.as_ref().unwrap().start,
+        "// é\nconfig {\n".len()
+    );
 }
 
 #[test]
 fn structural_errors_suppress_template_cascades_across_documents() {
-    let (_, error) = load_error(
-        "bad \"${unknown}\" extra=1\n",
-        Some("other \"${missing}\"\n"),
-    );
+    let dir = TempDir::new().unwrap();
+    let primary = dir.path().join("primary.kdl");
+    let overlay = dir.path().join("overlay.kdl");
+    let document = r#"config {
+    command "bad" "runner ${unknown}" extra=1
+    command "other" "'unclosed"
+    bind "bad" "bad"
+}"#;
+    fs::write(&primary, document).unwrap();
+    fs::write(&overlay, "config { bind \"other\" \"other\"; }\n").unwrap();
+    let load =
+        || keyed_launch::Templates::load(&primary, Some(&overlay), Vocabulary { slots: &[] });
+    let error = load().err().unwrap();
     assert_eq!(error.diagnostics().len(), 1);
     assert_eq!(error.diagnostics()[0].category, "shape");
+
+    // The same active commands really do fail semantically once structure passes.
+    fs::write(&primary, document.replace(" extra=1", "")).unwrap();
+    let error = load().err().unwrap();
+    assert_eq!(error.diagnostics().len(), 2);
+    for (diagnostic, command) in error.diagnostics().iter().zip(["bad", "other"]) {
+        assert_eq!(diagnostic.category, "invalid_template");
+        assert_eq!(diagnostic.command.as_deref(), Some(command));
+    }
 }
 
 #[test]
@@ -93,7 +136,7 @@ fn read_and_syntax_reports_keep_available_locations() {
     assert!(report.primary.is_none());
     assert!(!report.remedy.is_empty());
     let text = "// é\nbroken {";
-    let (_, error) = load_error(text, Some("wrong 42\n"));
+    let (_, error) = load_error(text, Some("config { route \"wrong\" 42; }\n"));
     assert_eq!(error.diagnostics()[0].category, "kdl_syntax");
     let span = error.diagnostics()[0].primary.as_ref().unwrap();
     assert!(text.get(span.start..span.end).is_some());
@@ -105,8 +148,8 @@ fn caller_errors_have_categories_and_context_without_fabricated_spans() {
     let dir = TempDir::new().unwrap();
     let primary = dir.path().join("primary.kdl");
     let overlay = dir.path().join("overlay.kdl");
-    fs::write(&primary, "opaque \"run\"\n").unwrap();
-    fs::write(&overlay, "opaque \"other\"\nlocal \"run\"\n").unwrap();
+    fs::write(&primary, "config { command \"run\" \"run\"; command \"other\" \"other\"; bind \"lead\" \"run\"; route \"opaque\" \"lead\"; }\n").unwrap();
+    fs::write(&overlay, "config { bind \"lead\" \"other\"; route \"opaque\" \"lead\"; route \"local\" \"lead\"; }\n").unwrap();
     let catalog = Catalog::load(&primary, Some(&overlay), Vocabulary { slots: &[] }).unwrap();
     let selection = Selection {
         profiles: vec!["absent".into()],
@@ -146,7 +189,7 @@ fn caller_errors_have_categories_and_context_without_fabricated_spans() {
     let report = &error.diagnostics()[0];
     assert_eq!(report.category, "invalid_value");
     assert_eq!(report.key.as_deref(), Some("opaque"));
-    assert_eq!(report.source.as_ref().unwrap().path, overlay);
+    assert_eq!(report.source.as_ref().unwrap().path, primary);
     assert!(report.primary.is_none());
     assert!(!report.remedy.is_empty());
 }
@@ -156,7 +199,7 @@ fn vocabulary_and_missing_or_duplicate_runtime_values_have_no_source_spans() {
     use keyed_launch::{Requirement, SlotRule};
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("primary.kdl");
-    fs::write(&path, "opaque \"run ${payload}\"\n").unwrap();
+    fs::write(&path, "config { command \"run\" \"run ${payload}\"; bind \"lead\" \"run\"; route \"opaque\" \"lead\"; }\n").unwrap();
     for names in [["param.effort", "other"], ["same", "same"]] {
         let slots = names.map(|name| SlotRule {
             name,
@@ -204,7 +247,7 @@ fn vocabulary_and_missing_or_duplicate_runtime_values_have_no_source_spans() {
 fn unknown_selections_report_each_occurrence_without_inventing_a_span() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("primary.kdl");
-    fs::write(&path, "opaque \"run\"\n").unwrap();
+    fs::write(&path, "config { command \"run\" \"run\"; command \"other\" \"other\"; bind \"lead\" \"run\"; route \"opaque\" \"lead\"; }\n").unwrap();
     let catalog = Catalog::load(&path, None, Vocabulary { slots: &[] }).unwrap();
     let selection = Selection {
         profiles: vec!["missing".into(), "other".into(), "missing".into()],
@@ -229,8 +272,12 @@ fn non_admitted_key_retains_its_real_overlay_location_after_capture() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("primary.kdl");
     let overlay = dir.path().join("overlay.kdl");
-    let text = "// é\nlocal \"run\"\n";
-    fs::write(&path, "known \"run\"\n").unwrap();
+    let text = "// é\nconfig { route \"local\" \"lead\"; }\n";
+    fs::write(
+        &path,
+        "config { command \"run\" \"run\"; bind \"lead\" \"run\"; route \"known\" \"lead\"; }\n",
+    )
+    .unwrap();
     fs::write(&overlay, text).unwrap();
     let snapshot = Catalog::load(&path, Some(&overlay), Vocabulary { slots: &[] })
         .unwrap()
@@ -244,6 +291,6 @@ fn non_admitted_key_retains_its_real_overlay_location_after_capture() {
     let span = &diagnostic.related[0];
     assert_eq!(span.source.path, overlay);
     assert_eq!(span.source.role, SourceRole::Overlay);
-    assert_eq!(&text[span.start..span.end], "local \"run\"");
+    assert_eq!(&text[span.start..span.end], "route \"local\" \"lead\"");
     assert!(diagnostic.remedy.contains(&path.display().to_string()));
 }

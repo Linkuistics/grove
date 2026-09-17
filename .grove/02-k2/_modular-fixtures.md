@@ -1,4 +1,4 @@
-# modular-fixtures-k2
+# modular-fixtures-k2 — brief
 
 ## Goal
 
@@ -38,3 +38,9 @@ fixtures and reach them through local bindings/routes while preserving personal
 kind admission. Translate literal-dollar cases according to the named-template
 scanner so their intended argv remains tested. Preserve the meta-grove signal
 guard and existing fake executables; never launch a real agent from tests.
+
+## Decisions (running log)
+
+- Decomposed into generic runner fixtures (`runner-fixtures-k4`) and downstream
+  consumer fixtures (`consumer-fixtures-k5`). Each is independently testable while
+  both configuration forms remain supported; production removal remains k3.

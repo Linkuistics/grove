@@ -170,7 +170,7 @@ fn inspection_keeps_native_paths_and_symbolic_native_values() {
     #[cfg(not(target_os = "linux"))]
     let filename = OsString::from("personal café.kdl");
     let primary = dir.path().join(filename);
-    fs::write(&primary, "opaque \"run ${payload}\"\n").unwrap();
+    fs::write(&primary, "config {\n    command \"opaque\" \"run ${payload}\"\n    bind \"opaque\" \"opaque\"\n    route \"opaque\" \"opaque\"\n}\n").unwrap();
     let snapshot = Templates::load(&primary, None, vocabulary()).unwrap();
     fs::remove_file(&primary).unwrap();
     let native = OsString::from_vec(vec![b'a', 0xfe, b' ', b'b']);

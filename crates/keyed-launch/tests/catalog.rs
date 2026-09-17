@@ -21,7 +21,7 @@ fn selection_declarations_are_captured_without_choosing_policy() {
     let dir = TempDir::new().unwrap();
     let primary = dir.path().join("personal.kdl");
     let overlay = dir.path().join("local.kdl");
-    let text = "// λ keeps byte offsets honest\nopaque \"base ${payload}\"\nconfig { select \"daily\" \"daily\"; }\n";
+    let text = "// λ keeps byte offsets honest\nconfig { command \"base\" \"base ${payload}\"; bind \"lead\" \"base\"; route \"opaque\" \"lead\"; select \"daily\" \"daily\"; }\n";
     fs::write(&primary, text).unwrap();
     fs::write(&overlay, "config { select; }\n").unwrap();
     let catalog = Catalog::load(&primary, Some(&overlay), vocabulary()).unwrap();
@@ -84,7 +84,7 @@ fn selection_shapes_are_checked_in_both_sources_even_when_not_used() {
         "select; select",
     ] {
         for local in [false, true] {
-            fs::write(&primary, "opaque \"base ${payload}\"\n").unwrap();
+            fs::write(&primary, "config { command \"base\" \"base ${payload}\"; bind \"lead\" \"base\"; route \"opaque\" \"lead\"; }\n").unwrap();
             fs::write(&overlay, "").unwrap();
             fs::write(
                 if local { &overlay } else { &primary },
@@ -123,12 +123,12 @@ fn snapshots_and_conformance_use_captured_inputs_after_sources_disappear() {
     let overlay = dir.path().join("local.kdl");
     fs::write(
         &primary,
-        "zeta \"original ${payload}\"\nopaque \"base ${payload}\"\n",
+        "config {\n command \"original\" \"original ${payload}\"\n command \"base\" \"base ${payload}\"\n command \"replacement\" \"replacement 'one argument' ${payload}\"\n bind \"zeta\" \"original\"\n bind \"opaque\" \"base\"\n route \"zeta\" \"zeta\"\n route \"opaque\" \"opaque\"\n}\n",
     )
     .unwrap();
     fs::write(
         &overlay,
-        "opaque \"replacement 'one argument' ${payload}\"\nlocal \"extra ${payload}\"\n",
+        "config { bind \"opaque\" \"replacement\"; route \"opaque\" \"opaque\"; route \"local\" \"opaque\"; }\n",
     )
     .unwrap();
     let catalog = Catalog::load(&primary, Some(&overlay), vocabulary()).unwrap();
@@ -142,7 +142,7 @@ fn snapshots_and_conformance_use_captured_inputs_after_sources_disappear() {
     fs::remove_file(&primary).unwrap();
     drop(catalog);
     assert_eq!(snapshot.keys(), ["opaque", "zeta"]);
-    assert_eq!(snapshot.source("opaque"), Some(overlay.as_path()));
+    assert_eq!(snapshot.source("opaque"), Some(primary.as_path()));
     assert_eq!(snapshot.source("zeta"), Some(primary.as_path()));
     assert!(snapshot.require("local").is_err());
     assert!(snapshot.source("local").is_none());
@@ -171,7 +171,7 @@ fn snapshots_and_conformance_use_captured_inputs_after_sources_disappear() {
 fn explicit_unknown_selection_refuses_in_resolution_and_conformance() {
     let dir = TempDir::new().unwrap();
     let primary = dir.path().join("config.kdl");
-    fs::write(&primary, "opaque \"run ${payload}\"\n").unwrap();
+    fs::write(&primary, "config { command \"base\" \"run ${payload}\"; bind \"lead\" \"base\"; route \"opaque\" \"lead\"; }\n").unwrap();
     let catalog = Catalog::load(&primary, None, vocabulary()).unwrap();
     let selection = Selection {
         profiles: vec!["experiment".into()],
@@ -189,8 +189,8 @@ fn overlay_only_commands_cannot_make_conformance_nonvacuous() {
     let dir = TempDir::new().unwrap();
     let primary = dir.path().join("empty.kdl");
     let overlay = dir.path().join("overlay.kdl");
-    fs::write(&primary, "// no admitted keys\n").unwrap();
-    fs::write(&overlay, "opaque \"run ${payload}\"\n").unwrap();
+    fs::write(&primary, "// no admitted keys\nconfig { command \"base\" \"run ${payload}\"; bind \"lead\" \"base\"; }\n").unwrap();
+    fs::write(&overlay, "config { route \"opaque\" \"lead\"; }\n").unwrap();
     let catalog = Catalog::load(&primary, Some(&overlay), vocabulary()).unwrap();
     let outcome = conformance::check(&catalog, &Selection::default());
     assert!(!outcome.passed());
@@ -247,7 +247,7 @@ fn captured_expansion_preserves_native_runtime_bytes() {
     use std::os::unix::ffi::OsStringExt;
     let dir = TempDir::new().unwrap();
     let primary = dir.path().join("config.kdl");
-    fs::write(&primary, "opaque \"run ${payload}\"\n").unwrap();
+    fs::write(&primary, "config { command \"base\" \"run ${payload}\"; bind \"lead\" \"base\"; route \"opaque\" \"lead\"; }\n").unwrap();
     let snapshot = Catalog::load(&primary, None, vocabulary())
         .unwrap()
         .resolve(&Selection::default())
@@ -270,8 +270,10 @@ fn inactive_profiles_preserve_base_commands_and_do_not_authorize_local_keys() {
     let dir = TempDir::new().unwrap();
     let primary = dir.path().join("personal.kdl");
     let overlay = dir.path().join("local.kdl");
-    let text = r#"opaque "base ${payload}"
-config {
+    let text = r#"config {
+    command "base" "base ${payload}"
+    bind "lead" "base"
+    route "opaque" "lead"
     command "unused" "'unfinished" { param "required"; }
     profile "experiment" {
         include "missing" "experiment" "missing"
@@ -284,7 +286,7 @@ config {
 }
 "#;
     fs::write(&primary, text).unwrap();
-    fs::write(&overlay, "local-only \"local ${payload}\"\n").unwrap();
+    fs::write(&overlay, "config { route \"local-only\" \"lead\"; }\n").unwrap();
     let catalog = Catalog::load(&primary, Some(&overlay), vocabulary()).unwrap();
     let convenience = Templates::load(&primary, Some(&overlay), vocabulary()).unwrap();
     fs::remove_file(&primary).unwrap();
@@ -351,7 +353,7 @@ fn inactive_profile_structure_is_checked_without_merging_patch_namespaces() {
         ("profile \"one\" { values \"a\" {}; values \"a\" {}; }", Some("duplicate")),
         ("profile \"one\" { values \"a\" { param \"p\"; }; }", Some("shape")),
     ] {
-        fs::write(&primary, format!("opaque \"base ${{payload}}\"\nconfig {{ {body}; }}\n")).unwrap();
+        fs::write(&primary, format!("config {{ command \"base\" \"base ${{payload}}\"; bind \"lead\" \"base\"; route \"opaque\" \"lead\"; {body}; }}\n")).unwrap();
         let result = Catalog::load(&primary, None, vocabulary());
         if let Some(category) = category {
             let error = result.err().expect(body);
@@ -361,7 +363,7 @@ fn inactive_profile_structure_is_checked_without_merging_patch_namespaces() {
             assert_eq!(result.unwrap().resolve(&Selection::default()).unwrap().keys(), ["opaque"]);
         }
     }
-    fs::write(&primary, "opaque \"base ${payload}\"\n").unwrap();
+    fs::write(&primary, "config { command \"base\" \"base ${payload}\"; bind \"lead\" \"base\"; route \"opaque\" \"lead\"; }\n").unwrap();
     fs::write(&overlay, "config { profile \"local\" {}; }\n").unwrap();
     let error = Catalog::load(&primary, Some(&overlay), vocabulary())
         .err()

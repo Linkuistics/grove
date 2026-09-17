@@ -50,7 +50,7 @@ impl Harness {
     fn new() -> Self {
         let dir = TempDir::new().unwrap();
         let config = dir.path().join("config.kdl");
-        fs::write(&config, "child \"sh ${script}\"\n").unwrap();
+        fs::write(&config, "config {\n    command \"child\" \"sh ${script}\"\n    bind \"child\" \"child\"\n    route \"child\" \"child\"\n}\n").unwrap();
         let templates = Templates::load(&config, None, Vocabulary { slots: &SLOTS }).unwrap();
         fs::create_dir(dir.path().join("control")).unwrap();
         Self { dir, templates }
@@ -372,7 +372,7 @@ fn the_child_starts_in_the_given_directory() {
 fn a_program_that_does_not_exist_names_itself_and_says_what_to_check() {
     let dir = TempDir::new().unwrap();
     let config = dir.path().join("config.kdl");
-    fs::write(&config, "child \"no-such-program-anywhere ${script}\"\n").unwrap();
+    fs::write(&config, "config {\n    command \"child\" \"no-such-program-anywhere ${script}\"\n    bind \"child\" \"child\"\n    route \"child\" \"child\"\n}\n").unwrap();
     let templates = Templates::load(&config, None, Vocabulary { slots: &SLOTS }).unwrap();
     let argv = templates
         .expand(
@@ -434,7 +434,7 @@ fn arguments_reach_the_child_as_written() {
     let script = harness.script("printf '%s\\n' \"$1\" > \"$TEST_CHANNEL\"\n");
     let dir = harness.dir.path().to_path_buf();
     let config = dir.join("literal.kdl");
-    fs::write(&config, "child \"sh ${script} 'one two  three'\"\n").unwrap();
+    fs::write(&config, "config {\n    command \"child\" \"sh ${script} 'one two  three'\"\n    bind \"child\" \"child\"\n    route \"child\" \"child\"\n}\n").unwrap();
     let templates = Templates::load(&config, None, Vocabulary { slots: &SLOTS }).unwrap();
     let argv = templates
         .expand(

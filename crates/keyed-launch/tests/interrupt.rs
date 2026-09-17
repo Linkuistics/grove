@@ -37,7 +37,7 @@ const SIGTERM: i32 = 15;
 
 fn argv_for(dir: &Path, body: &str) -> Argv {
     let config = dir.join("config.kdl");
-    fs::write(&config, "child \"sh ${script}\"\n").unwrap();
+    fs::write(&config, "config {\n    command \"child\" \"sh ${script}\"\n    bind \"child\" \"child\"\n    route \"child\" \"child\"\n}\n").unwrap();
     let script = dir.join("child.sh");
     fs::write(&script, body).unwrap();
     Templates::load(&config, None, Vocabulary { slots: &SLOTS })

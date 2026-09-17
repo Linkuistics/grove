@@ -51,6 +51,17 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Configuration now accepts only modular `config { ... }` declarations. Flat
+  top-level kind-to-command entries, including mixed flat/modular documents,
+  are rejected in personal policy and the selected local delta with
+  source-attributed diagnostics and a modular-form remedy. Convert old policy
+  before upgrading; there is no automatic rewrite. Profiles and parameters
+  remain optional, and empty/comment-only documents retain their behavior.
+- Remove the flat parser, legacy route and inspection compatibility machinery,
+  and packaged legacy override example. Current guides, examples and walkthroughs
+  describe modular configuration; existing installed examples and active policy
+  are left untouched.
+
 ## v21.7.0
 
 - `grove` / `grove-design`: pair every changed diagram or prose-section link

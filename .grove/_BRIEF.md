@@ -81,3 +81,28 @@ No new CLI/fake-executable acceptance suite is required. Existing CLI tests may
 need fixture migration to keep their current assertions working; that is
 consumer maintenance, not an expansion of the agreed testing scope. Existing
 repository checks still apply to the files changed by implementation.
+
+## Fixture migration handoff to modular-only-k3
+
+`modular-fixtures-k2` and `consumer-fixtures-k5` delivered the retained runner,
+loop, CLI, admission and TUI migrations, including `testing/support.rs`.
+`bash scripts/check.sh` passes on the combined result. Remaining compatibility
+cases belong to removal:
+
+- Runner flat shape/eager validation, flat inspection, mixed routes and literal
+  parameter-reset cases are enumerated in
+  `02-k2/01-DONE-impl--runner-fixtures-k4.md` under Compatibility handoff.
+- `crates/grove-loop/tests/session_config.rs` retains the two `legacy_delta_*`
+  cases for flat shape aggregation and eager local-template validation.
+- `crates/grove/tests/config_show.rs` retains the two `legacy_json_*` cases for
+  flat-route null fields and literal/reset histories. Preserve useful schema,
+  provenance-reference and no-write assertions while removing legacy variants.
+- The packaged legacy example and its installer inventory remain for k3.
+  Include the flat-generating smoke-test recipe in comments in
+  `scripts/release-publish.sh` in the current-documentation sweep. Example
+  installation tests deliberately retain opaque invalid active contents because
+  installation must not read active policy.
+
+The final consumer inventory is recorded in
+`02-k2/02-k5/03-DONE-impl--admission-fixtures-k8.md`. No new CLI acceptance suite
+was added; existing assertions and fake executables were preserved.

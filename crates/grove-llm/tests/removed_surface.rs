@@ -608,10 +608,13 @@ fn shell_quote(path: &Path) -> String {
 fn write_complete_config(home: &Path, template: &str) {
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
-    let document = SESSION_KINDS
+    let routes = SESSION_KINDS
         .iter()
-        .map(|kind| format!("{kind} {template:?}\n"))
+        .map(|kind| format!("    route {kind:?} \"lead\"\n"))
         .collect::<String>();
+    let document = format!(
+        "config {{\n    command \"runner\" {template:?}\n    bind \"lead\" \"runner\"\n{routes}}}\n"
+    );
     fs::write(config_dir.join("config.kdl"), document).unwrap();
 }
 

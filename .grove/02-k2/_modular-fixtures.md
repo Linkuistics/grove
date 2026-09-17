@@ -44,3 +44,15 @@ guard and existing fake executables; never launch a real agent from tests.
 - Decomposed into generic runner fixtures (`runner-fixtures-k4`) and downstream
   consumer fixtures (`consumer-fixtures-k5`). Each is independently testable while
   both configuration forms remain supported; production removal remains k3.
+
+## Consumer handoff
+
+The consumer batch delivered loop, CLI, admission and TUI fixture migrations,
+including the repository-wide `testing/support.rs` helper. Full repository
+checks pass. Remaining downstream compatibility cases are `legacy_delta_*` in
+`crates/grove-loop/tests/session_config.rs` and `legacy_json_*` in
+`crates/grove/tests/config_show.rs`; their semantic coverage must be reconciled
+when k3 removes the old form. The commented smoke-test recipe in
+`scripts/release-publish.sh` is an additional current-documentation consumer for
+k3, alongside the packaged legacy example. The runner-specific inventory remains
+in `01-DONE-impl--runner-fixtures-k4.md`.

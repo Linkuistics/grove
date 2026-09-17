@@ -3,13 +3,13 @@
 //!
 //! Grove no longer holds a set of kinds to check a configuration against, so the
 //! only honest question is about the kind in hand: before writing a leaf of kind
-//! K, K must resolve to exactly one complete template read whole out of one
-//! file. Asserted here at the CLI boundary, over the five verbs that write a
+//! K, K must resolve to one complete command admitted by personal policy.
+//! Asserted here at the CLI boundary, over the five verbs that write a
 //! leaf, because *before the tree is mutated* is half of what is being claimed.
 //!
-//! The other half — that every template rule is still checked eagerly over the
-//! whole document — is in `tests/session_config.rs` and in the runner's own
-//! suite. `tests/lifecycle_cutover.rs` holds it for the driver's own mutations.
+//! Configuration validation is covered by grove-loop's `tests/session_config.rs`
+//! and the runner's own suite. Grove's `tests/lifecycle_cutover.rs` holds the
+//! admission rule for the driver's own mutations.
 
 use assert_cmd::Command;
 use std::fs;
@@ -24,10 +24,13 @@ fn home_declaring(kinds: &[&str]) -> TempDir {
     let home = TempDir::new().unwrap();
     let dir = home.path().join(".config/grove");
     fs::create_dir_all(&dir).unwrap();
-    let document: String = kinds
+    let routes: String = kinds
         .iter()
-        .map(|kind| format!("{kind} \"true ${{prompt}}\"\n"))
+        .map(|kind| format!("    route {kind:?} \"lead\"\n"))
         .collect();
+    let document = format!(
+        "config {{\n    command \"runner\" \"true ${{prompt}}\"\n    bind \"lead\" \"runner\"\n{routes}}}\n"
+    );
     fs::write(dir.join("config.kdl"), document).unwrap();
     home
 }

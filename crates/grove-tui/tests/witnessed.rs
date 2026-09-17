@@ -93,7 +93,7 @@ impl Launch {
         put(
             root,
             "config/.config/grove/config.kdl",
-            "impl \"/bin/sh harness '${prompt}'\"\nfinish \"/bin/sh harness '${prompt}'\"\n",
+            "config {\n    command \"runner\" \"/bin/sh harness '${prompt}'\"\n    bind \"lead\" \"runner\"\n    route \"impl\" \"lead\"\n    route \"finish\" \"lead\"\n}\n",
         );
         let listener = UnixListener::bind(root.join("session.sock")).unwrap();
         listener.set_nonblocking(true).unwrap();
@@ -724,7 +724,9 @@ fn failed_and_immediate_launches_leave_no_running_attachment() {
         put(
             work.path(),
             "config/.config/grove/config.kdl",
-            &format!("impl \"{command} '${{prompt}}'\"\n"),
+            &format!(
+                "config {{\n    command \"runner\" \"{command} '${{prompt}}'\"\n    bind \"lead\" \"runner\"\n    route \"impl\" \"lead\"\n}}\n"
+            ),
         );
         if failed {
             put(work.path(), "expect-spawn-error", "");

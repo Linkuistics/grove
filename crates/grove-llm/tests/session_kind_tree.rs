@@ -54,13 +54,13 @@ fn selected_policy_controls_leaf_add_and_errors_precede_mutation() {
         ("select \"broken\"", "", false, "missing"),
         (
             "select \"missing-target\"",
-            "design \"local ${prompt}\"",
+            "config { route \"design\" \"lead\"; }",
             false,
             "design",
         ),
         (
             "select \"inactive\"",
-            "impl \"local ${prompt}\"",
+            "config { route \"impl\" \"lead\"; }",
             false,
             "impl",
         ),
@@ -76,15 +76,16 @@ fn selected_policy_controls_leaf_add_and_errors_precede_mutation() {
         let base = if selection == "select \"inactive\"" {
             ""
         } else {
-            "impl \"runner ${prompt}\""
+            "route \"impl\" \"lead\""
         };
         fs::write(
             config_dir.join("config.kdl"),
             format!(
-                r#"{base}
-config {{
+                r#"config {{
     command "agent" "runner ${{prompt}}"
-    profile "daily" {{ bind "lead" "agent"; route "impl" "lead"; }}
+    bind "lead" "agent"
+    {base}
+    profile "daily" {{ route "impl" "lead"; }}
     profile "inactive" {{ }}
     profile "broken" {{ include "missing"; }}
     profile "missing-target" {{ route "design" {{ param "effort" "high"; }}; }}

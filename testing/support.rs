@@ -422,10 +422,13 @@ pub fn fixture_home() -> &'static Path {
         let home = tempfile::TempDir::new().expect("fixture $HOME");
         let dir = home.path().join(".config/grove");
         fs::create_dir_all(&dir).expect("fixture config dir");
-        let document: String = EVERY_SESSION_KIND
+        let routes: String = EVERY_SESSION_KIND
             .iter()
-            .map(|kind| format!("{kind} \"true ${{prompt}}\"\n"))
+            .map(|kind| format!("    route {kind:?} \"lead\"\n"))
             .collect();
+        let document = format!(
+            "config {{\n    command \"runner\" \"true ${{prompt}}\"\n    bind \"lead\" \"runner\"\n{routes}}}\n"
+        );
         fs::write(dir.join("config.kdl"), document).expect("fixture config");
         home
     });

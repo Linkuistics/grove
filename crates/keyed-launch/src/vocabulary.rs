@@ -4,9 +4,9 @@
 /// *names*.** That a substitution occupies a whole word, that it names a
 /// declared slot, that a required slot appears exactly once and an optional one
 /// at most once — none of them is checkable by a loader that will not learn the
-/// names until expansion. Handed the vocabulary at load, the whole of both
-/// documents is checked before anything is spawned, and expansion is left with
-/// one obligation: that the values offered fill the slots declared here.
+/// names until expansion. Capture retains the vocabulary; resolution checks
+/// active commands before anything is spawned. Expansion then checks that the
+/// values offered fill the slots declared here, without reparsing their bytes.
 /// Names beginning with `param.` are reserved for configuration parameters and
 /// are refused by both Catalog and Templates loading, before source I/O.
 pub struct Vocabulary<'a> {

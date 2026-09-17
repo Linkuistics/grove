@@ -65,28 +65,35 @@ to a process, a query to an engine, a route to a handler — and ask where it
 learns what the value means. The three parts below are the three places such a
 layer usually learns it anyway; each has a cost, and each has a shape you can
 look for. What follows is each part answered against the chapters that proved it
-here, with the carried example — grove's own two-line configuration, its four
+here, with the carried example — Grove's modular configuration, its four
 slots and its channel variable — as the material.
 
-The starting point is the same in all three: the two lines
+The starting point is the same in all three: the document
 [chapter 1 put on the page](01-orientation.md#the-launch-in-outline).
 
 ```text
-impl "claude --model opus ${prompt}"
-review-impl "codex exec --model gpt-5 ${prompt}"
+config {
+    command "assistant" "claude --model opus ${prompt}"
+    command "reviewer" "codex exec --model gpt-5 ${prompt}"
+    bind "lead" "assistant"
+    bind "review" "reviewer"
+    route "impl" "lead"
+    route "review-impl" "review"
+}
 ```
 
 A reader of this book knows what `claude`, `--model opus` and a mandate are. The
 crate does not, and the three parts below are the three moments at which it could
 have found out.
 
-### 1 · On the way in — assembling one value out of more than one source
+### 1 · On the way in — composing settings without visible precedence
 
 **The move.** The layer builds one effective value by combining pieces from
 several places: a default, a file, an environment variable, a flag, a
 site-specific overlay. To combine them it must know what the parts *are* —
-which fields merge, which override, which concatenate — and that knowledge is a
-domain model it acquired without anyone deciding it should have one.
+which fields merge, which override, which concatenate. When those choices are
+implicit or depend on the executable, the layer has acquired a domain model
+that the configuration's author cannot inspect.
 
 **The cost.** Nobody can see the whole of a value in one place, and no single
 author owns it. The file an operator reads is not the value the program runs,
@@ -105,19 +112,18 @@ route and binding sources as well. The generic grammar makes the precedence
 visible without adding a model, vendor or approval-policy schema.
 
 The second document exposes this arm's asymmetry. grove's overlay is a
-project-local file a repository can ship, and the property that stands between
-it and *a program the operator
-never chose* is that the overlay may override a key and may not introduce one.
+project-local file that Grove requires to be untracked. The generic runner
+separately enforces personal authority over keys: the overlay may redirect an
+admitted key but cannot introduce one. Command definitions remain personal.
 [Chapter 3's second ending](03-two-documents.md#the-second-ending) is that
 refusal: a key only the overlay declares does not resolve, and the message names
 the overlay it was found in and the primary that would have to declare it.
 
 Two tests in `crates/keyed-launch/tests/templates.rs` hold the arm.
-`an_overlay_replaces_a_whole_template_and_reports_its_own_path` loads a primary
-declaring `one` and `two` and an overlay declaring `two`, then asserts that `one`
-expands from the primary's words, `two` from the overlay's, and that
-`templates.source` returns each key's own file — the whole-template replacement
-and the single-owner property in one case.
+`an_overlay_redirects_a_command_and_retains_both_sources` loads personal
+commands and routes for `one` and `two`, then redirects `two` locally to another
+personal command. It checks the changed argv, the personal definition path for
+both keys, and the local binding assignment's origin in inspection.
 `a_key_only_the_overlay_declares_does_not_resolve` loads a primary declaring only
 `one` beside an overlay declaring `two`, and asserts three things: that
 `source("two")` is `None`, that `require("two")` refuses with the overlay's path
@@ -185,7 +191,7 @@ adding a meaning would have inherited that one from a dependency. So it scans th
 line for the character before the split and refuses the template rather than
 compiling an argv that means less than the operator wrote.
 `an_unquoted_hash_is_refused_rather_than_truncating_the_argv` loads
-`one "wrapper # ${prompt}"` and requires the refusal to say
+a modular command definition with template `"wrapper # ${prompt}"` and requires the refusal to say
 `` `#` starts a comment in a command template ``, and
 `quoted_and_midword_hashes_stay_literal` holds the other side, so the rule does
 not cost an operator a `#tag` or a `mid#word` that no shell would have eaten

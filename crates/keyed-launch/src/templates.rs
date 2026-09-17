@@ -246,9 +246,9 @@ impl Templates {
         Catalog::load(primary, overlay, vocabulary)?.resolve(&Selection::default())
     }
 
-    /// The file this key's template was actually read from — the primary file,
-    /// or the overlay that overrode it. `None` when the primary does not declare
-    /// it, whatever the overlay says.
+    /// The primary file holding this key's resolved command definition.
+    /// Binding, route and parameter origins are available through `inspect`.
+    /// Returns `None` for a key not admitted by active primary policy.
     #[must_use]
     pub fn source(&self, key: &str) -> Option<&Path> {
         self.templates
@@ -324,9 +324,9 @@ impl Templates {
             });
         }
 
-        // Word zero is a literal non-empty executable, checked at load for every
-        // template in both documents, so the split below cannot fail on a
-        // template this type holds.
+        // Resolution checks word zero is a literal non-empty executable for
+        // every active command. The split below therefore cannot fail on a
+        // template this resolved snapshot holds.
         let mut words = words.into_iter();
         let program = words
             .next()

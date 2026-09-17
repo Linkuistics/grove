@@ -545,8 +545,12 @@ session for that leaf and is watching for one file to appear.
     └── gateway/
 
 ~/.config/grove/config.kdl
-    impl        "claude --add-dir ${repo} ${prompt}"
-    review-impl "claude --add-dir ${repo} ${prompt}"
+    config {
+        command "agent" "claude --add-dir ${repo} ${prompt}"
+        bind "lead" "agent"
+        route "impl" "lead"
+        route "review-impl" "lead"
+    }
 
 the session's environment, set by the driver
     GROVE_SIGNAL_FILE=/work/atlas/.jj/grove/signal-3f9c2a7e5b1d4c8890aa61e0f27b4d13

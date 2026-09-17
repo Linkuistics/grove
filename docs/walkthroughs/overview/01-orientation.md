@@ -347,7 +347,11 @@ and the human's configuration maps the `impl` kind to a command:
         └── src/                            the directory grove is typed in
 
 ~/.config/grove/config.kdl
-    impl "claude --add-dir ${repo} ${prompt}"
+    config {
+        command "agent" "claude --add-dir ${repo} ${prompt}"
+        bind "lead" "agent"
+        route "impl" "lead"
+    }
 ```
 
 The human is somewhere inside the tree, not at its root, which is the ordinary

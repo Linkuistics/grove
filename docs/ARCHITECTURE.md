@@ -311,8 +311,8 @@ The renderer performs no I/O.
 ## Session configuration
 
 `~/.config/grove/config.kdl` carries user launch policy: a map of session
-kinds to complete commands, either flat strings or explicit named-command
-bindings and routes. There are no implicit kind defaults or families.
+kinds to complete commands through modular `config { ... }` declarations:
+personal command definitions, bindings and routes, with optional parameters and profiles. There are no implicit kind defaults or families.
 
 **The whole of that is `crates/keyed-launch`, which has never heard of a
 session.** It loads the file — and at most one overlay — into a key-to-template
@@ -324,14 +324,15 @@ it holds no set of keys. `Catalog::load` captures source bytes, parsed
 declarations and vocabulary once; `Catalog::resolve` produces an owned
 `Templates` snapshot without file I/O. `Templates::load` uses that same path
 with an empty selection, and conformance checks the captured Catalog. The
-current reader accepts flat and parameterized named base commands. `ConfigError::diagnostics` provides
+reader accepts modular wrappers and empty documents; flat and mixed documents
+fail structurally with a source-attributed remedy. `ConfigError::diagnostics` provides
 stable categories, available source byte ranges and remedies; structural reports
 from both explicit documents precede template-semantic validation reports.
 `Templates::inspect` explains captured reference chains and resolution, including overwritten
 target assignments, winning word origins and non-admitted overlay keys. Its
 literal/slot words share expansion's compiled representation. Parameter defaults
 and shared/route values fill pre-split words and retain contributing origins and
-assignment/removal/reset histories. Explicit generic selections expand includes
+assignment/removal histories. Explicit generic selections expand includes
 before each profile patch, repeating every occurrence and checking personal target
 authority before local patches. Inactive profiles receive structural checks only.
 `config show` presents this snapshot in human or schema-version-1 JSON form.
@@ -348,7 +349,7 @@ in `lifecycle_cutover.rs` and `loop_driver.rs` covers workspace isolation, exact
 parameter argv, live-child edits and an external edit between the two loads.
 Named definitions
 are primary-only; effective bindings validate their templates after local targets
-replace personal targets. Dormant definitions are not compiled; flat checks stay eager.
+replace personal targets. Dormant definitions are not compiled.
 
 **And it runs what it expanded.** The same crate allocates the launch's
 completion channel, spawns the argv directly with no shell, supervises the child
@@ -462,9 +463,10 @@ write, and the generic store has no knowledge of session kinds.
 At most one second file takes part: an untracked `.grove.kdl` **configuration
 delta**, searched at the worktree root and then the main repository root, the
 first one found selected outright and the two never merged. It declares any
-subset of kinds through whole flat templates or named routes, and can redirect
-bindings to personal command definitions. **It overrides and never supplies**:
-a kind resolves only if the personal file targets it. Each launch resolves to a
+subset of admitted kinds through routes, bindings and parameter patches, and can
+select personal profiles or redirect bindings to personal command definitions. **It overrides and never supplies**:
+a kind resolves only if the personal base and selected personal profiles target
+it before direct local patches apply. Each launch resolves to a
 complete compiled command, with its reference origins retained, preserving
 [complete session configuration](adr/complete-session-configuration.md).
 The module takes

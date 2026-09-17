@@ -212,7 +212,7 @@ declarations and exports, which this chapter reads after the worked example.
 The first fragment is the spine, and every chapter of this book is a reading of
 its second sentence. The claim has two halves. The crate understands neither the
 key nor the template: a consumer names one and a template names the other, and
-nothing in these 3,399 lines interprets either. What the crate does own is
+nothing in these 3,715 lines interprets either. What the crate does own is
 stated positively: a launch resolves to one explicit, complete command and is
 checked before anything is spawned. Chapters 3 and 4 explain reference resolution
 and template validation without interpreting a harness or its flags.
@@ -246,9 +246,9 @@ questions.
 //! # Two documents, and what the second one may do
 //!
 //! [`Catalog::load`] captures a primary file and an optional overlay. **A key
-//! resolves only if the primary declares it**: where the overlay also declares
-//! it the overlay binding target wins; where only the overlay
-//! declares it the key does not resolve, and the refusal names the key and the
+//! resolves only if active primary policy supplies its route target**. The overlay
+//! may redirect bindings or routes and patch values; a route declared only in the
+//! overlay does not resolve, and the refusal names the key and the
 //! primary file that must declare it. That is what keeps a second source unable
 //! to authorize a key the operator never chose, and it is checked without
 //! either document knowing what a key means.
@@ -388,10 +388,9 @@ launcher's job, which is chapter 8.
 | **A launch ends out of band** | 50–54 | 6, and the escalation in 8 |
 | *Testing a consumer's configuration* | 62–65 | 9 |
 
-Chapter 4 is the one chapter with no paragraph of its own in the library root,
-and that absence is itself informative: the template rules are the part of the
-crate the module documentation does not argue, and `src/templates.rs` is 13 per
-cent comment. Chapter 4 supplies the argument the source does not make.
+Chapter 4 develops the command-compilation rules beyond the library root's
+summary. It explains the shell-comment scanner, runtime slots and parameter
+fragments beside the implementation that enforces them.
 
 <a id="the-launch-in-outline"></a>
 ## The launch in outline
@@ -402,18 +401,22 @@ the example is watching the crate not care. It starts here at low resolution —
 every call named, no handler shown — and each later chapter takes one step of it
 apart. Its values are fixed here and reused by every chapter that follows.
 
-The launch starts with two lines in a file the crate did not write and does not
-own. This is the primary document — for grove, a personal `config.kdl` under the
-operator's home directory — declaring two keys, each mapped to one complete
-command template. The figure is the whole input to the trace below, and the two
-`${prompt}` substitutions are the only syntax in it the crate will attach a rule
-to. Those two lines are the whole document; what the crate does
-with a `#` inside one of those quoted templates is chapter 4's, and it is not
-what a reader of shell would expect.
+The launch starts with a modular document in a file the crate did not write.
+This primary document — for Grove, the personal `config.kdl` — declares two
+commands, two bindings and two routes. Profiles and parameters are optional;
+this example needs neither. The crate checks the references and runtime slots,
+but assigns no meaning to the keys or executable arguments. Chapter 4 explains
+what it does with a `#` inside a command template.
 
 ```text
-impl "claude --model opus ${prompt}"
-review-impl "codex exec --model gpt-5 ${prompt}"
+config {
+    command "assistant" "claude --model opus ${prompt}"
+    command "reviewer" "codex exec --model gpt-5 ${prompt}"
+    bind "lead" "assistant"
+    bind "review" "reviewer"
+    route "impl" "lead"
+    route "review-impl" "review"
+}
 ```
 
 The consumer also supplies a vocabulary: the slot names its own templates are
@@ -462,9 +465,9 @@ shows a line of the handler behind it.
 ```
 
 Four properties of that trace are worth naming now, because they are what the
-later chapters prove and what the closing chapter tests. **Step 1 reads two
-documents and resolves explicit targets**: this flat example uses one whole
-template per key; named routes can instead share a command through a binding. **Step 2
+later chapters prove and what the closing chapter tests. **Step 1 captures the
+primary and any explicit overlay, then resolves targets**: each route reaches a
+command through a binding, which other routes may share. **Step 2
 produces a value the caller cannot construct any other way**, which is what makes
 step 4's promise checkable. **Step 3 writes nothing**, so the file's later
 existence is unambiguous evidence that something wrote it. And **step 5 is the
@@ -583,7 +586,7 @@ known source and key to runtime errors without inventing a source span.
 Occurrence records identify each selected entry, including an unknown external
 profile and its list index; absent selection origins stay absent. Named resolution supplies binding,
 command and parameter names when those declarations cause a failure.
-Chapter 4 explains how the flat validator supplies locations and categories.
+Chapters 3 and 4 explain structural capture and active template diagnostics.
 
 <!-- fragment «error-config-type» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="2-93" parent="two-opaque-errors" -->
 ````rust

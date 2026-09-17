@@ -10,9 +10,9 @@
 //! # Two documents, and what the second one may do
 //!
 //! [`Catalog::load`] captures a primary file and an optional overlay. **A key
-//! resolves only if the primary declares it**: where the overlay also declares
-//! it the overlay binding target wins; where only the overlay
-//! declares it the key does not resolve, and the refusal names the key and the
+//! resolves only if active primary policy supplies its route target**. The overlay
+//! may redirect bindings or routes and patch values; a route declared only in the
+//! overlay does not resolve, and the refusal names the key and the
 //! primary file that must declare it. That is what keeps a second source unable
 //! to authorize a key the operator never chose, and it is checked without
 //! either document knowing what a key means.

@@ -12,8 +12,8 @@ and compiles effective named commands from those captured declarations. `Templat
 of those operations with an empty selection. None of these operations decides
 which files a consumer should supply.
 
-The running example resolves each key to one whole template. Capture preserves
-both original declarations when an overlay replaces a command, and Templates
+The running example resolves each key through a binding to a personal command.
+Capture preserves original declarations when an overlay redirects a binding, and Templates
 owns its snapshot independently. Changing or removing a file cannot change
 expansion, inspection or diagnostic locations. Inspection explains named reference chains and parameter
 composition, including every selected profile occurrence. Inactive profiles pass
@@ -188,9 +188,10 @@ impl Templates {
 <a id="both-documents"></a>
 ## Two files, one captured result
 
-For a primary declaring `impl` and `review-impl`, and an overlay replacing only
-`impl`, resolution keeps the primary review command and the overlay impl command.
-`source("impl")` names the overlay; `source("review-impl")` names the primary.
+Add `config { bind "lead" "reviewer"; }` as the overlay for chapter 1's primary.
+Both routes now use the personal reviewer command. `source("impl")` and
+`source("review-impl")` both name the primary; inspection retains the local
+binding assignment and its superseded personal value.
 `named::compile` turns each effective command definition into argument fragments
 and runtime slots, checking the consumer vocabulary before expansion. Chapter 4
 explains those template rules.
@@ -504,8 +505,8 @@ include cycles cannot change the base command or authorize a local-only key.
 `parse_selection` validates both the source selection and a profile include
 list without resolving names. Each scope has its own list slot. It preserves repeats and an empty list, rejects properties, types and
 children, and reports duplicate declarations against both source spans. This
-lets a consumer inspect the declaration before deciding policy; Grove uses that
-boundary to refuse declarations until its selection policy is implemented.
+lets a consumer inspect declarations before choosing a list. Grove chooses the
+local declaration, else the personal default, else an empty selection.
 
 <!-- fragment «named-capture» owner="never-assembled" source="crates/keyed-launch/src/templates/named.rs" lines="1-533" parent="source-named" -->
 ````rust

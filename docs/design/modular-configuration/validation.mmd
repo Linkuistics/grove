@@ -1,7 +1,6 @@
 flowchart TD
     D[Personal document and chosen local document]
-    S[Check KDL, shapes and duplicates everywhere]
-    L[Check all legacy templates eagerly]
+    S[Require modular wrappers; check KDL, shapes and duplicates everywhere]
     P[Expand selected profiles; reject unknown names and cycles]
     F[Fold patches; preserve value origins]
     C[Require personal targets; compile active routes and validate parameters]
@@ -9,7 +8,7 @@ flowchart TD
     I[grove config show: structured words and origins]
     R[Require selected kind; fill runtime slots]
     A[Argv: direct execution]
-    D --> S --> L --> P --> F --> C --> T
+    D --> S --> P --> F --> C --> T
     T --> I
     T --> R --> A
     X[Unselected profile bodies and unused command templates]

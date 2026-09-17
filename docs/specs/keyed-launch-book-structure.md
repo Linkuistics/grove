@@ -5,10 +5,12 @@
 This is the structure brief for the book at `docs/walkthroughs/keyed-launch/`.
 The original interview below establishes its audience and concept order; current
 source ownership and lengths are recorded in the book's checked manifest and
-source index. The captured-flat increment extends chapters 2 and 3 with Catalog,
-Selection and retained source declarations, and chapter 9 with Catalog-based
-conformance. Chapter 5 retains the same expansion/scanner contract. Diagnostic
-records, inspection and modular grammar remain pending implementation.
+source index. Chapters 2 and 3 cover Catalog, Selection, modular capture,
+profile composition, parameters and inspection. Chapter 4 owns active command
+compilation; chapter 5 owns expansion; chapter 9 checks captured resolutions.
+Only modular wrappers and empty documents load. The original interview's corpus
+measurements below are historical; the checked manifest and source index own
+current file counts, line ranges and fragment ownership.
 
 **This document is authored, not recovered, and it precedes its book.** Every
 decision below was settled in the `keyed-launch-structure-k34` interview and is
@@ -24,7 +26,7 @@ The chapter sequence and ownership mapping below are what
 `[[block]]` groups. Where the two disagree, that is a defect in one of them, not
 a licence to prefer either.
 
-**What is different about this corpus.** Nine roots and 2,073 lines, the largest
+**What distinguished the original interview corpus.** It had nine roots and 2,073 lines, the largest
 book but one, and the first whose structural problem is neither one big file nor
 many small ones but an **imbalance in how well the source explains itself**:
 `src/run.rs` is 53% comment prose and argues nearly every claim it makes in
@@ -53,10 +55,10 @@ handler — and ask *where does this layer learn what the value means?* The righ
 answer is nowhere, and the reader can name the three places such a layer usually
 learns it anyway, what each costs, and the test that catches it:
 
-- **On the way in** — assembling one value out of more than one source. The cost
-  is that nobody can see the whole of it in one place and no single author owns
-  it. Held by `a_key_only_the_overlay_declares_does_not_resolve` and
-  `an_overlay_replaces_a_whole_template_and_reports_its_own_path` in
+- **On the way in** — composing values without visible precedence. The cost
+  is that the operator cannot reconstruct what will run. Explicit references,
+  authority and inspection make modular composition legible. Held by `a_key_only_the_overlay_declares_does_not_resolve` and
+  `an_overlay_redirects_a_command_and_retains_both_sources` in
   `crates/keyed-launch/tests/templates.rs`.
 - **On the way through** — re-reading a value it has already read. The cost is
   that a value with a space becomes two arguments, a `#` truncates the line, and
@@ -71,7 +73,7 @@ learns it anyway, what each costs, and the test that catches it:
   `a_scrubbed_variable_is_removed_from_an_inherited_environment` in
   `crates/keyed-launch/tests/launch.rs`.
 
-All three are provable inside this book's 2,073 lines. The closing page states
+All three are exercised within this book's checked corpus. The closing page states
 the test and applies it to all nine source-owning chapters.
 
 **This is not `jj-workspace`'s spine wearing a different hat, and the book says
@@ -114,7 +116,7 @@ crate from being a bounded context of its own.
 |---|---|---:|
 | the manifest, the library root, the two error types | three dependencies and no domain; two opaque errors so neither half's caller handles the other's | 1 |
 | the vocabulary and the compiled shapes | a rule is about a slot's *name*; the crate never learns what the name means | 2 |
-| reading and validating two documents | a launch is one complete string read whole out of one file, never assembled from two | 3 |
+| reading and validating two documents | composition follows explicit targets and parameter precedence, with every contribution inspectable | 3 |
 | the template rules and their diagnostics | a word is a word; no shell ever sees the line, and a `#` is refused rather than obeyed | 4 |
 | resolution, expansion and the argv | substitution is whole-word or nothing; the values fill the vocabulary, not this template | 5 |
 | the completion channel | appearance is the event; the token's content is the caller's to read | 6 |
@@ -234,64 +236,44 @@ This chapter states, in one sentence, how this book's spine differs from
 
 ### 2 · The names a template is written against — rules about names
 
-Owns `src/vocabulary.rs` whole and `src/templates.rs` lines 1–91. Responsible
-for: why the vocabulary is an input to `load` and not to `expand`, which is the
-chapter's whole argument and the one place the book takes a position a reader
-could disagree with — every template rule is a rule about slot *names*, so a
-loader that will not learn the names until expansion can check none of them, and
-a vocabulary supplied per call would make every rule just-in-time; `Requirement`
-as a cardinality with two cases and the two messages it owns; that `SlotRule`
-names a slot bare and `${name}` is the spelling, and that the crate never learns
-what the name means; and then the shapes the two later chapters compile into —
-`SlotSpec` as the owned table, `Template` carrying **the file it was read from**
-per key rather than once per configuration, `Word` as literal-or-slot-by-index,
-`DocumentRole` and its statement that the rules do *not* differ by role,
-`SourceLocation`, `ValidationDiagnostic` and `NodeValidation`. The per-key
-`source` is the chapter's second argued claim: after an overlay resolves there is
-no single answer, so a diagnostic naming a file has to name the one that actually
-supplied the failing key.
+Owns the vocabulary, captured/resolved shapes and inspection records, with exact
+ranges in the source index. Explain why slot names and cardinalities arrive at
+load, why Catalog retains source bytes, and why Templates owns its resolved
+snapshot. `Template::source` names the personal command definition; inspection
+retains the other origins. Compiled words contain literals or runtime slots;
+parameter fragments resolve inside pre-split words without creating arguments.
 
-### 3 · Two documents, neither one assembled — never assembled
+### 3 · Two documents and explicit targets — never assembled
 
-Owns `src/templates.rs` lines 92–145 and 276–414. Responsible for:
-`Templates::load` as the crate's one entry point for a configuration, and its
-three promises — a key resolves only if the **primary** declares it, both
-documents are validated whole against the vocabulary, and the load is
-all-or-nothing in both halves; why an unreadable, unparseable or invalid overlay
-fails the load rather than falling back to the very policy its owner was moving
-away from; `compile_vocabulary`'s duplicate-name refusal and its reason — a
-duplicated slot is counted twice against its own cardinality rule and takes
-whichever value arrived first, *a consumer bug that looks like a template bug for
-as long as it goes unnamed*; the asymmetry between `read_primary` and
-`read_overlay`, which is the whole of what *the overlay is optional* means at the
-filesystem; and `validate_document`'s aggregation — every diagnostic in both
-documents, with locations, in one refusal, so one edit fixes the file rather than
-uncovering the next problem.
+Owns capture, structural diagnostics, selection expansion and the declaration
+fold. Both explicit documents are read and structurally checked before semantic
+resolution; an invalid local input never falls back. Flat or mixed top-level
+input is rejected with its source span and a modular-form remedy. Empty inputs
+remain valid. Command and profile definitions are primary-only.
 
-This chapter carries the **second ending**: a `.grove.kdl` that declares a key
-the personal file does not, refused by name, with the refusal naming the file
-that must declare it.
+Selected profiles apply includes before their patches, once per occurrence.
+The personal base plus selected personal profiles establishes admitted route
+targets before direct local overrides. Route parameters outrank shared values;
+`unset` restores inheritance. Compile effective bindings and validate final
+schemas without compiling dormant definitions. Retain overwritten assignments,
+selection occurrences and source spans in inspection after source files change.
+
+The second ending is a local-only key: it remains non-admitted and its use fails
+naming the primary file where it must be authorized.
 
 ### 4 · What a template must be — words not shell
 
-Owns `src/templates.rs` lines 415–534, 535–617 and 618–660. Responsible for:
-every rule a template must satisfy, each with the line that enforces it and the
-diagnostic it produces — the node shape, the duplicate key reporting *every*
-declaration location, word zero being a literal executable, a substitution
-occupying a whole word, a declared slot's cardinality, and unmatched quotes;
-the unquoted `#`, which is the chapter's sharpest case, because `shell-words`
-treats it as a comment start and would silently truncate the argv, so the crate
-scans for it and refuses rather than accepting a line that means less than it
-says; `ShellWordScanState` as the reason that scan cannot be a `contains`;
-`whole_substitution` as the mechanism of whole-word substitution and the place
-`${a}${b}` is refused; and `render_diagnostics`, `format_location` and
-`source_location` as the machinery behind *name what is wrong, name where, name
-what fixes it* — the obligation chapter 1 stated and this chapter is the only one
-that discharges.
+Owns `named::compile` and the shell-comment scanner, with exact ranges in the
+source index. Explain word-zero restrictions, whole-word runtime slots,
+parameter fragments, required slot cardinality, unmatched quotes and the refusal
+of an unquoted comment-start `#`. Explain structural versus active semantic
+validation and the source-attributed diagnostic records without preserving a
+second validator for the retired flat grammar.
 
 ### 5 · From a template to an argv — whole word or nothing
 
-Owns `src/templates.rs` lines 146–275 and 661–670, and `src/argv.rs` whole.
+Owns template lookup and expansion plus `src/argv.rs`; the source index owns
+current ranges.
 Responsible for: `source`, and why `None` for a key the primary does not declare
 whatever the overlay says; `require` as the obligation a consumer discharges
 *before* it commits to a key, stated once so the refusal's wording has one owner;
@@ -412,41 +394,23 @@ which is the caller's to close at the layer that instructs the child.
 
 | Root | Lines | What the block is | Chapter |
 |---|---:|---|---:|
-| `Cargo.toml` | 1–47 | whole | 1 |
-| `src/lib.rs` | 1–68 | whole | 1 |
-| `src/error.rs` | 1–81 | whole | 1 |
-| `src/vocabulary.rs` | 1–44 | whole | 2 |
-| `src/templates.rs` | 1–91 | imports and the seven types | 2 |
-| `src/templates.rs` | 92–145 | the `impl Templates` opening and `load` | 3 |
-| `src/templates.rs` | 146–275 | `source`, `require`, `expand`, `match_values`, `declared_slots`, `unresolved` | 5 |
-| `src/templates.rs` | 276–414 | `compile_vocabulary`, `read_primary`, `read_overlay`, `parse_and_validate`, `validate_document` | 3 |
-| `src/templates.rs` | 415–534 | `validate_node`, `validate_template` | 4 |
-| `src/templates.rs` | 535–617 | `ShellWordScanState`, `contains_shell_comment_start`, `parse_template_word`, `whole_substitution` | 4 |
-| `src/templates.rs` | 618–660 | `at_node`, `at_template`, `render_diagnostics`, `format_location`, `source_location` | 4 |
-| `src/templates.rs` | 661–670 | `keys` | 5 |
-| `src/argv.rs` | 1–48 | whole | 5 |
-| `src/channel.rs` | 1–271 | header, imports, the three constants, `Channel`, `Token`, `signal`, four helpers | 6 |
-| `src/channel.rs` | 272–404 | the inline `#[cfg(test)] mod tests` | 9 |
-| `src/run.rs` | 1–123 | header, imports, `POLL_INTERVAL`, `Escalation`, `Launch`, `Ended`, `End` | 7 |
-| `src/run.rs` | 124–243 | `Watch`, `INTERRUPTED_BY`, `take_interrupt`, `reraise`, `on_terminate`, `install_termination_handler` | 8 |
-| `src/run.rs` | 244–448 | `DEFAULT_DISPOSITION_IN_CHILD`, `Terminal`, `own_group`, `run` | 7 |
-| `src/run.rs` | 449–607 | `supervise`, `watch`, `kill` | 8 |
-| `src/conformance.rs` | 1–104 | whole | 9 |
+| `Cargo.toml`, `src/lib.rs`, `src/error.rs` | current source-index ranges | manifest, public contract, diagnostics | 1 |
+| `src/vocabulary.rs`, `src/inspection.rs`, captured/resolved types | current source-index ranges | vocabulary, snapshots, origins and histories | 2 |
+| `src/templates.rs`, `src/templates/named.rs` | current source-index ranges | capture, composition, authority and resolution | 3 |
+| `src/templates.rs`, `src/templates/named.rs` | current source-index ranges | shell-comment scanner and command compilation | 4 |
+| `src/templates.rs`, `src/argv.rs` | current source-index ranges | lookup and expansion | 5 |
+| `src/channel.rs` | current source-index ranges | completion channel | 6, 9 |
+| `src/run.rs` | current source-index ranges | launch, observation and supervision | 7, 8 |
+| `src/conformance.rs` | current source-index ranges | captured-resolution checks | 9 |
 
 ### Where a file's concerns split across chapters
 
-Three roots split, and each split is the concept order disagreeing with the
-file's own.
-
-**`src/templates.rs` splits four ways across chapters 2, 3, 4 and 5**, in eight
-blocks. The file is types, then the public `impl`, then the free validation
-functions, then the diagnostic helpers; the book is shapes, then loading, then
-the rules, then expansion. The two interleave: chapter 3 owns lines 92–145 and
-276–414, and chapter 5 owns the 146–275 that sits between them.
-
-**`src/run.rs` splits two ways across chapters 7 and 8**, in four blocks, by
-whose signal it is. Chapter 7 owns 1–123 and 244–448; chapter 8 owns the 124–243
-between them, and 449–607 after.
+Four roots split where concept order differs from file order.
+`src/templates.rs` supplies shapes to chapter 2, capture to chapter 3, the
+comment scanner to chapter 4 and lookup/expansion to chapter 5.
+`src/templates/named.rs` supplies capture/composition to chapter 3 and command
+compilation to chapter 4. `src/run.rs` supplies launch to chapter 7 and
+supervision to chapter 8. The checked source index owns their exact ranges.
 
 **`src/channel.rs` splits at line 272**, the `#[cfg(test)]` attribute, with
 production in chapter 6 and the inline module in chapter 9. This is the only
@@ -455,7 +419,7 @@ reason is that the module's subject is *assurance*, which is chapter 9's, while
 its subject matter is chapter 6's — so chapter 9 explains the tests against
 chapter 6's fragments, which are behind it.
 
-### Owned-source totals
+### Original interview measurements (historical)
 
 | Chapter | Lines | Share |
 |---:|---:|---:|
@@ -528,19 +492,19 @@ crate's side.** The reader knows exactly what the words mean and watches the
 crate not care, which is the spine made visible; an invented consumer would leave
 nothing for the crate to refuse. The starting values are real and published:
 
-- the primary document, two keys, from [`CONFIGURATION.md`](../CONFIGURATION.md):
-  `impl "claude --model opus ${prompt}"` and
-  `review-impl "codex exec --model gpt-5 ${prompt}"`;
-- an overlay that declares `impl` and nothing else;
+- a modular primary document with commands `assistant` and `reviewer`, bindings
+  `lead` and `review`, and routes `impl` and `review-impl`, as written in chapter 1;
+- an overlay `config { bind "lead" "reviewer"; }`, redirecting `impl` to the
+  personal reviewer command;
 - the vocabulary `prompt` (`ExactlyOnce`) with `session_name`, `worktree` and
   `repo` (`AtMostOnce`), which is grove's real four-slot set;
 - the channel variable `GROVE_SIGNAL_FILE`.
 
 | Chapter | Anchor | Starts at | Observable end |
 |---:|---|---|---|
-| 1 | `#the-launch-in-outline` | the two lines on disk | a running child and a token, named but not traced |
+| 1 | `#the-launch-in-outline` | the modular document on disk | a running child and a token, named but not traced |
 | 2 | `#the-four-slots` | the vocabulary value | `${prompt}` is required and why that is checkable only here |
-| 3 | `#both-documents` | `load` with a primary and an overlay | `impl` resolves from the overlay, `review-impl` from the primary, each naming its own file |
+| 3 | `#both-documents` | `load` with a primary and an overlay | both routes resolve to the personal reviewer command; inspection identifies the local binding origin |
 | 4 | `#the-rules-on-one-line` | the `impl` template as text | the compiled `Vec<Word>`; and the same line with an unquoted `#`, refused with its location |
 | 5 | `#four-words` | `expand("impl", …)` | `["claude", "--model", "opus", "<the prompt>"]` — the prompt one argument however many spaces it holds |
 | 6 | `#a-path-and-nothing-else` | `Channel::allocate` in the control directory | a path that does not exist, and a token read back after `signal` |
@@ -570,7 +534,7 @@ the book's early-use ledger.
 
 | Term | First used | Owned by | Why the order forces it |
 |---|---:|---:|---|
-| `validate_node`, `validate_template` | 3 | 4 | `validate_document` drives both, and it belongs with `load` |
+| `named::compile` | 3 | 4 | resolution activates effective bindings before command compilation is explained |
 | `install_termination_handler`, `INTERRUPTED_BY`, `supervise` | 7 | 8 | `run` installs the handler, clears the latch and calls the supervisor as its first and last acts |
 
 Chapter 1 additionally names nearly every public type before its owner explains

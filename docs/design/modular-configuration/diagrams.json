@@ -1,6 +1,6 @@
 {
   "title": "Modular Grove configuration",
-  "intro": "Design against the approved requirements. The grammar and resolver are specified here; implementation follows review.",
+  "intro": "Views of the implemented modular configuration contract. The specification owns grammar, resolution and authority rules.",
   "groups": [
     {"id": "reuse", "title": "Command reuse", "description": "Explicit routes, reusable bindings and parameterized commands."},
     {"id": "composition", "title": "Composition", "description": "Which sources contribute, and in what order."},
@@ -8,7 +8,7 @@
   ],
   "discussion": {
     "title": "Resolve one inspectable command per kind",
-    "status": "Design for review",
+    "status": "Implemented contract",
     "summary": "Profiles patch named settings; includes apply before a profile's own values. Local selection replaces the default list. Direct local values apply last, over kinds explicitly routed by active personal policy.",
     "diagramIds": ["commands", "resolution", "validation"],
     "updatedDiagramIds": ["commands", "resolution", "validation"]

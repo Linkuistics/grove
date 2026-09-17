@@ -220,8 +220,8 @@ impl SessionConfig {
         })?)
     }
 
-    /// The file the resolved template for `kind` was read from — the personal
-    /// file, or the delta that overrode it.
+    /// The personal file holding the resolved command definition for `kind`.
+    /// Use `inspect` for delta contributions to targets and parameter values.
     pub fn source(&self, kind: &str) -> Option<&Path> {
         self.templates.source(kind)
     }

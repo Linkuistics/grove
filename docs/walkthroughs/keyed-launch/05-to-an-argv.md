@@ -51,8 +51,14 @@ the operator's personal file and the vocabulary its lines are written against.
 
 ```text
 ~/.config/grove/config.kdl
-  impl "claude --model opus ${prompt}"
-  review-impl "codex exec --model gpt-5 ${prompt}"
+  config {
+      command "assistant" "claude --model opus ${prompt}"
+      command "reviewer" "codex exec --model gpt-5 ${prompt}"
+      bind "lead" "assistant"
+      bind "review" "reviewer"
+      route "impl" "lead"
+      route "review-impl" "review"
+  }
 
 vocabulary
   prompt        ExactlyOnce
@@ -142,7 +148,7 @@ the public API in `tests/templates.rs` and `tests/inspection.rs`.
 | Function | Answers | Refuses with | Pinned by |
 |---|---|---|---|
 | `inspect` | captured sources, histories and compiled words | — | `inspection_keeps_native_paths_and_symbolic_native_values` |
-| `source` | which file this key's template was read from | `None` is an answer, not a refusal | `an_overlay_replaces_a_whole_template_and_reports_its_own_path`, `a_key_only_the_overlay_declares_does_not_resolve` |
+| `source` | which file this key's template was read from | `None` is an answer, not a refusal | `an_overlay_redirects_a_command_and_retains_both_sources`, `a_key_only_the_overlay_declares_does_not_resolve` |
 | `require` | does this key resolve to exactly one complete template | `` key `k` does not resolve: … `` | `a_key_nobody_declares_names_the_primary_file`, `a_key_only_the_overlay_declares_does_not_resolve` |
 | `expand` | this key's template plus these values, as an argv | both of `require`'s and all three of `match_values`'s | `a_slot_value_is_one_argument_whatever_it_contains`, `program_and_arguments_split_at_word_zero`, `shell_metacharacters_stay_literal` |
 | `match_values` | which offered value fills which declared slot | `` no slot named `n` is declared ``, `` slot `n` was offered more than one value ``, `` no value offered for declared slot: n `` | `expansion_refuses_values_that_do_not_fill_the_vocabulary` |
@@ -180,9 +186,9 @@ to be re-read.
 
 <!-- fragment «templates-source» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="249-257" parent="resolution-and-expansion" -->
 ````rust
-    /// The file this key's template was actually read from — the primary file,
-    /// or the overlay that overrode it. `None` when the primary does not declare
-    /// it, whatever the overlay says.
+    /// The primary file holding this key's resolved command definition.
+    /// Binding, route and parameter origins are available through `inspect`.
+    /// Returns `None` for a key not admitted by active primary policy.
     #[must_use]
     pub fn source(&self, key: &str) -> Option<&Path> {
         self.templates
@@ -192,34 +198,17 @@ to be re-read.
 ````
 <!-- /fragment -->
 
-Three lines of comment carry the whole rule, and the last clause of them is the
-one worth slowing down for: `None` **when the primary does not declare it,
-whatever the overlay says**. The map is `templates`, and chapter 3 read the loop
-that fills it — a key the overlay declares and the primary does not takes the
-`Entry::Vacant` arm, where the template is dropped and only the key is kept, in
-`overlay_only`. So there is no entry to `get`, and this function's answer for
-such a key is the same `None` it gives for a key nobody has ever written down.
+Active personal policy must supply a route target before local patches apply.
+A local-only key is recorded in `overlay_only` and inspection's non-admitted
+list, but never enters `templates`. `source` therefore returns `None` for it;
+`require` and `expand` provide the refusal naming both sources.
+`a_key_only_the_overlay_declares_does_not_resolve` checks that distinction.
 
-That is one consequence of *the untracked configuration delta*; the section on
-`unresolved` below is where the record is actually kept, and this is where it
-first shows. The record settles that a kind resolves only if the personal
-file declares it, and that where only the delta declares one, the kind does not
-resolve. An earlier form of the rule got that for free from a quantifier over all
-kinds — a delta could only override something already written down — and the
-quantifier is gone, because nothing in the system can enumerate the kinds a
-methodology declares. What replaced it is per-key and just-in-time, and this is
-what *just-in-time* costs: `load` returned `Ok`, `source` returns `None` rather
-than an error, and nothing is refused until the key is used.
-`a_key_only_the_overlay_declares_does_not_resolve` asserts precisely this pair —
-`source("two")` is `None`, and only the next call is a refusal.
-
-The two-file case is the other half of what the function is for.
-`an_overlay_replaces_a_whole_template_and_reports_its_own_path` loads a primary
-declaring `one` and `two` and an overlay declaring `two`, then asserts that
-`source("one")` is the primary and `source("two")` is the overlay. After an
-overlay resolves there is no single answer to *which file did this configuration
-come from*, and a diagnostic that named one file for every key would point half
-its readers at a file that never held the failing template.
+`an_overlay_redirects_a_command_and_retains_both_sources` covers the other case:
+a local binding redirects `two` to another personal command. Both keys still
+report the personal path through `source`. Inspection separately identifies the
+local assignment, so callers needing the provenance of the complete resolved
+command must use `inspect`, not infer it from this narrow accessor.
 
 <a id="before-committing"></a>
 ## The question asked before a key is committed to
@@ -339,9 +328,9 @@ stated over something other than what a reader would first expect.
             });
         }
 
-        // Word zero is a literal non-empty executable, checked at load for every
-        // template in both documents, so the split below cannot fail on a
-        // template this type holds.
+        // Resolution checks word zero is a literal non-empty executable for
+        // every active command. The split below therefore cannot fail on a
+        // template this resolved snapshot holds.
         let mut words = words.into_iter();
         let program = words
             .next()
@@ -403,9 +392,9 @@ data. `nul_runtime_values_fail_even_for_unused_optional_slots` checks that
 boundary, and the native-string regression checks that non-Unicode bytes survive.
 
 The final split separates word zero from the arguments. The split cannot fail, and the reason it cannot is
-in another chapter: word zero is checked at load to be a literal and non-empty,
-for every template in both documents, so a `Templates` value cannot hold a
-template with no words. The `expect` message says as much. `Argv::new` receives
+in another chapter: resolution checks word zero for every active command to be
+literal and non-empty, so a `Templates` snapshot cannot hold a template with no
+words. Dormant definitions are not compiled. The `expect` message says as much. `Argv::new` receives
 the program and the remaining words, and it is the last line of the crate's
 configuration half.
 
@@ -596,10 +585,10 @@ would be true. It is about which mistake the reader has actually made.
 
 The first row is *the untracked configuration delta* at the point where the
 record is actually kept. The record's own property is that a delta overrides and
-never supplies, and its stated reason is that this is what stands between an
-untracked file a project ships and a program its operator never chose. That
-property is enforced in chapter 3, in the `Entry::Vacant` arm — but a reader who
-hits it does not see an arm of a match. They see this sentence, and it is the
+never supplies. Grove separately refuses tracked local policy, so a repository
+cannot supply executable policy merely by shipping a file. The runner enforces
+personal authority in chapter 3 by capturing admitted targets before local
+patches apply. A reader hitting that boundary does not see the fold. They see this sentence, and it is the
 sentence that has to carry the reason, because the operator looking at it is
 holding a file with the key plainly written in it and would otherwise conclude
 the crate cannot read. So the message names the overlay's path, states the rule
@@ -875,7 +864,7 @@ the shape for performing one. Once a caller flattens an `Argv` to a
 nothing downstream can distinguish its provenance.
 
 Every path from a human's file to a process has now been read. A key was declared
-in one file, a template was split into words once and checked whole, four values
+through explicit targets, a template was split once and checked, four values
 were offered against a vocabulary the consumer declared, and four words came out
 — none of which the crate has an opinion about. What it does not yet have is
 anywhere to send them. The next three chapters are the launch half: chapter 6

@@ -417,6 +417,15 @@ note alone.
 
 ## 7. Configuration, defaults and environment
 
+> **Configuration grammar exception: modular-only removal.** The flat grammar
+> and whole-template replacement measured below are historical. The current
+> [modular specification](specs/modular-configuration.md) requires `config`
+> wrappers, personal command definitions, bindings and routes, with optional
+> parameters and profiles. Flat and mixed documents are rejected. The earlier
+> exception's “everything else … still binds” applied to that earlier increment,
+> not to today's configuration contract. Source selection, untracked local
+> authority and direct argv execution remain current.
+
 **Personal file**: `~/.config/grove/config.kdl`. A flat set of **nineteen**
 top-level KDL nodes, one per session kind, each with a single positional string
 holding a complete command template. No properties, no child blocks. All nineteen

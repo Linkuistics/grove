@@ -721,8 +721,8 @@ presence rule reaching the agent-side binary.
 
 <!-- fragment «config-source-and-require» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="223-249" parent="whose-file" -->
 ````rust
-    /// The file the resolved template for `kind` was read from — the personal
-    /// file, or the delta that overrode it.
+    /// The personal file holding the resolved command definition for `kind`.
+    /// Use `inspect` for delta contributions to targets and parameter values.
     pub fn source(&self, kind: &str) -> Option<&Path> {
         self.templates.source(kind)
     }
@@ -751,9 +751,9 @@ presence rule reaching the agent-side binary.
 ````
 <!-- /fragment -->
 
-`source` answers *which file did this kind actually come from*, and
-`loop_driver.rs` uses it so that every launch diagnostic names the file that held
-the failing template rather than the personal file that did not.
+`source` names the personal file holding the selected command definition.
+`loop_driver.rs` uses that narrow answer for launch diagnostics. Local route,
+binding and parameter contributions have their own origins in `inspect`.
 
 `inspect` borrows the same compiled snapshot used by `expand`: selection origins,
 word origins and overridden assignments stay available after the files disappear.

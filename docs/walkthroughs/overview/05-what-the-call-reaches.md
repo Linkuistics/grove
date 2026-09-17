@@ -80,7 +80,7 @@ reads become visible states and retry automatically.
 
 From `/work/atlas/src`, `grove config show --kind impl` resolves `/work/atlas`
 and loads the personal file plus its admitted local delta, if any. With the
-flat example from Orientation, the report shows literal executable `claude`,
+modular example from Orientation, the report shows literal executable `claude`,
 literal argument `--add-dir`, then slots `repo` and `prompt`. It does not need
 the rate-limit leaf to exist, and it does not compose a mandate. A malformed
 active design route still fails this request before output. Adding `--json`
@@ -143,7 +143,7 @@ The human formatter uses native path debug formatting and byte spans to locate
 captured declarations. `setting_name` distinguishes defaults, shared command
 values and per-kind overrides, which have different specificity. These labels
 explain a history without recomputing its winner. In the running example, the
-flat impl template has a kind-target history and no parameter records.
+impl route has route-target and binding-target histories, with no parameter records.
 
 <!-- fragment «inspection-labels» owner="assembly" source="crates/grove/src/config.rs" lines="27-46" parent="configuration-report" -->
 ````rust

@@ -57,9 +57,9 @@ a parameter of the loader rather than of expansion.
 /// *names*.** That a substitution occupies a whole word, that it names a
 /// declared slot, that a required slot appears exactly once and an optional one
 /// at most once — none of them is checkable by a loader that will not learn the
-/// names until expansion. Handed the vocabulary at load, the whole of both
-/// documents is checked before anything is spawned, and expansion is left with
-/// one obligation: that the values offered fill the slots declared here.
+/// names until expansion. Capture retains the vocabulary; resolution checks
+/// active commands before anything is spawned. Expansion then checks that the
+/// values offered fill the slots declared here, without reparsing their bytes.
 /// Names beginning with `param.` are reserved for configuration parameters and
 /// are refused by both Catalog and Templates loading, before source I/O.
 pub struct Vocabulary<'a> {
@@ -682,17 +682,13 @@ impl DocumentRole {
 ````
 <!-- /fragment -->
 
-DocumentRole supplies the human noun and structured SourceRole. It is threaded
-through parsing and document validation to attach the correct file identity,
-including each compiled template span. Node shape and template rules do not
-branch on it. Primary authority is applied later by `Catalog::resolve`, after
-both documents pass. The overlay refusal test confirms that invalid local
-templates name the overlay rather than the primary.
-
-`noun` is the whole of the type's behaviour, and its two strings are the only
-words in the crate that distinguish the documents. A reader who gets
-`invalid configuration overlay at …` knows which of two files to open, which is
-the entire purpose of carrying the role that far.
+DocumentRole supplies the human noun and structured SourceRole. Parsing uses it
+to attach the correct file identity and to restrict command and profile
+definitions to personal policy. Both sources receive structural checks; active
+personal route authority is applied later during resolution. A malformed local
+declaration names the overlay, while compiled command text comes from a personal
+definition. The role therefore carries both diagnostic identity and the
+source restrictions, without making the runner discover either file itself.
 
 <a id="what-a-diagnostic-carries"></a>
 ## What a diagnostic carries

@@ -6,7 +6,7 @@
 ## Appearance is the event
 
 Chapter 5 ended with an `Argv` and nowhere to send it. The configuration half of
-the crate is closed: a key resolved from one file, a template was split into
+the crate is closed: a key resolved through explicit targets, a template was split into
 words once at load, four values filled the vocabulary the consumer declared, and
 four words came out — none of which the crate has an opinion about. This chapter
 opens the launch half, and it owns one file. `src/channel.rs` is 404 lines; lines

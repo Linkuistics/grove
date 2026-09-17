@@ -33,9 +33,9 @@ first calls `Catalog::load(config, None, vocabulary)`, then
 list reports success. An explicit overlay participates only when Catalog was
 loaded with it; conformance does not search for one.
 
-A missing required runtime slot in a flat template fails Catalog loading, before
-there is anything to pass to the kit. An unknown selected profile instead fails
-resolution and becomes an Outcome failure. An empty primary (even alongside
+A missing required runtime slot in an active command fails resolution and
+becomes an Outcome failure, as does an unknown selected profile. Structural
+errors fail Catalog loading before there is anything to pass to the kit. An empty primary (even alongside
 valid overlay-only commands) admits no keys and fails the non-vacuity check.
 `catalog.rs` removes source files before checking conformance, so a hidden reload
 would fail its success assertion.
@@ -609,12 +609,12 @@ abandoned completion channel(s) … remove them by hand* — needs a directory t
 lists and an entry that will not delete, and is named by no test. Line 404 is the
 module's closing brace and the last byte of `src/channel.rs`.
 
-With it, every byte of the crate is on a page: nine roots, 2,073 lines, nine
+With it, every byte of the crate is on a page: 11 roots, 3,715 lines, nine
 chapters that own source, and nothing deferred.
 
 The two halves of this chapter check in opposite directions and neither
 interprets a value. The kit holds a consumer's document to obligations about
-form and count — it loads, it declares something, its keys expand — and to
+form and count — it resolves, admits keys and expands them — and to
 nothing about what any key names. The module holds a filename to a grammar of
 prefix, length and alphabet, and to nothing about what the name refers to. In
 neither is there a point at which the crate could have learned what a value means
@@ -637,7 +637,7 @@ Grove's lifecycle and leaf-mutation tests then observe real fake-executable argv
 and refusal before any task-tree write; they do not need an agent harness.
 
 The route acceptance cases in `tests/named_commands.rs` exercise scope specificity,
-binding switches, literal resets, final-schema removals and personal authorization.
+binding switches, removal fallback, final-schema checks and personal authorization.
 They compare captured inspection with loader convenience after source removal.
 Grove’s `lifecycle_cutover` acceptance records exact child argv for local route
 patches and refuses missing personal targets before launch or tree creation.
@@ -650,8 +650,8 @@ keys and a `payload` slot. They distinguish diamond reapplication from global
 deduplication, check occurrence-specific winning origins, and compare inspection
 words with expanded argv after removing sources and dropping Catalog. Separate
 fixtures exercise personal authority before local targets, scope specificity,
-closed cycle chains and literal-transition resets. The existing Grove adapter
-tests retain declaration refusal, including empty lists, and inactive-profile
-base launches until Grove’s selection policy is implemented.
+closed cycle chains and repeated profile applications. Grove adapter tests
+exercise local selection precedence, an explicit empty local list, personal
+default selection and base-only launches without a selection.
 
 [Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md) | [Next: What passes through](10-what-passes-through.md)

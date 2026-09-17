@@ -109,10 +109,13 @@ fn write_complete_config(home: &Path, command: &Path) {
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
     let template = format!("{} '${{prompt}}'", shell_quote(command));
-    let document = SESSION_KINDS
+    let routes = SESSION_KINDS
         .iter()
-        .map(|kind| format!("{kind} {template:?}\n"))
+        .map(|kind| format!("    route {kind:?} \"lead\"\n"))
         .collect::<String>();
+    let document = format!(
+        "config {{\n    command \"agent\" {template:?}\n    bind \"lead\" \"agent\"\n{routes}}}\n"
+    );
     fs::write(config_dir.join("config.kdl"), document).unwrap();
 }
 
@@ -442,7 +445,7 @@ fn modular_pre_launch_reload_refuses_invalid_selection_after_transition_admissio
     }
     fs::write(
         &personal,
-        format!("{valid}\nconfig {{ select \"missing\"; }}\n"),
+        valid.replacen("config {", "config { select \"missing\";", 1),
     )
     .unwrap();
     drop(guard);

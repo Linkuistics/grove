@@ -47,3 +47,11 @@ session completes only the first child, with production removal still in k3.
 with eager-template validation, and eager validation of local flat templates.
 Retained loop configuration/lease fixtures use modular declarations. Carry this
 handoff upward when closing this node so the removal leaf can find it.
+
+`cli-fixtures-k7` leaves two `legacy_json_*` tests in
+`crates/grove/tests/config_show.rs`: null command/binding fields for a flat
+route, and mixed literal/reset assignment histories. Their legacy-only variants
+belong to k3; retain their useful JSON schema, provenance-reference and no-write
+assertions when reconciling them. Other CLI configuration writers use modular
+policy; example-installer tests deliberately retain opaque invalid contents
+because installation must not read active configuration.

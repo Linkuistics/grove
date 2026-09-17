@@ -101,10 +101,13 @@ fn shell_quote(path: &Path) -> String {
 fn write_complete_config(home: &Path, template: &str) {
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
-    let document = SESSION_KINDS
+    let routes = SESSION_KINDS
         .iter()
-        .map(|kind| format!("{kind} {template:?}\n"))
+        .map(|kind| format!("    route {kind:?} \"lead\"\n"))
         .collect::<String>();
+    let document = format!(
+        "config {{\n    command \"agent\" {template:?}\n    bind \"lead\" \"agent\"\n{routes}}}\n"
+    );
     fs::write(config_dir.join("config.kdl"), document).unwrap();
 }
 
@@ -322,7 +325,7 @@ printf 'mode=%s\nrepo=%s\nprompt=%s\nworktree=%s\nsession=%s\n' \
 "#,
     );
     let template = format!(
-        "env MODE='$(printf shell-evaluated)' {} '${{repo}}' '${{prompt}}' {} '${{worktree}}' '${{session_name}}'",
+        "env MODE='$$(printf shell-evaluated)' {} '${{repo}}' '${{prompt}}' {} '${{worktree}}' '${{session_name}}'",
         shell_quote(&fake),
         shell_quote(&argv_log)
     );
@@ -420,10 +423,10 @@ fn invalid_config_cannot_create_a_fresh_grove() {
     // A template that violates a slot rule, not a document missing a kind.
     // Presence is per-kind and just-in-time now
     // (`docs/adr/complete-session-configuration.md`), so an absent key is no
-    // longer what makes a document invalid — but *every* template rule is still
-    // checked eagerly, over the whole document, before any tree mutation, and
+    // longer what makes a document invalid — but active templates are still
+    // validated across all routes before any tree mutation, and
     // that is the property this test defends.
-    fs::write(config_dir.join("config.kdl"), "impl \"runner\"\n").unwrap();
+    fs::write(config_dir.join("config.kdl"), "config { command \"agent\" \"runner\"; bind \"lead\" \"agent\"; route \"impl\" \"lead\"; }\n").unwrap();
     let worktree = fixture.path().join("rootless");
     init_worktree(&worktree);
 
@@ -446,7 +449,7 @@ fn invalid_config_leaves_current_empty_and_partial_trees_byte_identical() {
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
     // As above: a malformed template rather than an absent key.
-    fs::write(config_dir.join("config.kdl"), "impl \"runner\"\n").unwrap();
+    fs::write(config_dir.join("config.kdl"), "config { command \"agent\" \"runner\"; bind \"lead\" \"agent\"; route \"impl\" \"lead\"; }\n").unwrap();
 
     for state in ["current", "empty", "partial"] {
         let worktree = fixture.path().join(format!("{state}-worktree"));
@@ -664,10 +667,11 @@ exit 0
         shell_quote(&active_config)
     );
     write_complete_config(&home, &first_template);
-    let next_document = SESSION_KINDS
+    let next_routes = SESSION_KINDS
         .iter()
-        .map(|kind| format!("{kind} {second_template:?}\n"))
+        .map(|kind| format!("    route {kind:?} \"lead\"\n"))
         .collect::<String>();
+    let next_document = format!("config {{\n    command \"agent\" {second_template:?}\n    bind \"lead\" \"agent\"\n{next_routes}}}\n");
     fs::write(&next_config, next_document).unwrap();
 
     let output = run_grove(&home, &worktree);
@@ -974,7 +978,7 @@ fn a_finish_leaf_is_not_written_when_no_finish_template_resolves() {
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
     // Valid, and silent about `finish`.
-    fs::write(config_dir.join("config.kdl"), "impl \"true ${prompt}\"\n").unwrap();
+    fs::write(config_dir.join("config.kdl"), "config { command \"agent\" \"true ${prompt}\"; bind \"lead\" \"agent\"; route \"impl\" \"lead\"; }\n").unwrap();
     let worktree = fixture.path().join("no-finish-template");
     init_worktree(&worktree);
     let grove = worktree.join(".grove");
@@ -1342,10 +1346,10 @@ fn selected_policy_launches_and_active_errors_refuse_before_root_creation() {
             ("select", "config { select \"unfinished\"; }", None),
             (
                 "select \"missing-target\"",
-                "design \"local ${prompt}\"",
+                "config { route \"design\" \"lead\"; }",
                 None,
             ),
-            ("select", "impl \"local ${prompt}\"", None),
+            ("select", "config { route \"impl\" \"lead\"; }", None),
         ] {
             if grove.exists() {
                 fs::remove_dir_all(&grove).unwrap();
@@ -1355,13 +1359,16 @@ fn selected_policy_launches_and_active_errors_refuse_before_root_creation() {
                 fs::write(grove.join("_BRIEF.md"), "root").unwrap();
                 fs::write(grove.join("01-impl--work-k1.md"), "work").unwrap();
             }
-            let local_only = local_text == "impl \"local ${prompt}\"";
-            let flat = if local_only {
-                String::new()
+            let local_only = local_text == "config { route \"impl\" \"lead\"; }";
+            let routes = if local_only {
+                ""
             } else {
-                format!("impl {base_command:?}\nrequirements {base_command:?}\n")
+                "route \"impl\" \"lead\"; route \"requirements\" \"lead\";"
             };
-            fs::write(&primary, format!(r#"{flat}config {{
+            fs::write(&primary, format!(r#"config {{
+                command "base" {base_command:?}
+                bind "lead" "base"
+                {routes}
                 command "agent" {selected_command:?}
                 profile "daily" {{ bind "lead" "agent"; route "impl" "lead"; route "requirements" "lead"; }}
                 profile "unfinished" {{ include "missing"; }}
@@ -1369,7 +1376,7 @@ fn selected_policy_launches_and_active_errors_refuse_before_root_creation() {
                 {selection}
             }}"#)).unwrap();
             let local_text = if !existing_tree && local_only {
-                "requirements \"local ${prompt}\""
+                "config { route \"requirements\" \"lead\"; }"
             } else {
                 local_text
             };
@@ -1406,7 +1413,7 @@ fn bootstrap_requires_active_personal_authority_only_for_a_fresh_tree() {
     for existing_tree in [false, true] {
         for (selection, local_route, admitted) in [
             ("", "", false),
-            ("", "requirements \"local ${prompt}\"", false),
+            ("", "config { route \"requirements\" \"lead\"; }", false),
             ("select \"bootstrap\"", "", true),
         ] {
             let fixture = TempDir::new().unwrap();
@@ -1432,9 +1439,10 @@ fn bootstrap_requires_active_personal_authority_only_for_a_fresh_tree() {
             fs::write(
                 &primary,
                 format!(
-                    r#"impl {command:?}
-                config {{
+                    r#"config {{
                     command "agent" {command:?}
+                    bind "lead" "agent"
+                    route "impl" "lead"
                     profile "bootstrap" {{ bind "lead" "agent"; route "requirements" "lead"; }}
                     {selection}
                 }}"#
@@ -1683,7 +1691,7 @@ fn route_overrides_reach_launch_and_missing_personal_targets_refuse_before_use()
         fs::remove_file(&log).unwrap();
     }
     // A missing target for another kind invalidates the whole policy. Even a
-    // complete local literal for that kind cannot supply personal authority.
+    // complete local route for that kind cannot supply personal authority.
     fs::write(
         &config,
         policy.replace(
@@ -1692,7 +1700,7 @@ fn route_overrides_reach_launch_and_missing_personal_targets_refuse_before_use()
         ),
     )
     .unwrap();
-    fs::write(&local, "missing \"runner ${prompt}\"\nconfig { route \"impl\" { param \"empty\" \"\"; param \"unused\" \"complete\"; }; }").unwrap();
+    fs::write(&local, "config { route \"missing\" \"lead\" { param \"empty\" \"\"; param \"unused\" \"complete\"; }; route \"impl\" { param \"empty\" \"\"; param \"unused\" \"complete\"; }; }").unwrap();
     let before = tree_snapshot(&grove);
     let output = run_grove(&home, &worktree);
     assert!(!output.status.success());

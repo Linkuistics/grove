@@ -23,7 +23,14 @@ impl Fixture {
         support::init_jj_repo(&repo);
         fs::write(repo.join(".gitignore"), "/.grove.kdl\n").unwrap();
         let fixture = Self { dir, repo, home };
-        fixture.personal("impl \"absent-agent ${prompt}\"\n");
+        fixture.personal(
+            r#"config {
+                command "agent" "absent-agent ${prompt}"
+                command "local" "local-agent ${prompt}"
+                bind "lead" "agent"
+                route "impl" "lead"
+            }"#,
+        );
         fixture
     }
 
@@ -158,8 +165,16 @@ fn inspection_ignores_a_held_driver_lease_and_stale_signal() {
 #[test]
 fn existing_tree_and_launchable_command_are_observed_without_execution() {
     let fixture = Fixture::new();
-    fixture
-        .personal("impl \"sh -c 'touch launched' ${prompt}\"\nzeta \"absent-agent ${prompt}\"\n");
+    fixture.personal(
+        r#"config {
+            command "observe" "sh -c 'touch launched' ${prompt}"
+            command "agent" "absent-agent ${prompt}"
+            bind "observe" "observe"
+            bind "lead" "agent"
+            route "impl" "observe"
+            route "zeta" "lead"
+        }"#,
+    );
     fs::create_dir(fixture.repo.join(".grove")).unwrap();
     fs::write(fixture.repo.join(".grove/_BRIEF.md"), "# Existing work\n").unwrap();
     fs::write(
@@ -181,17 +196,29 @@ fn subdirectory_uses_workspace_delta_and_kind_filter_keeps_global_validation() {
     fs::create_dir(&subdir).unwrap();
     fs::write(
         fixture.repo.join(".grove.kdl"),
-        "impl \"local-agent ${prompt}\"\n",
+        "config { bind \"lead\" \"local\"; }\n",
     )
     .unwrap();
     assert!(success(fixture.show_at(&subdir, &["--kind", "impl"])).contains("local-agent"));
-    fixture.personal("impl \"absent-agent ${prompt}\"\ndesign \"invalid-without-prompt\"\n");
+    fixture.personal(
+        r#"config {
+            command "agent" "absent-agent ${prompt}"
+            command "local" "local-agent ${prompt}"
+            command "invalid" "invalid-without-prompt"
+            bind "lead" "agent"
+            bind "invalid" "invalid"
+            route "impl" "lead"
+            route "design" "invalid"
+        }"#,
+    );
     let output = fixture.show(&["--kind", "impl"]);
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
     let error = String::from_utf8(output.stderr).unwrap();
     assert!(
-        error.contains("design") && error.contains("config.kdl"),
+        error.contains("must contain `${prompt}` exactly once")
+            && error.contains("config.kdl")
+            && error.contains("bytes"),
         "{error}"
     );
 }
@@ -201,7 +228,7 @@ fn requested_unknown_and_non_admitted_kinds_fail_with_personal_source() {
     let fixture = Fixture::new();
     fs::write(
         fixture.repo.join(".grove.kdl"),
-        "local-only \"absent-agent ${prompt}\"\n",
+        "config { route \"local-only\" \"lead\"; }\n",
     )
     .unwrap();
     for kind in ["unknown", "local-only"] {
@@ -222,7 +249,7 @@ fn tracked_and_unreadable_candidates_fail_without_fallback_or_writes() {
     fs::write(fixture.repo.join(".gitignore"), "").unwrap();
     fs::write(
         fixture.repo.join(".grove.kdl"),
-        "impl \"local-agent ${prompt}\"\n",
+        "config { bind \"lead\" \"local\"; }\n",
     )
     .unwrap();
     let before = snapshot(fixture.dir.path());
@@ -284,8 +311,10 @@ fn json_failure(output: Output, code: i32) -> serde_json::Value {
 }
 
 #[test]
-fn json_reports_tagged_words_nulls_and_complete_tables_without_writes() {
+// Legacy-only inspection variants remain until modular-only-k3 removes them.
+fn legacy_json_reports_tagged_words_nulls_and_complete_tables_without_writes() {
     let fixture = Fixture::new();
+    fixture.personal("impl \"absent-agent ${prompt}\"\n");
     let before = snapshot(fixture.dir.path());
     let report = json_success(fixture.show(&["--json"]));
     assert_eq!(report["schema_version"], 1);
@@ -338,7 +367,7 @@ fn json_usage_errors_are_one_diagnostic_object_even_before_dispatch() {
 }
 
 #[test]
-fn json_keeps_all_provenance_variants_and_references_when_filtered() {
+fn legacy_json_keeps_all_provenance_variants_and_references_when_filtered() {
     use serde_json::json;
     let fixture = Fixture::new();
     fixture.personal(
@@ -472,7 +501,13 @@ config {
 #[test]
 fn json_observation_ignores_lease_and_epoch_and_never_executes() {
     let fixture = Fixture::new();
-    fixture.personal("impl \"sh -c 'touch launched' ${prompt}\"\n");
+    fixture.personal(
+        r#"config {
+            command "observe" "sh -c 'touch launched' ${prompt}"
+            bind "lead" "observe"
+            route "impl" "lead"
+        }"#,
+    );
     fs::create_dir(fixture.repo.join(".grove")).unwrap();
     fs::write(
         fixture.repo.join(".grove/01-impl--work-k1.md"),
@@ -492,7 +527,7 @@ fn json_refusals_preserve_structured_sources_and_global_validation() {
     let fixture = Fixture::new();
     fs::write(
         fixture.repo.join(".grove.kdl"),
-        "local-only \"absent-agent ${prompt}\"\n",
+        "config { route \"local-only\" \"lead\"; }\n",
     )
     .unwrap();
     for kind in ["unknown", "local-only"] {
@@ -504,8 +539,10 @@ fn json_refusals_preserve_structured_sources_and_global_validation() {
         assert_eq!(snapshot(fixture.dir.path()), before);
     }
     fixture.personal(
-        r#"impl "absent-agent ${prompt}"
-config {
+        r#"config {
+    command "agent" "absent-agent ${prompt}"
+    bind "impl" "agent"
+    route "impl" "impl"
     command "a" "absent-agent ${param.p} ${prompt}" { param "p"; }
     bind "lead" "a"
     profile "patch" { route "broken" { param "p" "personal"; }; }
@@ -539,7 +576,7 @@ config {
             fs::write(fixture.repo.join(".gitignore"), "").unwrap();
             fs::write(
                 fixture.repo.join(".grove.kdl"),
-                "impl \"local ${prompt}\"\n",
+                "config { bind \"lead\" \"local\"; }\n",
             )
             .unwrap();
         } else {
@@ -573,6 +610,8 @@ fn json_secondary_workspace_uses_one_local_source_and_its_selection() {
     fixture.personal(
         r#"config {
         command "a" "personal ${prompt}"
+        command "repository" "repository ${prompt}"
+        command "worktree" "worktree ${prompt}"
         bind "lead" "a"
         route "impl" "lead"
         profile "daily" {}
@@ -581,7 +620,7 @@ fn json_secondary_workspace_uses_one_local_source_and_its_selection() {
     );
     fs::write(
         fixture.repo.join(".grove.kdl"),
-        "impl \"repository ${prompt}\"\n",
+        "config { bind \"lead\" \"repository\"; }\n",
     )
     .unwrap();
     let before = snapshot(fixture.dir.path());
@@ -597,7 +636,7 @@ fn json_secondary_workspace_uses_one_local_source_and_its_selection() {
     assert_eq!(snapshot(fixture.dir.path()), before);
     fs::write(
         secondary.join(".grove.kdl"),
-        "impl \"worktree ${prompt}\"\nconfig { select; }\n",
+        "config { bind \"lead\" \"worktree\"; select; }\n",
     )
     .unwrap();
     let before = snapshot(fixture.dir.path());
@@ -633,7 +672,13 @@ fn json_native_paths_round_trip_in_sources_spans_and_failures() {
     let report = json_success(fixture.show(&["--json"]));
     assert_eq!(report["sources"][0]["path"], encoded);
     assert_eq!(report["origins"][0]["span"]["source"]["path"], encoded);
-    fixture.personal("impl \"invalid-without-prompt\"\n");
+    fixture.personal(
+        r#"config {
+            command "invalid" "invalid-without-prompt"
+            bind "lead" "invalid"
+            route "impl" "lead"
+        }"#,
+    );
     let report = json_failure(fixture.show(&["--json"]), 1);
     assert_eq!(report["diagnostics"][0]["source"]["path"], encoded);
     assert_eq!(
@@ -748,7 +793,14 @@ fn json_native_missing_source_path_is_lossless_even_on_unicode_filesystems() {
 #[test]
 fn json_diagnostics_keep_related_locations_and_do_not_write_on_parse_failure() {
     let fixture = Fixture::new();
-    fixture.personal("impl \"one ${prompt}\"\nimpl \"two ${prompt}\"\n");
+    fixture.personal(
+        r#"config {
+            command "agent" "one ${prompt}"
+            bind "lead" "agent"
+            route "impl" "lead"
+            route "impl" "lead"
+        }"#,
+    );
     let before = snapshot(fixture.dir.path());
     let report = json_failure(fixture.show(&["--json"]), 1);
     let d = &report["diagnostics"][0];

@@ -25,4 +25,6 @@ renderer. Read `references/visual-design-discussion.md` for the notation palette
 presenting editable diagrams at a browser URL, and keeping the
 visual document consistent with the design's decisions. Organize it by topic,
 make the current discussion and changed diagrams visible, and link the exact
-view being discussed.
+view being discussed. In document and conversational change lists, pair each
+changed diagram or prose section's descriptive stable link with a brief sentence
+about its actual change; the guide defines this format.

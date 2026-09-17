@@ -51,6 +51,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove` / `grove-design`: pair every changed diagram or prose-section link
+  with a brief description of its actual change. The reusable viewer accepts
+  `updatedDiagrams` entries with summaries while preserving legacy manifests.
+  Keep a package or composition overview for designs spanning multiple
+  packages, with unresolved boundaries labelled.
+
 ## v21.6.0
 
 - `grove config examples` installs six validated KDL samples and self-contained

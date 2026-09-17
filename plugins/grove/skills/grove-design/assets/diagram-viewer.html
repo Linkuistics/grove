@@ -175,16 +175,28 @@
       if (value.discussion !== undefined) {
         const item = value.discussion;
         if (!isObject(item) || typeof item.title !== 'string' || !item.title.trim() || typeof item.status !== 'string' || !item.status.trim() || typeof item.summary !== 'string') throw new Error('Discussion needs nonempty title and status strings, and a summary string.');
-        for (const field of ['diagramIds', 'updatedDiagramIds']) {
-          if (!Array.isArray(item[field])) throw new Error('Discussion ' + field + ' must be an array of diagram IDs.');
-          const seen = new Set();
-          for (const id of item[field]) {
-            if (typeof id !== 'string' || !ids.has(id) || seen.has(id)) throw new Error('Discussion ' + field + ' contains an unknown or duplicate diagram ID: ' + String(id));
-            seen.add(id);
-          }
+        if (item.updatedDiagrams !== undefined && item.updatedDiagramIds !== undefined) throw new Error('Discussion must supply only one of updatedDiagrams and updatedDiagramIds.');
+        if (!Array.isArray(item.diagramIds)) throw new Error('Discussion diagramIds must be an array of diagram IDs.');
+        const discussedIds = new Set();
+        for (const id of item.diagramIds) {
+          if (typeof id !== 'string' || !ids.has(id) || discussedIds.has(id)) throw new Error('Discussion diagramIds contains an unknown or duplicate diagram ID: ' + String(id));
+          discussedIds.add(id);
         }
+        const hasSummaries = item.updatedDiagrams !== undefined;
+        const field = hasSummaries ? 'updatedDiagrams' : 'updatedDiagramIds';
+        if (!Array.isArray(item[field])) throw new Error('Discussion ' + field + ' must be an array.');
+        const updatedIds = new Set();
+        const updatedDiagrams = item[field].map((entry, index) => {
+          const label = 'Discussion ' + field + ' entry ' + (index + 1);
+          if (hasSummaries && !isObject(entry)) throw new Error(label + ' must be an object with an id and summary.');
+          const id = hasSummaries ? entry.id : entry;
+          if (!validId(id) || !ids.has(id) || updatedIds.has(id)) throw new Error(label + ' contains an invalid, unknown or duplicate diagram ID: ' + String(id));
+          if (hasSummaries && (typeof entry.summary !== 'string' || !entry.summary.trim())) throw new Error(label + ' needs a nonempty summary string.');
+          updatedIds.add(id);
+          return hasSummaries ? { id, summary: entry.summary } : { id };
+        });
         discussion = { title: item.title, status: item.status, summary: item.summary,
-          diagramIds: [...item.diagramIds], updatedDiagramIds: [...item.updatedDiagramIds] };
+          diagramIds: [...item.diagramIds], updatedDiagrams };
       }
       return { title: value.title, intro: value.intro, groups, discussion, diagrams };
     }
@@ -198,16 +210,17 @@
       heading.append(element('h3', item.title, 'discussion-title'), element('span', item.status, 'badge'));
       panel.append(label, heading, element('p', item.summary, 'discussion-summary'));
       const byId = new Map(manifest.diagrams.map(diagram => [diagram.id, diagram]));
-      for (const [title, ids] of [['Discussed diagrams', item.diagramIds], ['Updated in this discussion', item.updatedDiagramIds]]) {
+      for (const [title, entries] of [['Discussed diagrams', item.diagramIds.map(id => ({ id }))], ['Updated in this discussion', item.updatedDiagrams]]) {
         panel.append(element('p', title, 'list-label'));
-        if (ids.length === 0) {
+        if (entries.length === 0) {
           panel.append(element('p', 'None listed.', 'secondary'));
           continue;
         }
         const list = element('ul', '', 'discussion-list');
-        for (const id of ids) {
+        for (const { id, summary } of entries) {
           const row = element('li');
           row.append(link(byId.get(id).title, '#diagram-' + id));
+          if (summary) row.append(' — ' + summary);
           list.append(row);
         }
         panel.append(list);
@@ -267,7 +280,7 @@
     }
     function addDocument(manifest) {
       const current = new Set(manifest.discussion?.diagramIds ?? []);
-      const updated = new Set(manifest.discussion?.updatedDiagramIds ?? []);
+      const updated = new Set(manifest.discussion?.updatedDiagrams.map(item => item.id) ?? []);
       const outline = element('ul');
       const navigation = document.getElementById('navigation');
       if (manifest.discussion) {

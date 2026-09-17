@@ -66,6 +66,11 @@ decision notes nested under the relevant module, behavior or contract. Use the
 same topic names in the specification and presentation. A growing design should
 remain browsable as a document, with an overview and focused views.
 
+If the discussion spans multiple source packages, keep an overall package or
+composition overview alongside the focused views. Show the packages and their
+connections, label unresolved boundaries, and distinguish source packages from
+deployment containers.
+
 Keep a prominent current-discussion panel containing the question or decision,
 its status (for example, proposed or approved), and links to the relevant
 diagrams. Mark which diagrams changed in that discussion update. Being relevant
@@ -73,12 +78,19 @@ and being changed are different: retain links to unchanged context without
 marking it updated. Refresh these markers when the discussion moves on; they
 describe the current update, not a second decision log.
 
-Give each diagram a descriptive title and stable link. Refer to it by topic and
-title in conversation and link directly to that view, for example
-**Interaction → Prepare choices before acting**. When reporting edits, name
-the affected views and what changed in each. Keep their anchors stable when
-the contents or titles change. A reader should be able to open the cited view
-and immediately identify it.
+Give each diagram and prose section a descriptive title and stable link. Refer
+to a view by topic and title in conversation and link directly to it. Every
+change-list item in the document or a conversational report contains a
+**descriptive stable link followed by a brief sentence about the actual delta**:
+
+```markdown
+- [Interaction → Prepare choices before acting](#diagram-choices) — Added the query before deriving choices.
+- [Cancellation contract](#cancellation-contract) — Clarified which pending actions cancellation discards.
+```
+
+Relevant unchanged context belongs in the discussion links, not the change list.
+Keep anchors stable when contents or titles change, so the cited view or section
+remains identifiable.
 
 ## Present in a browser
 
@@ -103,7 +115,9 @@ the bundled [static viewer](../assets/diagram-viewer.html):
        "status": "Proposed",
        "summary": "Query before deriving state-dependent choices.",
        "diagramIds": ["choices"],
-       "updatedDiagramIds": ["choices"]
+       "updatedDiagrams": [
+         { "id": "choices", "summary": "Added the query before deriving choices." }
+       ]
      },
      "diagrams": [
        {
@@ -125,10 +139,17 @@ the bundled [static viewer](../assets/diagram-viewer.html):
 
 The bundled viewer orders topics by `groups`, then preserves each topic's
 diagram order from `diagrams`. Each diagram's `group` names one topic. The
-discussion's ID lists refer to existing diagrams; `updatedDiagramIds` names
-only the views changed in that update. These optional fields also allow older
-flat manifests to render. Topic links use `#group-<id>` and diagram links use
-`#diagram-<id>`.
+discussion's `diagramIds` lists relevant views, including unchanged context.
+For new manifests, use `updatedDiagrams`: each entry has a unique existing
+diagram `id` and a nonblank string `summary` describing what changed. The viewer
+renders that summary as plain text after the diagram link. Use an empty array
+when no diagrams changed.
+
+Legacy `updatedDiagramIds` arrays remain supported and render links without
+summaries. When `discussion` is present, supply `diagramIds` and exactly one of
+`updatedDiagrams` or `updatedDiagramIds`; supplying both is a manifest error.
+Groups and discussion are optional, so older flat manifests still render. Topic
+links use `#group-<id>` and diagram links use `#diagram-<id>`.
 
 ### Mix rendered SVG with Mermaid
 

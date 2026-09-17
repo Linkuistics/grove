@@ -1,4 +1,4 @@
-# modular-loader-k10
+# modular-loader-k10 — brief
 
 ## Goal
 
@@ -37,3 +37,13 @@ read the documentation directly.
 Keep the settled public load/expansion test seam; no new CLI acceptance suite.
 The root's fixture migration handoff identifies remaining legacy-specific tests.
 Do not rewrite active personal configuration or previously installed samples.
+
+## Decomposition
+
+The public rejection boundary and the internal representation cleanup are
+separately verifiable increments. `modular-input-k11` rejects unsupported input
+through both loaders, reconciles compatibility tests and supported-language
+documentation, and keeps checks green. `modular-cleanup-k12` then deletes the
+unreachable flat parser/scanner and literal resolver/inspection representation,
+updates their consumers and source-exact books, and performs the final forms
+audit against all root acceptance conditions.

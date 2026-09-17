@@ -560,6 +560,29 @@ fn parse_and_validate(
         ConfigError::from_diagnostics(vec![diagnostic])
     })?;
 
+    let unsupported: Vec<_> = document
+        .nodes()
+        .iter()
+        .filter(|node| !named::is_wrapper(node))
+        .map(|node| {
+            let mut location = source_location(&source, node.span().offset());
+            location.end += node.span().len();
+            let mut diagnostic = at_node(
+                location,
+                format!("unsupported top-level declaration `{}`", node.name().value()),
+            );
+            diagnostic.remedy = "Use config { ... } with command definitions, bind targets and route declarations; local overlays may select or override personal bindings and routes.";
+            diagnostic
+        })
+        .collect();
+    if !unsupported.is_empty() {
+        return Err(ConfigError::from_diagnostics(render_diagnostics(
+            path,
+            role,
+            unsupported,
+        )));
+    }
+
     let (templates, named) = validate_document(path, &source, &document, role, slots)?;
     Ok(CapturedDocument {
         path: path.to_path_buf(),

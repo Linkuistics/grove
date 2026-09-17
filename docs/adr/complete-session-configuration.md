@@ -37,9 +37,9 @@ must. The compiler must produce a complete command before the runner sees it.
 
 Document syntax, shapes and duplicate declarations are always validated. The
 selected combination is semantically validated after composition, allowing
-partial building blocks and unfinished inactive profiles. Existing flat
-templates retain their eager template validation. **Presence stays per-kind and
-just-in-time:** before Grove writes or launches kind K, K must resolve. Grove
+partial building blocks and unfinished inactive profiles. Unsupported top-level
+declarations fail structurally; only the modular wrapper form is accepted.
+**Presence stays per-kind and just-in-time:** before Grove writes or launches kind K, K must resolve. Grove
 holds no closed set of kinds and supplies no catch-all route.
 
 The source and authority rule belongs to

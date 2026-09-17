@@ -261,40 +261,6 @@ fn selected_snapshots_and_conformance_remain_independent_of_files_and_catalog() 
 }
 
 #[test]
-fn literal_transitions_reset_profile_parameters_and_record_the_reset() {
-    let text = r#"opaque "literal ${payload}"
-    config {
-        command "a" "runner ${param.p} ${payload}" { param "p" "default"; }
-        bind "lead" "a"
-        profile "patch" { route "opaque" { param "p" "stale"; }; }
-        profile "target" { route "opaque" "lead"; }
-    }"#;
-    let t = resolve(text, None, &["patch", "target"]).unwrap();
-    assert_eq!(words(&t, "opaque")[1], "default");
-    let h = t
-        .inspect()
-        .histories
-        .iter()
-        .find(
-            |h| matches!(&h.setting, Setting::RouteParameter { parameter, .. } if parameter == "p"),
-        )
-        .unwrap();
-    assert_eq!(h.assignments.last().unwrap().value, AssignmentValue::Reset);
-    let origin = &t.inspect().origins[h.assignments.last().unwrap().origin];
-    assert_eq!(origin.occurrence, Some(1));
-    let t = resolve(
-        POLICY,
-        Some("opaque \"local ${payload}\""),
-        &["daily", "exception", "exception"],
-    )
-    .unwrap();
-    assert_eq!(words(&t, "opaque"), ["local", "native value"]);
-    let h = t.inspect().histories.iter().find(|h| matches!(&h.setting, Setting::RouteParameter { parameter, .. } if parameter == "effort")).unwrap();
-    assert_eq!(h.assignments.len(), 3);
-    assert_eq!(h.assignments[2].value, AssignmentValue::Reset);
-}
-
-#[test]
 fn surviving_errors_validate_even_without_routes_and_removed_names_are_harmless() {
     let text = r#"config {
         command "a" "runner ${param.p} ${payload}" { param "p"; }

@@ -103,17 +103,6 @@ fn selection_shapes_are_checked_in_both_sources_even_when_not_used() {
             );
         }
     }
-    fs::write(
-        &primary,
-        "select \"base ${payload}\"\nprofile \"other ${payload}\"\n",
-    )
-    .unwrap();
-    let catalog = Catalog::load(&primary, None, vocabulary()).unwrap();
-    assert!(catalog.primary_selection().is_none());
-    assert_eq!(
-        catalog.resolve(&Selection::default()).unwrap().keys(),
-        ["profile", "select"]
-    );
 }
 
 #[test]
@@ -221,7 +210,7 @@ fn both_loaders_reject_reserved_vocabulary_before_reading_sources() {
 }
 
 #[test]
-fn flat_catalog_keeps_eager_validation_and_refuses_wrapper_shapes() {
+fn catalog_refuses_unsupported_top_level_shapes() {
     let dir = TempDir::new().unwrap();
     let primary = dir.path().join("config.kdl");
     let overlay = dir.path().join("overlay.kdl");
@@ -373,4 +362,54 @@ fn inactive_profile_structure_is_checked_without_merging_patch_namespaces() {
         error.diagnostics()[0].source.as_ref().unwrap().path,
         overlay
     );
+}
+
+#[test]
+fn both_loaders_reject_flat_and_mixed_input_in_either_source() {
+    let dir = TempDir::new().unwrap();
+    let primary = dir.path().join("personal.kdl");
+    let overlay = dir.path().join("local.kdl");
+    for key in [
+        "opaque", "config", "command", "profile", "select", "route", "bind", "values", "param",
+        "unset", "include",
+    ] {
+        for mixed in [0, 1, 2] {
+            for local in [false, true] {
+                fs::write(&primary, "config {}\n").unwrap();
+                fs::write(&overlay, "").unwrap();
+                let path = if local { &overlay } else { &primary };
+                let flat = format!("{key} \"run ${{payload}}\"\n");
+                let text = match mixed {
+                    0 => flat.clone(),
+                    1 => format!("{flat}config {{}}\n"),
+                    _ => format!("config {{}}\n{flat}"),
+                };
+                fs::write(path, &text).unwrap();
+                let catalog = Catalog::load(&primary, Some(&overlay), vocabulary())
+                    .err()
+                    .expect(&text);
+                let convenience = Templates::load(&primary, Some(&overlay), vocabulary())
+                    .err()
+                    .expect(&text);
+                assert_eq!(catalog.diagnostics(), convenience.diagnostics());
+                let diagnostic = &catalog.diagnostics()[0];
+                assert_eq!(diagnostic.category, "shape");
+                let span = diagnostic.primary.as_ref().unwrap();
+                assert_eq!(&span.source.path, path);
+                assert_eq!(&text[span.start..span.end], flat.trim_end());
+                assert_eq!(
+                    span.source.role,
+                    if local {
+                        keyed_launch::SourceRole::Overlay
+                    } else {
+                        keyed_launch::SourceRole::Primary
+                    }
+                );
+                assert!(span.end > span.start);
+                assert!(diagnostic.remedy.contains("config"), "{catalog}");
+                assert!(diagnostic.remedy.contains("route"), "{catalog}");
+                assert_eq!(fs::read_to_string(path).unwrap(), text);
+            }
+        }
+    }
 }

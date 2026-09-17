@@ -30,7 +30,9 @@
 #   printf '#!/bin/sh\nprintf "GROVE_SIGNAL_FILE=%s\\n" "$GROVE_SIGNAL_FILE"\n' > fake
 #   chmod +x fake
 #   mkdir -p "$scratch/home/.config/grove"
-#   for kind in requirements design planning prototype impl \
+#   {
+#     printf 'config {\n  command "smoke" "%s/fake ${prompt}"\n  bind "smoke" "smoke"\n' "$scratch"
+#     for kind in requirements design planning prototype impl \
 #               review-requirements review-design review-planning \
 #               review-prototype review-impl \
 #               integrate-review-requirements integrate-review-design \
@@ -38,8 +40,10 @@
 #               integrate-review-impl \
 #               research-a research-b combine-research \
 #               draft copy-edit art proof finish; do
-#     printf '%s "%s/fake \x27${prompt}\x27"\n' "$kind" "$scratch"
-#   done > "$scratch/home/.config/grove/config.kdl"
+#       printf '  route "%s" "smoke"\n' "$kind"
+#     done
+#     printf '}\n'
+#   } > "$scratch/home/.config/grove/config.kdl"
 #   env -u GROVE_SIGNAL_FILE HOME="$scratch/home" grove
 #
 # The isolated `HOME` is what makes this a *test* rather than a run of your own

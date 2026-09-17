@@ -535,54 +535,26 @@ fn a_kind_only_the_delta_declares_does_not_resolve() {
     );
 }
 
-// Flat-only shape and eager-template compatibility; removed or replaced in k3.
 #[test]
-fn legacy_delta_diagnostics_are_aggregated_against_the_deltas_own_path_and_location() {
+fn flat_delta_declarations_are_rejected_at_their_own_locations() {
     let home = TempDir::new().unwrap();
     let worktree = TempDir::new().unwrap();
     write_config(home.path(), "runner ${prompt}");
-    let delta_path = write_delta(
-        worktree.path(),
-        concat!(
-            "impl \"runner ${prompt}\"\n",
-            "impl \"other ${prompt}\"\n",
-            "design \"runner ${prompt}\" property=true { child; }\n",
-            "planning \"runner ${prompt}\" \"extra\"\n",
-            "finish \"runner\"\n",
-        ),
-    );
-
+    let text = "impl \"runner ${prompt}\"\nconfig \"other ${prompt}\"\nconfig {}\n";
+    let delta_path = write_delta(worktree.path(), text);
     let error = load_error_from(home.path(), worktree.path(), worktree.path());
-    let display_path = delta_path.display().to_string();
-
+    for line in [1, 2] {
+        assert!(
+            error.contains(&format!("{}:{line}:1", delta_path.display())),
+            "{error}"
+        );
+    }
     assert!(
-        error.contains(&format!("invalid configuration overlay at {display_path}")),
+        error.contains("unsupported top-level declaration"),
         "{error}"
     );
-    assert!(error.contains("duplicate key `impl`"), "{error}");
-    assert!(error.contains(&format!("{display_path}:1:1")), "{error}");
-    assert!(error.contains(&format!("{display_path}:2:1")), "{error}");
-    assert!(
-        error.contains("properties and child blocks are not allowed"),
-        "{error}"
-    );
-    assert!(error.contains("exactly one positional argument"), "{error}");
-    assert!(
-        !error.contains("must contain `${prompt}` exactly once"),
-        "structural failures precede template-semantic reports: {error}"
-    );
-    // Repair the structure, leaving the independent invalid flat template.
-    fs::write(&delta_path, "finish \"runner\"\n").unwrap();
-    let error = load_error_from(home.path(), worktree.path(), worktree.path());
-    assert!(error.contains(&format!("{display_path}:1:1")), "{error}");
-    assert!(
-        error.contains("must contain `${prompt}` exactly once"),
-        "{error}"
-    );
-    assert!(
-        !error.contains("does not resolve"),
-        "validation is about the document; resolution is a later question:\n{error}"
-    );
+    assert!(error.contains("config { ... }"), "{error}");
+    assert_eq!(fs::read_to_string(delta_path).unwrap(), text);
 }
 
 #[test]
@@ -616,40 +588,6 @@ fn an_unreadable_delta_fails_closed() {
         error.contains("failed to read the configuration overlay"),
         "{error}"
     );
-}
-
-// Local modular files select personal commands and cannot carry templates.
-// This legacy-only validation contract remains for the removal leaf k3.
-#[test]
-fn legacy_delta_templates_are_eagerly_validated() {
-    for (template, expected) in [
-        ("runner", "must contain `${prompt}` exactly once"),
-        ("${prompt} runner", "word zero must be a literal executable"),
-        (
-            "runner ${unknown} ${prompt}",
-            "unknown substitution `${unknown}`",
-        ),
-        (
-            "runner ${worktree} ${worktree} ${prompt}",
-            "`${worktree}` may appear at most once",
-        ),
-        (
-            "runner --color #ff0000 ${prompt}",
-            "`#` starts a comment in a command template",
-        ),
-    ] {
-        let home = TempDir::new().unwrap();
-        let worktree = TempDir::new().unwrap();
-        write_config(home.path(), "runner ${prompt}");
-        write_delta(worktree.path(), &format!("impl {template:?}\n"));
-
-        let error = load_error_from(home.path(), worktree.path(), worktree.path());
-
-        assert!(
-            error.contains(expected),
-            "expected {expected:?} for delta template {template:?}, got:\n{error}"
-        );
-    }
 }
 
 #[test]

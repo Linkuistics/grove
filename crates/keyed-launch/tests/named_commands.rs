@@ -169,7 +169,7 @@ fn structural_and_active_reference_errors_are_explicit() {
 }
 
 #[test]
-fn named_scanner_refuses_invalid_active_words_without_changing_legacy_rules() {
+fn named_scanner_refuses_invalid_active_words() {
     for template in [
         "${payload}",
         "runner x${payload}",
@@ -232,14 +232,9 @@ fn duplicate_wrapper_reports_first_declaration_as_primary() {
 }
 
 #[test]
-fn local_binding_redirects_shared_users_and_named_routes_replace_flat_targets() {
-    // Dedicated compatibility case; the shared fixture is modular.
-    let primary = format!(
-        "config \"flat ${{payload}}\"\n{}",
-        BASE.replace("    route \"config\" \"base\"\n", "")
-    );
+fn local_binding_redirects_shared_users() {
     let templates = load(
-        &primary,
+        BASE,
         Some("config { bind \"lead\" \"other\"; route \"config\" \"lead\"; }"),
     )
     .unwrap();
@@ -268,7 +263,7 @@ fn local_binding_redirects_shared_users_and_named_routes_replace_flat_targets() 
         .unwrap();
     assert!(matches!(
         history.assignments[0].value,
-        AssignmentValue::LiteralTemplate(_)
+        AssignmentValue::Set(_)
     ));
     assert_eq!(
         history.assignments[1].value,
@@ -872,7 +867,7 @@ fn route_specificity_unset_and_capture_preserve_exact_words() {
 }
 
 #[test]
-fn route_switches_preserve_maps_and_literal_replacement_records_resets() {
+fn route_switches_preserve_maps_until_explicitly_unset() {
     let primary = r#"config {
         command "old" "runner ${param.old} ${payload}" { param "old" "default"; }
         command "new" "other ${param.new} ${payload}" { param "new" "default"; }
@@ -904,53 +899,6 @@ fn route_switches_preserve_maps_and_literal_replacement_records_resets() {
         .unwrap();
     assert_eq!(error.diagnostics()[0].category, "unknown_parameter");
     assert_eq!(error.diagnostics()[0].parameter.as_deref(), Some("old"));
-    let templates = load(primary, Some("alpha \"literal ${payload}\"")).unwrap();
-    let view = templates.inspect();
-    let history = view
-        .histories
-        .iter()
-        .find(|h| {
-            h.setting
-                == Setting::RouteParameter {
-                    key: "alpha".into(),
-                    parameter: "old".into(),
-                }
-        })
-        .unwrap();
-    assert_eq!(
-        history
-            .assignments
-            .iter()
-            .map(|a| a.value.clone())
-            .collect::<Vec<_>>(),
-        [
-            AssignmentValue::Set("exception".into()),
-            AssignmentValue::Reset
-        ]
-    );
-    assert!(view.commands[0].histories.contains(&history.id));
-    assert_eq!(
-        view.origins[history.assignments[1].origin].span.source.role,
-        keyed_launch::SourceRole::Overlay
-    );
-    let literal = primary.replace(
-        "route \"alpha\" \"lead\" { param \"old\" \"exception\"; }",
-        "",
-    );
-    let literal = format!("alpha \"literal ${{payload}}\"\n{literal}");
-    let templates = load(
-        &literal,
-        Some(r#"config { route "alpha" "next" { param "new" "fresh"; }; }"#),
-    )
-    .unwrap();
-    assert_eq!(templates.inspect().commands[0].parameters[0].value, "fresh");
-    let error = load(
-        &literal,
-        Some(r#"config { route "alpha" { unset "absent"; }; }"#),
-    )
-    .err()
-    .unwrap();
-    assert_eq!(error.diagnostics()[0].category, "invalid_value");
 }
 
 #[test]

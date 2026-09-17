@@ -109,21 +109,6 @@ fn structural_errors_suppress_template_cascades_across_documents() {
 }
 
 #[test]
-fn eager_template_errors_aggregate_after_structure_passes() {
-    let (_, error) = load_error("bad \"${unknown}\"\n", Some("other \"'unclosed\"\n"));
-    assert!(error.diagnostics().len() >= 2);
-    assert!(error
-        .diagnostics()
-        .iter()
-        .all(|d| d.category == "invalid_template"));
-    assert_eq!(
-        error.diagnostics().last().unwrap().key.as_deref(),
-        Some("other")
-    );
-    assert!(error.diagnostics().iter().all(|d| !d.remedy.is_empty()));
-}
-
-#[test]
 fn read_and_syntax_reports_keep_available_locations() {
     let dir = TempDir::new().unwrap();
     let absent = dir.path().join("absent.kdl");

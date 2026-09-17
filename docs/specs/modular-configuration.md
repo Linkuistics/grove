@@ -6,11 +6,11 @@ Grove configuration names reusable commands, composes differences through
 profiles, and resolves an explicit command for each configured session kind.
 This is the design contract for that configuration area. The running reader
 implements captured Catalog/Selection resolution, diagnostics and inspection for
-legacy flat commands and parameterized wrapper commands, bindings and routes.
+parameterized wrapper commands, bindings and routes.
 Parameter declarations/defaults, safe embedded substitution, multi-origin words,
 named dollar escaping and effective-reference validation are implemented.
 Shared and route values/removals fold across primary/local sources with retained
-histories, literal resets and personal target authorization. Optional selection
+histories and personal target authorization. Optional selection
 declarations are captured with source spans; the convenience loader ignores them
 while Grove chooses the local declaration, else the personal default, else empty.
 Explicit selections compose every profile/include occurrence with active-only
@@ -56,13 +56,13 @@ The language remains the currently supported KDL dialect. No properties or type
 annotations are admitted except where the grammar explicitly allows them;
 this grammar needs neither. Strings are KDL strings, not environment values.
 
-The document has legacy flat entries and, optionally, one `config` node with
-zero arguments and a child block. A flat entry has its existing shape: the
-node name is the key and its single string argument is the complete template.
-Shape distinguishes the forms, so a legacy kind named `config`, `profile`,
-`command`, or `select` keeps working. Even a flat `config "..."` and the one
-`config { ... }` wrapper may coexist. No other child-bearing top-level form is
-accepted. A malformed wrapper is diagnosed, never retried as another syntax.
+The document contains at most one `config` node with zero arguments and a child
+block. Empty and comment-only documents remain valid. Every declaration must
+be inside the wrapper. Flat entries, including former keys named `config`,
+`profile`, `command` or `select`, are rejected in both personal and selected local
+sources. Mixing such entries with a valid wrapper is also a structural error.
+Diagnostics identify the source and direct the owner to modular declarations;
+there is no automatic rewrite or fallback grammar.
 
 | In the wrapper | Arguments and children | Personal | Local |
 |---|---|---|---|
@@ -150,11 +150,11 @@ default selection. It leaves the personal base in force.
 
 Resolution performs one ordered fold:
 
-1. Start with the personal flat entries and wrapper-level patch.
+1. Start with the personal wrapper-level patch.
 2. For each selected profile, visit its includes recursively, left to right,
    then apply its own patch.
 3. Remember the keys with an explicit target in that personal result.
-4. Apply the chosen local file's flat entries and wrapper-level patch.
+4. Apply the chosen local file's wrapper-level patch.
 5. Resolve references, validate the active result, and compile each admitted
    route into a command with provenance and identified runtime slots.
 
@@ -171,7 +171,7 @@ hidden by a later override; expansion must succeed before a fold is available.
 | Setting | Override unit |
 |---|---|
 | Binding target | One command name |
-| Route target | One binding name, or a whole legacy literal template |
+| Route target | One binding name |
 | Shared command parameter | One parameter name in one command's `values` map |
 | Kind parameter | One parameter name in one route's map |
 | Selected profiles | The complete list, chosen before folding |
@@ -189,11 +189,7 @@ command's parameter when a route changes bindings.
 
 Changing a route from one binding to another preserves its parameter overrides;
 they must fit the final command's declared parameters. Use `unset` when the new
-command has a different parameter interface. A whole legacy template replaces
-the route and clears its parameter map. Setting a binding target on a previously
-literal route starts an empty parameter map before applying that patch's own
-parameters. A parameter-only patch on a route still literal at the end is an
-error. Legacy templates are not implicitly converted to reusable commands.
+command has a different parameter interface.
 
 Only explicit targets in the **active personal result** authorize keys for local
 override. A target declared solely in an unselected profile does not authorize
@@ -221,7 +217,6 @@ tree mutation, with no fallback to a different profile list or local source.
 | Scope | Checks |
 |---|---|
 | Both complete documents | KDL syntax, recognized shapes, argument types, names, duplicates, permitted children, and personal/local restrictions |
-| Every legacy flat entry | All current template checks, even if overridden or its kind is not used |
 | The selected combination | Include references/cycles; effective binding and route references; effective parameter assignments; active command template rules; complete parameters for each admitted route |
 
 Unselected profiles are structurally checked but their references, includes and
@@ -239,13 +234,13 @@ Personal route patches must have personal targets; their final references and
 parameters may be completed or replaced by subsequent profiles or local values.
 No binding or `values` entry alone creates a route.
 
-Other than include edges and the eager legacy checks, overwritten assignments
+Other than include edges, overwritten assignments
 do not have to resolve. For example, a selected profile's misspelled binding
 target can be replaced by a later correct target. Inspect its history to find
 it; only the effective target participates in reference validation. Removals
 remain in provenance but do not become value assignments. Non-admitted local
-routes receive document checks (and eager template
-checks when flat), but no binding/parameter resolution until they become admitted.
+routes receive document checks, but no binding/parameter resolution until they
+become admitted.
 This separates final-combination validity from per-profile completeness.
 
 ### Two substitution namespaces
@@ -266,11 +261,11 @@ supply any of its contents.
   named `prompt` is distinct from the runtime slot `prompt`.
   Catalog reserves the `param.` prefix and rejects a runtime vocabulary that
   collides with it, including through the `Templates::load` convenience. Grove's
-  existing vocabulary has no such names; its legacy templates remain unchanged.
-* In named templates only, `$$` escapes one literal dollar during compilation.
+  existing vocabulary has no such names.
+* In templates, `$$` escapes one literal dollar during compilation.
   Scanning is left to right: `$${param.name}` is literal text, not a parameter.
   Unknown or unterminated `${...}` forms are errors. Ordinary dollar text has
-  no shell meaning. Legacy flat strings retain the existing scanner unchanged.
+  no shell meaning.
 
 Parameter values and runtime values are opaque. Insert them once, without
 re-tokenizing, recursively substituting, interpreting quotes, or evaluating a
@@ -357,8 +352,8 @@ cross-file transaction or live-child reconfiguration is promised.
 JSON success is one object on stdout with `schema_version: 1`, `sources`,
 `selection`, `profile_occurrences`, `commands`, `non_admitted_keys`, `origins`
 and `histories`.
-`commands` is an array of records carrying `key`, `binding` (nullable for a
-legacy literal), `command` (likewise nullable), `parameters`, `words`, and
+`commands` is an array of records carrying `key`, `binding`, `command`,
+`parameters`, `words`, and
 `origins` and `histories`. Each word record has `word` and `origins`; `word` is
 a tagged `literal` value or `slot` name, not an ambiguous
 `${...}` string; configured parameters have already become literal contents.
@@ -367,9 +362,8 @@ top-level assignment histories. The record fields are the `Inspection` types in
 the module contract, serialized with snake_case field names and enum tags.
 `CompiledWord` is `{"type":"literal","value":"..."}` or
 `{"type":"slot","name":"..."}`. `AssignmentValue` uses `type` with
-`set` or `literal_template` (each with `value`), `unset`, or `reset`. A route
-target's binding name uses `set`; a legacy whole template uses `literal_template`,
-even when their text is identical. `Setting` uses `type` with the
+`set` (with `value`) or `unset` in successful modular inspections. A route
+target's binding name uses `set`. `Setting` uses `type` with the
 snake_case variant name and its named fields. `SourceRole` is `primary` or
 `overlay`. Optional values are JSON null; IDs and source offsets are integers.
 Unicode paths are JSON strings. Non-Unicode paths are objects with `encoding`
@@ -419,7 +413,7 @@ delivery-status text. The repository examples are validated by
 local sample passes through SessionConfig and JSON inspection, then fake
 executables capture the promised argv with a fixed prompt. The tests cover both
 lead arrangements, include occurrences and replacement selection, shared effort,
-route overrides/unset and legacy literal replacement. Removing the effort
+route overrides and unset. Removing the effort
 experiment or the unset restores the documented inherited or explicit value.
 The inactive unfinished profile succeeds unselected; selecting it produces
 source-attributed diagnostics and prevents the driver from bootstrapping or
@@ -433,7 +427,7 @@ leaf before it is retired.
 
 The generic runner owns a parsed **Catalog** and a resolved **Templates**
 snapshot. Catalog loading accepts explicit primary and optional overlay sources
-plus a slot vocabulary. It checks document structure and eager legacy rules and
+plus a slot vocabulary. It checks document structure and
 exposes each source's optional selection declaration with origin information.
 It has no home-directory lookup, workspace discovery, kind enumeration or VCS.
 
@@ -529,7 +523,7 @@ an arbitrary key and slot vocabulary unrelated to Grove.
 | Missing personal target | An active personal parameter patch with no personal target fails all resolution with `missing_target`, even for another requested kind; a local target cannot repair it; no inspection snapshot is returned |
 | Loader convenience | `Templates::load` equals Catalog resolution with an empty selection, including wrapper base patches and identical vocabulary errors |
 | Local authorization | A local-only key or one present only in an inactive personal profile cannot resolve; selecting its personal profile admits it |
-| Legacy compatibility | Existing flat fixtures retain argv and eager diagnostics; new grammar words remain valid flat kind names |
+| Unsupported forms | Flat and mixed input in either source fails with an actionable source-attributed shape error, including grammar-word keys |
 | Parameter safety | Spaces, quotes, dollar/slot text, empty values and shell punctuation preserve boundaries; NUL fails before spawn |
 | Provenance | Shared and per-kind winners, removals, repeated profile occurrences and overwritten values point to their real source spans |
 | Inspection | Structured words expanded with a known runtime context equal captured launch argv; errors launch nothing and edit no working-tree/configuration bytes; jj metadata snapshots are permitted |

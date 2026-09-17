@@ -311,10 +311,9 @@ fn json_failure(output: Output, code: i32) -> serde_json::Value {
 }
 
 #[test]
-// Legacy-only inspection variants remain until modular-only-k3 removes them.
-fn legacy_json_reports_tagged_words_nulls_and_complete_tables_without_writes() {
+fn json_reports_tagged_words_and_complete_tables_without_writes() {
     let fixture = Fixture::new();
-    fixture.personal("impl \"absent-agent ${prompt}\"\n");
+    fixture.personal("config { command \"agent\" \"absent-agent ${prompt}\"; bind \"lead\" \"agent\"; route \"impl\" \"lead\"; }\n");
     let before = snapshot(fixture.dir.path());
     let report = json_success(fixture.show(&["--json"]));
     assert_eq!(report["schema_version"], 1);
@@ -325,8 +324,8 @@ fn legacy_json_reports_tagged_words_nulls_and_complete_tables_without_writes() {
     assert_eq!(report["sources"][0]["role"], "primary");
     let command = &report["commands"][0];
     assert_eq!(command["key"], "impl");
-    assert!(command["binding"].is_null());
-    assert!(command["command"].is_null());
+    assert_eq!(command["binding"], "lead");
+    assert_eq!(command["command"], "agent");
     assert_eq!(command["parameters"], serde_json::json!([]));
     assert_eq!(
         command["words"][0]["word"],
@@ -338,7 +337,7 @@ fn legacy_json_reports_tagged_words_nulls_and_complete_tables_without_writes() {
     );
     assert_eq!(
         report["histories"][0]["assignments"][0]["value"]["type"],
-        "literal_template"
+        "set"
     );
     assert_eq!(snapshot(fixture.dir.path()), before);
 }
@@ -367,12 +366,11 @@ fn json_usage_errors_are_one_diagnostic_object_even_before_dispatch() {
 }
 
 #[test]
-fn legacy_json_keeps_all_provenance_variants_and_references_when_filtered() {
+fn json_keeps_all_provenance_variants_and_references_when_filtered() {
     use serde_json::json;
     let fixture = Fixture::new();
     fixture.personal(
-        r#"impl "literal ${prompt}"
-config {
+        r#"config {
     command "agent" "absent-agent ${param.p} ${prompt}" { param "p" "default"; }
     bind "lead" "agent"
     route "zeta" "lead"
@@ -457,12 +455,7 @@ config {
         .into_iter()
         .collect()
     );
-    assert_eq!(
-        assignment_types,
-        ["set", "literal_template", "unset", "reset"]
-            .into_iter()
-            .collect()
-    );
+    assert_eq!(assignment_types, ["set", "unset"].into_iter().collect());
     fn references(value: &serde_json::Value, origins: usize, histories: usize) {
         match value {
             serde_json::Value::Object(object) => {

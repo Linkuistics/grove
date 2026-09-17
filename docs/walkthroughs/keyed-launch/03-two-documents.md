@@ -223,7 +223,7 @@ needs a `Templates` — they run before one exists — and all five are private:
 `Catalog::load` is their entry point; Catalog resolution then produces
 Templates without invoking them again. The block is read in seven fragments.
 
-<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="450-658" parent="source-templates" -->
+<!-- fragment «reading-and-whole-document-validation» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="450-681" parent="source-templates" -->
 <!-- insert «compile-vocabulary» -->
 <!-- insert «read-primary» -->
 <!-- insert «read-overlay» -->
@@ -400,7 +400,7 @@ question be answered once, in `load`'s comment, rather than per error kind here.
 depends on and the rules it adds on top of them. It is nineteen lines, and eight
 of them are the message it builds when the parse fails.
 
-<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="533-571" parent="reading-and-whole-document-validation" -->
+<!-- fragment «parse-and-validate» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="533-594" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn parse_and_validate(
@@ -432,6 +432,29 @@ fn parse_and_validate(
         ConfigError::from_diagnostics(vec![diagnostic])
     })?;
 
+    let unsupported: Vec<_> = document
+        .nodes()
+        .iter()
+        .filter(|node| !named::is_wrapper(node))
+        .map(|node| {
+            let mut location = source_location(&source, node.span().offset());
+            location.end += node.span().len();
+            let mut diagnostic = at_node(
+                location,
+                format!("unsupported top-level declaration `{}`", node.name().value()),
+            );
+            diagnostic.remedy = "Use config { ... } with command definitions, bind targets and route declarations; local overlays may select or override personal bindings and routes.";
+            diagnostic
+        })
+        .collect();
+    if !unsupported.is_empty() {
+        return Err(ConfigError::from_diagnostics(render_diagnostics(
+            path,
+            role,
+            unsupported,
+        )));
+    }
+
     let (templates, named) = validate_document(path, &source, &document, role, slots)?;
     Ok(CapturedDocument {
         path: path.to_path_buf(),
@@ -443,6 +466,14 @@ fn parse_and_validate(
 }
 ````
 <!-- /fragment -->
+
+Before validation, capture rejects every top-level node other than a wrapper.
+The rejection retains each node's source span and directs the owner to command,
+binding and route declarations. This applies in both sources, including mixed
+input and former flat keys named `config`. Empty documents have no nodes to
+reject. The flat validation and literal-folding internals shown later in this
+chapter are now unreachable compatibility code awaiting removal; they do not
+describe accepted input.
 
 The parse is `source.parse::<KdlDocument>()`, and the crate adds one thing to
 `kdl`'s own error: a position a human can act on. `kdl` reports a byte offset in
@@ -479,7 +510,7 @@ three fragments below are those passes. The first walks flat nodes, recording
 validation and each key’s declaration locations. Wrapper nodes are captured by
 `named::parse`, whose duplicate checks share the flat route namespace.
 
-<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="572-594" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-nodes» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="595-617" parent="reading-and-whole-document-validation" -->
 ````rust
 
 fn validate_document(
@@ -519,7 +550,7 @@ were.
 The second pass is the duplicate check, and it is the one finding
 `validate_document` produces on its own rather than collecting from a node.
 
-<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="595-627" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-duplicates» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="618-650" parent="reading-and-whole-document-validation" -->
 ````rust
     let mut diagnostics = Vec::new();
     let named = named::parse(path, source, document, role, &mut diagnostics);
@@ -578,7 +609,7 @@ established that the vector is non-empty, the compiler cannot see it, and the
 The third pass drains everything into one result. It is where a document either
 becomes a map of templates or becomes a single refusal.
 
-<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="628-658" parent="reading-and-whole-document-validation" -->
+<!-- fragment «validate-document-report» owner="never-assembled" source="crates/keyed-launch/src/templates.rs" lines="651-681" parent="reading-and-whole-document-validation" -->
 ````rust
 
     let mut templates = BTreeMap::new();

@@ -282,7 +282,7 @@ fn a_key_nobody_declares_names_the_primary_file() {
 #[test]
 fn an_invalid_overlay_fails_the_load_against_its_own_path() {
     let dir = TempDir::new().unwrap();
-    let primary = write(dir.path(), "config.kdl", "one \"first ${prompt}\"\n");
+    let primary = write(dir.path(), "config.kdl", "config {}\n");
     let overlay = write(dir.path(), "overlay.kdl", "three \"no slot here\"\n");
 
     let error = Templates::load(&primary, Some(&overlay), vocabulary())
@@ -293,7 +293,7 @@ fn an_invalid_overlay_fails_the_load_against_its_own_path() {
         &error,
         &format!("invalid configuration overlay at {}", overlay.display()),
     );
-    assert_contains(&error, "must contain `${prompt}` exactly once");
+    assert_contains(&error, "unsupported top-level declaration `three`");
 }
 
 #[test]
@@ -372,65 +372,6 @@ fn template_failures_are_aggregated_with_source_locations() {
     }
 }
 
-/// The child-block arm of the same rule the aggregate test reaches through
-/// `extra=1`. A child block is refused for the reason a property is: a key is a
-/// line, and anything hanging off it is a shape the loader has no meaning for.
-#[test]
-fn a_child_block_is_refused_like_a_property() {
-    let error = load_error("one \"wrapper ${prompt}\" {\n    two \"wrapper ${prompt}\"\n}\n");
-    assert_contains(&error, "properties and child blocks are not allowed");
-}
-
-/// `kdl` 4.7 is a KDL **1.0** parser, where an annotation is a parenthesised
-/// name immediately before the node or before the value — the two places this
-/// rule looks. https://github.com/kdl-org/kdl/blob/1.0.0/SPEC.md#type-annotation
-#[test]
-fn a_type_annotation_is_refused_on_the_node_and_on_its_argument() {
-    assert_contains(
-        &load_error("(shell)one \"wrapper ${prompt}\"\n"),
-        "type annotations are not allowed",
-    );
-    assert_contains(
-        &load_error("one (string)\"wrapper ${prompt}\"\n"),
-        "type annotations are not allowed",
-    );
-}
-
-/// Both directions of the count, because the rule is `!= 1` rather than a
-/// missing-argument check: a second template on the line is as wrong as none.
-#[test]
-fn a_key_needs_exactly_one_positional_argument() {
-    assert_contains(
-        &load_error("one\n"),
-        "a key must have exactly one positional argument",
-    );
-    assert_contains(
-        &load_error("one \"wrapper ${prompt}\" \"wrapper ${prompt}\"\n"),
-        "a key must have exactly one positional argument",
-    );
-}
-
-/// A number, a boolean and a null are all valid KDL values that a template can
-/// never be, and each takes the same arm. The crate names none of them, so the
-/// three are asserted rather than assumed to travel together.
-#[test]
-fn a_keys_sole_argument_must_be_a_string() {
-    for document in ["one 42\n", "one true\n", "one null\n"] {
-        assert_contains(
-            &load_error(document),
-            "a key's sole argument must be a string",
-        );
-    }
-}
-
-#[test]
-fn a_duplicate_key_reports_every_declaration_location() {
-    let error = load_error("one \"a ${prompt}\"\none \"b ${prompt}\"\n");
-    assert_contains(&error, "duplicate key `one`");
-    assert_contains(&error, ":1:1,");
-    assert_contains(&error, ":2:1");
-}
-
 #[test]
 fn word_zero_must_be_a_literal_executable() {
     assert_contains(
@@ -505,47 +446,6 @@ fn a_duplicated_slot_name_is_refused_at_load() {
         .unwrap()
         .to_string();
     assert_contains(&error, "declares `prompt` more than once");
-}
-
-#[test]
-fn nul_templates_fail_eagerly_in_both_sources_with_real_spans() {
-    use keyed_launch::Catalog;
-
-    let dir = TempDir::new().unwrap();
-    let primary = write(
-        dir.path(),
-        "primary.kdl",
-        "run \"bad\\u{0}program ${prompt}\"\nother \"ok ${prompt}\"\n",
-    );
-    let overlay = write(
-        dir.path(),
-        "overlay.kdl",
-        "run \"good ${prompt}\"\nother \"ok 'bad\\u{0}argument' ${prompt}\"\n",
-    );
-    let catalog_error = Catalog::load(&primary, Some(&overlay), vocabulary())
-        .err()
-        .expect("NUL templates must fail before resolution");
-    let convenience_error = Templates::load(&primary, Some(&overlay), vocabulary())
-        .err()
-        .expect("convenience loading must reject the same templates");
-    assert_eq!(catalog_error.diagnostics(), convenience_error.diagnostics());
-    let diagnostics = catalog_error.diagnostics();
-    assert_eq!(diagnostics.len(), 2);
-    for (diagnostic, path, key) in [
-        (&diagnostics[0], &primary, "run"),
-        (&diagnostics[1], &overlay, "other"),
-    ] {
-        assert_eq!(diagnostic.category, "invalid_template");
-        assert_eq!(diagnostic.key.as_deref(), Some(key));
-        let span = diagnostic
-            .primary
-            .as_ref()
-            .expect("actual template location");
-        assert_eq!(&span.source.path, path);
-        assert!(fs::read_to_string(path).unwrap()[span.start..span.end].contains("\\u{0}"));
-        assert!(diagnostic.message.contains("NUL"));
-        assert!(diagnostic.remedy.contains("NUL"));
-    }
 }
 
 #[test]

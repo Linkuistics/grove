@@ -19,7 +19,7 @@ Where only the delta supplies a route target, the kind remains non-admitted and
 its use fails naming the kind and personal file. This preserves the existing
 per-kind refusal without either source knowing a closed kind set. It is a
 boundary on who introduces a kind; an admitted untracked local override may
-still choose another executable, as it could in the legacy form.
+still choose another executable through a personal command definition.
 
 The delta is **untracked, and Grove enforces it** rather than asking for it. A
 tracked candidate is refused and the session fails closed. The property is worth
@@ -56,9 +56,8 @@ first and untracked second.
 An unreadable, unparseable, structurally invalid, or actively invalid delta
 likewise fails closed — at both load points, before every tree mutation and
 again before every launch. The modular specification defines the validation
-scopes, including legacy eager template checks, and aggregate diagnostics carry
-the delta's own path and location. Trackedness is
-validated on the delta, never used to choose it: a tracked file at the first
+scopes, and aggregate diagnostics carry the delta's own path and location.
+Trackedness is validated on the delta, never used to choose it: a tracked file at the first
 searched path is a refusal, not a reason to read the second path. Selection is
 held to the same rule one step earlier: only a candidate Grove positively
 establishes to be **absent** lets the search move on, so a candidate whose state

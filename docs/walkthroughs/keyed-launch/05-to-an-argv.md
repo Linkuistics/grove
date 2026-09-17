@@ -141,7 +141,7 @@ the public API in `tests/templates.rs` and `tests/inspection.rs`.
 
 | Function | Answers | Refuses with | Pinned by |
 |---|---|---|---|
-| `inspect` | captured sources, histories and compiled words | — | `captured_flat_inspection_retains_history_and_matches_expansion` |
+| `inspect` | captured sources, histories and compiled words | — | `inspection_keeps_native_paths_and_symbolic_native_values` |
 | `source` | which file this key's template was read from | `None` is an answer, not a refusal | `an_overlay_replaces_a_whole_template_and_reports_its_own_path`, `a_key_only_the_overlay_declares_does_not_resolve` |
 | `require` | does this key resolve to exactly one complete template | `` key `k` does not resolve: … `` | `a_key_nobody_declares_names_the_primary_file`, `a_key_only_the_overlay_declares_does_not_resolve` |
 | `expand` | this key's template plus these values, as an argv | both of `require`'s and all three of `match_values`'s | `a_slot_value_is_one_argument_whatever_it_contains`, `program_and_arguments_split_at_word_zero`, `shell_metacharacters_stay_literal` |
@@ -641,7 +641,7 @@ another module, and its placement says so: it is not part of the block a reader
 of the type's public surface walks, and it was added where it could be read
 against its purpose rather than against its neighbours.
 
-<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="962-971" parent="source-templates" -->
+<!-- fragment «templates-keys» owner="whole-word-or-nothing" source="crates/keyed-launch/src/templates.rs" lines="985-994" parent="source-templates" -->
 ````rust
 
 /// The keys the primary document declares, in name order. The conformance kit's

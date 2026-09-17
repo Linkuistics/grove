@@ -315,7 +315,7 @@ literal that would silently produce a *wrong* leaf rather than an error.
 
 Before every tree mutation and again before every launch, the sources are read
 and the active configuration is validated. Syntax, duplicates and node shapes
-are document-wide; legacy flat template rules remain eager; modular semantic
+are document-wide; unsupported top-level declarations are rejected; semantic
 validation applies to the selected combination after composition. The
 [modular configuration contract](modular-configuration.md) owns those scopes.
 Presence is asked at use: before writing or launching kind K, K must resolve to
@@ -351,11 +351,11 @@ selection declaration; Catalog resolution returns validated Templates and
 provenance. Grove retains source discovery, local admissibility, profile-list
 selection policy and runtime context. The runner understands none of Grove's
 paths, kinds or VCS. Catalog/Selection capture and resolution, the empty-selection
-Templates convenience, and Catalog-based conformance are implemented for flat
-commands and parameterized wrapper commands/bindings/routes, including diagnostics from loading, resolution, require
+Templates convenience, and Catalog-based conformance are implemented for
+parameterized wrapper commands/bindings/routes, including diagnostics from loading, resolution, require
 and expansion. Both loaders reserve the `param.` vocabulary prefix.
 Inspection/provenance is implemented through `Templates::inspect`, retaining
-reference chains, parameter defaults/shared values/route overrides/removals/resets, multi-origin words, overwritten targets and
+reference chains, parameter defaults/shared values/route overrides/removals, multi-origin words, overwritten targets and
 non-admitted overlay keys. Both optional selection declarations are captured with
 their origins; the convenience loader ignores them. Grove captures Catalog after
 source admission and chooses the local declaration, else the personal default,
@@ -446,9 +446,9 @@ pub enum Setting {
 }
 pub enum AssignmentValue {
     Set(String), // binding/command name or parameter value, per Setting
-    LiteralTemplate(String), // only RouteTarget; distinct even for identical text
+    LiteralTemplate(String), // unreachable for supported modular input
     Unset,
-    Reset,
+    Reset, // unreachable for supported modular input
 }
 pub struct Assignment {
     pub order: usize, // total application order; repeated occurrences reappear
@@ -606,8 +606,7 @@ a source span. Include edges still have real spans.
 The output records above describe the public test seam, not resolver storage.
 Origin/history IDs are response-local, unique and referentially complete.
 Histories include overwritten settings and removals, including bindings/values
-unused by routes. A route transition that clears parameters records `Reset` in
-each affected parameter history; it cannot erase earlier provenance. Command
+unused by routes. Removing an override retains earlier provenance. Command
 histories include target histories and all parameter scopes contributing to or
 overridden for that route. Word origins identify all contributing source spans,
 including multiple parameters in one word. Their literal/slot representation is
@@ -629,16 +628,14 @@ group**, so a command the session itself launched is reaped with it, and the
 runner hands the terminal to the child and takes it back
 ([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)).
 
-**The vocabulary enters at Catalog loading, not runtime expansion.** Legacy
-templates can therefore be checked eagerly, and active modular templates can be
-checked during resolution, before Templates exists. Runtime slots retain their
+**The vocabulary enters at Catalog loading, not runtime expansion.** Active
+templates are checked during resolution, before Templates exists. Runtime slots retain their
 whole-word and cardinality rules; author-declared parameters have a distinct
 namespace and can fill argument fragments without re-splitting. Templates also
 exposes one structured inspection view of its compiled words and provenance,
 used by diagnostics and Grove's inspector. Runtime expansion fills declared
 slots and checks their values without reparsing configuration or selecting
-profiles again. NUL in flat templates is rejected eagerly at load; NUL in any
-offered runtime value is rejected at expansion, including an unused optional
+profiles again. NUL in any offered runtime value is rejected at expansion, including an unused optional
 slot. Native values otherwise retain their exact contents. Launch/channel
 supervision is unchanged.
 
@@ -1002,8 +999,8 @@ never independently introduce one.
   must declare it
 
 #### Scenario: a malformed template for a kind this run will not reach
-- **WHEN** any legacy flat template, or an active modular template after
-  composition, violates a rule of the slot vocabulary
+- **WHEN** an active modular template after composition violates a rule of the
+  slot vocabulary
 - **THEN** it is refused at load, before any tree mutation and before any launch
 
 #### Scenario: an inactive unfinished profile

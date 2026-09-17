@@ -1,24 +1,24 @@
 # Grove Configuration
 
-This reference describes flat commands, named command reuse, parameters and
+This reference describes modular command reuse, parameters and
 ordered profile composition with workspace selection. The [modular design](specs/modular-configuration.md)
 specifies the resolution and delivery contract. `grove config show [--kind KIND]
 [--json]` explains active policy; `grove config examples` installs the validated
 [example set](examples/modular-configuration/README.md) without activating it.
-Existing configurations require no rewrite.
+Flat top-level commands are rejected. Move templates into command definitions and
+connect them with bindings and routes inside `config { ... }`.
 
 The generic runner captures sources in an owned `Catalog` and resolves an explicit
 `Selection` into `Templates`. Grove chooses the local declaration when present,
 otherwise the personal default, otherwise an empty selection. Captured resolution,
 inspection and expansion do not reread files. Structured diagnostics and library
-inspection cover flat commands, named reference chains, parameter histories and
+inspection cover named reference chains, parameter histories and
 every contributing origin in a resolved word.
 Runtime vocabulary names beginning with `param.` are reserved;
 Grove's existing four slots are unaffected.
 
-NUL is refused before an argument vector is returned: a NUL in either file's
-flat template is an `invalid_template` error at load, including overridden templates.
-Named templates receive that check when an effective binding activates them.
+NUL is refused before an argument vector is returned. Command templates receive
+that check when an effective binding activates them.
 Resolved parameter values containing NUL fail with `invalid_value`, including
 parameters an admitted route declares but does not use in its template.
 A NUL in any offered runtime slot is an `invalid_value` error at expansion,
@@ -35,7 +35,7 @@ template. A named binding can share that template across several routes.
 
 Exactly one other source may take part: an untracked, worktree-local
 [configuration delta](#the-configuration-delta) named `.grove.kdl`, which
-replaces shared values, route parameters, binding targets, route targets, or whole flat templates. Nothing else does — task
+replaces shared values, route parameters, binding targets or route targets. Nothing else does — task
 files, command-line flags, and environment variables neither override nor
 supplement your configuration, and Grove never creates or edits either file. It
 cannot choose your model or approval policy for you.
@@ -66,56 +66,25 @@ invalid usage exits 2. See the [worked command](USAGE.md#usage-configuration-exa
 
 ## The file
 
-The legacy form is a flat set of top-level KDL nodes. A node's name is the session
-kind; its sole positional argument is a string holding the complete command
-template. Nodes take no properties and no child blocks. Comments and ordering are
-free.
+The file contains one `config { ... }` wrapper with command definitions,
+bindings and explicit routes. Profiles and parameters are optional. Empty and
+comment-only documents remain valid but admit no kinds. Other top-level nodes
+are rejected, including former flat keys named `config`, `command` or `select`.
 
-A kind may appear at most once, and Grove asks whether a kind is there only when
-it needs it — see [when a missing kind is
-reported](#when-a-missing-kind-is-reported). An example covering every kind this
-methodology ships, keeping design work on one command, sending every review to a
-second, and running the research pair across two:
+A minimal personal policy is:
 
 ```kdl
-requirements "grove-claude --session ${session_name} ${prompt}"
-review-requirements "grove-codex-review ${worktree} ${prompt}"
-integrate-review-requirements "grove-claude --session ${session_name} ${prompt}"
-
-design "grove-claude --session ${session_name} ${prompt}"
-review-design "grove-codex-review ${worktree} ${prompt}"
-integrate-review-design "grove-claude --session ${session_name} ${prompt}"
-
-planning "grove-claude --session ${session_name} ${prompt}"
-review-planning "grove-codex-review ${worktree} ${prompt}"
-integrate-review-planning "grove-claude --session ${session_name} ${prompt}"
-
-prototype "grove-claude --session ${session_name} ${prompt}"
-review-prototype "grove-codex-review ${worktree} ${prompt}"
-integrate-review-prototype "grove-claude --session ${session_name} ${prompt}"
-
-impl "grove-claude --session ${session_name} ${prompt}"
-review-impl "grove-codex-review ${worktree} ${prompt}"
-integrate-review-impl "grove-claude --session ${session_name} ${prompt}"
-
-research-a "grove-claude --session ${session_name} ${prompt}"
-research-b "grove-codex-research ${worktree} ${prompt}"
-combine-research "grove-claude --session ${session_name} ${prompt}"
-
-draft "grove-claude --session ${session_name} ${prompt}"
-copy-edit "grove-codex-review ${worktree} ${prompt}"
-art "grove-claude --session ${session_name} ${prompt}"
-proof "grove-codex-review ${worktree} ${prompt}"
-
-finish "claude --model opus ${prompt}"
+config {
+    command "agent" "my-agent ${prompt}"
+    bind "lead" "agent"
+    route "impl" "lead"
+}
 ```
 
-The wrapper names above are illustrative; nothing named `grove-*` is shipped. A
-template may equally invoke a harness directly:
-
-```kdl
-impl "claude --model sonnet --permission-mode acceptEdits ${prompt}"
-```
+`my-agent` is an illustrative executable supplied by the owner. Add an explicit
+route for each kind you use; Grove checks presence when it needs that kind.
+The [packaged examples](examples/modular-configuration/README.md) show a complete
+policy with separate commands for implementation, review and research.
 
 ### The kinds this methodology ships
 
@@ -137,7 +106,7 @@ four stages of a document's editorial pipeline; they take no `review-` or
 than reporting on the stage before it. `copy-edit` and `proof` are the natural
 place for a second vendor on that arm — they are the two whole-document reads,
 and a reader that did not write the draft is what a fresh context buys, which is
-why the example above sends them elsewhere. `finish` is the driver-reserved
+why the packaged policy sends them elsewhere. `finish` is the driver-reserved
 teardown session.
 
 Grove itself holds no list of kinds — a kind is an opaque string it looks up —
@@ -153,7 +122,7 @@ The disciplines behind these names are in
 
 ## Named commands and routes
 
-A document may also contain one `config` wrapper. Define commands in the personal
+A nonempty configuration contains one `config` wrapper. Define commands in the personal
 file and share them through explicit bindings and routes:
 
 ```kdl
@@ -172,30 +141,28 @@ config {
 
 Changing `agent` or its `mode` default changes both its users on the next load.
 A local delta can redirect one route with `config { route "impl" "review"; }`, or every use of a binding with
-`config { bind "lead" "reviewer"; }`. A legacy local `impl "other ${prompt}"`
-replaces that route with a whole literal. A named local route can likewise
-replace a personally configured flat command. Only personally targeted kinds
+`config { bind "lead" "reviewer"; }`. Only personally targeted kinds
 are admitted; a local-only route remains unconfigured.
 
 Command and binding names start with a lowercase ASCII letter and contain only
 lowercase letters, digits and single interior dashes. Each namespace is separate.
-Within a document each command, binding and route appears once. Flat keys and
-wrapper routes share the route namespace, but a flat `config "runner ${prompt}"`
-can coexist with the wrapper. Properties and type annotations are invalid.
+Within each scope each command, binding and route appears once.
+Top-level declarations outside the wrapper are rejected, including a flat
+`config "runner ${prompt}"` beside a valid wrapper. Properties and type annotations are invalid.
 Commands accept `param` declarations; routes accept `param`/`unset` patches or
 empty blocks. Bindings have no block.
 
 Named templates are shell-word split before dollar scanning. Runtime slots still
 occupy whole arguments. `$$` escapes one dollar: `$${prompt}` is literal text,
 so a separate `${prompt}` must satisfy its required count. Unknown or unterminated
-substitutions fail. The executable must be nonempty and literal. Legacy flat
-dollar scanning is unchanged. No shell evaluates either form.
+substitutions fail. The executable must be nonempty and literal. No shell
+evaluates the template.
 
 All structural errors fail loading. Effective bindings and admitted route
 references validate after local replacement, so a replaced bad reference does
 not poison the result. Every effective binding validates its command template,
-even with no routes; a definition without a binding remains dormant. Flat template
-checks remain eager even when replaced. Failures identify their source and names.
+even with no routes; a definition without a binding remains dormant.
+Failures identify their source and names.
 
 A command child `param "name" "default"` declares a string default. Omitting the
 second string declares a required parameter: every admitted route must supply a
@@ -258,12 +225,9 @@ parameters, so they cannot prevent a valid personal kind from running.
 
 Changing bindings preserves route exceptions, which must fit the final command's
 schema. Use `unset` to remove an old-schema parameter; absent removals are legal.
-A whole flat template replacement clears route overrides and records their resets.
-Switching a literal route to a binding starts a fresh map before applying its own
-parameters. A parameter-only patch on a route still literal at the end is an error.
-Inspection retains overwritten assignments, removals and resets, including names
-absent from the final schema. Flat entries and wrapper routes share the same
-per-document key namespace, including parameter-only patches.
+Inspection retains overwritten assignments and removals, including names absent
+from the final schema. Routes and parameter-only patches share the same
+per-scope key namespace.
 
 Personal profiles may coexist with base commands while remaining inactive:
 
@@ -319,10 +283,9 @@ cycles report `include_cycle` with a closed chain and include spans.
 
 Later assignments replace earlier assignments within a setting. Route parameters
 remain more specific than shared command values regardless of application order.
-`unset` removes that scope's override; changing a literal route to a binding starts
-an empty route parameter map, with the reset retained in inspection. Only final
-references and surviving assignments need to resolve, so partial selected profiles
-can supply routes, bindings and values separately. Legacy flat checks stay eager.
+`unset` removes that scope's override. Only final references and surviving
+assignments need to resolve, so partial selected profiles can supply routes,
+bindings and values separately.
 
 Personal targets are checked after all selected profiles and before local patches.
 A personal parameter-only route without a target fails the entire selection with
@@ -342,8 +305,10 @@ It is a KDL file named `.grove.kdl`, in exactly the grammar above, declaring
 **any subset** of the kinds your personal file declares:
 
 ```kdl
-impl "claude --model opus ${prompt}"
-review-impl "codex exec --model gpt-5 ${prompt}"
+config {
+    route "impl" "review"
+    route "review-impl" "lead"
+}
 ```
 
 Grove looks for it at two paths, in this order:
@@ -358,10 +323,9 @@ single-workspace repository; they differ for a secondary jj workspace, which is
 what makes a delta at the repository root apply to every workspace of that
 project while one in a workspace's own worktree shadows it for a one-off.
 
-A local flat template replaces a whole target. Named local routes replace binding
-names, and local bindings redirect every route using them. Settings the delta
+Local routes replace binding names, and local bindings redirect every route using them. Settings the delta
 does not mention retain their personal values. Both documents receive structural
-validation, followed by eager flat checks and effective named-reference checks.
+validation, followed by effective reference and template checks.
 
 **A delta overrides and never supplies.** A kind resolves only if your *personal*
 file declares it; a kind only the delta declares does not resolve, and Grove says
@@ -447,10 +411,18 @@ word, such as `tag#1`, is already literal.
 
 ```kdl
 // accepted — the `#` is quoted, so it reaches the command as a literal
-impl "runner --tag '#build' ${prompt}"
+config {
+    command "agent" "runner --tag '#build' ${prompt}"
+    bind "lead" "agent"
+    route "impl" "lead"
+}
 
 // rejected — everything from `#` onward would be dropped
-impl "runner --tag # build ${prompt}"
+config {
+    command "agent" "runner --tag # build ${prompt}"
+    bind "lead" "agent"
+    route "impl" "lead"
+}
 ```
 
 ### What Grove adds
@@ -498,8 +470,8 @@ reopen is delivery, not the registry.
 ## Validation and diagnostics
 
 Loading is all-or-nothing. A successful load proves the file exists, is readable,
-parses as KDL and obeys the structural grammar and duplicate rules. Every flat
-template and every named template reached by an effective binding obeys the
+parses as KDL and obeys the structural grammar and duplicate rules. Every
+command template reached by an effective binding obeys the
 executable and substitution rules above; unused named definitions stay dormant. It proves nothing about which kinds
 are *present* — that question is asked per kind, when the kind is used.
 
@@ -524,7 +496,7 @@ The reader reports `source_read`, `kdl_syntax`, `shape`, `duplicate`,
 `invalid_template`, `unknown_reference`, `unknown_profile`, `include_cycle`,
 `missing_target`, `missing_parameter`, `unknown_parameter`, `unconfigured_key` and `invalid_value`.
 Runtime slot failures and invalid vocabulary use `invalid_value`; these names
-are consumer slots, not configuration parameters. Binding, command and parameter fields remain empty for flat declarations.
+are consumer slots, not configuration parameters.
 Unknown selections carry their selection occurrence and zero-based list index. Unknown external
 profiles are named in the message and carry no source unless the caller supplies
 an origin. Semantic diagnostics retain the selected occurrence/include chain.
@@ -534,15 +506,14 @@ Library consumers can call `Templates::inspect()` to borrow an owned explanation
 of the captured resolution. Named commands include their binding and command
 names, contributing route/binding/template origins, and replaced target histories. It lists sources in primary/overlay order,
 admitted commands and non-admitted keys in name order, and each route target's
-assignment history, including the primary template replaced by an overlay.
+assignment history, including personal targets replaced by an overlay.
 Assignments and origins follow application order, with source order within each
 patch. Occurrence IDs and parent links distinguish repeated applications of the
 same declaration; contributing words reference the winning occurrence. Target histories
 are listed by route key, then binding name. Origin and history IDs index the corresponding response arrays.
-Each word references the winning whole-template declaration's byte span.
+Each word references its template declaration and contributing parameter origins.
 Spans address the original captured UTF-8 contents, even after a path changes or
-disappears. Paths remain native `PathBuf` values. No binding, parameter or profile
-activity is invented for flat commands.
+disappears. Paths remain native `PathBuf` values.
 
 Inspection words use the same `CompiledWord::Literal` and `CompiledWord::Slot`
 representation as expansion. Slots remain symbolic names; filling them with the
@@ -566,7 +537,7 @@ keys. Each command shows its binding/command chain, winning parameter values,
 executable and ordered argument words. Quoted `literal` words escape controls;
 `slot <prompt>` is a runtime placeholder, distinct from a literal `${prompt}`.
 Origin IDs point to paths and zero-based, end-exclusive UTF-8 byte spans;
-history IDs expose overwritten assignments, unset operations and template resets.
+history IDs expose overwritten assignments and unset operations.
 All provenance tables remain available when `--kind` filters the command list.
 
 Inspection validates the entire active configuration before requiring a kind.
@@ -594,8 +565,8 @@ all provenance tables remain intact, so every response-local ID resolves.
 
 Words are `{"type":"literal","value":"text"}` or
 `{"type":"slot","name":"prompt"}`. Parameters have already become literal
-contents. Assignment values use `type`: `set` and `literal_template` carry a
-`value`; `unset` and `reset` carry no value. Settings use snake_case type tags
+contents. Assignment values emitted for modular input use `type`: `set` carries
+a `value`; `unset` carries no value. Settings use snake_case type tags
 and named fields. Source roles are `primary` and `overlay`; absent optionals
 are null. IDs and byte offsets are integers.
 
@@ -686,7 +657,7 @@ launch read, that mutation stays as resumable tree state and no session launches
 Either way an existing selected leaf remains live and resumable.
 
 A configuration that declares no template for a kind you never reach is neither
-invalid nor a problem. Malformed flat templates remain eagerly invalid even for unused kinds. Named
+invalid nor a problem. Unsupported top-level declarations fail structurally. Named
 commands and profile references receive semantic validation when active; inactive
 profiles receive structural checks. Presence is about the kind in hand.
 

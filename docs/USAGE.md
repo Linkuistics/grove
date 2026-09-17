@@ -26,8 +26,8 @@ row of it.
 Every transcript below is real output with the working tree rewritten to
 `/home/you/app`.
 
-Personal policy may use flat commands or share named commands with parameter
-defaults through explicit bindings and routes. Local deltas can replace those
+Personal policy uses a `config { ... }` wrapper with named commands and explicit
+bindings and routes. Parameters and profiles are optional; flat commands are rejected. Local deltas can replace those
 targets, shared command values or route parameters. Inactive personal profiles are structurally validated and leave base commands unchanged.
 A local `config { select "daily" "experiment"; }` replaces the personal default
 profile list; `config { select; }` disables profiles. Without a local selection,

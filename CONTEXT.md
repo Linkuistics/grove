@@ -782,7 +782,7 @@ Personal launch policy: explicit [[Session kind]] routes, reusable command
 definitions, [[Command binding]]s, and named [[Configuration profile]]s, with an
 optional [[Configuration delta]]. The modular design is specified in
 [modular configuration](docs/specs/modular-configuration.md); the currently
-implemented flat and parameterized named forms, with explicit generic profile
+implemented modular form, with explicit generic profile
 composition and structurally checked inactive profiles, are documented in
 [the reference](docs/CONFIGURATION.md).
 The generic runner's **Catalog** is the captured source documents and slot
@@ -831,7 +831,7 @@ to expose inheritance. It is distinct from a runtime slot.
 ### Kind route
 
 An explicit [[Session kind]] mapping to a [[Command binding]], with optional
-[[Command parameter]] overrides, or to a complete legacy template. It is a
+[[Command parameter]] overrides. It is a
 configuration object, distinct from the driver's [[Kind routing]] procedure.
 
 <a id="command-binding"></a>

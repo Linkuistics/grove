@@ -46,7 +46,7 @@ policy; inspection retains those contributing declarations.
 
 ## Installing examples
 
-Run `grove config examples` to place six `.example.kdl` files and
+Run `grove config examples` to place five `.example.kdl` files and
 `CONFIGURATION.examples.md` in `~/.config/grove/`. It needs neither a workspace
 nor valid active policy. Destinations are fixed; active `config.kdl` and
 `.grove.kdl` files are never written. The installed instructions explain

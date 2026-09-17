@@ -1,4 +1,4 @@
-# modular-only-k3
+# modular-only-k3 — brief
 
 ## Goal
 
@@ -13,8 +13,8 @@ documentation with the root brief's modular-only contract.
   handling in `templates/named.rs`; trace consumers before deleting code.
 - Public inspection types are in `crates/keyed-launch/src/inspection.rs`.
   Grove's text/JSON renderers and examples installer consume those contracts.
-- Packaged examples include `grove.legacy-override.example.kdl`, with installer
-  inventories and success assertions that must be reconciled when it is removed.
+- Packaged sample removal is delivered by `modular-examples-k9`, including the
+  installer inventory, preservation assertions and overview source projection.
 
 ## Done when
 
@@ -34,6 +34,16 @@ documentation with the root brief's modular-only contract.
 - An audit enumerates configuration forms and classifies remaining old-form
   occurrences as rejection evidence or historical material. A clean search for
   selected legacy symbol names alone does not establish removal.
+
+## Decomposition
+
+The packaged inventory has its own installer, launch checks and overview source
+projection, independently verifiable before changing the shared resolver.
+`modular-examples-k9` removes that flat delivery surface first.
+`modular-loader-k10` owns the remaining parser/resolver/inspection removal,
+load-error assertions, durable contract reconciliation and final forms audit.
+This preserves green boundaries without leaving a changed public loader paired
+with obsolete public contracts.
 
 ## Notes
 

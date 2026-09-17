@@ -51,7 +51,6 @@ signals. It installs only these fixed paths under `~/.config/grove/`:
 - `grove.claude-led.example.kdl`
 - `grove.high-effort.example.kdl`
 - `grove.local-override.example.kdl`
-- `grove.legacy-override.example.kdl`
 - `CONFIGURATION.examples.md`
 
 The instructions explain how to supply your executable/model policy and adapt

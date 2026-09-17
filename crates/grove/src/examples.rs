@@ -33,12 +33,6 @@ const EXAMPLES: &[(&str, &[u8])] = &[
         ),
     ),
     (
-        "grove.legacy-override.example.kdl",
-        include_bytes!(
-            "../../../docs/examples/modular-configuration/grove.legacy-override.example.kdl"
-        ),
-    ),
-    (
         "CONFIGURATION.examples.md",
         include_bytes!("../../../docs/examples/modular-configuration/README.md"),
     ),
@@ -272,8 +266,8 @@ mod tests {
     #[test]
     fn late_write_failure_reports_partial_file_and_preserves_matching_file() {
         let directory = tempfile::tempdir().unwrap();
-        let matching = directory.path().join(EXAMPLES[6].0);
-        fs::write(&matching, EXAMPLES[6].1).unwrap();
+        let matching = directory.path().join(EXAMPLES[EXAMPLES.len() - 1].0);
+        fs::write(&matching, EXAMPLES[EXAMPLES.len() - 1].1).unwrap();
         let modified = fs::metadata(&matching).unwrap().modified().unwrap();
         let storage = FaultyDisk {
             fault: Fault::Write,

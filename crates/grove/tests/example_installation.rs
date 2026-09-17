@@ -9,7 +9,6 @@ const FILES: &[&str] = &[
     "grove.claude-led.example.kdl",
     "grove.high-effort.example.kdl",
     "grove.local-override.example.kdl",
-    "grove.legacy-override.example.kdl",
     "CONFIGURATION.examples.md",
 ];
 
@@ -36,6 +35,10 @@ fn installs_exact_bytes_without_policy_workspace_or_epoch_and_repeats_untouched(
         fs::write(destination.join("unrelated"), "keep me").unwrap();
         fs::write(home.path().join(".grove.kdl"), "keep delta").unwrap();
         fs::write(home.path().join("stale-signal"), "stale").unwrap();
+        let retired_sample = destination.join("grove.legacy-override.example.kdl");
+        if active.is_some() {
+            fs::write(&retired_sample, "previously installed sample").unwrap();
+        }
         let output = run(home.path());
         assert!(output.status.success(), "{output:?}");
         assert!(output.stderr.is_empty());
@@ -75,6 +78,10 @@ fn installs_exact_bytes_without_policy_workspace_or_epoch_and_repeats_untouched(
         assert_eq!(
             fs::read_to_string(destination.join("unrelated")).unwrap(),
             "keep me"
+        );
+        assert_eq!(
+            fs::read_to_string(&retired_sample).ok().as_deref(),
+            active.map(|_| "previously installed sample")
         );
         assert_eq!(
             fs::read_to_string(home.path().join(".grove.kdl")).unwrap(),

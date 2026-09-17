@@ -179,10 +179,10 @@ lines = "1-167"
 [[root]]
 id = "source-configuration-examples"
 path = "crates/grove/src/examples.rs"
-lines = 320
+lines = 314
 
 [[block]]
 id = "configuration-examples"
 root = "source-configuration-examples"
 owner = "assembly"
-lines = "1-320"
+lines = "1-314"

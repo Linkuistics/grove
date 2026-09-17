@@ -13,7 +13,7 @@
 | `source-command-surface` | `crates/grove/src/cli.rs` | 248 |
 | `source-configuration-report` | `crates/grove/src/config.rs` | 165 |
 | `source-configuration-json` | `crates/grove/src/config_json.rs` | 167 |
-| `source-configuration-examples` | `crates/grove/src/examples.rs` | 320 |
+| `source-configuration-examples` | `crates/grove/src/examples.rs` | 314 |
 
 <!-- source-root «source-crate-manifest» source="crates/grove/Cargo.toml" lines="1-58" -->
 <!-- insert «manifest-thin-by-construction» -->
@@ -37,7 +37,7 @@
 <!-- insert «configuration-json» -->
 <!-- /source-root -->
 
-<!-- source-root «source-configuration-examples» source="crates/grove/src/examples.rs" lines="1-320" -->
+<!-- source-root «source-configuration-examples» source="crates/grove/src/examples.rs" lines="1-314" -->
 <!-- insert «configuration-examples» -->
 <!-- /source-root -->
 
@@ -53,7 +53,7 @@
 | `surface-closure-tests` | `source-command-surface` | `closure-proved` | `149-248` | 100 | `resolved` |
 | `configuration-report` | `source-configuration-report` | `assembly` | `1-165` | 165 | `resolved` |
 | `configuration-json` | `source-configuration-json` | `assembly` | `1-167` | 167 | `resolved` |
-| `configuration-examples` | `source-configuration-examples` | `assembly` | `1-320` | 320 | `resolved` |
+| `configuration-examples` | `source-configuration-examples` | `assembly` | `1-314` | 314 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -115,17 +115,17 @@
 | `json-inspection` | `what-the-call-reaches` | `source-configuration-json` | `literal` | `assembly` | `71-100` | `configuration-json` | `—` |
 | `json-diagnostics` | `what-the-call-reaches` | `source-configuration-json` | `literal` | `assembly` | `101-131` | `configuration-json` | `—` |
 | `json-native-tests` | `what-the-call-reaches` | `source-configuration-json` | `literal` | `assembly` | `132-167` | `configuration-json` | `—` |
-| `source-configuration-examples` | `source-index` | `source-configuration-examples` | `root` | `—` | `1-320` | `—` | `configuration-examples` |
-| `examples-package` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `1-45` | `configuration-examples` | `—` |
-| `configuration-examples` | `what-the-call-reaches` | `source-configuration-examples` | `composite` | `assembly` | `1-320` | `source-configuration-examples` | `examples-package`, `examples-storage`, `examples-report`, `examples-install`, `examples-run`, `examples-faults`, `examples-race-test`, `examples-write-test`, `examples-refusal-test` |
-| `examples-storage` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `46-81` | `configuration-examples` | `—` |
-| `examples-report` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `82-102` | `configuration-examples` | `—` |
-| `examples-install` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `103-160` | `configuration-examples` | `—` |
-| `examples-run` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `161-173` | `configuration-examples` | `—` |
-| `examples-faults` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `174-247` | `configuration-examples` | `—` |
-| `examples-race-test` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `248-270` | `configuration-examples` | `—` |
-| `examples-write-test` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `271-302` | `configuration-examples` | `—` |
-| `examples-refusal-test` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `303-320` | `configuration-examples` | `—` |
+| `source-configuration-examples` | `source-index` | `source-configuration-examples` | `root` | `—` | `1-314` | `—` | `configuration-examples` |
+| `examples-package` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `1-39` | `configuration-examples` | `—` |
+| `configuration-examples` | `what-the-call-reaches` | `source-configuration-examples` | `composite` | `assembly` | `1-314` | `source-configuration-examples` | `examples-package`, `examples-storage`, `examples-report`, `examples-install`, `examples-run`, `examples-faults`, `examples-race-test`, `examples-write-test`, `examples-refusal-test` |
+| `examples-storage` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `40-75` | `configuration-examples` | `—` |
+| `examples-report` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `76-96` | `configuration-examples` | `—` |
+| `examples-install` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `97-154` | `configuration-examples` | `—` |
+| `examples-run` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `155-167` | `configuration-examples` | `—` |
+| `examples-faults` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `168-241` | `configuration-examples` | `—` |
+| `examples-race-test` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `242-264` | `configuration-examples` | `—` |
+| `examples-write-test` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `265-296` | `configuration-examples` | `—` |
+| `examples-refusal-test` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `297-314` | `configuration-examples` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -149,5 +149,5 @@ Every source line is credited once to its owning chapter.
 | `no-arguments` | `02-the-surface.md` | 106 |
 | `one-call` | `03-three-steps.md` | 58 |
 | `closure-proved` | `04-proving-a-negative.md` | 100 |
-| `assembly` | `05-what-the-call-reaches.md` | 652 |
-| **Total** | 6 source roots | **974** |
+| `assembly` | `05-what-the-call-reaches.md` | 646 |
+| **Total** | 6 source roots | **968** |

@@ -8,6 +8,7 @@ Use a Grove release supporting `grove config show` and `grove config examples`.
 `CONFIGURATION.examples.md`. The verb never overwrites `config.kdl`, any active
 `.grove.kdl`, or a different existing file. Running it again leaves matching
 files unchanged. A conflict names the files the owner must move or reconcile.
+Previously installed samples outside this list are left untouched.
 
 | File | Demonstrates |
 |---|---|
@@ -16,9 +17,8 @@ files unchanged. A conflict names the files the owner must move or reconcile.
 | `grove.claude-led.example.kdl` | The opposite arrangement with no copied templates or route map |
 | `grove.high-effort.example.kdl` | A parameter-only experiment composed after `daily` |
 | `grove.local-override.example.kdl` | Per-kind local values after profiles, and removal of a route override |
-| `grove.legacy-override.example.kdl` | An unchanged flat local template replacing one route |
 
-`my-codex-policy`, `my-claude-policy`, and `my-other-policy` are illustrative
+`my-codex-policy` and `my-claude-policy` are illustrative
 executables supplied by the owner. No such wrapper is shipped. Their flags are
 an example of an author-defined interface, not a claim about a particular
 harness release. Supply your executables or wrappers, model values, approval,
@@ -55,8 +55,7 @@ Adding `high-effort` changes shared effort; removing it restores `medium`.
 `proof` retains its explicit `high` override until an `unset` removes it. The
 local override sample selects `daily`: `impl` changes from shared `medium` to
 local `low`, while `unset` changes `proof` from its explicit `high` to inherited
-`medium`. Removing that `unset` restores `high`. The legacy sample sends `impl`
-to `my-other-policy`.
+`medium`. Removing that `unset` restores `high`.
 
 Selecting `daily` followed by `unfinished` must fail with an unknown command
 reference and launch nothing. Leaving `unfinished` unselected must succeed.

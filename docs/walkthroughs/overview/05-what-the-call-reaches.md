@@ -6,7 +6,7 @@
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 974 source lines. The preceding chapters explain parsing,
+The book reconstructs 968 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns the configuration report formatter,
 which turns validated records into human text or versioned JSON, plus the\ninactive example installer and its filesystem failure seam.
@@ -377,7 +377,7 @@ steps. The grammar explains its own path and command types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 58 + 106 + 58 + 100 + 652 = 974 lines across 5 source-owning chapters.
+Owned source is 58 + 106 + 58 + 100 + 646 = 968 lines across 5 source-owning chapters.
 Assembly owns configuration presentation and example delivery. The ledgers are maintained with source changes;
 production files remain authoritative.
 
@@ -397,7 +397,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 6 roots and 974 lines, explained across 5 chapters and two
+The corpus contains 6 roots and 968 lines, explained across 5 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 
@@ -653,7 +653,7 @@ The example command owns filesystem delivery in the human binary. Its package,
 preflight, creation and reporting form a separate path from configuration
 inspection, and the following fragments reconstruct that path and its tests.
 
-<!-- fragment «configuration-examples» owner="assembly" source="crates/grove/src/examples.rs" lines="1-320" parent="source-configuration-examples" -->
+<!-- fragment «configuration-examples» owner="assembly" source="crates/grove/src/examples.rs" lines="1-314" parent="source-configuration-examples" -->
 <!-- insert «examples-package» -->
 <!-- insert «examples-storage» -->
 <!-- insert «examples-report» -->
@@ -670,7 +670,7 @@ inspection, and the following fragments reconstruct that path and its tests.
 
 The binary owns a fixed destination-to-bytes table. `include_bytes!` reads the authoritative repository samples at compile time, including the README under its installed name. In our worked installation, no active policy is consulted and no runtime repository checkout is required.
 
-<!-- fragment «examples-package» owner="assembly" source="crates/grove/src/examples.rs" lines="1-45" parent="configuration-examples" -->
+<!-- fragment «examples-package» owner="assembly" source="crates/grove/src/examples.rs" lines="1-39" parent="configuration-examples" -->
 ````rust
 //! Install the authoritative example bytes without reading active launch policy.
 
@@ -707,12 +707,6 @@ const EXAMPLES: &[(&str, &[u8])] = &[
         ),
     ),
     (
-        "grove.legacy-override.example.kdl",
-        include_bytes!(
-            "../../../docs/examples/modular-configuration/grove.legacy-override.example.kdl"
-        ),
-    ),
-    (
         "CONFIGURATION.examples.md",
         include_bytes!("../../../docs/examples/modular-configuration/README.md"),
     ),
@@ -725,7 +719,7 @@ const EXAMPLES: &[(&str, &[u8])] = &[
 
 `Storage` supplies the three effects the installer needs: inspect an entry, prepare its parent and exclusively create a writer. `Disk` accepts only regular entries with identical readable bytes. The no-follow metadata check rejects symlinks, while `create_new` refuses a competing occupant even after a clean preflight. Tests can inject failure at these effect boundaries without replacing the installation algorithm.
 
-<!-- fragment «examples-storage» owner="assembly" source="crates/grove/src/examples.rs" lines="46-81" parent="configuration-examples" -->
+<!-- fragment «examples-storage» owner="assembly" source="crates/grove/src/examples.rs" lines="40-75" parent="configuration-examples" -->
 ````rust
 
 /// Filesystem effects are separate so acceptance can interleave a competing
@@ -771,7 +765,7 @@ impl Storage for Disk {
 
 `Report` retains created paths, unchanged paths and failures separately, then formats them together. A created path means an exclusive open succeeded; a later write failure identifies that path as potentially partial. Keeping that distinction lets the command describe actual disk effects without promising a batch transaction.
 
-<!-- fragment «examples-report» owner="assembly" source="crates/grove/src/examples.rs" lines="82-102" parent="configuration-examples" -->
+<!-- fragment «examples-report» owner="assembly" source="crates/grove/src/examples.rs" lines="76-96" parent="configuration-examples" -->
 ````rust
 
 #[derive(Default)]
@@ -802,7 +796,7 @@ impl Report {
 
 Consider a missing first sample and an edited second sample. `install` inspects the entire fixed set and returns both conflicts before creating the first. If all entries are matching or absent, it prepares the directory and creates only missing files in package order. Each successful open is recorded before writing. A competing creation stops the loop without replacement; a short write leaves the new partial file and earlier creations in the report. Nothing is removed to simulate rollback, so a retry can itself refuse the partial contents.
 
-<!-- fragment «examples-install» owner="assembly" source="crates/grove/src/examples.rs" lines="103-160" parent="configuration-examples" -->
+<!-- fragment «examples-install» owner="assembly" source="crates/grove/src/examples.rs" lines="97-154" parent="configuration-examples" -->
 ````rust
 
 /// Preflight the whole set before creating even the destination directory.
@@ -870,7 +864,7 @@ fn install(directory: &Path, storage: &impl Storage) -> Report {
 
 `run` resolves HOME as a native path, refuses a missing or empty value, and calls the installer for the fixed `.config/grove` directory. The CLI dispatches this branch before even resolving the working directory. A successful report goes to stdout; a report with failures becomes the ordinary exit-1 error on stderr. No workspace, policy reader or epoch is involved.
 
-<!-- fragment «examples-run» owner="assembly" source="crates/grove/src/examples.rs" lines="161-173" parent="configuration-examples" -->
+<!-- fragment «examples-run» owner="assembly" source="crates/grove/src/examples.rs" lines="155-167" parent="configuration-examples" -->
 ````rust
 
 /// Resolve the fixed personal directory independently of workspace/epoch state.
@@ -893,7 +887,7 @@ pub fn run() -> anyhow::Result<()> {
 
 The test adapter delegates to real temporary files while controlling the timing of a second creation or short write. `ShortWriter` writes three bytes before returning an injected error; `FaultyDisk` can create a competing occupant immediately before the exclusive open. Permission and directory failures are injected separately, so those paths remain testable even with elevated filesystem privileges.
 
-<!-- fragment «examples-faults» owner="assembly" source="crates/grove/src/examples.rs" lines="174-247" parent="configuration-examples" -->
+<!-- fragment «examples-faults» owner="assembly" source="crates/grove/src/examples.rs" lines="168-241" parent="configuration-examples" -->
 ````rust
 
 #[cfg(test)]
@@ -977,7 +971,7 @@ mod tests {
 
 The race test checks three distinct outcomes: the first completed sample has the intended bytes, the competing second file retains its own contents, and no third file is created. The report must name the first creation and the failed second destination. These disk observations would expose replacing creation with a truncating open.
 
-<!-- fragment «examples-race-test» owner="assembly" source="crates/grove/src/examples.rs" lines="248-270" parent="configuration-examples" -->
+<!-- fragment «examples-race-test» owner="assembly" source="crates/grove/src/examples.rs" lines="242-264" parent="configuration-examples" -->
 ````rust
 
     #[test]
@@ -1010,14 +1004,14 @@ The race test checks three distinct outcomes: the first completed sample has the
 
 The write test begins with a matching instructions file, then fails after three bytes of the second new sample. It checks both new paths, the short contents, the unchanged modification time and refusal of a subsequent retry. The test establishes the report and preservation contract through observable effects.
 
-<!-- fragment «examples-write-test» owner="assembly" source="crates/grove/src/examples.rs" lines="271-302" parent="configuration-examples" -->
+<!-- fragment «examples-write-test» owner="assembly" source="crates/grove/src/examples.rs" lines="265-296" parent="configuration-examples" -->
 ````rust
 
     #[test]
     fn late_write_failure_reports_partial_file_and_preserves_matching_file() {
         let directory = tempfile::tempdir().unwrap();
-        let matching = directory.path().join(EXAMPLES[6].0);
-        fs::write(&matching, EXAMPLES[6].1).unwrap();
+        let matching = directory.path().join(EXAMPLES[EXAMPLES.len() - 1].0);
+        fs::write(&matching, EXAMPLES[EXAMPLES.len() - 1].1).unwrap();
         let modified = fs::metadata(&matching).unwrap().modified().unwrap();
         let storage = FaultyDisk {
             fault: Fault::Write,
@@ -1052,7 +1046,7 @@ The write test begins with a matching instructions file, then fails after three 
 
 The remaining test injects unreadable preflight and parent-directory refusal independently. Both must return failures with no recorded or attempted file creation and no destination directory. Process acceptance in `crates/grove/tests/example_installation.rs` additionally checks exact packaged bytes, streams, CLI usage, real symlinks and unreadable entries; `config_examples.rs` resolves and launches the installed KDL files.
 
-<!-- fragment «examples-refusal-test» owner="assembly" source="crates/grove/src/examples.rs" lines="303-320" parent="configuration-examples" -->
+<!-- fragment «examples-refusal-test» owner="assembly" source="crates/grove/src/examples.rs" lines="297-314" parent="configuration-examples" -->
 ````rust
 
     #[test]

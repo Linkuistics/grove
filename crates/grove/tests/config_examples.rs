@@ -53,7 +53,7 @@ impl Fixture {
             home.join(".config/grove/config.kdl"),
         )
         .unwrap();
-        for executable in ["my-codex-policy", "my-claude-policy", "my-other-policy"] {
+        for executable in ["my-codex-policy", "my-claude-policy"] {
             let path = bin.join(executable);
             fs::write(
                 &path,
@@ -275,14 +275,6 @@ fn repository_examples_resolve_inspect_and_launch_the_promised_argv() {
             CODEX_LOW,
             CLAUDE_MEDIUM,
             CLAUDE_MEDIUM,
-        ),
-        (
-            Some("grove.legacy-override.example.kdl"),
-            vec!["daily"],
-            vec!["daily", "routes", "codex-led"],
-            &["my-other-policy", PROMPT],
-            CLAUDE_MEDIUM,
-            CLAUDE_HIGH,
         ),
     ];
     for (local, selection, occurrences, implementation, review, proof) in cases {

@@ -1,3 +1,22 @@
+## Reusable development tasks
+
+Check for a project Taskfile in **every new or existing project**. If it has
+none, always suggest adding a repository-root `Taskfile.yml`. If one exists,
+use and extend it. Carry forward a settled project choice rather than repeating
+the suggestion each session.
+
+**The Taskfile is the entry point for deterministic reusable development work**:
+setup, formatting, linting, tests, builds, checks, releases, and other repeatable
+project workflows. Capture as many concrete reusable tasks as the work reveals;
+grow the file from actual needs, without inventing speculative tasks. Wrap
+existing scripts and tools where they already own the mechanics. Use the tasks
+on subsequent runs instead of having an LLM reconstruct command sequences each
+time, and verify new or changed tasks before relying on them. Human decisions
+and LLM judgment stay outside those deterministic recipes.
+
+This executable task file belongs to the project and survives the grove; it is
+distinct from the markdown task notes under `.grove/`.
+
 ## Review ownership inside a picked leaf
 
 **The allowance is a picked leaf's, and only a picked leaf's.** It applies after

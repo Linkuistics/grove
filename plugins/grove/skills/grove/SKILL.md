@@ -67,6 +67,8 @@ the brief chain root→leaf, and the task file. Nothing else by reflex.
 
 ## The loop
 
+- When starting or continuing work in any project, follow the reusable
+  development tasks procedure in `references/execute.md`.
 - When how this session was launched matters, read `references/driver.md`.
 - When the mandated handle resolves to nothing or to a terminal leaf, stop as
   `references/bootstrap.md` directs.

@@ -175,6 +175,7 @@ measure-a-frozen-subject	grove/references/execute.md	B+S	on(reporting a measured
 no-self-invalidating-count	grove/references/execute.md	B	on(making a repo-wide claim) @ grove/references/execute.md	Never document a claim with a count of itself
 one-measurement-one-writer	grove/references/execute.md	B+S	on(reporting a measured result) @ grove/references/execute.md	never infer that a background job has finished from the return of the thing that launched it
 re-run-is-confirmed-item-by-item	grove/references/execute.md	B+S	on(reporting a measured result) @ grove/references/execute.md	Confirm a re-run item by item, not by matching totals
+reusable-development-tasks	grove/references/execute.md	B	on(starting or continuing work in any project) @ grove/SKILL.md	The Taskfile is the entry point for deterministic reusable development work
 review-budget	grove/references/execute.md	B*	on(considering a reviewer) @ grove/SKILL.md	at most one in-session reviewer across the whole picked leaf
 review-budget-by-kind	grove/references/execute.md	B	on(considering a reviewer) @ grove/references/execute.md	spend **none** — the pair supplies independent corpora
 review-budget-predicate	grove/references/execute.md	B	on(considering a reviewer) @ grove/references/execute.md	adopted that mandate by running Bootstrap

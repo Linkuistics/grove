@@ -51,6 +51,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove` / `grove-design`: let the requirements and specification diagram
+  viewer use the full browser width instead of capping it at 1520 pixels.
+
 ## v21.8.0
 
 - Configuration now accepts only modular `config { ... }` declarations. Flat

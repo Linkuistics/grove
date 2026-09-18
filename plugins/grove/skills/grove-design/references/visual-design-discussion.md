@@ -78,6 +78,16 @@ and being changed are different: retain links to unchanged context without
 marking it updated. Refresh these markers when the discussion moves on; they
 describe the current update, not a second decision log.
 
+A reader should know where to start. Mark every graph view's reading entry:
+give the entry node a distinct `start` style (a dark fill, bold, white text)
+and begin its label with "Start here"; number edge labels where the order of
+steps matters. A sequence reads from its first message and a state diagram
+from its initial pseudo-state, so they need no marker. State the convention
+once, in the document's intro and its README, so every later view keeps it.
+The bundled viewer lets the page fill the window, so widening the window shows
+a wide view without horizontal scrolling; keep views legible at that width
+rather than relying on the native-size option.
+
 Give each diagram and prose section a descriptive title and stable link. Refer
 to a view by topic and title in conversation and link directly to it. Every
 change-list item in the document or a conversational report contains a

@@ -20,22 +20,35 @@ task release:minor   # e.g. 21.8.0 → 21.9.0
 task release:major   # e.g. 21.8.0 → 22.0.0
 ```
 
-First record the changes under `## Unreleased`, commit them through jj, move
-`main` to the finished change, and run `jj new main` in the default workspace.
-Preserve unrelated work in its own jj change before doing so. Both Grove and
-the tap must have clean working copies. A jj tap publishes from `main`, which
-must agree with `main@origin` before the formula is changed.
+Put the changes intended for release on `main`, with descriptions on each jj
+change. The task snapshots and preserves unrelated working-copy changes in jj,
+prints their change ID, fetches `origin`, refuses divergent or conflicted
+`main`, and starts a clean release change on the fetched `main`. It leaves the
+workspace on the release when finished; use the printed `jj edit` command to
+return to saved work.
+
+Existing `## Unreleased` notes are preserved. When that section is empty, the
+task generates entries from commit subjects since the current version's tag
+and commits the changelog through jj. An already tagged `main` is refused, so
+an interrupted cut is not silently bumped again. The GitHub Release uses the
+resulting versioned changelog section as its notes. A jj tap must be clean and
+its `main` must agree with `main@origin`; its state is checked before the cut
+and again before publication.
+For a Git-only tap, the current branch must be attached, have an upstream, and
+agree with it after fetching.
 
 Each task runs the checks below, dry-runs and executes the version cut, builds
 all three archives, pushes `main` and the tag, publishes the release and tap,
 then upgrades or installs Grove and verifies it. Invoking it authorizes that
 whole sequence. `task --dry release:patch` checks the preconditions and previews
-the commands without running them. Install Task
-with `brew install go-task` if needed.
+the commands without running them. Install Task with `brew install go-task` if
+needed; preparation also uses `jq`. A lock under `.jj/release-lock` prevents
+concurrent release tasks. If a killed process leaves it behind, confirm that
+release has stopped before removing the lock.
 
 The tasks stop on the first failure. After a version has been cut, **resume at
-the unfinished step below rather than rerunning the task**, which would cut
-another version. Tree-format changes still require the concrete cutover
+the unfinished step below rather than restarting the version cut**. An unchanged
+tagged `main` is refused on a rerun. Tree-format changes still require the concrete cutover
 preparation described below before running a task.
 
 ## Prerequisites

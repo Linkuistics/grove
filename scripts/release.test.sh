@@ -12,11 +12,19 @@ export GIT_AUTHOR_NAME='Release Test' GIT_COMMITTER_NAME='Release Test'
 export GIT_AUTHOR_EMAIL='release@example.invalid' GIT_COMMITTER_EMAIL='release@example.invalid'
 real_git="$(command -v git)"
 export RELEASE_TEST_GIT="$real_git" RELEASE_TEST_LOG="$scratch/published"
+export RELEASE_TEST_NOTES="$scratch/release-notes"
 mkdir -p "$scratch/bin" "$scratch/source/scripts" "$scratch/source/target/dist"
 cat >"$scratch/bin/gh" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "$1 $2" == 'release create' ]]; then
+  while (($#)); do
+    if [[ "$1" == '--notes-file' ]]; then
+      shift
+      cat "$1" >"$RELEASE_TEST_NOTES"
+    fi
+    shift
+  done
   printf 'published\n' >>"$RELEASE_TEST_LOG"
 fi
 SH
@@ -33,6 +41,7 @@ chmod +x "$scratch/bin/gh" "$scratch/bin/git"
 export PATH="$scratch/bin:$PATH"
 
 cp "$repo_root/scripts/release-publish.sh" "$scratch/source/scripts/"
+printf '## Unreleased\n\n## v1.2.3\n\n- Meaningful release notes.\n' >"$scratch/source/CHANGELOG.md"
 "$real_git" init -q "$scratch/source"
 "$real_git" -C "$scratch/source" add .
 "$real_git" -C "$scratch/source" commit -qm fixture
@@ -71,6 +80,18 @@ bash "$scratch/source/scripts/release-publish.sh"
 [[ "$("$real_git" --git-dir="$scratch/remote.git" show main:Formula/grove.rb)" == 'new formula' ]]
 [[ -z "$("$real_git" -C "$scratch/tap" status --porcelain)" ]]
 [[ "$(cat "$RELEASE_TEST_LOG")" == 'published' ]]
+grep -Fxq -- '- Meaningful release notes.' "$RELEASE_TEST_NOTES"
+
+# A Git-only tap on detached HEAD must be refused before GitHub publication.
+"$real_git" clone -q --branch main "$scratch/remote.git" "$scratch/git-tap"
+"$real_git" -C "$scratch/git-tap" checkout -q --detach
+cp "$RELEASE_TEST_LOG" "$scratch/published-before"
+if GROVE_TAP_DIR="$scratch/git-tap" bash "$scratch/source/scripts/release-publish.sh" >"$scratch/output" 2>&1; then
+  echo 'FAIL: publishing accepted a detached Git-only tap' >&2
+  exit 1
+fi
+cmp "$scratch/published-before" "$RELEASE_TEST_LOG"
+grep -Fq 'tap is on detached HEAD' "$scratch/output"
 
 # Failed prerequisites stop the real Task pipeline before cutting a version.
 mkdir -p "$scratch/task/scripts"
@@ -103,18 +124,15 @@ fi
 grep -Fq 'exit status 73' "$scratch/output"
 [[ "$("$real_git" -C "$scratch/task" rev-parse HEAD)" == "$before" ]]
 [[ -z "$("$real_git" -C "$scratch/task" tag --list)" ]]
+[[ ! -e "$scratch/task/.jj/release-lock" ]]
 
-# A release that arrived during fetch must not reuse the old Unreleased notes.
-"$real_git" clone -q --branch main "$scratch/task-remote.git" "$scratch/other"
-printf '## Unreleased\n' >"$scratch/other/CHANGELOG.md"
-"$real_git" -C "$scratch/other" add CHANGELOG.md
-"$real_git" -C "$scratch/other" commit -qm 'another release'
-"$real_git" -C "$scratch/other" push -q origin main
+# A second invocation must not enter an in-progress release.
+mkdir "$scratch/task/.jj/release-lock"
 if task --dir "$scratch/task" release:patch >"$scratch/output" 2>&1; then
-  echo 'FAIL: release continued after main advanced during fetch' >&2
+  echo 'FAIL: a second release acquired the active release lock' >&2
   exit 1
 fi
-grep -Fq 'main advanced during fetch' "$scratch/output"
-[[ "$("$real_git" -C "$scratch/task" rev-parse HEAD)" == "$before" ]]
-[[ -z "$("$real_git" -C "$scratch/task" tag --list)" ]]
+grep -Fq 'Another release holds .jj/release-lock' "$scratch/output"
+[[ -d "$scratch/task/.jj/release-lock" ]]
+
 echo 'release tests: all passed'

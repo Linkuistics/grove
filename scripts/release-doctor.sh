@@ -15,7 +15,8 @@ set -euo pipefail
 IFS=$'\n\t'
 trap 'echo "release-doctor: error on line $LINENO" >&2' ERR
 
-readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
 
 # TARGETS, pin_rust_toolchain, resolved_rustc, target_std_installed.
 # shellcheck source=scripts/release-common.sh
@@ -140,6 +141,24 @@ check_gh_auth() {
   fi
 }
 
+check_release_commands() {
+  local program
+  for program in jj jq brew task; do
+    if command -v "$program" >/dev/null 2>&1; then
+      mark_pass "$program: available"
+    else
+      mark_fail "$program: not on PATH"
+      remediation "install $program before running a release task"
+    fi
+  done
+  if cargo release --version >/dev/null 2>&1; then
+    mark_pass 'cargo-release: available'
+  else
+    mark_fail 'cargo-release: not installed'
+    remediation 'cargo install cargo-release'
+  fi
+}
+
 main() {
   echo "release-doctor: checking release prerequisites"
   echo
@@ -149,6 +168,7 @@ main() {
   check_zig
   check_cargo_zigbuild
   check_gh_auth
+  check_release_commands
 
   echo
   if (( failed == 0 )); then

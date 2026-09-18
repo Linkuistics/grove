@@ -73,12 +73,7 @@ die() {
   exit 1
 }
 
-preflight() {
-  command -v gh >/dev/null || die "gh CLI not on PATH"
-  gh auth status >/dev/null 2>&1 || die "gh not authenticated; run 'gh auth login'"
-  [[ -d "$DIST_DIR" ]] || die "no $DIST_DIR; run scripts/release-build.sh first"
-  [[ -f "$DIST_DIR/grove.rb" ]] || die "no rendered formula at $DIST_DIR/grove.rb"
-  compgen -G "$DIST_DIR/*.tar.xz" >/dev/null || die "no tarballs in $DIST_DIR"
+check_tap() {
   [[ -d "$TAP_DIR/.git" ]] || die "tap clone not found at $TAP_DIR (set GROVE_TAP_DIR)"
   local tap_status
   tap_status="$(git -C "$TAP_DIR" status --porcelain)"
@@ -89,11 +84,31 @@ preflight() {
     jj -R "$TAP_DIR" git fetch
     [[ -n "$(jj -R "$TAP_DIR" log --no-graph -r 'main & main@origin' -T commit_id)" ]] \
       || die "tap main differs from origin; integrate or push its work before publishing"
+  else
+    git -C "$TAP_DIR" symbolic-ref --quiet HEAD >/dev/null \
+      || die "tap is on detached HEAD; switch to the branch intended for publication"
+    local upstream tap_head upstream_head
+    upstream="$(git -C "$TAP_DIR" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}')" \
+      || die "tap branch has no upstream; configure the intended publishing branch"
+    git -C "$TAP_DIR" fetch
+    tap_head="$(git -C "$TAP_DIR" rev-parse HEAD)"
+    upstream_head="$(git -C "$TAP_DIR" rev-parse "$upstream")"
+    [[ "$tap_head" == "$upstream_head" ]] \
+      || die "tap branch differs from $upstream; integrate or push its work before publishing"
   fi
 }
 
+preflight() {
+  command -v gh >/dev/null || die "gh CLI not on PATH"
+  gh auth status >/dev/null 2>&1 || die "gh not authenticated; run 'gh auth login'"
+  [[ -d "$DIST_DIR" ]] || die "no $DIST_DIR; run scripts/release-build.sh first"
+  [[ -f "$DIST_DIR/grove.rb" ]] || die "no rendered formula at $DIST_DIR/grove.rb"
+  compgen -G "$DIST_DIR/*.tar.xz" >/dev/null || die "no tarballs in $DIST_DIR"
+  check_tap
+}
+
 read_version() {
-  git -C "$REPO_ROOT" describe --tags --abbrev=0 | sed 's/^v//'
+  git -C "$REPO_ROOT" describe --tags --exact-match HEAD | sed 's/^v//'
 }
 
 verify_tag_matches_artifacts() {
@@ -105,12 +120,19 @@ verify_tag_matches_artifacts() {
 create_github_release() {
   local version="$1"
   local tag="v${version}"
+  local notes="$DIST_DIR/release-notes.md"
+  awk -v heading="## $tag" '
+    $0 == heading { section=1; next }
+    section && /^## / { exit }
+    section { print }
+  ' "$REPO_ROOT/CHANGELOG.md" >"$notes"
+  grep -q '[^[:space:]]' "$notes" || die "no changelog notes found for $tag"
   echo "release-publish: creating GitHub Release $tag"
   gh release create "$tag" \
     --verify-tag \
     --repo Linkuistics/grove \
     --title "Release $tag" \
-    --notes "Release $tag" \
+    --notes-file "$notes" \
     "$DIST_DIR"/*.tar.xz
 }
 
@@ -135,6 +157,11 @@ push_formula_to_tap() {
 }
 
 main() {
+  case "${1:-}" in
+    --check-tap) check_tap; return ;;
+    '') ;;
+    *) die "usage: scripts/release-publish.sh [--check-tap]" ;;
+  esac
   preflight
   local version
   version="$(read_version)"

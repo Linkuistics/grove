@@ -22,8 +22,9 @@ do not ask again for its individual steps.
    `task release:patch` / `task release:major` when the human requests that
    increment. These tasks check, cut, build, publish the tag and three binary
    archives, update the Homebrew tap, and verify the installed release.
-   Prepare the changelog and preserve unrelated work in both repositories
-   before starting; see `docs/RELEASING.md` for prerequisites and recovery.
+   The tasks inspect jj state, preserve unrelated Grove working-copy changes,
+   and generate missing release notes. Keep intended changes on `main` and
+   the tap clean; see `docs/RELEASING.md` for prerequisites and recovery.
    Use jj for commits and bookmark pushes wherever enabled; the documented
    cargo-release and release-tag operations are exceptions.
 5. Return to the original session workspace and run

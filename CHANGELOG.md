@@ -54,8 +54,13 @@ stood at the graft — a closed record, not part of the versioned sequence above
 - `grove` / `grove-design`: let the requirements and specification diagram
   viewer use the full browser width instead of capping it at 1520 pixels.
 - Add `task release:patch`, `task release:minor`, and `task release:major` for
-  the complete release procedure. Homebrew publication uses jj for a jj tap
-  and refuses a dirty tap before creating the GitHub Release.
+  the complete release procedure, including jj state checks, preservation of
+  unrelated work, automatic release notes, and a concurrent-release lock.
+  Homebrew publication uses jj for a jj tap and refuses a dirty tap before
+  creating the GitHub Release.
+- `grove`: suggest a project Taskfile for new and existing projects, and use
+  it for deterministic reusable development tasks instead of reconstructing
+  command sequences in each LLM session.
 
 ## v21.8.0
 

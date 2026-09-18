@@ -1,13 +1,13 @@
 # What passes through
 <!-- book-page id="what-passes-through" slice="assembly" order="10" -->
-[Previous: How this is checked](09-how-checked.md) | [Contents](README.md)
+[Previous: How this is checked](09-how-checked.md) | [Contents](README.md) | [Next: Confined noninteractive jobs](11-confined-jobs.md)
 
 <a id="assembly"></a>
 ## Nine openings, one question
 
 <!-- rollup «owned-lines-total» -->
-This chapter owns no production source. The 11 roots and 3,710 lines are
-already reconstructed by the fragment graph the nine chapters before it built,
+This chapter owns no production source. The book reconstructs 12 roots and
+4,162 lines, including the confinement chapter that follows this assembly,
 and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
 refusal and stopped at the boundary of the lines it owned.
@@ -394,10 +394,10 @@ claim this chapter makes.
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-owned-by» of="understands-neither" -->
 <!-- rollup «ownership-blocks-not-owned-by» of="understands-neither" -->
-**Ownership.** 26 top-level blocks over 11 source roots, every one
+**Ownership.** 27 top-level blocks over 12 source roots, every one
 `resolved`. The table is the source index's
 [ownership blocks](source-index.md#ownership-blocks), and chapter 1's session
-owns 3 blocks, with 23 owned by the other chapters. The inspection
+owns 3 blocks, with 24 owned by the other chapters. The inspection
 records extend the corpus under the same recursive rule. No `defer` directive remains anywhere in the
 book, and none may: `F003` reports any defer at all in final mode, so *every
 deferral has become an insertion* is a statement the validator refuses to let be
@@ -405,8 +405,8 @@ false rather than one this page asserts.
 
 <!-- rollup «ownership-blocks» -->
 <!-- rollup «source-roots» -->
-26 blocks over 11 roots is the price of reading the crate
-in its own conceptual order. Seven roots are owned whole by one chapter; the other
+27 blocks over 12 roots is the price of reading the crate
+in its own conceptual order. Eight roots are owned whole by one chapter; the other
 four split, and each split is the concept order disagreeing with the file's. The
 figure is the original three split files in file order, and what it carries that a list of
 ranges cannot is the interleaving: in two of the three, one chapter's block sits
@@ -422,15 +422,15 @@ src/templates.rs   685 lines, 7 blocks, chapters 2 3 4 5
     605-675   diagnostics
     676-685   templates-keys
 
-src/run.rs         672 lines, 4 blocks, chapters 7 8
-      1–123   ch 7   ┐  the launch's shape
-    124–243   ch 8   │  the watch and the latch, inside chapter 7's pair
-    244–510   ch 7   ┘  the terminal and the spawn
-    511–672   ch 8      supervise and escalate
+src/run.rs         853 lines, 4 blocks, chapters 7 8
+      1–124   ch 7   ┐  the launch’s shape
+    125–244   ch 8   │  the watch and the latch, inside chapter 7’s pair
+    245–679   ch 7   ┘  terminal, detached mode and spawn
+    680–853   ch 8      supervise and escalate
 
-src/channel.rs     404 lines, 2 blocks, chapters 6 9
-      1–271   ch 6      the production code
-    272–404   ch 9      the inline #[cfg(test)] module
+src/channel.rs     453 lines, 2 blocks, chapters 6 9
+      1–288   ch 6      the production code
+    289–453   ch 9      the inline #[cfg(test)] module
 ```
 
 `src/templates/named.rs` adds six blocks: capture and diagnostics, target folding
@@ -440,7 +440,7 @@ and expansion forwards.
 `src/templates.rs` divides by what a reader needs when, and `src/run.rs` divides
 by whose signal a line is about — which is why chapter 8's watch and latch sit
 between chapter 7's launch shape and its spawn. `src/channel.rs`'s single
-boundary is the `#[cfg(test)]` attribute on line 272, the only ownership boundary
+boundary is the `#[cfg(test)]` attribute on line 289, the only ownership boundary
 in the book cut at a compilation condition rather than a conceptual one.
 
 <!-- rollup «early-use-rows» -->
@@ -461,16 +461,16 @@ together. Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 294 + 300 + 1,448 + 259 + 235 + 271 + 390 + 282 + 231 = 3,710
-lines across 9 chapters, and 0 for this one. The tenth row of that table exists
+**Owned source.** 297 + 300 + 1,448 + 259 + 235 + 288 + 559 + 294 + 263 + 219 = 4,162
+lines across 10 source-owning chapters, and 0 for this one. The tenth row of that table exists
 to be zero: a chapter that owns no source is the shape the structure brief chose
-for the assembly, and the total is the 3,710 lines in the current declared corpus.
+for the assembly, and the total is the 4,162 lines in the current declared corpus.
 
 <!-- rollup «source-roots» -->
 The [concept index](concept-index.md) and the [source index](source-index.md) are
 the two lookup surfaces, and neither is part of the reading order. The source
 index is the authoritative record of how the fragment graph reconstructs each of
-the 11 files; the concept index is curated navigation into the arguments, and
+the 12 files; the concept index is curated navigation into the arguments, and
 makes no completeness claim.
 
 <a id="final-verification"></a>
@@ -489,8 +489,8 @@ valid: 11 files, 3172 resolved lines, 0 deferred lines, final=true
 sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved; in final mode a defer is an error,
 every source root must expand to its complete file, and the page inventory must
-match the manifest exactly. 3,710 resolved and 0 deferred is the whole corpus
-reconstructed — including `src/channel.rs` lines 272 to 404, the inline
+match the manifest exactly. 4,162 resolved and 0 deferred is the whole corpus
+reconstructed — including `src/channel.rs` lines 289 to 453, the inline
 `#[cfg(test)] mod tests` that is corpus because a root is `src/**/*.rs` and the
 specification's exception inventory carries no row for this book.
 
@@ -539,7 +539,7 @@ itself a fact this book explained. Nine are the inline `#[cfg(test)] mod tests`
 inside `src/channel.rs`, which are corpus and are on
 [chapter 9's page](09-how-checked.md#inside-the-root) like any other lines. The
 *module* exists because `use super::*;` reaches seven items no integration test
-can see, and one of the nine tests takes that up: only a module inside the file
+can see, and one of the eleven tests takes that up: only a module inside the file
 can call `is_channel_name`, whose exactness chapter 6 argued. The other eight use
 the public surface and would compile anywhere; they are in here because their
 subject matter is. The other forty-five live in five files and 1,370 lines under
@@ -561,11 +561,11 @@ Nothing in the corpus holds them; they hold the corpus.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 11 roots, 3,710 lines, 10 chapters, two lookup surfaces,
+The book reconstructs 12 roots, 4,162 lines, 11 chapters, two lookup surfaces,
 zero deferred ranges. What it argued is that nine refusals are one design, and
 what it leaves the reader with is the question — *where does this layer learn what
 the value means?* — together with the one case where this crate's own answer runs
 out, and the reason that case belongs to whoever knows what the child was asked
 to do.
 
-[Previous: How this is checked](09-how-checked.md) | [Contents](README.md)
+[Previous: How this is checked](09-how-checked.md) | [Contents](README.md) | [Next: Confined noninteractive jobs](11-confined-jobs.md)

@@ -9,8 +9,8 @@ Chapter 5 ended with an `Argv` and nowhere to send it. The configuration half of
 the crate is closed: a key resolved through explicit targets, a template was split into
 words once at load, four values filled the vocabulary the consumer declared, and
 four words came out — none of which the crate has an opinion about. This chapter
-opens the launch half, and it owns one file. `src/channel.rs` is 404 lines; lines
-1 to 271 are all of it except the inline `#[cfg(test)] mod tests` at the end,
+opens the launch half, and it owns one file. `src/channel.rs` is 453 lines; lines
+1 to 288 are all of it except the inline `#[cfg(test)] mod tests` at the end,
 which is corpus like everything else and is chapter 9's.
 
 What this stage must not add and must not interpret is **the ending**. The crate
@@ -116,7 +116,7 @@ launcher polling the directory learns everything it is going to learn from
 `exists()`. The **newline is gone** from the value and still present in the file;
 `signal` added it and `read` took it off, and neither call looked at what sat in
 front of it. And the word is **`relaunch`**, which is grove's word and means
-something specific to grove's driver — a fact established nowhere in these 271
+something specific to grove's driver — a fact established nowhere in these 288
 lines. `crates/grove-loop/src/complete.rs` is where it acquires meaning, in a
 function called `interpret` whose whole body is a comparison against grove's own
 constant. The crate that carried the word from one process to another never
@@ -125,7 +125,7 @@ compared it with anything.
 <a id="what-the-block-answers"></a>
 ## What the block answers
 
-The 271 lines are a module thesis, three constants, one type with five methods, a
+The 288 lines are a module thesis, three constants, one type with five methods, a
 second type with two accessors, one free function and four private helpers. The
 table collects what each answers and how each refuses, so the sections that
 follow can be read one at a time; every refusal text is exact. The tests named
@@ -148,11 +148,11 @@ reproduces and explains them, against the fragments below — and the rest are i
 | `hex` | those bytes as thirty-two lowercase characters | cannot fail | `an_allocated_channel_names_a_path_that_does_not_yet_exist` |
 
 The composite below is the block as a whole. It is the file up to the
-`#[cfg(test)]` attribute on line 272, and that boundary is the only one in this
+`#[cfg(test)]` attribute on line 289, and that boundary is the only one in this
 book cut at a compilation condition rather than at a concept — the reason belongs
 on chapter 9's page, where the module it separates is explained.
 
-<!-- fragment «channel-production» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="1-271" parent="source-channel" -->
+<!-- fragment «channel-production» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="1-288" parent="source-channel" -->
 <!-- insert «channel-thesis» -->
 <!-- insert «channel-prefix» -->
 <!-- insert «channel-nonce-bytes» -->
@@ -300,10 +300,11 @@ than searching, and that is the outcome the comment argues for.
 <a id="writes-nothing"></a>
 ## The type that writes nothing
 
-`Channel` is one `PathBuf`, private. Everything this chapter claims about
-evidence follows from the paragraph above it.
+`Channel` owns a private path and an open descriptor for its parent directory.
+Allocation creates no channel file; the descriptor keeps later token reads tied
+to the directory originally allocated, even if its pathname is replaced.
 
-<!-- fragment «channel-type» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="33-43" parent="channel-production" -->
+<!-- fragment «channel-type» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="33-44" parent="channel-production" -->
 ````rust
 
 /// The out-of-band completion signal for one launch.
@@ -315,6 +316,7 @@ evidence follows from the paragraph above it.
 #[derive(Debug)]
 pub struct Channel {
     path: PathBuf,
+    directory: File,
 }
 ````
 <!-- /fragment -->
@@ -343,11 +345,11 @@ persist.
 <a id="drawing-a-name"></a>
 ## Drawing a name
 
-`allocate` is the file's first method — thirty-nine lines, second in length only
-to `discard_abandoned` — and it does two distinguishable jobs: it checks the
-caller's directory, and then it draws names until one is free.
+`allocate` validates the caller’s directory, draws names until one is free, and
+holds that directory open before returning. A failure to hold it refuses
+allocation before a child can run.
 
-<!-- fragment «channel-allocate» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="44-92" parent="channel-production" -->
+<!-- fragment «channel-allocate» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="45-99" parent="channel-production" -->
 ````rust
 
 impl Channel {
@@ -379,7 +381,13 @@ impl Channel {
             let path = dir.join(format!("{CHANNEL_PREFIX}{}", hex(draw_nonce()?)));
             match fs::symlink_metadata(&path) {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    return Ok(Self { path })
+                    let directory = File::open(dir).map_err(|error| {
+                        LaunchError::new(format!(
+                            "cannot hold completion directory {}: {error}",
+                            dir.display()
+                        ))
+                    })?;
+                    return Ok(Self { path, directory });
                 }
                 Err(error) => {
                     return Err(LaunchError::new(format!(
@@ -445,20 +453,13 @@ in favour of the next draw becomes a hard allocation failure instead. That arm i
 right for what it is meant to catch, a directory whose entries cannot be
 inspected at all; it is the wrong answer for one unusable name among 2^128.
 
-**Read this as hygiene, not as a guarantee, and the crate offers no guarantee
-here.** Nothing re-examines the path between the draw and the child's write;
-`Path::exists`, which chapter 8 polls, and `read`'s `fs::read_to_string` both
-follow links like any other reader. And for a symlink to be standing at a drawn
-name in the first place, something would have to have predicted 128 bits — the
-same broken-randomness condition `DRAW_RETRY_LIMIT`'s message already reports. So
-the claim to take from this line is the modest one: `symlink_metadata` is the
-strictly correct spelling of *is this name taken*, it costs nothing over the
-alternative, and it is right in both cases where the two spellings differ.
-**No test pins any of it.** The three inline tests cover the ordinary draw,
-non-collision across two allocations, and the missing directory; the two
-paragraphs above are properties of the `std` calls, stated here because the
-source is silent on them, and they are the only claims on this page resting on
-library behaviour rather than on a test in this repository.
+Allocation's no-follow occupancy check concerns name selection. It does not
+reserve the name or protect the child's later write. The supervisor still uses
+`Path::exists` for the appearance event, but token reading has a separate bound:
+`read` opens relative to the held original directory, refuses a final symlink or
+non-regular file, and limits content size. A substituted path may trigger an
+appearance check without delivering an accepted token. Inline tests now exercise
+symlink, FIFO, oversize and replaced-parent cases at that read boundary.
 
 `Ok(_) => continue` is the collision arm, and note what it does not do: it does
 not read, stat, remove, or report whatever occupies the name. *Retrying an
@@ -477,10 +478,10 @@ asserted. The publishing is chapter 7's — `run` sets the variable immediately
 before the spawn — and **the variable's name is the caller's**, so this crate
 does not know that grove calls it `GROVE_SIGNAL_FILE`. The book's worked example
 uses that name because grove chose it; `crates/keyed-launch/tests/launch.rs`
-publishes the same path under `TEST_CHANNEL` throughout, and nothing in these 271
+publishes the same path under `TEST_CHANNEL` throughout, and nothing in these 288
 lines can tell the difference.
 
-<!-- fragment «channel-published-path» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="93-99" parent="channel-production" -->
+<!-- fragment «channel-published-path» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="100-106" parent="channel-production" -->
 ````rust
 
     /// The path a child writes its token to. This is the value a launch
@@ -508,10 +509,13 @@ not own it, and `#[must_use]` is here for the same reason it is on `source` and
 <a id="three-ways-to-have-no-token"></a>
 ## Three ways to have no token, and one answer for all of them
 
-`read` is five lines of body under twelve of comment, and the comment is doing
-the harder half of the work.
+`read` opens the channel basename relative to the held directory. It accepts
+only regular files, refuses symlinks, and reads at most 4,097 bytes so it can
+reject tokens larger than 4,096 bytes. Invalid UTF-8, empty content and failed
+reads all return no token. The bound and nonblocking open prevent a
+child-controlled channel from exhausting or hanging its supervisor.
 
-<!-- fragment «channel-read» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="100-118" parent="channel-production" -->
+<!-- fragment «channel-read» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="107-135" parent="channel-production" -->
 ````rust
 
     /// The token a launch left here, if any.
@@ -526,9 +530,19 @@ the harder half of the work.
     /// the file and writing to it leaves one behind; handing that back as
     /// `Some("")` would make a caller's own "anything unrecognised means keep
     /// going" rule fire on a launch that never said anything at all.
+    /// Symlinks, non-regular files and tokens larger than 4096 bytes are refused:
+    /// a child-controlled channel must not block or exhaust its supervisor.
     #[must_use]
     pub fn read(&self) -> Option<Token> {
-        let content = fs::read_to_string(&self.path).ok()?;
+        let file = crate::regular_file_at(&self.directory, self.path.file_name()?).ok()?;
+        if !file.metadata().ok()?.is_file() {
+            return None;
+        }
+        let mut content = String::new();
+        file.take(4097).read_to_string(&mut content).ok()?;
+        if content.len() > 4096 {
+            return None;
+        }
         let token = content.trim_end();
         (!token.is_empty()).then(|| Token(token.to_string()))
     }
@@ -576,7 +590,7 @@ The launcher's own cleanup is three lines of body under six of comment, and the
 comment carries two decisions: what the method does to the value it is called
 on, and what it promises about the path.
 
-<!-- fragment «channel-discard» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="119-128" parent="channel-production" -->
+<!-- fragment «channel-discard» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="136-145" parent="channel-production" -->
 ````rust
 
     /// Remove this launch's channel file, consuming the channel so nothing can
@@ -613,7 +627,7 @@ discarded, and a control directory with zero entries afterwards.
 channels it removes belong to launchers that are gone; there is no `Channel`
 value left to call it on.
 
-<!-- fragment «channel-discard-abandoned» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="129-184" parent="channel-production" -->
+<!-- fragment «channel-discard-abandoned» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="146-201" parent="channel-production" -->
 ````rust
 
     /// Remove every channel file in `dir` — the ones a previous launcher
@@ -719,7 +733,7 @@ refusal.
 `Token` is a newtype over `String` with two accessors, and its comment states the
 one property that makes the launch half of this crate possible.
 
-<!-- fragment «channel-token» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="185-202" parent="channel-production" -->
+<!-- fragment «channel-token» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="202-219" parent="channel-production" -->
 ````rust
 
 /// What a launch left in its channel. **Opaque to this crate**: its appearance
@@ -781,7 +795,7 @@ message would be the first step toward reading it.
 `signal` is the only item in the file that runs in the child rather than the
 launcher, and its shape is decided by that fact.
 
-<!-- fragment «channel-signal» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="203-221" parent="channel-production" -->
+<!-- fragment «channel-signal» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="220-238" parent="channel-production" -->
 ````rust
 
 /// Write `token` to `path` — the one thing a launched child does to end itself.
@@ -838,7 +852,7 @@ directory is discovered.
 
 `is_channel_name` is the grammar `discard_abandoned` recognises, in nine lines.
 
-<!-- fragment «channel-name-grammar» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="222-236" parent="channel-production" -->
+<!-- fragment «channel-name-grammar» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="239-253" parent="channel-production" -->
 ````rust
 
 /// Exactly [`CHANNEL_PREFIX`] followed by 32 lowercase hex characters.
@@ -889,7 +903,7 @@ The last three functions are private, small, and each closes a question raised
 earlier on the page. The first is the post-condition `discard` and
 `discard_abandoned` both promise.
 
-<!-- fragment «channel-remove-if-present» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="237-247" parent="channel-production" -->
+<!-- fragment «channel-remove-if-present» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="254-264" parent="channel-production" -->
 ````rust
 
 fn remove_if_present(path: &Path) -> Result<(), LaunchError> {
@@ -916,7 +930,7 @@ actionable sentences.
 The second is where the crate's dependency rule meets its one requirement for
 randomness.
 
-<!-- fragment «channel-draw-nonce» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="248-261" parent="channel-production" -->
+<!-- fragment «channel-draw-nonce» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="265-278" parent="channel-production" -->
 ````rust
 
 fn draw_nonce() -> Result<[u8; NONCE_BYTES], LaunchError> {
@@ -952,7 +966,7 @@ diagnostic on this page these two are pinned by nothing, and are here because
 
 The third is the rendering half of the grammar.
 
-<!-- fragment «channel-hex» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="262-271" parent="channel-production" -->
+<!-- fragment «channel-hex» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="279-288" parent="channel-production" -->
 ````rust
 
 fn hex(nonce: [u8; NONCE_BYTES]) -> String {

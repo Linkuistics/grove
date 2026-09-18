@@ -60,6 +60,13 @@ role  = "chapter"
 slice = "assembly"
 
 [[page]]
+file = "06-standalone-invocations.md"
+id = "standalone-invocations"
+title = "One isolated invocation"
+role = "chapter"
+slice = "isolated-invocation"
+
+[[page]]
 file  = "concept-index.md"
 id    = "concept-index"
 title = "Concept index"
@@ -74,53 +81,53 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove/Cargo.toml"
-lines = 58
+lines = 61
 
 [[root]]
 id    = "source-entry-point"
 path  = "crates/grove/src/main.rs"
-lines = 16
+lines = 18
 
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove/src/cli.rs"
-lines = 248
+lines = 267
 
 [[block]]
 id    = "manifest-thin-by-construction"
 root  = "source-crate-manifest"
 owner = "compiler-held"
-lines = "1-58"
+lines = "1-61"
 
 [[block]]
 id    = "entry-point-three-steps"
 root  = "source-entry-point"
 owner = "one-call"
-lines = "1-16"
+lines = "1-18"
 
 [[block]]
 id    = "surface-grammar"
 root  = "source-command-surface"
 owner = "no-arguments"
-lines = "1-106"
+lines = "1-119"
 
 [[block]]
 id    = "surface-resolve-lease-run"
 root  = "source-command-surface"
 owner = "one-call"
-lines = "107-148"
+lines = "120-167"
 
 [[block]]
 id    = "surface-closure-tests"
 root  = "source-command-surface"
 owner = "closure-proved"
-lines = "149-248"
+lines = "168-267"
 
 [[early-use]]
 symbols   = "`grove_loop::run`"
 first-use = "01-orientation.md#the-binary"
 owner     = "one-call"
-statement = "The loop's single entry point; everything the binary does after its three steps is behind this call."
+statement = "The loop's single entry point; bare lifecycle execution after its three setup steps is behind this call."
 
 [[early-use]]
 symbols   = "`DriverLease`"
@@ -186,3 +193,25 @@ id = "configuration-examples"
 root = "source-configuration-examples"
 owner = "assembly"
 lines = "1-314"
+
+[[root]]
+id = "source-standalone"
+path = "crates/grove/src/standalone.rs"
+lines = 338
+
+[[block]]
+id = "standalone-invocation"
+root = "source-standalone"
+owner = "isolated-invocation"
+lines = "1-338"
+
+[[root]]
+id = "source-run-display"
+path = "crates/grove/src/run_display.rs"
+lines = 119
+
+[[block]]
+id = "standalone-display"
+root = "source-run-display"
+owner = "isolated-invocation"
+lines = "1-119"

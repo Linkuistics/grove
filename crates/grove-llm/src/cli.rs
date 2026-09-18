@@ -22,7 +22,7 @@
 // *before* the mutation, and admit the session against the completion channel
 // *before* writing to it.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use clap::{Parser, Subcommand};
 use grove_loop::verbs::{self, Resolution, Signalled};
 use grove_loop::{
@@ -417,6 +417,28 @@ pub fn run() -> Result<()> {
         // a parse error.
         bail!("no verb given; run `grove-llm --help` for the verb set");
     };
+    if let Some(channel) =
+        std::env::var_os("GROVE_RUN_SIGNAL_FILE").filter(|value| !value.is_empty())
+    {
+        ensure!(
+            std::env::var_os("GROVE_SIGNAL_FILE").is_none_or(|value| value.is_empty()),
+            "conflicting standalone and task-tree completion channels; the launcher must isolate its environment"
+        );
+        let Command::Complete(args) = command else {
+            bail!("standalone invocation: task-tree verbs are unavailable; finish with `grove-llm complete --done`");
+        };
+        let channel = PathBuf::from(channel);
+        ensure!(args.done, "standalone invocation: use `grove-llm complete --done`; there is no next task to launch");
+        ensure!(
+            args.signal_file
+                .as_ref()
+                .is_none_or(|path| path == &channel),
+            "standalone invocation: cannot redirect its completion channel"
+        );
+        verbs::complete(Some(&channel), true)?;
+        eprintln!("grove complete: standalone invocation finished; its supervisor will stop this harness.");
+        return Ok(());
+    }
     let cwd = std::env::current_dir().context("getting cwd for session epoch admission")?;
     let session_epoch = grove_loop::admit_ambient_session(&cwd, command.operation_label())?;
     match command {

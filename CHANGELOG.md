@@ -51,6 +51,14 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Add `grove run KIND` for standalone invocations selected by personal named
+  commands. Each invocation has mandatory temporary-directory confinement,
+  staged inputs, explicit read-only runtime grants, and checked output export.
+  Its separate `grove-llm complete --done` channel supports calls nested inside
+  a running grove. Live transcripts and persistent logs make work visible;
+  `--ui auto` can also open a view in an active tmux or Zellij session.
+- Empty release notes can be authored by the configured `release-notes` kind;
+  deterministic preparation supplies change evidence and validates the result.
 - `grove` / `grove-design`: let the requirements and specification diagram
   viewer use the full browser width instead of capping it at 1520 pixels.
 - Add `task release:patch`, `task release:minor`, and `task release:major` for

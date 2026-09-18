@@ -66,6 +66,7 @@ show a real invocation, not merely name the command.
 | Row | Surface | Obligation |
 |---|---|---|
 | G1 | `grove` (no arguments) | Worked. All three dispatch outcomes: no `.grove/` ⇒ `root-init` plus a first `requirements` leaf; live leaves ⇒ launch the first in tree order; no live leaves ⇒ materialize the `finish` leaf. |
+| G9 | `grove run KIND [PROMPT]` | Prompt/file choice; repeatable inputs, outputs and runtime grants; personal named command and no project/jj; mandatory confinement; separate completion channel; artifact validation and no overwrite; inline/mux visibility, persistent logs, cancellation and exit codes. |
 | G2 | `-h`, `--help` | Named, with the fact that it stops before touching a repository. |
 | G3 | `-V`, `--version` | Named, same stop-before-touching guarantee. |
 | G4 | Bare lifecycle has no launch-policy selectors | Stated: bare `grove` takes no tree argument and no confirmation step; its enclosing working tree selects the workstream. The viewer path only selects an observation location. |

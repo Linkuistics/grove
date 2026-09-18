@@ -6,10 +6,10 @@ title   = "keyed-launch"
 subject = "crates/keyed-launch"
 
 # The bare rule, with no exceptions at all: the crate's own manifest and every
-# Rust file under `src/`. `src/channel.rs` lines 272-404 are an inline
+# Rust file under `src/`. `src/channel.rs` lines 289-453 are an inline
 # `#[cfg(test)] mod tests`, and they are **not** excluded — a root is
 # `src/**/*.rs`, the exception class `inline-test-module` is checked against a
-# file named `tests.rs`, and those 133 lines are owned, reconstructed and
+# file named `tests.rs`, and those 165 lines are owned, reconstructed and
 # explained by chapter 9 like any other. `crates/keyed-launch/tests/`
 # is evidence rather than corpus, so this book carries no
 # `[[corpus.add]]` and no `[[corpus.exclude]]`, and the normative inventory in
@@ -98,6 +98,13 @@ role  = "chapter"
 slice = "assembly"
 
 [[page]]
+file = "11-confined-jobs.md"
+id = "confined-jobs"
+title = "Confined noninteractive jobs"
+role = "chapter"
+slice = "confined-jobs"
+
+[[page]]
 file  = "concept-index.md"
 id    = "concept-index"
 title = "Concept index"
@@ -121,7 +128,7 @@ lines = 47
 [[root]]
 id    = "source-library-root"
 path  = "crates/keyed-launch/src/lib.rs"
-lines = 99
+lines = 102
 
 [[root]]
 id    = "source-error-types"
@@ -151,12 +158,12 @@ lines = 48
 [[root]]
 id    = "source-channel"
 path  = "crates/keyed-launch/src/channel.rs"
-lines = 404
+lines = 453
 
 [[root]]
 id    = "source-run"
 path  = "crates/keyed-launch/src/run.rs"
-lines = 672
+lines = 853
 
 [[root]]
 id    = "source-conformance"
@@ -173,7 +180,7 @@ lines = "1-47"
 id    = "library-root"
 root  = "source-library-root"
 owner = "understands-neither"
-lines = "1-99"
+lines = "1-102"
 
 [[block]]
 id    = "two-opaque-errors"
@@ -247,37 +254,37 @@ lines = "1-48"
 id    = "channel-production"
 root  = "source-channel"
 owner = "appearance-is-the-event"
-lines = "1-271"
+lines = "1-288"
 
 [[block]]
 id    = "channel-inline-tests"
 root  = "source-channel"
 owner = "checked-without-meaning"
-lines = "272-404"
+lines = "289-453"
 
 [[block]]
 id    = "launch-shape"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "1-123"
+lines = "1-124"
 
 [[block]]
 id    = "watch-and-launcher-signals"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "124-243"
+lines = "125-244"
 
 [[block]]
 id    = "terminal-and-spawn"
 root  = "source-run"
 owner = "nothing-else-added"
-lines = "244-510"
+lines = "245-679"
 
 [[block]]
 id    = "supervise-and-escalate"
 root  = "source-run"
 owner = "the-launchers-job"
-lines = "511-672"
+lines = "680-853"
 
 [[block]]
 id    = "conformance"
@@ -400,3 +407,14 @@ id = "named-lookups"
 root = "source-named"
 owner = "never-assembled"
 lines = "1325-1359"
+
+[[root]]
+id = "source-confinement"
+path = "crates/keyed-launch/src/confinement.rs"
+lines = 219
+
+[[block]]
+id = "confinement-policy"
+root = "source-confinement"
+owner = "confined-jobs"
+lines = "1-219"

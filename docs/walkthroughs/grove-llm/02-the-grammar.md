@@ -5,18 +5,13 @@
 <a id="admitted-before-dispatch"></a>
 ## Admitted before dispatch
 
-Every verb enters the module through one function, `run`, and `run` does four
-things in a fixed order: it parses the argument vector, it reads the current
-directory, it admits this process against the live session epoch, and only then
-does it dispatch to the handler the verb names. The rule this chapter opens on
-is that order — **every verb is admitted before it is dispatched** — and its
-second half is what the four helpers at lines 861 to 901 hold: **a grove
-that is not there is not a grove that is finished**, so a verb run in a working
-tree with no `.grove/` is refused, with the remedy in the refusal, rather than
-told its work is done. Neither rule is one of the three orders *Orientation*
-named; both are what every one of those orders stands on, because a handler
-that was never dispatched takes no lock and writes no channel, and a tree that
-was refused rather than reported empty is never mutated by mistake.
+Every verb enters `run`, which parses before selecting the completion context.
+With a nonempty `GROVE_RUN_SIGNAL_FILE`, it admits only standalone
+`complete --done` on that exact channel and returns before reading cwd. With no
+standalone channel, it reads the current directory, admits the ordinary process
+against its ambient session epoch, and dispatches the command. The chapter's
+rule is **ordinary session verbs are admitted before dispatch**. The tree-opening
+helpers separately refuse a missing grove rather than report finished work.
 
 The chapter's premise is the session epoch, and it is stated once. A
 [session epoch](../../../CONTEXT.md#session-epoch) is the record the driver
@@ -35,9 +30,9 @@ call, before dispatch, so no handler has to ask.
 The chapter owns four blocks of `cli.rs` and reads them in the order the
 argument takes rather than the file's: the head of the grammar, lines 35 to
 65 where the version, the help-on-nothing behaviour and the `Option` are
-declared; the four openings, lines 861 to 901 which every handler that
+declared; the four openings, lines 883 to 923 which every handler that
 touches the tree calls and whose refusal the worked example ends on; `run`
-itself, lines 412 to 437 read inside the worked example because the example
+itself, lines 412 to 459 read inside the worked example because the example
 is `run` with concrete values; and the enum's close with `operation_label`,
 lines 290 to 310 which is the label admission quotes and the chapter's catalogue of the
 twelve labels — after the example, where a catalogue belongs.
@@ -169,7 +164,7 @@ names it as one of the root's twenty-two children.
 <a id="the-openings"></a>
 ## One working tree, two locks, one refusal
 
-Lines 861 to 901 are four private helpers, read here before the worked example
+Lines 883 to 923 are four private helpers, read here before the worked example
 because its refusal ending runs through three of them. Every handler that
 touches the tree begins with `worktree()`, and every one that opens a tree it
 must already find there then calls `readable` or `writable`; the two exceptions
@@ -193,9 +188,9 @@ not this module's, and it names the command that fixes it: measured, it is
 exit `1`. This is the fact the driver resolved before the session
 existed and stated in its mandate, the
 [stated VCS](../../../CONTEXT.md#stated-vcs): the binary resolves it again on
-every verb rather than trusting the mandate, because a verb has no mandate,
+every ordinary session verb rather than trusting the mandate, because a verb has no mandate,
 only a working directory. The comment's claim is about what is passed to the
-loop, and it holds: every verb passes the working-tree root, and the loop joins
+loop, and it holds: every ordinary tree handler passes the working-tree root, and the loop joins
 `.grove` itself, so no call from this module spells the grove root. The module
 does spell `.grove` three times for text a reader sees — in `readable`'s
 refusal below, in `resolve`'s answer for the root, which *Reading the tree*
@@ -206,7 +201,7 @@ inside the loop and once here; the two resolutions start from the same
 directory and cannot disagree, and the *command resolved* clause of
 admission's refusal is the first of them being reported.
 
-<!-- fragment «openings-worktree» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="861-868" parent="openings" -->
+<!-- fragment «openings-worktree» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="883-890" parent="openings" -->
 ````rust
 // Resolve the worktree from the cwd. The task-tree verbs run from the worktree
 // root (not from inside `.grove/`), and `grove-loop` joins `.grove` itself, so
@@ -238,7 +233,7 @@ other refusals unchanged: a root that is there but unreadable, or a name in it
 grove refuses, are a different category from vacancy and carry the loop's own
 wording.
 
-<!-- fragment «openings-readable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="869-882" parent="openings" -->
+<!-- fragment «openings-readable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="891-904" parent="openings" -->
 ````rust
 /// The shared opening a read verb needs, refusing a worktree with no grove.
 ///
@@ -276,7 +271,7 @@ workstream, and the shape of the
 return type is what makes that impossible — there is no path from `writable`
 to a `TreeWrite` over a root that had no tree.
 
-<!-- fragment «openings-writable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="883-891" parent="openings" -->
+<!-- fragment «openings-writable» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="905-913" parent="openings" -->
 ````rust
 /// The exclusive opening a mutating verb needs, refusing a worktree with no
 /// grove.
@@ -305,7 +300,7 @@ wanted. One test pins the first line — `errors_when_grove_root_absent` in
 and that its stderr contains *grove root not found* — and no test asserts the
 second line, so the remedy is held by this function alone.
 
-<!-- fragment «openings-absent» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="892-901" parent="openings" -->
+<!-- fragment «openings-absent» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="914-923" parent="openings" -->
 ````rust
 /// The refusal for a worktree that holds no grove — one wording, and it carries
 /// the remedy, because an error that only reports detection is unfinished
@@ -322,7 +317,7 @@ fn absent(grove_root: &Path) -> anyhow::Error {
 
 The composite that reassembles the four helpers is stated here.
 
-<!-- fragment «openings» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="861-901" parent="source-command-surface" -->
+<!-- fragment «openings» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="883-923" parent="source-command-surface" -->
 <!-- insert «openings-worktree» -->
 <!-- insert «openings-readable» -->
 <!-- insert «openings-writable» -->
@@ -389,7 +384,7 @@ same directory with no channel in the environment — a manual command, the
 resolves `/work/atlas-v2`, then `readable`, whose answer is *vacant*, and
 `absent` refuses with the root it looked for and the verb that scaffolds one.
 The fourth invocation is answered inside `parse`: clap prints the name and the
-constant and exits `0`, and lines 420 and 421 are never reached. That is the
+constant and exits `0`, and the cwd and epoch-admission statements are never reached. That is the
 whole of the exemption — `--version` is not exempt from admission by a rule in
 this module, it is exempt because `parse` is the first statement of `run` and
 it does not return. The measurement behind that claim is that the same
@@ -399,7 +394,7 @@ workspace, and under a stale channel that refuses every verb.
 | Argument vector | Environment | Last line of `run` reached | Stream | Exit |
 |---|---|---|---|---|
 | `grove-llm resolve rate-limit-k3` in `/work/atlas` | the live channel | line 427: `cmd_resolve` dispatched | stdout | `0` |
-| the same, in `/work/atlas-v2` | the live channel | line 421: admission refuses | stderr | `1` |
+| the same, in `/work/atlas-v2` | the live channel | epoch admission refuses | stderr | `1` |
 | the same, in `/work/atlas-v2` | no channel | line 427 then `readable` refuses in `cmd_resolve` | stderr | `1` |
 | `grove-llm --version`, anywhere | any | line 413: `parse` exits | stdout | `0` |
 | `grove-llm --help`, anywhere | any | line 413: `parse` exits | stdout | `0` |
@@ -412,7 +407,20 @@ are refusals this chapter owns, and one is a handler's. `run` itself is three
 fragments, and the first is the parse and the branch the struct's `Option`
 makes necessary.
 
-<!-- fragment «run-parse-and-bare-branch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="412-419" parent="run-admission-and-dispatch" -->
+<!-- fragment «run-parse-and-bare-branch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="412-441" parent="run-admission-and-dispatch" -->
+<!-- insert «run-parse-cli» -->
+<!-- insert «run-standalone-completion» -->
+<!-- /fragment -->
+
+<a id="run-parse-cli"></a>
+### Parse before selecting the completion context
+
+`run` parses the flat command surface and refuses the unreachable missing-verb
+case before inspecting any completion authority. Parsing alone can finish help
+and version requests. An actual command then selects either a standalone
+completion context or the ordinary session-epoch path.
+
+<!-- fragment «run-parse-cli» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="412-419" parent="run-parse-and-bare-branch" -->
 ````rust
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
@@ -422,6 +430,44 @@ pub fn run() -> Result<()> {
         // a parse error.
         bail!("no verb given; run `grove-llm --help` for the verb set");
     };
+````
+<!-- /fragment -->
+
+<a id="run-standalone-completion"></a>
+### Acknowledge only this standalone invocation
+
+A nonempty `GROVE_RUN_SIGNAL_FILE` selects the standalone branch before cwd or
+epoch admission. A simultaneously active `GROVE_SIGNAL_FILE` is refused. Only
+`complete --done` is accepted, and an explicit signal path must equal the granted
+one. The branch calls `verbs::complete` with that path and returns; it opens no
+task tree and cannot request a next task. For a channel at
+`/tmp/invocation/control/signal-…`, the observable result is `done` plus a newline
+there and a standalone-completion message on stderr.
+
+<!-- fragment «run-standalone-completion» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="420-441" parent="run-parse-and-bare-branch" -->
+````rust
+    if let Some(channel) =
+        std::env::var_os("GROVE_RUN_SIGNAL_FILE").filter(|value| !value.is_empty())
+    {
+        ensure!(
+            std::env::var_os("GROVE_SIGNAL_FILE").is_none_or(|value| value.is_empty()),
+            "conflicting standalone and task-tree completion channels; the launcher must isolate its environment"
+        );
+        let Command::Complete(args) = command else {
+            bail!("standalone invocation: task-tree verbs are unavailable; finish with `grove-llm complete --done`");
+        };
+        let channel = PathBuf::from(channel);
+        ensure!(args.done, "standalone invocation: use `grove-llm complete --done`; there is no next task to launch");
+        ensure!(
+            args.signal_file
+                .as_ref()
+                .is_none_or(|path| path == &channel),
+            "standalone invocation: cannot redirect its completion channel"
+        );
+        verbs::complete(Some(&channel), true)?;
+        eprintln!("grove complete: standalone invocation finished; its supervisor will stop this harness.");
+        return Ok(());
+    }
 ````
 <!-- /fragment -->
 
@@ -447,7 +493,7 @@ whichever handler the `match` selects; the loop's contract is that it must
 remain so through the handler's separately acquired tree lock, and this binding
 is what keeps it.
 
-<!-- fragment «run-cwd-and-admission» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="420-421" parent="run-admission-and-dispatch" -->
+<!-- fragment «run-cwd-and-admission» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="442-443" parent="run-admission-and-dispatch" -->
 ````rust
     let cwd = std::env::current_dir().context("getting cwd for session epoch admission")?;
     let session_epoch = grove_loop::admit_ambient_session(&cwd, command.operation_label())?;
@@ -482,7 +528,7 @@ four the shared one, the other five the exclusive one — so the refusal the
 example ended on is reachable from nine of the twelve verbs, and the wrong-working-tree
 refusal from all twelve.
 
-<!-- fragment «run-dispatch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="422-437" parent="run-admission-and-dispatch" -->
+<!-- fragment «run-dispatch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="444-459" parent="run-admission-and-dispatch" -->
 ````rust
     match command {
         Command::RootInit(args) => cmd_root_init(&args),
@@ -516,7 +562,7 @@ fail the day `parse` stopped being the first statement.
 
 The composite that reassembles `run` is stated here.
 
-<!-- fragment «run-admission-and-dispatch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="412-437" parent="source-command-surface" -->
+<!-- fragment «run-admission-and-dispatch» owner="admitted-before-dispatch" source="crates/grove-llm/src/cli.rs" lines="412-459" parent="source-command-surface" -->
 <!-- insert «run-parse-and-bare-branch» -->
 <!-- insert «run-cwd-and-admission» -->
 <!-- insert «run-dispatch» -->
@@ -583,7 +629,7 @@ The composite that reassembles the block is stated here.
 <!-- insert «grammar-operation-label» -->
 <!-- /fragment -->
 
-The grammar has now been read up to the point where every verb looks the same:
+The ordinary session grammar has now been read up to its common boundary:
 parsed by clap, labelled, admitted, dispatched. What the handlers do after the
 `match` is where the verbs differ, and the first four to read are the ones
 whose absent answer is information rather than an error.

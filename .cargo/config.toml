@@ -19,11 +19,9 @@
 # deliberately independent, because a test binary executed directly rather than
 # through cargo gets only the latter.
 #
-# The signal path is the only variable that needs this treatment. The retired
-# advisory session-target variable sat here too, while retirement could still
-# materialise a producer launch receipt out of it; with that variable and the
-# receipt writer both removed, a leaked value grants nothing and a second guard
-# entry would be decoration.
+# Both task-tree sessions and standalone invocations carry completion authority
+# as a signal path. Clear each channel independently so a nested test cannot
+# acknowledge either its immediate invocation or the outer Grove session.
 #
 # Scope note: this also applies to `cargo run -- …` in this repo, so a
 # cargo-launched `grove-llm complete` behaves like a manual command instead of
@@ -31,3 +29,5 @@
 # an installed or `./target/debug/` binary directly, never through cargo.
 [env]
 GROVE_SIGNAL_FILE = { value = "", force = true }
+# Standalone invocations carry a separate channel with the same ambient hazard.
+GROVE_RUN_SIGNAL_FILE = { value = "", force = true }

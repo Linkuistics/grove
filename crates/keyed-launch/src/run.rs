@@ -1,11 +1,12 @@
 //! Spawning one child directly and supervising it until it ends.
 
 use std::ffi::OsStr;
+use std::fs::File;
 use std::io::Write as _;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::os::unix::process::CommandExt as _;
 use std::path::Path;
-use std::process::{Child, Command, ExitStatus};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::{Duration, Instant};
 
@@ -389,10 +390,73 @@ pub fn run_observed(
     launch: Launch<'_>,
     observer: &mut dyn FnMut(LaunchEvent),
 ) -> Result<Ended, LaunchError> {
-    install_termination_handler();
+    run_with_output(launch, observer, None, None)
+}
 
-    let mut command = Command::new(launch.argv.program());
-    command.args(launch.argv.args());
+/// Run a noninteractive child in a new POSIX session, without a controlling
+/// terminal or inherited input. Both output streams go to a caller-owned regular
+/// file. Cancellation immediately kills the job: a nested supervisor cannot
+/// spend its parent's entire termination grace waiting for its own child.
+/// Remaining members of the child's process group are killed on leader exit.
+/// This isolates process control, not filesystem access or processes that
+/// deliberately leave the child's process group.
+pub fn run_noninteractive(launch: Launch<'_>, output: File) -> Result<Ended, LaunchError> {
+    let regular = output
+        .metadata()
+        .map_err(|error| LaunchError::new(format!("cannot inspect the launch log: {error}")))?;
+    if !regular.is_file() {
+        return Err(LaunchError::new(
+            "the noninteractive launch log must be a regular file",
+        ));
+    }
+    run_with_output(launch, &mut |_| {}, Some(output), None)
+}
+
+/// As [`run_noninteractive`], with mandatory operating-system filesystem
+/// confinement. No fallback to an unconfined launch is performed.
+pub fn run_confined(
+    launch: Launch<'_>,
+    output: File,
+    policy: &crate::Confinement<'_>,
+) -> Result<Ended, LaunchError> {
+    if !output
+        .metadata()
+        .map_err(|error| LaunchError::new(error.to_string()))?
+        .is_file()
+    {
+        return Err(LaunchError::new(
+            "the confined launch log must be a regular file",
+        ));
+    }
+    let command = crate::confinement::command(launch.argv, policy)?;
+    run_with_output(launch, &mut |_| {}, Some(output), Some(command))
+}
+
+fn run_with_output(
+    launch: Launch<'_>,
+    observer: &mut dyn FnMut(LaunchEvent),
+    output: Option<File>,
+    confined_command: Option<Command>,
+) -> Result<Ended, LaunchError> {
+    install_termination_handler();
+    let detached = output.is_some();
+    let descriptor_limit = if detached { descriptor_limit()? } else { 3 };
+    if detached {
+        // SAFETY: same async-signal-safe latch as the TERM/HUP handlers.
+        unsafe { libc::signal(libc::SIGINT, on_terminate as *const () as usize) };
+    }
+
+    let mut command = confined_command.unwrap_or_else(|| {
+        let mut command = Command::new(launch.argv.program());
+        command.args(launch.argv.args());
+        command
+    });
+    if let Some(output) = output {
+        let stderr = output.try_clone().map_err(|error| {
+            LaunchError::new(format!("cannot duplicate the launch log: {error}"))
+        })?;
+        command.stdin(Stdio::null()).stdout(output).stderr(stderr);
+    }
     if let Some(cwd) = launch.cwd {
         command.current_dir(cwd);
     }
@@ -408,7 +472,7 @@ pub fn run_observed(
     }
     command.env(launch.channel_var, launch.channel.path());
 
-    let terminal = Terminal::open();
+    let terminal = if detached { None } else { Terminal::open() };
     // Hand the terminal over from *inside* the child as well as from the parent
     // below, which cannot be early enough on its own: the parent's handover
     // waits on `spawn` returning, nothing orders the child's first read after
@@ -424,7 +488,9 @@ pub fn run_observed(
     // own: it runs it before the `pre_exec` callbacks below and reports a
     // failure as a failed spawn, which a raw call in the closure could only do
     // by hand.
-    command.process_group(0);
+    if !detached {
+        command.process_group(0);
+    }
 
     // SAFETY: the closure runs between `fork` and `exec`, so it may call only
     // async-signal-safe functions. `signal`, `getpid` and `tcsetpgrp` (an
@@ -434,6 +500,24 @@ pub fn run_observed(
     // else is doing.
     unsafe {
         command.pre_exec(move || {
+            if detached {
+                // Close on exec rather than close here: std's error-reporting
+                // pipe must survive until exec succeeds (it is CLOEXEC too).
+                // fcntl is async-signal-safe; all allocation happened in parent.
+                for fd in 3..descriptor_limit {
+                    if libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) == -1 {
+                        let error = std::io::Error::last_os_error();
+                        if error.raw_os_error() != Some(libc::EBADF) {
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+            // setsid must precede becoming a process-group leader. It creates
+            // both the session and the group, so setpgid is omitted in this mode.
+            if detached && libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
             // Until the `tcsetpgrp` below returns, this process is a background
             // group touching the terminal, which is precisely what SIGTTOU is
             // raised for. The loop that follows puts the disposition back.
@@ -468,14 +552,16 @@ pub fn run_observed(
     // measured to fail EACCES. Kept: that ordering is undocumented, not a rule.
     let pgid = child.id() as libc::pid_t;
     // SAFETY: `setpgid(2)` naming this process's own child.
-    unsafe { libc::setpgid(pgid, pgid) };
+    if !detached {
+        unsafe { libc::setpgid(pgid, pgid) };
+    }
 
     supervise(
         child,
         launch.channel,
         launch.escalation,
         terminal.as_ref(),
-        pgid,
+        Job { pgid, detached },
         observer,
         || {
             // Recover only the terminal still owned by this launch's job.
@@ -488,15 +574,98 @@ pub fn run_observed(
     )
 }
 
+/// Include existing descriptors even if the caller lowered its soft limit
+/// after opening them. The remaining range covers descriptors std opens while
+/// preparing the child. Noninteractive launches must not run concurrently with
+/// a thread changing the process descriptor limit or signal dispositions.
+fn descriptor_limit() -> Result<RawFd, LaunchError> {
+    // SAFETY: getrlimit writes the initialized rlimit structure only.
+    let mut limit: libc::rlimit = unsafe { std::mem::zeroed() };
+    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) } != 0 {
+        return Err(LaunchError::new(format!(
+            "cannot inspect descriptor limit: {}",
+            std::io::Error::last_os_error()
+        )));
+    }
+    let mut maximum = i32::try_from(limit.rlim_cur).map_err(|_| {
+        LaunchError::new(
+            "cannot isolate an unbounded descriptor table; set a finite open-file limit",
+        )
+    })?;
+    let directory = if cfg!(target_os = "linux") {
+        "/proc/self/fd"
+    } else {
+        "/dev/fd"
+    };
+    for entry in std::fs::read_dir(directory).map_err(|error| {
+        LaunchError::new(format!("cannot inspect inherited descriptors: {error}"))
+    })? {
+        let entry = entry.map_err(|error| LaunchError::new(error.to_string()))?;
+        if let Some(fd) = entry
+            .file_name()
+            .to_str()
+            .and_then(|name| name.parse::<i32>().ok())
+        {
+            maximum = maximum.max(fd.saturating_add(1));
+        }
+    }
+    Ok(maximum)
+}
+
+fn drain_group(pgid: libc::pid_t) -> Result<(), LaunchError> {
+    // Destructive signalling happened while the unreaped child still reserved
+    // this identity. After reaping, only query: the PID could have been reused.
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        if unsafe { libc::kill(-pgid, 0) } == -1 {
+            let error = std::io::Error::last_os_error();
+            if error.raw_os_error() == Some(libc::ESRCH) {
+                return Ok(());
+            }
+            return Err(LaunchError::new(format!(
+                "cannot confirm stopped child group {pgid}: {error}; outputs must not be published"
+            )));
+        }
+        if Instant::now() >= deadline {
+            return Err(LaunchError::new(format!(
+                "child group {pgid} did not disappear after SIGKILL; outputs must not be published"
+            )));
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
 // The private seam lets tests force wait errors without faking launch events.
 trait Process {
-    fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>>;
+    fn try_wait(&mut self, detached: bool) -> std::io::Result<Option<ExitStatus>>;
     fn wait(&mut self) -> std::io::Result<ExitStatus>;
     fn signal(&mut self, signal: i32);
 }
 
 impl Process for Child {
-    fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
+    fn try_wait(&mut self, detached: bool) -> std::io::Result<Option<ExitStatus>> {
+        if detached {
+            // WNOWAIT observes exit without releasing the leader's PID. Kill
+            // its remaining group before reaping, so PID reuse cannot redirect
+            // a destructive signal to an unrelated process group.
+            // SAFETY: initialized siginfo, this process's own child, no reap.
+            let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+            let result = unsafe {
+                libc::waitid(
+                    libc::P_PID,
+                    self.id(),
+                    &mut info,
+                    libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+                )
+            };
+            if result != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            if unsafe { info.si_pid() } == 0 {
+                return Ok(None);
+            }
+            kill(self.id() as libc::pid_t, libc::SIGKILL);
+        }
         Child::try_wait(self)
     }
 
@@ -509,16 +678,29 @@ impl Process for Child {
     }
 }
 
+struct Job {
+    pgid: libc::pid_t,
+    detached: bool,
+}
+
 fn supervise(
     child: impl Process,
     channel: &Channel,
     escalation: Escalation,
     terminal: Option<&Terminal>,
-    pgid: libc::pid_t,
+    job: Job,
     observer: &mut dyn FnMut(LaunchEvent),
     recover_terminal: impl FnOnce(),
 ) -> Result<Ended, LaunchError> {
-    let outcome = watch(child, channel, escalation, terminal, pgid, observer);
+    let outcome = watch(
+        child,
+        channel,
+        escalation,
+        terminal,
+        job.pgid,
+        job.detached,
+        observer,
+    );
     recover_terminal();
     outcome
 }
@@ -529,6 +711,7 @@ fn watch(
     escalation: Escalation,
     terminal: Option<&Terminal>,
     pgid: libc::pid_t,
+    detached: bool,
     observer: &mut dyn FnMut(LaunchEvent),
 ) -> Result<Ended, LaunchError> {
     let started = Instant::now();
@@ -537,7 +720,7 @@ fn watch(
     let mut signalled = false;
 
     let ended = |status: ExitStatus, interrupted: Option<i32>, signalled: bool| Ended {
-        end: match (interrupted, signalled) {
+        end: match (interrupted.or_else(take_interrupt), signalled) {
             (Some(signal), _) => End::Interrupted { signal },
             (None, true) => End::Signalled,
             (None, false) => End::Exited,
@@ -561,7 +744,20 @@ fn watch(
             }
         }
 
-        let waited = match child.try_wait() {
+        // Check cancellation before accepting even an already-exited child.
+        // In nested noninteractive launches the outer supervisor may have only
+        // a short grace left, so do not start another full grace here.
+        if interrupted.is_none() {
+            if let Some(signal) = take_interrupt() {
+                interrupted = Some(signal);
+                child.signal(if detached { libc::SIGKILL } else { signal });
+                if !matches!(watch, Watch::Terminated(_)) {
+                    watch = Watch::Terminated(Instant::now());
+                }
+            }
+        }
+
+        let waited = match child.try_wait(detached) {
             Ok(waited) => waited,
             Err(error) => {
                 // The child's state is now unknown, and returning here would
@@ -585,31 +781,13 @@ fn watch(
         };
         if let Some(status) = waited {
             observer(LaunchEvent::Reaped);
+            if detached {
+                drain_group(pgid)?;
+            }
             // A child ended by the escalation exits non-zero, or by signal.
             // That is the normal completion path, not a failure: the token,
             // never the exit status, says what the launch meant.
             return Ok(ended(status, interrupted, signalled));
-        }
-
-        // A signalled launcher forwards **the signal it was sent** and hands
-        // over to the same escalation the token path uses, so a child that
-        // ignores it is still SIGKILL'd rather than left on the terminal.
-        // Forwarding a fixed SIGTERM instead would tell a child that its
-        // terminal had not gone away when it had.
-        if interrupted.is_none() {
-            if let Some(signal) = take_interrupt() {
-                interrupted = Some(signal);
-                child.signal(signal);
-                // Start the kill grace only if nothing is already counting one
-                // down. Overwriting a running `Terminated` deadline would
-                // *extend* the child's life by a full `kill_grace` — so a
-                // supervisor trying to hurry a stuck teardown along would be
-                // told to wait longer, and each further signal would re-arm it
-                // again.
-                if !matches!(watch, Watch::Terminated(_)) {
-                    watch = Watch::Terminated(Instant::now());
-                }
-            }
         }
 
         watch = match watch {
@@ -631,6 +809,9 @@ fn watch(
                     LaunchError::new(format!("cannot reap the killed child: {error}"))
                 })?;
                 observer(LaunchEvent::Reaped);
+                if detached {
+                    drain_group(pgid)?;
+                }
                 return Ok(ended(status, interrupted, signalled));
             }
             other => other,

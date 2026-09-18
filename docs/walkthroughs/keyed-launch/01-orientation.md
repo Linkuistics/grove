@@ -199,7 +199,7 @@ order is that account's order. The book reads it whole here, in seven fragments:
 six that follow the doc comment's own paragraph breaks, and one for the module
 declarations and exports, which this chapter reads after the worked example.
 
-<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-99" parent="source-library-root" -->
+<!-- fragment «library-root» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="1-102" parent="source-library-root" -->
 <!-- insert «library-root-thesis» -->
 <!-- insert «library-root-two-documents» -->
 <!-- insert «library-root-vocabulary» -->
@@ -212,7 +212,7 @@ declarations and exports, which this chapter reads after the worked example.
 The first fragment is the spine, and every chapter of this book is a reading of
 its second sentence. The claim has two halves. The crate understands neither the
 key nor the template: a consumer names one and a template names the other, and
-nothing in these 3,710 lines interprets either. What the crate does own is
+nothing in the configuration or launch contract interprets either. What the crate does own is
 stated positively: a launch resolves to one explicit, complete command and is
 checked before anything is spawned. Chapters 3 and 4 explain reference resolution
 and template validation without interpreting a harness or its flags.
@@ -491,13 +491,14 @@ The final module declarations and exports put the public surface in one place.
 This book reads them here rather than deferring each name to its own chapter, because the
 list is short and the map above has already said which chapter owns what.
 
-<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="77-99" parent="library-root" -->
+<!-- fragment «library-root-modules-and-exports» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="77-102" parent="library-root" -->
 ````rust
 
 pub mod conformance;
 
 mod argv;
 mod channel;
+mod confinement;
 mod error;
 mod inspection;
 mod run;
@@ -506,13 +507,15 @@ mod vocabulary;
 
 pub use argv::{Argv, Slot};
 pub use channel::{signal, Channel, Token};
+pub use confinement::{regular_file_at, Confinement};
 pub use error::{ConfigError, Diagnostic, LaunchError, Occurrence};
 pub use inspection::{
     Assignment, AssignmentHistory, AssignmentValue, CommandView, CompiledWord, Inspection,
     NonAdmittedKey, Origin, ParameterView, Setting, WordView,
 };
 pub use run::{
-    reraise, run, run_observed, take_interrupt, End, Ended, Escalation, Launch, LaunchEvent,
+    reraise, run, run_confined, run_noninteractive, run_observed, take_interrupt, End, Ended,
+    Escalation, Launch, LaunchEvent,
 };
 pub use templates::{Catalog, Selection, Source, SourceRole, SourceSpan, Templates};
 pub use vocabulary::{Requirement, SlotRule, Vocabulary};

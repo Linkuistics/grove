@@ -5,7 +5,8 @@
 <a id="no-arguments"></a>
 ## Lifecycle and observation
 
-The human binary has lifecycle, tree-viewing, configuration-inspection and example-delivery paths. Bare `grove` starts, resumes or finishes
+The human binary has lifecycle, standalone invocation, tree-viewing,
+configuration-inspection and example-delivery paths. Bare `grove` starts, resumes or finishes
 the lifecycle in the enclosing jj workspace. `grove view [WORKTREE]` opens an
 inert, read-only browser at one directory's `.grove`. Its path selects what to
 observe; it does not select a session, a kind or launch policy. `grove-llm`
@@ -14,17 +15,20 @@ remains the separate flat command surface a running session uses.
 The parser turns the shell's argument vector into `Cli`. An absent command
 means lifecycle dispatch; a `View` variant carries an optional path and a
 `Config` variant carries inspection or inactive example delivery. Help and
-version exit during parsing, before application dispatch.
+version exit during parsing, before application dispatch. `Run` carries one
+kind, prompt and artifact contract; the hidden `RunLog` command tails a log for a
+parent-created pane. Neither starts the lifecycle.
 
 <a id="the-grammar"></a>
-## The grammar, in five fragments
+## The grammar and process reporting
 
 The grammar owns the imports, its stated contract, clap metadata and the
 command declarations. Their source-order concatenation is independent of the
 reader order below. The `Command` enum belongs here alongside `Cli`, because
-its job is parsing the requested operation, without selecting launch policy.
+its job is parsing the requested operation. Standalone mode selects a kind;
+personal configuration still selects the command that implements it.
 
-<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-106" parent="source-command-surface" -->
+<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-119" parent="source-command-surface" -->
 <!-- insert «surface-imports» -->
 <!-- insert «surface-doc-comment» -->
 <!-- insert «surface-clap-attributes» -->
@@ -70,7 +74,7 @@ Adding the browser does not give the launcher a second source of policy.
 <!-- fragment «surface-doc-comment» owner="no-arguments" source="crates/grove/src/cli.rs" lines="6-8" parent="surface-grammar" -->
 ````rust
 
-/// Bare `grove` drives the lifecycle; `view` and `config` never launch sessions.
+/// Bare `grove` drives the lifecycle; `run` launches a standalone invocation.
 /// Launch policy stays in configuration rather than command-line selectors.
 ````
 <!-- /fragment -->
@@ -83,7 +87,8 @@ version. Both binaries read `grove_loop::VERSION`; their manifests and the
 libraries shipped with them inherit the workspace version. `book-validation`
 is an authoring tool with its own version and is outside that release set.
 
-`disable_help_subcommand` keeps the subcommand set exactly `{config, view}`.
+`disable_help_subcommand` avoids an extra help verb. The subcommand set is
+`{run, run-log, config, view}`; `run-log` is hidden from ordinary help.
 The normal `--help` option still describes every command and argument.
 
 <!-- fragment «surface-clap-attributes» owner="no-arguments" source="crates/grove/src/cli.rs" lines="9-20" parent="surface-grammar" -->
@@ -104,15 +109,17 @@ The normal `--help` option still describes every command and argument.
 <!-- /fragment -->
 
 <a id="the-struct"></a>
-## An optional observation command
+## Optional commands before lifecycle setup
 
 `Cli.command` is `None` for bare invocation. `Command::View` contains an
 optional `PathBuf`, defaulted by dispatch to the current directory. The view
 help states no upward search, explains the subdirectory case, and gives
 examples for both current and explicit worktrees. Parsing accepts a path even
 when that directory is absent; absence is a visible state of the viewer.
+`Run` delegates its argument model to the standalone module. `RunLog` carries
+the exact log and status paths used by the separate display process.
 
-<!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="21-45" parent="surface-grammar" -->
+<!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="21-58" parent="surface-grammar" -->
 ````rust
 pub struct Cli {
     #[command(subcommand)]
@@ -121,6 +128,19 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Run one configured task in a confined temporary directory, without a grove.
+    #[command(
+        after_help = "Examples:\n  grove run release-notes --prompt-file prompt.md --input changes.txt --output notes.md\n  grove run summarise 'Summarise input.txt into summary.md' --input input.txt --output summary.md --ui inline\n\nPersonal configuration only; no jj or project discovery. Requires OS confinement and a noninteractive harness command. Exit codes: 0 completed and outputs published, 1 failure/cancellation, 2 invalid usage. Existing output files are never overwritten. Runtime credentials need explicit --runtime-read grants."
+    )]
+    Run(crate::standalone::Args),
+    /// Display a standalone transcript in a supervisor-owned pane.
+    #[command(hide = true)]
+    RunLog {
+        /// Transcript file created by the invocation supervisor.
+        log: PathBuf,
+        /// Status file written when supervision finishes.
+        status: PathBuf,
+    },
     /// Inspect launch configuration or install inactive examples.
     // clap 4.6.1: variant-level subcommand nests the enum's commands.
     // https://docs.rs/clap/4.6.1/clap/_derive/index.html#command-attributes
@@ -151,7 +171,7 @@ Clap requires a child of `config`; its nested help provides examples and exit
 codes. SessionConfig owns validation; the parser cannot establish that a kind
 is admitted. The JSON flag selects the wire projection of that same validated result.
 
-<!-- fragment «surface-config-command» owner="no-arguments" source="crates/grove/src/cli.rs" lines="46-68" parent="surface-grammar" -->
+<!-- fragment «surface-config-command» owner="no-arguments" source="crates/grove/src/cli.rs" lines="59-81" parent="surface-grammar" -->
 ````rust
 
 #[derive(Subcommand)]
@@ -185,6 +205,7 @@ enum ConfigCommand {
 | Argument vector | Parser result and next effect |
 |---|---|
 | `grove` | `command: None`; resolve workspace, acquire lease, run lifecycle |
+| `grove run review "Review input.txt" --input input.txt` | Resolve personal policy and run once in confined scratch storage |
 | `grove view` | `View { worktree: None }`; observe current directory's `.grove` |
 | `grove view /tmp/tasks` | `View` with `/tmp/tasks`; observe `/tmp/tasks/.grove` |
 | `grove config show --kind impl` | Validate all active policy, then require and display impl |
@@ -202,8 +223,9 @@ an actionable error before changing terminal modes. The integration tests in
 <a id="the-agent-surface"></a>
 ## The agent surface remains flat
 
-The twelve tree/session verbs belong to `grove-llm`; their parser and lifecycle
-semantics are unchanged by `view`. The human binary delegates observation to
+The twelve tree/session verbs belong to `grove-llm`. In a standalone invocation
+that binary admits only `complete --done` on the dedicated invocation channel;
+ordinary session verbs retain their task-tree epoch checks. The human binary delegates observation to
 `grove-tui` and lifecycle execution to `grove-loop`. [Three steps](03-three-steps.md)
 shows the branch that separates these paths.
 
@@ -228,7 +250,7 @@ configuration errors preserve structured records; other failures get the same
 record shape. Human errors retain their context chain. Returning `ExitCode` lets
 `main` finish without Rust adding a second error message.
 
-<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="69-106" parent="surface-grammar" -->
+<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="82-119" parent="surface-grammar" -->
 ````rust
 
 /// Own process reporting, including usage failures before a command exists.

@@ -103,7 +103,7 @@ lines = 3
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove-llm/src/cli.rs"
-lines = 942
+lines = 964
 
 [[block]]
 id    = "manifest-thin-by-crate"
@@ -205,55 +205,55 @@ lines = "400-411"
 id    = "run-admission-and-dispatch"
 root  = "source-command-surface"
 owner = "admitted-before-dispatch"
-lines = "412-437"
+lines = "412-459"
 
 [[block]]
 id    = "handlers-leaving"
 root  = "source-command-surface"
 owner = "admit-before-signal"
-lines = "438-480"
+lines = "460-502"
 
 [[block]]
 id    = "handler-root-init"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "481-510"
+lines = "503-532"
 
 [[block]]
 id    = "handlers-reading-and-rendering"
 root  = "source-command-surface"
 owner = "information-not-error"
-lines = "511-634"
+lines = "533-656"
 
 [[block]]
 id    = "handlers-growing"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "635-765"
+lines = "657-787"
 
 [[block]]
 id    = "handlers-ending"
 root  = "source-command-surface"
 owner = "two-steps-remain"
-lines = "766-823"
+lines = "788-845"
 
 [[block]]
 id    = "presence-rule-and-slug"
 root  = "source-command-surface"
 owner = "before-the-lock"
-lines = "824-860"
+lines = "846-882"
 
 [[block]]
 id    = "openings"
 root  = "source-command-surface"
 owner = "admitted-before-dispatch"
-lines = "861-901"
+lines = "883-923"
 
 [[block]]
 id    = "path-and-label-helpers"
 root  = "source-command-surface"
 owner = "information-not-error"
-lines = "902-942"
+lines = "924-964"
 
 [[early-use]]
 symbols   = "`Reading`, `Tree`, `Writing`, `TreeWrite`"

@@ -303,7 +303,7 @@
 - [Counting the grammars a value is read in](10-what-passes-through.md#taking-the-test-away)
 - [What your rules would have to know to be correct](10-what-passes-through.md#taking-the-test-away)
 - [Two arms closed at load, and one closed by a type](10-what-passes-through.md#taking-the-test-away)
-- [26 blocks over 11 roots, and the four splits that explain the count](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «ownership-blocks» --> <!-- rollup «source-roots» -->
+- [27 blocks over 12 roots, and the four splits that explain the count](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «ownership-blocks» --> <!-- rollup «source-roots» -->
 - [12 early-use rows, 11 required by the manifest and one added](10-what-passes-through.md#the-closed-ledgers) <!-- rollup «early-use-rows» --> <!-- rollup «early-use-rows-declared» -->
 - [The tenth owned-source row that exists to be zero](10-what-passes-through.md#the-closed-ledgers)
 - [What `--final` proves that a scoped run does not](10-what-passes-through.md#final-verification)
@@ -330,3 +330,6 @@ are explained in [The watch and the escalation](08-the-escalation.md).
 - [Route specificity, removals, resets and default fallback](03-two-documents.md#named-resolve)
 - [Active templates, route completeness and parameter provenance](03-two-documents.md#named-resolve)
 - [Response-local identity](03-two-documents.md#named-lookups)
+- [Noninteractive process and filesystem boundaries](11-confined-jobs.md#confined-job)
+- [Confined launch and cleanup example](11-confined-jobs.md#worked-confined-job)
+- [Stable reads through held directory descriptors](11-confined-jobs.md#held-directory-read)

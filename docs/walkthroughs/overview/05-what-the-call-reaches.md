@@ -1,15 +1,16 @@
 # What the call reaches
 <!-- book-page id="what-the-call-reaches" slice="assembly" order="5" -->
-[Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md)
+[Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md) | [Next: One isolated invocation](06-standalone-invocations.md)
 
 <a id="assembly"></a>
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 959 source lines. The preceding chapters explain parsing,
+The book reconstructs 1,440 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns the configuration report formatter,
-which turns validated records into human text or versioned JSON, plus the\ninactive example installer and its filesystem failure seam.
+which turns validated records into human text or versioned JSON, plus the
+inactive example installer and its filesystem failure seam.
 
 Bare `grove` resolves a jj workspace, takes the driver lease and calls
 `grove_loop::run`. `grove view [WORKTREE]` returns through `grove_tui::run`
@@ -26,7 +27,7 @@ version; `book-validation` is the separately versioned authoring tool.
 
 | Package | Responsibility | Workspace runtime dependencies |
 |---|---|---|
-| `grove` | Human CLI, dispatch, configuration presentation and example delivery | `grove-loop`, `grove-tui`, `keyed-launch` |
+| `grove` | Human CLI, standalone orchestration, configuration presentation and examples | `grove-loop`, `grove-tui`, `keyed-launch` |
 | `grove-tui` | Read-only application, capture, rendering and terminal lifetime | `grove-loop` |
 | `grove-loop` | Grove vocabulary, reader, verbs and driver | `ordinal-fs-tree`, `jj-workspace`, `keyed-launch` |
 | `grove-llm` | Session CLI | `grove-loop`, `jj-workspace` |
@@ -348,7 +349,7 @@ Those internals are owned by the viewer crate, not reconstructed in this book.
 | Guarantee | What would break it | Evidence |
 |---|---|---|
 | Public library access | Naming a private library item | Rust visibility checking |
-| No lifecycle selector arguments; exactly `{config, view}` with `show` beneath `config` | An unlisted command or outer argument | CLI closed-set unit test |
+| No bare lifecycle selectors; command set `{run, run-log, config, view}` | An unlisted command or outer argument | CLI closed-set unit test |
 | Every listed item has help | Missing or whitespace-only help | Recursive description test |
 | Observation bypasses lifecycle setup | Trying to resolve jj or configure a driver for view | CLI refusal test and non-jj PTY smoke |
 | Display actions preserve the filesystem | Any name/content/state-file write | Application before/after fixture comparison |
@@ -363,7 +364,7 @@ proves reproduction and ownership, not the truth of explanatory claims.
 <!-- rollup «ownership-blocks» -->
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-not-owned-by» of="compiler-held" -->
-There are 8 ownership blocks over 6 source roots; 7 blocks belong to chapters
+There are 10 ownership blocks over 8 source roots; 9 blocks belong to chapters
 after Orientation. Each is resolved in the source index.
 
 <!-- rollup «early-use-rows» -->
@@ -372,7 +373,7 @@ steps. The grammar explains its own path and command types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 58 + 106 + 58 + 100 + 637 = 959 lines across 5 source-owning chapters.
+Owned source is 61 + 119 + 66 + 100 + 637 + 457 = 1,440 lines across 6 source-owning chapters.
 Assembly owns configuration presentation and example delivery. The ledgers are maintained with source changes;
 production files remain authoritative.
 
@@ -392,7 +393,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 6 roots and 959 lines, explained across 5 chapters and two
+The corpus contains 8 roots and 1,440 lines, explained across 6 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 
@@ -1060,4 +1061,4 @@ The remaining test injects unreadable preflight and parent-directory refusal ind
 ````
 <!-- /fragment -->
 
-[Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md)
+[Previous: Proving a negative](04-proving-a-negative.md) | [Contents](README.md) | [Next: One isolated invocation](06-standalone-invocations.md)

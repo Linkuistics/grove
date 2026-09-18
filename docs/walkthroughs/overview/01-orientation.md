@@ -3,36 +3,27 @@
 [Contents](README.md) | [Next: The surface](02-the-surface.md)
 
 <a id="compiler-held"></a>
-## The binary that selects nothing
+## Lifecycle dispatch and standalone orchestration
 
-`grove` is the human's command. Typed bare at any directory inside a Jujutsu
-working tree, it resolves that tree, takes the one-driver lease over it, and
-calls the loop; the loop is everything else — which task runs next, which
-command launches it, and when the grove is done. The bare lifecycle takes no
-launch-policy selectors. The `view` subcommand
-observes a supplied directory without entering that lifecycle. `config examples` delivers inactive samples without workspace or policy setup. `config show` explains
-active policy without launching. The corpus includes manifest, main, CLI and
-configuration presentation.
+`grove` is the human's command. Bare invocation in a Jujutsu working tree
+resolves that tree, takes its driver lease and calls the loop. The loop chooses
+the next task and configured command. Viewing, configuration inspection and
+inactive sample delivery have separate early-return paths. `grove run` selects
+one configured kind explicitly and orchestrates its confined temporary files,
+completion and output transfer without entering a task-tree lifecycle.
 
-This book is the system's overview, and `crates/grove` is its corpus, because
-that crate is where the system is entered and nothing else is decided. Each
-chapter opens at one of the binary's own steps: the package it is, which is this
-chapter; the grammar it accepts; the three calls it makes; the tests that hold
-the grammar closed; and the modules the call reaches. What the system does
-behind the call is named on those pages and explained on none of them, and
-*What the call reaches* states that boundary in one place.
+This book's corpus is `crates/grove`: its manifest and all production modules.
+The first chapters explain the package boundary, parser, lifecycle dispatch and
+its checks. Configuration and example presentation follow, then the standalone
+invocation chapter explains staging, supervision, publication and log display.
+The library calls expose the operations needed by these paths without making
+private loop implementation available to the binary.
 
-The chapter's thesis is the manifest's own: **the binary is thin, and the
-compiler holds it so.** `grove` is a crate rather than a `[[bin]]` target inside
-the library it calls, so everything its Rust files can reach is something
-the loop, viewer and configuration libraries chose to publish. A binary that merely looks thin
-is held by
-review — someone reads the entry point and finds no logic in it, and the next
-commit is free to add some. This one is held by a package boundary, which is the
-first of three mechanisms this book names. The other two are a property a test
-asserts and a convention a test checks, and both are read in *Proving a
-negative*. The three are what the reader takes away: given an entry point of
-their own, which of the three holds it thin, or whether none does.
+The compiler enforces that public-interface boundary. It does not enforce a
+particular amount of binary code. The lifecycle entry is small because the loop
+owns lifecycle decisions; standalone artifact transfer belongs here because the
+human command owns its inputs and destinations. Tests separately hold the
+parser's command set and help coverage.
 
 <a id="two-products"></a>
 ## Two products, and which one `grove` enters
@@ -62,7 +53,7 @@ lines of it, in eight fragments that follow the file's own order. It is read
 first because the first mechanism is declared there rather than argued anywhere
 else: the package is a crate, and the crate has no library.
 
-<!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-58" parent="source-crate-manifest" -->
+<!-- fragment «manifest-thin-by-construction» owner="compiler-held" source="crates/grove/Cargo.toml" lines="1-61" parent="source-crate-manifest" -->
 <!-- insert «manifest-package-identity» -->
 <!-- insert «manifest-human-binary» -->
 <!-- insert «manifest-crate-not-a-bin» -->
@@ -104,7 +95,7 @@ rather than paraphrased because every later page is a longer reading of one
 clause of it. Bare `grove` parses no argument that selects anything,
 acquires the driver lease, and calls `grove_loop::run`. That call is the
 loop's single entry
-point, and everything the binary does after its three steps is behind it — the
+point, and the bare lifecycle after its three setup steps is behind it — the
 loop's own pages are another book's, and this page names the call so the reader
 can see where the book stops. The comment cites decision 9 of
 `docs/specs/module-decomposition.md`, which is the design record that put the
@@ -133,7 +124,8 @@ kind to one complete command template. With both facts on disk, an argument
 that selected either would be a second source for a fact that already has one.
 *The surface* reads the grammar that results, and *Proving a negative* reads the
 test that keeps the bare lifecycle free of selectors and the subcommand set
-at `{config, view}` with `show` beneath `config`.
+at `{run, run-log, config, view}`, with `run-log` hidden from ordinary help
+and `examples` and `show` beneath `config`.
 
 <a id="crate-not-a-bin"></a>
 ## A crate, not a `[[bin]]` target
@@ -165,7 +157,8 @@ anyone asking for it — so a clause that did not name the first shape would be
 false of the arrangement a reader pictures. What the package boundary adds is
 not that the first shape becomes impossible — a `#[path]` can point outside a
 package, and three of this repository's test targets do exactly that — but
-that from here it has to, and the Rust files visibly do not carry one. The
+that from here it has to, and the production modules do not include private library source. The test-only
+module in `standalone.rs` includes a fixture file from this package’s own tests. The
 move is made visible rather than unavailable. Inside `grove-loop`'s package,
 *the binary is thin* would be a fact about which of the two shapes the current
 commit uses, held by whoever reviews the next one. Through its loop dependency
@@ -176,18 +169,20 @@ is needed to assert it, which is also why it is the mechanism a reader is most
 likely to take on trust. The check is one line: every `grove_loop::` path the
 Rust files name is a `pub` re-export in that library's root. The comment's
 own sentence, and decision 1 of `docs/specs/module-decomposition.md` which it
-cites, both name the shape the clause holds for; the comment says it in one
-clause because five lines is all the room the manifest gives it, and this
-section is where the shape it excludes is spelled out.
+cites, both name the shape the clause holds for. This section spells out the
+shape it excludes. The same public
+boundary holds for `keyed-launch`, while standalone artifact handling remains
+owned by the binary.
 
-<!-- fragment «manifest-crate-not-a-bin» owner="compiler-held" source="crates/grove/Cargo.toml" lines="14-19" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-crate-not-a-bin» owner="compiler-held" source="crates/grove/Cargo.toml" lines="14-20" parent="manifest-thin-by-construction" -->
 ````toml
 #
 # **A crate, not a `[[bin]]` target, and that is the point** (decision 1). A
 # binary target inside `grove-loop` that compiled the library's modules into
 # itself could name the items that library keeps private, so *the binary is
 # thin* would stop being compiler-enforced. Here the compiler holds it:
-# main reaches only the public loop and viewer interfaces.
+# main reaches only public loop, viewer and keyed-launch interfaces; standalone
+# artifact handling is a binary-owned adapter.
 ````
 <!-- /fragment -->
 
@@ -204,7 +199,7 @@ give the binary a library to reach into, and that is the property the second
 comment made this a crate to keep. The `[[bin]]` table that follows is the one
 target: `grove`, at `src/main.rs`.
 
-<!-- fragment «manifest-no-lib-one-target» owner="compiler-held" source="crates/grove/Cargo.toml" lines="20-26" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-no-lib-one-target» owner="compiler-held" source="crates/grove/Cargo.toml" lines="21-27" parent="manifest-thin-by-construction" -->
 ````toml
 #
 # **There is no `[lib]`.** The package is one binary target, so `cli.rs` is a
@@ -217,7 +212,7 @@ path = "src/main.rs"
 <!-- /fragment -->
 
 <a id="one-dependency"></a>
-## Two public application seams
+## Public library seams and binary-owned transfers
 
 The binary depends on `anyhow` for returned errors and `clap` for parsing.
 Two domain libraries provide its entry paths: `grove-loop` owns the lifecycle,
@@ -225,14 +220,18 @@ and `grove-tui` owns observation. Only the viewer pulls in Ratatui and
 Crossterm. `Workspace` still arrives through the loop's re-export; the human
 binary never opens a store lock itself. The manifest therefore records two
 public entry seams without importing their private implementation modules.
-The additional `keyed-launch` dependency supplies public inspection record
-types to the report formatter; SessionConfig still owns resolution.
+`keyed-launch` supplies public inspection records to the formatter and
+configured-command and confinement APIs to standalone invocation. SessionConfig
+owns ordinary project-policy resolution; the standalone runner loads a personal
+catalog without an overlay. `serde_json` encodes configuration reports,
+`tempfile` owns scratch storage and staged exports, and `libc` supplies the
+artifact-open flags used by that runner.
 
 The dependency comment names the two public entry points and places terminal
 dependencies behind the viewer. That keeps display concerns out of the loop
 and agent binary; the exact manifest fragment below records those edges.
 
-<!-- fragment «manifest-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="27-36" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="28-40" parent="manifest-thin-by-construction" -->
 ````toml
 
 [dependencies]
@@ -244,6 +243,9 @@ grove-loop = { path = "../grove-loop" }
 grove-tui = { path = "../grove-tui" }
 # Public inspection records; resolution remains SessionConfig's responsibility.
 keyed-launch = { path = "../keyed-launch" }
+serde_json = "1.0"
+tempfile = "3.10"
+libc = "0.2"
 ````
 <!-- /fragment -->
 
@@ -273,9 +275,8 @@ The comment names the original repository-surface tests. Later tests include
 configuration inspection and viewer fixtures. All are evidence for this book
 rather than corpus: `tests/` directories are cited and never reproduced.
 
-<!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="37-49" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="41-52" parent="manifest-thin-by-construction" -->
 ````toml
-serde_json = "1.0"
 
 # **The repository-surface tests live here**, and that is deliberate rather than
 # incidental. `tests/reference_navigation.rs`, `tests/plugin_fallback.rs`,
@@ -302,7 +303,7 @@ path — the driver dying of the signal it was sent — is *Three steps*' second
 ending, and this line is the first trace of it in the corpus. `tempfile`
 supplies the temporary trees.
 
-<!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="50-55" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-dev-dependencies» owner="compiler-held" source="crates/grove/Cargo.toml" lines="53-58" parent="manifest-thin-by-construction" -->
 ````toml
 [dev-dependencies]
 book-validation = { path = "../book-validation" }
@@ -316,7 +317,7 @@ tempfile = "3.10"
 The lint configuration is inherited for the same reason `version` is: one
 workspace, one standard, and nothing crate-specific to add.
 
-<!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="56-58" parent="manifest-thin-by-construction" -->
+<!-- fragment «manifest-lints» owner="compiler-held" source="crates/grove/Cargo.toml" lines="59-61" parent="manifest-thin-by-construction" -->
 ````toml
 
 [lints]
@@ -393,10 +394,10 @@ started it reads `128 + N` instead of success. That ending is the most argued
 claim in the corpus and *Three steps* owns it.
 
 <a id="three-mechanisms"></a>
-## Three mechanisms, five chapters
+## Entry boundaries and their checks
 
 Now that one invocation has been seen end to end, the map. The three mechanisms
-are what the reader takes away; the five chapters are where each is read; the
+describe the lifecycle entry; the chapter map shows where each is read. The
 table says which page holds which, and which pages hold neither because their
 job is the invocation itself.
 
@@ -405,9 +406,10 @@ job is the invocation itself.
 | 1 | A package boundary: the entry point can reach only what the library publishes | the compiler | Orientation |
 | — | The grammar that results, and the agent surface beside it | — | The surface |
 | — | The three calls, and the signal path | — | Three steps |
-| 2 | A closure property: bare lifecycle selectors are absent and only config and view are top-level subcommands | `the_human_command_surface_has_nothing_left_to_select` | Proving a negative |
+| 2 | A closure property: bare lifecycle selectors are absent and the top-level command set is run, run-log, config and view | `the_human_command_surface_has_nothing_left_to_select` | Proving a negative |
 | 3 | A convention, checked: every option the binary lists is described | `the_human_facing_binary_describes_every_option_it_lists` | Proving a negative |
-| — | The module map, and the boundary of this book | — | What the call reaches |
+| — | The module map and configuration presentation | — | What the call reaches |
+| — | Confined scratch state, checked export and parent-owned display | Native policy and artifact checks | One isolated invocation |
 
 Mechanism 1 is this chapter's, and it is now fully read: a separate crate, no
 `[lib]`, one target, public library dependencies, and a manifest whose comments state

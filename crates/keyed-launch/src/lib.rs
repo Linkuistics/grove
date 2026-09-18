@@ -79,6 +79,7 @@ pub mod conformance;
 
 mod argv;
 mod channel;
+mod confinement;
 mod error;
 mod inspection;
 mod run;
@@ -87,13 +88,15 @@ mod vocabulary;
 
 pub use argv::{Argv, Slot};
 pub use channel::{signal, Channel, Token};
+pub use confinement::{regular_file_at, Confinement};
 pub use error::{ConfigError, Diagnostic, LaunchError, Occurrence};
 pub use inspection::{
     Assignment, AssignmentHistory, AssignmentValue, CommandView, CompiledWord, Inspection,
     NonAdmittedKey, Origin, ParameterView, Setting, WordView,
 };
 pub use run::{
-    reraise, run, run_observed, take_interrupt, End, Ended, Escalation, Launch, LaunchEvent,
+    reraise, run, run_confined, run_noninteractive, run_observed, take_interrupt, End, Ended,
+    Escalation, Launch, LaunchEvent,
 };
 pub use templates::{Catalog, Selection, Source, SourceRole, SourceSpan, Templates};
 pub use vocabulary::{Requirement, SlotRule, Vocabulary};

@@ -40,6 +40,7 @@ const DRAW_RETRY_LIMIT: usize = 8;
 #[derive(Debug)]
 pub struct Channel {
     path: PathBuf,
+    directory: File,
 }
 
 impl Channel {
@@ -71,7 +72,13 @@ impl Channel {
             let path = dir.join(format!("{CHANNEL_PREFIX}{}", hex(draw_nonce()?)));
             match fs::symlink_metadata(&path) {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    return Ok(Self { path })
+                    let directory = File::open(dir).map_err(|error| {
+                        LaunchError::new(format!(
+                            "cannot hold completion directory {}: {error}",
+                            dir.display()
+                        ))
+                    })?;
+                    return Ok(Self { path, directory });
                 }
                 Err(error) => {
                     return Err(LaunchError::new(format!(
@@ -110,9 +117,19 @@ impl Channel {
     /// the file and writing to it leaves one behind; handing that back as
     /// `Some("")` would make a caller's own "anything unrecognised means keep
     /// going" rule fire on a launch that never said anything at all.
+    /// Symlinks, non-regular files and tokens larger than 4096 bytes are refused:
+    /// a child-controlled channel must not block or exhaust its supervisor.
     #[must_use]
     pub fn read(&self) -> Option<Token> {
-        let content = fs::read_to_string(&self.path).ok()?;
+        let file = crate::regular_file_at(&self.directory, self.path.file_name()?).ok()?;
+        if !file.metadata().ok()?.is_file() {
+            return None;
+        }
+        let mut content = String::new();
+        file.take(4097).read_to_string(&mut content).ok()?;
+        if content.len() > 4096 {
+            return None;
+        }
         let token = content.trim_end();
         (!token.is_empty()).then(|| Token(token.to_string()))
     }
@@ -347,6 +364,38 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let channel = Channel::allocate(dir.path()).unwrap();
 
+        assert_eq!(channel.read(), None);
+    }
+
+    #[test]
+    fn completion_rejects_links_and_oversized_tokens() {
+        let dir = tempfile::tempdir().unwrap();
+        let channel = Channel::allocate(dir.path()).unwrap();
+        let outside = dir.path().join("outside");
+        fs::write(&outside, "done").unwrap();
+        std::os::unix::fs::symlink(&outside, channel.path()).unwrap();
+        assert_eq!(channel.read(), None, "completion must not follow a link");
+        fs::remove_file(channel.path()).unwrap();
+        fs::write(channel.path(), vec![b'x'; 4097]).unwrap();
+        assert_eq!(channel.read(), None, "completion must have a bounded size");
+        fs::remove_file(channel.path()).unwrap();
+        let path = std::ffi::CString::new(channel.path().as_os_str().as_encoded_bytes()).unwrap();
+        // SAFETY: valid NUL-terminated path in a private test directory.
+        assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o600) }, 0);
+        assert_eq!(channel.read(), None, "completion must not block on a FIFO");
+    }
+
+    #[test]
+    fn completion_stays_in_its_original_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let control = dir.path().join("control");
+        fs::create_dir(&control).unwrap();
+        let channel = Channel::allocate(&control).unwrap();
+        let outside = dir.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        fs::write(outside.join(channel.path().file_name().unwrap()), "done").unwrap();
+        fs::rename(&control, dir.path().join("original")).unwrap();
+        std::os::unix::fs::symlink(outside, &control).unwrap();
         assert_eq!(channel.read(), None);
     }
 

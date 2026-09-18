@@ -9,21 +9,22 @@
 | Root ID | Source path | Lines |
 |---|---|---|
 | `source-crate-manifest` | `crates/keyed-launch/Cargo.toml` | 47 |
-| `source-library-root` | `crates/keyed-launch/src/lib.rs` | 99 |
+| `source-library-root` | `crates/keyed-launch/src/lib.rs` | 102 |
 | `source-error-types` | `crates/keyed-launch/src/error.rs` | 148 |
 | `source-vocabulary` | `crates/keyed-launch/src/vocabulary.rs` | 46 |
 | `source-templates` | `crates/keyed-launch/src/templates.rs` | 685 |
 | `source-inspection` | `crates/keyed-launch/src/inspection.rs` | 104 |
 | `source-argv` | `crates/keyed-launch/src/argv.rs` | 48 |
-| `source-channel` | `crates/keyed-launch/src/channel.rs` | 404 |
-| `source-run` | `crates/keyed-launch/src/run.rs` | 672 |
+| `source-channel` | `crates/keyed-launch/src/channel.rs` | 453 |
+| `source-run` | `crates/keyed-launch/src/run.rs` | 853 |
 | `source-conformance` | `crates/keyed-launch/src/conformance.rs` | 98 |
 | `source-named` | `crates/keyed-launch/src/templates/named.rs` | 1,359 |
+| `source-confinement` | `crates/keyed-launch/src/confinement.rs` | 219 |
 
 <!-- source-root «source-crate-manifest» source="crates/keyed-launch/Cargo.toml" lines="1-47" -->
 <!-- insert «manifest-three-dependencies» -->
 <!-- /source-root -->
-<!-- source-root «source-library-root» source="crates/keyed-launch/src/lib.rs" lines="1-99" -->
+<!-- source-root «source-library-root» source="crates/keyed-launch/src/lib.rs" lines="1-102" -->
 <!-- insert «library-root» -->
 <!-- /source-root -->
 <!-- source-root «source-error-types» source="crates/keyed-launch/src/error.rs" lines="1-148" -->
@@ -47,11 +48,11 @@
 <!-- source-root «source-argv» source="crates/keyed-launch/src/argv.rs" lines="1-48" -->
 <!-- insert «argv» -->
 <!-- /source-root -->
-<!-- source-root «source-channel» source="crates/keyed-launch/src/channel.rs" lines="1-404" -->
+<!-- source-root «source-channel» source="crates/keyed-launch/src/channel.rs" lines="1-453" -->
 <!-- insert «channel-production» -->
 <!-- insert «channel-inline-tests» -->
 <!-- /source-root -->
-<!-- source-root «source-run» source="crates/keyed-launch/src/run.rs" lines="1-672" -->
+<!-- source-root «source-run» source="crates/keyed-launch/src/run.rs" lines="1-853" -->
 <!-- insert «launch-shape» -->
 <!-- insert «watch-and-launcher-signals» -->
 <!-- insert «terminal-and-spawn» -->
@@ -70,13 +71,17 @@
 <!-- insert «named-lookups» -->
 <!-- /source-root -->
 
+<!-- source-root «source-confinement» source="crates/keyed-launch/src/confinement.rs" lines="1-219" -->
+<!-- insert «confinement-policy» -->
+<!-- /source-root -->
+
 <a id="ownership-blocks"></a>
 ## Ownership blocks
 
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
 | `manifest-three-dependencies` | `source-crate-manifest` | `understands-neither` | `1-47` | 47 | `resolved` |
-| `library-root` | `source-library-root` | `understands-neither` | `1-99` | 99 | `resolved` |
+| `library-root` | `source-library-root` | `understands-neither` | `1-102` | 102 | `resolved` |
 | `two-opaque-errors` | `source-error-types` | `understands-neither` | `1-148` | 148 | `resolved` |
 | `vocabulary` | `source-vocabulary` | `rules-about-names` | `1-46` | 46 | `resolved` |
 | `template-shapes` | `source-templates` | `rules-about-names` | `1-150` | 150 | `resolved` |
@@ -88,12 +93,12 @@
 | `templates-keys` | `source-templates` | `whole-word-or-nothing` | `676-685` | 10 | `resolved` |
 | `inspection-records` | `source-inspection` | `rules-about-names` | `1-104` | 104 | `resolved` |
 | `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `resolved` |
-| `channel-production` | `source-channel` | `appearance-is-the-event` | `1-271` | 271 | `resolved` |
-| `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `272-404` | 133 | `resolved` |
-| `launch-shape` | `source-run` | `nothing-else-added` | `1-123` | 123 | `resolved` |
-| `watch-and-launcher-signals` | `source-run` | `the-launchers-job` | `124-243` | 120 | `resolved` |
-| `terminal-and-spawn` | `source-run` | `nothing-else-added` | `244-510` | 267 | `resolved` |
-| `supervise-and-escalate` | `source-run` | `the-launchers-job` | `511-672` | 162 | `resolved` |
+| `channel-production` | `source-channel` | `appearance-is-the-event` | `1-288` | 288 | `resolved` |
+| `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `289-453` | 165 | `resolved` |
+| `launch-shape` | `source-run` | `nothing-else-added` | `1-124` | 124 | `resolved` |
+| `watch-and-launcher-signals` | `source-run` | `the-launchers-job` | `125-244` | 120 | `resolved` |
+| `terminal-and-spawn` | `source-run` | `nothing-else-added` | `245-679` | 435 | `resolved` |
+| `supervise-and-escalate` | `source-run` | `the-launchers-job` | `680-853` | 174 | `resolved` |
 | `conformance` | `source-conformance` | `checked-without-meaning` | `1-98` | 98 | `resolved` |
 | `named-capture` | `source-named` | `never-assembled` | `1-533` | 533 | `resolved` |
 | `named-diagnostics` | `source-named` | `never-assembled` | `534-550` | 17 | `resolved` |
@@ -101,6 +106,7 @@
 | `named-fold` | `source-named` | `never-assembled` | `689-1027` | 339 | `resolved` |
 | `named-resolve` | `source-named` | `never-assembled` | `1028-1324` | 297 | `resolved` |
 | `named-lookups` | `source-named` | `never-assembled` | `1325-1359` | 35 | `resolved` |
+| `confinement-policy` | `source-confinement` | `confined-jobs` | `1-219` | 219 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -114,15 +120,15 @@
 | `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `27-29` | `manifest-three-dependencies` | `—` |
 | `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `30-32` | `manifest-three-dependencies` | `—` |
 | `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `understands-neither` | `33-47` | `manifest-three-dependencies` | `—` |
-| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-99` | `—` | `library-root` |
+| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-102` | `—` | `library-root` |
 | `library-root-thesis` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `1-8` | `library-root` | `—` |
-| `library-root` | `orientation` | `source-library-root` | `composite` | `understands-neither` | `1-99` | `source-library-root` | `library-root-thesis`, `library-root-two-documents`, `library-root-vocabulary`, `library-root-to-a-child`, `library-root-job-and-out-of-band`, `library-root-conformance`, `library-root-modules-and-exports` |
+| `library-root` | `orientation` | `source-library-root` | `composite` | `understands-neither` | `1-102` | `source-library-root` | `library-root-thesis`, `library-root-two-documents`, `library-root-vocabulary`, `library-root-to-a-child`, `library-root-job-and-out-of-band`, `library-root-conformance`, `library-root-modules-and-exports` |
 | `library-root-two-documents` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `9-21` | `library-root` | `—` |
 | `library-root-vocabulary` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `22-43` | `library-root` | `—` |
 | `library-root-to-a-child` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `44-53` | `library-root` | `—` |
 | `library-root-job-and-out-of-band` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `54-66` | `library-root` | `—` |
 | `library-root-conformance` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `67-76` | `library-root` | `—` |
-| `library-root-modules-and-exports` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `77-99` | `library-root` | `—` |
+| `library-root-modules-and-exports` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `77-102` | `library-root` | `—` |
 | `source-error-types` | `source-index` | `source-error-types` | `root` | `—` | `1-148` | `—` | `two-opaque-errors` |
 | `error-import` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `1-1` | `two-opaque-errors` | `—` |
 | `two-opaque-errors` | `orientation` | `source-error-types` | `composite` | `understands-neither` | `1-148` | `source-error-types` | `error-import`, `error-config-type`, `error-config-traits`, `error-launch-type`, `error-launch-traits` |
@@ -178,68 +184,77 @@
 | `argv-no-public-constructor` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `23-27` | `argv` | `—` |
 | `argv-program-and-args` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `28-37` | `argv` | `—` |
 | `argv-words` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `38-48` | `argv` | `—` |
-| `source-channel` | `source-index` | `source-channel` | `root` | `—` | `1-404` | `—` | `channel-production`, `channel-inline-tests` |
+| `source-channel` | `source-index` | `source-channel` | `root` | `—` | `1-453` | `—` | `channel-production`, `channel-inline-tests` |
 | `channel-thesis` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `1-9` | `channel-production` | `—` |
-| `channel-production` | `the-channel` | `source-channel` | `composite` | `appearance-is-the-event` | `1-271` | `source-channel` | `channel-thesis`, `channel-prefix`, `channel-nonce-bytes`, `channel-retry-limit`, `channel-type`, `channel-allocate`, `channel-published-path`, `channel-read`, `channel-discard`, `channel-discard-abandoned`, `channel-token`, `channel-signal`, `channel-name-grammar`, `channel-remove-if-present`, `channel-draw-nonce`, `channel-hex` |
+| `channel-production` | `the-channel` | `source-channel` | `composite` | `appearance-is-the-event` | `1-288` | `source-channel` | `channel-thesis`, `channel-prefix`, `channel-nonce-bytes`, `channel-retry-limit`, `channel-type`, `channel-allocate`, `channel-published-path`, `channel-read`, `channel-discard`, `channel-discard-abandoned`, `channel-token`, `channel-signal`, `channel-name-grammar`, `channel-remove-if-present`, `channel-draw-nonce`, `channel-hex` |
 | `channel-prefix` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `10-21` | `channel-production` | `—` |
 | `channel-nonce-bytes` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `22-25` | `channel-production` | `—` |
 | `channel-retry-limit` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `26-32` | `channel-production` | `—` |
-| `channel-type` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `33-43` | `channel-production` | `—` |
-| `channel-allocate` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `44-92` | `channel-production` | `—` |
-| `channel-published-path` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `93-99` | `channel-production` | `—` |
-| `channel-read` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `100-118` | `channel-production` | `—` |
-| `channel-discard` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `119-128` | `channel-production` | `—` |
-| `channel-discard-abandoned` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `129-184` | `channel-production` | `—` |
-| `channel-token` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `185-202` | `channel-production` | `—` |
-| `channel-signal` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `203-221` | `channel-production` | `—` |
-| `channel-name-grammar` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `222-236` | `channel-production` | `—` |
-| `channel-remove-if-present` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `237-247` | `channel-production` | `—` |
-| `channel-draw-nonce` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `248-261` | `channel-production` | `—` |
-| `channel-hex` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `262-271` | `channel-production` | `—` |
-| `channel-tests-module` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `272-274` | `channel-inline-tests` | `—` |
-| `channel-inline-tests` | `how-checked` | `source-channel` | `composite` | `checked-without-meaning` | `272-404` | `source-channel` | `channel-tests-module`, `channel-tests-allocate`, `channel-tests-read`, `channel-tests-discard`, `channel-tests-cleanup` |
-| `channel-tests-allocate` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `275-312` | `channel-inline-tests` | `—` |
-| `channel-tests-read` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `313-351` | `channel-inline-tests` | `—` |
-| `channel-tests-discard` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `352-365` | `channel-inline-tests` | `—` |
-| `channel-tests-cleanup` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `366-404` | `channel-inline-tests` | `—` |
-| `source-run` | `source-index` | `source-run` | `root` | `—` | `1-672` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
-| `run-thesis` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `1-13` | `launch-shape` | `—` |
-| `launch-shape` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `1-123` | `source-run` | `run-thesis`, `run-poll-interval`, `run-escalation`, `run-launch`, `run-ended`, `run-end` |
-| `run-poll-interval` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `14-21` | `launch-shape` | `—` |
-| `run-escalation` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `22-42` | `launch-shape` | `—` |
-| `run-launch` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `43-77` | `launch-shape` | `—` |
-| `run-ended` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `78-92` | `launch-shape` | `—` |
-| `run-end` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `93-123` | `launch-shape` | `—` |
-| `run-watch-states` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `124-130` | `watch-and-launcher-signals` | `—` |
-| `watch-and-launcher-signals` | `the-escalation` | `source-run` | `composite` | `the-launchers-job` | `124-243` | `source-run` | `run-watch-states`, `run-interrupted-by`, `run-take-interrupt`, `run-reraise`, `run-on-terminate`, `run-install-termination-handler` |
-| `run-interrupted-by` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `131-149` | `watch-and-launcher-signals` | `—` |
-| `run-take-interrupt` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `150-168` | `watch-and-launcher-signals` | `—` |
-| `run-reraise` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `169-211` | `watch-and-launcher-signals` | `—` |
-| `run-on-terminate` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `212-218` | `watch-and-launcher-signals` | `—` |
-| `run-install-termination-handler` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `219-243` | `watch-and-launcher-signals` | `—` |
-| `run-default-dispositions` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `244-270` | `terminal-and-spawn` | `—` |
-| `terminal-and-spawn` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `244-510` | `source-run` | `run-default-dispositions`, `run-terminal-type`, `run-terminal-open`, `run-terminal-accessors`, `run-terminal-hand-to`, `run-own-group`, `run-the-child-is-a-job`, `run-command-and-environment`, `run-terminal-handover`, `run-process-group`, `run-pre-exec`, `run-clear-and-spawn`, `run-parent-group-and-supervise` |
-| `run-terminal-type` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `271-274` | `terminal-and-spawn` | `—` |
-| `run-terminal-open` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `275-299` | `terminal-and-spawn` | `—` |
-| `run-terminal-accessors` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `300-309` | `terminal-and-spawn` | `—` |
-| `run-terminal-hand-to` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `310-328` | `terminal-and-spawn` | `—` |
-| `run-own-group` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `329-334` | `terminal-and-spawn` | `—` |
-| `run-the-child-is-a-job` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `335-366` | `terminal-and-spawn` | `—` |
-| `run-command-and-environment` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `367-409` | `terminal-and-spawn` | `—` |
-| `run-terminal-handover` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `410-421` | `terminal-and-spawn` | `—` |
-| `run-process-group` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `422-427` | `terminal-and-spawn` | `—` |
-| `run-pre-exec` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `428-449` | `terminal-and-spawn` | `—` |
-| `run-clear-and-spawn` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `450-461` | `terminal-and-spawn` | `—` |
-| `run-parent-group-and-supervise` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `462-510` | `terminal-and-spawn` | `—` |
-| `run-supervise` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `511-524` | `supervise-and-escalate` | `—` |
-| `supervise-and-escalate` | `the-escalation` | `source-run` | `composite` | `the-launchers-job` | `511-672` | `source-run` | `run-supervise`, `run-watch-signature`, `run-watch-ended`, `run-watch-terminal-recheck`, `run-watch-try-wait`, `run-watch-forward-interrupt`, `run-watch-escalation`, `run-kill` |
-| `run-watch-signature` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `525-537` | `supervise-and-escalate` | `—` |
-| `run-watch-ended` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `538-550` | `supervise-and-escalate` | `—` |
-| `run-watch-terminal-recheck` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `551-562` | `supervise-and-escalate` | `—` |
-| `run-watch-try-wait` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `563-592` | `supervise-and-escalate` | `—` |
-| `run-watch-forward-interrupt` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `593-613` | `supervise-and-escalate` | `—` |
-| `run-watch-escalation` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `614-641` | `supervise-and-escalate` | `—` |
-| `run-kill` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `642-672` | `supervise-and-escalate` | `—` |
+| `channel-type` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `33-44` | `channel-production` | `—` |
+| `channel-allocate` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `45-99` | `channel-production` | `—` |
+| `channel-published-path` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `100-106` | `channel-production` | `—` |
+| `channel-read` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `107-135` | `channel-production` | `—` |
+| `channel-discard` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `136-145` | `channel-production` | `—` |
+| `channel-discard-abandoned` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `146-201` | `channel-production` | `—` |
+| `channel-token` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `202-219` | `channel-production` | `—` |
+| `channel-signal` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `220-238` | `channel-production` | `—` |
+| `channel-name-grammar` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `239-253` | `channel-production` | `—` |
+| `channel-remove-if-present` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `254-264` | `channel-production` | `—` |
+| `channel-draw-nonce` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `265-278` | `channel-production` | `—` |
+| `channel-hex` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `279-288` | `channel-production` | `—` |
+| `channel-tests-module` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `289-291` | `channel-inline-tests` | `—` |
+| `channel-inline-tests` | `how-checked` | `source-channel` | `composite` | `checked-without-meaning` | `289-453` | `source-channel` | `channel-tests-module`, `channel-tests-allocate`, `channel-tests-read`, `channel-tests-discard`, `channel-tests-cleanup` |
+| `channel-tests-allocate` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `292-329` | `channel-inline-tests` | `—` |
+| `channel-tests-read` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `330-368` | `channel-inline-tests` | `—` |
+| `channel-untrusted-entry-test` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `369-387` | `channel-tests-discard` | `—` |
+| `channel-tests-discard` | `how-checked` | `source-channel` | `composite` | `checked-without-meaning` | `369-414` | `channel-inline-tests` | `channel-untrusted-entry-test`, `channel-parent-identity-test`, `channel-discard-postcondition-test` |
+| `channel-parent-identity-test` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `388-401` | `channel-tests-discard` | `—` |
+| `channel-discard-postcondition-test` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `402-414` | `channel-tests-discard` | `—` |
+| `channel-tests-cleanup` | `how-checked` | `source-channel` | `literal` | `checked-without-meaning` | `415-453` | `channel-inline-tests` | `—` |
+| `source-run` | `source-index` | `source-run` | `root` | `—` | `1-853` | `—` | `launch-shape`, `watch-and-launcher-signals`, `terminal-and-spawn`, `supervise-and-escalate` |
+| `run-thesis` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `1-14` | `launch-shape` | `—` |
+| `launch-shape` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `1-124` | `source-run` | `run-thesis`, `run-poll-interval`, `run-escalation`, `run-launch`, `run-ended`, `run-end` |
+| `run-poll-interval` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `15-22` | `launch-shape` | `—` |
+| `run-escalation` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `23-43` | `launch-shape` | `—` |
+| `run-launch` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `44-78` | `launch-shape` | `—` |
+| `run-ended` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `79-93` | `launch-shape` | `—` |
+| `run-end` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `94-124` | `launch-shape` | `—` |
+| `run-watch-states` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `125-131` | `watch-and-launcher-signals` | `—` |
+| `watch-and-launcher-signals` | `the-escalation` | `source-run` | `composite` | `the-launchers-job` | `125-244` | `source-run` | `run-watch-states`, `run-interrupted-by`, `run-take-interrupt`, `run-reraise`, `run-on-terminate`, `run-install-termination-handler` |
+| `run-interrupted-by` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `132-150` | `watch-and-launcher-signals` | `—` |
+| `run-take-interrupt` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `151-169` | `watch-and-launcher-signals` | `—` |
+| `run-reraise` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `170-212` | `watch-and-launcher-signals` | `—` |
+| `run-on-terminate` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `213-219` | `watch-and-launcher-signals` | `—` |
+| `run-install-termination-handler` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `220-244` | `watch-and-launcher-signals` | `—` |
+| `run-default-dispositions` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `245-271` | `terminal-and-spawn` | `—` |
+| `terminal-and-spawn` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `245-679` | `source-run` | `run-default-dispositions`, `run-terminal-type`, `run-terminal-open`, `run-terminal-accessors`, `run-terminal-hand-to`, `run-own-group`, `run-the-child-is-a-job`, `run-command-and-environment`, `run-terminal-handover`, `run-process-group`, `run-pre-exec`, `run-clear-and-spawn`, `run-parent-group-and-supervise` |
+| `run-terminal-type` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `272-275` | `terminal-and-spawn` | `—` |
+| `run-terminal-open` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `276-300` | `terminal-and-spawn` | `—` |
+| `run-terminal-accessors` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `301-310` | `terminal-and-spawn` | `—` |
+| `run-terminal-hand-to` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `311-329` | `terminal-and-spawn` | `—` |
+| `run-own-group` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `330-335` | `terminal-and-spawn` | `—` |
+| `run-the-child-is-a-job` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `336-367` | `terminal-and-spawn` | `—` |
+| `run-output-modes` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `368-434` | `run-command-and-environment` | `—` |
+| `run-command-and-environment` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `368-473` | `terminal-and-spawn` | `run-output-modes`, `run-output-setup` |
+| `run-output-setup` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `435-473` | `run-command-and-environment` | `—` |
+| `run-terminal-handover` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `474-485` | `terminal-and-spawn` | `—` |
+| `run-process-group` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `486-493` | `terminal-and-spawn` | `—` |
+| `run-pre-exec` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `494-533` | `terminal-and-spawn` | `—` |
+| `run-clear-and-spawn` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `534-545` | `terminal-and-spawn` | `—` |
+| `run-spawn-handoff` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `546-576` | `run-parent-group-and-supervise` | `—` |
+| `run-parent-group-and-supervise` | `the-job` | `source-run` | `composite` | `nothing-else-added` | `546-679` | `terminal-and-spawn` | `run-spawn-handoff`, `run-descriptor-bound`, `run-group-drain`, `run-process-adapter` |
+| `run-descriptor-bound` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `577-614` | `run-parent-group-and-supervise` | `—` |
+| `run-group-drain` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `615-637` | `run-parent-group-and-supervise` | `—` |
+| `run-process-adapter` | `the-job` | `source-run` | `literal` | `nothing-else-added` | `638-679` | `run-parent-group-and-supervise` | `—` |
+| `run-supervise` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `680-706` | `supervise-and-escalate` | `—` |
+| `supervise-and-escalate` | `the-escalation` | `source-run` | `composite` | `the-launchers-job` | `680-853` | `source-run` | `run-supervise`, `run-watch-signature`, `run-watch-ended`, `run-watch-terminal-recheck`, `run-watch-forward-interrupt`, `run-watch-try-wait`, `run-watch-escalation`, `run-kill` |
+| `run-watch-signature` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `707-720` | `supervise-and-escalate` | `—` |
+| `run-watch-ended` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `721-733` | `supervise-and-escalate` | `—` |
+| `run-watch-terminal-recheck` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `734-745` | `supervise-and-escalate` | `—` |
+| `run-watch-forward-interrupt` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `746-759` | `supervise-and-escalate` | `—` |
+| `run-watch-try-wait` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `760-791` | `supervise-and-escalate` | `—` |
+| `run-watch-escalation` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `792-822` | `supervise-and-escalate` | `—` |
+| `run-kill` | `the-escalation` | `source-run` | `literal` | `the-launchers-job` | `823-853` | `supervise-and-escalate` | `—` |
 | `source-conformance` | `source-index` | `source-conformance` | `root` | `—` | `1-98` | `—` | `conformance` |
 | `conformance-thesis` | `how-checked` | `source-conformance` | `literal` | `checked-without-meaning` | `1-31` | `conformance` | `—` |
 | `conformance` | `how-checked` | `source-conformance` | `composite` | `checked-without-meaning` | `1-98` | `source-conformance` | `conformance-thesis`, `conformance-outcome`, `conformance-check-and-placeholders`, `conformance-load`, `conformance-no-keys`, `conformance-values`, `conformance-expands` |
@@ -256,6 +271,14 @@
 | `named-fold` | `two-documents` | `source-named` | `literal` | `never-assembled` | `689-1027` | `source-named` | `—` |
 | `named-resolve` | `two-documents` | `source-named` | `literal` | `never-assembled` | `1028-1324` | `source-named` | `—` |
 | `named-lookups` | `two-documents` | `source-named` | `literal` | `never-assembled` | `1325-1359` | `source-named` | `—` |
+| `source-confinement` | `source-index` | `source-confinement` | `root` | `—` | `1-219` | `—` | `confinement-policy` |
+| `held-directory-read` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `1-44` | `confinement-policy` | `—` |
+| `confinement-policy` | `confined-jobs` | `source-confinement` | `composite` | `confined-jobs` | `1-219` | `source-confinement` | `held-directory-read`, `confinement-contract`, `confinement-resource-resolution`, `confinement-macos`, `confinement-linux`, `confinement-unavailable` |
+| `confinement-contract` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `45-78` | `confinement-policy` | `—` |
+| `confinement-resource-resolution` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `79-103` | `confinement-policy` | `—` |
+| `confinement-macos` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `104-155` | `confinement-policy` | `—` |
+| `confinement-linux` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `156-213` | `confinement-policy` | `—` |
+| `confinement-unavailable` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `214-219` | `confinement-policy` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -285,14 +308,15 @@ are owned whole.
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `understands-neither` | `01-orientation.md` | 294 |
+| `understands-neither` | `01-orientation.md` | 297 |
 | `rules-about-names` | `02-the-names.md` | 300 |
 | `never-assembled` | `03-two-documents.md` | 1,448 |
 | `words-not-shell` | `04-template-law.md` | 259 |
 | `whole-word-or-nothing` | `05-to-an-argv.md` | 235 |
-| `appearance-is-the-event` | `06-the-channel.md` | 271 |
-| `nothing-else-added` | `07-the-job.md` | 390 |
-| `the-launchers-job` | `08-the-escalation.md` | 282 |
-| `checked-without-meaning` | `09-how-checked.md` | 231 |
+| `appearance-is-the-event` | `06-the-channel.md` | 288 |
+| `nothing-else-added` | `07-the-job.md` | 559 |
+| `the-launchers-job` | `08-the-escalation.md` | 294 |
+| `checked-without-meaning` | `09-how-checked.md` | 263 |
 | `assembly` | `10-what-passes-through.md` | 0 |
-| **Total** | 11 source roots | **3,710** |
+| `confined-jobs` | `11-confined-jobs.md` | 219 |
+| **Total** | 12 source roots | **4,162** |

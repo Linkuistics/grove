@@ -2,48 +2,35 @@
 <!-- book-page id="contents" role="contents" -->
 
 This book explains the `grove` binary to a reader who knows Rust and Jujutsu
-and has driven a grove. grove's own vocabulary is linked to the glossary rather
-than re-taught, and the entry point to the system is the
-[user guide's account of running Grove](../../USAGE.md#usage-running-grove) —
-start, resume and finish, alongside the [read-only browser](../../USAGE.md#usage-viewing-tree) and
-[configuration inspector](../../USAGE.md#usage-inspecting-configuration) and\n[inactive sample delivery](../../USAGE.md#usage-configuration-examples).
+and has driven a grove. Grove vocabulary is linked to the glossary. The
+[user guide's account of running Grove](../../USAGE.md#usage-running-grove)
+provides the product entry point; this book explains the code that implements
+its human command surface.
 
-`crates/grove` contains a manifest, an entry point, the CLI dispatcher and a
-human configuration formatter, a JSON projection and an inactive sample installer. Bare invocation resolves the working tree,
-takes the driver lease and calls the loop; observation returns before the lease. That is the whole human entry
-point onto grove, and this book is the system's overview rather than a fourth
-crate's account because that crate is where the system is entered and nothing
-else is decided. Each chapter opens at one of the binary's own steps — the
-package it is, the grammar it accepts, the paths it dispatches, the tests that
-hold the grammar closed, and the modules the call reaches — and the
-description of what the system does at that step is that chapter's body.
+Bare invocation resolves a working tree, takes a driver lease and calls the
+loop. Viewing, configuration inspection and inactive sample delivery return
+before that lifecycle. `grove run` adds a separate lifetime: one configured kind
+in confined temporary storage, with staged inputs, checked output publication
+and a parent-owned transcript. It needs no workspace or task tree.
 
-**The intended outcome is the thin-entry-point test, not a reference card.** At
-the end you should be able to take an entry point in your own code, ask what is
-left for an argument to select, and tell a binary that is thin from one that
-merely looks thin — naming which of three mechanisms holds it: a package
-boundary the compiler enforces, a closure property a test asserts, or a
-convention enforced only by a test. The book identifies the evidence for each mechanism.
+The corpus is every production source file and the manifest of `crates/grove`.
+The book explains the parser, dispatch, configuration projections, example
+installer, standalone orchestration and display. Library internals remain behind
+their public seams: the book supplies the local contract needed to understand
+each call, while their own books explain their implementation.
 
-**The book's boundary is the call.** It explains `grove::cli`, `grove::config` and `grove::config_json` and `grove::examples`, and
-names the libraries they call. Everything behind `grove_tui::run` and `grove_loop::run` — the loop, the task tree,
-the kinds, the lifecycle and the session epoch — is named where a page
-cannot be followed without it and explained nowhere here; the last chapter
-says so in one
-place rather than apologising per row.
+The organizing question is which boundary holds each behavior: a public library
+interface, a closed parser surface, an operating-system policy or a checked file
+transfer. The lifecycle entry is small; standalone invocation deliberately owns
+artifact and transcript orchestration in this binary. A package boundary limits
+access to private library items, but does not by itself prove that a binary
+contains no application logic.
 
-It does not teach Rust, `clap`, or operating-system signal semantics from first
-principles. `clap`'s derive macro and its command model are named where the
-source names them and explained only where an argument rests on their
-behaviour. Signal semantics are stated once, in *Three steps*, as that chapter's
-premise. The crate's own `tests/` directory is cited as evidence throughout and
-is not reproduced: it is outside the corpus this book reconstructs.
-
-The production source is authoritative. Literal fragments in the numbered pages
-are copied from it exactly, and the source index records how those fragments
-reconstruct each in-scope file. During authoring a scoped check proves the
-completed prefix and reports later-owned ranges as deferred; only the final
-check proves complete reconstruction of every declared source root.
+The book assumes Rust, clap and ordinary operating-system APIs. It explains the
+codebase-specific order of setup, supervision and publication. Tests under
+`crates/grove/tests/` are evidence, outside the reconstructed corpus. Literal
+fragments quote authoritative production bytes; final validation checks their
+coverage, ownership, reconstruction and links.
 
 <a id="reading-fragments"></a>
 ## Reading fragments
@@ -65,6 +52,8 @@ source.
 3. [Three steps](03-three-steps.md)
 4. [Proving a negative](04-proving-a-negative.md)
 5. [What the call reaches](05-what-the-call-reaches.md)
+
+6. [One isolated invocation](06-standalone-invocations.md)
 
 Optional lookup:
 

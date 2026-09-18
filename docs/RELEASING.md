@@ -28,8 +28,11 @@ workspace on the release when finished; use the printed `jj edit` command to
 return to saved work.
 
 Existing `## Unreleased` notes are preserved. When that section is empty, the
-task generates entries from commit subjects since the current version's tag
-and commits the changelog through jj. An already tagged `main` is refused, so
+task builds the current `grove` and `grove-llm` binaries, runs the personally
+configured `release-notes` kind through `grove run`, validates the generated
+Markdown body, and commits the changelog through jj. The inputs are the previous
+release's changelog, full commit descriptions, and the source diff from the
+current version's tag to `main`. An already tagged `main` is refused, so
 an interrupted cut is not silently bumped again. The GitHub Release uses the
 resulting versioned changelog section as its notes. A jj tap must be clean and
 its `main` must agree with `main@origin`; its state is checked before the cut
@@ -50,6 +53,45 @@ The tasks stop on the first failure. After a version has been cut, **resume at
 the unfinished step below rather than restarting the version cut**. An unchanged
 tagged `main` is refused on a rerun. Tree-format changes still require the concrete cutover
 preparation described below before running a task.
+
+### Automatic release notes
+
+An empty Unreleased section requires a `release-notes` route in your personal
+`~/.config/grove/config.kdl`, targeting the command and binding you choose. For
+example, add `route "release-notes" "writer"` inside `config { ... }` if `writer`
+selects a noninteractive command that can keep its writable state in the scratch
+directory. An interactive Grove session command generally needs a separate
+headless command definition. [Configuration](CONFIGURATION.md#standalone-commands) explains
+commands, bindings, routes, and profiles. The standalone invocation uses personal
+policy only; a repository's `.grove.kdl` does not participate. The release task
+does not select a harness, model, or permission policy.
+
+The generated prompt asks for a concise Markdown section body grounded in the
+supplied changes. `grove run` copies the three input files into a private working
+directory and confines the harness with an OS sandbox. The harness follows the
+invocation's completion instructions and produces `release-notes.md`; empty
+bodies and `##` headings fail preparation before any changelog or `main` update.
+The task uses `--ui auto` to make the invocation visible. Its host build runs
+`cargo build --locked -p grove -p grove-llm` only when generation is needed.
+Existing notes skip both that build and the LLM call.
+
+If your configured harness needs credential or other runtime files, explicitly
+grant read-only access with `GROVE_RELEASE_RUNTIME_READ`, one literal file path
+per line. Blank lines are ignored; paths containing spaces remain intact. For
+example:
+
+```sh
+export GROVE_RELEASE_RUNTIME_READ="$HOME/.config/my-agent/credentials.json
+$HOME/.config/my-agent/settings.json"
+task release:patch
+```
+
+Each entry becomes a separate `--runtime-read` argument. These grants do not
+change the chosen command's policy or permit writes outside the invocation.
+Missing configuration, unavailable confinement, a failed build or invocation,
+and invalid output stop the release before its version cut. Correct the cause
+or write the Unreleased notes yourself before retrying preparation. The release
+preparation tests use a deterministic runner fixture and make no paid LLM calls.
 
 ## Prerequisites
 

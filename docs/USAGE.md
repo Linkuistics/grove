@@ -2,10 +2,11 @@
 
 Grove drives a long-running workstream as a sequence of fresh agent sessions.
 The workstream lives in a `.grove/` task tree inside a **Jujutsu** working tree
-that you create and own. Grove drives jj and nothing else: run it in a tree with
+that you create and own. The bare lifecycle drives jj: run it in a tree with
 no `.jj/` and it stops before touching anything, naming
 `jj git init --colocate` — which makes an existing Git repository jj-enabled
 while keeping its history and leaving every Git tool working.
+`grove run` is a separate standalone invocation which needs no project or jj.
 
 Before starting, install Grove as described in the [README](../README.md) and
 write the complete personal configuration described in
@@ -33,6 +34,56 @@ A local `config { select "daily" "experiment"; }` replaces the personal default
 profile list; `config { select; }` disables profiles. Without a local selection,
 Grove inherits the personal default. Direct local values apply last, and edits
 affect subsequent sessions. See [configuration profiles](CONFIGURATION.md#named-commands-and-routes).
+
+<a id="usage-standalone"></a>
+## Running a standalone task
+
+```sh
+grove run --help
+grove run release-notes --prompt-file prompt.md \
+  --input changes.txt --output release-notes.md --ui auto
+```
+
+First configure a noninteractive named command and route in your
+[personal policy](CONFIGURATION.md#standalone-commands). This invocation can run
+from anywhere, including a release task launched inside a running grove. It
+creates a private temporary directory, copies inputs into it by basename, and
+passes your prompt plus output and completion instructions to the configured
+harness. You can supply the prompt as a positional argument instead of
+`--prompt-file`. Repeat `--input`, `--output` or `--runtime-read` for multiple
+files. Input/output basenames must be distinct; symlink inputs and existing
+output destinations are refused.
+
+The harness can write only inside its invocation directory. Supply private
+runtime files, such as credentials, with explicit read-only `--runtime-read`
+grants; writable harness state must remain in the temporary directory. macOS
+requires its native sandbox; Linux requires bubblewrap. An unavailable sandbox
+fails the invocation before any unconfined command can run.
+
+Every invocation announces its task kind and transcript location under
+`~/.local/state/grove/runs/`, streams sanitized output through its caller, and
+reports completion or failure. `--ui auto` also opens a view in an active tmux
+or Zellij session when available; a failed pane falls back to inline output.
+`--ui inline` requests just the caller's transcript; `--ui pane` requires a
+working supported mux and reports an error otherwise. The pane displays the
+transcript; interaction and approvals belong to the configured noninteractive
+harness policy. The child receives no parent terminal or mux handles. Logs remain
+available after the pane or temporary directory closes.
+
+After producing the requested files, the harness invokes the exact
+`grove-llm complete --done` command supplied in its prompt. This acknowledges its
+own invocation and cannot end the surrounding grove. Tree verbs are refused in
+this context. Only valid completion followed by successful supervision allows
+export; cancellation, absent/malformed completion, abnormal exit, missing outputs
+and symlink outputs all fail. Grove validates the whole output set before
+publishing any file, and never overwrites an existing destination. An I/O error
+or cancellation during publication reports any already-published paths.
+
+Ctrl-C or termination cancels the invocation and cleans up its child process
+group. Exit 0 means completion and output publication succeeded; exit 1 means
+failure or cancellation; exit 2 means invalid usage. Inspect the announced log
+after a failure. A new invocation starts fresh; no resume or project discovery
+occurs.
 
 <a id="usage-configuration-examples"></a>
 ## Installing configuration examples
@@ -1147,6 +1198,7 @@ added to the inventory and forgotten here is a test failure rather than a silenc
 | G3 | [Running Grove](#usage-running-grove) |
 | G4 | [Running Grove](#usage-running-grove) |
 | G8 | [Installing configuration examples](#usage-configuration-examples) |
+| G9 | [Running a standalone task](#usage-standalone) |
 | G7 | [Inspecting configuration before launch](#usage-inspecting-configuration) |
 | G6 | [Viewing a tree](#usage-viewing-tree) |
 | G5 | [Stopping the loop](#stopping-the-loop) |

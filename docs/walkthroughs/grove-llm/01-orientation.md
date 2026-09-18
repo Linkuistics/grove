@@ -9,7 +9,7 @@
 launches a session for one leaf, the session runs these verbs to find its leaf,
 read its brief chain, grow the tree, mark its own leaf done and signal the
 driver, and each of those verbs is a call into `grove_loop::verbs` plus the
-rendering of what came back. Its whole source is four files and 1,015
+rendering of what came back. Its whole source is four files and 1,037
 lines, and 944 of them are one module; nearly half of that module is comment,
 and the comment at its head states the book's organizing claim.
 
@@ -495,7 +495,7 @@ in.
 <!-- fragment «surface-imports» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="24-34" parent="surface-thesis-and-imports" -->
 ````rust
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use clap::{Parser, Subcommand};
 use grove_loop::verbs::{self, Resolution, Signalled};
 use grove_loop::{
@@ -510,7 +510,7 @@ use std::path::{Path, PathBuf};
 
 The composite that reassembles the chapter's share of the module — the header
 and the imports, lines 1 to 34 — is stated here; the source index defers the
-remaining 910 lines to the five chapters that own them.
+remaining source to the five chapters that own them.
 
 <!-- fragment «surface-thesis-and-imports» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="1-34" parent="source-command-surface" -->
 <!-- insert «surface-header-audience» -->

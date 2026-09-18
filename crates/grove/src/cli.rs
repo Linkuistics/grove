@@ -4,7 +4,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};
 
-/// Bare `grove` drives the lifecycle; `view` and `config` never launch sessions.
+/// Bare `grove` drives the lifecycle; `run` launches a standalone invocation.
 /// Launch policy stays in configuration rather than command-line selectors.
 #[derive(Parser)]
 #[command(
@@ -25,6 +25,19 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Run one configured task in a confined temporary directory, without a grove.
+    #[command(
+        after_help = "Examples:\n  grove run release-notes --prompt-file prompt.md --input changes.txt --output notes.md\n  grove run summarise 'Summarise input.txt into summary.md' --input input.txt --output summary.md --ui inline\n\nPersonal configuration only; no jj or project discovery. Requires OS confinement and a noninteractive harness command. Exit codes: 0 completed and outputs published, 1 failure/cancellation, 2 invalid usage. Existing output files are never overwritten. Runtime credentials need explicit --runtime-read grants."
+    )]
+    Run(crate::standalone::Args),
+    /// Display a standalone transcript in a supervisor-owned pane.
+    #[command(hide = true)]
+    RunLog {
+        /// Transcript file created by the invocation supervisor.
+        log: PathBuf,
+        /// Status file written when supervision finishes.
+        status: PathBuf,
+    },
     /// Inspect launch configuration or install inactive examples.
     // clap 4.6.1: variant-level subcommand nests the enum's commands.
     // https://docs.rs/clap/4.6.1/clap/_derive/index.html#command-attributes
@@ -127,6 +140,12 @@ pub fn run() -> ExitCode {
 /// A working tree that is not a jj workspace, a lease another driver holds, or
 /// anything the loop refuses, or a viewer terminal setup/input/draw failure.
 fn execute(cli: Cli) -> anyhow::Result<()> {
+    if let Some(Command::Run(args)) = cli.command {
+        return crate::standalone::run(args);
+    }
+    if let Some(Command::RunLog { log, status }) = cli.command {
+        return crate::run_display::watch(&log, &status);
+    }
     if let Some(Command::Config(ConfigCommand::Examples)) = cli.command {
         return crate::examples::run();
     }
@@ -214,8 +233,8 @@ mod tests {
         let command = Cli::command();
         let subcommands: Vec<&str> = command.get_subcommands().map(|s| s.get_name()).collect();
         assert!(
-            subcommands == ["config", "view"],
-            "only config and view complement the bare lifecycle: {subcommands:?}"
+            subcommands == ["run", "run-log", "config", "view"],
+            "unexpected command beside the bare lifecycle: {subcommands:?}"
         );
         let config = command.find_subcommand("config").unwrap();
         let config_commands: Vec<_> = config.get_subcommands().map(|s| s.get_name()).collect();

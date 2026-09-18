@@ -14,7 +14,10 @@ and `cmd_finish_commit` resolves one only to hand it to a call that opens the
 tree itself, because the teardown's subject is a tree that stops existing.
 Under a driver the working tree is still resolved once per verb, by the
 admission *The grammar and the openings* read, which every verb passes through
-including these two.
+including these two. Standalone `complete --done` has a separate early branch:
+it writes only `GROVE_RUN_SIGNAL_FILE`, rejects a conflicting tree channel and
+returns without cwd, workspace or epoch admission. That branch cannot dispatch
+`finish-commit` or any other tree verb.
 
 The rule this chapter opens on is `complete`'s, and it is the third of the
 three orders *Orientation* named: **the completion channel is resolved and
@@ -43,7 +46,7 @@ read from the selected finish leaf.
 
 
 The chapter owns three blocks of `cli.rs`: the two variants (248–289),
-`CompleteArgs` (311–322), and the two handlers (438–483). It reads `complete`
+`CompleteArgs` (311–322), and the two handlers, as indexed by their current fragments. It reads `complete`
 first, because it is the carried session's own last command and the chapter's
 order is its; then `finish-commit`, which no ordinary session runs; then the
 two doc comments, as the catalogue of promises the handlers have been seen to
@@ -217,7 +220,7 @@ the guard about that path before anything is written. Its comment states why the
 channel is resolved in the handler at all, and the page checks that reason
 against the seam it names.
 
-<!-- fragment «handler-complete-admit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="456-463" parent="handlers-leaving" -->
+<!-- fragment «handler-complete-admit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="478-485" parent="handlers-leaving" -->
 ````rust
 fn cmd_complete(args: &CompleteArgs, session_epoch: Option<&SessionEpochGuard>) -> Result<()> {
     // **Asked before the write, which is why the channel is resolved here.** The
@@ -268,7 +271,7 @@ finally matched on. `verbs::complete` takes the channel and the flag, writes
 the disposition if there is a channel, and answers which of the two happened;
 the handler turns each answer into one line of advice on stderr.
 
-<!-- fragment «handler-complete-endings» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="464-480" parent="handlers-leaving" -->
+<!-- fragment «handler-complete-endings» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="486-502" parent="handlers-leaving" -->
 ````rust
     match verbs::complete(channel.as_deref(), args.done)? {
         Signalled::Wrote(_) => {
@@ -370,7 +373,7 @@ the call returned. Its comment argues for quoting the operator's own text here
 and nowhere deeper, and the page checks that against the refusal the worked
 example produced.
 
-<!-- fragment «handler-finish-commit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="438-455" parent="handlers-leaving" -->
+<!-- fragment «handler-finish-commit» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="460-477" parent="handlers-leaving" -->
 ````rust
 fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
     let worktree = worktree()?;
@@ -441,7 +444,7 @@ than from its own measurement.
 The composite that reassembles the two handlers, in source order, is stated
 here.
 
-<!-- fragment «handlers-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="438-480" parent="source-command-surface" -->
+<!-- fragment «handlers-leaving» owner="admit-before-signal" source="crates/grove-llm/src/cli.rs" lines="460-502" parent="source-command-surface" -->
 <!-- insert «handler-finish-commit» -->
 <!-- insert «handler-complete-admit» -->
 <!-- insert «handler-complete-endings» -->

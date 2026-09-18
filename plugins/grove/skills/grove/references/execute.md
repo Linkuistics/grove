@@ -11,11 +11,24 @@ project workflows. Capture as many concrete reusable tasks as the work reveals;
 grow the file from actual needs, without inventing speculative tasks. Wrap
 existing scripts and tools where they already own the mechanics. Use the tasks
 on subsequent runs instead of having an LLM reconstruct command sequences each
-time, and verify new or changed tasks before relying on them. Human decisions
-and LLM judgment stay outside those deterministic recipes.
+time, and verify new or changed tasks before relying on them. Keep steps needing
+human or LLM judgment explicit. A deterministic recipe may invoke a configured
+LLM step, supply its inputs, and validate its outputs; it must not pretend the
+judgment itself is deterministic.
 
 This executable task file belongs to the project and survives the grove; it is
 distinct from the markdown task notes under `.grove/`.
+
+## Visible delegated work
+
+Keep background, delegated and spawned tasks visible. Announce each task's
+purpose, expose its progress through the current harness's nested-task UI when
+available, and report its outcome. For external one-shot work, use a configured
+`grove run` kind: its live transcript and persistent log provide a baseline,
+and `--ui auto` can add a view in a supported active multiplexer. Keep display
+control with the supervisor; a confined child must not inherit the parent's
+terminal, mux connection or completion authority. If an embedded UI or pane is
+unavailable, retain inline progress and a log rather than silently detaching.
 
 ## Review ownership inside a picked leaf
 

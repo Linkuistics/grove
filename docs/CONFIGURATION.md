@@ -27,22 +27,75 @@ remain intact; values are never split or interpreted as template syntax.
 
 One personal file, `~/.config/grove/config.kdl`, gives each session kind you use
 one complete command template. Grove parses a template into arguments, expands
-its own substitutions, and executes the result directly as its foreground child.
+its own substitutions, and executes the result directly. Lifecycle sessions own
+the terminal; standalone invocations capture their command's output.
 
 Grove neither knows nor infers which agent harness a template runs. Executable,
 model, reasoning effort, approval, permission, and sandbox policy all live in the
 template. A named binding can share that template across several routes.
+Standalone invocations additionally enforce an outer filesystem boundary which
+the configured command cannot disable.
 
 Exactly one other source may take part: an untracked, worktree-local
 [configuration delta](#the-configuration-delta) named `.grove.kdl`, which
 replaces shared values, route parameters, binding targets or route targets. Nothing else does — task
 files, command-line flags, and environment variables neither override nor
 supplement your configuration, and Grove never creates or edits either file. It
-cannot choose your model or approval policy for you.
+cannot choose your model or approval policy for you. `grove run` uses only the
+personal file and its selection, without discovering a workspace delta.
 
 Every admitted kind resolves to a complete command before launch. Named routes
 can use a binding selected by the local file and a command defined in personal
 policy; inspection retains those contributing declarations.
+
+## Standalone commands
+
+`grove run KIND` resolves a route from the personal file and its selected
+profiles. It never reads `.grove.kdl`, discovers jj, or creates a task tree.
+Use a separate headless command when the ordinary session command expects an
+interactive terminal:
+
+```kdl
+config {
+    command "headless" "my-headless-agent ${prompt}"
+    bind "writer" "headless"
+    route "release-notes" "writer"
+}
+```
+
+`my-headless-agent` is an owner-supplied executable or wrapper, not an installed
+Grove command. Its arguments must select noninteractive operation and put any
+writable session state beneath the invocation directory. Grove passes no stdin;
+the prompt remains one argument. `${worktree}` and `${repo}` both identify the
+temporary working directory, and `${session_name}` is `standalone:KIND`.
+The prompt supplies the matching `grove-llm complete --done` command; the harness
+must execute it after creating its outputs.
+
+macOS uses Seatbelt and Linux requires system-installed bubblewrap. The command
+cannot run without confinement. Installed runtime resources and the configured
+executable are readable; private credential files and additional executable or
+script files outside those runtime locations need explicit `--runtime-read`
+grants. Grants name individual existing files and never confer write access.
+Project files belong in `--input` artifacts. Parent Grove channels, repository
+selectors, harness session identifiers and mux connections are not inherited.
+
+For Codex 0.155.1 on macOS, the verified headless setup used `codex exec` with
+`--ephemeral --ignore-user-config --ignore-rules --skip-git-repo-check`.
+The configured command set `CODEX_HOME=.` to keep Codex's writable state in the
+temporary working directory and `SSL_CERT_FILE=/etc/ssl/cert.pem` to load the
+public CA bundle without keychain access. It used `--sandbox danger-full-access`
+inside Grove's mandatory outer sandbox; Codex's nested `workspace-write` sandbox
+rejected tool execution. This flag cannot relax Grove's filesystem boundary.
+The probe staged `auth.json` with `--input` and explicitly granted the installed
+Codex executable, code-mode host, bundled shell and ripgrep files. Their paths
+depend on the installation. A release-notes wrapper can instead copy an explicitly
+granted credential file into its private state directory before starting Codex.
+Do not point writable harness state at the parent session's directories.
+
+See [standalone usage](USAGE.md#usage-standalone) for artifact transport,
+visibility, cancellation and exit behavior. The command supplies a supervised
+one-shot invocation; it does not replace AgentAnyware's richer session and event
+interfaces or embed an interactive harness UI.
 
 ## Installing examples
 

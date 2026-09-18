@@ -12,7 +12,7 @@ struct FakeProcess {
     trace: Trace,
 }
 impl Process for FakeProcess {
-    fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
+    fn try_wait(&mut self, _: bool) -> std::io::Result<Option<ExitStatus>> {
         self.trace.borrow_mut().push("poll");
         self.polls.pop_front().expect("unexpected poll")
     }
@@ -64,7 +64,10 @@ fn confirmed_reap_precedes_token_read_and_recovery_on_every_wait_path() {
                     kill_grace: Duration::ZERO,
                 },
                 None,
-                0,
+                Job {
+                    pgid: 0,
+                    detached: false,
+                },
                 &mut |event| {
                     assert_eq!(event, LaunchEvent::Reaped);
                     trace.borrow_mut().push("reaped");

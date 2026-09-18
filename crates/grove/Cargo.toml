@@ -16,7 +16,8 @@ rust-version.workspace = true
 # binary target inside `grove-loop` that compiled the library's modules into
 # itself could name the items that library keeps private, so *the binary is
 # thin* would stop being compiler-enforced. Here the compiler holds it:
-# main reaches only the public loop and viewer interfaces.
+# main reaches only public loop, viewer and keyed-launch interfaces; standalone
+# artifact handling is a binary-owned adapter.
 #
 # **There is no `[lib]`.** The package is one binary target, so `cli.rs` is a
 # module of the binary and its clap model is asserted by the binary's own unit
@@ -35,6 +36,8 @@ grove-tui = { path = "../grove-tui" }
 # Public inspection records; resolution remains SessionConfig's responsibility.
 keyed-launch = { path = "../keyed-launch" }
 serde_json = "1.0"
+tempfile = "3.10"
+libc = "0.2"
 
 # **The repository-surface tests live here**, and that is deliberate rather than
 # incidental. `tests/reference_navigation.rs`, `tests/plugin_fallback.rs`,

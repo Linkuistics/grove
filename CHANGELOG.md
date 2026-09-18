@@ -53,6 +53,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 - `grove` / `grove-design`: let the requirements and specification diagram
   viewer use the full browser width instead of capping it at 1520 pixels.
+- Add `task release:patch`, `task release:minor`, and `task release:major` for
+  the complete release procedure. Homebrew publication uses jj for a jj tap
+  and refuses a dirty tap before creating the GitHub Release.
 
 ## v21.8.0
 

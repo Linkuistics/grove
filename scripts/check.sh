@@ -103,18 +103,19 @@ run_check "cargo fmt" cargo fmt --all --check
 run_check "shellcheck" shellcheck \
   plugins/install.sh plugins/install.test.sh \
   plugins/grove/conformance.sh plugins/grove/conformance.test.sh \
-  scripts/check.sh
+  scripts/check.sh scripts/release-publish.sh scripts/release.test.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
+run_check "release tasks" bash scripts/release.test.sh
 run_check "cargo test" cargo test --locked --workspace
 run_check "book-check" book_check
 
 echo
 if ((${#failed[@]} > 0)); then
-  echo "check: FAILED — ${#failed[@]} of 8"
+  echo "check: FAILED — ${#failed[@]} of 9"
   printf 'check:   ✗ %s\n' "${failed[@]}"
   exit 1
 fi
-echo "check: all 8 principal checks pass"
+echo "check: all 9 principal checks pass"

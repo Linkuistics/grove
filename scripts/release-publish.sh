@@ -63,7 +63,8 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
 readonly DIST_DIR="$REPO_ROOT/target/dist"
 readonly TAP_DIR="${GROVE_TAP_DIR:-$HOME/Development/homebrew-taps}"
 
@@ -79,6 +80,16 @@ preflight() {
   [[ -f "$DIST_DIR/grove.rb" ]] || die "no rendered formula at $DIST_DIR/grove.rb"
   compgen -G "$DIST_DIR/*.tar.xz" >/dev/null || die "no tarballs in $DIST_DIR"
   [[ -d "$TAP_DIR/.git" ]] || die "tap clone not found at $TAP_DIR (set GROVE_TAP_DIR)"
+  local tap_status
+  tap_status="$(git -C "$TAP_DIR" status --porcelain)"
+  [[ -z "$tap_status" ]] \
+    || die "tap working tree is dirty; preserve its changes before publishing"
+  if [[ -d "$TAP_DIR/.jj" ]]; then
+    command -v jj >/dev/null || die "jj tap requires jj on PATH"
+    jj -R "$TAP_DIR" git fetch
+    [[ -n "$(jj -R "$TAP_DIR" log --no-graph -r 'main & main@origin' -T commit_id)" ]] \
+      || die "tap main differs from origin; integrate or push its work before publishing"
+  fi
 }
 
 read_version() {
@@ -87,11 +98,8 @@ read_version() {
 
 verify_tag_matches_artifacts() {
   local version="$1"
-  local sample
-  sample="$(ls "$DIST_DIR"/grove-v*-aarch64-apple-darwin.tar.xz 2>/dev/null | head -n1)" \
-    || die "missing aarch64-apple-darwin tarball"
-  [[ "$sample" == *"grove-v${version}-"* ]] \
-    || die "artifact version mismatch: $sample does not contain v${version}"
+  local sample="$DIST_DIR/grove-v${version}-aarch64-apple-darwin.tar.xz"
+  [[ -f "$sample" ]] || die "missing archive for the current tag: $sample"
 }
 
 create_github_release() {
@@ -99,6 +107,7 @@ create_github_release() {
   local tag="v${version}"
   echo "release-publish: creating GitHub Release $tag"
   gh release create "$tag" \
+    --verify-tag \
     --repo Linkuistics/grove \
     --title "Release $tag" \
     --notes "Release $tag" \
@@ -108,11 +117,21 @@ create_github_release() {
 push_formula_to_tap() {
   local version="$1"
   echo "release-publish: pushing formula to $TAP_DIR"
+  if [[ -d "$TAP_DIR/.jj" ]]; then
+    jj -R "$TAP_DIR" new main
+  fi
   mkdir -p "$TAP_DIR/Formula"
   cp "$DIST_DIR/grove.rb" "$TAP_DIR/Formula/grove.rb"
-  git -C "$TAP_DIR" add Formula/grove.rb
-  git -C "$TAP_DIR" commit -m "grove v${version}"
-  git -C "$TAP_DIR" push
+  if [[ -d "$TAP_DIR/.jj" ]]; then
+    jj -R "$TAP_DIR" describe -m "grove v${version}"
+    jj -R "$TAP_DIR" bookmark set main -r @
+    jj -R "$TAP_DIR" new main
+    jj -R "$TAP_DIR" git push -b main
+  else
+    git -C "$TAP_DIR" add Formula/grove.rb
+    git -C "$TAP_DIR" commit -m "grove v${version}"
+    git -C "$TAP_DIR" push
+  fi
 }
 
 main() {

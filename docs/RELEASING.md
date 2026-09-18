@@ -10,6 +10,34 @@ Grove releases are published in two repositories:
 The release scripts build and connect those pieces. Run them from Grove's
 default, colocated Jujutsu workspace, where both `.jj/` and `.git/` exist.
 
+## Release tasks
+
+Use [Task](https://taskfile.dev/) to run the complete release:
+
+```sh
+task release:patch   # point release, e.g. 21.8.0 → 21.8.1
+task release:minor   # e.g. 21.8.0 → 21.9.0
+task release:major   # e.g. 21.8.0 → 22.0.0
+```
+
+First record the changes under `## Unreleased`, commit them through jj, move
+`main` to the finished change, and run `jj new main` in the default workspace.
+Preserve unrelated work in its own jj change before doing so. Both Grove and
+the tap must have clean working copies. A jj tap publishes from `main`, which
+must agree with `main@origin` before the formula is changed.
+
+Each task runs the checks below, dry-runs and executes the version cut, builds
+all three archives, pushes `main` and the tag, publishes the release and tap,
+then upgrades or installs Grove and verifies it. Invoking it authorizes that
+whole sequence. `task --dry release:patch` checks the preconditions and previews
+the commands without running them. Install Task
+with `brew install go-task` if needed.
+
+The tasks stop on the first failure. After a version has been cut, **resume at
+the unfinished step below rather than rerunning the task**, which would cut
+another version. Tree-format changes still require the concrete cutover
+preparation described below before running a task.
+
 ## Prerequisites
 
 Install `cargo-release`, authenticate the GitHub CLI, and keep a clone of the

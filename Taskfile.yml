@@ -1,0 +1,84 @@
+version: '3'
+
+set: [errexit, nounset, pipefail]
+
+tasks:
+  release:patch:
+    desc: Publish and install the next patch release
+    cmds:
+      - task: release
+        vars: {LEVEL: patch}
+
+  release:minor:
+    desc: Publish and install the next minor release
+    cmds:
+      - task: release
+        vars: {LEVEL: minor}
+
+  release:major:
+    desc: Publish and install the next major release
+    cmds:
+      - task: release
+        vars: {LEVEL: major}
+
+  release:
+    internal: true
+    requires:
+      vars:
+        - name: LEVEL
+          enum: [patch, minor, major]
+    preconditions:
+      - sh: test -d .jj && test -d .git && test "$(pwd -P)" = "$(jj workspace root --name default)"
+        msg: Run releases from Grove's default colocated jj workspace.
+      - sh: status=$(git status --porcelain) && test -z "$status"
+        msg: Preserve working-copy changes in jj, then run jj new main before releasing.
+      - sh: test -n "$(jj log --no-graph -r '@- & main' -T commit_id)"
+        msg: Start an empty change on main with jj new main before releasing.
+      - sh: >-
+          awk '/^## Unreleased$/ { section=1; next }
+          section && /^## / { exit }
+          section && /[^[:space:]]/ { found=1 }
+          END { exit !found }' CHANGELOG.md
+        msg: Record the release's changes under Unreleased in CHANGELOG.md and commit them first.
+      - sh: test -d "${GROVE_TAP_DIR:-$HOME/Development/homebrew-taps}/.git" && status=$(git -C "${GROVE_TAP_DIR:-$HOME/Development/homebrew-taps}" status --porcelain) && test -z "$status"
+        msg: The Homebrew tap must exist and have a clean working copy; set GROVE_TAP_DIR if needed.
+    # Commands are sequential. Never move these to deps, which run in parallel.
+    cmds:
+      - scripts/release-doctor.sh
+      - jj git fetch
+      - |
+        test -n "$(jj log --no-graph -r '@- & main' -T commit_id)" || {
+          echo 'main advanced during fetch; run jj new main, review Unreleased, and rerun the task.' >&2
+          exit 1
+        }
+      - |
+        unmerged="$(jj log --no-graph -r 'main@origin ~ ancestors(main)' -T commit_id)"
+        test -z "$unmerged" || {
+          echo 'Integrate current main@origin into main before releasing.' >&2
+          exit 1
+        }
+      - jj new main
+      - bash scripts/check.sh
+      - cargo release {{.LEVEL}}
+      - cargo release {{.LEVEL}} --execute --no-confirm
+      - jj bookmark set main -r "$(git rev-parse HEAD)"
+      - scripts/release-build.sh
+      - jj git push -b main
+      - git push origin "$(git describe --tags --exact-match HEAD)"
+      - scripts/release-publish.sh
+      - brew update
+      - |
+        if brew list --versions grove >/dev/null 2>&1; then
+          brew upgrade grove
+        else
+          brew install linkuistics/taps/grove
+        fi
+      - brew test grove
+      - |
+        tag="$(git describe --tags --exact-match HEAD)"
+        version="${tag#v}"
+        test "$(grove --version)" = "grove $version"
+        test "$(grove-llm --version)" = "grove-llm $version"
+        grove view --help
+        gh release view "$tag" --repo Linkuistics/grove --json url,assets
+        test "$(gh release view "$tag" --repo Linkuistics/grove --json assets --jq '.assets | length')" = 3

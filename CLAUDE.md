@@ -18,11 +18,14 @@ do not ask again for its individual steps.
 3. Fetch current `main`, rebase the grove's changes onto it, resolve conflicts,
    and run `bash scripts/check.sh` on the integrated result. Move `main` to
    the finished change and push it through jj.
-4. Follow `docs/RELEASING.md` to cut the next minor version from the default
-   colocated workspace, publish the tag and three binary archives, update the
-   Homebrew tap, and verify the installed release. Preserve unrelated work in
-   both repositories. Use jj for commits and bookmark pushes wherever enabled;
-   the documented cargo-release and release-tag operations are exceptions.
+4. From the default colocated workspace, run `task release:minor`, or
+   `task release:patch` / `task release:major` when the human requests that
+   increment. These tasks check, cut, build, publish the tag and three binary
+   archives, update the Homebrew tap, and verify the installed release.
+   Prepare the changelog and preserve unrelated work in both repositories
+   before starting; see `docs/RELEASING.md` for prerequisites and recovery.
+   Use jj for commits and bookmark pushes wherever enabled; the documented
+   cargo-release and release-tag operations are exceptions.
 5. Return to the original session workspace and run
    `grove-llm complete --done` as the last action, only after the requested
    integration and release have completed.
@@ -31,6 +34,12 @@ This project extends the finish skill's normal teardown-only scope: when the
 whole sequence is authorized, integration and release happen before its final
 signal. A failed step leaves the remaining work explicit; never signal success
 for an incomplete release. Do not delete the workspace as part of this sequence.
+
+For a standalone release, use the same `task release:patch`,
+`task release:minor`, or `task release:major` command. A request for a point
+release means `task release:patch`. Do not rerun a release task after a partial
+cut or publication: resume the unfinished steps in `docs/RELEASING.md` so the
+version is not bumped again.
 
 ## Invoke `grove-llm` directly, never through `cargo run`
 

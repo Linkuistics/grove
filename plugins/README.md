@@ -39,7 +39,7 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 | `coding-style-swift` | `*.swift` | |
 | `coding-style-typescript` | `*.ts`, `*.tsx` | |
 | `cli-tool-design` | by description | checklist in `SKILL.md`, audit detail in `references/` |
-| `codebase-design` | by description | deep-module design vocabulary — Ousterhout depth + Feathers seams, language-neutral |
+| `codebase-design` | by description | deep modules, structural simplicity and testable seams — Ousterhout, Hickey and Feathers; worked examples in `references/`, language-neutral |
 | `decision-records` | by description | ADRs as a minimum coherent set describing the design's current state — current-state over changelog, identity by slug not number |
 | `doubt-driven-development` | by description | in-flight adversarial verify — spawn a fresh-context reviewer to disprove a non-trivial decision before it stands |
 | `model-led-development` | by description | route a specification question to the instrument that answers it — Alloy, Quint, a type system, or no model at all — then let the checked model lead the implementation; the routing table, the non-formal instruments and the log format are in `references/` |

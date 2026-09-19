@@ -27,6 +27,37 @@ capability-plus-trigger shape.
 
 ## Individual skills
 
+### `codebase-design`
+
+The skill distinguishes Ousterhout's reduction of design complexity through
+interfaces and information hiding, Hickey's separation of independent concerns,
+and Feathers' mechanism for substituting behaviour. Sources below were inspected
+on 2026-09-19. The book's public extracts and the author's teaching material
+support the Ousterhout guidance; this is not a claim to reproduce the full book.
+
+| Key | Primary source | Contribution |
+|---|---|---|
+| `O1` | John Ousterhout, [Complexity and Dependencies](https://web.stanford.edu/~ouster/cgi-bin/cs190-spring16/lecture.php?topic=complexity) | Change amplification, cognitive load, unknown dependencies, and the cost of tactical design. |
+| `O2` | Ousterhout, [Modular Design](https://web.stanford.edu/~ouster/cgi-bin/cs190-spring16/lecture.php?topic=modularDesign) | Interfaces include informal obligations; module depth, information hiding, useful generality, downward complexity, and alternative designs. |
+| `O3` | Ousterhout, [A Philosophy of Software Design, second-edition extract](https://web.stanford.edu/~ouster/cgi-bin/aposd2ndEdExtract.pdf), chapters 6 and 21; [book page](https://web.stanford.edu/~ouster/cgi-bin/aposd.php) | General-purpose interfaces serving present needs, separating special-purpose policy, and identifying what matters. |
+| `O4` | Ousterhout, [CS190 wrap-up slides](https://web.stanford.edu/~ouster/cs190-winter24/slides/wrapup.pdf) | Design warnings, documentation, and reducing avoidable error cases rather than multiplying caller handling. |
+| `O5` | Ousterhout, [A Philosophy of Software Design vs. Clean Code](https://github.com/johnousterhout/aposd-vs-clean-code/blob/main/README.md) | Method length is not a design objective; comments carry information that code alone cannot express. |
+| `H1` | Rich Hickey, [Simple Made Easy](https://www.infoq.com/presentations/Simple-Made-Easy/), Strange Loop 2011 | Simplicity versus ease, entanglement, state and time dependencies, composition, and abstraction. Publisher notes are summaries, not a verbatim transcript. |
+| `H2` | Hickey, [Values and Change](https://clojure.org/about/state) | Values, identities, state over time, and explicit coordination. This supporting essay is distinct from the talk. |
+| `F1` | Michael Feathers, [Working Effectively with Legacy Code: Seams](https://www.informit.com/articles/article.aspx?p=359417&seqNum=2) | A seam permits behaviour substitution without editing at that point. |
+| `F2` | Feathers, [Seam Types](https://www.informit.com/articles/article.aspx?p=359417&seqNum=3) | Enabling points and concrete substitution mechanisms. |
+
+The workflow, evidence table, deletion test, dependency categories, review
+checklist, tradeoff rules, adapter vocabulary, and worked examples are Linkuistics
+synthesis. They are not a joint method proposed by the three authors. In
+particular, neither interface depth nor an immutable representation establishes
+independence by itself, and testability is not a proxy for either.
+
+The earlier skill also credited [`mattpocock/skills`](https://github.com/mattpocock/skills)
+for its design-it-twice exercise. That inherited attribution is retained here;
+the exact upstream snapshot is **UNVERIFIED**. The revised skill cites Ousterhout
+for comparing designs and does not retain a required number of design agents.
+
 ### `writing-code-walkthroughs`
 
 The method was synthesized in this repository from two independent surveys and

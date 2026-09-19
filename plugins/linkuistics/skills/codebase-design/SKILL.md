@@ -1,115 +1,196 @@
 ---
 name: codebase-design
-description: Shared vocabulary and checkable principles for designing deep modules — a lot of behaviour behind a small interface, placed at a clean seam, testable through it (Ousterhout depth + Feathers seams), language-neutral. Use when designing or restructuring a module's interface, deciding where a seam goes, judging whether an abstraction earns its place, or making code more testable.
+description: Shared vocabulary and checkable principles for deep modules, structural simplicity, and testable seams — Ousterhout, Hickey, and Feathers, language-neutral. Use when designing or reviewing a module's interface, restructuring coupled code or state, deciding where a seam goes, judging whether an abstraction earns its place, or making code more testable.
 harnesses: [any]
 ---
 
 # Codebase Design
 
-Design **deep modules**: a lot of behaviour behind a small interface, placed at a
-clean seam, testable through that interface. Depth buys **leverage** for callers,
-**locality** for maintainers, **testability** for everyone.
+Design modules whose interfaces reduce caller knowledge and whose internals
+separate concerns that can vary independently. Place test seams where behaviour
+actually needs substitution. Preserve required behaviour and account for the
+cost of migration as well as the resulting design.
 
-The terms are **scale-agnostic** and **language-neutral** — they apply to a
-function, a class, a package, or a tier-spanning slice.
+These terms apply to a function, class, package, or tier-spanning slice. Use the
+relevant checks for a local change; a short fix does not require an architecture
+exercise. A review produces findings unless edits are requested.
+
+## Three distinct contributions
+
+| Source | Design question | Evidence |
+|---|---|---|
+| **Ousterhout** | How much must a caller or maintainer understand? | Interface obligations, information leakage, change amplification, obscurity. |
+| **Hickey** | Which concerns must be understood or changed together? | Entanglement of values, state, policy, timing, and implementation choices. |
+| **Feathers** | Where can behaviour be replaced without editing the code at that point? | A seam and the enabling point that selects the behaviour. |
+
+A convenient interface can conceal entangled internals. Independent internals
+can impose an awkward protocol on callers. Evaluate both; tests and substitution
+points do not by themselves establish either kind of simplicity.
+
+The workflow and decision rules here are **Linkuistics synthesis**, not a method
+jointly endorsed by these authors. Source keys `O1–O5`, `H1–H2`, and `F1–F2`
+are mapped in [the provenance record](../../PROVENANCE.md#codebase-design).
 
 ## Glossary
 
-Use these terms exactly; consistent language is the whole point.
+Use these terms consistently, while preserving an existing project's domain
+vocabulary.
 
-**Module** — anything with an interface and an implementation. _Avoid_: unit,
-component, service.
+**Module** — anything with an interface and an implementation. Use this term
+when discussing modularity, whatever the language calls the concrete construct.
 
-**Interface** — everything a caller must know to use the module correctly: the
-type signature, and also invariants, ordering constraints, error modes, required
-configuration, and performance characteristics. _Avoid_: API, signature — they
-name only the type-level surface.
+**Interface** — everything a caller must know to use a module correctly:
+signatures, invariants, ordering, failures, required configuration, ownership,
+and relevant performance or consistency guarantees. A signature alone is not
+the interface. **Implementation** — what fulfils that contract. (`O2`)
 
-**Implementation** — what is inside a module. Distinct from **adapter**: a thing
-can be a small adapter over a large implementation (a real database repository)
-or a large adapter over a small one (an in-memory fake). Say "adapter" when the
-seam is the topic.
+**Depth** — useful behaviour relative to interface complexity. A deep module
+requires comparatively little caller knowledge; a shallow one exposes nearly
+as much complexity as it hides. Assess obligations, not a line-count ratio.
+**Leverage** is the benefit to callers; **locality** is the concentration of
+change, bugs, and verification for maintainers. (`O2`; latter terms are synthesis)
 
-**Depth** — leverage at the interface: how much behaviour a caller or test can
-exercise per unit of interface it must learn. **Deep** = large behaviour behind a
-small interface; **shallow** = an interface nearly as complex as what it hides.
-_Avoid_: depth as a lines-of-implementation ratio (Ousterhout's own metric) — it
-rewards padding the implementation.
+**Simplicity** — independence of concerns. **Entanglement** — concerns joined so
+that reasoning about one requires the others. **Ease** — familiarity or
+accessibility to a particular person. Record learning cost separately from
+structural dependencies; neither unfamiliarity nor brevity establishes
+complexity or simplicity. (`H1`)
 
-**Seam** _(Michael Feathers)_ — a place where you can alter behaviour without
-editing in that place; the *location* at which a module's interface lives. Where
-the seam goes is its own decision, separate from what goes behind it. _Avoid_:
-boundary — overloaded with DDD's bounded context.
+**Value** — information that does not change. **Identity** — an entity whose
+continuity is modelled across time. **State** — the value associated with an
+identity at a particular time. State transitions still need coordination when
+their inputs and outputs are immutable. (`H2`)
 
-**Adapter** — a concrete thing satisfying an interface at a seam. A *role* (which
-slot it fills), not substance (what is inside).
-
-**Leverage** — what callers get from depth. **Locality** — what maintainers get:
-change, bugs and verification concentrate in one place instead of spreading
-across callers.
+**Seam** — a point where behaviour can be substituted without editing the code
+there. Its **enabling point** selects the behaviour, for example through an
+argument or linkage choice. A module boundary is not automatically a seam.
+**Adapter** — a concrete implementation satisfying an interface at a seam; a
+role, not a measure of implementation size. (`F1–F2`; adapter usage is synthesis)
 
 ## Principles
 
-- **Depth is a property of the interface, not the implementation.** A deep module
-  may be internally composed of small swappable parts — they are just not in the
-  interface. A module can have **internal seams** (private, used by its own
-  tests) as well as the **external seam** at its interface.
-- **The deletion test.** Imagine deleting the module. If complexity vanishes, it
-  was a pass-through and earned nothing. If the same complexity reappears
-  scattered across N callers, it was earning its keep.
-- **The interface is the test surface.** Callers and tests cross the same seam.
-  Wanting to test *past* the interface means the module is the wrong shape.
-- **One adapter means a hypothetical seam; two mean a real one.** Don't introduce
-  a port or injection point unless something actually varies across it.
-- **Name one concept one way.** Two names for one thing (`get_thing` and
-  `fetch_thing`; `BlahName` and `FooId` both wrapping a string id) is interface
-  surface a caller has to learn twice. Pick one and rename the outliers.
+- **Hide decisions, expose guarantees.** Give representation and algorithm
+  knowledge an owner. Keep required failure, lifetime, ordering, and consistency
+  semantics in the interface. Removing their documentation removes no obligation.
+- **The deletion test.** Imagine removing a module while preserving behaviour.
+  If complexity disappears, inspect whether it was redundant. If the same work
+  spreads across callers, it earns its keep. Include compatibility and policy
+  guarantees in that accounting; a short adapter may carry a real contract.
+- **Separate independent concerns; combine shared knowledge.** Identify the
+  decisions or invariants that justify grouping code. Internal composition can
+  support a deep external interface. File, method, and service counts decide
+  neither depth nor simplicity.
+- **Separate calculation from changing context.** Prefer explicit values for
+  computation. Give necessary state a clear owner and transition contract;
+  expose hidden I/O, ambient context, and time dependencies during analysis.
+- **Pull common complexity downward; keep special policy above it.** Solve
+  recurring caller problems in the responsible module. Generalise operations
+  when that simplifies current uses; defer speculative variation points.
+- **Explain what the code cannot say.** Use consistent names and document
+  semantics absent from signatures. A difficult interface explanation is a
+  reason to reconsider the design, not to omit the explanation.
+
+These rules apply `O1–O5` and `H1–H2`; the deletion test is a retained Linkuistics
+heuristic. For worked applications, counterexamples, and longer tradeoffs, read
+[Design examples](references/design-examples.md) when the choice remains unclear.
+
+## Workflow and questions
+
+1. **Establish the obligation.** State the requested behaviour, consumers,
+   invariants, compatibility needs, resource limits, and deadline. Ask which
+   unknown answers could change the recommendation; record other assumptions.
+2. **Inspect a real path.** Follow one representative operation and failure
+   through callers, implementation, and tests. Cite source locations for claims
+   about existing code; mark proposal assumptions as such. Ask what must change
+   together and what knowledge a caller must reconstruct.
+3. **Assign ownership and write the interface.** Name each module's responsibility
+   and hidden decisions. Sketch normal and failing use. Ask who owns state,
+   whether ordering is inherent or API-imposed, and what remains implicit.
+4. **Design it twice for consequential choices.** Compare materially different
+   interfaces or ownership arrangements, including keeping the current design
+   when reasonable. Try different priorities: the common caller, minimal
+   obligations, actual variation, or a required test seam. Compare depth,
+   entanglement, locality, seam placement, and migration/runtime costs. (`O2`)
+5. **Challenge the preference.** Try a relevant failure, overlap, repeated call,
+   or plausible next change. State a counterexample and evidence that would
+   reverse the decision. Use a focused experiment when that evidence is missing.
+6. **Make the smallest coherent change.** When implementation is requested,
+   preserve the contract or name its authorised change; update affected callers
+   and documentation together. Verify meaningful outcomes. Stop when the task
+   is satisfied; give deferred work a concrete revisit condition.
+
+Keep caller burden and internal entanglement as separate observations, even
+when the same remedy improves both. A useful compact record is:
+
+| Evidence | Caller obligation | Entangled concerns | Consequence |
+|---|---|---|---|
+| Code, contract, trace, or proposal fact | Knowledge or protocol required | Decisions that cannot vary independently | Failure or change impact |
 
 ## Designing for testability
 
-1. **Accept dependencies, don't create them.** `process_order(order, gateway)` can
-   be given a fake; a `process_order` that constructs its own gateway cannot.
-2. **Return results, don't mutate in place.** A returned `Discount` is inspected
-   directly; a mutated cart forces the test to reconstruct shared state.
-3. **Small surface area.** Fewer entry points mean fewer tests; fewer parameters
-   mean simpler setup. Depth and testability pull the same way.
+- **Choose a seam for a concrete need.** Show the behaviour that needs replacing
+  and its enabling point. Production and test adapters are real variation; two
+  production implementations are not a prerequisite. A second hypothetical
+  implementation is not a reason to add an extension system.
+- **Accept dependencies at the responsible composition point.** An operation
+  supplied with a gateway or clock can be exercised with controlled behaviour.
+  A public caller need not assemble every internal dependency.
+- **Prefer values for calculation results.** Tests can inspect a returned result
+  without reconstructing shared mutation. Where mutation is required, test its
+  ownership, transitions, and concurrent effects explicitly.
+- **Test contracts at the appropriate interface.** Keep private seams private.
+  Focused tests of a meaningful internal module can coexist with public contract
+  tests. Fewer entry points may reduce setup; behaviours and state combinations
+  still determine coverage needs.
 
-## Deepening a cluster
+### Deepening a cluster
 
-To merge shallow modules behind one interface, first classify the cluster's
-dependencies — the category decides how the deepened module is tested.
+First establish that the code shares a responsibility or invariant. Then use
+the dependency category to choose verification; it does not decide whether to
+merge the modules.
 
-| Dependency category | What it is | Test strategy |
-|---|---|---|
-| **In-process** | Pure computation, in-memory state, no I/O | Always deepenable. Test through the new interface directly — no adapter. |
-| **Local-substitutable** | Has a local stand-in (in-memory store, embedded database) | Deepenable if the stand-in exists. The seam is **internal**; run the stand-in in the suite. |
-| **Remote but owned** | Your own services across a network | Define a **port** at the seam; the transport is an injected adapter (in-memory for tests, network for production). |
-| **True external** | Third-party services you don't control | Injected port; tests supply a mock adapter. |
+| Dependency category | Test strategy |
+|---|---|
+| **In-process**: computation or memory, no I/O | Exercise the contract directly; examine shared-state and ordering assumptions. |
+| **Local-substitutable**: local stand-in exists | Use an internal seam where substitution is needed. Verify the real adapter's contract as well as the stand-in. |
+| **Remote but owned**: own network services | Exercise consumer behaviour with a controlled adapter and transport/protocol behaviour with integration tests. |
+| **True external**: third-party service | Control relevant outcomes through an adapter; verify external assumptions with suitable contract or integration checks. |
 
-Hold to "two adapters mean a real seam" here, and keep **internal seams
-internal** — don't expose one through the interface just because the module's own
-tests use it.
+**Preserve useful coverage when replacing tests.** Move externally observable
+cases to the deepened interface. Retain useful algorithmic, property, concurrency,
+and regression coverage at meaningful internal interfaces. Delete redundant
+implementation-coupled assertions after their behavioural protection is accounted
+for; absorbing a module does not make every test of it waste.
 
-**Replace, don't layer.** Unit tests on the absorbed shallow modules become waste
-— delete them rather than stacking new tests on top. Write fresh tests at the
-deepened interface, asserting observable outcomes rather than internal state: a
-test that must change when the implementation changes was testing past the
-interface.
+## Review checklist
 
-## Design it twice
+Mark applicable items supported, unresolved, or accepted tradeoff; attach evidence
+to consequential judgments.
 
-Your first interface is rarely your best. Before committing, design the same
-module's interface **at least two radically different ways** — one minimising
-entry points, one maximising flexibility, one optimising the most common caller.
-Compare on **depth**, **locality**, and **seam placement**, then pick
-deliberately or compose a hybrid. (After Ousterhout's "design it twice".)
+- Required behaviour and invariants hold, including material failure cases.
+- Each module owns identifiable decisions; shared implementation knowledge is
+  accounted for.
+- Normal and failing callers can use the documented interface correctly.
+- State owners, implicit I/O, ordering, and time dependencies were examined.
+- Claimed simplification identifies dependencies removed and costs introduced.
+- Seams have concrete substitution needs and enabling points.
+- Plausible change impact and migration cost support the chosen scope.
+- Alternatives and a reversal condition support consequential decisions.
+- Existing useful coverage survives, and verification limits are explicit.
 
-For a candidate substantial enough to warrant it, run the alternatives as **3–4
-parallel sub-agents** — each given the module's constraints, its dependency
-categories, and one divergent design pressure: the three above, plus a fourth
-designed around a real ports-and-adapters seam whenever one is in play. That
-fourth is the point of the exercise when a seam is load-bearing; three generic
-interface variants will not probe it. Each returns an interface, a usage
-example, what it hides, its dependency strategy, and its trade-offs. Present them
-sequentially, then compare and recommend — be opinionated; the point is a strong
-read, not a menu (`mattpocock/skills` `codebase-design/DESIGN-IT-TWICE.md`).
+Report the recommendation, evidence, alternatives and costs, then verification
+and remaining uncertainty. For a finding, include the location, consequence, and
+smallest useful correction. Report when no material issue is supported.
+
+## Composition with other skills
+
+Use `model-led-development` when deciding whether a property warrants a model;
+use `doubt-driven-development` for independent adversarial review under its own
+trigger and coordination rules. Parallel design exploration, when warranted,
+compares alternatives; it is not a substitute for that review. This skill adds
+no required agent count, review gate, or formal-model step.
+
+Use `decision-records` when a durable design decision needs an ADR. In a Grove
+session, Grove owns session procedures, artifact formats, and review scheduling.
+Fit the design evidence into its required artifact rather than adding a second
+report with a competing format.

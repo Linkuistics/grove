@@ -58,7 +58,8 @@ each citation states what binds in the plugin's absence:
   `ADR-FORMAT.md`: grove states its own when-to-write test, placement and
   minimum-coherent-set discipline locally, and the citation is attribution rather
   than a dependency.
-- **`linkuistics:codebase-design`** — what a test seam *is* and how to judge one.
+- **`linkuistics:codebase-design`** — module depth, structural simplicity, and
+  test seams, used by software design and design review.
   A seam is a place where behaviour can be replaced for a test without editing
   the code under test; grove's own operative rules (prefer an existing seam,
   propose a new one at the highest point, drive the count toward one) are in

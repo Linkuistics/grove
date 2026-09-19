@@ -40,9 +40,9 @@ Run `grove config examples` for inactive samples and instructions in
 configuration and refuses conflicting files. Use `grove config show --json` inside
 a workspace to inspect resolved commands and their origins before launching.
 
-Grove's methodology uses two Linkuistics skills: `decision-records` for ADR
-discipline and `codebase-design` for testable module seams. Install the
-Linkuistics plugin separately using the instructions below.
+Grove's methodology uses Linkuistics' `decision-records` for ADR discipline and
+`codebase-design` for module design, structural simplicity, and test seams.
+Install the Linkuistics plugin separately using the instructions below.
 
 ## Browse a task tree
 

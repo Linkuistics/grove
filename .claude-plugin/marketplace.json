@@ -9,7 +9,7 @@
     {
       "name": "linkuistics",
       "source": "./plugins/linkuistics",
-      "description": "Linkuistics engineering-practice skills: coding standards, CLI and deep-module design, decision records, contract-preserving project simplification, in-flight adversarial verification, Jujutsu-native version control, codebase-graph queries, and a user-invoked safety guardrail."
+      "description": "Linkuistics engineering-practice skills: coding standards, CLI design, deep modules, structural simplicity and testable seams, decision records, contract-preserving project simplification, in-flight adversarial verification, Jujutsu-native version control, codebase-graph queries, and a user-invoked safety guardrail."
     },
     {
       "name": "testanyware",

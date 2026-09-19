@@ -103,6 +103,11 @@ struct Citation {
 /// the duplication the ownership inventory exists to remove.
 const CITATIONS: &[Citation] = &[
     Citation {
+        file: "grove-design/SKILL.md",
+        skill: "codebase-design",
+        binds: "grove's artifact requirements remain binding when the skill is absent",
+    },
+    Citation {
         file: "grove/ADR-FORMAT.md",
         skill: "decision-records",
         binds: "what binds without it is stated here",
@@ -132,6 +137,11 @@ const CITATIONS: &[Citation] = &[
         file: "grove/references/grove.md",
         skill: "using-jujutsu",
         binds: "what binds without it is references/commit.md",
+    },
+    Citation {
+        file: "grove/references/review.md",
+        skill: "codebase-design",
+        binds: "grove's procedure and artifact requirements bind when the skill is absent",
     },
 ];
 
@@ -221,8 +231,8 @@ fn the_citation_registry_is_exhaustive_over_the_corpus() {
     // broken-marker failure cannot pass as a clean audit.
     assert_eq!(
         found.len(),
-        6,
-        "the shipped skill set carries six audited citations across four files: {found:?}"
+        8,
+        "the shipped skill set carries eight audited citations across six files: {found:?}"
     );
 }
 

@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.8.1
+
 - Add `grove run KIND` for standalone invocations selected by personal named
   commands. Each invocation has mandatory temporary-directory confinement,
   staged inputs, explicit read-only runtime grants, and checked output export.

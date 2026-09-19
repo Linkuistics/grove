@@ -106,6 +106,7 @@ run_check "shellcheck" shellcheck \
   scripts/check.sh scripts/release-publish.sh scripts/release.test.sh \
   scripts/release-prepare.sh scripts/release-prepare.test.sh \
   scripts/release-notes.sh \
+  scripts/release-notes/codex-headless.sh \
   scripts/release-doctor.sh scripts/release-common.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh

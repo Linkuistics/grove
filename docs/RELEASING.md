@@ -101,9 +101,10 @@ policy only; a repository's `.grove.kdl` does not participate. The release task
 does not select a harness, model, or permission policy.
 
 The skill asks for a concise Markdown section body grounded in the supplied
-changes. `grove run` copies the five input files (`SKILL.md`,
-`previous-changelog.md`, `current-unreleased.md`, `changes.txt` and
-`changes.diff`) into a private working directory and confines the harness with
+changes. `grove run` copies the input files (`SKILL.md`,
+`previous-changelog.md`, `current-unreleased.md`, `changes.txt`,
+`changes.diff` and the optional headless helper `codex-headless.sh`) into a
+private working directory and confines the harness with
 an OS sandbox. The harness follows the invocation's completion instructions and
 produces `release-notes.md`; empty bodies and `##` headings fail before any
 changelog or `main` update.
@@ -122,7 +123,11 @@ $HOME/.config/my-agent/settings.json"
 task release:notes
 ```
 
-Each entry becomes a separate `--runtime-read` argument. These grants do not
+For the staged Codex helper, list the credential file and the four installed
+Codex runtime files named in
+[Configuration](CONFIGURATION.md#standalone-commands); exporting the variable
+from your shell profile keeps these machine-specific paths out of the
+repository. Each entry becomes a separate `--runtime-read` argument. These grants do not
 change the chosen command's policy or permit writes outside the invocation.
 Missing configuration, unavailable confinement, a failed build or invocation,
 and invalid output stop the release before its version cut. Correct the cause

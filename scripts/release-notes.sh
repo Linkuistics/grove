@@ -89,7 +89,9 @@ main() {
   jj file show -r "$tag" 'root:CHANGELOG.md' >"$notes_dir/previous-changelog.md"
   jj diff --from "$tag" --to "$rev" --git >"$notes_dir/changes.diff"
   # The writing instructions are staged with the invocation, never discovered.
-  cp scripts/release-notes/SKILL.md "$notes_dir/SKILL.md"
+  # Headless helpers beside it are staged too, so personal policy can name one
+  # without a path into this checkout.
+  cp scripts/release-notes/SKILL.md scripts/release-notes/codex-headless.sh "$notes_dir/"
   cat >"$notes_dir/prompt.md" <<'PROMPT'
 Read SKILL.md in this directory and follow it exactly to write release-notes.md
 from the files staged beside it.
@@ -97,7 +99,8 @@ PROMPT
   local -a run_args=(run release-notes --prompt-file "$notes_dir/prompt.md"
     --input "$notes_dir/SKILL.md" --input "$notes_dir/previous-changelog.md"
     --input "$notes_dir/current-unreleased.md" --input "$notes_dir/changes.txt"
-    --input "$notes_dir/changes.diff" --output "$notes_dir/release-notes.md" --ui auto)
+    --input "$notes_dir/changes.diff" --input "$notes_dir/codex-headless.sh"
+    --output "$notes_dir/release-notes.md" --ui auto)
   local runtime_read
   while IFS= read -r runtime_read; do
     [[ -z "$runtime_read" ]] || run_args+=(--runtime-read "$runtime_read")

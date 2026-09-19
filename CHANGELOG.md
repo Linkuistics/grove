@@ -58,7 +58,10 @@ stood at the graft — a closed record, not part of the versioned sequence above
   previous changelog — and works from any jj workspace. Release preparation now
   shares that path and still generates only when Unreleased is empty. The
   writing instructions are a single staged skill,
-  `scripts/release-notes/SKILL.md`, so the invocation now carries five inputs.
+  `scripts/release-notes/SKILL.md`, staged with the evidence. A headless Codex
+  helper, `codex-headless.sh`, is staged beside it so a personal
+  `release-notes` route can name it without a checkout path; it keeps Codex's
+  writable state inside the confined invocation directory.
 
 ## v21.8.1
 

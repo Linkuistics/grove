@@ -38,6 +38,26 @@ Grove policy and prove the complete invocation in its confinement boundary.
 - The root brief's done criteria hold across both implementation leaves; report
   any remaining specific gap as work rather than marking the grove finished.
 
+## Decisions (running log)
+
+- The human rejected a wrapper under `~/.config/grove`: helper scripts stay with
+  the shipped artifacts. It is `scripts/release-notes/codex-headless.sh`, staged
+  as an `--input` like the skill, so personal policy names
+  `/bin/bash codex-headless.sh …` with no checkout path and the sandbox needs no
+  grant for it. Shipping it in the Homebrew archive was declined: the formula
+  installs two binaries and nothing else.
+- The human approved `--sandbox danger-full-access` inside Grove's confinement,
+  as `docs/CONFIGURATION.md` already recorded for Codex 0.155.1.
+- Personal policy gained command `release-notes-codex` (model `gpt-6-astra`,
+  effort `medium`, the existing Codex preferences), binding `notes-writer` and a
+  `release-notes` route in the shared `routes` profile. Grants come from
+  `GROVE_RELEASE_RUNTIME_READ`: the credential file and four Caskroom files.
+- Live smoke (one invocation, disposable fixture, three unreleased changes):
+  the hand-written Unreleased entry was kept, two user-facing changes added, the
+  internal tidy omitted, `v1.2.3` and the footer byte-identical, jj topology
+  unchanged, no parent signal file written, no credential text in either
+  transcript, invocation directory removed.
+
 ## Notes
 
 The human agreed to this live smoke test as the complement to deterministic

@@ -76,7 +76,7 @@ while (($#)); do
   shift 2
 done
 [[ -f "$prompt" && ! -e "$output" && "$ui" == auto ]]
-[[ ${#inputs[@]} == 5 && ${#runtime_reads[@]} == 2 ]]
+[[ ${#inputs[@]} == 6 && ${#runtime_reads[@]} == 2 ]]
 [[ "${runtime_reads[0]}" == "$RELEASE_TEST_SCRATCH/auth one.json" ]]
 [[ "${runtime_reads[1]}" == "$RELEASE_TEST_SCRATCH/auth-two.json" ]]
 rm -rf "$RELEASE_TEST_SCRATCH/observed"
@@ -166,6 +166,7 @@ if grep -Fq 'Hand-written' "$scratch/observed/previous-changelog.md"; then
   exit 1
 fi
 cmp "$repo_root/scripts/release-notes/SKILL.md" "$scratch/observed/SKILL.md"
+cmp "$repo_root/scripts/release-notes/codex-headless.sh" "$scratch/observed/codex-headless.sh"
 grep -Fq 'SKILL.md' "$scratch/observed/prompt"
 [[ "$(workspace_state)" == "$ws_before" ]]
 

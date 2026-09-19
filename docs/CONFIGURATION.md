@@ -79,20 +79,40 @@ grants. Grants name individual existing files and never confer write access.
 Project files belong in `--input` artifacts. Parent Grove channels, repository
 selectors, harness session identifiers and mux connections are not inherited.
 
-For Codex 0.155.1 on macOS, the verified headless setup used `codex exec` with
-`--ephemeral --ignore-user-config --ignore-rules --skip-git-repo-check`.
-The configured command set `CODEX_HOME=.` to keep Codex's writable state in the
-temporary working directory and `SSL_CERT_FILE=/etc/ssl/cert.pem` to load the
-public CA bundle without keychain access. It used `--sandbox danger-full-access`
-inside Grove's mandatory outer sandbox; Codex's nested `workspace-write` sandbox
-rejected tool execution. This flag cannot relax Grove's filesystem boundary.
-The probe staged `auth.json` with `--input` and explicitly granted the installed
-Codex executable, code-mode host, bundled shell and ripgrep files. Their paths
-depend on the installation. `task release:notes` and release preparation pass
-each line of `GROVE_RELEASE_RUNTIME_READ` as one such grant and stage their
-writing skill as an input ([Releasing](RELEASING.md#release-notes)), so the
-route needs no installed skill. A release-notes wrapper can instead copy an explicitly
-granted credential file into its private state directory before starting Codex.
+For Codex 0.155.1 on macOS, the verified headless setup is
+`scripts/release-notes/codex-headless.sh`, which the release tasks stage beside
+their inputs. Personal policy names it without a path into any checkout and
+keeps the model and effort:
+
+```kdl
+config {
+    command "release-notes-codex" "/bin/bash codex-headless.sh ${param.model} ${param.effort} ${prompt}" {
+        param "model" "your-model"
+        param "effort" "medium"
+    }
+    bind "notes-writer" "release-notes-codex"
+    route "release-notes" "notes-writer"
+}
+```
+
+The helper runs `codex exec` with
+`--ephemeral --ignore-user-config --ignore-rules --skip-git-repo-check`. It
+copies the granted credential file (`CODEX_AUTH_FILE`, default
+`~/.codex/auth.json`) into a private `CODEX_HOME` beneath the invocation
+directory, which Grove deletes afterwards, and sets
+`SSL_CERT_FILE=/etc/ssl/cert.pem` to load the public CA bundle without keychain
+access. It uses `--sandbox danger-full-access` inside Grove's mandatory outer
+sandbox; Codex's nested `workspace-write` sandbox rejected tool execution. This
+flag cannot relax Grove's filesystem boundary.
+
+The credential file and the installed Codex executable, code-mode host, bundled
+shell and ripgrep files need explicit grants. Their paths depend on the
+installation; Homebrew's cask keeps them under
+`/opt/homebrew/Caskroom/codex/<version>/`, outside the readable Cellar.
+`task release:notes` and release preparation pass each line of
+`GROVE_RELEASE_RUNTIME_READ` as one such grant
+([Releasing](RELEASING.md#release-notes)). Another harness needs only its own
+noninteractive command behind the same route; the staged helper is then unused.
 Do not point writable harness state at the parent session's directories.
 
 See [standalone usage](USAGE.md#usage-standalone) for artifact transport,

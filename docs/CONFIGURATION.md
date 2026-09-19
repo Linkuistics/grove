@@ -88,7 +88,10 @@ inside Grove's mandatory outer sandbox; Codex's nested `workspace-write` sandbox
 rejected tool execution. This flag cannot relax Grove's filesystem boundary.
 The probe staged `auth.json` with `--input` and explicitly granted the installed
 Codex executable, code-mode host, bundled shell and ripgrep files. Their paths
-depend on the installation. A release-notes wrapper can instead copy an explicitly
+depend on the installation. `task release:notes` and release preparation pass
+each line of `GROVE_RELEASE_RUNTIME_READ` as one such grant and stage their
+writing skill as an input ([Releasing](RELEASING.md#release-notes)), so the
+route needs no installed skill. A release-notes wrapper can instead copy an explicitly
 granted credential file into its private state directory before starting Codex.
 Do not point writable harness state at the parent session's directories.
 

@@ -21,6 +21,14 @@ tasks:
       - task: release
         vars: {LEVEL: major}
 
+  release:notes:
+    desc: Refresh Unreleased notes from all changes since the last release, without publishing
+    preconditions:
+      - sh: test -d .jj
+        msg: Run release notes from a jj workspace.
+    cmds:
+      - bash scripts/release-notes.sh
+
   release:
     internal: true
     requires:

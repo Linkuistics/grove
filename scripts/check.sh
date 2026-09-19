@@ -105,6 +105,7 @@ run_check "shellcheck" shellcheck \
   plugins/grove/conformance.sh plugins/grove/conformance.test.sh \
   scripts/check.sh scripts/release-publish.sh scripts/release.test.sh \
   scripts/release-prepare.sh scripts/release-prepare.test.sh \
+  scripts/release-notes.sh \
   scripts/release-doctor.sh scripts/release-common.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh

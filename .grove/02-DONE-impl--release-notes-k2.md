@@ -39,6 +39,32 @@ preparation.
 - Usage, setup requirements and the shipped change are documented; relevant
   shell checks and integration tests pass, followed by `bash scripts/check.sh`.
 
+## Decisions (running log)
+
+- One script, `scripts/release-notes.sh [--to <revset>]`, owns evidence,
+  invocation, validation and the changelog write. The task uses the default `@`;
+  `release-prepare.sh` keeps fetch, `main`, fill-only and commit, and calls it
+  with `--to main`. An option beat a sourced library: one interface, one test
+  seam, and prepare's working copy already sits on `main`.
+- The endpoint is resolved to a commit id once. The Unreleased input is read
+  from that commit, and the write is refused when the working copy's
+  `CHANGELOG.md` no longer matches it, so an edit made mid-run is never
+  overwritten.
+- The baseline is `tags(exact:"v<version>") & ::<endpoint>` through jj rather
+  than `git rev-parse`, because the task must work in a non-colocated workspace
+  such as this grove's.
+- The skill is `scripts/release-notes/SKILL.md`, outside `plugins/`. Under
+  `plugins/grove/skills` a non-kind directory would sit in the tree
+  `conformance.sh` reads as the methodology, and `install.sh` would link it into
+  every harness; neither is wanted for a repo-local writer that is always staged
+  as an `--input`. The prompt only points at the staged file.
+- `current-unreleased.md` is always staged, empty or not, so both paths make the
+  same five-input invocation and k3 configures one interface.
+- Under `set -e` a bare `! grep` asserts nothing (shellcheck SC2251). Negative
+  assertions in the suite are `if … then fail`; five mutations of the script
+  (latest-only descriptions, latest-only diff, wrong previous changelog, lost
+  spacing, withheld Unreleased text) were each seen to fail the suite.
+
 ## Notes
 
 Keep this increment independently verifiable using the fake runner. The later

@@ -51,6 +51,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Release tooling: `task release:notes` refreshes the Unreleased section through
+  `grove run release-notes` without fetching, committing or publishing. Its
+  evidence covers every change since the last release tag — full commit
+  descriptions, the complete source diff, the existing Unreleased text and the
+  previous changelog — and works from any jj workspace. Release preparation now
+  shares that path and still generates only when Unreleased is empty. The
+  writing instructions are a single staged skill,
+  `scripts/release-notes/SKILL.md`, so the invocation now carries five inputs.
+
 ## v21.8.1
 
 - Add `grove run KIND` for standalone invocations selected by personal named

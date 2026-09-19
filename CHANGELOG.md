@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.9.0
+
 - Release tooling: `task release:notes` refreshes the Unreleased section through
   `grove run release-notes` without fetching, committing or publishing. Its
   evidence covers every change since the last release tag — full commit

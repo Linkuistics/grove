@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.10.0
+
 - `linkuistics` / `codebase-design`: expand deep-module and test-seam guidance
   with structural simplicity, explicit state ownership and timing dependencies,
   examining caller obligations separately from coupled state, policy and timing.

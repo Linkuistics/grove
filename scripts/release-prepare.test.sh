@@ -76,9 +76,14 @@ while (($#)); do
   shift 2
 done
 [[ -f "$prompt" && ! -e "$output" && "$ui" == auto ]]
-[[ ${#inputs[@]} == 6 && ${#runtime_reads[@]} == 2 ]]
-[[ "${runtime_reads[0]}" == "$RELEASE_TEST_SCRATCH/auth one.json" ]]
-[[ "${runtime_reads[1]}" == "$RELEASE_TEST_SCRATCH/auth-two.json" ]]
+[[ ${#inputs[@]} == 6 ]]
+if [[ "${RELEASE_TEST_MODE:-success}" == no-grants ]]; then
+  [[ ${#runtime_reads[@]} == 0 ]]
+else
+  [[ ${#runtime_reads[@]} == 2 ]]
+  [[ "${runtime_reads[0]}" == "$RELEASE_TEST_SCRATCH/auth one.json" ]]
+  [[ "${runtime_reads[1]}" == "$RELEASE_TEST_SCRATCH/auth-two.json" ]]
+fi
 rm -rf "$RELEASE_TEST_SCRATCH/observed"
 mkdir -p "$RELEASE_TEST_SCRATCH/observed"
 cp "$prompt" "$RELEASE_TEST_SCRATCH/observed/prompt"
@@ -94,7 +99,7 @@ case "${RELEASE_TEST_MODE:-success}" in
   heading) printf '## v99.0.0\n\n- Unexpected version.\n' >"$output" ;;
   indented-heading) printf '  ## Unreleased\n\n- Unexpected section.\n' >"$output" ;;
   success) printf '### Changed\n\n- The fixture now prints an improvement.\n' >"$output" ;;
-  refresh) printf '\n- Refreshed notes covering every change.\n\n' >"$output" ;;
+  refresh | no-grants) printf '\n- Refreshed notes covering every change.\n\n' >"$output" ;;
   *) exit 2 ;;
 esac
 EOF
@@ -121,12 +126,35 @@ workspace_state() {
 }
 ws_before="$(workspace_state)"
 
+# Invalid grants are diagnosed before either the build or configured harness.
+# No real agent credentials are inspected: grants can belong to any harness.
+: >"$scratch/calls"
+for invalid_grant in "$scratch/missing credentials.json" "$scratch/bin"; do
+  if GROVE_RELEASE_RUNTIME_READ="$invalid_grant" task --dir "$scratch/ws" release:notes >"$scratch/output" 2>&1; then
+    echo 'FAIL: release:notes accepted an invalid runtime grant' >&2
+    exit 1
+  fi
+  grep -Fq 'GROVE_RELEASE_RUNTIME_READ' "$scratch/output"
+  grep -Fq "$invalid_grant" "$scratch/output"
+  grep -Fq 'docs/RELEASING.md#runtime-access' "$scratch/output"
+  [[ ! -s "$scratch/calls" ]]
+  cmp "$scratch/ws-notes" "$scratch/ws/CHANGELOG.md"
+done
+
 for mode in build-failure runner-failure missing empty whitespace heading indented-heading; do
   if RELEASE_TEST_MODE="$mode" task --dir "$scratch/ws" release:notes >"$scratch/output" 2>&1; then
     echo "FAIL: release:notes accepted $mode" >&2
     exit 1
   fi
   cmp "$scratch/ws-notes" "$scratch/ws/CHANGELOG.md"
+  if [[ "$mode" == runner-failure ]]; then
+    grep -Fq 'GROVE_RELEASE_RUNTIME_READ' "$scratch/output"
+    grep -Fq 'docs/RELEASING.md#runtime-access' "$scratch/output"
+    if grep -Fq '.codex' "$scratch/output"; then
+      echo 'FAIL: shared release-notes diagnostics assumed Codex' >&2
+      exit 1
+    fi
+  fi
 done
 
 # Missing-baseline, no-change and usage diagnostics never reach the runner.
@@ -168,6 +196,11 @@ fi
 cmp "$repo_root/scripts/release-notes/SKILL.md" "$scratch/observed/SKILL.md"
 cmp "$repo_root/scripts/release-notes/codex-headless.sh" "$scratch/observed/codex-headless.sh"
 grep -Fq 'SKILL.md' "$scratch/observed/prompt"
+[[ "$(workspace_state)" == "$ws_before" ]]
+
+# A configured harness may use only resources already readable in the sandbox.
+GROVE_RELEASE_RUNTIME_READ='' RELEASE_TEST_MODE=no-grants task --dir "$scratch/ws" release:notes
+cmp "$scratch/expected" "$scratch/ws/CHANGELOG.md"
 [[ "$(workspace_state)" == "$ws_before" ]]
 
 # Failed builds, runner failures, and invalid bodies leave main and notes intact.

@@ -28,6 +28,7 @@ Options:
 
 Environment:
   GROVE_RELEASE_RUNTIME_READ  Runtime files granted read-only, one path per line
+                             See docs/RELEASING.md#runtime-access for setup
 
 Examples:
   task release:notes
@@ -103,11 +104,22 @@ PROMPT
     --output "$notes_dir/release-notes.md" --ui auto)
   local runtime_read
   while IFS= read -r runtime_read; do
-    [[ -z "$runtime_read" ]] || run_args+=(--runtime-read "$runtime_read")
+    [[ -n "$runtime_read" ]] || continue
+    [[ -f "$runtime_read" && -r "$runtime_read" ]] \
+      || die "GROVE_RELEASE_RUNTIME_READ entry is not a readable regular file: $runtime_read
+Update the grant to an existing file required by your configured harness.
+Use one literal file path per line; see docs/RELEASING.md#runtime-access."
+    run_args+=(--runtime-read "$runtime_read")
   done <<<"${GROVE_RELEASE_RUNTIME_READ:-}"
 
   cargo build --locked -p grove -p grove-llm
-  ./target/debug/grove "${run_args[@]}"
+  if ! ./target/debug/grove "${run_args[@]}"; then
+    die "the configured release-notes writer failed; CHANGELOG.md was left unchanged.
+Read the error and any transcript above. If a credential or runtime file was
+denied, export GROVE_RELEASE_RUNTIME_READ with the files your harness needs,
+one literal file path per line, in the shell launching the task.
+Setup and retry instructions: docs/RELEASING.md#runtime-access."
+  fi
   if [[ ! -f "$notes_dir/release-notes.md" ]] \
     || ! awk '/[^[:space:]]/ { found=1 } END { exit !found }' "$notes_dir/release-notes.md"; then
     die "release-notes returned an empty Markdown body"

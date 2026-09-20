@@ -104,6 +104,9 @@ directory, which Grove deletes afterwards, and sets
 access. It uses `--sandbox danger-full-access` inside Grove's mandatory outer
 sandbox; Codex's nested `workspace-write` sandbox rejected tool execution. This
 flag cannot relax Grove's filesystem boundary.
+Before starting Codex, the helper checks that its credential path is a readable
+regular file inside that boundary. Failure reports the path and explains how
+to grant it through the release task or a direct `grove run` invocation.
 
 The credential file and the installed Codex executable, code-mode host, bundled
 shell and ripgrep files need explicit grants. Their paths depend on the
@@ -111,8 +114,9 @@ installation; Homebrew's cask keeps them under
 `/opt/homebrew/Caskroom/codex/<version>/`, outside the readable Cellar.
 `task release:notes` and release preparation pass each line of
 `GROVE_RELEASE_RUNTIME_READ` as one such grant
-([Releasing](RELEASING.md#release-notes)). Another harness needs only its own
-noninteractive command behind the same route; the staged helper is then unused.
+([runtime setup and troubleshooting](RELEASING.md#runtime-access)). Another
+harness needs only its own noninteractive command behind the same route; the
+staged helper is then unused.
 Do not point writable harness state at the parent session's directories.
 
 See [standalone usage](USAGE.md#usage-standalone) for artifact transport,

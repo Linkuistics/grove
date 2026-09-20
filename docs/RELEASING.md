@@ -112,6 +112,8 @@ The task uses `--ui auto` to make the invocation visible. Its host build runs
 `cargo build --locked -p grove -p grove-llm` only when generation is needed.
 During a release, existing notes skip both that build and the LLM call.
 
+#### Runtime access
+
 If your configured harness needs credential or other runtime files, explicitly
 grant read-only access with `GROVE_RELEASE_RUNTIME_READ`, one literal file path
 per line. Blank lines are ignored; paths containing spaces remain intact. For
@@ -123,12 +125,57 @@ $HOME/.config/my-agent/settings.json"
 task release:notes
 ```
 
-For the staged Codex helper, list the credential file and the four installed
-Codex runtime files named in
-[Configuration](CONFIGURATION.md#standalone-commands); exporting the variable
-from your shell profile keeps these machine-specific paths out of the
-repository. Each entry becomes a separate `--runtime-read` argument. These grants do not
-change the chosen command's policy or permit writes outside the invocation.
+The shared release-notes script checks supplied paths before building or launching
+the writer. A missing, unreadable or non-file entry fails with the offending path
+and these setup instructions. An empty list is allowed: Grove does not infer
+requirements from a harness name. Each entry becomes a separate `--runtime-read`
+argument; grants never permit writes outside the invocation.
+
+A file readable in your terminal can still be denied inside the standalone
+sandbox. Harness wrappers should check their own required files inside that
+sandbox before starting an LLM call. The staged Codex helper does this for its
+credential file and reports both the path and the task-level setting to fix.
+When a writer fails, the shared script also points here while retaining the
+underlying error and transcript, since a writer can fail for other reasons.
+
+Use grants for the command selected by your personal `release-notes` route.
+A Claude Code route needs its own headless authentication and runtime setup;
+it does not need Codex's `auth.json` or Codex runtime files. The release task
+does not require or inspect another harness's credentials. See
+[standalone configuration](CONFIGURATION.md#standalone-commands) for the
+wrapper's responsibilities.
+
+For the staged Codex helper with Homebrew Codex 0.155.1 on macOS, the five grants
+are the credential file and the installed executable, code-mode host, shell and
+ripgrep. In **zsh**, resolve the executable's symlink to use your installed
+version's paths:
+
+```zsh
+release_codex_bin="$(command -v codex)"
+release_codex_root="${release_codex_bin:A:h:h}"
+export GROVE_RELEASE_RUNTIME_READ="$HOME/.codex/auth.json
+$release_codex_root/bin/codex
+$release_codex_root/bin/codex-code-mode-host
+$release_codex_root/codex-resources/zsh/bin/zsh
+$release_codex_root/codex-path/rg"
+unset release_codex_bin release_codex_root
+task release:notes
+```
+
+Check that each file exists on the host. If the credential file is missing,
+authenticate Codex on the host first; a grant cannot create it. For other Codex
+installations, use their actual runtime paths. Keep any additional grants your
+wrapper requires when updating the list.
+
+To persist the setup, put the export (and path resolution, where needed) in
+your shell profile, such as `~/.zshrc`. Machine-specific paths stay out of the
+repository. After an upgrade, reload the profile so versioned paths are refreshed.
+An already running Grove or agent process retains its inherited environment;
+editing the profile does not update it. There is no need to restart that process:
+run the task in a shell that loads the profile, for example
+`zsh -ic 'task release:notes'`, or supply the export in the shell launching the
+task. Direct `grove run` calls take `--runtime-read <file>` flags instead.
+
 Missing configuration, unavailable confinement, a failed build or invocation,
 and invalid output stop the release before its version cut. Correct the cause
 or write the Unreleased notes yourself before retrying preparation. The release

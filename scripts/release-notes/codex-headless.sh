@@ -14,8 +14,16 @@ if (($# != 3)); then
 fi
 
 auth="${CODEX_AUTH_FILE:-$HOME/.codex/auth.json}"
-[[ -r "$auth" ]] || {
-  echo "codex-headless: cannot read $auth; grant it with --runtime-read" >&2
+[[ -f "$auth" && -r "$auth" ]] || {
+  cat >&2 <<EOF
+codex-headless: credential file is not readable inside the standalone sandbox:
+  $auth
+Check that this file exists and is readable on the host. If it is, add its path
+to GROVE_RELEASE_RUNTIME_READ for task release:notes (one literal file path per
+line, keeping your other grants), or pass --runtime-read for direct grove run.
+Codex's installed runtime files may also need grants. Setup and retry instructions:
+  docs/RELEASING.md#runtime-access
+EOF
   exit 1
 }
 codex_home="$PWD/.codex-home"

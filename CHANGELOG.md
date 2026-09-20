@@ -51,19 +51,21 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
-- `linkuistics` / `codebase-design`: integrate structural simplicity alongside
-  module depth and test seams, examining caller obligations separately from
-  coupled state, policy and timing. Add an evidence-based design workflow,
-  review checklist, worked examples and source provenance. Compare alternatives
-  for consequential choices without prescribing a parallel-agent count.
-- `linkuistics` / `codebase-design`: choose seams for concrete substitution
-  needs, including test adapters, and preserve useful internal test coverage
-  when deepening modules. Shared responsibilities and invariants now justify
-  grouping code; dependency categories guide verification rather than merging.
-- `grove` / `grove-design`: use `codebase-design` when available for software
-  interfaces, state and test seams in design sessions and `review-design`.
-  Keep design evidence in the spec or ADRs and reviews findings-only; Grove's
-  procedure and artifact requirements still apply when the skill is absent.
+- `linkuistics` / `codebase-design`: expand deep-module and test-seam guidance
+  with structural simplicity, explicit state ownership and timing dependencies,
+  examining caller obligations separately from coupled state, policy and timing.
+  Add an evidence-based design and review workflow, worked examples, source
+  provenance and a review checklist; compare consequential alternatives without
+  a prescribed agent count.
+- `linkuistics` / `codebase-design`: revise test guidance to preserve useful
+  internal and regression coverage when combining modules, verify real adapters
+  alongside stand-ins, and choose seams for concrete substitution needs. Shared
+  responsibilities and invariants justify grouping code; dependency categories
+  guide verification rather than merging.
+- `grove` / `grove-design`: use `codebase-design`, when available, for software
+  interfaces, state and test seams in design and `review-design` sessions. Design
+  evidence goes into existing specs or ADRs, reviews remain findings-only, and
+  Grove's procedure and artifact requirements still apply without the skill.
 - Release tooling: validate each `GROVE_RELEASE_RUNTIME_READ` entry as a
   readable regular file before building or launching the release-notes writer.
   The staged Codex helper also checks its credential file inside the sandbox

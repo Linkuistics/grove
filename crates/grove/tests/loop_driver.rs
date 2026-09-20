@@ -19,6 +19,7 @@ mod support;
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Output, Stdio};
 use std::sync::mpsc;
@@ -148,7 +149,152 @@ fn grove_driver(worktree: &Path, home: &Path) -> Command {
         command.env_remove(name);
     }
     command.env("HOME", home);
+    // Captured output does not detach /dev/tty. A driver sharing cargo's
+    // session can hand the developer's terminal to its fake child, leaving
+    // the release job in the background and vulnerable to SIGTTOU. Keep both
+    // terminal ownership and input outside these noninteractive fixtures.
+    command.stdin(Stdio::null());
+    // SAFETY: setsid is async-signal-safe, and this child is not yet a process
+    // group leader. Failure is reported through Command's spawn error path.
+    unsafe {
+        command.pre_exec(|| {
+            if libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
     command
+}
+
+#[test]
+fn test_sessions_cannot_access_the_runners_terminal() {
+    const UNDER_TERMINAL: &str = "GROVE_TEST_RUNNER_TERMINAL";
+    if std::env::var_os(UNDER_TERMINAL).is_none() {
+        use std::os::fd::{AsRawFd, FromRawFd};
+
+        // Re-run this test with a real controlling terminal, even when cargo
+        // itself is headless. Merely redirecting stdin leaves /dev/tty usable.
+        let (mut master, mut slave) = (-1, -1);
+        // SAFETY: valid out pointers; default terminal settings and size.
+        assert_eq!(
+            unsafe {
+                libc::openpty(
+                    &mut master,
+                    &mut slave,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                )
+            },
+            0
+        );
+        // SAFETY: openpty returned two fresh owned descriptors.
+        let (_master, slave) =
+            unsafe { (fs::File::from_raw_fd(master), fs::File::from_raw_fd(slave)) };
+        for fd in [_master.as_raw_fd(), slave.as_raw_fd()] {
+            // SAFETY: live descriptors; neither endpoint should leak on exec.
+            assert_ne!(
+                unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) },
+                -1
+            );
+        }
+        let capture = TempDir::new().unwrap();
+        let diagnostics = capture.path().join("test-output");
+        let output = fs::File::create(&diagnostics).unwrap();
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command
+            .args([
+                "--exact",
+                "test_sessions_cannot_access_the_runners_terminal",
+                "--nocapture",
+            ])
+            .env(UNDER_TERMINAL, "1")
+            .stdin(Stdio::from(slave.try_clone().unwrap()))
+            .stdout(Stdio::from(output.try_clone().unwrap()))
+            .stderr(Stdio::from(output));
+        // SAFETY: only async-signal-safe calls between fork and exec. The new
+        // session owns this private PTY, never the developer's terminal.
+        unsafe {
+            command.pre_exec(|| {
+                if libc::setsid() == -1
+                    || libc::ioctl(libc::STDIN_FILENO, libc::TIOCSCTTY as _, 0) == -1
+                {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+        let mut child = command.spawn().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(20);
+        let status = loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                break status;
+            }
+            if Instant::now() >= deadline {
+                // SIGKILLing the nested runner skips DriverProcess::drop. Its
+                // driver and configured session have separate process groups,
+                // so stop each parent before walking and killing its children.
+                fn kill_tree(pid: libc::pid_t) {
+                    // SAFETY: only this probe's subprocess tree is traversed.
+                    if unsafe { libc::kill(pid, libc::SIGSTOP) } != 0 {
+                        return;
+                    }
+                    for (child, _) in children_of(pid) {
+                        kill_tree(child);
+                    }
+                    // SAFETY: the stopped process cannot fork more children.
+                    unsafe { libc::kill(pid, libc::SIGKILL) };
+                }
+                kill_tree(child.id() as libc::pid_t);
+                child.wait().unwrap();
+                panic!(
+                    "terminal isolation probe timed out: {}",
+                    fs::read_to_string(&diagnostics).unwrap()
+                );
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        assert!(
+            status.success(),
+            "{}",
+            fs::read_to_string(diagnostics).unwrap()
+        );
+        return;
+    }
+    assert!(
+        fs::File::open("/dev/tty").is_ok(),
+        "probe must own a terminal"
+    );
+    // SAFETY: isatty inspects the inherited descriptor without changing it.
+    assert_eq!(unsafe { libc::isatty(libc::STDIN_FILENO) }, 1);
+
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    plant_tree(&worktree, "01-impl--subject-k1.md");
+    let configured = fixture.path().join("configured-command.sh");
+    write_exec(
+        &configured,
+        r#"#!/bin/sh
+if ( : < /dev/tty ) 2>/dev/null; then
+    echo inherited-controlling-terminal
+fi
+if [ -t 0 ]; then
+    echo inherited-terminal-input
+fi
+echo session-finished
+"#,
+    );
+    write_complete_config(&home, &configured);
+    let output = run_driver(&worktree, &home);
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "session-finished\n",
+        "a test session must not be able to change the runner's terminal"
+    );
 }
 
 /// A driver process whose streams are captured to **files** rather than pipes,

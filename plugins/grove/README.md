@@ -1,7 +1,8 @@
 # `grove` — the methodology, as skills
 
-Grove's methodology ships as a Claude Code plugin, installed the way this repo's
-other two plugins already are ([`../README.md`](../README.md)). It is a shared
+Grove's methodology is delivered through the Claude Code marketplace, automatic
+Codex provisioning at bare `grove` startup, or the manual installer
+([`../README.md`](../README.md)). It is a shared
 **spine** skill and one `grove-<kind>` skill per session kind beside it, over
 that spine. **A kind exists iff a skill of that name exists**, so the set is
 whatever `skills/` holds: no code carries a list of kinds and no assertion counts
@@ -71,7 +72,9 @@ have just found the case, this paragraph is what you are reopening.
 
 ## One copy, and where it lives
 
-`plugins/grove/skills/` is the methodology. There is no second copy.
+`plugins/grove/skills/` is the authoritative methodology source. The Grove
+binary embeds a build-time snapshot of the plugin tree for Codex provisioning;
+there is no separately authored copy.
 
 There was one until `delete-provisioning-k19`: the `grove` binary compiled its
 own `content/` tree into itself and swept it into `~/.claude/skills/grove` and
@@ -91,12 +94,16 @@ in `grove-finish/SKILL.md`.
 
 ## Installing
 
-**Claude Code**, through the marketplace — this is the supported path today:
+**Claude Code**, through the marketplace:
 
 ```
 /plugin marketplace add Linkuistics/grove
 /plugin install grove@linkuistics
+/plugin install linkuistics@linkuistics
+/plugin install testanyware@linkuistics
 ```
+
+Enable marketplace auto-update (`/plugin` → Marketplaces → Enable auto-update).
 
 Claude Code namespaces a plugin's components — *"in the UI, the agent
 `agent-creator` for the plugin with name `plugin-dev` will appear as
@@ -104,7 +111,11 @@ Claude Code namespaces a plugin's components — *"in the UI, the agent
 ([plugins reference](https://code.claude.com/docs/en/plugins-reference), *plugin
 name*) — so the spine is `grove:grove` there, and a kind's skill is
 `grove:grove-<kind>`.
-**Other harnesses**, through [`../install.sh`](../install.sh)'s symlink farm:
+**Codex** receives every bundled compatible skill at bare `grove` startup in
+`~/.agents/skills`; see [installation and repair](../README.md#install--codex).
+
+**Other harnesses and manual Codex checkouts** use
+[`../install.sh`](../install.sh)'s symlink farm:
 
 ```sh
 ./plugins/install.sh

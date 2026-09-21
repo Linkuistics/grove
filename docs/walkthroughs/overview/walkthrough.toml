@@ -41,7 +41,7 @@ slice = "no-arguments"
 [[page]]
 file  = "03-three-steps.md"
 id    = "three-steps"
-title = "Three steps"
+title = "Lifecycle startup"
 role  = "chapter"
 slice = "one-call"
 
@@ -86,12 +86,17 @@ lines = 61
 [[root]]
 id    = "source-entry-point"
 path  = "crates/grove/src/main.rs"
-lines = 18
+lines = 19
 
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove/src/cli.rs"
-lines = 267
+lines = 268
+
+[[root]]
+id    = "source-codex-provisioning"
+path  = "crates/grove/src/provision.rs"
+lines = 401
 
 [[block]]
 id    = "manifest-thin-by-construction"
@@ -103,7 +108,7 @@ lines = "1-61"
 id    = "entry-point-three-steps"
 root  = "source-entry-point"
 owner = "one-call"
-lines = "1-18"
+lines = "1-19"
 
 [[block]]
 id    = "surface-grammar"
@@ -115,19 +120,31 @@ lines = "1-119"
 id    = "surface-resolve-lease-run"
 root  = "source-command-surface"
 owner = "one-call"
-lines = "120-167"
+lines = "120-168"
 
 [[block]]
 id    = "surface-closure-tests"
 root  = "source-command-surface"
 owner = "closure-proved"
-lines = "168-267"
+lines = "169-268"
+
+[[block]]
+id    = "codex-provisioning"
+root  = "source-codex-provisioning"
+owner = "one-call"
+lines = "1-401"
+
+[[early-use]]
+symbols   = "`Codex provisioning`"
+first-use = "01-orientation.md#two-products"
+owner     = "one-call"
+statement = "Bare startup delivers every bundled Codex-compatible skill from an embedded build-time inventory before the loop can launch a child."
 
 [[early-use]]
 symbols   = "`grove_loop::run`"
 first-use = "01-orientation.md#the-binary"
 owner     = "one-call"
-statement = "The loop's single entry point; bare lifecycle execution after its three setup steps is behind this call."
+statement = "The loop's single entry point; bare lifecycle execution after its startup checks is behind this call."
 
 [[early-use]]
 symbols   = "`DriverLease`"

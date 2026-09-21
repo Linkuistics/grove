@@ -1,6 +1,6 @@
 # The surface
 <!-- book-page id="the-surface" slice="no-arguments" order="2" -->
-[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Three steps](03-three-steps.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Lifecycle startup](03-three-steps.md)
 
 <a id="no-arguments"></a>
 ## Lifecycle and observation
@@ -226,7 +226,7 @@ an actionable error before changing terminal modes. The integration tests in
 The twelve tree/session verbs belong to `grove-llm`. In a standalone invocation
 that binary admits only `complete --done` on the dedicated invocation channel;
 ordinary session verbs retain their task-tree epoch checks. The human binary delegates observation to
-`grove-tui` and lifecycle execution to `grove-loop`. [Three steps](03-three-steps.md)
+`grove-tui` and lifecycle execution to `grove-loop`. [Lifecycle startup](03-three-steps.md)
 shows the branch that separates these paths.
 
 
@@ -293,4 +293,4 @@ pub fn run() -> ExitCode {
 ````
 <!-- /fragment -->
 
-[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Three steps](03-three-steps.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: Lifecycle startup](03-three-steps.md)

@@ -43,13 +43,20 @@ delivery.
 `plugins/<name>/.claude-plugin/plugin.json` declares a `version`: both are
 versioned by commit SHA, so every push delivers and there is no bump to record
 (*skills-monorepo* has the trade, and adding a `version` would quietly undo it).
-The skills reaching codex, gemini and pi by `plugins/install.sh` are symlinks,
-so they were never in a version's path either.
+Manual `plugins/install.sh` users follow their checkout through symlinks.
+Codex auto-provisioning instead follows the snapshot in the installed Grove
+binary, so bundled skill changes also reach it through a Grove release.
 
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
 
 ## Unreleased
+
+- Restore automatic Codex skill installation at bare `grove` startup. Bundle all
+  compatible Grove, Linkuistics and Testanyware skills, repair Grove-managed
+  installations before launch, and preserve unrelated files. Installs work
+  offline and update with the binary. Claude Code retains marketplace delivery;
+  Homebrew instructions include all three plugins and marketplace auto-update.
 
 ## v21.10.0
 

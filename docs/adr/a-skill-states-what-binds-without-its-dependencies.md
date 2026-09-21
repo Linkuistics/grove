@@ -3,10 +3,10 @@
 A skill that cites another skill must state what binds in that skill's absence.
 Grove's methodology is itself a skill set now — the `grove` plugin, a shared
 spine and one `grove-<kind>` skill per kind — and it cites `linkuistics` skills
-it does not install: the two plugins are separate marketplace entries and
-separate rows in `plugins/install.sh`'s symlink farm, even though both are
-developed in this repository. So an installation can be one where every
-`linkuistics:` citation points at a skill that is not there.
+from a separate plugin. Codex startup provisions both, but marketplace users
+can install them independently, and manually maintained installations may omit
+one. Every `linkuistics:` citation must therefore remain meaningful when its
+target skill is absent.
 
 **A skill's dependency on its own spine is a different relation and is not
 covered here.** A `grove-<kind>` skill directs a load of the `grove` spine, and
@@ -47,12 +47,10 @@ what a session writes, and each one is recorded with its reason in
 from becoming the rule.
 
 **Rejected: make `linkuistics` a hard install dependency of the `grove` plugin.**
-It would remove the mirrors outright, and it is the wrong shape twice. The two
-contexts ship as separate products on purpose — `docs/ARCHITECTURE.md`,
-*Repository products*, describes the split — so enforcing the dependency means
-one context installing another it does not own; and it violates
-walk-away-ability — a grove tree must stay legible with grove deleted, which a
-methodology that cannot state its own rules is not.
+Bundling both for Codex makes them available together, but does not make the
+methodology's rules conditional on an installer. Marketplace entries remain
+independent, and a grove tree must stay legible with Grove deleted. A methodology
+that cannot state its own rules would violate that walk-away property.
 
 **Rejected: defer everything and state nothing locally.** This was the prior
 state, and it produced a measurable defect rather than a hypothetical one: with

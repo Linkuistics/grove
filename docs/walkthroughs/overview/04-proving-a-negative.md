@@ -1,6 +1,6 @@
 # Proving a negative
 <!-- book-page id="proving-a-negative" slice="closure-proved" order="4" -->
-[Previous: Three steps](03-three-steps.md) | [Contents](README.md) | [Next: What the call reaches](05-what-the-call-reaches.md)
+[Previous: Lifecycle startup](03-three-steps.md) | [Contents](README.md) | [Next: What the call reaches](05-what-the-call-reaches.md)
 
 <a id="closure-proved"></a>
 ## The closure tests
@@ -19,7 +19,7 @@ The composite keeps source order while the sections below explain the two
 properties separately. These are binary unit tests: they inspect the same clap
 model that production parsing builds.
 
-<!-- fragment «surface-closure-tests» owner="closure-proved" source="crates/grove/src/cli.rs" lines="168-267" parent="source-command-surface" -->
+<!-- fragment «surface-closure-tests» owner="closure-proved" source="crates/grove/src/cli.rs" lines="169-268" parent="source-command-surface" -->
 <!-- insert «tests-module-opening» -->
 <!-- insert «undescribed-doc-purpose» -->
 <!-- insert «undescribed-doc-twice» -->
@@ -40,7 +40,7 @@ The binary has no library target to import from an integration test. Its
 private `Cli` is reachable by the nested test module, which imports
 `CommandFactory` to obtain clap metadata without running the application.
 
-<!-- fragment «tests-module-opening» owner="closure-proved" source="crates/grove/src/cli.rs" lines="168-171" parent="surface-closure-tests" -->
+<!-- fragment «tests-module-opening» owner="closure-proved" source="crates/grove/src/cli.rs" lines="169-172" parent="surface-closure-tests" -->
 ````rust
 #[cfg(test)]
 mod tests {
@@ -59,7 +59,7 @@ collects the outer arguments, excludes clap help/version, and requires none.
 The viewer path belongs to the subcommand and does not become a lifecycle
 selector. Adding an unlisted command or bare selector fails this test.
 
-<!-- fragment «closure-test-doc» owner="closure-proved" source="crates/grove/src/cli.rs" lines="226-230" parent="surface-closure-tests" -->
+<!-- fragment «closure-test-doc» owner="closure-proved" source="crates/grove/src/cli.rs" lines="227-231" parent="surface-closure-tests" -->
 ````rust
 
     /// Stated as a closure property rather than as a list of rejected verbs: the
@@ -72,7 +72,7 @@ selector. Adding an unlisted command or bare selector fails this test.
 The assertion obtains every subcommand name from the model and compares the
 result with the permitted standalone, log, config and view commands. The nested config assertion\nalso fixes the examples command as argument-free, keeping launch-policy selection\nout of sample delivery.
 
-<!-- fragment «closure-test-subcommands» owner="closure-proved" source="crates/grove/src/cli.rs" lines="231-249" parent="surface-closure-tests" -->
+<!-- fragment «closure-test-subcommands» owner="closure-proved" source="crates/grove/src/cli.rs" lines="232-250" parent="surface-closure-tests" -->
 ````rust
     #[test]
     fn the_human_command_surface_has_nothing_left_to_select() {
@@ -99,7 +99,7 @@ result with the permitted standalone, log, config and view commands. The nested 
 The second assertion inspects the outer argument identifiers, removes the two
 clap metadata options and refuses any remaining lifecycle selector.
 
-<!-- fragment «closure-test-arguments» owner="closure-proved" source="crates/grove/src/cli.rs" lines="250-267" parent="surface-closure-tests" -->
+<!-- fragment «closure-test-arguments» owner="closure-proved" source="crates/grove/src/cli.rs" lines="251-268" parent="surface-closure-tests" -->
 ````rust
         let show = config.find_subcommand("show").unwrap();
         let options: Vec<_> = show
@@ -136,7 +136,7 @@ The convention test walks the model and reports each missing description with
 its full command path. It protects nested configuration help, the kind filter, the viewer command and WORKTREE argument;
 it does not establish whether an existing description is accurate.
 
-<!-- fragment «describes-test-doc» owner="closure-proved" source="crates/grove/src/cli.rs" lines="210-215" parent="surface-closure-tests" -->
+<!-- fragment «describes-test-doc» owner="closure-proved" source="crates/grove/src/cli.rs" lines="211-216" parent="surface-closure-tests" -->
 ````rust
 
     /// `grove retire --no-launch` shipped with **no doc comment at all** and
@@ -150,7 +150,7 @@ it does not establish whether an existing description is accurate.
 The convention test passes the real parser model to the helper, then fails
 with every undescribed command path in its diagnostic.
 
-<!-- fragment «describes-test» owner="closure-proved" source="crates/grove/src/cli.rs" lines="216-225" parent="surface-closure-tests" -->
+<!-- fragment «describes-test» owner="closure-proved" source="crates/grove/src/cli.rs" lines="217-226" parent="surface-closure-tests" -->
 ````rust
     #[test]
     fn the_human_facing_binary_describes_every_option_it_lists() {
@@ -172,7 +172,7 @@ The helper first checks each argument, then each subcommand and its children.
 It accepts either short or long help, after trimming. Recursion lets the same
 check cover deeper command trees without being taught a separate inventory.
 
-<!-- fragment «undescribed-doc-purpose» owner="closure-proved" source="crates/grove/src/cli.rs" lines="172-175" parent="surface-closure-tests" -->
+<!-- fragment «undescribed-doc-purpose» owner="closure-proved" source="crates/grove/src/cli.rs" lines="173-176" parent="surface-closure-tests" -->
 ````rust
 
     /// Collect every `<command path> :: <thing>` in `cmd`'s subtree that appears
@@ -184,7 +184,7 @@ check cover deeper command trees without being taught a separate inventory.
 The argument loop accepts either help form only when its trimmed text is
 nonempty, and records the argument identifier otherwise.
 
-<!-- fragment «undescribed-arguments» owner="closure-proved" source="crates/grove/src/cli.rs" lines="189-198" parent="surface-closure-tests" -->
+<!-- fragment «undescribed-arguments» owner="closure-proved" source="crates/grove/src/cli.rs" lines="190-199" parent="surface-closure-tests" -->
 ````rust
     fn undescribed(cmd: &clap::Command, path: &str, out: &mut Vec<String>) {
         for arg in cmd.get_arguments() {
@@ -202,7 +202,7 @@ nonempty, and records the argument identifier otherwise.
 The command loop applies the same rule to descriptions and descends into each
 subcommand, preserving the full path for actionable diagnostics.
 
-<!-- fragment «undescribed-subcommands» owner="closure-proved" source="crates/grove/src/cli.rs" lines="199-209" parent="surface-closure-tests" -->
+<!-- fragment «undescribed-subcommands» owner="closure-proved" source="crates/grove/src/cli.rs" lines="200-210" parent="surface-closure-tests" -->
 ````rust
         for sub in cmd.get_subcommands() {
             let described = [sub.get_about(), sub.get_long_about()]
@@ -225,7 +225,7 @@ Each binary owns its own parser. Sharing the short check would require a
 separate test crate or a new library surface solely for tests. The comment
 records that trade-off; it is not a claim that future edits cannot diverge.
 
-<!-- fragment «undescribed-doc-twice» owner="closure-proved" source="crates/grove/src/cli.rs" lines="176-185" parent="surface-closure-tests" -->
+<!-- fragment «undescribed-doc-twice» owner="closure-proved" source="crates/grove/src/cli.rs" lines="177-186" parent="surface-closure-tests" -->
 ````rust
     /// **This walk exists twice**, here and in
     /// `crates/grove-llm/tests/help_surfaces.rs`, and that is the cost of the two
@@ -247,7 +247,7 @@ Clap can retain an explicitly empty help string as metadata. Testing presence
 alone would accept a visually blank help row. Trimming and checking for a
 nonempty value closes that gap.
 
-<!-- fragment «undescribed-doc-empty» owner="closure-proved" source="crates/grove/src/cli.rs" lines="186-188" parent="surface-closure-tests" -->
+<!-- fragment «undescribed-doc-empty» owner="closure-proved" source="crates/grove/src/cli.rs" lines="187-189" parent="surface-closure-tests" -->
 ````rust
     /// A description counts only if it is non-empty after trimming: clap treats
     /// `#[arg(help = "")]` as present, and an empty string renders exactly like
@@ -273,4 +273,4 @@ the declared CLI surface. The description test enforces help presence. None
 establishes all runtime behavior: the viewer fixtures and terminal smoke
 exercise navigation, refresh and cleanup through the actual application.
 
-[Previous: Three steps](03-three-steps.md) | [Contents](README.md) | [Next: What the call reaches](05-what-the-call-reaches.md)
+[Previous: Lifecycle startup](03-three-steps.md) | [Contents](README.md) | [Next: What the call reaches](05-what-the-call-reaches.md)

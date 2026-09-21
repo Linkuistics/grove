@@ -1,9 +1,9 @@
 //! **Grove does not depend on the `linkuistics` plugin silently.**
 //!
-//! Grove's methodology requires that plugin and neither ships nor installs it —
-//! the two are separate products with separate install steps — so a machine
-//! without it reads every `linkuistics:` citation as a pointer at a skill that is
-//! not there. The rule `plugin-prerequisite`
+//! Grove's methodology may be loaded without that plugin outside Codex's
+//! bundled startup installation. Marketplace users can install the two plugins
+//! separately, so a machine without Linkuistics reads every `linkuistics:`
+//! citation as a pointer at a skill that is not there. The rule `plugin-prerequisite`
 //! (`plugins/grove/conformance/rules.tsv`) closes that by requiring each citation
 //! to state **what binds in the plugin's absence**, and the generating question
 //! is per citation: does the absence change *what* a session writes, or only *how

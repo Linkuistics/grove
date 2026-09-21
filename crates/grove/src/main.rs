@@ -10,6 +10,7 @@ mod cli;
 mod config;
 mod config_json;
 mod examples;
+mod provision;
 mod run_display;
 mod standalone;
 

@@ -6,8 +6,9 @@ reserved markers. Grove validates that shape and nothing else. It holds no list
 of kinds, no enum of them, and no count of them.
 
 The set of kinds that *exist* is the set of `grove-<kind>` skills the installed
-methodology ships. Grove never reads that set: it renders a kind's token into a
-skill name and into a configuration key, and interprets it in neither.
+methodology ships. Tree parsing and launch selection never read that set: they
+render a kind's token into a skill name and configuration key. Codex provisioning
+discovers bundled skills for delivery, without using them to restrict kinds.
 
 **Grove spells exactly two kind tokens**, and only where it writes the leaf
 itself with no session to delegate to:
@@ -21,7 +22,8 @@ Both are grove recognising a leaf it authored. Three sites ask about the second 
 `finish` sorting last in selection, the grow verbs refusing to create one, and
 teardown — and all three go through one predicate rather than carrying a token.
 
-A kind for which no skill is installed **parses, and launches**. The failure is
+An independently authored kind for which no skill is installed **parses, and
+launches**. The failure is
 reported by the session that could not load the skill, where a human is present
 to read it. A kind for which no launch template resolves is refused before the
 tree is mutated, naming the kind and the file that must declare it.
@@ -78,13 +80,13 @@ consolation:
   the machine, so a leaf that parses on one machine is malformed on another and
   a whole subtree disappears from `pick` because a skill was not installed —
   precisely the silent loss the `Malformed`/`Foreign` split exists to prevent.
-  And grove cannot see the installed set anyway: a plugin is installed per
-  machine by a marketplace the binary does not read, so any such enumeration
-  would be a guess at a path.
+  Codex provisioning can inspect its bundled snapshot, but that snapshot does
+  not enumerate custom or marketplace-installed skills. Delivery inventory is
+  therefore not a grammar boundary.
 - **Keep the enum and add kinds by release.** Rejected: it is the status quo
   whose price this record states. It also does not survive the plugin — the
-  methodology already ships and installs separately from the binary, so the
-  binary's roster and the installed skill set can already disagree, and the enum
+  methodology can also be installed independently of the binary, so a fixed
+  roster and the installed skill set can disagree, and the enum
   bought no protection against the one disagreement that matters.
 - **Validate nothing at all** — take the kind as an opaque string with no shape
   rule. Rejected: the token is written into a filename beside a slug and read

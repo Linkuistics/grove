@@ -124,6 +124,7 @@ fn run_grove(home: &Path, worktree: &Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_grove"))
         .current_dir(worktree)
         .env("HOME", home)
+        .env_remove("CODEX_HOME")
         .output()
         .unwrap()
 }
@@ -288,10 +289,8 @@ exit 0
     assert!(log.contains("model=<unset>\n"), "{log:?}");
     assert!(log.contains("skill=<unset>\n"), "{log:?}");
     assert!(log.contains("llm=<unset>\n"), "{log:?}");
-    // The home carries a `.codex` marker — the exact condition the deleted
-    // registry read as "sweep the embed into this harness". A launch writes no
-    // skill directory since `delete-provisioning-k19`; the methodology is a
-    // plugin a human installs, and grove's own launch path never touches it.
+    // Bare startup provisions canonical `.agents/skills` for this Codex home.
+    // A fresh legacy `.codex/skills` installation is deliberately not created.
     assert!(!home.join(".codex/skills/grove").exists());
 }
 
@@ -1142,11 +1141,9 @@ fn cli_metadata_exposes_view_and_writes_no_skill_directory() {
         format!("grove {}\n", env!("CARGO_PKG_VERSION"))
     );
     assert!(!obsolete.status.success());
-    // **The behavioural witness for `delete-provisioning-k19`.** The home above
-    // carries a `.codex` marker, which is exactly what the deleted registry
-    // treated as "this harness is installed, sweep the embed into it". No run of
-    // the binary may create that directory any more — not the metadata paths
-    // above, and not the refused verb, which used to be the sweep's entry point.
+    // Metadata paths and refused verbs bypass provisioning, even with a Codex
+    // marker. They create neither canonical skills nor a legacy installation.
+    assert!(!home.join(".agents/skills").exists());
     assert!(!home.join(".codex/skills/grove").exists());
 }
 

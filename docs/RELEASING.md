@@ -403,20 +403,18 @@ formula:
 scripts/release-build.sh
 ```
 
-The script used to assert, on each staged pair before archiving, that **both**
-binaries carried the embedded methodology — scanned rather than run, because two
-of the three targets are cross-compiled. `delete-provisioning-k19` deleted the
-embed, so neither binary carries a corpus and there is nothing for a binary scan
-to assert; the check and its marker phrase went with it.
+The human-facing `grove` binary embeds the repository's plugin snapshot at
+build time. Bare startup provisions its Codex-compatible skills, so archive
+and Homebrew users receive matching bundled bytes without another download.
+The `grove-llm` binary does not embed or install skills.
 
-**What now needs releasing alongside the binaries is the methodology itself.**
-It is the `grove` plugin under `plugins/grove/`, versioned by this repository's
-commit SHA for Claude Code and by the checkout for `plugins/install.sh`, so it
-reaches users when this commit does rather than when an archive is built. A
-release that changes a `grove-llm` verb the methodology instructs therefore has
-to land both halves in the same commit — which `crates/grove-llm/tests/instructed_verbs.rs`
-asserts — and users on an older plugin can still reach a verb skew. Say so in the
-changelog when a release moves the verb surface.
+Claude Code still receives the three plugins through the marketplace, versioned
+by the repository commit SHA; its setup instructions must retain marketplace
+auto-update. Manual `plugins/install.sh` users follow their checkout. A release
+that changes an instructed verb must land the methodology and CLI together —
+`crates/grove-llm/tests/instructed_verbs.rs` checks that contract. Marketplace or
+manually installed skills can still differ from the installed CLI; describe
+verb-surface changes in the changelog.
 
 Inspect `target/dist/`, which should contain three `.tar.xz` archives and
 `grove.rb`. Then publish both repositories:

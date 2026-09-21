@@ -53,8 +53,8 @@
 #
 # What that shows: the configured argv reaching the real foreground child and a
 # fresh completion-signal path granted to it. It shows nothing about the
-# methodology, which since delete-provisioning-k19 the binary neither carries nor
-# installs. Point `HOME` at a directory with no `config.kdl` for the other half:
+# methodology delivery: that needs an isolated Codex installation and is covered
+# by skill_provisioning.rs. Point `HOME` at a directory with no `config.kdl` for the other half:
 # the aggregate configuration diagnostic, with no tree mutation.
 #
 # Run this in the same session as the `brew upgrade` — see release.toml on why

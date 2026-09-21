@@ -327,9 +327,9 @@ creating the initial requirements leaf. Existing trees do not require that kind
 merely to transition; the second configuration load still validates the selected
 kind before launch.
 
-The quantifier is per-kind because grove can no longer state a set: it holds no
-set of kinds, writes no skill directory and keeps no registry, so it cannot
-enumerate what the methodology declares.
+The quantifier is per-kind because the grammar admits independently authored
+kinds. The binary's Codex delivery inventory identifies bundled files to install;
+it is not a registry of the kinds a task tree may use.
 
 **The overlay overrides and never supplies**: only an explicit route target in
 the personal base plus selected personal profiles admits a key for local
@@ -858,10 +858,10 @@ stated version control, and grove's published version; and grove's own signallin
 contract. Its first part reproduces the element measured as load-bearing in
 [the wording micro-test](../research/wording-micro-test.md) — one imperative
 naming one target, so the session performs no selection and has nothing to defer.
-There is no list of provisioned skill directories, and the gap that leaves is
-recorded rather than argued away: a harness with a skill-loading affordance is
-unaffected, one without has no fallback, and the reopen condition is a session
-that cannot reach the methodology by the affordance alone.
+The prompt does not enumerate skill directories. The human binary provisions
+bundled Codex-compatible skills before entering the loop; other harnesses use
+their own installation route. A session still needs its harness's skill-loading
+affordance, and independently authored kinds need separately installed skills.
 
 **The signalling contract's own gap.** One contract for every kind replaces two
 per-kind signal files whose split existed so that a `finish` prompt never carried
@@ -890,17 +890,19 @@ binary remains as a fallback, not as the mechanism. There is no methodology
 content hash and no build-pairing report: a release version orders and means
 something to a human, which a content hash never did.
 
-**The cost is the one a build-pairing report existed to prevent:** grove does not
-guarantee the methodology is present, so a session can be launched pointing at a
-skill that is not installed. That is a message, not machinery — grove states the
-version it is and names the install route, and stops.
+**The remaining delivery limit:** bare startup verifies the bundled Codex
+snapshot, but does not inspect Claude marketplace state, validate independently
+authored skills or pair every `grove-llm` on PATH with that snapshot. The prompt
+states the driver version; each harness must still load its named skill.
 
 ### 11 — The methodology ships as a plugin, and how fat each skill is
 
-Grove writes no skill directory. The methodology installs the way this repo's
-other skill plugins do — a marketplace entry, and a symlink farm elsewhere, where
-a skill declares its own harness eligibility rather than a registry deciding for
-it. A kind exists **iff** a skill of that name exists.
+The plugin tree is the authoritative methodology source. Claude Code uses the
+marketplace with auto-update; bare `grove` installs its embedded snapshot of
+Codex-compatible skills before launch. The manual installer remains available
+for checkout delivery. Each skill declares its own harness eligibility. See
+[codex-skill-provisioning](codex-skill-provisioning.md) for the binary adapter's
+ownership and repair contract. A kind exists **iff** a skill of that name exists.
 
 The plugin ships one `grove-<kind>` skill per kind over a shared `grove` spine.
 The fatness rule:

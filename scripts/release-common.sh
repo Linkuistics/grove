@@ -32,9 +32,9 @@ TARGETS=(
 # cross-compiled, so a linker or codegen setting that kept the embed out of a
 # shipped binary was not something the test-profile pair could speak to.
 #
-# Neither binary embeds anything now: the methodology ships as the grove plugin,
-# and the marker phrase is not in either artifact. There is nothing left for a
-# binary scan to assert.
+# Codex startup now uses a plugin snapshot embedded in grove alone. The old
+# content/ marker and dual-binary pairing contract remain retired; provisioning
+# tests verify the new installation boundary.
 
 # Put rustup's shim directory at the FRONT of PATH, so the release build gets a
 # coherent rustup toolchain rather than whatever `cargo` happens to resolve to.

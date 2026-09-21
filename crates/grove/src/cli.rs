@@ -158,6 +158,7 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     }
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
+    crate::provision::ensure_codex_skills()?;
     let templates = TemplateSource::from_env()?;
     match grove_loop::run(&workspace, lease, &templates)? {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),

@@ -609,21 +609,19 @@ harness's own skill-loading affordance. **A kind exists iff a skill of that name
 exists** — adding one is authoring a skill and declaring a template for it, never
 editing or rebuilding a binary.
 
-**Grove does not install it, and does not check that it is there.** The binary
-used to carry the methodology as an embedded `content/` tree and sweep it into
-every installed harness's personal skill directory on each bare `grove`
-invocation; that is gone, along with the build-pairing report the shared
-directories made necessary. Installing the plugin is a human step — see
-[Install the skill plugins](../README.md#install-the-skill-plugins) — and the
-cost of the change is that a session can now be launched pointing at a skill
-that is not installed. Grove states the version it is and names the skill; a
-harness with a skill-loading affordance reads it, and one without has lost its
-fallback.
+For Codex, bare `grove` installs and repairs every bundled compatible skill
+before launching the first child. It detects `~/.codex` or an explicit
+`CODEX_HOME`, and publishes skills in `~/.agents/skills` from the binary's
+embedded snapshot. An installation error prevents launch. Existing unrelated
+skills are preserved; a same-name collision reports the path to move aside.
+Claude Code uses the marketplace with auto-update enabled, and other harnesses
+use the manual installer. See
+[Install the skill plugins](../README.md#install-the-skill-plugins).
 
-Editing the methodology in a checkout reaches a session as soon as the plugin
-resolves to that checkout, which for the symlink farm is immediately and for
-Claude Code is the next marketplace update — the build boundary that used to sit
-between an edit and a session is gone with the embed.
+A checkout edit reaches marketplace and manual-install users through their
+respective update route. Codex auto-provisioning uses the installed binary's
+snapshot, so those edits require rebuilding and installing Grove. Independently
+authored session-kind skills remain the configuration author's responsibility.
 
 <a id="usage-tree-verbs"></a>
 ## The `grove-llm` verbs over the tree

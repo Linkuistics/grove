@@ -5,7 +5,7 @@ published through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). They
 share this repo with the Grove CLI because the two change in lockstep
 ([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
-path and are installed separately from Grove.
+path for Claude Code, while the Grove binary embeds their snapshot for Codex.
 
 The vocabulary of authoring, packaging, triggering and installing a skill is in
 [`CONTEXT.md`](CONTEXT.md).
@@ -13,16 +13,15 @@ The vocabulary of authoring, packaging, triggering and installing a skill is in
 ## `grove` — the methodology, as skills
 
 Grove's own methodology: one shared `grove` spine skill, with one
-`grove-<kind>` skill per session kind beside it. It is **the** delivery path —
-it replaced the `grove` binary provisioning an embedded `content/` tree, which
-`delete-provisioning-k19` deleted, so this is the only copy. Its own
+`grove-<kind>` skill per session kind beside it. The plugin tree is the
+authoritative copy: Claude Code loads it through the marketplace, and Grove
+embeds it for Codex startup provisioning. Its own
 [`grove/README.md`](grove/README.md) carries the fatness rule, the migration
 ledger, and the dependency-free conformance runner that asserts delivery over the
 shipped skill set.
 
-Every skill in it declares `harnesses: [claude-code]` for now — the binary still
-owns `~/.codex/skills/grove` and `~/.pi/agent/skills/grove`, and `install.sh`
-refuses to install over a real directory at a path it does not own.
+Grove skills declare `harnesses: [any]`. Both automatic Codex provisioning and
+the manual installer select skills through this metadata.
 
 ## `linkuistics` — engineering-practice skills
 
@@ -88,7 +87,34 @@ repo URL — it was already `linkuistics` while this tree lived in
 `Linkuistics/skills`, so every `linkuistics:<skill>` reference is unaffected by
 the move. Only where you add the marketplace *from* changed.
 
-## Install — Codex, Gemini CLI, other SKILL.md harnesses
+## Install — Codex
+
+Bare `grove` checks for an existing `~/.codex` directory or an explicit
+`CODEX_HOME`, then installs every bundled Codex-compatible skill in
+`~/.agents/skills` before launching a child. That includes Grove, Linkuistics
+and Testanyware; Claude-only `guardrail` is excluded. The binary contains a
+complete plugin snapshot, including supporting resources and executable scripts,
+so startup needs no checkout or network access.
+
+The snapshot and installation lock live under `~/.agents/.grove`, shared across
+Codex homes using that user's skill directory. Grove compares the installed
+snapshot with its embedded files, publishes a replacement when needed, and
+repairs its links. Correct installations are left untouched and produce no
+message. Old snapshots remain available to readers already using them.
+
+Missing links and recognized Grove links are managed automatically. Existing
+manual-installer links into this repository's plugin layout may be adopted;
+Grove-owned links already in `$CODEX_HOME/skills` keep working too. A fresh
+install only creates links in `~/.agents/skills`. Real files, directories and
+unrelated symlinks with a bundled skill's name are preserved: Grove reports the
+collision and stops before launch. Move the reported entry aside, then retry.
+
+Automatic installations follow the **installed binary's** snapshot. Rebuild and
+install Grove to use edited skill bytes; marketplace and manual-checkout updates
+have their own lifetimes. Help, version, configuration inspection/examples,
+viewing and standalone invocations do not install skills.
+
+## Manual install — Gemini CLI, Pi and checkout-based Codex
 
 ```
 git clone https://github.com/Linkuistics/grove.git
@@ -96,8 +122,8 @@ cd grove
 ./plugins/install.sh
 ```
 
-[`install.sh`](install.sh) symlinks each **eligible** skill directory — from both
-plugins — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
+[`install.sh`](install.sh) symlinks each **eligible** skill directory — from
+all three plugins — into `~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/`
 (only for harnesses that are installed). Because the targets are symlinks,
 `git pull` refreshes the content in place — re-run the script only when skills are
 added, removed, or change which harnesses they declare.
@@ -114,11 +140,9 @@ the declaration that caused it:
 skip   codex  guardrail  (harnesses: claude-code)
 ```
 
-A skill with **no** `harnesses:` key is installed nowhere and named in a note —
-the safe direction, plus the report that makes it observable. Silence either way
-would have been wrong: 15 of the 16 bundled skills are portable, so
-install-everywhere would mis-install the one that cannot work and Claude-Code-only
-would withhold the other 15.
+A skill with **no** `harnesses:` key is installed nowhere and named in a note.
+The allowlist keeps harness-specific instructions out of incompatible sessions
+without withholding the portable skills.
 
 A skill may also declare `assumes-personal-setup: true` — its content names the
 author's own models, subscriptions, or machine configuration, so it is correct
@@ -145,31 +169,22 @@ as an error. It detects that and refuses. Pass `--force` when linking from a sid
 tree is what you actually want (testing an unmerged skill against a live
 harness), and re-run from the main checkout afterwards to repair the links.
 
-`install.sh` covers `testanyware` too. It is one skill, `using-testanyware`, and
-it is a wrapper over a CLI — nothing in it depends on a particular harness, so it
-declares `[any]` and installs everywhere like the portable `linkuistics` skills.
-Its exclusion until now was an artefact of the script scanning one plugin
-directory, not a judgement about the skill.
+`install.sh` covers all three plugins: `grove`, `linkuistics`, and `testanyware`.
+It selects skills eligible for each detected harness using their `harnesses:`
+frontmatter.
 
-It covers the `grove` plugin too, since `delete-provisioning-k19`: all twenty of
-its skills declared `harnesses: [claude-code]` while the binary owned
-`~/.claude/skills/grove`, `~/.codex/skills/grove` and `~/.pi/agent/skills/grove`,
-and every one flipped to `[any]` when the binary stopped writing them.
+A real file or directory at a target path is an **error**: the installer leaves
+it untouched, installs the other skills, and exits non-zero naming what was not
+installed. If an older installation left a real directory there, preserve any
+files you need, then move it aside or remove it and rerun the installer.
 
-A real file or directory at a target path is an **error**: the path is left
-untouched, every other skill still installs, and the run exits non-zero naming
-what was not installed. Leaving it as a `warn` among the `ok` lines meant an
-uninstalled skill read as a successful install. The one case that reliably
-produces it is a directory an older grove build swept into place; remove it by
-hand and re-run.
-
-The `grove` binary installs nothing at all — not these plugins and, since
-`delete-provisioning-k19`, not its own methodology either. See
-[`../README.md`](../README.md).
+Bare `grove` can adopt these Codex links at its next startup, replacing them
+with links to its bundled snapshot. Gemini CLI and Pi links remain managed by
+this script.
 
 ## Versioning
 
-**Neither `plugin.json` declares a `version`, and that is deliberate — do not add
+**No `plugin.json` declares a `version`, and that is deliberate — do not add
 one.** Without it Claude Code versions a plugin by the commit SHA of its source,
 and the source is the repo rather than the subdirectory, so all three plugins report
 one shared version that moves with every commit. Every push therefore delivers: edit a

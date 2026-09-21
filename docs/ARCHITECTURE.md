@@ -1,7 +1,8 @@
 # Grove Architecture
 
 Grove is a small Rust launcher around a filesystem task tree, with the agent
-methodology it names shipped separately as a plugin. Durable work stays in
+methodology authored as plugin files and delivered through each harness's
+installation path. Durable work stays in
 ordinary repository files and VCS;
 Grove adds only enough coordination to own one working tree, select one task,
 launch one configured agent session, and continue until the tree is complete.
@@ -95,29 +96,24 @@ title does not change the anchor.
 <a id="skills-monorepo"></a>
 ## Repository products
 
-The repository contains two independently installed products:
+The repository contains the CLI and three skill plugins:
 
 | Product | Source | Delivery |
 |---|---|---|
 | Grove CLI | `crates/` | Homebrew installs `grove` and `grove-llm`. |
-| Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, or `plugins/install.sh` for the skills whose `harnesses:` key declares them installable off Claude Code. |
+| Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, automatic Codex provisioning by bare `grove`, or `plugins/install.sh` for manual checkout delivery. |
 
-Grove and the skill plugins share a repository because their documented
-interfaces evolve together, but they do not install one another.
-
-**The methodology is a plugin, and grove installs nothing.** It used to sit in
-both rows: the binary compiled a `content/` tree into itself and swept it into
-every installed harness's skill directory on each invocation.
-`delete-provisioning-k19` deleted that half, so `plugins/grove/` is the only
-copy and it installs the way its two neighbours do
-([`../plugins/grove/README.md`](../plugins/grove/README.md)). Grove names the
-skill a session needs and does not check that it is there.
+Their documented interfaces evolve together. `plugins/` is the authoritative
+skill source; the human binary embeds its snapshot and provisions all skills
+whose `harnesses:` metadata permits Codex. Claude Code retains marketplace
+installation and auto-update. No harness is inferred from the configured
+command, which remains opaque.
 
 ## Runtime flow
 
-The path one invocation takes — the three steps the binary performs before the
+The path one invocation takes — the startup checks the binary performs before the
 call, and the shape of each foreground iteration behind it — is described in the
-overview's [*Three steps*](walkthroughs/overview/03-three-steps.md#one-iteration).
+overview's [*Lifecycle startup*](walkthroughs/overview/03-three-steps.md#one-iteration).
 
 **Two advisory steps used to open every iteration and are gone.** The driver
 restored any skill directory another build had clobbered, and re-checked the
@@ -126,7 +122,8 @@ identity — a mid-loop `brew upgrade` being exactly the skew a start-time check
 misses. Both had the same subject, the embedded corpus, and both went with it at
 `delete-provisioning-k19`. Nothing in the iteration is advisory now:
 configuration, lease, and workspace layout are facts the driver establishes
-directly and stops on, and the methodology's delivery is the human's.
+directly and stops on. Codex provisioning now happens once in the binary before
+the loop begins; it fails startup on an installation error.
 
 <a id="cli-binary-split"></a>
 <a id="command-surfaces"></a>
@@ -1450,67 +1447,55 @@ template may request.
 <a id="self-extension-core-and-methodology"></a>
 ## How the methodology reaches a session
 
-**It is installed, and Grove has nothing to do with it.** The methodology is the
-`grove` plugin — a spine skill plus one `grove-<kind>` skill per session kind
-([`../plugins/grove/README.md`](../plugins/grove/README.md)) — installed by a
-human through the Claude Code marketplace or `plugins/install.sh`. `${prompt}`
-names the one skill this session's kind needs and carries nothing else about
-delivery.
+The methodology is the `grove` plugin: a shared spine plus one `grove-<kind>`
+skill per bundled session kind. `${prompt}` names the skill a session must load.
+The configuration author supplies any independently authored kind's skill.
 
-### What was here before, and why none of it survived
+For Codex, the human binary owns delivery before entering `grove_loop::run`.
+After workspace resolution and the driver lease, `provision` detects an existing
+Codex installation and reconciles every bundled compatible skill. Build-time
+discovery embeds plugin files and preserves their layout and executable flags.
+The adapter compares complete snapshots, stages changes, and atomically switches
+a current-snapshot link. User skill links in `~/.agents/skills` point through
+that link. A shared lock under `~/.agents/.grove` serializes installers even
+when they use different `CODEX_HOME` values.
 
-Grove used to carry the methodology itself. `content/` was a markdown corpus
-compiled into **both** binaries with `include_dir!`, and every bare `grove` swept
-it into each installed harness's personal skill directory before taking
-ownership of a working tree. Six mechanisms hung off that one idea, and
-`delete-provisioning-k19` deleted all six together:
+Only missing destinations and recognized Grove-managed links are changed.
+Foreign same-name entries cause an actionable refusal before a child launches.
+Existing Grove-owned legacy links stay usable, and old snapshots are retained
+for readers already using resolved paths. The next startup repairs interrupted
+work. See [the provisioning contract](specs/codex-skill-provisioning.md) for
+ownership and failure semantics.
 
-| mechanism | what it was for |
-|---|---|
-| the embed, and `build.rs`'s per-file `rerun-if-changed` walk | making the binary carry a corpus `include_dir!` does not change-track on stable |
-| the harness registry | naming the three directories to sweep into — a row was *a place to write files*, never a program to run |
-| the sweep, its content-hash stamp, and its staging-and-rename | writing those directories idempotently and crash-atomically |
-| the methodology identity (`sha2` over the embed) | naming *which build* a directory or a binary belonged to, since the crate version does not move between a release and an edited checkout at that version |
-| `grove-llm --content-hash`, and the driver's per-iteration probe of it | reporting when the `grove-llm` a session's `PATH` resolves came from a different build than the driver |
-| the per-verb foreign-skill-directory warning, and the absent-destination report | saying so when a directory carried another build's methodology, or when no destination existed at all |
+Claude Code receives the three plugins through its marketplace with auto-update
+enabled. Gemini CLI, Pi and manual Codex checkout users can use
+`plugins/install.sh`. Grove does not alter Claude's skill directories or plugin
+configuration.
 
-Every one of them was machinery for making a **shared mutable directory** safe.
-A plugin has an install route of its own, so there is no directory for two
-builds to contend over, no stamp to compare, and no pairing to report. The two
-records that argued the design — `skill-delivers-the-methodology` and
-`one-build-owns-a-session` — are retired with it.
+### Delivery and build boundaries
 
-### The boundary that survives, and the one that does not
+A running driver is the binary already in memory. Changes to the loop, verbs or
+prompt require rebuilding and installing before a new driver can use them.
+Codex auto-provisioning follows that binary's embedded snapshot, so source skill
+edits also require a rebuild. Marketplace and manual-checkout users instead
+receive changes through their own update route.
 
-**A build boundary still separates an edit to grove's source from the sessions
-it reaches.** A running driver is the build already in memory; it never re-execs,
-so committing a change to the loop, the verbs or the prompt changes nothing any
-session in that loop sees until the binary is rebuilt *and installed*. That is
-what makes a meta-grove's cutover leaves cutover leaves.
+Provisioning establishes bundled Codex bytes at startup. It does not pin them
+for the lifetime of every running session: another Grove build can publish its
+snapshot later, and a configured `grove-llm` can still come from another build.
+`crates/grove-llm/tests/instructed_verbs.rs` verifies that this checkout's skills
+instruct only verbs its CLI exposes. Keep the two halves in one release.
 
-**No boundary separates an edit to the methodology from the next session.**
-Editing a skill in a checkout reaches a session as soon as the install route
-resolves to that checkout — immediately through `install.sh`'s symlinks, at the
-next update through the marketplace. The embed used to make that a build
-question and to drive the skew between skill and CLI to zero by construction;
-that guarantee is now weaker, and it is stated rather than pretended away.
+The earlier `content/` implementation embedded methodology in both binaries,
+swept several harness directories, and added hashes, pairing probes and
+per-iteration repair. `delete-provisioning-k19` removed that system. The Codex
+adapter embeds the plugin sources in `grove` alone; it restores startup delivery
+without restoring the old harness registry or per-verb warnings.
 
-**What still holds the two in step is one test rather than one artifact.**
-`crates/grove-llm/tests/instructed_verbs.rs` asserts that the shipped methodology instructs no
-`grove-llm` verb the CLI lacks — reading the skill set as markdown, file by file,
-so a verb invented in prose or dropped from the CLI fails without anyone
-remembering to add it. It is load-bearing precisely because the skill set is the
-only thing teaching a session which verbs exist, and it pins the flat verb
-surface that makes the comparison mean what it claims. Both halves are versioned
-in this one repository and land in one commit; a user who upgrades one and not
-the other is the residue, and it is
-[`../plugins/grove/README.md`](../plugins/grove/README.md)'s to state.
-
-**The delivery assertion is the plugin's own.** `plugins/grove/conformance.sh`
-walks the shipped skill set and asserts every behavioural rule is present on the
-composed loaded path of every kind that binds it, that no rule has two owners,
-and that every file a skill names by path exists. The Rust suites that made those
-claims over the embedded corpus went with it.
+**Behavioural coverage remains the plugin's own assertion.**
+`plugins/grove/conformance.sh` checks the loaded path of every kind, rule
+ownership and referenced files. Rust provisioning tests separately check which
+bytes and links are installed, repaired or refused.
 
 ### The seven constraints, argued
 
@@ -1720,51 +1705,27 @@ gateable.
 <a id="the-boundary-is-a-build-not-a-commit"></a>
 ### The boundary is a build, not a commit
 
-**For the binary, and no longer for the methodology.** A running driver is the
-build already in memory and never re-execs, so a change to the loop, the verbs
-or the prompt reaches no session in the same loop: the boundary is a rebuild
-*and* an install, not a commit. In a [meta-grove](../CONTEXT.md) that is the whole
-reason a leaf whose deliverable the installed build cannot read has to publish a
-release and stop the loop rather than signal.
+A running driver never re-execs, so a change to the loop, verbs or prompt
+requires a rebuild and install before the next driver can use it. In a
+[meta-grove](../CONTEXT.md), that is why a cutover leaf publishes a release and
+stops the loop rather than signalling another iteration.
 
-**The methodology no longer sits behind that boundary at all**, and what was
-bought by putting it there is worth stating, because it was real. `include_dir!`
-read `content/` at **compile time**, so a session received the methodology its
-own binary was built with, and Grove was the only writer of the skill
-directories — two properties which together made the skew between a skill and
-the CLI it instructs exactly zero:
+Codex's automatically installed skills also come from the binary's build.
+Marketplace and manual-checkout skills have independent update boundaries.
+Either delivery route can still meet a mismatched `grove-llm` on `PATH`, and a
+second driver can update the shared Codex skill links after the first started.
 
 | Skew | What breaks |
 |---|---|
-| Skill **newer** than binary | It instructs verbs added since that build; the binary lacks them. |
-| Skill **older** than binary | It instructs verbs removed since that build; the binary lacks them too. |
+| Skill **newer** than binary | It may instruct verbs added since that build. |
+| Skill **older** than binary | It may instruct verbs removed since that build. |
 
-The second row is the one that surprises, and this repository already holds its
-ingredients: the `v17.0.0` methodology instructs the composition constructors
-deleted after that tag (see the changelog's `### Removed`), so pairing it with
-any post-`v17.0.0` binary hands a session a call that cannot succeed. Neither
-direction is safe, so there was no version of "refresh the skill more eagerly"
-that helped: **the only safe skew is none.**
-
-`delete-provisioning-k19` gave that up deliberately, because the price of keeping
-it was a shared mutable global directory and every mechanism that made one safe —
-stamps, per-iteration repair, a build-pairing probe, a per-verb warning. The
-methodology and the binaries now have separate lifetimes and separate install
-routes, and a user who upgrades one and not the other can reach either row above.
-
-**What replaces the guarantee is a test and a repository boundary.**
-`crates/grove-llm/tests/instructed_verbs.rs` asserts that this checkout's skill set instructs no
-`grove-llm` verb this checkout's CLI lacks — the internally-consistent claim, made
-over the pair that ships together in one commit rather than over one linked
-artifact. No test can inspect a future build, so "the installed skill is current"
-was never a statable claim either; what is statable is that the two halves this
-repository publishes agree with each other.
-
-A stale *installed* binary is an ordinary upgrade concern, diagnosed with
-`grove --version` against the workspace's one version field, and resolved by
-rebuilding and installing — not by anything Grove does at runtime. A stale
-installed methodology is the same kind of concern, resolved by updating the
-plugin.
+`crates/grove-llm/tests/instructed_verbs.rs` checks the source pair this
+repository publishes. Startup provisioning aligns bundled Codex skills with the
+launching Grove binary; it does not prove that all executables and already
+running sessions use that same build. Diagnose binary versions with
+`grove --version` and `grove-llm --version`; update marketplace or manually
+installed skills through their own installation route.
 
 ## Main module seams
 
@@ -1776,10 +1737,9 @@ from its package map onward.
 **The workspace root is not a package**, so a module's package is part of its
 identity (`docs/specs/module-decomposition.md`, decision 1).
 
-There is no `harness`, `methodology` or `provision` module. All three were
-provisioning's — a registry of directories to sweep into, the embed and its
-identity, and the sweep itself — and went at `delete-provisioning-k19`. There is
-no `leaf` module either: it held `Kind`, which is `task_name`'s since
+The human binary owns `provision`, a private adapter for Codex skill delivery.
+There is no harness-routing registry or methodology identity module. There is
+no `leaf` module: it held `Kind`, which is `task_name`'s since
 `open-kind-k20` made a kind an ordinary validated word of the filename grammar.
 
 The modules are intentionally file-sized rather than wrapped in another
@@ -1823,16 +1783,14 @@ The principal checks are one command:
 bash scripts/check.sh
 ```
 
-It runs seven — `cargo fmt --all --check`, `shellcheck`, `cargo clippy
---workspace --all-targets`, `bash plugins/install.test.sh`, the two conformance
-scripts, and `cargo test --locked --workspace` — announces the `cargo` and
-`rustfmt` its PATH resolved, and ends on a punch list of whichever failed.
-`--workspace` on both cargo lines because this root is *also* a package: a bare
-invocation tests and lints `grove` alone and leaves the other five crates unread.
+The script owns the check list: formatting, shell and Rust linting, plugin
+installation and conformance, release tooling, workspace tests and source-exact
+book validation. It announces the resolved toolchain and reports each failed
+check at the end.
 
 The two conformance scripts are the methodology's own, and they are shell rather
 than Rust because the thing they assert about — the composed loaded path of an
-installed skill set — has no counterpart in the binary
+installed skill set — is a property of plugin content rather than its delivery
 ([`behavioural-coverage-asserts-delivery`](adr/behavioural-coverage-asserts-delivery.md)).
 
 **Nothing gates these checks.** There is no CI in this repository, and the

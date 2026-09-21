@@ -36,14 +36,14 @@ that phrase has a referent.
 | Product | Source | What installs it |
 |---|---|---|
 | The Grove command-line tool: `grove` and `grove-llm` | `crates/` | Homebrew, or `cargo install` from the workspace |
-| The agent skill plugins, `grove` among them | `plugins/` | A harness's plugin marketplace, or `plugins/install.sh` |
+| The agent skill plugins, `grove` among them | `plugins/` | Claude marketplace, bare Grove startup for Codex, or `plugins/install.sh` |
 
-Neither product installs the other. The binary names the `grove-<kind>` skill a
-session must load and does not check that the plugin holding it is present;
-whether a machine has the methodology installed is outside anything the binary
-reads. `crates/grove` is the entry point to the first product only, and every
-page of this book is about that product. The plugin is in no crate and therefore
-in no book; *What the call reaches* names it and stops.
+The binary names the `grove-<kind>` skill a session must load. Bare startup
+provisions all bundled Codex-compatible skills before the loop begins; Claude
+Code uses marketplace delivery and auto-update. The plugin files stay the
+authoritative source, and build-time discovery embeds them in the human binary.
+This book explains the delivery adapter; it does not reconstruct the plugin
+content itself.
 
 <a id="package-identity"></a>
 ## The package, and what it inherits
@@ -95,7 +95,7 @@ rather than paraphrased because every later page is a longer reading of one
 clause of it. Bare `grove` parses no argument that selects anything,
 acquires the driver lease, and calls `grove_loop::run`. That call is the
 loop's single entry
-point, and the bare lifecycle after its three setup steps is behind it — the
+point, and the bare lifecycle after its startup checks is behind it — the
 loop's own pages are another book's, and this page names the call so the reader
 can see where the book stops. The comment cites decision 9 of
 `docs/specs/module-decomposition.md`, which is the design record that put the
@@ -299,7 +299,7 @@ against the repository. `libc` is for `kill(2)`: the loop fixture sends the
 driver `SIGTERM` to drive its interrupt path — the handler catches `SIGHUP`
 too, and no fixture sends it — and `std::process::Child::kill` sends
 only `SIGKILL`, which is exactly the signal the driver cannot answer. That
-path — the driver dying of the signal it was sent — is *Three steps*' second
+path — the driver dying of the signal it was sent — is *Lifecycle startup*'s second
 ending, and this line is the first trace of it in the corpus. `tempfile`
 supplies the temporary trees.
 
@@ -329,7 +329,7 @@ workspace = true
 ## One invocation, end to end
 
 This is the invocation the book carries. It appears at low resolution here, as
-its argv in *The surface*, at full resolution in *Three steps* with every call
+its argv in *The surface*, at full resolution in *Lifecycle startup* with every call
 and both endings, and in *Proving a negative* as the guard that keeps the argv
 from growing. The tree, the leaf and the template below are fixed here and
 reused unchanged by all three.
@@ -357,7 +357,7 @@ and the human's configuration maps the `impl` kind to a command:
 
 The human is somewhere inside the tree, not at its root, which is the ordinary
 case. Here is what happens, step by step, with the values this tree produces;
-the first three steps are the binary's and the rest is behind the call.
+setup is the binary's responsibility and each iteration is behind the call.
 
 ```text
 $ grove
@@ -365,6 +365,8 @@ $ grove
   resolve   the nearest ancestor of crates/gateway/src holding .jj/ is /work/atlas
   lease     /work/atlas/.jj/grove/driver.lease is locked; this process is the
             tree's one driver for as long as it runs
+  provision install or repair bundled skills when Codex is present
+  templates locate personal launch policy
   run       grove_loop::run(workspace, lease, templates) — once per iteration:
               read the task tree    the first live leaf is rate-limit-k3, kind impl
               read config.kdl       impl's template, expanded into an argv
@@ -376,12 +378,13 @@ $ grove
   -> run returns Ok(()); the process exits 0
 ```
 
-Three of those lines are the bare lifecycle's setup, and each is the subject of a
-later page. *Resolve* is a filesystem walk that ends at the nearest `.jj/`, and
+The setup lines establish facts the loop consumes. *Resolve* is a filesystem walk that ends at the nearest `.jj/`, and
 it refuses a tree with none. *Lease* takes the
 [driver lease](../../../CONTEXT.md#driver-lease) — the one-driver-per-working-tree
 claim, held for the life of the process, so a second `grove` typed in the same
-tree is refused rather than run beside this one. *Run* is the call, and the
+tree is refused rather than run beside this one. *Provision* makes bundled
+Codex skills available, refusing foreign collisions before launch. *Run* is the
+call, and the
 lines indented under it are what the loop prints, not what the binary does: the
 binary has no line of its own between the call and the exit.
 
@@ -391,7 +394,7 @@ value and the process exits 0. The other ending is the driver being sent
 `SIGTERM` or `SIGHUP` mid-grove, and a driver that was killed does not exit 0:
 after the loop has cleaned up, the process dies of the same signal, so whoever
 started it reads `128 + N` instead of success. That ending is the most argued
-claim in the corpus and *Three steps* owns it.
+claim in the corpus and *Lifecycle startup* owns it.
 
 <a id="three-mechanisms"></a>
 ## Entry boundaries and their checks
@@ -405,7 +408,7 @@ job is the invocation itself.
 |---:|---|---|---|
 | 1 | A package boundary: the entry point can reach only what the library publishes | the compiler | Orientation |
 | — | The grammar that results, and the agent surface beside it | — | The surface |
-| — | The three calls, and the signal path | — | Three steps |
+| — | Startup checks and the signal path | — | Lifecycle startup |
 | 2 | A closure property: bare lifecycle selectors are absent and the top-level command set is run, run-log, config and view | `the_human_command_surface_has_nothing_left_to_select` | Proving a negative |
 | 3 | A convention, checked: every option the binary lists is described | `the_human_facing_binary_describes_every_option_it_lists` | Proving a negative |
 | — | The module map and configuration presentation | — | What the call reaches |

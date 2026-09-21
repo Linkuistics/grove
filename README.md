@@ -3,7 +3,7 @@
 Grove is a hierarchical, self-extending workstream tool for AI coding agents.
 It keeps a long project in a small, version-controlled task tree and launches
 one fresh, appropriately configured agent session at a time. The repository
-also contains a separately installed collection of agent skills.
+also contains the agent skills used by those sessions.
 
 ## What's in this repository
 
@@ -12,10 +12,9 @@ also contains a separately installed collection of agent skills.
 | Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over five library crates, the loop that launches one session per task among them. |
 | Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, the Linkuistics coding/design skills, and the Testanyware GUI-testing skill. |
 
-The products share a repository but have separate installation paths, and Grove
-installs none of them. The methodology used to travel inside the binary and be
-swept into each harness's personal skill directory on every launch; it is now
-the `grove` plugin, installed the way the other two are.
+The products share a repository and a release snapshot. Bare `grove` installs
+and repairs the bundled Codex-compatible skills before launching a session.
+Claude Code uses the plugin marketplace with auto-update enabled.
 
 ## Install Grove
 
@@ -24,11 +23,10 @@ brew tap Linkuistics/taps
 brew install grove
 ```
 
-There is no per-project installation step, and no per-machine one beyond the
-configuration below: `grove --version` reports the installed binary version.
-**Install the `grove` plugin as well** — the binary no longer carries the
-methodology, so a session whose harness cannot load that skill has nothing to
-read.
+There is no per-project installation step. `grove --version` reports the
+installed binary version. The first bare `grove` run provisions Codex skills when
+`~/.codex` is a directory or `CODEX_HOME` is set to a nonempty value. Claude Code and other
+harnesses need the setup below.
 
 Grove needs one personal configuration file, `~/.config/grove/config.kdl`, giving
 each session kind you use a complete command template. Grove holds no list of
@@ -42,7 +40,8 @@ a workspace to inspect resolved commands and their origins before launching.
 
 Grove's methodology uses Linkuistics' `decision-records` for ADR discipline and
 `codebase-design` for module design, structural simplicity, and test seams.
-Install the Linkuistics plugin separately using the instructions below.
+Codex receives those skills automatically; install the Linkuistics plugin for
+Claude Code using the instructions below.
 
 ## Browse a task tree
 
@@ -76,22 +75,27 @@ For Claude Code:
 /plugin install testanyware@linkuistics
 ```
 
-`grove@linkuistics` is grove's own methodology as skills, and it is **required**:
-it replaced the binary's embedded `content/`, which no build carries any more.
-See [`plugins/grove/README.md`](plugins/grove/README.md).
+Enable marketplace auto-update (`/plugin` → Marketplaces → Enable auto-update)
+so Claude Code keeps all three plugins current. `grove@linkuistics` supplies
+Grove's methodology; see [`plugins/grove/README.md`](plugins/grove/README.md).
 
-For Codex, Gemini CLI, and Pi, clone this repository and run:
+For Codex, bare `grove` automatically installs every bundled compatible skill
+from Grove, Linkuistics and Testanyware into `~/.agents/skills`. It detects
+`~/.codex` or an explicit `CODEX_HOME`, uses the snapshot embedded in the binary,
+and repairs missing or outdated Grove-managed installations before launch. No
+checkout or network access is needed. Foreign entries with the same name are
+preserved and reported as an error; move those entries aside before retrying.
+
+For Gemini CLI and Pi, clone this repository and run:
 
 ```sh
 ./plugins/install.sh
 ```
 
-That script installs, by symlink, every bundled skill whose `harnesses:`
-frontmatter key declares it installable there — every bundled plugin is scanned, and a
-skill that cannot work off Claude Code (`guardrail`, whose mechanism is a Claude
-Code hook) is skipped and reported rather than linked. See
-[`plugins/README.md`](plugins/README.md) for the complete plugin catalogue and
-installation behavior.
+That script also remains available for checkout-based Codex installations. Both
+routes filter on each skill's `harnesses:` declaration, so Claude-only
+`guardrail` is excluded from Codex. See [`plugins/README.md`](plugins/README.md)
+for the catalogue, ownership rules and installation paths.
 
 ## Documentation
 

@@ -7,9 +7,10 @@ and has driven a grove. Grove vocabulary is linked to the glossary. The
 provides the product entry point; this book explains the code that implements
 its human command surface.
 
-Bare invocation resolves a working tree, takes a driver lease and calls the
-loop. Viewing, configuration inspection and inactive sample delivery return
-before that lifecycle. `grove run` adds a separate lifetime: one configured kind
+Bare invocation resolves a working tree, takes a driver lease, provisions
+bundled Codex-compatible skills when Codex is present, and calls the loop.
+Viewing, configuration inspection and inactive sample delivery return before
+that lifecycle. `grove run` adds a separate lifetime: one configured kind
 in confined temporary storage, with staged inputs, checked output publication
 and a parent-owned transcript. It needs no workspace or task tree.
 
@@ -49,7 +50,7 @@ source.
 
 1. [Orientation](01-orientation.md)
 2. [The surface](02-the-surface.md)
-3. [Three steps](03-three-steps.md)
+3. [Lifecycle startup](03-three-steps.md)
 4. [Proving a negative](04-proving-a-negative.md)
 5. [What the call reaches](05-what-the-call-reaches.md)
 

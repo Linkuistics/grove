@@ -52,6 +52,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.11.0
+
 - Restore automatic Codex skill installation at bare `grove` startup. Bundle all
   compatible Grove, Linkuistics and Testanyware skills, repair Grove-managed
   installations before launch, and preserve unrelated files. Installs work

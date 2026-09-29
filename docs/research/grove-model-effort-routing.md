@@ -4,6 +4,16 @@ Evidence checked 29 September 2026. This is a recommendation and design
 exploration, not a benchmark of these models on Grove's own tasks. Personal
 configuration has not been changed, and no automatic dispatcher is implemented.
 
+## Adopted boundary
+
+The requirements discussion adopted
+[harness selection owned by policy](../adr/harness-selection-is-owned-by-policy.md):
+an independent package in this repository, initially shipped with Grove, with
+selection rules in personal static or TypeScript configuration. The first release
+provides static routing, a programmable selection interface and evaluation
+records; the local-selector pilot below remains follow-up work. The interface
+examples below are proposals, not implemented APIs.
+
 ## Current policy
 
 `grove config show --json` validated the personal configuration with
@@ -77,7 +87,7 @@ Opus = `claude-opus-5-5`, Sonnet = `claude-sonnet-5-5`.
 Sol is an optional fourth model for bounded Codex work; retain Astra medium in
 those rows if minimizing the candidate catalog is more valuable.
 
-**Hard rule: a review always uses a different model provider from the producer
+**Configured rule: a review uses a different provider from the original creator
 of the artifact being reviewed.** All five producer/review pairs below satisfy
 this rule. The recommended reviewer is conditional on its producer remaining
 with the shown provider; a dynamically changed producer may require a different
@@ -164,8 +174,8 @@ The dispatcher owns:
 - global task-kind defaults, project policy and explicit overrides;
 - a catalog of executable harness templates and allowed joint model/effort choices;
 - static selection, or optional bounded dynamic classification;
-- model availability/capability constraints, mandatory cross-provider reviews,
-  and an explicit failure fallback;
+- policy-defined availability/capability constraints and review-provider rules,
+  with diagnostics when a complete selection cannot be made;
 - visible choice/reason reporting and evaluation records.
 
 Initially, Grove's personal command can point to this executable using the
@@ -190,9 +200,9 @@ authority to invent executable commands.
 
 The real harness inherits Grove's working directory, foreground terminal,
 environment and completion channel through `exec`. A selector subprocess has
-Grove control variables removed. Failure/abstention uses the configured static
-choice or stops with a diagnostic, according to explicit policy. Any review
-fallback must still use a different provider from the actual producer. Do not rewrite
+Grove control variables removed. The first-release policy stops when a mapping
+is incomplete or selection fails or abstains; it supplies no automatic fallback.
+The executable does not invent a replacement candidate. Do not rewrite
 `.grove.kdl` before each task: dispatch is an invocation decision, not a global
 configuration mutation. Hold the selected pair fixed during that task session.
 
@@ -222,9 +232,9 @@ Selection = candidate ID + reason + policy/evidence version
 Keep the core responsibilities separate from policy calculation:
 
 1. Load trusted configuration and construct the request.
-2. Apply explicit overrides, or call the configured context loader and selector.
-3. Validate the selected candidate, its supported harness/model/effort values
-   and the mandatory producer/reviewer provider separation.
+2. Pass explicit choice inputs to the configured context loader and policy.
+   The policy applies its selection and review-provider rules.
+3. Validate the returned candidate and its configured harness/model/effort values.
 4. Print or record the decision, and execute the configured argv without a shell.
 
 Task kinds remain open strings, not a Grove enum. Context may contain a summary,
@@ -233,9 +243,9 @@ and caller metadata. Include the degree of abstraction, uncertainty, downstream
 dependencies, consequences and reversibility of errors, and available checks.
 Distinguish caller-supplied facts from selector assessments, and preserve unknown
 values rather than interpreting missing evidence as low risk.
-Record which evidence the selector actually saw. A request
-with inadequate context falls back to static policy rather than quietly guessing
-from a filename or treating unknown scope as easy work.
+Record which evidence the selector actually saw. If a policy lacks the context
+it requires, selection stops with a diagnostic. It does not silently fill that
+gap with a default, guess from a filename or treat unknown scope as easy work.
 
 A Grove context loader can read its brief chain and producer/review evidence;
 a non-Grove loader can read an issue or job description. Context assembly is
@@ -244,30 +254,30 @@ evaluation, and cache by content and policy versions. Do not stuff a whole
 repository into every selection call.
 
 TypeScript is trusted executable code, so it is not a sandbox or a security
-boundary. Personal configuration explicitly opts into any project policy module;
-merely cloning a repository must not cause its code to execute. Preserve the
-same local-policy trust intent as Grove's untracked delta. Dynamic model output
+boundary. Personal configuration or an explicit `--config` argument opts into a
+project policy module; merely cloning a repository must not execute its code.
+Preserve the same local-policy trust intent as Grove's untracked delta. Dynamic model output
 returns a candidate ID, while trusted code owns executable paths and arguments.
-The catalog and static fallback remain readable when the dynamic selector is
+The catalog and static mappings remain readable when computed selection is
 disabled. A dry-run should show the chosen pair, context sources, reason and
 expanded argv without launching a harness.
 
-### Provider separation is an invariant
+### Provider separation belongs to configuration
 
 Represent provider identity explicitly in the candidate catalog: changing a
 gateway, executable or model within one provider does not create independence.
-The request identifies what is being reviewed and its producing task(s). Keep
-actual model/provider execution provenance associated with that artifact;
+Identify what is being reviewed and make its original creator's provider
+discoverable by TypeScript. Keep execution provenance associated with the artifact;
 current configuration cannot reconstruct it after a policy change.
 
-For a review, filter out every recorded producing provider before static or
-dynamic selection, then check the selected candidate again before execution.
-The invariant is `review.provider not in artifact.producingProviders`.
-It applies equally to overrides, retries and fallback choices. Unknown producer
-provenance or an empty eligible set stops dispatch with a diagnostic; the router
-must not weaken the rule to complete a launch. Grove's `review-*` tasks carry
-this relationship explicitly; other callers can declare a review relationship
-without adopting Grove's task naming conventions.
+The supplied policy requires
+`review.provider != artifact.originalCreator.provider`. Supporting contributions
+do not accumulate into an exclusion set, and the first release requires no
+separate model comparison. The rule lives in static configuration or TypeScript
+computation; it is not hard-coded in the generic executable. Unknown creator
+provenance or an empty eligible set is an incomplete selection and stops launch.
+The provenance representation and discovery mechanism remain design work; do not
+infer recorded creator identity from Grove's current route or a task filename.
 
 The TypeScript runtime, module-loading rules and exact interface are design
 choices for the separate dispatcher implementation, not features claimed here.
@@ -313,10 +323,11 @@ evidence against those labels.
 Use task-kind defaults as priors and the particular task/brief as evidence.
 Candidate IDs should name joint harness/model/effort configurations. Deterministic
 policy first filters unavailable models, incompatible tools/context, explicit
-user choices and budget constraints. Reviews also exclude the actual artifact
-producer's provider(s), irrespective of the preferred model or effort.
-Classification then chooses only among
-eligible alternatives, with a static fallback for unfamiliar or uncertain work.
+user choices and budget constraints. Reviews also exclude the artifact's recorded
+original creator's provider, irrespective of the preferred model or effort.
+Classification then chooses only among eligible alternatives. An unresolved
+choice stops rather than invoking an
+automatic fallback.
 
 Jev's [confidence](https://docs.typesafe.ai/confidence) is concentration of its
 choice distribution. If three candidates each have a 95% chance of success,

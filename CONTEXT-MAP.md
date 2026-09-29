@@ -193,6 +193,7 @@ consumer names, and no call site passes one where the other is expected.
   root set is appropriate. A term is defined in the glossary of its owning
   context, never both. The **grove** context owns
   [`complete-session-configuration`](docs/adr/complete-session-configuration.md),
+  [`harness-selection-is-owned-by-policy`](docs/adr/harness-selection-is-owned-by-policy.md),
   [`untracked-configuration-delta`](docs/adr/untracked-configuration-delta.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),

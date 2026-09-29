@@ -437,10 +437,10 @@ fn the_prompt_publishes_the_release_version_the_version_flag_renders() {
 /// The prompt may not name a skill that does not exist, and nothing in the
 /// compiler stops it: `skill_name` renders a token. Before `open-kind-k20` this
 /// swept a compiled roster and asked whether the plugin had caught up; there is
-/// no roster now, so the claim runs the other way — for every skill the plugin
-/// ships, the kind read out of its directory name composes a prompt naming *that
-/// same directory*. A skill whose name is not `grove-<token>`, or a token
-/// `skill_name` renders differently, breaks it.
+/// no roster now, so the claim runs the other way — for every `grove-<kind>`
+/// skill the plugin ships, the kind read out of its directory name composes a
+/// prompt naming *that same directory*. An invalid kind token, or a token
+/// `skill_name` renders differently, breaks it. Operator skills are not kinds.
 ///
 /// This walks **directories**, which is half the claim;
 /// [`every_shipped_skill_declares_the_name_of_its_own_directory`] is the other
@@ -450,11 +450,13 @@ fn the_prompt_publishes_the_release_version_the_version_flag_renders() {
 fn every_kind_names_a_skill_the_plugin_ships() {
     let shipped = shipped_skills();
     let kinds = shipped_kinds();
-    assert_eq!(
-        kinds.len() + 1,
-        shipped.len(),
-        "every shipped skill but the bare `{}` spine must be a `grove-<kind>`: {shipped:?}",
-        prompt::PLUGIN
+    assert!(
+        !kinds.is_empty(),
+        "the plugin must ship task-kind skills for this sweep to exercise prompts"
+    );
+    assert!(
+        shipped.contains(prompt::PLUGIN),
+        "the plugin must ship the shared spine"
     );
     for kind in kinds {
         let skill = prompt::skill_name(&kind);
@@ -553,8 +555,8 @@ fn every_shipped_skill_declares_the_name_of_its_own_directory() {
 /// **This is the whole of what "the kind set" means now**, and it is the
 /// methodology's rather than grove's: `open-kind-k20` deleted `Kind::ALL`, so
 /// there is no compiled roster for a sweep to walk and the shipped plugin is the
-/// only enumerable set there is. The bare `grove` directory is excluded — it is
-/// the shared spine every kind reads, not a kind.
+/// only enumerable set there is. The shared spine and operator skills have no
+/// `grove-` prefix and are excluded because they are not task kinds.
 ///
 /// A directory whose token is not well-formed panics here rather than being
 /// skipped: the prompt would spell it into a skill name either way, and a
@@ -572,8 +574,8 @@ fn shipped_kinds() -> Vec<Kind> {
         .collect()
 }
 
-/// The `grove-*` skill directories the plugin ships, by directory name — the
-/// name a harness registers, and the name a prompt spells.
+/// All skill directories the plugin ships, including the spine and operators,
+/// by the directory name a harness registers.
 fn shipped_skills() -> BTreeSet<String> {
     std::fs::read_dir(plugin_dir().join("skills"))
         .expect("the plugin must ship a skills directory")

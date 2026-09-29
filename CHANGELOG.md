@@ -52,6 +52,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove` / `configure-grove`: add an operator skill for inspecting and updating
+  global model/effort policy and creating project configuration overrides. It
+  checks task contracts and current model evidence, preserves harness permissions,
+  validates resolved routes, and requires cross-provider reviews. Effort guidance
+  accounts for abstraction, consequences of error and downstream rework.
+
 ## v21.11.0
 
 - Restore automatic Codex skill installation at bare `grove` startup. Bundle all

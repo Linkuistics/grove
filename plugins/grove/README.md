@@ -9,6 +9,10 @@ whatever `skills/` holds: no code carries a list of kinds and no assertion count
 them. Prose here describes the set as it stands, which is a different thing from
 machinery holding it.
 
+The separate [`configure-grove`](skills/configure-grove/SKILL.md) operator skill
+maintains personal launch policy and task-specific project overrides. Its name
+does not use the `grove-<kind>` prefix because it is not a lifecycle task kind.
+
 | | |
 |---|---|
 | skills | `grove` — the shared spine — and one `grove-<kind>` per kind |

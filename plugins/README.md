@@ -23,6 +23,10 @@ shipped skill set.
 Grove skills declare `harnesses: [any]`. Both automatic Codex provisioning and
 the manual installer select skills through this metadata.
 
+The `configure-grove` operator skill inspects and updates global model/effort
+defaults and creates task-specific `.grove.kdl` overrides. It is available
+without a task tree and is not a lifecycle kind.
+
 ## `linkuistics` — engineering-practice skills
 
 A suite of agent **skills** that load lazily — only when relevant to the file or

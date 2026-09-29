@@ -1,0 +1,25 @@
+{
+  "title": "Harness selection and execution",
+  "intro": "First-release design, pending independent review. These are source-package and process views, not deployment containers. Graphs begin at a dark Start here node; sequence views begin at the first message.",
+  "groups": [
+    {"id": "boundary", "title": "Package boundary", "description": "One public command, an installed private worker, optional caller adapters."},
+    {"id": "execution", "title": "Execution and authority", "description": "Selection ends before the foreground process becomes the harness."},
+    {"id": "provenance", "title": "Original creator and review", "description": "Artifact identity and observed evidence outlive mutable task paths."}
+  ],
+  "discussion": {
+    "title": "Bounded policy evaluation followed by exec",
+    "status": "Design for review",
+    "summary": "Rust owns admission and durable receipts. A compiled Bun worker evaluates explicitly selected TypeScript without completion authority. Provider separation remains in the supplied policy. Creator registration distinguishes recorded execution from owner declarations.",
+    "diagramIds": ["packages", "handoff", "creator"],
+    "updatedDiagrams": [
+      {"id": "packages", "summary": "Assigned generic launch responsibilities to Rust and programmable selection to a private compiled worker."},
+      {"id": "handoff", "summary": "Made record persistence and worker cleanup precede the final exec handoff."},
+      {"id": "creator", "summary": "Made original-creator registration explicit and same-provider choices refuse without fallback."}
+    ]
+  },
+  "diagrams": [
+    {"id": "packages", "group": "boundary", "title": "Caller, dispatcher and policy packages", "source": "packages.mmd", "caption": "Source packages and runtime participants. Grove-specific relationship parsing belongs to the optional adapter; the generic command has no review-kind list."},
+    {"id": "handoff", "group": "execution", "title": "Prepare, record and replace the foreground process", "source": "handoff.mmd", "caption": "The worker shares the enclosing job and receives no interactive stdin. Cancellation or timeout before admission launches nothing. Post-exec measurements require an external observer."},
+    {"id": "creator", "group": "provenance", "title": "Resolve one creator before selecting a reviewer", "source": "creator.mmd", "caption": "The policy owns provider comparison. A receipt of an attempted exec alone is insufficient for recorded creator registration; the owner can instead make an explicit declaration. Re-invocations preserve the existing creator association."}
+  ]
+}

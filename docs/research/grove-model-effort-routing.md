@@ -16,6 +16,9 @@ includes TypeScript evaluation without a separately installed runtime. The first
 release provides static routing, a programmable selection interface and evaluation
 records with later outcome entry; the local-selector pilot below remains follow-up
 work. The interface examples below are proposals, not implemented APIs.
+The resulting [harness-dispatch design](../specs/harness-selection-and-execution.md)
+now owns the interface and delivery choices; the research examples remain
+exploratory evidence rather than an alternate protocol contract.
 
 ## Policy inspected during research
 

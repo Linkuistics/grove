@@ -3,6 +3,18 @@ version: '3'
 set: [errexit, nounset, pipefail]
 
 tasks:
+  check:
+    desc: Run the repository's reusable checks
+    cmds:
+      - bash scripts/check.sh
+
+  design:harness-selection:
+    desc: Serve the harness selection design at localhost (default port 8769)
+    vars:
+      PORT: '{{.PORT | default "8769"}}'
+    cmds:
+      - python3 -m http.server {{.PORT}} --bind 127.0.0.1 --directory docs/design/harness-selection-and-execution
+
   release:patch:
     desc: Publish and install the next patch release
     cmds:

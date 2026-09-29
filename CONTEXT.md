@@ -919,6 +919,31 @@ review policy; changing a gateway or harness does not change that origin.
 The one producer execution associated with an artifact for review selection,
 whose **selection provider** is execution-recorded or explicitly declared by the
 owner; it is neither today's producer mapping nor the set of all contributors.
+The harness-dispatch design registers one original creator explicitly; a retry
+or an attempted handoff does not choose or replace that association.
+
+<a id="dispatch-scope"></a>
+### Dispatch scope
+
+The opaque namespace paired with a stable artifact ID in harness-dispatch's
+execution evidence. Grove's adapter supplies one per live grove in a workspace;
+it is not a session epoch, tree lifetime proof, or authority to mutate the tree.
+Records keep the scope after the task tree is removed.
+
+<a id="joint-candidate"></a>
+### Joint candidate
+
+One owner-configured harness, model and reasoning-effort choice, with an explicit
+provider-origin label and a stable catalog ID. An explicit dispatch choice names
+the whole candidate rather than overriding its individual attributes.
+
+<a id="handoff-attempt"></a>
+### Handoff attempt
+
+The durable execution intent recorded immediately before harness-dispatch tries
+to replace its process with the selected harness. It proves neither that exec
+succeeded nor that the task was accepted; later observations retain their own
+source and evidence.
 
 <a id="spec"></a>
 ### Spec (`docs/specs/<slug>.md`)

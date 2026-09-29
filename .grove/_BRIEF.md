@@ -232,3 +232,21 @@ for a later selector pilot. The user has oMLX on an Apple M4 Max with 128 GiB
 memory; availability is not evidence of routing quality. A working local selector,
 calibration campaign and repository extraction are outside this grove's first
 release scope.
+
+## Design handoff
+
+The area contract is `docs/specs/harness-selection-and-execution.md`, with the
+policy-ownership ADR and `docs/adr/policy-evaluation-precedes-process-replacement.md`.
+`docs/design/harness-selection-and-execution/` contains editable visual views and
+the bounded native runtime/source evidence. The command name is
+`harness-dispatch`; Rust owns admission/records/exec and an installed compiled Bun
+worker evaluates the TypeScript entry. The spec labels the new behavior as design,
+not implementation.
+
+`harness-selection-and-execution-k5` reviews that design before
+`harness-selection-and-execution-k6` plans independently useful increments. A
+review with actionable findings must insert integration before planning. The
+review should challenge the scope lifecycle, explicit creator registration,
+startup trust, process semantics and delivery evidence, without reopening the
+settled requirements interview. These design choices are delegated decisions,
+not newly asserted human approvals.

@@ -1,0 +1,23 @@
+sequenceDiagram
+  participant G as Grove / caller
+  participant R as Rust front process
+  participant W as Policy worker
+  participant D as Record store
+  participant H as Final harness
+  G->>R: Authoritative request + inherited terminal/control env
+  R->>W: Sanitized env, private cwd, bounded context, stdin closed
+  W-->>R: Validated catalog, choice, evidence and reason
+  R->>R: Reap worker, validate explicit choice and executable
+  alt Inspect
+    R-->>G: Proposal + limits + argv, no harness or run receipt
+  else Run
+    R->>D: Durable handoff-attempt record
+    alt Write fails or cancellation observed
+      R-->>G: Nonzero refusal, no harness
+    else Admission succeeds
+      R->>H: exec with original cwd, terminal and final env
+      Note over R,H: Same PID and process group, Rust no longer exists
+      H-->>G: Native exit / signal / completion channel
+    end
+  end
+  Note over D: Handoff attempt is not confirmed execution or acceptance

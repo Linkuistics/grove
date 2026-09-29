@@ -1,6 +1,6 @@
 # Harness selection is owned by policy
 
-The new harness-selection executable evaluates owner-supplied policy and launches
+The `harness-dispatch` executable evaluates owner-supplied policy and launches
 the resulting harness, model and reasoning effort. Grove supplies its already
 selected session kind, optional task file, stable task handle and unchanged
 session prompt. Callers supply stable artifact identities as data; association
@@ -19,8 +19,11 @@ through Grove's installation and release, including everything needed to evaluat
 TypeScript without a separately installed runtime. Co-location makes development,
 integration tests and first deployment easier. Its interface must allow later
 extraction into a separate repository without making other callers adopt Grove.
-The executable name, implementation language, TypeScript runtime and protocol
-representation are subsequent design choices, not settled by this boundary.
+The [area specification](../specs/harness-selection-and-execution.md) owns the
+protocol, identity, records and delivery contracts. The
+[worker and handoff decision](policy-evaluation-precedes-process-replacement.md)
+chooses the Rust front process and bundled TypeScript runtime separately from
+this policy-ownership boundary.
 
 The policy owns model preferences, reasoning effort and review-provider rules.
 An explicit choice names a configured joint candidate: policy may accept or refuse

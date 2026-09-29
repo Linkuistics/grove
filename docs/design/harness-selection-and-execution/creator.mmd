@@ -1,0 +1,17 @@
+flowchart TB
+  Start["Start here: artifact identity\nScope + stable artifact ID"]:::start
+  Lookup{"Original creator\nregistered?"}
+  Bound["Use immutable provider snapshot\nRecorded run or owner declaration"]
+  Missing["Refuse review\nExplain creator registration remedy"]
+  Filter["Supplied policy validates choice\nReviewer provider differs"]
+  Choice{"Valid candidate?"}
+  Run["Record evidence and dispatch"]
+  Stop["Refuse; no substitution"]
+  Start -->|"1. Lookup exact association"| Lookup
+  Lookup -->|"2a. Yes"| Bound
+  Lookup -->|"2b. No"| Missing
+  Bound -->|"3. Compare provider origin"| Filter
+  Filter -->|"4. Include explicit choice"| Choice
+  Choice -->|"5a. Yes"| Run
+  Choice -->|"5b. No"| Stop
+  classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

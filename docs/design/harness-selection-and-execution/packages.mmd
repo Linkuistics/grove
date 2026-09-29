@@ -1,0 +1,14 @@
+flowchart TB
+  Caller["Start here: caller\nGrove or another tool"]:::start
+  Native["harness-dispatch\nRust command and record store"]
+  Worker["Private policy worker\nCompiled Bun + TypeScript SDK"]
+  Policy["Selected owner policy\nCatalog, context, selection"]
+  Adapter["Optional Grove adapter\nBriefs and Reviews association"]
+  Harness["Configured harness\nModel + effort fixed at dispatch"]
+  Caller -->|"1. Kind, prompt, context, identity"| Native
+  Native -->|"2. Bounded request; no prompt or control env"| Worker
+  Worker -->|"3. Evaluate explicit entry"| Policy
+  Policy -.->|"Explicit import"| Adapter
+  Policy -->|"4. Candidate ID + reason"| Native
+  Native -->|"5. Record, then exec"| Harness
+  classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

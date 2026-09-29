@@ -23,6 +23,7 @@ Current changes:
 - [Execution → Prepare, record and replace the foreground process](http://127.0.0.1:8769/#diagram-handoff) — Put worker cleanup and required record persistence before the final handoff.
 - [Original creator → Resolve one creator before selecting a reviewer](http://127.0.0.1:8769/#diagram-creator) — Made registration and incomplete-provenance refusal visible before provider comparison.
 - [Runtime evidence](runtime-evidence.md#native-probe) — Recorded the native TypeScript/no-runtime-path smoke test and ambient-loading positive controls.
+- [Integration probe](runtime-evidence.md#integration-probe) — After design review, recorded embedded package specifiers against module shadows and a firing configuration for each ambient class. The original-creator view is being redesigned.
 
 The specification's [acceptance table](../../specs/harness-selection-and-execution.md#test-seams)
 maps requirements to the two agreed process seams. Linux target execution,

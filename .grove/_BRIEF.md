@@ -64,6 +64,12 @@ outside Grove.
   command delegates, the new executable validates its policy at launch only.
   This accepted boundary applies to static and computed policy; document it in
   usage guidance and configure-grove. Tree mutation does not evaluate policy.
+- The existing Linux floor is kept for glibc 2.17 and the baseline CPU, both
+  executed on each Linux target. The worker's kernel floor is Bun's documented
+  range, stated as documented rather than executed and rechecked at each Bun
+  upgrade. The human accepted this trade-off in
+  `harness-selection-and-execution-k7`: RHEL 7-era kernels are claimed, not
+  tested.
 
 ## Done when
 
@@ -250,3 +256,30 @@ review should challenge the scope lifecycle, explicit creator registration,
 startup trust, process semantics and delivery evidence, without reopening the
 settled requirements interview. These design choices are delegated decisions,
 not newly asserted human approvals.
+
+`harness-selection-and-execution-k7` integrated that review. Its running log
+holds every finding's disposition. The runtime, signal, inspection, delivery and
+evidence repairs are in the spec, both ADRs and the runtime evidence. The review
+showed the original-creator mechanism unreachable in unattended loops, and the
+per-grove dispatch scope in conflict with
+`docs/adr/one-live-driver-per-working-tree.md`. The human then questioned why
+creators need registering and why a handle namespace is needed at all.
+
+The artifact-identity, original-creator and supplied-review-policy area is
+therefore being redesigned by a new `design` leaf ahead of planning, and that
+leaf cuts its own `review-design`. The human's suggestions, none yet settled:
+
+- identify the grove from the task file given to the dispatcher;
+- for a review, find the reviewed task through `grove-llm` and read which
+  provider/model produced it;
+- have the Grove runner tell the dispatcher the reviewed artifact's
+  provider/model;
+- because the producer normally cuts its own review task, have it write its
+  provider/model into that review task.
+
+The redesign may amend two acceptance sentences — "Association records live
+outside task bodies" and "design namespaces it against other groves" — and two
+methodology rules, but only with the human's explicit confirmation. The review's
+original-creator requirement is unchanged: a different provider from the
+original creator, recorded or explicitly declared, with missing both stopping
+review.

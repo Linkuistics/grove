@@ -49,23 +49,18 @@ relationships; independent callers can supply equivalent generic associations.
 Policy ownership also determines which code may run. Personal policy is loaded
 by default. Repository TypeScript executes only when explicitly selected through
 personal configuration or a `--config` argument. Merely cloning or entering a
-repository grants no authority to run its policy. An incomplete mapping or
+repository grants no authority to run its policy, and the host discovers no
+ambient repository configuration on its behalf. An incomplete mapping or
 unresolved selection stops with a diagnostic; the executable invents no default
-and the supplied first-release policy supplies no automatic fallback.
-Explicit relative paths deliberately trust the resolved location in the caller's
-cwd; inspection shows that path and the source of authority. Trusted policy may
-import code, but the host must not implicitly load repository runtime settings,
-preload hooks, environment files or shadowing modules when evaluating personal
-policy. This preserves programmable policy without ambient repository discovery.
+and the supplied first-release policy supplies no automatic fallback. The area
+specification owns the admission, ambient-loading and inspection contracts that
+carry this out.
 
 The first release delivers static routing and a programmable TypeScript
 selection interface, inspection before harness launch, and execution/outcome
-records for later evaluation, including a documented way to add later outcome
-evidence. Required pre-launch recording fails closed. A record of the selected
-candidate and attempted handoff is not proof of execution; provenance describes
-the configured launch choice, not verified backend identity. Exit, duration,
-usage and outcomes remain unknown until evidence supplies them. A working local
-LLM selector and its pilot are follow-up work. The
+records for later evaluation. The specification owns the record semantics:
+what an attempt does and does not prove, and how later evidence is added. A
+working local LLM selector and its pilot are follow-up work. The
 [routing research](../research/grove-model-effort-routing.md)
 motivates the computation boundary and documents possible future experiments;
 its model comparisons are priors, not validation of a routing policy.
@@ -82,11 +77,12 @@ This can stop an unattended run on a previously authored task and is an accepted
 cost of delegation. Both inspection surfaces must make the boundary clear.
 
 Selection helpers are not granted Grove completion authority, and the final
-harness retains the driver's wrapper-exec and foreground-job contract. Finite
-selection bounds apply before handoff, and cancellation covers both selection
-and the harness session. Trusted TypeScript is executable configuration, not a sandbox against a
-hostile local owner. Dedicated integration with confined `grove run` routes is
-follow-up work; lifecycle integration and independent use are the first release.
+harness retains the driver's wrapper-exec and foreground-job contract; the
+specification owns the bounds, cancellation and authority contracts that
+preserve this. Trusted TypeScript is executable configuration, not a sandbox
+against a hostile local owner. Dedicated integration with confined `grove run`
+routes is follow-up work; lifecycle integration and independent use are the
+first release.
 
 ## Considered options
 

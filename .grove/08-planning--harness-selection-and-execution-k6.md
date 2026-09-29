@@ -12,16 +12,20 @@ Read `docs/specs/harness-selection-and-execution.md`, its cited ADRs and the
 runtime/source evidence under `docs/design/harness-selection-and-execution/`.
 Review `harness-selection-and-execution-k5` and any intervening integration own
 design findings; use the resulting current design, not the producer's original
-proposals when they differ. The root brief records accepted requirements and
+proposals when they differ. Integration `harness-selection-and-execution-k7`
+sent the artifact-identity/original-creator area to design
+`harness-selection-and-execution-k8` and its review; plan that area only from
+their result. The root brief records accepted requirements and
 the two process seams. No implementation tree has been pre-built.
 
 ## Done when
 
 - The first executable increments can each be demonstrated or tested without
   waiting for a horizontal sibling to make them useful.
-- Implementation coverage includes the actual shipped example policy, creator
-  adoption/observation workflow, bounded worker trust and cancellation, optional
-  Grove slots/scope lifecycle, direct-harness compatibility and release layout.
+- Implementation coverage includes the actual shipped example policy, the
+  original-creator mechanism k8 settles, later outcome observation, bounded
+  worker trust and cancellation, optional Grove slots, direct-harness
+  compatibility and release layout.
 - Package tasks join the repository Taskfile. Per-target installed static and
   TypeScript smoke tests without another runtime, Linux floor verification and
   documentation/configure-grove acceptance are explicit work with owners.

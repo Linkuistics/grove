@@ -1,7 +1,11 @@
 # Harness selection and execution
 
-This is the first-release design of **harness-dispatch**, ready for independent
-design review. It specifies new behavior; the command is not implemented yet.
+This is the first-release design of **harness-dispatch**. It specifies new
+behavior; the command is not implemented yet. After design review, the
+[artifact identity and original creator](#identity-and-creator) and
+[supplied review policy](#review-policy) sections, with the Grove scope slot
+they rely on, are being redesigned and do not yet bind implementation planning.
+The other sections include the review's repairs.
 The [visual document](../design/harness-selection-and-execution/README.md) has
 matching package, execution and provenance views.
 
@@ -39,10 +43,16 @@ a system Node installation participates in policy evaluation.
 | Optional Grove adapter and example | Read supplied task/brief data and interpret `Reviews`; translate it to generic artifact references |
 | Grove | Select one task, compose the prompt, supply authoritative caller data, own the foreground job and completion channel |
 
-The SDK and example adapter ship as resources of the independent package. The
-Grove adapter is an explicit import with its own version, not a dependency of
-ordinary dispatch. It uses file data; it does not require a Grove binary for
-selection. It never runs a second pick. The package owns no task-tree mutation.
+The SDK, the Grove adapter and the examples are embedded in the worker and
+reached through fixed package specifiers (see
+[runtime discovery](#policy-authority)). Their type declarations and readable
+sources ship beside the worker. The Grove adapter is an explicit import, versioned
+and built with the worker, not a dependency of ordinary dispatch. It uses file
+data; it does not require a Grove binary for selection. It never runs a second
+pick. The package owns no task-tree mutation. The adapter ships with the package
+so that it always matches the embedded SDK. It depends only on the public SDK and
+Grove's documented task conventions, and the core never imports it, so an
+extraction can move it to Grove's side instead.
 
 <a id="command-interface"></a>
 ## Command interface
@@ -54,7 +64,7 @@ side-effect-free evaluation of trusted TypeScript. A later `run` evaluates afres
 | Input | Contract |
 |---|---|
 | `--kind TEXT` | Required nonempty UTF-8 caller token; no enumeration or Grove filename grammar |
-| `--prompt TEXT` or `--prompt-file PATH` | Exactly one, read once; valid UTF-8 with no NUL; preserve bytes, including trailing newlines; never read terminal stdin |
+| `--prompt TEXT` or `--prompt-file PATH` | Exactly one for `run`; optional for `inspect`, which otherwise renders the prompt argument as a marked placeholder; read once; valid UTF-8 with no NUL; preserve bytes, including trailing newlines; never read terminal stdin |
 | `--task-file PATH` | Optional source, resolved against the original cwd; does not supply kind or identity |
 | `--scope ID` with `--task-id ID` | Both or neither; identifies this task/artifact independently of paths |
 | `--context PATH` | Optional version-1 JSON document, read as data; explicit generic context can replace a task file |
@@ -77,7 +87,8 @@ byte totals, effective bounds, timing, provenance evidence/revisions, executable
 resolution and expanded argv. Human output contains the same facts without
 requiring a parser. `run` reserves stdout and stdin for the final harness; its
 short choice/run-ID diagnostics go to stderr. Inspection includes the unchanged
-prompt in argv; the prompt is not delivered to the policy worker.
+prompt in argv when one is supplied. The prompt is never delivered to the policy
+worker, so omitting it does not change the selection.
 
 Data commands support `--json`. Schema version 1 is explicit in context,
 inspection, record exports and observations; unknown versions and unknown
@@ -95,6 +106,10 @@ or `select(request, context, host)`. `routes` is the useful static form: an exac
 kind-to-candidate-ID table. `select` may be asynchronous and perform computation
 or HTTP requests. There is no catch-all route, implicit route inheritance,
 fallback candidate, automatic retry, or partial model/effort override.
+Keeping exactly one form keeps one evaluation path. A policy that wants exact
+routes for most kinds and computation for a few exports `select` and consults
+its own table. Inspection then reports computed selection, and the policy's
+reason names the table entry it applied.
 
 The request fields are `schemaVersion`, `kind`, `cwd`, optional `taskFile`,
 optional `task` (the `scope`/`id` pair), optional `context`, optional
@@ -128,9 +143,12 @@ All catalog shapes and static references are checked, but only the selected
 executable is checked for availability. An unavailable alternative cannot cause
 selection to silently switch to it or away from it.
 
-With `--choice`, static routing treats that ID as the requested selection;
-computed selection must explicitly accept or refuse it. Returning any other ID
-is `explicit_choice_mismatch`, even if the policy describes it as a fallback.
+With `--choice`, a static `routes` policy accepts any configured candidate the
+choice names, including for a kind its table does not route, and cannot refuse
+it. Inspection reports that the explicit choice, not a route, selected it. An
+owner who wants to constrain explicit choices uses `select`, which must
+explicitly accept or refuse the choice. Returning any other ID is
+`explicit_choice_mismatch`, even if the policy describes it as a fallback.
 Policy constraints apply to explicit choices as to normal selections. Each retry
 is a separate invocation, reevaluates policy and receives a new run identity.
 
@@ -159,23 +177,43 @@ diagnostic streams and a private framed protocol channel. The request passes
 the caller's cwd as data; it does not make it the worker's runtime cwd.
 
 The worker is compiled with dotenv, bunfig, tsconfig and package-json autoloading
-all explicitly disabled. Its embedded entry/SDK imports use embedded modules and
-prefixed built-ins. External policy imports start at the selected absolute entry;
-relative imports resolve from their importing module, never from the invocation
-directory. No automatic package installation runs. Missing imports fail.
-Trusted policy may deliberately use normal module imports or native Bun APIs;
-those actions are policy effects rather than implicit host discovery.
+all explicitly disabled. Its own entry imports embedded modules and prefixed
+built-ins. Before importing the selected entry, it registers each documented
+package specifier as a runtime virtual module backed by its embedded copy:
+`harness-dispatch/sdk`, `harness-dispatch/grove`, and one
+`harness-dispatch/examples/…` specifier per shipped example. Owner policy
+imports those names. There is no installed path to name and no `node_modules`
+for the owner to maintain. The SDK and adapter a policy receives are always the
+running worker's own, so an upgrade cannot mix versions. A registered specifier
+resolves to its embedded module even when a `node_modules/harness-dispatch`
+package sits beside the importing entry. The prefix itself reserves nothing: an
+unregistered name under it resolves like any other bare specifier. So the
+registered list is part of the worker's versioned protocol, and every documented
+specifier is on it.
+
+Other external imports start at the selected absolute entry. Bare specifiers
+resolve through `node_modules` from the importing module's directory, and
+relative imports from the importing module, never from the invocation directory.
+No automatic package installation runs. Missing imports fail. Because tsconfig
+autoloading is off, `paths` aliases in a tsconfig beside owner policy do not
+apply at run time. The shipped declarations serve editor and package type
+checking only. Trusted policy may deliberately use normal module imports or
+native Bun APIs; those actions are policy effects rather than implicit host
+discovery.
 
 Rust constructs a fresh worker environment containing only HOME, a PATH snapshot,
 TMPDIR, LANG and LC_* values, plus exact `--policy-env` grants. It always excludes
 BUN_*, NODE_OPTIONS, NODE_PATH, dynamic-loader injection variables and its private
 protocol variables from grants. Installation control variables never come from
-ambient input. Grove templates grant none of its loop-control variables. Other
-credentials needed by policy require an explicit named grant. The final harness
-receives the original environment, including Grove's fresh completion channel,
-plus `HARNESS_DISPATCH_RUN_ID` and `HARNESS_DISPATCH_STATE_DIR`; these two reserved
-values replace inherited stale values. Worker scrubbing does not rewrite final
-harness environment policy.
+ambient input. The generic command cannot know a caller's completion variables,
+so it cannot refuse to grant them. Naming one with `--policy-env` is the owner
+explicitly giving the worker that authority. Grove's documented configurations
+grant none, and the usage documentation warns against granting
+`GROVE_SIGNAL_FILE`. Other credentials needed by policy require an explicit named
+grant. The final harness receives the original environment, including Grove's
+fresh completion channel, plus `HARNESS_DISPATCH_RUN_ID` and
+`HARNESS_DISPATCH_STATE_DIR`; these two reserved values replace inherited stale
+values. Worker scrubbing does not rewrite final harness environment policy.
 
 <a id="bounded-context"></a>
 ## Bounded context
@@ -209,17 +247,20 @@ uses these operations so its complete delivered context is inspectable.
 
 | Resource | Default | Hard ceiling and behavior |
 |---|---|---|
-| Whole selection, including imports, context and callback | 30 seconds | Caller can choose 1–120 seconds; timeout refuses |
+| Whole selection, from worker start to its result, including imports, context and callback | 30 seconds | Caller can choose 1–120 seconds; timeout refuses |
 | Context delivered to selection, including caller JSON and source metadata | 256 KiB UTF-8 JSON | Caller can choose up to 8 MiB; overflow refuses, never silently truncates |
 | One SDK source read | 64 KiB | At most the effective context budget; oversize source refuses |
 | Number of context sources | 256 | Fixed; excess refuses |
 | Policy result/catalog protocol message | 1 MiB | Fixed; excess refuses |
 | Worker diagnostics, both streams together | 256 KiB | Drain within the bound; excess terminates evaluation with an output-limit error |
 | Prompt | 1 MiB | Fixed; platform argv/environment limits can refuse smaller payloads at exec |
-| Record-store lock wait | 2 seconds | Fixed and inside the invocation's pre-handoff deadline |
+| Record-store lock wait | 2 seconds | Fixed; separate from the selection bound, which it neither extends nor consumes |
 
-The raw prompt has its own budget and is never truncated to satisfy a context
-limit. JSON size means encoded UTF-8 bytes, not characters or token estimates.
+Time before handoff is therefore bounded by the selection bound, the worker's
+cleanup grace and the lock wait, plus executable resolution and the record
+commit. The raw prompt has its own budget and is never truncated to satisfy a
+context limit. JSON size means encoded UTF-8 bytes, not characters or token
+estimates.
 Inspection reports actual source bytes and final encoded bytes separately, plus
 limits and errors. Long-lived caches, token estimators and model calls are not
 required. Policy cannot raise its own hard ceilings after evaluation begins.
@@ -236,8 +277,9 @@ must keep them in the enclosing job, grant no interactive stdin, and reap them
 before returning; detached/background policy services are outside the contract.
 The supplied policy and adapter create no such children.
 
-Rust handles INT, TERM and HUP while evaluating, stops the worker on cancellation,
-and reaps it before continuing or returning. A hard wall-clock deadline kills
+Rust handles INT, TERM and HUP while evaluating, unless a signal was already
+ignored at entry. It stops the worker on cancellation and reaps it before
+continuing or returning. A hard wall-clock deadline kills
 a stuck worker even during module import or a synchronous infinite loop. Its
 cleanup grace is at most one second, then KILL. Signal cancellation reaches
 ordinary descendants through the enclosing process group. Abrupt KILL may leave
@@ -247,12 +289,29 @@ detached owner code.
 After a result arrives, Rust closes protocol descriptors, removes temporary
 material, reaps the worker, validates the explicit choice, resolves the selected
 executable, and commits the required handoff record. It checks cancellation at
-each boundary. Immediately before exec it blocks the handled signals, checks
-pending cancellation, restores default dispositions, and hands off with the
-original signal mask. This is the linearization point: cancellation observed
-before admission launches nothing; an interrupt arriving after admission is a
-signal to the admitted foreground job, including across exec. No userspace
-design promises an atomic test-and-exec against a later-arriving signal.
+each boundary. It then blocks the handled signals and checks for pending
+cancellation once more. Cancellation observed after the commit launches nothing.
+Rust appends a best-effort not-executed detail to the attempt and ends by
+re-raising the signal. A failed append leaves an attempt of unknown execution,
+never a success. Otherwise Rust restores the entry signal state and execs.
+
+That final check is the linearization point. Cancellation observed before it
+launches nothing, and a signal arriving after it is a signal to the admitted
+foreground job, including across exec. A signal delivered between restoring the
+entry mask and exec can end the process with the attempt recorded and its
+execution unknown. No userspace design promises an atomic test-and-exec against
+a later-arriving signal.
+
+The handoff is transparent to signal state. The harness receives the signal mask,
+and every disposition that survives exec, exactly as the front process inherited
+them at entry, for every signal including SIGPIPE. A signal ignored at entry gets
+no evaluation handler and stays ignored: a `nohup` caller's ignored HUP reaches
+the harness ignored, and cannot cancel selection. Rust's standard runtime
+ignores SIGPIPE before `main`, and its `exec` path resets SIGPIPE to default
+before running pre-exec hooks while keeping the calling thread's mask. The
+implementation must therefore record the entry SIGPIPE disposition before any
+runtime initialization changes it, and reinstate it after that reset. The
+command and controlling-PTY seams observe the result.
 
 Exec preserves the process identity Grove supervises, terminal, cwd and native
 exit/signal behavior. There is no Rust supervisor left to infer an exit code,
@@ -384,15 +443,16 @@ records never become missing-provider defaults.
 |---|---|
 | Proposal | Result of inspection; no persisted launch claim |
 | Handoff attempt | Durable intent immediately preceding exec; execution is unknown |
-| Observable launch failure | Exec returned an error, or a pre-handoff refusal was observed |
+| Observable launch failure | Exec returned an error, or cancellation was observed after the attempt committed; appended to that attempt when possible |
 | Execution confirmation | Later evidence from an external observer/final harness says execution occurred |
 | Outcome observation | Separately sourced acceptance, findings, repair, human work, duration, usage or other measurements |
 
 There is no implied state transition from exit zero to task accepted. Interrupted
 or abruptly killed attempts may remain unknown forever. Evidence describes the
 configured launched choice; it is never a claim to have authenticated the actual
-backend model. Pre-selection refusals use structured diagnostics and may have no
-run ID; persistence of every refusal is not a launch prerequisite.
+backend model. A refusal before the handoff commit is a structured diagnostic
+only: it creates no run and no record. Only a committed attempt can carry a
+launch-failure detail.
 
 `record show --run R --json` exports the run and its observations.
 `record observe --run R --file observation.json` validates and atomically appends
@@ -441,10 +501,11 @@ slots are rejected in standalone templates that request them; the common
 configuration machinery remains consumer-vocabulary-driven.
 
 The owner points a personal command definition at `harness-dispatch run`, supplies
-the new slots and prompt, and explicitly selects the shipped Grove example from
-personal policy. A literal `--choice` may be added to that command. No install
-overwrites personal configuration. `grove config show` explains the configured
-wrapper; `harness-dispatch inspect` explains its selection. Grove's pre-authoring
+the new slots and prompt, and explicitly selects the shipped Grove example by
+importing its package specifier from personal policy. A literal `--choice` may
+be added to that command. No install overwrites personal configuration.
+`grove config show` explains the configured wrapper; `harness-dispatch inspect`
+explains its selection. Grove's pre-authoring
 guarantee stops at the complete configured command. Static and computed delegated
 policy are checked only at launch, so task authoring can succeed and delegated
 launch subsequently refuse. Usage and configure-grove must explain both surfaces
@@ -457,7 +518,11 @@ Before handoff, errors carry a stable code, stage, message, relevant input/sourc
 and remedy. `--json` data-command failures use one JSON error on stderr and no
 partial stdout object; policy diagnostics are captured and included separately,
 never interleaved with protocol or structured output. Text mode prefixes policy
-diagnostics on stderr. A failure never launches another candidate.
+diagnostics on stderr. A failure never launches another candidate. A refused
+`run` also reports the equivalent `inspect` invocation, as a command line in text
+mode and an argv array in JSON: the same selection inputs, `--policy-env` names
+but no values, and no prompt. An owner diagnosing an unattended refusal can then
+reproduce the selection without reconstructing its inputs.
 
 Exit codes before exec are 2 for malformed CLI input, 3 for policy/context/
 selection refusal, 4 for required-record failure, 5 for worker/protocol/internal
@@ -472,16 +537,19 @@ stage distinguish these cases, not a globally reserved harness exit range.
 
 Use Bun 1.4.2 initially, pinned together with worker dependencies and build
 identity; upgrades rerun the discovery probes. Compile workers for macOS arm64,
-Linux arm64 and baseline Linux x64. Rust and bundled SQLite build for Grove's
-corresponding targets with its existing glibc 2.17 floor. The worker is an
+Linux arm64 and Linux x64. Bun 1.4.2 ships a single x64 build targeting the
+Nehalem microarchitecture; its `baseline` name is an alias. Rust and bundled
+SQLite build for Grove's corresponding targets with its existing glibc 2.17
+floor. The worker is an
 installed private companion, not a runtime downloaded on invocation. It is found
 relative to the real installed front executable, including through a Homebrew
 symlink; the supported portable archive preserves the same relative layout.
 The Rust package builds independently; running selection additionally needs the
 matching compiled worker, supplied by the package's build/install task.
 
-Each existing archive gains the front executable, private worker, SDK types,
-inactive examples and runtime/license notices. The Homebrew formula installs
+Each existing archive gains the front executable, the private worker with its
+embedded SDK, Grove adapter and inactive examples, their type declarations and
+readable sources, and runtime/license notices. The Homebrew formula installs
 that layout and checks matching versions. Source-development tasks build and
 install the pair; a plain cargo install of the Rust package alone is not the
 documented complete installation. No host runtime is silently used as a fallback.
@@ -492,10 +560,26 @@ Reusable package check/build/install/smoke tasks join the existing Taskfile, and
 the repository check includes package checks. Archive-content assertions and
 installed-layout smoke tests run the static and computed TypeScript cases with
 fake harnesses and no separately installed runtime on **each** supported target,
-natively or under emulation. Linux checks include the actual compatibility floor
-and baseline CPU, not just a cross-link or an ELF-symbol inspection. A matching
-runtime archive is insufficient evidence until that test executes. These are
-implementation/release acceptance requirements, not results of this design leaf.
+natively or under emulation. A matching runtime archive is insufficient evidence
+until that test executes. These are implementation/release acceptance
+requirements, not results of this design.
+
+The Linux floor has three dimensions, and each is claimed only as far as its
+instrument observes it:
+
+| Dimension | Floor | Instrument |
+|---|---|---|
+| C library | glibc 2.17, Grove's existing floor | Installed smoke tests run in a glibc-2.17 userland container on each Linux target |
+| CPU | x64 Nehalem; arm64 at the Cortex-A53 level | The same tests under user-mode emulation with that CPU model |
+| Kernel | Bun's documented support | None: a container or user-mode emulation runs on the host's kernel |
+
+Bun 1.4.2's documents disagree about the kernel. Its README gives a 5.1 minimum,
+while its installation page says Bun runs on 3.10 (RHEL 7) with degraded newer
+syscalls. The release states that documented range, labelled documented rather
+than executed, and each Bun upgrade rechecks it. This is an accepted trade-off:
+RHEL 7-era kernels are claimed through Bun's documentation, not tested. A
+cross-link or an ELF-symbol inspection alone satisfies none of the dimensions.
+On macOS the worker additionally inherits Bun's documented macOS 13.0 minimum.
 
 <a id="test-seams"></a>
 ## Agreed test seams and acceptance
@@ -505,19 +589,31 @@ acceptance instruments; internal tests may support them without replacing them.
 
 | Seam | Required observable cases |
 |---|---|
-| New command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
+| New command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; a caller-ignored HUP or SIGPIPE and the entry signal mask reach the fake harness unchanged; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
 | Same command, actual shipped examples | Different-origin reviewer on every invocation and explicit choice; same-origin/gateway disguise refuses; missing/ambiguous review relation refuses; declaration adoption; recorded creator requires execution/production evidence; retries preserve creator; changed current mapping cannot rewrite provider history |
-| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow and BUN_OPTIONS stay inert through the public launcher; explicit relative config and personal import are admitted; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
-| Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction, creator registration and concurrent revision refusal; later observations after tree teardown |
+| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow and BUN_OPTIONS stay inert through the public launcher, each beside its firing configuration below; explicit relative config and personal import are admitted; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
+| Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction, creator registration and concurrent revision refusal; later observations after tree teardown |
 | Existing Grove launch boundary | Original prompt and authoritative slots preserved as native data; task rename/retirement/reorder retains association; driver restart retains scope; root creation rotates scope; unexpected root replacement refuses; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
-| Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
+| Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
 
 Per-target release delivery adds the archive/install tests above. Documentation
 review verifies activation, both inspection surfaces, scope setup/reset, creator
 registration/declaration, later outcome entry and launch-time validation guidance.
-Exercise missing-source and injected-hook positive controls so a test cannot pass
-merely because its hostile fixture never ran. Do not infer backend identity,
-policy quality or task acceptance from these mechanics tests.
+Each hostile class has a named firing configuration, a positive control that
+must be seen to fire, so a test cannot pass merely because its fixture never ran:
+
+| Class | Firing configuration |
+|---|---|
+| cwd policy entry | The same file named by an explicit relative `--config`, which loads it |
+| cwd `.env` and bunfig preload | A default-autoload probe build of the same worker, run in the hostile directory |
+| `BUN_OPTIONS` preload | The shipped worker launched directly with the variable set, bypassing the front process's scrubbing |
+| `node_modules/harness-dispatch` shadow | The fixture beside an admitted entry, under a probe build that does not register the virtual modules |
+| tsconfig `paths` | The fixture beside an admitted entry, under a probe build with tsconfig and package.json autoloading enabled |
+
+A class with no known firing configuration is reported as such, not counted as a
+passing control. Missing-source fixtures carry the same obligation. The runtime
+evidence records which of these have been seen to fire. Do not infer backend
+identity, policy quality or task acceptance from these mechanics tests.
 
 <a id="out-of-scope"></a>
 ## Out of scope

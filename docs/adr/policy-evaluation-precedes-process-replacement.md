@@ -18,10 +18,17 @@ Bun supplies TypeScript and ordinary filesystem/network computation without
 maintaining a new JavaScript standard library. Compiling the worker keeps a
 separately installed runtime out of the launch contract. Its costs are a larger
 installation, a second build tool, runtime notices, and per-target execution
-checks. Native probes demonstrated both the dangerous ambient-loading defaults
-and the controls needed to disable them; the
+checks. Native probes on one macOS arm64 host saw several ambient classes fire and
+the chosen controls hold. cwd dotenv and bunfig preloads fired in a default build
+and stayed inert under both the no-autoload build and the private worker cwd. A
+`BUN_OPTIONS` preload fired even in the guarded build, which is why Rust scrubs
+the environment before start. A `node_modules` shadow beside the entry lost to a
+registered embedded module. tsconfig `paths` fired only in a build that enables
+tsconfig and package.json autoloading. Other classes were not seen to fire at
+all. The
 [runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md)
-records the limits of that observation and the primary runtime documentation.
+records exactly which, the limits of each observation and the primary runtime
+documentation.
 
 Considered alternatives:
 

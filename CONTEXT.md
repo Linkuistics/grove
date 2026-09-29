@@ -907,6 +907,19 @@ session-target metadata, compare targets, or warn; a `review-*` leaf supplies a
 fresh session, and choosing a materially different command is the configuration
 owner's responsibility.
 
+<a id="selection-provider"></a>
+### Selection provider
+
+An owner-declared candidate attribute identifying model origin for the supplied
+review policy; changing a gateway or harness does not change that origin.
+
+<a id="original-creator"></a>
+### Original creator
+
+The one producer execution associated with an artifact for review selection,
+whose **selection provider** is execution-recorded or explicitly declared by the
+owner; it is neither today's producer mapping nor the set of all contributors.
+
 <a id="spec"></a>
 ### Spec (`docs/specs/<slug>.md`)
 

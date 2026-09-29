@@ -11,26 +11,37 @@ outside Grove.
 
 - Keep the executable in a separate package in this repository for development,
   testing and initial deployment. Ship it with Grove's installation and release.
-  Preserve a boundary that allows eventual extraction to a separate repository.
+  The installation must evaluate TypeScript without a separately installed
+  runtime; design chooses embedding or bundling. Preserve a boundary that allows
+  eventual extraction to a separate repository.
 - Pass the session kind as an explicit argument. The executable must not parse
   Grove filenames to discover it or depend on Grove for ordinary use.
-- Pass the original prompt unchanged, plus the selected task file when one
-  exists. Other callers must be able to supply sufficient generic task context.
+- Pass the original prompt unchanged, plus the selected task file and stable
+  task identity when one exists. Grove supplies its selected handle as caller
+  data; the executable does not recover identity from a filename or prompt.
+  Other callers can supply generic context and stable artifact identities.
 - Support configured selection and dynamic per-invocation selection. Prefer
   TypeScript configuration so policy can perform arbitrary computation without
   growing a declarative policy language in Grove.
 - Choose the harness, model and effort together, then execute the harness.
-- For the first version, every review must use a different provider from the
-  artifact's original creator. This includes explicit choices and retries.
-  Use recorded execution provenance; missing provenance must not
-  silently permit a same-provider review. Keep this simple: no separate model
-  comparison or multi-author accounting is required for this increment.
+- For the first version, every review selected through the supplied review
+  policy must use a different provider from the artifact's original creator.
+  This includes explicit choices and every re-invocation (a retry).
+  Use recorded execution provenance, or an explicit owner declaration of the
+  original creator's provider labelled as declared. Missing both must stop review.
+  Keep this simple: no separate model comparison or multi-author accounting is
+  required for this increment.
+  Direct-harness configurations remain outside that policy's enforcement.
 - Encode that review rule in static configuration or TypeScript policy, rather
-  than hard-coding it into the generic executable. Artifact-associated execution
+  than hard-coding it into the generic executable. Artifact-associated creator
   provenance must be discoverable by TypeScript when selecting a reviewer.
 - Load personal policy by default. Repository TypeScript runs only when
   explicitly selected through personal configuration or a `--config` argument;
   cloning or entering a repository must not execute its policy code.
+  The host must not implicitly load repository runtime configuration, preload
+  hooks, environment files or shadowing modules when evaluating personal policy.
+  An explicit relative path is an opt-in to the resolved location in that cwd;
+  inspection identifies it. Trusted policy can explicitly import other code.
 - Higher abstraction and/or higher consequences of error justify more effort.
   Consider uncertainty, downstream rework, reversibility and available checks.
 - Start with useful static policy and a testable dynamic selection interface.
@@ -44,18 +55,30 @@ outside Grove.
 - Incomplete mappings stop the launch with an actionable diagnostic. The human
   rejected automatic fallback; the executable must not fill a missing or invalid
   selection by inventing a default or substituting another candidate.
+- An explicit choice names one configured joint candidate. Policy sees it and
+  can accept or refuse it; the executable rejects a different returned candidate.
+  Partial model/effort overrides and automatic retries are not required.
+  Grove owners supply such choices through personal command configuration;
+  this adds no Grove flag, environment override or task-body launch metadata.
+- Grove validates its configured command before authoring a task. When that
+  command delegates, the new executable validates its policy at launch only.
+  This accepted boundary applies to static and computed policy; document it in
+  usage guidance and configure-grove. Tree mutation does not evaluate policy.
 
 ## Done when
 
 - An independently usable executable can inspect a proposed choice and execute
   a configured harness using static or computed policy, with actionable errors.
-- Grove passes the selected kind, task and prompt through a small generic seam;
-  current direct-harness configurations continue to work.
-- The interface supplies enough bounded context for dynamic choices and exposes
-  artifact-associated producer identity to configuration. The configured review
-  policy applies the agreed original-creator provider separation rule.
+- Grove passes the selected kind, task, stable identity and prompt through a
+  small generic seam; current direct-harness configurations continue to work.
+- The interface supplies bounded context with documented volume/time limits and
+  exposes artifact-associated original-creator provenance to configuration.
+  A shipped example policy implements the provider rule, with explicit personal
+  activation instructions and command-seam tests of that delivered artifact.
 - Execution preserves terminal, working directory, cancellation, exit status and
-  Grove completion authority correctly. A selector cannot complete the task.
+  Grove completion authority correctly, including cancellation during selection.
+  Selection helpers are not granted completion authority. Trusted policy is not
+  sandboxed against a hostile local owner.
 - Configuration ownership and trust, overrides, unavailable candidates and
   fallback behavior are explicit and tested at their external boundaries.
 - Records support later evaluation of acceptance, missed defects, false findings,
@@ -71,41 +94,84 @@ outside Grove.
 - A caller without Grove supplies a kind, prompt and sufficient generic task
   context and can inspect or run one configured joint harness/model/effort
   choice. A task file is optional. TypeScript can consume caller context without
-  needing Grove filenames or a closed enumeration of kinds.
+  needing Grove filenames or a closed enumeration of kinds. Exercise this with
+  no Grove binaries, configuration or task tree present. Non-Grove review callers
+  can supply a generic reviewed-artifact/original-creator association.
 - Static mapping and computed TypeScript policy can each select a configured
   candidate. Inspection explains the effective policy source, choice, reason,
-  context sources and expanded arguments without launching the harness. It must
-  not promise that evaluating trusted TypeScript is free of side effects.
+  context sources, delivered context size, limits and expanded arguments without
+  launching the harness. It must not promise that evaluating trusted TypeScript
+  is free of side effects.
 - An incomplete mapping, unreadable or invalid selected configuration, invalid
-  selection result, or unavailable selected executable launches nothing and
-  reports the missing or invalid input. No automatic default fills the gap.
+  selection result, unavailable selected executable, missing required context or
+  failed context loader launches nothing and reports the missing or invalid input.
+  No automatic default fills the gap. Context overflow is refused or represented
+  explicitly to policy; it is never silently discarded.
   Explicit choice inputs are visible to policy and do not silently become some
   other candidate when they cannot be satisfied.
 - A repository containing TypeScript policy causes no execution merely because
   the caller runs there. Personal policy or an explicit `--config` selection is
   the authority to load it; inspection identifies the selected source.
-- A review can discover the original creator's recorded provider through
-  artifact-associated provenance. Changing today's producer mapping does not
-  change that record. The supplied configuration chooses another provider;
-  missing original-creator provenance is an incomplete mapping, not permission
-  to launch a same-provider review. Keep the first representation simple.
-- Grove passes the kind and task from its authoritative selection along with the
-  original prompt. Spaces, quotes and shell punctuation in the prompt or paths
-  remain data. Existing direct-harness templates remain valid. The adapter does
-  not select another leaf or recover its kind from the prompt.
+  Test explicit cwd-relative selection as admitted authority, and test that
+  repository runtime configuration, preload hooks, environment files and module
+  shadowing cannot affect personal policy through implicit host discovery.
+- A review can discover the original creator's provider through artifact-associated
+  provenance. Changing today's producer mapping does not change that record.
+  For artifacts made before adoption or by direct harnesses, an owner can supply
+  an explicit declaration, inspectably recorded as declared rather than
+  execution-recorded. The supplied configuration chooses another provider;
+  missing both forms is an incomplete mapping with a diagnostic explaining the
+  declaration remedy, not permission to launch a same-provider review.
+  Provider is an owner-declared candidate attribute for model origin; a gateway
+  change does not create a different provider. It is never inferred from argv.
+  The supplied Grove policy/context adapter recognises review relationships;
+  missing or ambiguous associations refuse. The generic core has no Grove
+  review-kind list or `Reviews` parser.
+- Provenance and later outcome association survive retirement and reordering of
+  the producing leaf across sessions in the same live grove and workspace.
+  Grove supplies its stable handle; design namespaces it against other groves.
+  Association records live outside task bodies and retain their identities when
+  `.grove/` is removed. Automatic cross-checkout discovery and post-teardown
+  artifact lookup are not required in the first release.
+- Grove passes the kind, task path and stable handle from its authoritative
+  selection along with the original prompt. Spaces, quotes and shell punctuation
+  in the prompt or paths remain data. Existing direct-harness templates remain
+  valid. The adapter does not select another leaf or recover its kind from the
+  prompt.
+- With a valid Grove route to the executable but an incomplete delegated mapping,
+  task authoring succeeds and launch refuses actionably. Test and document that
+  Grove's pre-authoring guarantee covers only the configured command.
 - The selected harness keeps the intended cwd, terminal, cancellation and exit
   behavior. Selection helpers receive no Grove completion authority; the final
-  harness receives the completion channel. A selected joint choice stays fixed
-  for that harness session.
-- Execution records distinguish a proposed choice, launch failure and actual
-  execution evidence. Outcome records can associate later acceptance, findings,
-  repair and human work with the run without treating absent measurements as
-  zero. Records identify the policy/candidate and context versions needed to
-  interpret them. No local-selector benchmark is required for first release.
+  harness receives the completion channel. Test helper environments as well as
+  final-harness delivery. The executable dispatches one fixed joint choice per
+  invocation; it does not police later model changes inside the harness.
+  Preserve Grove's existing wrapper-exec and foreground-job contract.
+- Interrupting context loading or policy evaluation, or exceeding its documented
+  finite time bound, launches no harness. Helpers remain subject to the enclosing
+  job's cancellation. Selection consumes no interactive stdin; policy diagnostics
+  cannot corrupt structured inspection/protocol output. Refusal has a documented
+  non-zero exit result; final-harness exit behavior remains intact. Abrupt kill
+  need not produce a terminal record.
+- Before launch, persist a run identity, artifact/task association when supplied,
+  selected candidate/provider and argv, policy/context versions and timestamp.
+  Failure to write this required record stops launch with a diagnostic. Records
+  distinguish a proposal, attempted handoff, observable launch failure and
+  execution confirmed by external evidence; an attempt alone is not success.
+  Provenance describes the configured launched choice, not verified backend
+  identity. Exit, duration, usage and outcomes remain unknown unless observed.
+  Supply a documented, tested way to write/import later acceptance, findings,
+  repair, human work and other observations against the run, without treating
+  absent measurements as zero. An outcome schema alone is insufficient; analytics
+  and a local-selector benchmark are outside this release.
 - Grove's existing release/install route delivers the new command on its
   supported targets. Usage documentation and configure-grove explain which
   configuration owns selection, how to inspect it, and how to remedy incomplete
   mappings. Reusable package checks join the repository's Taskfile workflow.
+  Check archive/install contents and run a static/TypeScript fake-harness smoke
+  test on each supported target, natively or under emulation; retain the existing
+  Linux compatibility floor. Run the TypeScript case without a separately
+  installed runtime. Review documentation against these acceptance cases.
 
 ## Agreed test seams
 
@@ -114,10 +180,18 @@ The human agreed these boundaries during requirements:
 - Exercise the new command with temporary TypeScript policies and fake harness
   executables. Verify selection, generic context delivery, inspection,
   provenance, trust admission and refusal on incomplete mappings.
+  Use the shipped example review policy, and cover required-record write failure,
+  later outcome entry, stable association through task renames and explicit-choice
+  mismatch. Inspection must expose measured context size and source authority.
 - Extend Grove's existing launch-boundary integration tests. Verify unchanged
   prompts, selected kind/task context, terminal and cancellation behavior, exit
   status and completion authority reaching only the final harness. Retain
   direct-harness compatibility coverage.
+
+These remain the two process seams. Release artifacts additionally need the
+per-target delivery checks above; documentation acceptance is a review. Dedicated
+integration with confined `grove run` routes is follow-up work; existing
+standalone templates remain unchanged. Independent command use is in scope.
 
 ## Starting evidence and existing contracts
 
@@ -134,12 +208,16 @@ Use the repository Taskfile for reusable development workflows.
 ## Next design and planning work
 
 The human confirmed the consolidated requirements and the next sessions: an
-independent requirements review (`harness-selection-and-execution-k2`), followed
-by design (`harness-selection-and-execution-k3`). Design synthesizes
-the running decisions in `harness-selection-and-execution-k1` and this brief; it
+independent requirements review (`harness-selection-and-execution-k2`), its
+integration (`harness-selection-and-execution-k4`), then design
+(`harness-selection-and-execution-k3`). Design synthesizes
+the running decisions in `harness-selection-and-execution-k1`, their review
+dispositions in `harness-selection-and-execution-k4`, and this brief; it
 does not repeat the interview. It owns the executable/package name, runtime and
 delivery choice, policy/request/selection protocol, configuration precedence,
 bounded generic context, simple provenance association and record format. It
+chooses which producing invocation is associated as original creator when a leaf
+is launched more than once, without adding multi-author accounting. It
 must account for execution and completion authority before choosing a TypeScript
 hosting strategy, and preserve the agreed process test seams.
 

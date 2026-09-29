@@ -1,20 +1,26 @@
 # Grove model, effort and dispatch recommendations
 
 Evidence checked 29 September 2026. This is a recommendation and design
-exploration, not a benchmark of these models on Grove's own tasks. Personal
-configuration has not been changed, and no automatic dispatcher is implemented.
+exploration, not a benchmark of these models on Grove's own tasks. The initial
+research inspected policy without changing it; personal model/effort defaults
+were subsequently applied before the requirements session. No automatic
+dispatcher is implemented.
 
 ## Adopted boundary
 
 The requirements discussion adopted
 [harness selection owned by policy](../adr/harness-selection-is-owned-by-policy.md):
 an independent package in this repository, initially shipped with Grove, with
-selection rules in personal static or TypeScript configuration. The first release
-provides static routing, a programmable selection interface and evaluation
-records; the local-selector pilot below remains follow-up work. The interface
-examples below are proposals, not implemented APIs.
+selection rules in personal static or TypeScript configuration. Installation
+includes TypeScript evaluation without a separately installed runtime. The first
+release provides static routing, a programmable selection interface and evaluation
+records with later outcome entry; the local-selector pilot below remains follow-up
+work. The interface examples below are proposals, not implemented APIs.
 
-## Current policy
+## Policy inspected during research
+
+This is the initial research snapshot, before the subsequent personal-default
+changes; it is not a claim about the owner's current configuration.
 
 `grove config show --json` validated the personal configuration with
 `codex-design-claude-impl` selected and no project delta. It resolves to
@@ -87,8 +93,9 @@ Opus = `claude-opus-5-5`, Sonnet = `claude-sonnet-5-5`.
 Sol is an optional fourth model for bounded Codex work; retain Astra medium in
 those rows if minimizing the candidate catalog is more valuable.
 
-**Configured rule: a review uses a different provider from the original creator
-of the artifact being reviewed.** All five producer/review pairs below satisfy
+**Supplied-policy rule: a review uses a different provider from the original
+creator of the artifact being reviewed.** The creator is execution-recorded or
+explicitly declared, not inferred from today's mapping. All five pairs below satisfy
 this rule. The recommended reviewer is conditional on its producer remaining
 with the shown provider; a dynamically changed producer may require a different
 reviewer. A different model or harness from the same provider is insufficient.
@@ -151,21 +158,25 @@ limitations explicit instead of promising per-invocation dispatch from a file.
 
 The preferred boundary is the one proposed in the discussion: **Grove selects
 the task; a separate executable selects and launches the harness.**
-Grove supplies the kind explicitly, the task file path and the unchanged session
-prompt. The dispatcher treats the kind as an opaque caller-supplied string; it
+Grove supplies the kind explicitly, the task file path, stable handle and
+unchanged session prompt. The dispatcher treats the kind as an opaque caller-supplied string; it
 does not parse Grove filenames or require a Grove installation. It reads its own
 policy, uses a static mapping or makes a dynamic choice, and `exec`s the selected
 harness with its model and effort arguments.
 
-Conceptual launch, requiring two new optional Grove slots:
+Conceptual launch, requiring new optional Grove slots for the authoritative
+kind, task path and stable handle:
 
 ```text
-task-dispatch --kind ${kind} --task-file ${task_file} --prompt ${prompt}
+task-dispatch --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}
 ```
 
-`${kind}` and `${task_file}` do not exist today. Populate them from the same
-selected task that produced the mandate; use an absolute task path and preserve
-each value as one native argument. Keep existing direct-harness templates valid.
+`${kind}`, `${task_file}` and `${task_id}` do not exist today. Populate them from
+the same selected task that produced the mandate; use an absolute task path and
+the selected handle, preserving each value as one native argument. The protocol
+must namespace identities against other groves and preserve association through
+retirement/reordering; paths alone are not identity. Keep existing direct-harness
+templates valid.
 No new model registry, Jev client, model-ranking logic or effort vocabulary
 belongs in Grove.
 
@@ -183,14 +194,18 @@ existing command/binding/route mechanism. The dispatcher owns model policy,
 while Grove configuration owns how to invoke the dispatcher. Avoid maintaining
 competing model defaults in both layers. The configuration skill must inspect
 whichever layer owns the effective policy; `grove config show` alone can only
-prove the dispatcher's argv once selection is delegated.
+prove the dispatcher's argv once selection is delegated. Grove's pre-authoring
+check likewise covers that configured command only; the delegated policy is
+validated at launch. This applies to static mappings as well as computation.
 
 The exact task file and kind are authoritative; do not run `pick` again. A
 Grove-specific context adapter can obtain ancestor briefs with existing read
 verbs using an explicit task path. That adapter lives outside the generic
 dispatcher core. Other callers supply task descriptions, acceptance criteria,
 artifact paths and metadata directly through a generic context document or
-their own context loader.
+their own context loader. The generic association data also lets independent
+callers identify a reviewed artifact and its original creator without adopting
+Grove review-kind conventions.
 
 The launch prompt and selection context have separate roles. Preserve the prompt
 verbatim for the final harness. The selector receives bounded task/context
@@ -199,17 +214,28 @@ Treat that content as data for choosing among configured options, not as
 authority to invent executable commands.
 
 The real harness inherits Grove's working directory, foreground terminal,
-environment and completion channel through `exec`. A selector subprocess has
-Grove control variables removed. The first-release policy stops when a mapping
+environment and completion channel through `exec`. A selector subprocess is not
+granted Grove control variables; trusted same-user code is not sandboxed by this.
+Context loading and selection must obey finite bounds and cancellation before
+handoff. The first-release policy stops when a mapping
 is incomplete or selection fails or abstains; it supplies no automatic fallback.
 The executable does not invent a replacement candidate. Do not rewrite
 `.grove.kdl` before each task: dispatch is an invocation decision, not a global
-configuration mutation. Hold the selected pair fixed during that task session.
+configuration mutation. Dispatch one fixed joint choice per invocation; do not
+claim to prevent in-harness model changes or observe backend identity.
 
-Standalone commands have no task file. The dispatcher's generic interface should
+Persist required choice/association evidence before handoff; a write failure
+stops launch. An attempted exec is not observed success. Exit, duration, usage and
+later outcomes remain unknown unless supplied by a source able to observe them;
+the package supplies a documented way to add later evidence. Collecting that
+evidence does not justify replacing Grove's direct-child contract with a new
+supervisor in this increment.
+
+Independent callers need no task file. The dispatcher's generic interface should
 therefore require a kind and prompt, while accepting either a task file or
-inline/file-based context. A standalone Grove route can hard-code its kind in
-the command template. Keep existing standalone templates unchanged initially.
+inline/file-based context. A standalone Grove route could hard-code its kind in
+the command template, but dedicated `grove run` integration under its confinement
+contract is follow-up work. Keep existing standalone templates unchanged initially.
 
 ### TypeScript policy
 
@@ -223,19 +249,23 @@ inside KDL.
 The proposed interface has three conceptual values:
 
 ```text
-DispatchRequest = kind + prompt + cwd + optional taskFile/context/overrides
+DispatchRequest = kind + prompt + cwd + optional taskFile/taskIdentity/context/candidateID
 SelectionContext = bounded task evidence + constraints + candidate evidence
-                 + reviewed artifact/producer execution provenance when reviewing
+                 + reviewed artifact/original-creator provenance when reviewing
 Selection = candidate ID + reason + policy/evidence version
 ```
 
 Keep the core responsibilities separate from policy calculation:
 
 1. Load trusted configuration and construct the request.
-2. Pass explicit choice inputs to the configured context loader and policy.
-   The policy applies its selection and review-provider rules.
-3. Validate the returned candidate and its configured harness/model/effort values.
-4. Print or record the decision, and execute the configured argv without a shell.
+2. Pass an explicit joint candidate ID, when supplied, to the configured context
+   loader and policy. The policy applies its selection and review-provider rules
+   and can accept or refuse the choice.
+3. Validate the returned candidate and its configured harness/model/effort values,
+   including agreement with an explicit candidate ID. No partial override shape
+   is required for the first release.
+4. Persist the required decision record, optionally print it, and execute the
+   configured argv without a shell.
 
 Task kinds remain open strings, not a Grove enum. Context may contain a summary,
 acceptance criteria, relevant files/specifications, previous attempt evidence
@@ -256,6 +286,10 @@ repository into every selection call.
 TypeScript is trusted executable code, so it is not a sandbox or a security
 boundary. Personal configuration or an explicit `--config` argument opts into a
 project policy module; merely cloning a repository must not execute its code.
+An explicit relative path trusts the location resolved against that cwd, which
+inspection must show. The host must not implicitly load repository runtime
+settings, preload hooks, environment files or shadowing modules while evaluating
+personal policy; explicit imports by trusted policy retain its authority.
 Preserve the same local-policy trust intent as Grove's untracked delta. Dynamic model output
 returns a candidate ID, while trusted code owns executable paths and arguments.
 The catalog and static mappings remain readable when computed selection is
@@ -270,12 +304,14 @@ Identify what is being reviewed and make its original creator's provider
 discoverable by TypeScript. Keep execution provenance associated with the artifact;
 current configuration cannot reconstruct it after a policy change.
 
-The supplied policy requires
+The shipped example policy, explicitly activated by its owner, requires
 `review.provider != artifact.originalCreator.provider`. Supporting contributions
 do not accumulate into an exclusion set, and the first release requires no
 separate model comparison. The rule lives in static configuration or TypeScript
-computation; it is not hard-coded in the generic executable. Unknown creator
-provenance or an empty eligible set is an incomplete selection and stops launch.
+computation; it is not hard-coded in the generic executable. An explicit
+artifact-associated owner declaration can remedy missing execution records and
+must be labelled as declared. Missing both forms of creator provenance, or an
+empty eligible set, is an incomplete selection and stops launch.
 The provenance representation and discovery mechanism remain design work; do not
 infer recorded creator identity from Grove's current route or a task filename.
 

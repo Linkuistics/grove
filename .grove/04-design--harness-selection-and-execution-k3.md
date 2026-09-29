@@ -9,7 +9,10 @@ it usable outside Grove and deliver it with Grove initially.
 ## Context
 
 Synthesize the settled decisions from `harness-selection-and-execution-k1` and
-the disposition of `harness-selection-and-execution-k2`. The durable boundary is
+the dispositions of review `harness-selection-and-execution-k2` recorded in
+`harness-selection-and-execution-k4`. The current root brief incorporates those
+repairs and the human's adoption, validation and runtime-delivery choices; do not
+treat the review's proposed resolutions as accepted requirements. The durable boundary is
 `docs/adr/harness-selection-is-owned-by-policy.md`; the proposals in
 `docs/research/grove-model-effort-routing.md` are starting evidence rather than
 an API to preserve.

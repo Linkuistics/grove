@@ -2,27 +2,46 @@
 
 The new harness-selection executable evaluates owner-supplied policy and launches
 the resulting harness, model and reasoning effort. Grove supplies its already
-selected session kind, optional task file and unchanged session prompt. Ordinary
-use of the executable requires no Grove installation or task-tree conventions.
+selected session kind, optional task file, stable task handle and unchanged
+session prompt. Callers supply stable artifact identities as data; association
+must survive a Grove task's retirement and reordering without parsing filenames.
+The first-release discovery guarantee spans sessions in the same live grove and
+workspace; design namespaces identities and keeps records outside task bodies
+and the tree's teardown. Automatic cross-checkout discovery and post-teardown
+artifact lookup are not required. Ordinary use of the executable requires no
+Grove installation or task-tree conventions.
 Selection policy is user-owned configuration, expressed as static mappings or
 TypeScript computation; Grove's command configuration remains the integration
 point. Existing direct-harness commands continue to work.
 
 The executable is a separate package in this repository and initially ships
-through Grove's installation and release. Co-location makes development,
+through Grove's installation and release, including everything needed to evaluate
+TypeScript without a separately installed runtime. Co-location makes development,
 integration tests and first deployment easier. Its interface must allow later
 extraction into a separate repository without making other callers adopt Grove.
 The executable name, implementation language, TypeScript runtime and protocol
 representation are subsequent design choices, not settled by this boundary.
 
-The policy owns model preferences, reasoning effort, explicit choice handling
-and review-provider rules. For the first release, the supplied review policy
-requires a different provider from the artifact's original creator. The package
-exposes discoverable artifact-associated execution provenance to TypeScript;
-current configuration cannot reconstruct a previous producer's identity. This is
-a simple original-creator comparison, with no separate model-inequality check or
+The policy owns model preferences, reasoning effort and review-provider rules.
+An explicit choice names a configured joint candidate: policy may accept or refuse
+it, and the executable rejects a different returned candidate. Grove owners can
+express such a choice in personal command configuration; there is no new Grove
+invocation override or launch metadata in task bodies.
+
+For the first release, a shipped example review policy requires a different
+provider from the artifact's original creator for every review it selects,
+including explicit choices and re-invocations. It is activated explicitly through
+personal policy and tested as the delivered artifact. Direct-harness routes remain
+outside its enforcement. Provider is an owner-declared candidate attribute for
+model origin, not a gateway or an identity inferred from argv. The package
+exposes discoverable artifact-associated creator provenance to TypeScript;
+current configuration cannot reconstruct the original creator's identity. An
+explicit owner declaration remedies missing execution records and is visibly
+labelled as declared; absence of both forms stops review. This is a simple
+original-creator comparison, with no separate model-inequality check or
 multi-author exclusion set. The generic executable contains no review-specific
-provider rule.
+provider rule. The supplied Grove policy/context adapter interprets review
+relationships; independent callers can supply equivalent generic associations.
 
 Policy ownership also determines which code may run. Personal policy is loaded
 by default. Repository TypeScript executes only when explicitly selected through
@@ -30,11 +49,21 @@ personal configuration or a `--config` argument. Merely cloning or entering a
 repository grants no authority to run its policy. An incomplete mapping or
 unresolved selection stops with a diagnostic; the executable invents no default
 and the supplied first-release policy supplies no automatic fallback.
+Explicit relative paths deliberately trust the resolved location in the caller's
+cwd; inspection shows that path and the source of authority. Trusted policy may
+import code, but the host must not implicitly load repository runtime settings,
+preload hooks, environment files or shadowing modules when evaluating personal
+policy. This preserves programmable policy without ambient repository discovery.
 
 The first release delivers static routing and a programmable TypeScript
 selection interface, inspection before harness launch, and execution/outcome
-records for later evaluation. A working local LLM selector and its pilot are
-follow-up work. The [routing research](../research/grove-model-effort-routing.md)
+records for later evaluation, including a documented way to add later outcome
+evidence. Required pre-launch recording fails closed. A record of the selected
+candidate and attempted handoff is not proof of execution; provenance describes
+the configured launch choice, not verified backend identity. Exit, duration,
+usage and outcomes remain unknown until evidence supplies them. A working local
+LLM selector and its pilot are follow-up work. The
+[routing research](../research/grove-model-effort-routing.md)
 motivates the computation boundary and documents possible future experiments;
 its model comparisons are priors, not validation of a routing policy.
 
@@ -44,9 +73,17 @@ must explain its own selection. The existing contracts for
 [complete commands](complete-session-configuration.md),
 [personal configuration authority](untracked-configuration-delta.md) and
 [foreground jobs](the-launched-child-is-a-job.md) still bind the Grove side.
-Selection helpers receive no Grove completion authority, and the final harness
-retains the driver's execution contract. Trusted TypeScript is executable
-configuration, not a sandbox against a hostile local owner.
+Grove's pre-authoring completeness check covers its configured command; delegated
+static or computed policy is validated at launch, not while mutating the tree.
+This can stop an unattended run on a previously authored task and is an accepted
+cost of delegation. Both inspection surfaces must make the boundary clear.
+
+Selection helpers are not granted Grove completion authority, and the final
+harness retains the driver's wrapper-exec and foreground-job contract. Finite
+selection bounds apply before handoff, and cancellation covers both selection
+and the harness session. Trusted TypeScript is executable configuration, not a sandbox against a
+hostile local owner. Dedicated integration with confined `grove run` routes is
+follow-up work; lifecycle integration and independent use are the first release.
 
 ## Considered options
 

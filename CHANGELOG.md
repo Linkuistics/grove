@@ -52,6 +52,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.12.0
+
 - `grove` / `configure-grove`: add an operator skill for inspecting and updating
   global model/effort policy and creating project configuration overrides. It
   checks task contracts and current model evidence, preserves harness permissions,

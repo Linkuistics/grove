@@ -182,6 +182,10 @@ fn the_harness_keeps_the_callers_stdin_stdout_and_other_descriptors() {
         fs::read_to_string(&through).unwrap(),
         "written through descriptor 7\n"
     );
+    // The caller's descriptor, and nothing of the front's own: the record
+    // store was closed before exec. This is also the positive control for the
+    // fake harness's descriptor probe, which `records.rs` relies on.
+    assert_eq!(sandbox.harness_fds(), [7]);
 }
 
 #[test]

@@ -2,8 +2,9 @@
 //! interface*).
 //!
 //! `inspect` and `run` accept the same selection inputs. This release reads the
-//! kind, the policy entry, the prompt, the optional task file and identity, and
-//! the whole-selection bound.
+//! kind, the policy entry, the prompt, the optional task file and identity, the
+//! whole-selection bound and the record directory. `record show` exports a
+//! recorded run.
 //! The spec's other inputs and commands belong to later increments, and until
 //! each lands it is refused explicitly, by name, rather than accepted and
 //! ignored. They are hidden from help so that help lists only what works.
@@ -39,19 +40,58 @@ pub enum Command {
         harness-dispatch inspect --kind impl --task-id T-12 --prompt 'Implement the parser'\n  \
         harness-dispatch inspect --kind review-impl --config ./policies/review.ts --json")]
     Inspect(InspectArgs),
-    /// Select a candidate and replace this process with its harness
+    /// Select a candidate, record the handoff, and replace this process with its harness
     #[command(
-        after_help = "The harness inherits this process's cwd, descriptors, environment and \
-        PID, and its own exit code or signal is the command's. Stdout and stdin are the \
-        harness's; the choice is reported in one line on stderr.\n\n\
+        after_help = "Before it execs, run commits one handoff record with a fresh run ID to \
+        the record store (exit 4, and nothing launched, if it cannot). The harness inherits \
+        this process's cwd, descriptors, environment and PID, plus HARNESS_DISPATCH_RUN_ID \
+        and HARNESS_DISPATCH_STATE_DIR, and its own exit code or signal is the command's. \
+        Stdout and stdin are the harness's; the choice and run ID are reported in one line on \
+        stderr.\n\n\
         Examples:\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
-        harness-dispatch run --kind impl --task-file ./tasks/parser.md --task-id T-12 --prompt-file ./mandate.md"
+        harness-dispatch run --kind impl --task-file ./tasks/parser.md --task-id T-12 --prompt-file ./mandate.md\n  \
+        harness-dispatch run --kind impl --state-dir ./records --prompt 'Implement the parser'"
     )]
     Run(RunArgs),
+    /// Read the run records that run commits
+    Record(RecordArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct RecordArgs {
+    #[command(subcommand)]
+    pub command: RecordCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum RecordCommand {
+    /// Export one recorded run: its launch fields, its evidence and its outcomes
+    #[command(
+        after_help = "A run is a handoff attempt: it was recorded just before exec, and \
+        whether the harness then ran, and how it went, stays unknown until observed. An exec \
+        that failed is recorded as a launch failure. No outcome is ever inferred.\n\n\
+        Examples:\n  \
+        harness-dispatch record show --run \"$HARNESS_DISPATCH_RUN_ID\" --json\n  \
+        harness-dispatch record show --run 0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d9e --state-dir ./records"
+    )]
+    Show(ShowArgs),
     /// Not supported by this release
     #[command(hide = true)]
-    Record(Later),
+    Observe(Later),
+}
+
+#[derive(Debug, Args)]
+pub struct ShowArgs {
+    /// The run's ID, as run reported it and the harness received it in HARNESS_DISPATCH_RUN_ID
+    #[arg(long, value_name = "RUN_ID")]
+    pub run: OsString,
+    /// Read records from this directory instead of ~/.local/state/harness-dispatch; relative to the current directory
+    #[arg(long, value_name = "PATH")]
+    pub state_dir: Option<PathBuf>,
+    /// Print one version-1 JSON object on stdout, or one JSON error on stderr
+    #[arg(long)]
+    pub json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -102,6 +142,10 @@ pub struct SelectionArgs {
     #[arg(long, value_name = "MS")]
     pub timeout_ms: Option<OsString>,
 
+    /// Keep run records in this directory instead of ~/.local/state/harness-dispatch; relative to the current directory
+    #[arg(long, value_name = "PATH")]
+    pub state_dir: Option<PathBuf>,
+
     // The spec's remaining selection inputs, owned by later increments.
     #[arg(long, hide = true)]
     pub context: Option<OsString>,
@@ -111,8 +155,6 @@ pub struct SelectionArgs {
     pub policy_env: Vec<OsString>,
     #[arg(long, hide = true)]
     pub context_bytes: Option<OsString>,
-    #[arg(long, hide = true)]
-    pub state_dir: Option<OsString>,
 }
 
 /// Arguments of a command this release refuses, taken whole so that the
@@ -133,7 +175,6 @@ impl SelectionArgs {
             ("--choice", self.choice.is_some()),
             ("--policy-env", !self.policy_env.is_empty()),
             ("--context-bytes", self.context_bytes.is_some()),
-            ("--state-dir", self.state_dir.is_some()),
         ];
         if let Some((flag, _)) = later.iter().find(|(_, given)| *given) {
             return Err(unsupported(&format!("`{flag}`"), flag));
@@ -174,7 +215,8 @@ pub fn unsupported(what: &str, input: &str) -> Refusal {
         EXIT_MALFORMED,
         format!("{what} is not supported by this release of harness-dispatch"),
         "omit it; this release selects through a static routes policy with --kind, --config, \
-         --prompt or --prompt-file, --task-file, --task-id, --timeout-ms and --json",
+         --prompt or --prompt-file, --task-file, --task-id, --timeout-ms, --state-dir and \
+         --json, and exports runs with record show",
     )
     .input(input)
 }

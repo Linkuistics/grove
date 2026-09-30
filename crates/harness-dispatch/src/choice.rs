@@ -6,24 +6,33 @@
 //! `inspect` reports the resulting choice and `run` execs it, so the two cannot
 //! disagree about what a selection means. Every step refuses rather than
 //! substitutes: nothing here ever picks a candidate the policy did not.
+//!
+//! The record's state directory is placed here too, before the worker starts,
+//! so a HOME that cannot place it refuses in `inspect` as it would in `run`,
+//! and before anything is evaluated. The store itself is `run`'s alone, and is
+//! opened only after this selection has finished.
 
 use std::time::Duration;
 
 use serde_json::{Map, Value};
 
-use crate::argv::{self, Word};
+use crate::argv::{self, RunSlot, Word};
 use crate::authority::{self, PolicyEntry};
 use crate::cli::SelectionArgs;
 use crate::inputs::{Inputs, PromptRequirement};
 use crate::policy::{self, Candidate, Validator};
 use crate::program::{self, Executable};
 use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED};
+use crate::store::StateDir;
 use crate::worker::{self, Outcome, WorkerIdentity};
 
 #[derive(Debug)]
 pub struct Choice {
     pub inputs: Inputs,
     pub entry: PolicyEntry,
+    pub state_dir: StateDir,
+    /// The identity a `runId` slot expanded to.
+    pub run: RunSlot,
     pub version: String,
     pub candidate: Candidate,
     /// The candidate's place in the catalog, for refusal locations.
@@ -36,10 +45,15 @@ pub struct Choice {
     pub diagnostics: Diagnostics,
 }
 
-pub fn choose(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Choice, Failure> {
+pub fn choose(
+    args: &SelectionArgs,
+    requirement: PromptRequirement,
+    run: RunSlot,
+) -> Result<Choice, Failure> {
     let inputs = Inputs::read(args, requirement)?;
     let home = std::env::var_os("HOME");
     let entry = authority::resolve(args.config.as_deref(), &inputs.cwd, home.as_deref())?;
+    let state_dir = StateDir::resolve(args.state_dir.as_deref(), &inputs.cwd, home.as_deref())?;
     let source = entry.display();
 
     let worker_path = worker::locate()?;
@@ -92,7 +106,7 @@ pub fn choose(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Ch
     let policy::Selection { index, reason } =
         policy::route(&policy, &inputs.kind, &source).map_err(refuse)?;
     let candidate = policy.catalog.swap_remove(index);
-    let argv = argv::expand(&candidate, index, &inputs, &source).map_err(refuse)?;
+    let argv = argv::expand(&candidate, index, &inputs, &run, &source).map_err(refuse)?;
     let path = std::env::var_os("PATH");
     let executable = program::resolve(&candidate, index, &source, &inputs.cwd, path.as_deref())
         .map_err(refuse)?;
@@ -100,6 +114,8 @@ pub fn choose(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Ch
     Ok(Choice {
         inputs,
         entry,
+        state_dir,
+        run,
         version: policy.version,
         candidate,
         index,

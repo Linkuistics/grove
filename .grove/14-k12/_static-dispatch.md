@@ -57,7 +57,9 @@ extends.
    and exit 124.
 4. `handoff-records-k24`: the store, the run ID, the required pre-exec commit,
    exported run identity, the exec-failure detail and `record show`.
-5. `choice-and-refusals-k15`: `--choice` under routes, the actionable-refusal
+5. `deadline-test-load-race-k45`: make the never-identifies deadline test's
+   evidence reliable under load, cut by `handoff-records-k24` when it recurred.
+6. `choice-and-refusals-k15`: `--choice` under routes, the actionable-refusal
    contract, help examples and the static starter examples.
 
 Each child leaves the command usable, with behavior its successor needs but does

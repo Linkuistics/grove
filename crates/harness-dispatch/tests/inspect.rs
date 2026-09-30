@@ -330,11 +330,11 @@ fn every_invalid_policy_shape_refuses_with_its_location() {
             "policy.catalog[0].args",
         ),
         (
-            "runId is later",
+            "a misspelt runId slot",
             with(
-                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: [{ slot: "prompt" }, { slot: "runId" }] }"#,
+                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: [{ slot: "prompt" }, { slot: "runID" }] }"#,
             ),
-            "unsupported_form",
+            "policy_invalid",
             "policy.catalog[0].args[1].slot",
         ),
         (
@@ -569,13 +569,7 @@ fn a_refusal_carries_the_policy_output_separately() {
 fn forms_later_increments_own_are_refused_by_name() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);
-    for flag in [
-        "--context",
-        "--choice",
-        "--policy-env",
-        "--context-bytes",
-        "--state-dir",
-    ] {
+    for flag in ["--context", "--choice", "--policy-env", "--context-bytes"] {
         let refusal = sandbox
             .inspect(&["--kind", "impl", flag, "value", "--json"])
             .refusal(2);
@@ -590,10 +584,10 @@ fn forms_later_increments_own_are_refused_by_name() {
     assert_eq!(refusal["error"]["input"], "--choice");
     assert!(!sandbox.harness_ran());
     let mut invocation = sandbox.command();
-    invocation.args(["record", "--kind", "impl", "--json"]);
+    invocation.args(["record", "observe", "--run", "r", "--json"]);
     let refusal = support::run(&mut invocation).refusal(2);
     assert_eq!(refusal["error"]["code"], "unsupported_input");
-    assert_eq!(refusal["error"]["input"], "record");
+    assert_eq!(refusal["error"]["input"], "record observe");
 }
 
 #[test]
@@ -630,6 +624,7 @@ fn help_lists_only_the_forms_this_release_delivers() {
         "--task-file",
         "--task-id",
         "--timeout-ms",
+        "--state-dir",
     ] {
         assert!(
             run.stdout.contains(delivered),
@@ -637,7 +632,7 @@ fn help_lists_only_the_forms_this_release_delivers() {
             run.stdout
         );
     }
-    for later in ["--choice", "--context", "--state-dir", "--policy-env"] {
+    for later in ["--choice", "--context", "--policy-env"] {
         assert!(
             !run.stdout.contains(later),
             "help advertises {later}:\n{}",

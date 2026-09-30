@@ -25,9 +25,6 @@ const CANDIDATE_FIELDS: [&str; 6] = ["id", "provider", "model", "effort", "progr
 const SLOTS: [&str; 7] = [
     "prompt", "kind", "taskFile", "taskId", "model", "effort", "runId",
 ];
-/// Named by the spec, and refused until the handoff record that allocates the
-/// run ID lands (`handoff-records-k24`).
-const LATER_SLOTS: [&str; 1] = ["runId"];
 
 #[derive(Debug)]
 pub struct Policy {
@@ -53,8 +50,8 @@ pub enum Argument {
     Slot(Slot),
 }
 
-/// A caller input or catalog value that fills one whole argument. `runId` is
-/// refused at validation, so it has no variant yet.
+/// A caller input, catalog value or run identity that fills one whole
+/// argument.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Slot {
     Prompt,
@@ -63,6 +60,7 @@ pub enum Slot {
     TaskId,
     Model,
     Effort,
+    RunId,
 }
 
 impl Slot {
@@ -74,7 +72,43 @@ impl Slot {
             "taskId" => Slot::TaskId,
             "model" => Slot::Model,
             "effort" => Slot::Effort,
+            "runId" => Slot::RunId,
             _ => return None,
+        })
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Slot::Prompt => "prompt",
+            Slot::Kind => "kind",
+            Slot::TaskFile => "taskFile",
+            Slot::TaskId => "taskId",
+            Slot::Model => "model",
+            Slot::Effort => "effort",
+            Slot::RunId => "runId",
+        }
+    }
+}
+
+impl Candidate {
+    /// The catalog entry as the policy configured it, slots as slot objects:
+    /// the selected catalog values a run records.
+    pub fn to_json(&self) -> Value {
+        let args: Vec<Value> = self
+            .args
+            .iter()
+            .map(|argument| match argument {
+                Argument::Literal(literal) => Value::String(literal.clone()),
+                Argument::Slot(slot) => serde_json::json!({ "slot": slot.name() }),
+            })
+            .collect();
+        serde_json::json!({
+            "id": self.id,
+            "provider": self.provider,
+            "model": self.model,
+            "effort": self.effort,
+            "program": self.program,
+            "args": args,
         })
     }
 }
@@ -309,22 +343,9 @@ impl<'a> Validator<'a> {
                 return Err(self.invalid(at, format!("{expected}, found {}", describe(arg))));
             }
         };
-        match slot.as_str().map(|name| (name, Slot::named(name))) {
-            Some((_, Some(slot))) => Ok(Argument::Slot(slot)),
-            Some((name, None)) if LATER_SLOTS.contains(&name) => Err(Refusal::new(
-                "unsupported_form",
-                Stage::Validation,
-                EXIT_REFUSED,
-                format!("the `{name}` slot is not supported by this release of harness-dispatch"),
-                format!(
-                    "remove the `{name}` slot from {at} in {}; the run ID arrives with the \
-                     required handoff record",
-                    self.source
-                ),
-            )
-            .source(self.source)
-            .location(format!("{at}.slot"))),
-            _ => Err(self.invalid(
+        match slot.as_str().and_then(Slot::named) {
+            Some(slot) => Ok(Argument::Slot(slot)),
+            None => Err(self.invalid(
                 &format!("{at}.slot"),
                 format!(
                     "`slot` must be one of {}, found {}",

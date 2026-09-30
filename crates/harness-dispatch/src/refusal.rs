@@ -13,9 +13,11 @@ use serde_json::{json, Map, Value};
 
 use crate::inputs::Bound;
 
-/// Exit results before exec. `handoff-records-k24` adds 4.
+/// Exit results before exec.
 pub const EXIT_MALFORMED: u8 = 2;
 pub const EXIT_REFUSED: u8 = 3;
+/// The required record could not be written, or a record could not be read.
+pub const EXIT_RECORD: u8 = 4;
 pub const EXIT_WORKER: u8 = 5;
 pub const EXIT_TIMEOUT: u8 = 124;
 pub const EXIT_UNEXECUTABLE: u8 = 126;
@@ -45,6 +47,8 @@ pub enum Stage {
     Expansion,
     /// Finding the selected candidate's program.
     Resolution,
+    /// Placing, opening, committing to or reading the run record store.
+    Record,
     /// Replacing this process with the harness.
     Exec,
 }
@@ -61,6 +65,7 @@ impl Stage {
             Stage::Selection => "selection",
             Stage::Expansion => "expansion",
             Stage::Resolution => "resolution",
+            Stage::Record => "record",
             Stage::Exec => "exec",
         }
     }
@@ -86,6 +91,45 @@ pub struct Details {
     pub location: Option<String>,
     /// The bound whose exhaustion this refusal reports.
     pub bound: Option<Bound>,
+    /// The committed run a failure after the handoff commit belongs to.
+    pub run: Option<RunNote>,
+}
+
+/// A failure after the handoff commit: the run it belongs to, and whether its
+/// launch-failure detail reached the store. If it did not, the run stays a
+/// handoff attempt whose execution is unknown; it never becomes a success.
+#[derive(Debug)]
+pub struct RunNote {
+    pub id: String,
+    /// `None` once the detail is recorded; otherwise the refusal that stopped
+    /// the append, by code and message.
+    pub unrecorded: Option<(&'static str, String)>,
+}
+
+impl RunNote {
+    fn to_json(&self) -> Value {
+        match &self.unrecorded {
+            None => json!({ "id": self.id, "launchFailure": "recorded" }),
+            Some((code, message)) => json!({
+                "id": self.id,
+                "launchFailure": "unrecorded",
+                "evidence": "handoff_attempt",
+                "execution": "unknown",
+                "recordError": { "code": code, "message": message },
+            }),
+        }
+    }
+
+    fn to_text(&self) -> String {
+        match &self.unrecorded {
+            None => format!("{}; the launch failure is recorded against it", self.id),
+            Some((code, message)) => format!(
+                "{}; recording the launch failure failed ({code}: {message}), so the run stays \
+                 a handoff attempt whose execution is unknown",
+                self.id
+            ),
+        }
+    }
 }
 
 impl std::ops::Deref for Refusal {
@@ -114,6 +158,7 @@ impl Refusal {
             source: None,
             location: None,
             bound: None,
+            run: None,
         }))
     }
 
@@ -134,6 +179,11 @@ impl Refusal {
 
     pub fn bound(mut self, bound: Bound) -> Self {
         self.0.bound = Some(bound);
+        self
+    }
+
+    pub fn run(mut self, run: RunNote) -> Self {
+        self.0.run = Some(run);
         self
     }
 }
@@ -215,6 +265,9 @@ impl Failure {
             named["name"] = bound.name.into();
             error.insert("bound".into(), named);
         }
+        if let Some(run) = &refusal.run {
+            error.insert("run".into(), run.to_json());
+        }
         error.insert("remedy".into(), refusal.remedy.clone().into());
         error.insert("exit".into(), refusal.exit.into());
         let mut document = Map::new();
@@ -250,6 +303,9 @@ impl Failure {
         }
         if let Some(bound) = &refusal.bound {
             let _ = writeln!(text, "  bound: {} {}", bound.name, bound.to_text());
+        }
+        if let Some(run) = &refusal.run {
+            let _ = writeln!(text, "  run: {}", run.to_text());
         }
         let _ = writeln!(text, "  remedy: {}", refusal.remedy);
         text

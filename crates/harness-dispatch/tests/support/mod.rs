@@ -38,12 +38,24 @@ pub const ROUTED: &str = r#"export const policy = {
 /// tells it: it writes to descriptor 7, kills itself with a signal, or exits
 /// with a code. The record directory is created exclusively, so its presence
 /// is the marker that the harness ran, and a second start fails loudly.
+///
+/// It also records the run identity it was handed, a copy of the record store
+/// as it found it (so a test can see the handoff was committed before the
+/// harness started), and which of descriptors 3 to 9 it inherited open.
 pub const FAKE_HARNESS: &str = r#"#!/bin/sh
 record=$FAKE_HARNESS_RECORD
 mkdir "$record" || exit 90
 for argument in "$@"; do printf '%s\0' "$argument"; done > "$record/args"
 pwd -P > "$record/cwd"
 echo $$ > "$record/pid"
+printf '%s' "${HARNESS_DISPATCH_RUN_ID-<unset>}" > "$record/run-id"
+printf '%s' "${HARNESS_DISPATCH_STATE_DIR-<unset>}" > "$record/state-dir"
+if [ -f "$HARNESS_DISPATCH_STATE_DIR/records.sqlite3" ]; then
+  cp "$HARNESS_DISPATCH_STATE_DIR/records.sqlite3" "$record/store-at-start"
+fi
+for fd in 3 4 5 6 7 8 9; do
+  if (: <&"$fd") 2>/dev/null; then printf '%s\n' "$fd"; fi
+done > "$record/fds"
 cat
 if [ -n "$FAKE_HARNESS_FD7" ]; then echo "$FAKE_HARNESS_FD7" >&7; fi
 if [ -n "$FAKE_HARNESS_SIGNAL" ]; then kill -s "$FAKE_HARNESS_SIGNAL" $$; fi
@@ -108,6 +120,30 @@ impl Sandbox {
     pub fn harness_cwd(&self) -> PathBuf {
         let cwd = fs::read_to_string(self.record.join("cwd")).expect("the fake harness ran");
         PathBuf::from(cwd.strip_suffix('\n').expect("pwd ends its line"))
+    }
+
+    /// `HARNESS_DISPATCH_RUN_ID` as the fake harness received it.
+    pub fn harness_run_id(&self) -> String {
+        fs::read_to_string(self.record.join("run-id")).expect("the fake harness ran")
+    }
+
+    /// `HARNESS_DISPATCH_STATE_DIR` as the fake harness received it.
+    pub fn harness_state_dir(&self) -> String {
+        fs::read_to_string(self.record.join("state-dir")).expect("the fake harness ran")
+    }
+
+    /// The descriptors from 3 to 9 the fake harness inherited open.
+    pub fn harness_fds(&self) -> Vec<u32> {
+        let fds = fs::read_to_string(self.record.join("fds")).expect("the fake harness ran");
+        fds.lines()
+            .map(|fd| fd.parse().expect("a descriptor"))
+            .collect()
+    }
+
+    /// The default record store, under the sandbox's HOME.
+    pub fn default_store(&self) -> PathBuf {
+        self.home
+            .join(".local/state/harness-dispatch/records.sqlite3")
     }
 
     pub fn harness_pid(&self) -> u32 {

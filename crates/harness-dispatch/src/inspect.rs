@@ -6,6 +6,10 @@
 //! same choice `run` would, including argv expansion and program resolution,
 //! and reports it in both forms: human text, and one version-1 JSON object on
 //! stdout. Without a prompt, the prompt's argument is a marked placeholder.
+//!
+//! It records nothing and never opens the record store. It reports where `run`
+//! would record, and a proposed run ID, visibly marked, which no run holds and
+//! no later `run` reuses.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -13,17 +17,20 @@ use std::time::Duration;
 
 use serde_json::{json, Map, Value};
 
+use crate::argv::RunSlot;
 use crate::authority::{Authority, PERSONAL_DEFAULT};
 use crate::choice::{self, Choice};
 use crate::cli::InspectArgs;
 use crate::inputs::{PromptRequirement, PromptSource};
 use crate::refusal::{Diagnostics, Failure};
+use crate::run_id::RunId;
 use crate::worker::WorkerIdentity;
 
 pub struct Report(Choice);
 
 pub fn inspect(args: &InspectArgs) -> Result<Report, Failure> {
-    choice::choose(&args.selection, PromptRequirement::Optional).map(Report)
+    let proposed = RunSlot::Proposed(RunId::allocate()?);
+    choice::choose(&args.selection, PromptRequirement::Optional, proposed).map(Report)
 }
 
 impl Report {
@@ -44,6 +51,7 @@ impl Report {
                 policy.insert("argument".into(), argument.to_string_lossy().into());
             }
         }
+        policy.insert("sha256".into(), choice.entry.sha256.clone().into());
         policy.insert("version".into(), choice.version.clone().into());
         let prompt = match &choice.inputs.prompt {
             None => json!({ "supplied": false }),
@@ -67,6 +75,8 @@ impl Report {
         json!({
             "schemaVersion": 1,
             "evidence": "proposal",
+            "proposedRunId": choice.run.id().as_str(),
+            "stateDir": choice.state_dir.to_json(),
             "kind": choice.inputs.kind,
             "taskFile": choice.inputs.task_file,
             "taskId": choice.inputs.task_id,
@@ -117,6 +127,7 @@ impl Report {
             ("policy", choice.entry.display()),
             ("authority", authority),
             ("version", choice.version.clone()),
+            ("sha256", choice.entry.sha256.clone()),
             ("kind", shown(&inputs.kind)),
             (
                 "task file",
@@ -151,6 +162,14 @@ impl Report {
                     worker.bun_version
                 ),
             ),
+            (
+                "run id",
+                format!(
+                    "{} (proposed only: run allocates and records its own)",
+                    choice.run.id()
+                ),
+            ),
+            ("records", choice.state_dir.to_text()),
         ];
         let mut text =
             String::from("Proposal only: nothing was launched and no run was recorded.\n");

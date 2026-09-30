@@ -18,8 +18,9 @@
  *
  * Every candidate uses `prompt` exactly once. A slot whose optional input the
  * caller did not supply (`taskFile`, `taskId`) refuses the invocation rather
- * than filling the argument with nothing. This release refuses `runId`, which
- * arrives with the run record.
+ * than filling the argument with nothing. `runId` is the run's own identity,
+ * the one `run` records before it execs and exports as
+ * `HARNESS_DISPATCH_RUN_ID`; inspection shows a proposed ID in its place.
  */
 export type Slot = "prompt" | "kind" | "taskFile" | "taskId" | "model" | "effort" | "runId";
 

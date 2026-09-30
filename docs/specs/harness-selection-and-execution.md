@@ -1,14 +1,16 @@
 # Harness selection and execution
 
 This is the first-release design of **harness-dispatch**. Most of it specifies
-behavior that is not implemented yet. Of the command itself, `inspect` of a
-static `routes` policy is delivered: policy authority, the compiled worker with
-its identity check and embedded SDK, policy validation, the prompt, task file
-and task identity inputs, argument-slot expansion without `runId`, program
-resolution, the whole-selection deadline with its exit 124, and the human and
-version-1 JSON reports. `run` performs the same
-selection and a plain exec, but it is not delivered until it commits the
-required handoff record. Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
+behavior that is not implemented yet. Of the command itself, `inspect` and
+`run` of a static `routes` policy are delivered: policy authority, the compiled
+worker with its identity check and embedded SDK, policy validation, the prompt,
+task file, task identity and state directory inputs, argument-slot expansion
+including `runId`, program resolution, the whole-selection deadline with its
+exit 124, and the human and version-1 JSON reports. `run` commits its required
+handoff record before a plain exec, exports the run's identity to the harness,
+and appends an exec failure to its attempt. `record show` exports a recorded
+run. Handled signals and a signal-transparent handoff are not yet delivered.
+Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
 symbolic inspection are delivered.
 The [visual document](../design/harness-selection-and-execution/README.md) has
@@ -480,6 +482,18 @@ used cannot go stale before that review's own handoff. There is no creator
 registration to revise. Readable but corrupt records never become
 missing-provider defaults.
 
+The store is `records.sqlite3` in the state directory, created on first use
+with owner-only permissions. It names itself with a SQLite application ID and
+a schema version. A store of another application, of another version, or that
+SQLite reports as corrupt refuses with exit 4, and is never reset or replaced.
+A run's launch fields are one document with its own version. Every field that
+a later increment supplies is present in it, as `null` until then. A release
+that records something new therefore writes it into new runs only, and a new
+table arrives by a migration that only creates. The commit is one exclusive
+transaction in a rollback journal at `synchronous = EXTRA`, the setting SQLite
+documents as durable in that mode, with `fullfsync` on for macOS. The store is
+opened only after the worker has been reaped.
+
 | Evidence | Meaning |
 |---|---|
 | Proposal | Result of inspection; no persisted launch claim |
@@ -495,7 +509,10 @@ backend model. A refusal before the handoff commit is a structured diagnostic
 only: it creates no run and no record. Only a committed attempt can carry a
 launch-failure detail.
 
-`record show --run R --json` exports the run and its observations.
+`record show --run R --json` exports the run and its observations. The export
+names the run's evidence: `handoff_attempt`, whose execution is `unknown`, or
+`launch_failure`, whose harness was `not_executed`. Every outcome not observed
+is `unobserved`.
 `record observe --run R --file observation.json` validates and atomically appends
 one version-1 observation. It requires a caller-generated observation ID, source,
 observed-at timestamp and evidence description. Repeating identical ID/content

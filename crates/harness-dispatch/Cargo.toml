@@ -19,10 +19,21 @@ rust-version.workspace = true
 # derived deserializer would report its own shape instead. `libc` places the
 # protocol socket at descriptor 3 in the worker, which `std::process` has no
 # interface for. `tempfile` is the worker's private empty directory.
+#
+# `rusqlite` with `bundled` is the run record store (*Records and later
+# observations*): SQLite compiled into this binary, so no system library or
+# database service takes part, and every target records with the same SQLite.
+# Default features are off; `cache` would bring a prepared-statement cache the
+# store's handful of statements has no use for. The bundled C is what makes the
+# Linux cross-build (zigbuild at glibc 2.17) compile C, which
+# `dispatch-delivery-k16` builds and smokes on every target. `sha2` digests the
+# policy entry the record names; it was already a build dependency.
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 libc = "0.2"
+rusqlite = { version = "0.40", default-features = false, features = ["bundled"] }
 serde_json = "1.0"
+sha2 = "0.10"
 tempfile = "3.10"
 
 # The worker's source digest, computed without Bun: see build.rs.

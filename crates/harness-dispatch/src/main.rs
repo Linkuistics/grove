@@ -14,8 +14,11 @@ mod inputs;
 mod inspect;
 mod policy;
 mod program;
+mod record;
 mod refusal;
 mod run;
+mod run_id;
+mod store;
 mod worker;
 
 use std::ffi::OsString;
@@ -25,7 +28,7 @@ use std::process::ExitCode;
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::Parser as _;
 
-use crate::cli::{Cli, Command};
+use crate::cli::{Cli, Command, RecordCommand};
 use crate::refusal::{Failure, Refusal, Stage, EXIT_MALFORMED};
 
 fn main() -> ExitCode {
@@ -51,7 +54,20 @@ fn main() -> ExitCode {
             }
         }),
         Command::Run(args) => Err(run::run(args)),
-        Command::Record(_) => Err(cli::unsupported("`record`", "record").into()),
+        Command::Record(record) => match &record.command {
+            RecordCommand::Show(args) => record::show(args)
+                .map(|export| {
+                    if args.json {
+                        println!("{}", export.to_json());
+                    } else {
+                        print!("{}", export.to_text());
+                    }
+                })
+                .map_err(Failure::from),
+            RecordCommand::Observe(_) => {
+                Err(cli::unsupported("`record observe`", "record observe").into())
+            }
+        },
     };
     match result {
         Ok(()) => {

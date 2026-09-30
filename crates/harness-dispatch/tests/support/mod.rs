@@ -246,8 +246,9 @@ impl Run {
         })
     }
 
-    /// The JSON refusal on stderr, after asserting the exit result and that
-    /// stdout carries no partial object.
+    /// The JSON refusal on stderr, after asserting the exit result, that stdout
+    /// carries no partial object, and the refusal contract: a stable code, a
+    /// stage, a message, a remedy, and the input or source involved.
     pub fn refusal(&self, exit: i32) -> Value {
         assert_eq!(
             self.code,
@@ -270,6 +271,15 @@ impl Run {
                 "refusal lacks {field}: {document}"
             );
         }
+        let named = |field: &str| {
+            document["error"][field]
+                .as_str()
+                .is_some_and(|text| !text.is_empty())
+        };
+        assert!(
+            named("input") || named("source"),
+            "refusal names neither its input nor its source: {document}"
+        );
         document
     }
 }

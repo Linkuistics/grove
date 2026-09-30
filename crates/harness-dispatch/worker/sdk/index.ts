@@ -62,7 +62,12 @@ export interface Candidate {
  * The static form: an exact table from session kind to candidate ID.
  *
  * There is no catch-all route and no fallback. A kind the table does not name
- * refuses as an incomplete mapping.
+ * refuses as an incomplete mapping. A caller's explicit `--choice` selects the
+ * catalog candidate it names without consulting the table, for any kind; an ID
+ * the catalog lacks refuses.
+ *
+ * `harness-dispatch/examples/static` and `harness-dispatch/examples/grove-static`
+ * are editable starting points in this form.
  */
 export interface RoutesPolicy {
   readonly schemaVersion: 1;

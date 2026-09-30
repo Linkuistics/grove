@@ -366,3 +366,14 @@ Obligations common to every implementation leaf:
   boundary, so that an extraction can move them without taking Grove.
 - A decision records durably only if it clears the ADR bar. Otherwise the spec
   and the leaf's running log hold it.
+- Every refusal names its input or source as well as its code, stage, message
+  and remedy. `support::Run::refusal` asserts this for every JSON refusal a
+  test reads. A refused `run` names its equivalent `inspect` invocation from
+  its parsed inputs, so a new selection input joins
+  `SelectionArgs::inspect_invocation` (`static-dispatch-k12`).
+- A new embedded specifier joins the `embedded` table in
+  `worker/src/main.ts`. Its source joins the digest set that `build.rs` and
+  `scripts/dispatch.sh` both compute, and `dispatch.sh build` ships its
+  declarations and readable source beside the worker. The static starter
+  examples export `catalog`, `routes`, `CandidateId` and `policy`, so a later
+  example can build on their routes.

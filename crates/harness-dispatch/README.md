@@ -11,11 +11,14 @@ This release delivers **inspection and running of a static `routes`
 policy**. `inspect` reports the choice, the harness's expanded arguments and
 the program that would run. `run` makes the same choice, commits a durable
 record of the handoff with a fresh run ID, and then replaces itself with the
-harness. `record show` exports what a run recorded. Selection is bounded in
-time, so a policy that never finishes loading is stopped and nothing runs.
-Signal handling at the handoff, explicit choices, computed selection, task
-context and later observations come in later releases. Until each arrives, its
-input is refused by name. It is never accepted and ignored.
+harness. `record show` exports what a run recorded. A caller can name one
+configured candidate with `--choice` instead of the kind's route. Selection is
+bounded in time, so a policy that never finishes loading is stopped and nothing
+runs. Every refusal says what to fix, and a refused `run` gives the `inspect`
+command that reproduces it. Two static starter policies ship inside the worker.
+Signal handling at the handoff, computed selection, task context and later
+observations come in later releases. Until each arrives, its input is refused
+by name. It is never accepted and ignored.
 
 ## Install from a checkout
 
@@ -93,18 +96,64 @@ Every candidate in the catalog is checked, including those no route names, so a
 mistake anywhere refuses rather than waiting for the kind that would reach it.
 
 `harness-dispatch/sdk` is built into the worker, so there is nothing to install.
-For editor type checking, map the specifier to the declarations beside the
+For editor type checking, map the specifiers to the declarations beside the
 worker:
 
 ```json
 {
   "compilerOptions": {
-    "paths": { "harness-dispatch/sdk": ["<prefix>/libexec/harness-dispatch/sdk/index.d.ts"] }
+    "paths": {
+      "harness-dispatch/sdk": ["<prefix>/libexec/harness-dispatch/sdk/index.d.ts"],
+      "harness-dispatch/examples/*": ["<prefix>/libexec/harness-dispatch/examples/*.d.ts"]
+    }
   }
 }
 ```
 
-The readable source, `sdk/index.ts`, sits beside the declarations.
+The readable sources, `sdk/index.ts` and `examples/*.ts`, sit beside the
+declarations.
+
+## Starter examples
+
+Two static policies ship inside the worker as editable starting points. Neither
+is active until your own policy imports it.
+
+| Specifier | Kinds it routes |
+|---|---|
+| `harness-dispatch/examples/static` | A caller's own kinds, without Grove: `question`, `bugfix`, `feature`, `migration` and `architecture`, over one harness at four efforts |
+| `harness-dispatch/examples/grove-static` | All 23 of Grove's session kinds, exactly, over a lead harness and a reviewer from another provider |
+
+Each maps its kinds exactly: a kind it does not list refuses. Each explains, kind
+by kind, why the work gets the effort it does, in terms of abstraction,
+uncertainty, consequences, downstream repair, reversibility and available
+checks. None ranks models. These are priors, not calibrated estimates. Their
+programs, such as `my-codex-wrapper`, are illustrative wrappers you supply. Each
+receives `--model`, `--effort` and the prompt, and should exec your harness
+with them. Their models and providers are placeholders. The Grove example
+routes reviews to the other provider, but a static table cannot see which
+provider actually created the artifact a review reads, so it enforces no
+provider rule.
+
+Use one whole from your personal policy:
+
+```ts
+export { policy } from "harness-dispatch/examples/grove-static";
+```
+
+Or keep its routes and supply your own catalog, with the same candidate IDs.
+Each example also exports its `catalog` and a `CandidateId` type, so a typo in
+an ID is a type error:
+
+```ts
+import { definePolicy } from "harness-dispatch/sdk";
+import { routes } from "harness-dispatch/examples/grove-static";
+
+export const policy = definePolicy({ schemaVersion: 1, version: "mine-1", catalog: [/* … */], routes });
+```
+
+Better still, copy `examples/grove-static.ts` or `examples/static.ts` from
+beside the worker into your configuration directory and edit it. It imports
+`harness-dispatch/sdk` as your own policy does.
 
 ## Inputs
 
@@ -115,6 +164,7 @@ The readable source, `sdk/index.ts`, sits beside the declarations.
 | `--task-file PATH` | Optional. Resolved against the current directory and passed on as data. It is not read, need not exist, and supplies no kind or identity. |
 | `--task-id ID` | Optional. The task's stable identity, such as a Grove handle: opaque UTF-8 of at most 1024 bytes. |
 | `--config PATH` | Optional. The policy entry to use instead of the personal default. |
+| `--choice ID` | Optional. Select this configured candidate instead of the kind's route. See [explicit choice](#explicit-choice). |
 | `--timeout-ms MS` | Optional. The whole-selection bound in milliseconds, from 1000 to 120000. The default is 30000. See [the selection bound](#the-selection-bound). |
 | `--state-dir PATH` | Optional. The directory holding run records, instead of `~/.local/state/harness-dispatch`, resolved against the current directory. See [run records](#run-records). |
 
@@ -125,6 +175,26 @@ cannot be read and a file that is a terminal all refuse with exit 2 before any
 policy runs. harness-dispatch never reads its own stdin, which stays the
 harness's. The prompt never reaches the policy worker, so supplying it or not
 cannot change the selection.
+
+## Explicit choice
+
+`--choice ID` names one candidate in the policy's catalog. A routes policy
+selects it for any kind, including a kind its table does not route, and does
+not consult the table. Inspection reports `selectedBy` as `explicit_choice`
+rather than `route`, and the choice itself as `explicitChoice`. The run record
+keeps both. An ID the catalog does not have refuses with `unknown_choice`, exit
+3, and its remedy lists the configured IDs. Nothing else is selected in its
+place. The ID is matched exactly, and an empty one refuses with exit 2 before
+any policy runs.
+
+```sh
+harness-dispatch inspect --kind design --choice deep
+harness-dispatch run --kind impl --choice quick --prompt 'Rename the flag'
+```
+
+The choice names the whole joint candidate. There is no way to override its
+model or effort alone. Each invocation, a retry included, evaluates the policy
+afresh.
 
 ## The selection bound
 
@@ -207,12 +277,15 @@ harness-dispatch inspect --kind impl --task-id T-12 --prompt 'Implement the pars
 harness-dispatch inspect --kind review-impl --config ./policies/review.ts --json
 ```
 
-Inspection is a proposal. It launches nothing and reserves nothing. It evaluates
-trusted TypeScript, which may have side effects of its own. It makes the same
-choice `run` would, and refuses where `run` would, with the same exit. It
+Inspection is a proposal, not a launch reservation. It launches nothing and
+reserves nothing, and a later `run` evaluates the policy afresh. It evaluates
+trusted TypeScript, and is not promised to be free of that code's side
+effects. It makes the same choice `run` would, and refuses where `run` would,
+with the same exit. It
 reports the policy's path, its authority (personal or explicit), its SHA-256
-and version, the task file, task identity and prompt it was given, the chosen
-candidate with its provider, model and effort, the reason, the resolved program,
+and version, the task file, task identity and prompt it was given, any explicit
+choice, the chosen candidate with its provider, model and effort, what selected
+it and why, the resolved program,
 the expanded argv, the effective selection bound, the selection time, the
 worker's identity, and where `run` would record. It also shows a proposed run
 ID. That ID is marked as proposed, no run holds it, and a later `run`
@@ -234,8 +307,9 @@ version-1 object:
   "prompt": { "supplied": true, "from": "--prompt", "bytes": 20 },
   "policy": { "path": "/home/me/.config/harness-dispatch/policy.ts", "authority": "personal",
               "sha256": "9c1f…", "version": "2026-09-30" },
-  "selection": { "form": "routes", "selectedBy": "route", "candidateId": "deep", "provider": "anthropic",
-                 "model": "claude-opus-5-5", "effort": "high", "reason": "routes[\"impl\"] names candidate \"deep\"" },
+  "selection": { "form": "routes", "selectedBy": "route", "explicitChoice": null, "candidateId": "deep",
+                 "provider": "anthropic", "model": "claude-opus-5-5", "effort": "high",
+                 "reason": "routes[\"impl\"] names candidate \"deep\"" },
   "executable": { "program": "claude", "resolvedBy": "PATH", "pathEntry": "/opt/homebrew/bin", "path": "/opt/homebrew/bin/claude" },
   "argv": ["claude", "--model", "claude-opus-5-5", "Implement the parser"],
   "bounds": { "selection": { "ms": 30000, "from": "default" } },
@@ -286,7 +360,8 @@ Stdout and stdin are the harness's. On stderr, `run` prints whatever the policy
 printed, prefixed as in inspection, and then one line naming the candidate, the
 run ID and the file it executes. With `--json`, that line is one JSON object
 instead, `{"schemaVersion":1,"handoff":{…},"diagnostics":{…}}`. Its `handoff`
-carries `runId`, `recordedAt` and `stateDir` beside the choice.
+carries `runId`, `recordedAt` and `stateDir` beside the choice, with
+`selectedBy` and `explicitChoice` as inspection reports them.
 
 If the operating system refuses to execute the resolved file, `run` reports
 `exec_failed` with the error and a remedy. That exits 127 when the file, or the
@@ -323,8 +398,9 @@ never resets or replaces a store.
 A run records its ID and the time it was committed. It also records the kind,
 the task identity and task file, the current directory, and the policy's path,
 authority, SHA-256 and version. It keeps the selected candidate exactly as the
-catalog configured it, the reason and how it was selected, the resolved
-program and the full argv. It keeps the worker's identity, the effective bounds
+catalog configured it, how it was selected and why, including any explicit
+choice, the resolved program and the full argv. It keeps the worker's identity,
+the effective bounds
 and the selection time. Fields that later releases supply, such as a reviewed
 artifact, loaded context, an adapter version and creator provenance, are
 `null`. No environment value is recorded. The argv includes the prompt, so the
@@ -362,24 +438,62 @@ saying whether a store exists at the directory it looked in.
 
 ## Refusals
 
-A refusal launches nothing and never substitutes another candidate. Text mode
-prints the code, stage, message, relevant input, source and location, and a
-remedy on stderr. `--json` prints one object on stderr,
-`{"schemaVersion":1,"error":{…},"diagnostics":{…}}`, and nothing on stdout. A
-refusal caused by running out of a bound also names that bound, as `bound` in
-JSON and a `bound:` line in text.
+A refusal launches nothing and never substitutes another candidate. Nothing is
+retried, paged or confirmed interactively: each invocation evaluates the policy
+once. Every refusal names a stable code, the stage it arose in, a message, the
+input or source involved, and a remedy. Text mode prints them on stderr, after
+any output the policy printed, each line of it prefixed `policy stdout:` or
+`policy stderr:`. `--json` prints one object on stderr,
+`{"schemaVersion":1,"error":{…},"diagnostics":{…}}`, and nothing on stdout. The
+error names `input`, such as `--kind design`, or `source`, usually the policy
+entry, or both, and `location` where the problem is inside a policy. A refusal
+caused by running out of a bound also names that bound, as `bound` in JSON and
+a `bound:` line in text. A command line that cannot be parsed is refused the
+same way, with clap's tip and usage line in the remedy.
+
+A refused `run` also names the **equivalent `inspect` invocation**: the same
+selection inputs, with no prompt, from the same directory. An owner can then
+reproduce an unattended refusal without reconstructing its inputs. In text mode
+it is one command line for a POSIX shell, run in a subshell so that pasting it
+leaves your directory alone:
+
+```text
+harness-dispatch: refused (incomplete_mapping, stage selection): the routes in /home/me/.config/harness-dispatch/policy.ts name no candidate for kind "design"
+  input: --kind design
+  source: /home/me/.config/harness-dispatch/policy.ts
+  location: policy.routes
+  remedy: add a route "design" to a candidate ID in /home/me/.config/harness-dispatch/policy.ts, or name one configured candidate with --choice ID; harness-dispatch never substitutes a default candidate
+  inspect: (cd /work && harness-dispatch inspect --kind design --task-id T-12)
+```
+
+In JSON it is `error.inspect`, an argv array and the directory to run it in:
+
+```json
+"inspect": { "cwd": "/work", "argv": ["harness-dispatch", "inspect", "--kind", "design", "--task-id", "T-12", "--json"] }
+```
+
+The program is the one the caller ran, as the caller spelled it. `--json`
+carries over when the refusal was JSON. A value that begins with a hyphen is
+written `--flag=value`. A command line that cannot be parsed has no
+equivalent, and `inspect`'s own refusals name none. Run the invocation, correct
+what the remedy names, and inspect again until it reports a choice. A refusal
+at the record commit reproduces as a successful inspection, because inspection
+never opens the store.
 
 | Exit | Stage | Codes |
 |---|---|---|
-| 2 | `cli` | `malformed_input`, `unsupported_input` (an input or command a later release delivers), `prompt_invalid`, `prompt_unreadable` |
+| 2 | `cli` | `malformed_input` (including a command line that cannot be parsed, and an empty `--choice`), `unsupported_input` (an input or command a later release delivers), `prompt_invalid`, `prompt_unreadable` |
 | 3 | `authority` | `policy_missing`, `policy_unreadable`, `home_unset`, `cwd_unavailable` |
 | 3 | `load` | `policy_import_failed` (a missing import, or the entry threw while loading) |
 | 3 | `validation` | `policy_invalid` and `unsupported_version`, each with its `location`; `unsupported_form` (`select`, `loadContext`) |
-| 3 | `selection` | `incomplete_mapping` |
+| 3 | `selection` | `incomplete_mapping`; `unknown_choice` (a `--choice` the catalog does not have) |
 | 3 | `expansion` | `missing_input` (a slot whose input was not supplied) |
-| 3 | `record` | `run_not_found` (`record show` of a run the store does not hold) |
+| 3 | `record` | `run_not_found` (`record show` of a run the store does not hold), `cwd_unavailable` |
 | 4 | `record` | `record_store_unwritable`, `record_store_locked` (held past the 2-second wait), `record_store_full`, `record_store_invalid` (another application's file, another version, or corrupt), `record_commit_failed`, `run_id_unavailable`, `home_unset` (HOME cannot place the default state directory) |
 | 5 | `worker` | `worker_missing`, `worker_identity_mismatch`, `worker_failed`, `protocol_error` |
 | 124 | `evaluation` | `selection_timeout` (the selection bound ran out) |
 | 126 | `resolution`, `exec` | `program_unexecutable`; `exec_failed` for any exec error but `ENOENT` |
 | 127 | `resolution`, `exec` | `program_not_found`; `exec_failed` for `ENOENT` |
+
+Once the harness runs, its own exit status or signal is the command's, even
+where the code coincides with one of these.

@@ -1,9 +1,9 @@
 //! The caller's data inputs, read and checked once, before any policy runs
 //! (`docs/specs/harness-selection-and-execution.md`, *Command interface*).
 //!
-//! The kind, the task file and the task identity are caller data: the task file
-//! supplies neither kind nor identity, and nothing is recovered from a file
-//! name. The prompt is read once, kept byte for byte, and never sent to the
+//! The kind, the task file, the task identity and the explicit choice are
+//! caller data: the task file supplies neither kind nor identity, and nothing
+//! is recovered from a file name. The prompt is read once, kept byte for byte, and never sent to the
 //! policy worker; it only ever fills the candidate's `prompt` argument.
 //! Terminal stdin is never read. The caller's bounds are read here too, so a
 //! malformed one refuses before any policy runs.
@@ -43,6 +43,9 @@ pub struct Inputs {
     /// exist.
     pub task_file: Option<String>,
     pub task_id: Option<String>,
+    /// The candidate ID `--choice` names; whether the catalog has it is the
+    /// selection's question, not the command line's.
+    pub choice: Option<String>,
     pub prompt: Option<Prompt>,
     /// How long the worker has, from its start to its result.
     pub selection: Bound,
@@ -117,6 +120,7 @@ impl Inputs {
                 format!("the current directory cannot be read: {error}"),
                 "run harness-dispatch from an existing, readable directory",
             )
+            .input("cwd")
         })?;
         let task_file = args
             .task_file
@@ -124,6 +128,7 @@ impl Inputs {
             .map(|path| task_file(path, &cwd))
             .transpose()?;
         let task_id = args.task_id.clone().map(task_id).transpose()?;
+        let choice = args.choice.clone().map(choice).transpose()?;
         let prompt = match (&args.prompt, &args.prompt_file) {
             (Some(text), _) => Some(Prompt {
                 text: prompt_text(text.clone(), "--prompt", None)?,
@@ -149,6 +154,7 @@ impl Inputs {
             cwd,
             task_file,
             task_id,
+            choice,
             prompt,
             selection,
         })
@@ -207,6 +213,19 @@ fn task_id(id: OsString) -> Result<String, Refusal> {
             ),
             remedy,
         ));
+    }
+    Ok(id)
+}
+
+/// `--choice`: a nonempty UTF-8 candidate ID, taken exactly as given.
+fn choice(id: OsString) -> Result<String, Refusal> {
+    let remedy = "name one configured candidate by its catalog ID, such as --choice deep, or omit \
+                  --choice to select by the routes";
+    let id = id
+        .into_string()
+        .map_err(|_| malformed("--choice", "--choice is not valid UTF-8", remedy))?;
+    if id.is_empty() {
+        return Err(malformed("--choice", "--choice must not be empty", remedy));
     }
     Ok(id)
 }

@@ -3,13 +3,16 @@
 This is the first-release design of **harness-dispatch**. Most of it specifies
 behavior that is not implemented yet. Of the command itself, `inspect` and
 `run` of a static `routes` policy are delivered: policy authority, the compiled
-worker with its identity check and embedded SDK, policy validation, the prompt,
-task file, task identity and state directory inputs, argument-slot expansion
-including `runId`, program resolution, the whole-selection deadline with its
-exit 124, and the human and version-1 JSON reports. `run` commits its required
-handoff record before a plain exec, exports the run's identity to the harness,
-and appends an exec failure to its attempt. `record show` exports a recorded
-run. Handled signals and a signal-transparent handoff are not yet delivered.
+worker with its identity check, embedded SDK and the two static starter
+examples, policy validation, the prompt, task file, task identity, explicit
+choice and state directory inputs, argument-slot expansion including `runId`,
+program resolution, the whole-selection deadline with its exit 124, the human
+and version-1 JSON reports, and structured refusals with their exit results. A
+refused `run` names its equivalent `inspect` invocation. `run` commits its
+required handoff record before a plain exec, exports the run's identity to the
+harness, and appends an exec failure to its attempt. `record show` exports a
+recorded run. Handled signals and a signal-transparent handoff are not yet
+delivered.
 Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
 symbolic inspection are delivered.
@@ -166,6 +169,7 @@ selection to silently switch to it or away from it.
 With `--choice`, a static `routes` policy accepts any configured candidate the
 choice names, including for a kind its table does not route, and cannot refuse
 it. Inspection reports that the explicit choice, not a route, selected it. An
+ID the catalog lacks refuses as `unknown_choice` and selects nothing else. An
 owner who wants to constrain explicit choices uses `select`, which must
 explicitly accept or refuse the choice. Returning any other ID is
 `explicit_choice_mismatch`, even if the policy describes it as a fallback.
@@ -586,9 +590,11 @@ partial stdout object; policy diagnostics are captured and included separately,
 never interleaved with protocol or structured output. Text mode prefixes policy
 diagnostics on stderr. A failure never launches another candidate. A refused
 `run` also reports the equivalent `inspect` invocation, as a command line in text
-mode and an argv array in JSON: the same selection inputs, `--policy-env` names
-but no values, and no prompt. An owner diagnosing an unattended refusal can then
-reproduce the selection without reconstructing its inputs.
+mode and an argv array in JSON, each with the directory it was run from: the
+same selection inputs, `--policy-env` names but no values, and no prompt. An
+owner diagnosing an unattended refusal can then reproduce the selection without
+reconstructing its inputs. A command line that cannot be parsed has no
+equivalent.
 
 Exit codes before exec are 2 for malformed CLI input, 3 for policy/context/
 selection refusal, 4 for required-record failure, 5 for worker/protocol/internal
@@ -612,7 +618,8 @@ floor. The worker is an
 installed private companion, not a runtime downloaded on invocation. It is found
 relative to the real installed front executable, including through a Homebrew
 symlink, at `../libexec/harness-dispatch/harness-dispatch-policy`. The SDK's
-declarations and readable source sit beside it in `sdk/`. The supported portable
+declarations and readable source sit beside it in `sdk/`, and each example's in
+`examples/`. The supported portable
 archive preserves the same relative layout.
 The Rust package builds independently; running selection additionally needs the
 matching compiled worker, supplied by the package's build/install task.

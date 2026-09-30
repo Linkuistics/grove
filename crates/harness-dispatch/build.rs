@@ -27,7 +27,7 @@ fn main() {
     println!("cargo:rustc-env=HARNESS_DISPATCH_WORKER_BUILD_ID={build_id}");
 
     // Directories are scanned recursively, so a new source file reruns this too.
-    for watched in ["worker/src", "worker/sdk"] {
+    for watched in ["worker/src", "worker/sdk", "worker/examples"] {
         println!("cargo:rerun-if-changed={watched}");
     }
     for file in &files {
@@ -39,12 +39,12 @@ fn main() {
 /// as `source_files` in `scripts/dispatch.sh` lists it.
 fn source_files(crate_dir: &Path) -> Vec<String> {
     let mut files = Vec::new();
-    for dir in ["worker/src", "worker/sdk"] {
+    for dir in ["worker/src", "worker/sdk", "worker/examples"] {
         collect_typescript(crate_dir, Path::new(dir), &mut files);
     }
     for fixed in [
         "worker/tsconfig.json",
-        "worker/tsconfig.sdk.json",
+        "worker/tsconfig.declarations.json",
         "scripts/dispatch.sh",
     ] {
         files.push(fixed.to_owned());

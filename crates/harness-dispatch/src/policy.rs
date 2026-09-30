@@ -1,4 +1,5 @@
-//! Validate a policy snapshot and resolve a static route
+//! Validate a policy snapshot, then select through its static routes or the
+//! caller's explicit choice
 //! (`docs/specs/harness-selection-and-execution.md`, *Policy and joint choice*).
 //!
 //! The worker hands over the entry's `policy` export as JSON, with any value
@@ -113,11 +114,30 @@ impl Candidate {
     }
 }
 
-/// The catalog index of the candidate a valid policy chose, and why.
+/// The catalog index of the candidate a valid policy chose, why, and by what.
 #[derive(Debug)]
 pub struct Selection {
     pub index: usize,
     pub reason: String,
+    pub by: SelectedBy,
+}
+
+/// What made the selection: the routes table, or the caller's explicit
+/// choice, which a routes policy accepts without consulting its table.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelectedBy {
+    Route,
+    ExplicitChoice,
+}
+
+impl SelectedBy {
+    /// The stable name inspection and the run record report.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SelectedBy::Route => "route",
+            SelectedBy::ExplicitChoice => "explicit_choice",
+        }
+    }
 }
 
 /// Validates against one source file, so each refusal can name it.
@@ -409,9 +429,64 @@ impl<'a> Validator<'a> {
     }
 }
 
+/// Select from a valid routes policy: the caller's explicit choice when there
+/// is one, and otherwise the route for `kind`. Either way, nothing the caller
+/// or the table did not name is ever substituted.
+pub fn select(
+    policy: &Policy,
+    kind: &str,
+    choice: Option<&str>,
+    source: &str,
+) -> Result<Selection, Refusal> {
+    match choice {
+        Some(choice) => chosen(policy, choice, source),
+        None => route(policy, kind, source),
+    }
+}
+
+/// An explicit choice under routes names any configured candidate, including
+/// one for a kind the table does not route, and the table cannot refuse it
+/// (spec, *Policy and joint choice*). An ID the catalog lacks refuses; it is
+/// never read as a request for some other candidate.
+fn chosen(policy: &Policy, choice: &str, source: &str) -> Result<Selection, Refusal> {
+    let index = policy
+        .catalog
+        .iter()
+        .position(|candidate| candidate.id == choice)
+        .ok_or_else(|| {
+            let configured: Vec<String> = policy
+                .catalog
+                .iter()
+                .map(|candidate| format!("{:?}", candidate.id))
+                .collect();
+            Refusal::new(
+                "unknown_choice",
+                Stage::Selection,
+                EXIT_REFUSED,
+                format!("--choice {choice:?} names no candidate in the catalog of {source}"),
+                format!(
+                    "pass --choice with one of the configured candidate IDs ({}), or omit it to \
+                     select by the routes; harness-dispatch never substitutes another candidate",
+                    configured.join(", ")
+                ),
+            )
+            .input(format!("--choice {choice}"))
+            .source(source)
+            .location("policy.catalog")
+        })?;
+    Ok(Selection {
+        index,
+        reason: format!(
+            "the explicit choice --choice {choice:?} names a configured candidate; routes are not \
+             consulted"
+        ),
+        by: SelectedBy::ExplicitChoice,
+    })
+}
+
 /// Resolve `kind` through a valid policy's routes. A kind the table does not
 /// name refuses; no default candidate is ever substituted.
-pub fn route(policy: &Policy, kind: &str, source: &str) -> Result<Selection, Refusal> {
+fn route(policy: &Policy, kind: &str, source: &str) -> Result<Selection, Refusal> {
     let id = policy.routes.get(kind).ok_or_else(|| {
         Refusal::new(
             "incomplete_mapping",
@@ -419,8 +494,8 @@ pub fn route(policy: &Policy, kind: &str, source: &str) -> Result<Selection, Ref
             EXIT_REFUSED,
             format!("the routes in {source} name no candidate for kind {kind:?}"),
             format!(
-                "add a route {} to a candidate ID in {source}; harness-dispatch never substitutes \
-                 a default candidate",
+                "add a route {} to a candidate ID in {source}, or name one configured candidate \
+                 with --choice ID; harness-dispatch never substitutes a default candidate",
                 Value::String(kind.to_owned())
             ),
         )
@@ -439,6 +514,7 @@ pub fn route(policy: &Policy, kind: &str, source: &str) -> Result<Selection, Ref
             "routes[{}] names candidate {id:?}",
             Value::String(kind.to_owned())
         ),
+        by: SelectedBy::Route,
     })
 }
 
@@ -491,11 +567,36 @@ mod tests {
     #[test]
     fn a_valid_policy_routes_its_kind_and_refuses_another() {
         let policy = Validator::new("/p.ts").validate(&valid()).unwrap();
-        let selection = route(&policy, "impl", "/p.ts").unwrap();
+        let selection = select(&policy, "impl", None, "/p.ts").unwrap();
         assert_eq!(policy.catalog[selection.index].id, "a");
         assert_eq!(selection.reason, r#"routes["impl"] names candidate "a""#);
-        let refusal = route(&policy, "design", "/p.ts").unwrap_err();
+        assert_eq!(selection.by, SelectedBy::Route);
+        let refusal = select(&policy, "design", None, "/p.ts").unwrap_err();
         assert_eq!(refusal.code, "incomplete_mapping");
+    }
+
+    #[test]
+    fn an_explicit_choice_bypasses_the_routes_and_an_unknown_one_refuses() {
+        let mut policy = valid();
+        policy["catalog"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"id": "b", "provider": "q", "model": "m", "effort": "e", "program": "x", "args": [{"slot": "prompt"}]}));
+        let policy = Validator::new("/p.ts").validate(&policy).unwrap();
+        // "impl" routes to "a", and "design" is not routed at all.
+        for kind in ["impl", "design"] {
+            let selection = select(&policy, kind, Some("b"), "/p.ts").unwrap();
+            assert_eq!(policy.catalog[selection.index].id, "b");
+            assert_eq!(selection.by, SelectedBy::ExplicitChoice);
+        }
+        let refusal = select(&policy, "impl", Some("c"), "/p.ts").unwrap_err();
+        assert_eq!(refusal.code, "unknown_choice");
+        assert_eq!(refusal.input.as_deref(), Some("--choice c"));
+        assert!(
+            refusal.remedy.contains(r#"("a", "b")"#),
+            "{}",
+            refusal.remedy
+        );
     }
 
     #[test]

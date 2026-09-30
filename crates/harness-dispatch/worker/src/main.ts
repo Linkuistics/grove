@@ -17,6 +17,8 @@
 
 import { receive, send } from "./channel.ts";
 import * as sdk from "../sdk/index.ts";
+import * as groveStaticExample from "../examples/grove-static.ts";
+import * as staticExample from "../examples/static.ts";
 
 const PROTOCOL = 1;
 
@@ -34,10 +36,24 @@ const packageVersion =
 // when a `node_modules/harness-dispatch` package sits beside the importing
 // entry. The prefix reserves nothing by itself, so each specifier is
 // registered by name; this list is part of the versioned protocol.
+//
+// The examples import `harness-dispatch/sdk` as an owner's policy does. The
+// bundler resolves that through `paths` in `worker/tsconfig.json` when the
+// worker is compiled, to the same module imported above, so an example and a
+// policy that imports it share one SDK. (Bun reads tsconfig at build time;
+// `--no-compile-autoload-tsconfig` governs only the compiled worker at run
+// time: https://github.com/oven-sh/bun/blob/bun-v1.4.2/docs/bundler/executables.mdx)
+const embedded: Readonly<Record<string, object>> = {
+  "harness-dispatch/sdk": sdk,
+  "harness-dispatch/examples/static": staticExample,
+  "harness-dispatch/examples/grove-static": groveStaticExample,
+};
 Bun.plugin({
   name: "harness-dispatch embedded modules",
   setup(build) {
-    build.module("harness-dispatch/sdk", () => ({ exports: { ...sdk }, loader: "object" }));
+    for (const [specifier, module] of Object.entries(embedded)) {
+      build.module(specifier, () => ({ exports: { ...module }, loader: "object" }));
+    }
   },
 });
 

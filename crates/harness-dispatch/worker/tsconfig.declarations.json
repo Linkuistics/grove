@@ -5,7 +5,7 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "types": [],
-    "rootDir": "sdk"
+    "rootDir": "."
   },
-  "include": ["sdk"]
+  "include": ["sdk", "examples"]
 }

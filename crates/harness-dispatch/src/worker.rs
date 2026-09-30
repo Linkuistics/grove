@@ -92,7 +92,9 @@ pub struct Evaluation {
 /// The worker beside the real front executable, following any symlinks to it.
 /// No PATH, cwd or environment input takes part.
 pub fn locate() -> Result<PathBuf, Refusal> {
-    let unlocatable = |detail: String| {
+    // Without the front's own path the worker's has no directory either, so
+    // the source is the layout the worker would be found at.
+    let unlocatable = |detail: String, source: String| {
         Refusal::new(
             "worker_missing",
             Stage::Worker,
@@ -100,15 +102,22 @@ pub fn locate() -> Result<PathBuf, Refusal> {
             format!("cannot locate the policy worker: {detail}"),
             REBUILD,
         )
+        .source(source)
     };
     let exe = std::env::current_exe()
         .and_then(fs::canonicalize)
         .map_err(|error| {
-            unlocatable(format!("the front executable's path is unknown ({error})"))
+            unlocatable(
+                format!("the front executable's path is unknown ({error})"),
+                format!("<the front executable's directory>/{WORKER_FROM_BIN}"),
+            )
         })?;
-    let bin = exe
-        .parent()
-        .ok_or_else(|| unlocatable(format!("{} has no parent directory", exe.display())))?;
+    let bin = exe.parent().ok_or_else(|| {
+        unlocatable(
+            format!("{} has no parent directory", exe.display()),
+            exe.to_string_lossy().into_owned(),
+        )
+    })?;
     let worker = normalize(&bin.join(WORKER_FROM_BIN));
     match fs::metadata(&worker) {
         Ok(metadata) if metadata.is_file() => Ok(worker),

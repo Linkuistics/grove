@@ -1,6 +1,6 @@
 //! The selection both commands share: read the caller's inputs, evaluate the
-//! selected policy, route the kind, expand the candidate's argv and resolve its
-//! program (`docs/specs/harness-selection-and-execution.md`, *Command
+//! selected policy, select by the caller's explicit choice or the kind's route,
+//! expand the candidate's argv and resolve its program (`docs/specs/harness-selection-and-execution.md`, *Command
 //! interface*).
 //!
 //! `inspect` reports the resulting choice and `run` execs it, so the two cannot
@@ -20,7 +20,7 @@ use crate::argv::{self, RunSlot, Word};
 use crate::authority::{self, PolicyEntry};
 use crate::cli::SelectionArgs;
 use crate::inputs::{Inputs, PromptRequirement};
-use crate::policy::{self, Candidate, Validator};
+use crate::policy::{self, Candidate, SelectedBy, Validator};
 use crate::program::{self, Executable};
 use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED};
 use crate::store::StateDir;
@@ -38,6 +38,8 @@ pub struct Choice {
     /// The candidate's place in the catalog, for refusal locations.
     pub index: usize,
     pub reason: String,
+    /// The routes table, or the explicit choice.
+    pub selected_by: SelectedBy,
     pub argv: Vec<Word>,
     pub executable: Executable,
     pub elapsed: Duration,
@@ -103,8 +105,8 @@ pub fn choose(
     let mut policy = Validator::new(&source)
         .validate(&snapshot)
         .map_err(refuse)?;
-    let policy::Selection { index, reason } =
-        policy::route(&policy, &inputs.kind, &source).map_err(refuse)?;
+    let policy::Selection { index, reason, by } =
+        policy::select(&policy, &inputs.kind, inputs.choice.as_deref(), &source).map_err(refuse)?;
     let candidate = policy.catalog.swap_remove(index);
     let argv = argv::expand(&candidate, index, &inputs, &run, &source).map_err(refuse)?;
     let path = std::env::var_os("PATH");
@@ -120,6 +122,7 @@ pub fn choose(
         candidate,
         index,
         reason,
+        selected_by: by,
         argv,
         executable,
         elapsed: evaluation.elapsed,
@@ -128,10 +131,10 @@ pub fn choose(
     })
 }
 
-/// The request the worker receives: the caller's data, and never the prompt,
-/// which only ever fills the candidate's `prompt` argument. The worker hands
-/// it to a `select` callback once computed selection lands; a `routes` policy
-/// never sees it.
+/// The request the worker receives: the caller's data, the explicit choice
+/// included, and never the prompt, which only ever fills the candidate's
+/// `prompt` argument. The worker hands it to a `select` callback once computed
+/// selection lands; a `routes` policy never sees it.
 fn request(inputs: &Inputs) -> Value {
     let mut request = Map::new();
     request.insert("schemaVersion".into(), 1.into());
@@ -142,6 +145,9 @@ fn request(inputs: &Inputs) -> Value {
     }
     if let Some(task_id) = &inputs.task_id {
         request.insert("taskId".into(), task_id.clone().into());
+    }
+    if let Some(choice) = &inputs.choice {
+        request.insert("explicitChoice".into(), choice.clone().into());
     }
     Value::Object(request)
 }
@@ -160,6 +166,7 @@ mod tests {
             cwd: PathBuf::from("/work"),
             task_file: Some("/work/task.md".to_owned()),
             task_id: Some("T-1".to_owned()),
+            choice: Some("deep".to_owned()),
             prompt: Some(Prompt {
                 text: "the prompt text".to_owned(),
                 source: PromptSource::File(PathBuf::from("/work/prompt.md")),
@@ -176,12 +183,13 @@ mod tests {
             request,
             serde_json::json!({
                 "schemaVersion": 1, "kind": "impl", "cwd": "/work",
-                "taskFile": "/work/task.md", "taskId": "T-1",
+                "taskFile": "/work/task.md", "taskId": "T-1", "explicitChoice": "deep",
             })
         );
         let absent = Inputs {
             task_file: None,
             task_id: None,
+            choice: None,
             ..inputs
         };
         assert_eq!(

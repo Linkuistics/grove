@@ -5,9 +5,12 @@
 //! A refusal never launches anything and never substitutes another candidate.
 //! Text mode renders it for a person on stderr; `--json` renders it as one JSON
 //! object on stderr and prints nothing on stdout, so a parser never sees a
-//! partial result.
+//! partial result. A refused `run` also names the equivalent `inspect`
+//! invocation, so that an owner can reproduce an unattended selection without
+//! reconstructing its inputs.
 
 use std::fmt::Write as _;
+use std::path::PathBuf;
 
 use serde_json::{json, Map, Value};
 
@@ -221,11 +224,55 @@ impl Diagnostics {
     }
 }
 
-/// A refusal, with whatever the policy printed before it, if a worker ran.
+/// The `inspect` invocation equivalent to a refused `run`: the same selection
+/// inputs without the prompt, and the directory they were given in, which
+/// relative paths and the policy's view of the caller depend on.
+#[derive(Debug)]
+pub struct Invocation {
+    /// `None` when the current directory could not be read.
+    pub cwd: Option<PathBuf>,
+    /// Converted lossily where an input was not UTF-8.
+    pub argv: Vec<String>,
+}
+
+impl Invocation {
+    fn to_json(&self) -> Value {
+        json!({
+            "cwd": self.cwd.as_ref().map(|cwd| cwd.to_string_lossy()),
+            "argv": self.argv,
+        })
+    }
+
+    /// One line a POSIX shell runs as the same invocation, in a subshell so
+    /// that pasting it leaves the reader's own directory alone.
+    fn to_text(&self) -> String {
+        let command: Vec<String> = self.argv.iter().map(|word| shell_word(word)).collect();
+        let command = command.join(" ");
+        match &self.cwd {
+            Some(cwd) => format!("(cd {} && {command})", shell_word(&cwd.to_string_lossy())),
+            None => command,
+        }
+    }
+}
+
+/// `word` as one POSIX shell word: unquoted when every character is plainly
+/// literal, and otherwise single-quoted, with each `'` closed, escaped and
+/// reopened.
+fn shell_word(word: &str) -> String {
+    let plain = |c: char| c.is_ascii_alphanumeric() || "_@%+=:,./-".contains(c);
+    if !word.is_empty() && word.chars().all(plain) {
+        return word.to_owned();
+    }
+    format!("'{}'", word.replace('\'', r"'\''"))
+}
+
+/// A refusal, with whatever the policy printed before it, if a worker ran, and
+/// the equivalent `inspect` invocation, if `run` was refused.
 #[derive(Debug)]
 pub struct Failure {
     pub refusal: Refusal,
     pub diagnostics: Option<Diagnostics>,
+    pub inspect: Option<Invocation>,
 }
 
 impl From<Refusal> for Failure {
@@ -233,6 +280,7 @@ impl From<Refusal> for Failure {
         Failure {
             refusal,
             diagnostics: None,
+            inspect: None,
         }
     }
 }
@@ -242,7 +290,13 @@ impl Failure {
         Failure {
             refusal,
             diagnostics: Some(diagnostics),
+            inspect: None,
         }
+    }
+
+    pub fn with_inspect(mut self, inspect: Invocation) -> Self {
+        self.inspect = Some(inspect);
+        self
     }
 
     pub fn to_json(&self) -> Value {
@@ -269,6 +323,9 @@ impl Failure {
             error.insert("run".into(), run.to_json());
         }
         error.insert("remedy".into(), refusal.remedy.clone().into());
+        if let Some(inspect) = &self.inspect {
+            error.insert("inspect".into(), inspect.to_json());
+        }
         error.insert("exit".into(), refusal.exit.into());
         let mut document = Map::new();
         document.insert("schemaVersion".into(), 1.into());
@@ -308,6 +365,45 @@ impl Failure {
             let _ = writeln!(text, "  run: {}", run.to_text());
         }
         let _ = writeln!(text, "  remedy: {}", refusal.remedy);
+        if let Some(inspect) = &self.inspect {
+            let _ = writeln!(text, "  inspect: {}", inspect.to_text());
+        }
         text
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_shell_word_is_quoted_only_when_it_must_be() {
+        assert_eq!(shell_word("--kind"), "--kind");
+        assert_eq!(shell_word("./policies/p.ts"), "./policies/p.ts");
+        assert_eq!(shell_word(""), "''");
+        assert_eq!(shell_word("two words"), "'two words'");
+        assert_eq!(shell_word("it's $HOME; `x`"), r"'it'\''s $HOME; `x`'");
+        assert_eq!(shell_word("line\nbreak"), "'line\nbreak'");
+    }
+
+    #[test]
+    fn the_invocation_runs_in_its_directory_in_a_subshell() {
+        let invocation = Invocation {
+            cwd: Some(PathBuf::from("/work/my repo")),
+            argv: vec![
+                "harness-dispatch".into(),
+                "inspect".into(),
+                "--kind".into(),
+                "impl".into(),
+            ],
+        };
+        assert_eq!(
+            invocation.to_text(),
+            "(cd '/work/my repo' && harness-dispatch inspect --kind impl)"
+        );
+        assert_eq!(
+            invocation.to_json(),
+            json!({ "cwd": "/work/my repo", "argv": ["harness-dispatch", "inspect", "--kind", "impl"] })
+        );
     }
 }

@@ -5,11 +5,13 @@
 # mechanics so that an extraction of `crates/harness-dispatch` takes them along.
 #
 #   dispatch.sh build-id            print the worker source digest
-#   dispatch.sh build [OUT_DIR]     compile the worker, its SDK declarations and
-#                                   readable source into OUT_DIR (default: the
-#                                   checkout's target/libexec/harness-dispatch)
-#   dispatch.sh typecheck [OUT_DIR] type-check the worker, the SDK and the
-#                                   fixtures against OUT_DIR's declarations
+#   dispatch.sh build [OUT_DIR]     compile the worker, and the declarations and
+#                                   readable sources of its SDK and examples,
+#                                   into OUT_DIR (default: the checkout's
+#                                   target/libexec/harness-dispatch)
+#   dispatch.sh typecheck [OUT_DIR] type-check the worker, the SDK, the examples
+#                                   and the fixtures against OUT_DIR's
+#                                   declarations
 #   dispatch.sh install PREFIX      build the release pair and install it as
 #                                   PREFIX/bin and PREFIX/libexec/harness-dispatch
 #
@@ -48,8 +50,8 @@ sha256() {
 source_files() {
   (
     cd "$CRATE_DIR"
-    find worker/src worker/sdk -type f -name '*.ts'
-    printf '%s\n' worker/tsconfig.json worker/tsconfig.sdk.json scripts/dispatch.sh
+    find worker/src worker/sdk worker/examples -type f -name '*.ts'
+    printf '%s\n' worker/tsconfig.json worker/tsconfig.declarations.json scripts/dispatch.sh
   ) | LC_ALL=C sort
 }
 
@@ -102,7 +104,7 @@ build() {
   local id version
   id="$(build_id)"
   version="$(metadata_field version)"
-  mkdir -p "$out_dir/sdk"
+  mkdir -p "$out_dir/sdk" "$out_dir/examples"
 
   # All four no-autoload switches, stated even where 1.4.2's default already
   # agrees, so that a Bun upgrade changing a default cannot change the build.
@@ -124,10 +126,13 @@ build() {
       "$WORKER_DIR/src/main.ts" --outfile "$out_dir/$WORKER_NAME"
   )
 
-  # The declarations and readable source an owner's editor reads; the worker
-  # itself carries its own embedded copy.
-  tsc -p "$WORKER_DIR/tsconfig.sdk.json" --outDir "$out_dir/sdk"
+  # The declarations and readable sources an owner's editor reads, as sdk/
+  # and examples/ beside the worker; the worker carries its own embedded copy.
+  # An example imports `harness-dispatch/sdk` as an owner's policy does, and
+  # its declarations keep that specifier.
+  tsc -p "$WORKER_DIR/tsconfig.declarations.json" --outDir "$out_dir"
   cp "$WORKER_DIR/sdk/index.ts" "$out_dir/sdk/index.ts"
+  cp "$WORKER_DIR"/examples/*.ts "$out_dir/examples/"
   echo "dispatch: worker $version ($id) in $out_dir"
 }
 
@@ -139,8 +144,8 @@ typecheck() {
     die "no SDK declarations in $out_dir; run 'task dispatch:worker'"
   tsc -p "$WORKER_DIR/tsconfig.json"
 
-  # Fixtures import `harness-dispatch/sdk` as an owner's policy does, resolved
-  # to the shipped declarations rather than to the SDK source.
+  # Fixtures import `harness-dispatch/sdk` and the examples as an owner's
+  # policy does, resolved to the shipped declarations rather than the sources.
   local scratch
   scratch="$(mktemp -d)"
   # shellcheck disable=SC2064 # expand now: the trap must remove this directory
@@ -150,7 +155,10 @@ typecheck() {
   "extends": "$WORKER_DIR/tsconfig.json",
   "compilerOptions": {
     "types": [],
-    "paths": { "harness-dispatch/sdk": ["$out_dir/sdk/index.d.ts"] }
+    "paths": {
+      "harness-dispatch/sdk": ["$out_dir/sdk/index.d.ts"],
+      "harness-dispatch/examples/*": ["$out_dir/examples/*.d.ts"]
+    }
   },
   "include": ["$WORKER_DIR/typecheck/*.ts"]
 }
@@ -178,7 +186,7 @@ install_pair() {
 export const policy = {
   schemaVersion: 1,
   version: "install-check",
-  catalog: [{ id: "check", provider: "check", model: "check", effort: "check", program: "true", args: [] }],
+  catalog: [{ id: "check", provider: "check", model: "check", effort: "check", program: "true", args: [{ slot: "prompt" }] }],
   routes: { check: "check" },
 };
 EOF

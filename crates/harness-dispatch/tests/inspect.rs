@@ -23,6 +23,7 @@ fn inspection_reports_the_routed_candidate_and_its_evidence_in_json() {
     let selection = &report["selection"];
     assert_eq!(selection["form"], "routes");
     assert_eq!(selection["selectedBy"], "route");
+    assert_eq!(selection["explicitChoice"], Value::Null);
     assert_eq!(selection["candidateId"], "deep");
     assert_eq!(selection["provider"], "origin-a");
     assert_eq!(selection["model"], "model-large");
@@ -569,7 +570,7 @@ fn a_refusal_carries_the_policy_output_separately() {
 fn forms_later_increments_own_are_refused_by_name() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);
-    for flag in ["--context", "--choice", "--policy-env", "--context-bytes"] {
+    for flag in ["--context", "--policy-env", "--context-bytes"] {
         let refusal = sandbox
             .inspect(&["--kind", "impl", flag, "value", "--json"])
             .refusal(2);
@@ -578,10 +579,16 @@ fn forms_later_increments_own_are_refused_by_name() {
     }
     let refusal = sandbox
         .run(&[
-            "--kind", "impl", "--prompt", "p", "--choice", "deep", "--json",
+            "--kind",
+            "impl",
+            "--prompt",
+            "p",
+            "--context",
+            "c.json",
+            "--json",
         ])
         .refusal(2);
-    assert_eq!(refusal["error"]["input"], "--choice");
+    assert_eq!(refusal["error"]["input"], "--context");
     assert!(!sandbox.harness_ran());
     let mut invocation = sandbox.command();
     invocation.args(["record", "observe", "--run", "r", "--json"]);
@@ -625,6 +632,7 @@ fn help_lists_only_the_forms_this_release_delivers() {
         "--task-id",
         "--timeout-ms",
         "--state-dir",
+        "--choice",
     ] {
         assert!(
             run.stdout.contains(delivered),
@@ -632,7 +640,7 @@ fn help_lists_only_the_forms_this_release_delivers() {
             run.stdout
         );
     }
-    for later in ["--choice", "--context", "--policy-env"] {
+    for later in ["--context", "--policy-env"] {
         assert!(
             !run.stdout.contains(later),
             "help advertises {later}:\n{}",

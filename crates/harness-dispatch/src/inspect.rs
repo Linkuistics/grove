@@ -84,7 +84,8 @@ impl Report {
             "policy": policy,
             "selection": {
                 "form": "routes",
-                "selectedBy": "route",
+                "selectedBy": choice.selected_by.as_str(),
+                "explicitChoice": choice.inputs.choice,
                 "candidateId": candidate.id,
                 "provider": candidate.provider,
                 "model": candidate.model,
@@ -138,6 +139,13 @@ impl Report {
                 inputs.task_id.as_deref().map_or("none".to_owned(), shown),
             ),
             ("prompt", prompt),
+            (
+                "choice",
+                inputs.choice.as_deref().map_or_else(
+                    || "none; the routes select by kind".to_owned(),
+                    |id| format!("--choice {}, which selected the candidate", shown(id)),
+                ),
+            ),
             ("candidate", candidate.id.clone()),
             ("provider", candidate.provider.clone()),
             ("model", candidate.model.clone()),

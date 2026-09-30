@@ -82,8 +82,8 @@ pub fn launch(choice: &Choice) -> Value {
         "policy": policy,
         "selection": {
             "form": "routes",
-            "selectedBy": "route",
-            "explicitChoice": null,
+            "selectedBy": choice.selected_by.as_str(),
+            "explicitChoice": inputs.choice,
             "reason": choice.reason,
         },
         "candidate": choice.candidate.to_json(),
@@ -133,6 +133,7 @@ pub fn show(args: &ShowArgs) -> Result<Export, Refusal> {
             format!("the current directory cannot be read: {error}"),
             "run harness-dispatch from an existing, readable directory",
         )
+        .input("cwd")
     })?;
     let home = std::env::var_os("HOME");
     let dir = StateDir::resolve(args.state_dir.as_deref(), &cwd, home.as_deref())?;
@@ -247,6 +248,7 @@ impl Export {
                     field(&policy["sha256"])
                 ),
             ),
+            ("choice", field(&launch["selection"]["explicitChoice"])),
             ("candidate", field(&candidate["id"])),
             ("provider", field(&candidate["provider"])),
             ("model", field(&candidate["model"])),

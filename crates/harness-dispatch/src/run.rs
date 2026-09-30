@@ -13,6 +13,11 @@
 //! there is no supervisor left to report on it. Stdout and stdin stay the
 //! harness's; the choice is announced in one line on stderr.
 //!
+//! Every failure `run` reports once its command line has parsed also names the
+//! equivalent `inspect` invocation, so that an unattended refusal can be
+//! reproduced without reconstructing its inputs. A command line that does not
+//! parse has no such equivalent.
+//!
 //! Not yet here: handled signals, the post-commit cancellation check with its
 //! not-executed detail, and a signal-transparent handoff
 //! (`evaluation-boundary-k27`).
@@ -27,6 +32,7 @@ use crate::argv::RunSlot;
 use crate::choice::{self, Choice};
 use crate::cli::RunArgs;
 use crate::inputs::PromptRequirement;
+use crate::policy::SelectedBy;
 use crate::record;
 use crate::refusal::{Failure, Refusal, RunNote, Stage, EXIT_NOT_FOUND, EXIT_UNEXECUTABLE};
 use crate::run_id::RunId;
@@ -37,8 +43,13 @@ pub const RUN_ID_VARIABLE: &str = "HARNESS_DISPATCH_RUN_ID";
 pub const STATE_DIR_VARIABLE: &str = "HARNESS_DISPATCH_STATE_DIR";
 
 /// Select, record and exec. It returns only when there is nothing to exec, or
-/// exec itself failed.
+/// exec itself failed, and the failure it returns names the equivalent
+/// `inspect` invocation.
 pub fn run(args: &RunArgs) -> Failure {
+    attempt(args).with_inspect(args.selection.inspect_invocation(args.json))
+}
+
+fn attempt(args: &RunArgs) -> Failure {
     let run_id = match RunId::allocate() {
         Ok(run_id) => run_id,
         Err(refusal) => return refusal.into(),
@@ -101,6 +112,8 @@ fn announce(choice: &Choice, run_id: &RunId, committed: &Committed, json: bool) 
                 "recordedAt": committed.recorded_at,
                 "stateDir": choice.state_dir.path.to_string_lossy(),
                 "kind": choice.inputs.kind,
+                "selectedBy": choice.selected_by.as_str(),
+                "explicitChoice": choice.inputs.choice,
                 "candidateId": candidate.id,
                 "provider": candidate.provider,
                 "model": candidate.model,
@@ -113,9 +126,13 @@ fn announce(choice: &Choice, run_id: &RunId, committed: &Committed, json: bool) 
         eprintln!("{notice}");
     } else {
         eprint!("{}", choice.diagnostics.to_text());
+        let chosen = match choice.selected_by {
+            SelectedBy::Route => "",
+            SelectedBy::ExplicitChoice => "explicitly chosen ",
+        };
         eprintln!(
-            "harness-dispatch: running candidate {:?} (provider {}, model {}, effort {}) for kind \
-             {:?} as run {run_id}: {executable}",
+            "harness-dispatch: running {chosen}candidate {:?} (provider {}, model {}, effort {}) \
+             for kind {:?} as run {run_id}: {executable}",
             candidate.id, candidate.provider, candidate.model, candidate.effort, choice.inputs.kind,
         );
     }

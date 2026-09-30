@@ -3,18 +3,18 @@
 //!
 //! `inspect` and `run` accept the same selection inputs. This release reads the
 //! kind, the policy entry, the prompt, the optional task file and identity, the
-//! whole-selection bound and the record directory. `record show` exports a
-//! recorded run.
+//! explicit choice, the whole-selection bound and the record directory.
+//! `record show` exports a recorded run.
 //! The spec's other inputs and commands belong to later increments, and until
 //! each lands it is refused explicitly, by name, rather than accepted and
 //! ignored. They are hidden from help so that help lists only what works.
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 
-use crate::refusal::{Refusal, Stage, EXIT_MALFORMED};
+use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -25,7 +25,19 @@ use crate::refusal::{Refusal, Stage, EXIT_MALFORMED};
         report the joint harness, model and effort choice it makes (inspect) or replace this \
         process with that harness (run).\n\n\
         The policy is the personal default ~/.config/harness-dispatch/policy.ts, or the entry \
-        named by --config. No policy in the current directory runs unless --config names it."
+        named by --config. No policy in the current directory runs unless --config names it. \
+        Nothing else is needed: no task tree, Grove installation or other caller.",
+    after_help = "Examples:\n  \
+        harness-dispatch inspect --kind impl\n  \
+        harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
+        harness-dispatch record show --run \"$HARNESS_DISPATCH_RUN_ID\" --json\n\n\
+        Exit results before the harness runs: 2 malformed command line; 3 refused by the \
+        policy, the selection or its inputs; 4 run record failure; 5 worker or protocol failure; \
+        124 selection timeout; 126 program not executable; 127 program not found. Once the \
+        harness runs, its own exit status or signal is the command's.\n\n\
+        A refusal launches nothing and never substitutes another candidate. Nothing is retried, \
+        paged or confirmed interactively. A refused run prints the equivalent inspect \
+        invocation, without the prompt: run it to see the same selection without launching."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -35,10 +47,22 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Report the candidate a policy selects, its expanded argv and why, without launching anything
-    #[command(after_help = "Examples:\n  \
+    #[command(
+        after_help = "Inspection is a proposal, not a launch reservation: a later run \
+        evaluates the policy afresh. The policy is trusted TypeScript, and evaluating it is not \
+        promised to be free of side effects.\n\n\
+        Examples:\n  \
         harness-dispatch inspect --kind impl\n  \
         harness-dispatch inspect --kind impl --task-id T-12 --prompt 'Implement the parser'\n  \
-        harness-dispatch inspect --kind review-impl --config ./policies/review.ts --json")]
+        harness-dispatch inspect --kind impl --choice deep\n  \
+        harness-dispatch inspect --kind review-impl --config ./policies/review.ts --json\n\n\
+        Recovering from a refusal:\n  \
+        A refused run prints this command's equivalent invocation, without the prompt. Run it \
+        to reproduce the selection and its refusal without launching anything, correct the \
+        input or policy entry its remedy names, and inspect again until it reports a choice. \
+        For an incomplete mapping, add the kind's route, or name one configured candidate:\n  \
+        harness-dispatch inspect --kind design --choice deep"
+    )]
     Inspect(InspectArgs),
     /// Select a candidate, record the handoff, and replace this process with its harness
     #[command(
@@ -51,7 +75,14 @@ pub enum Command {
         Examples:\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind impl --task-file ./tasks/parser.md --task-id T-12 --prompt-file ./mandate.md\n  \
-        harness-dispatch run --kind impl --state-dir ./records --prompt 'Implement the parser'"
+        harness-dispatch run --kind impl --choice deep --prompt 'Implement the parser'\n  \
+        harness-dispatch run --kind impl --state-dir ./records --prompt 'Implement the parser'\n\n\
+        Recovering from a refusal:\n  \
+        A refused run launches nothing, and names its code, stage, input or source, and remedy, \
+        followed by the equivalent inspect invocation without the prompt, such as\n  \
+        (cd /work && harness-dispatch inspect --kind design)\n  \
+        Run that to reproduce the selection, correct what the remedy names, and run again. \
+        Nothing is retried for you."
     )]
     Run(RunArgs),
     /// Read the run records that run commits
@@ -138,6 +169,9 @@ pub struct SelectionArgs {
     /// Evaluate this policy entry instead of the personal default; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub config: Option<PathBuf>,
+    /// Select this configured candidate by its catalog ID instead of the kind's route; an ID the catalog lacks refuses
+    #[arg(long, value_name = "ID")]
+    pub choice: Option<OsString>,
     /// Stop the policy and launch nothing (exit 124) if selection takes longer; 1000 to 120000 [default: 30000]
     #[arg(long, value_name = "MS")]
     pub timeout_ms: Option<OsString>,
@@ -149,8 +183,6 @@ pub struct SelectionArgs {
     // The spec's remaining selection inputs, owned by later increments.
     #[arg(long, hide = true)]
     pub context: Option<OsString>,
-    #[arg(long, hide = true)]
-    pub choice: Option<OsString>,
     #[arg(long, hide = true)]
     pub policy_env: Vec<OsString>,
     #[arg(long, hide = true)]
@@ -172,7 +204,6 @@ impl SelectionArgs {
     pub fn refuse_unsupported(&self) -> Result<(), Refusal> {
         let later = [
             ("--context", self.context.is_some()),
-            ("--choice", self.choice.is_some()),
             ("--policy-env", !self.policy_env.is_empty()),
             ("--context-bytes", self.context_bytes.is_some()),
         ];
@@ -205,6 +236,69 @@ impl SelectionArgs {
         }
         Ok(())
     }
+
+    /// The `inspect` invocation equivalent to `run` with these inputs: the same
+    /// selection inputs, `--policy-env` names (which carry no values), and no
+    /// prompt, run from the same directory. The program is this process's own
+    /// argv[0], as the caller spelled it, so the reproduction reaches the same
+    /// installation. It follows `--json` when the refusal did.
+    pub fn inspect_invocation(&self, json: bool) -> Invocation {
+        let program = std::env::args_os()
+            .next()
+            .filter(|program| !program.is_empty())
+            .map_or_else(
+                || "harness-dispatch".to_owned(),
+                |program| program.to_string_lossy().into_owned(),
+            );
+        let mut argv = vec![program, "inspect".to_owned()];
+        option(&mut argv, "--kind", OsStr::new(&self.kind));
+        let given = [
+            ("--choice", self.choice.as_deref()),
+            (
+                "--config",
+                self.config.as_deref().map(|path| path.as_os_str()),
+            ),
+            (
+                "--task-file",
+                self.task_file.as_deref().map(|path| path.as_os_str()),
+            ),
+            ("--task-id", self.task_id.as_deref()),
+            ("--timeout-ms", self.timeout_ms.as_deref()),
+            (
+                "--state-dir",
+                self.state_dir.as_deref().map(|path| path.as_os_str()),
+            ),
+            ("--context", self.context.as_deref()),
+            ("--context-bytes", self.context_bytes.as_deref()),
+        ];
+        for (flag, value) in given {
+            if let Some(value) = value {
+                option(&mut argv, flag, value);
+            }
+        }
+        for name in &self.policy_env {
+            option(&mut argv, "--policy-env", name);
+        }
+        if json {
+            argv.push("--json".to_owned());
+        }
+        Invocation {
+            cwd: std::env::current_dir().ok(),
+            argv,
+        }
+    }
+}
+
+/// `flag value` as two words, or one `flag=value` word when the value starts
+/// with a hyphen and would otherwise read as a flag of its own.
+fn option(argv: &mut Vec<String>, flag: &str, value: &OsStr) {
+    let value = value.to_string_lossy();
+    if value.starts_with('-') {
+        argv.push(format!("{flag}={value}"));
+    } else {
+        argv.push(flag.to_owned());
+        argv.push(value.into_owned());
+    }
 }
 
 /// The refusal for an input or command a later release delivers.
@@ -214,9 +308,9 @@ pub fn unsupported(what: &str, input: &str) -> Refusal {
         Stage::Cli,
         EXIT_MALFORMED,
         format!("{what} is not supported by this release of harness-dispatch"),
-        "omit it; this release selects through a static routes policy with --kind, --config, \
-         --prompt or --prompt-file, --task-file, --task-id, --timeout-ms, --state-dir and \
-         --json, and exports runs with record show",
+        "omit it; this release selects through a static routes policy with --kind, --choice, \
+         --config, --prompt or --prompt-file, --task-file, --task-id, --timeout-ms, --state-dir \
+         and --json, and exports runs with record show",
     )
     .input(input)
 }

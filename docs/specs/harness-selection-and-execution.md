@@ -26,9 +26,12 @@ and `run` alike. The delivered context carries each answer as a measured
 source, and a run records the creator provenance its context carried. INT,
 TERM and HUP not ignored at entry cancel a selection until its program is
 resolved: the worker is stopped and reaped, nothing is recorded or launched,
-and the `selection_cancelled` refusal is followed by the re-raised signal. The
-handled signals across the record commit, the final check with its
-not-executed detail, and a signal-transparent handoff are not yet delivered.
+and the `selection_cancelled` refusal is followed by the re-raised signal.
+Their handlers stay installed across the record commit, and the linearization
+point follows it. A signal seen there launches nothing, appends the
+not-executed detail, and is re-raised after the `handoff_cancelled` refusal.
+Otherwise the harness receives the entry signal mask and every disposition
+that survives exec, SIGPIPE's included.
 Every release archive and the Homebrew formula carry the front and its worker
 in the [delivered layout](#delivery), each target's worker compiled from a
 digest-pinned Bun runtime. The installed smoke test runs the static and
@@ -433,6 +436,10 @@ cancellation once more. Cancellation observed after the commit launches nothing.
 Rust appends a best-effort not-executed detail to the attempt and ends by
 re-raising the signal. A failed append leaves an attempt of unknown execution,
 never a success. Otherwise Rust restores the entry signal state and execs.
+The one-line handoff notice is written between the commit and the block, so a
+slow stderr delays the final check rather than widening the window after it.
+A record-store refusal of the commit while a signal is noted is reported as
+`selection_cancelled`, since nothing was recorded.
 
 That final check is the linearization point. Cancellation observed before it
 launches nothing, and a signal arriving after it is a signal to the admitted
@@ -449,7 +456,13 @@ the harness ignored, and cannot cancel selection. Rust's standard runtime
 ignores SIGPIPE before `main`, and its `exec` path resets SIGPIPE to default
 before running pre-exec hooks while keeping the calling thread's mask. The
 implementation must therefore record the entry SIGPIPE disposition before any
-runtime initialization changes it, and reinstate it after that reset. The
+runtime initialization changes it, and reinstate it after that reset. It
+records the mask and every signal's disposition from the executable's
+initializer section, which the loader runs before `main`. Its pre-exec hook
+sets each signal to its entry disposition and then restores the entry mask.
+A build in which that initializer did not run refuses `run` with
+`signal_state_unavailable` before evaluating anything. A signal the caller
+blocked stays blocked throughout and reaches the harness pending. The
 command and controlling-PTY seams observe the result.
 
 Exec preserves the process identity Grove supervises, terminal, cwd and native
@@ -655,7 +668,9 @@ launch-failure detail.
 names the run's evidence: `handoff_attempt`, whose execution is `unknown`;
 `execution_confirmed`, whose execution a current observation confirms; or
 `launch_failure`, whose harness was `not_executed`. Dispatch's own
-launch-failure detail comes first. Each observation is exported as imported,
+launch-failure detail comes first. Its `cause` is `exec_error` for an exec that
+returned, with the errno, or `cancelled` for a signal at the linearization
+point, with the signal. Each observation is exported as imported,
 with every supported measurement, those it did not supply as `unobserved`, and
 with `recordedAt` and `supersededBy`. The run-level `measurements` give every
 field a `state` and the `current` entries that supplied it: `observed` if any
@@ -778,7 +793,9 @@ failure, 124 for timeout, 126 for an unexecutable selected program, and 127 for
 one not found. An exec error after resolution exits 127 for `ENOENT`, including a
 missing `#!` interpreter, and 126 otherwise. INT/TERM/HUP cleanup ends by
 restoring and re-raising that signal. Its refusal, `selection_cancelled`, names
-the signal, and its `exit` is the `128 + N` a shell reports for that death. A
+the signal, and its `exit` is the `128 + N` a shell reports for that death.
+After the commit the refusal is `handoff_cancelled`, stage `exec`, which also
+names the run and whether its not-executed detail was recorded. A
 signal received during evaluation decides the outcome, whatever else the
 selection came to; a timeout is exit 124 only when no signal was received.
 After exec, the harness's native exit or signal is unmodified; its code may

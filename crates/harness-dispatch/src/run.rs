@@ -19,11 +19,15 @@
 //! parse has no such equivalent.
 //!
 //! INT, TERM and HUP cancel the selection until its program is resolved
-//! (`choice`), and then take their entry course again, so a signal during the
-//! commit ends this process before anything is launched. Not yet here: the
-//! handled signals across the commit, the post-commit cancellation check with
-//! its not-executed detail, and a signal-transparent handoff
-//! (`signal-transparent-handoff-k29`).
+//! (`choice`), with nothing recorded. Their handlers stay installed across the
+//! commit, and the linearization point follows it: the handled signals are
+//! blocked and looked for once more. A signal seen there launches nothing,
+//! marks the committed attempt not executed, and is re-raised. Otherwise the
+//! harness is exec'd with the caller's signal mask and every disposition that
+//! survives exec, SIGPIPE's included, as this process inherited them
+//! (`signal_state`). A signal delivered once the caller's mask is back and
+//! before exec completes can still end this process with the attempt recorded
+//! and its execution unknown; no userspace exec closes that window.
 
 use std::io;
 use std::os::unix::process::CommandExt as _;
@@ -32,13 +36,15 @@ use std::process::Command;
 use serde_json::json;
 
 use crate::argv::RunSlot;
-use crate::choice::{self, Choice};
+use crate::cancellation::{self, Signal};
+use crate::choice::{self, Choice, Selected};
 use crate::cli::RunArgs;
 use crate::inputs::PromptRequirement;
 use crate::policy::SelectedBy;
 use crate::record;
 use crate::refusal::{Failure, Refusal, RunNote, Stage, EXIT_NOT_FOUND, EXIT_UNEXECUTABLE};
 use crate::run_id::RunId;
+use crate::signal_state;
 use crate::store::{self, Committed};
 
 /// The harness's copy of the run's identity and record directory.
@@ -53,34 +59,63 @@ pub fn run(args: &RunArgs) -> Failure {
 }
 
 fn attempt(args: &RunArgs) -> Failure {
+    if let Err(refusal) = signal_state::recorded() {
+        return refusal.into();
+    }
     let run_id = match RunId::allocate() {
         Ok(run_id) => run_id,
         Err(refusal) => return refusal.into(),
     };
     let slot = RunSlot::Allocated(run_id.clone());
-    let choice = match choice::choose(&args.selection, PromptRequirement::Required, slot) {
-        Ok(choice) => choice,
+    let Selected {
+        choice,
+        handlers,
+        source,
+    } = match choice::choose(&args.selection, PromptRequirement::Required, slot) {
+        Ok(selected) => selected,
         Err(failure) => return failure,
     };
     // The worker has been reaped and the program resolved; only now is the
-    // store opened, so no lock is ever held across evaluation.
+    // store opened, so no lock is ever held across evaluation. A signal during
+    // the commit is noted, and seen at the linearization point.
     let committed = match store::commit(&choice.state_dir, &run_id, &record::launch(&choice)) {
         Ok(committed) => committed,
-        Err(refusal) => return Failure::with_diagnostics(refusal, choice.diagnostics.clone()),
+        Err(refusal) => {
+            drop(handlers);
+            let failure = Failure::with_diagnostics(refusal, choice.diagnostics.clone());
+            return choice::overruled(failure, &source);
+        }
     };
+    // Before the linearization point, so that a stderr slow to take the line
+    // delays the final check rather than widening the window after it.
     announce(&choice, &run_id, &committed, args.json);
+    if let Some(signal) = handlers.block_and_check() {
+        return not_executed(&choice, &run_id, signal, &source);
+    }
+    // The handled signals take their entry dispositions again while they are
+    // blocked. Whatever arrives from now on waits for the caller's mask.
+    drop(handlers);
     let words = choice.argv[1..].iter().map(|word| {
         word.text()
             .expect("run fills every slot, so no marked word remains")
     });
     // `Command::exec` is `execvp` of the resolved path, which is absolute, so
-    // nothing is searched for twice. argv[0] is the program as configured.
-    let error = Command::new(&choice.executable.path)
+    // nothing is searched for twice. argv[0] is the program as configured. It
+    // sets SIGPIPE to default before running the hook, which then reinstates
+    // the caller's dispositions and, last, the caller's mask.
+    let mut command = Command::new(&choice.executable.path);
+    command
         .arg0(&choice.executable.program)
         .args(words)
         .env(RUN_ID_VARIABLE, run_id.as_str())
-        .env(STATE_DIR_VARIABLE, &choice.state_dir.path)
-        .exec();
+        .env(STATE_DIR_VARIABLE, &choice.state_dir.path);
+    // SAFETY: the hook makes only sigaction and pthread_sigmask calls, and
+    // runs in this process, since exec does not fork.
+    unsafe { command.pre_exec(signal_state::reinstate) };
+    let error = command.exec();
+    // Exec may have failed before the hook ran. Either way the caller's state
+    // is back from here on, and a signal takes its entry course.
+    let _ = signal_state::reinstate();
     let refusal = exec_failed(&choice, &error);
     let detail = json!({
         "cause": "exec_error",
@@ -91,6 +126,33 @@ fn attempt(args: &RunArgs) -> Failure {
         "exit": refusal.exit,
     });
     let unrecorded = store::append_launch_failure(&choice.state_dir, &run_id, &detail)
+        .err()
+        .map(|failure| (failure.code, failure.message.clone()));
+    refusal
+        .run(RunNote {
+            id: run_id.to_string(),
+            unrecorded,
+        })
+        .into()
+}
+
+/// A signal seen at the linearization point: nothing is launched, and the
+/// committed attempt is marked not executed where the store allows. A failed
+/// append leaves it a handoff attempt whose execution is unknown, never a
+/// success. The signal is re-raised once the refusal is reported. The handoff
+/// notice already carried what the policy printed, so, as after an exec
+/// error, the refusal does not repeat it.
+fn not_executed(choice: &Choice, run_id: &RunId, signal: Signal, source: &str) -> Failure {
+    let refusal = cancellation::handoff_refusal(signal, source, run_id.as_str());
+    let detail = json!({
+        "cause": "cancelled",
+        "stage": Stage::Exec.as_str(),
+        "code": refusal.code,
+        "signal": signal.name(),
+        "message": refusal.message,
+        "exit": refusal.exit,
+    });
+    let unrecorded = store::append_launch_failure(&choice.state_dir, run_id, &detail)
         .err()
         .map(|failure| (failure.code, failure.message.clone()));
     refusal

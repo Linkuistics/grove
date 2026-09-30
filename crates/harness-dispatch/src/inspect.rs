@@ -35,7 +35,9 @@ pub struct Report(Choice);
 
 pub fn inspect(args: &InspectArgs) -> Result<Report, Failure> {
     let proposed = RunSlot::Proposed(RunId::allocate()?);
-    choice::choose(&args.selection, PromptRequirement::Optional, proposed).map(Report)
+    choice::choose(&args.selection, PromptRequirement::Optional, proposed)?
+        .settle()
+        .map(Report)
 }
 
 impl Report {

@@ -24,10 +24,11 @@ refusal says what to fix, and a refused `run` gives the `inspect` command that
 reproduces it. A loader can look up an earlier run's recorded launch fields,
 so a review can learn which provider its creator ran under from the record,
 never from today's catalog. Three starter policies ship inside the worker, two
-static and one computed. An interrupt while selecting cancels it, and nothing
-runs. Signal handling across the handoff itself, and `--policy-env` grants,
-come in a later release. Until then, `--policy-env` is refused by name. It is
-never accepted and ignored.
+static and one computed. An interrupt before the harness starts cancels the
+run, and nothing runs. The harness inherits the caller's signal mask and
+ignored signals, SIGPIPE's included. `--policy-env` grants come in a later
+release. Until then, `--policy-env` is refused by name. It is never accepted
+and ignored.
 
 ## Install
 
@@ -681,11 +682,36 @@ delivers its interrupt to the worker, and to any process your policy started,
 as well as to the front, since they all stay in the caller's job.
 
 A signal that was ignored when harness-dispatch started, as `nohup` ignores
-HUP, stays ignored and cannot cancel a selection. Once the selected program is
-resolved, every signal takes its usual course again. It still ends `run`
-before the harness starts, though one during the record commit can leave a
-recorded attempt whose harness never ran. Handling signals up to the harness's
-start comes in a later release.
+HUP, stays ignored and cannot cancel a selection. A signal the caller blocked
+stays blocked, and cannot cancel one either.
+
+`run` goes on handling INT, TERM and HUP after selection, while it records the
+run and announces it. Before it execs, it blocks them and looks once more. A
+signal seen there launches nothing. The run is already recorded, so it is
+marked as never executed, and the refusal names it:
+
+```json
+{"schemaVersion":1,"error":{"code":"handoff_cancelled","stage":"exec",
+ "message":"the handoff of run 0f8e…, selected with the policy /home/me/.config/harness-dispatch/policy.ts, was cancelled by SIGTERM after its record was committed and before its harness was launched: nothing was launched",
+ "source":"/home/me/.config/harness-dispatch/policy.ts",
+ "run":{"id":"0f8e…","launchFailure":"recorded"},"signal":"SIGTERM",
+ "remedy":"…","exit":143}}
+```
+
+With `--json` it is a second JSON line, after the handoff notice, which has
+already carried what the policy printed. Then
+harness-dispatch dies of the signal, as it does when a selection is
+cancelled. [`record show`](#run-records) reports the run as a
+`launch_failure` whose harness was `not_executed`, with the cause `cancelled`
+and the signal. If that mark cannot be appended, the refusal says
+`"launchFailure":"unrecorded"` and why, and the run stays a handoff attempt
+whose execution is unknown. It never becomes a success.
+
+One window remains. After that last look, harness-dispatch restores your
+signal mask and execs the harness. A signal delivered between the two ends
+harness-dispatch by its usual course, and the run stays recorded with its
+execution unknown. No program can exec atomically with respect to a signal
+that arrives later. A signal after the exec is the harness's.
 
 ## Arguments and slots
 
@@ -826,7 +852,11 @@ harness. If the record cannot be committed, nothing is launched and `run`
 exits 4. The harness keeps the caller's current directory, descriptors,
 environment and process ID, so its exit code or signal is the command's own,
 even where the code coincides with one of harness-dispatch's refusal exits.
-Nothing supervises it afterwards. Its environment gains two variables, which
+It also keeps the caller's signal mask and every ignored signal, exactly as
+harness-dispatch inherited them: a `nohup` caller's HUP stays ignored, and a
+caller that ignored SIGPIPE, or left it at its default, hands the harness the
+same. A signal the caller blocked reaches the harness blocked, and still
+pending if it arrived meanwhile. Nothing supervises it afterwards. Its environment gains two variables, which
 replace any values the caller had:
 
 - `HARNESS_DISPATCH_RUN_ID`, the run's ID. It is the same ID a `runId` slot
@@ -920,7 +950,10 @@ harness-dispatch record show --run 5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34 --state-
 
 `evidence` is `handoff_attempt`, with `execution` `unknown`, until something
 more is known. An exec failure appended to the run makes it `launch_failure`,
-with `execution` `not_executed`, and `launchFailure` holds the error. An
+with `execution` `not_executed`, and `launchFailure` holds the error, with the
+cause `exec_error`. A signal seen just before exec does the same, with the
+cause `cancelled` and the signal
+([interrupting a selection](#interrupting-a-selection)). An
 [observation](#observations) that confirms the harness ran makes it
 `execution_confirmed`, with `execution` `confirmed`. Every measurement, from
 exit and duration to acceptance and findings, is `unobserved` until an
@@ -1087,8 +1120,10 @@ inspection reads the store as `run` does.
 | 4 | `record` | `record_store_unwritable`, `record_store_locked` (held past the 2-second wait), `record_store_full`, `record_store_invalid` (another application's file, another version, or corrupt), `record_commit_failed`, `run_id_unavailable`, `home_unset` (HOME cannot place the default state directory); the same store codes when a [run lookup](#looking-up-a-run) cannot read the store, `record_store_invalid` also for a launch record this release cannot read, in `record show`, `record observe` or a run lookup, and for an observation `record show` cannot read |
 | 5 | `worker` | `worker_missing`, `worker_identity_mismatch`, `worker_failed`, `protocol_error` |
 | 5 | `evaluation` | `cancellation_unavailable` (the handlers that let a signal cancel selection cannot be installed) |
+| 5 | `exec` | `signal_state_unavailable` (this build did not record its caller's signal state before the Rust runtime changed it, so `run` cannot hand that state on; nothing was evaluated) |
 | 124 | `evaluation` | `selection_timeout` (the selection bound ran out, a run lookup's lock wait included) |
 | 128 + N | `evaluation` | `selection_cancelled` (INT, TERM or HUP while selecting; the process then dies of that signal, which a shell reports as 130, 143 or 129: see [interrupting a selection](#interrupting-a-selection)) |
+| 128 + N | `exec` | `handoff_cancelled` (INT, TERM or HUP after the run was recorded and before exec; the run is marked not executed, and the process then dies of that signal) |
 | 126 | `resolution`, `exec` | `program_unexecutable`; `exec_failed` for any exec error but `ENOENT` |
 | 127 | `resolution`, `exec` | `program_not_found`; `exec_failed` for `ENOENT` |
 

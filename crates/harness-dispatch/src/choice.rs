@@ -15,9 +15,11 @@
 //! read, to answer a policy's run lookups, so both commands give the same
 //! answers; only `run` writes to it, once this selection has finished.
 //!
-//! INT, TERM and HUP cancel selection from just before the worker starts to
-//! its end, once the program is resolved (`cancellation`). A signal received
-//! in that time decides the outcome, whatever else selection came to.
+//! INT, TERM and HUP cancel selection from just before the worker starts
+//! (`cancellation`). A signal received from then until the program is
+//! resolved decides the outcome, whatever else selection came to. The choice
+//! is returned with the handlers still installed: `inspect` ends cancellation
+//! at once, and `run` at its linearization point, after the record commit.
 
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -67,7 +69,7 @@ pub fn choose(
     args: &SelectionArgs,
     requirement: PromptRequirement,
     run: RunSlot,
-) -> Result<Choice, Failure> {
+) -> Result<Selected, Failure> {
     let inputs = Inputs::read(args, requirement)?;
     let home = std::env::var_os("HOME");
     let entry = authority::resolve(args.config.as_deref(), &inputs.cwd, home.as_deref())?;
@@ -85,27 +87,69 @@ pub fn choose(
         )
         .source(&source)
     })?;
-    let chosen = evaluate_and_resolve(inputs, entry, state_dir, run, &worker_path);
-    // The entry dispositions come back before the last look, which leaves no
-    // gap: a signal from now on takes its entry course, which ends the process
-    // before `run` can exec, and one received before is seen by the look after
-    // the program is resolved.
-    drop(handlers);
-    cancelled(chosen, &source)
+    match evaluate_and_resolve(inputs, entry, state_dir, run, &worker_path) {
+        // The program is resolved, and the handlers stay: the caller decides
+        // when a signal stops cancelling.
+        Ok(choice) => match cancellation::received() {
+            None => Ok(Selected {
+                choice,
+                handlers,
+                source,
+            }),
+            Some(signal) => Err(Failure::with_diagnostics(
+                cancellation::refusal(signal, &source),
+                choice.diagnostics,
+            )),
+        },
+        Err(failure) => {
+            drop(handlers);
+            Err(overruled(failure, &source))
+        }
+    }
 }
 
-/// A handled signal received while selecting decides its outcome: a choice
-/// or a refusal, it is reported as the cancellation, with whatever the policy
-/// printed.
-fn cancelled(chosen: Result<Choice, Failure>, source: &str) -> Result<Choice, Failure> {
-    let Some(signal) = cancellation::received() else {
-        return chosen;
-    };
-    let refusal = cancellation::refusal(signal, source);
-    Err(match chosen {
-        Ok(choice) => Failure::with_diagnostics(refusal, choice.diagnostics),
-        Err(failure) => Failure { refusal, ..failure },
-    })
+/// A choice made while the evaluation's handlers are still installed: a
+/// handled signal from here on is noted, and nothing yet acts on it.
+pub struct Selected {
+    pub choice: Choice,
+    pub handlers: Handlers,
+    /// The policy entry, as a cancellation names it.
+    pub source: String,
+}
+
+impl Selected {
+    /// End cancellation for a command that launches nothing. The entry
+    /// dispositions come back before the last look, which leaves no gap: a
+    /// signal from then on takes its entry course, and one noted before is
+    /// seen by the look.
+    pub fn settle(self) -> Result<Choice, Failure> {
+        let Selected {
+            choice,
+            handlers,
+            source,
+        } = self;
+        drop(handlers);
+        match cancellation::received() {
+            None => Ok(choice),
+            Some(signal) => Err(Failure::with_diagnostics(
+                cancellation::refusal(signal, &source),
+                choice.diagnostics,
+            )),
+        }
+    }
+}
+
+/// A handled signal received before anything is recorded decides the outcome:
+/// a refusal reached meanwhile is reported as the cancellation, with whatever
+/// the policy printed.
+pub fn overruled(failure: Failure, source: &str) -> Failure {
+    match cancellation::received() {
+        None => failure,
+        Some(signal) => Failure {
+            refusal: cancellation::refusal(signal, source),
+            ..failure
+        },
+    }
 }
 
 fn evaluate_and_resolve(

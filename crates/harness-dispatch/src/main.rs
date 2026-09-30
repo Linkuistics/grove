@@ -22,6 +22,7 @@ mod record;
 mod refusal;
 mod run;
 mod run_id;
+mod signal_state;
 mod store;
 mod worker;
 

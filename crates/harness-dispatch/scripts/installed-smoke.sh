@@ -31,7 +31,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-CASES=(static_typescript computed_typescript)
+CASES=(static_typescript computed_typescript signal_state)
 
 fail() {
   echo "installed-smoke: FAIL: $*" >&2
@@ -291,6 +291,57 @@ case_computed_typescript() {
     fail "record show of run $run_id exited $?"
   expect_json "$dir/record.json" '"form":"select"'
   expect_json "$dir/record.json" "$reason"
+}
+
+# The caller's SIGPIPE and HUP reach the harness as they were: the front's
+# initializer records them before the Rust runtime ignores SIGPIPE, and its
+# pre-exec hook reinstates them after std resets it. The harness sends itself
+# the signal. An inherited ignore lets it run on and exit 42; the default kills
+# it, and `run`'s status is that death's. A shell cannot reset a signal it
+# started with ignored, so the default direction first checks that this
+# script's own children start with the default.
+case_signal_state() {
+  local front="$1" dir="$2"
+  local harness="$dir/harness/self-signalling" state="$dir/state"
+  mkdir -p "$dir/policy" "$dir/harness"
+  # shellcheck disable=SC2016 # the harness's own code, expanded when it runs
+  write_lines "$harness" \
+    '#!/bin/sh' \
+    'kill -s "$SMOKE_SIGNAL" $$' \
+    'exit 42'
+  chmod +x "$harness"
+  write_lines "$dir/policy/policy.ts" \
+    'export const policy = {' \
+    '  schemaVersion: 1,' \
+    '  version: "installed-smoke-signals",' \
+    "  catalog: [{ id: \"smoke-signals\", provider: \"smoke-provider\", model: \"smoke-model\", effort: \"low\", program: \"$harness\", args: [{ slot: \"prompt\" }] }]," \
+    '  routes: { smoke: "smoke-signals" },' \
+    '};'
+  local selection=(run --kind smoke --config "$dir/policy/policy.ts" --state-dir "$state"
+    --prompt p --json)
+  local signal number status
+  for signal in PIPE:13 HUP:1; do
+    number="${signal#*:}"
+    signal="${signal%:*}"
+
+    status=0
+    (trap '' "$signal" && SMOKE_SIGNAL="$signal" exec "$front" "${selection[@]}") \
+      >"$dir/ignored-$signal.stdout" 2>"$dir/ignored-$signal.stderr" || status=$?
+    [[ "$status" == 42 ]] ||
+      fail "with SIG$signal ignored by the caller, run exited $status, not 42: the harness did not inherit the ignore; its stderr: $(cat "$dir/ignored-$signal.stderr")"
+
+    # Bash reports a child's death by HUP on its own stderr; the braces'
+    # redirection hushes that report of a death the case asks for.
+    status=0
+    { SMOKE_SIGNAL="$signal" "$harness"; } 2>/dev/null || status=$?
+    [[ "$status" == $((128 + number)) ]] ||
+      fail "this script's children do not start with SIG$signal at its default (the harness alone exited $status); run the smoke test from a caller that leaves SIG$signal at its default"
+    status=0
+    { SMOKE_SIGNAL="$signal" "$front" "${selection[@]}" \
+      >"$dir/default-$signal.stdout" 2>"$dir/default-$signal.stderr"; } 2>/dev/null || status=$?
+    [[ "$status" == $((128 + number)) ]] ||
+      fail "with SIG$signal at its default, run exited $status, not $((128 + number)): the harness did not inherit the default; its stderr: $(cat "$dir/default-$signal.stderr")"
+  done
 }
 
 main() {

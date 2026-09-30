@@ -12,6 +12,7 @@
 #![allow(dead_code)] // each test binary uses its own subset
 
 pub mod hold;
+pub mod probe;
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;

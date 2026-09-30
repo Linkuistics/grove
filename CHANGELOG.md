@@ -59,6 +59,20 @@ stood at the graft — a closed record, not part of the versioned sequence above
   filename. The prompt is unchanged. `grove config show` prints them
   symbolically. `grove run` refuses a routed command that uses one, naming the
   slot, because a standalone invocation has no selected task.
+- `harness-dispatch`: a new, separate command in `crates/harness-dispatch`
+  that evaluates an owner's TypeScript selection policy and reports the
+  harness, model and effort it chooses for a session kind. This first step
+  delivers `harness-dispatch inspect --kind K` for a static `routes` policy, in
+  human text or `--json`. The policy comes from `~/.config/harness-dispatch/policy.ts`
+  or an explicit `--config`, never from the current directory. It is evaluated
+  by a private Bun-compiled worker that is verified before it sees any policy,
+  and it imports its types from the embedded `harness-dispatch/sdk`. Invalid
+  policies, unrouted kinds and failed imports refuse with a stable code, a
+  location and a remedy. Build and install it from a checkout with
+  `task dispatch:install`; release archives do not carry it yet.
+- Repository checks: `scripts/check.sh` now builds and type-checks the
+  harness-dispatch worker, so it and `scripts/release-doctor.sh` require
+  Bun 1.4.2.
 
 ## v21.12.0
 

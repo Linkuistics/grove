@@ -43,3 +43,21 @@ host build is not evidence that they work.
   worker and inspects a static policy on the host. The full per-target smoke
   is the next leaf's.
 - `docs/RELEASING.md` names the new build prerequisites.
+
+## Notes from routed-inspection-k13
+
+- The front resolves its worker at `../libexec/harness-dispatch/harness-dispatch-policy`
+  from its canonical path (spec `#delivery`), with the SDK declarations and
+  source in `sdk/` beside it. The flat archives need `bin/` and `libexec/`, or
+  that one constant (`WORKER_FROM_BIN` in `src/worker.rs`) changes.
+- `crates/harness-dispatch/scripts/dispatch.sh build OUT_DIR` compiles the
+  worker and emits the SDK declarations; extend it with a Bun `--target` rather
+  than duplicating the four switches. Bun 1.4.2 leaves its ~60 MB compile
+  template in its cwd, which is why the script compiles from a scratch
+  directory.
+- `docs/RELEASING.md`, *One release, seven packages, one tag*, now names
+  harness-dispatch as a ninth member the cut does not ship yet. When the
+  archives carry it, update that section's count. Five walkthrough books'
+  orientation chapters, six crate manifests, `CONTEXT-MAP.md` and
+  `docs/specs/jj-workspace-book-structure.md` cite the heading by name, so a
+  rename moves source-exact book fragments too.

@@ -202,7 +202,10 @@ git -C "${GROVE_TAP_DIR:-$HOME/Development/homebrew-taps}" status --short --bran
 ```
 
 The doctor checks the pinned Rust toolchain, all release targets, Zig,
-`cargo-zigbuild`, and GitHub authentication. It installs nothing.
+`cargo-zigbuild`, GitHub authentication, and Bun at the version harness-dispatch
+pins: the release's `scripts/check.sh` compiles that package's policy worker,
+and its first run fetches the worker's pinned type checker with `bun install
+--frozen-lockfile`. The doctor installs nothing.
 
 ## One release, seven packages, one tag
 
@@ -218,6 +221,12 @@ The workspace has an eighth member the cut does not ship.
 part of the shipped system; it sets `publish = false` and carries a
 `version = "0.1.0"` of its own rather than inheriting. Read every claim on this
 page as a claim about the seven, not about workspace membership.
+
+`crates/harness-dispatch` is a ninth member, and the cut does not ship it yet:
+no archive or formula carries it. It inherits the workspace version and carries
+`release = false` like the six library crates, for the reasons below, so a cut
+already moves its version with theirs. This section counts it among the shipped
+packages once the archives do.
 
 **It does need a `release = false` line, and until v20.2.0 it did not have one.**
 This page used to say the opposite — that carrying its own version was enough to

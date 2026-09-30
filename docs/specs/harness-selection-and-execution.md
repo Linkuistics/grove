@@ -1,10 +1,13 @@
 # Harness selection and execution
 
-This is the first-release design of **harness-dispatch**. It specifies new
-behavior; the command is not implemented yet. Of the
-[Grove integration](#grove-integration), only the lifecycle `kind`, `task_file`
-and `task_id` slots, their standalone refusal and their symbolic inspection are
-delivered.
+This is the first-release design of **harness-dispatch**. Most of it specifies
+behavior that is not implemented yet. Of the command itself, `inspect` of a
+static `routes` policy is delivered: policy authority, the compiled worker with
+its identity check and embedded SDK, policy validation, and the human and
+version-1 JSON reports without argv. Every other input and command is refused
+by name. Of the [Grove integration](#grove-integration), only the lifecycle
+`kind`, `task_file` and `task_id` slots, their standalone refusal and their
+symbolic inspection are delivered.
 The [visual document](../design/harness-selection-and-execution/README.md) has
 matching package, execution and provenance views.
 
@@ -31,7 +34,10 @@ The public executable and independently buildable Rust package are named
 `harness-dispatch`. They depend on no Grove domain, task-tree or jj package.
 The installation also supplies a private `harness-dispatch-policy` executable:
 TypeScript compiled with Bun, including its runtime and SDK. Its versioned
-protocol is private to the matching package release. Neither a system Bun nor
+protocol is private to the matching package release. The worker's first message
+states its protocol, its package version and a digest of the source it was
+compiled from. The front refuses any other identity with exit 5, before the
+worker learns which entry to evaluate. Neither a system Bun nor
 a system Node installation participates in policy evaluation.
 
 | Owner | Responsibility hidden behind its interface |
@@ -98,7 +104,8 @@ confirmation or automatic retry is part of this interface.
 <a id="policy-and-choice"></a>
 ## Policy and joint choice
 
-The selected ESM TypeScript module exports one named `policy` value. It contains
+The selected ESM TypeScript module exports one named `policy` value, a plain
+object. It contains
 `schemaVersion` (1), a nonempty owner-maintained `version`, a candidate catalog,
 an optional `loadContext(request, host)` callback, and exactly one of `routes`
 or `select(request, context, host)`. `routes` is the useful static form: an exact
@@ -122,12 +129,13 @@ shape and additionally carries measured source metadata and the creator run
 snapshot it resolved. No executable fields are admitted in a caller context
 document.
 
-Each candidate has a unique ID, a nonempty provider-origin label, model and effort
-strings, a program and an argument array. Provider/model/effort are catalog
+Each candidate has a unique ID, a nonempty provider-origin label, nonempty model
+and effort strings, a program and an argument array. Provider/model/effort are catalog
 values, never inferred from the executable or its arguments. The program is a
 literal absolute path or PATH name; relative path programs containing a separator
 resolve against the caller's cwd and inspection reports that resolution.
-Arguments are literals or explicit slot objects. Slots are `prompt`, `kind`,
+Arguments are literal strings or slot objects of the form `{ slot: "<name>" }`.
+Slots are `prompt`, `kind`,
 `taskFile`, `taskId`, `model`, `effort` and `runId`; `prompt` occurs
 exactly once, and an absent optional input cannot satisfy a used slot. A slot
 occupies one whole argument. No shell splitting, interpolation inside literals,
@@ -174,8 +182,10 @@ authority; this is not a sandbox against its owner.
 The Rust process locates its worker from the installation, never PATH or cwd,
 and verifies the worker protocol/build identity before evaluating policy. It
 starts the worker in a private empty directory, using null stdin, captured
-diagnostic streams and a private framed protocol channel. The request passes
-the caller's cwd as data; it does not make it the worker's runtime cwd.
+diagnostic streams and a private framed protocol channel. The channel is
+descriptor 3, named by no variable, path or argument, and the worker inherits
+no other descriptor beyond its standard streams. The request passes the caller's
+cwd as data; it does not make it the worker's runtime cwd.
 
 The worker is compiled with dotenv, bunfig, tsconfig and package-json autoloading
 all explicitly disabled. Its own entry imports embedded modules and prefixed
@@ -572,7 +582,9 @@ SQLite build for Grove's corresponding targets with its existing glibc 2.17
 floor. The worker is an
 installed private companion, not a runtime downloaded on invocation. It is found
 relative to the real installed front executable, including through a Homebrew
-symlink; the supported portable archive preserves the same relative layout.
+symlink, at `../libexec/harness-dispatch/harness-dispatch-policy`. The SDK's
+declarations and readable source sit beside it in `sdk/`. The supported portable
+archive preserves the same relative layout.
 The Rust package builds independently; running selection additionally needs the
 matching compiled worker, supplied by the package's build/install task.
 

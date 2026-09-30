@@ -23,3 +23,8 @@
 /_apalache-out
 
 .grove.kdl
+
+# harness-dispatch's development-only type checker, installed by
+# `task dispatch:deps` from the pinned `worker/bun.lock`. The compiled worker
+# imports nothing from it.
+/crates/harness-dispatch/worker/node_modules/

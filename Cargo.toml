@@ -44,6 +44,13 @@
 # supplied at load, expanded into an argv, spawned directly and supervised. It is
 # domain-free down to the noun — it says *key*, never *session kind*.
 #
+# `crates/harness-dispatch` is a separate executable, not a part of grove
+# (`docs/specs/harness-selection-and-execution.md`). It evaluates an owner's
+# TypeScript selection policy through a private Bun-compiled worker, which lives
+# in the same directory and is built only by `task dispatch:worker`. It depends
+# on no Grove crate, so that it can be used without Grove and extracted from
+# this repository.
+#
 # `resolver = "2"` is stated rather than inherited. A workspace root that is not
 # a package has no package edition to take a resolver from, so this line is now
 # load-bearing rather than a restatement of what 2021 implies.
@@ -54,6 +61,7 @@ members = [
     "crates/grove-llm",
     "crates/grove-loop",
     "crates/grove-tui",
+    "crates/harness-dispatch",
     "crates/jj-workspace",
     "crates/keyed-launch",
     "crates/ordinal-fs-tree",

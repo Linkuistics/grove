@@ -1,0 +1,45 @@
+[package]
+name = "harness-dispatch"
+version.workspace = true
+edition.workspace = true
+description = "Evaluate an owner's TypeScript harness-selection policy and dispatch the joint choice it makes"
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+# **No Grove crate, by contract** (`docs/specs/harness-selection-and-execution.md`,
+# *Package boundary*). Grove is one caller among many and supplies its kind,
+# task and prompt as data; nothing here reads a task tree, a Grove filename or
+# jj. The TypeScript worker, its SDK and the tasks that build them live under
+# this directory too, so an extraction to its own repository moves one
+# directory and a handful of Taskfile entries.
+#
+# `serde_json` without derive: every document this crate reads is validated
+# field by field, so that a refusal can name the exact location it found, and a
+# derived deserializer would report its own shape instead. `libc` places the
+# protocol socket at descriptor 3 in the worker, which `std::process` has no
+# interface for. `tempfile` is the worker's private empty directory.
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+libc = "0.2"
+serde_json = "1.0"
+tempfile = "3.10"
+
+# The worker's source digest, computed without Bun: see build.rs.
+[build-dependencies]
+sha2 = "0.10"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+tempfile = "3.10"
+
+[lints]
+workspace = true
+
+# `cargo release` cuts *grove* (`crates/grove`) and nothing else. This package
+# takes `version.workspace = true` and ships inside that cut, and its worker
+# embeds the same version; `release = false` buys it no tag, changelog section
+# or publish of its own (`docs/RELEASING.md`, *One release, seven packages, one
+# tag*).
+[package.metadata.release]
+release = false

@@ -89,6 +89,24 @@ module-resolution path the SDK does not use remain unmeasured. The throwaway
 experiment lived in session scratch space; its durable results are the table
 above.
 
+<a id="implementation-observations"></a>
+## Implementation observations
+
+On 2026-09-30, the first implementation increment made two more observations
+with the same Bun 1.4.2 on the same macOS arm64 host.
+
+- **Automatic package installation.** A policy imported `is-odd`, a real npm
+  package, with no `node_modules` anywhere above it. Plain `bun` fetched it
+  from the registry into a fresh HOME cache, which is the positive control.
+  The worker, compiled with all four no-autoload switches, refused with
+  `ERR_MODULE_NOT_FOUND` and created no cache. A command-seam test,
+  `a_missing_package_is_never_installed_automatically`, keeps checking the
+  shipped worker.
+- **Compile leftovers.** Every `bun build --compile` left a read-only copy of
+  its roughly 60 MB compile template, named `.<hash>-00000000.bun-build`, in
+  its working directory, whatever the output path. The build script therefore
+  compiles from a throwaway directory.
+
 <a id="primary-runtime-references"></a>
 ## Primary runtime references
 

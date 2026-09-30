@@ -8,6 +8,48 @@ tasks:
     cmds:
       - bash scripts/check.sh
 
+  # harness-dispatch: the Rust front and its Bun-compiled policy worker. The
+  # worker builds only here, never from cargo; `crates/harness-dispatch/scripts/
+  # dispatch.sh` owns the mechanics, and the front refuses a worker built from
+  # other source, so a stale one fails tests loudly rather than passing them.
+  dispatch:deps:
+    desc: Install harness-dispatch's pinned development type checker
+    dir: crates/harness-dispatch/worker
+    cmds:
+      - bun install --frozen-lockfile
+
+  dispatch:worker:
+    desc: Compile the harness-dispatch policy worker into target/libexec/harness-dispatch
+    cmds:
+      - task: dispatch:deps
+      - bash crates/harness-dispatch/scripts/dispatch.sh build
+
+  dispatch:typecheck:
+    desc: Type-check the worker, the SDK and its fixtures against the built declarations
+    cmds:
+      - task: dispatch:worker
+      - bash crates/harness-dispatch/scripts/dispatch.sh typecheck
+
+  dispatch:build:
+    desc: Build the harness-dispatch pair in this checkout
+    cmds:
+      - task: dispatch:worker
+      - cargo build --locked -p harness-dispatch
+
+  dispatch:check:
+    desc: Run harness-dispatch's package checks against a freshly built worker
+    cmds:
+      - task: dispatch:typecheck
+      - cargo test --locked -p harness-dispatch
+
+  dispatch:install:
+    desc: Install the harness-dispatch pair under PREFIX/bin and PREFIX/libexec (default ~/.local)
+    vars:
+      PREFIX: '{{.PREFIX | default (printf "%s/.local" .HOME)}}'
+    cmds:
+      - task: dispatch:deps
+      - bash crates/harness-dispatch/scripts/dispatch.sh install "{{.PREFIX}}"
+
   design:harness-selection:
     desc: Serve the harness selection design at localhost (default port 8769)
     vars:

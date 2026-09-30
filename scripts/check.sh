@@ -107,7 +107,8 @@ run_check "shellcheck" shellcheck \
   scripts/release-prepare.sh scripts/release-prepare.test.sh \
   scripts/release-notes.sh \
   scripts/release-notes/codex-headless.sh scripts/release-notes/codex-headless.test.sh \
-  scripts/release-doctor.sh scripts/release-common.sh
+  scripts/release-doctor.sh scripts/release-common.sh \
+  crates/harness-dispatch/scripts/dispatch.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
@@ -115,13 +116,18 @@ run_check "conformance suite" bash plugins/grove/conformance.test.sh
 run_check "release tasks" bash scripts/release.test.sh
 run_check "release preparation" bash scripts/release-prepare.test.sh
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh
+# Before `cargo test`, which needs the worker: harness-dispatch's command-seam
+# tests refuse a missing or stale one with exit 5 rather than skip. This builds
+# it from the current source with the pinned Bun, then type-checks the worker,
+# the SDK and its fixtures against the declarations that build emitted.
+run_check "dispatch worker and types" task dispatch:typecheck
 run_check "cargo test" cargo test --locked --workspace
 run_check "book-check" book_check
 
 echo
 if ((${#failed[@]} > 0)); then
-  echo "check: FAILED — ${#failed[@]} of 11"
+  echo "check: FAILED — ${#failed[@]} of 12"
   printf 'check:   ✗ %s\n' "${failed[@]}"
   exit 1
 fi
-echo "check: all 11 principal checks pass"
+echo "check: all 12 principal checks pass"

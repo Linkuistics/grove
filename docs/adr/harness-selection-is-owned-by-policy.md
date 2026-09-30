@@ -3,12 +3,14 @@
 The `harness-dispatch` executable evaluates owner-supplied policy and launches
 the resulting harness, model and reasoning effort. Grove supplies its already
 selected session kind, optional task file, stable task handle and unchanged
-session prompt. Callers supply stable artifact identities as data; association
-must survive a Grove task's retirement and reordering without parsing filenames.
-The first-release discovery guarantee spans sessions in the same live grove and
-workspace; design namespaces identities and keeps records outside task bodies
-and the tree's teardown. Automatic cross-checkout discovery and post-teardown
-artifact lookup are not required. Ordinary use of the executable requires no
+session prompt. Callers supply stable task identities as data; association must
+survive a Grove task's retirement and reordering without parsing filenames. The
+first-release discovery guarantee spans sessions in the same live grove and
+workspace. Provenance travels as globally unique run identities, so handles need
+no namespace. Run and observation records live outside task bodies and survive
+the tree's teardown, and a review task carries only its creator reference.
+Automatic cross-checkout discovery and post-teardown artifact lookup are not
+required. Ordinary use of the executable requires no
 Grove installation or task-tree conventions.
 Selection policy is user-owned configuration, expressed as static mappings or
 TypeScript computation; Grove's command configuration remains the integration
@@ -37,8 +39,10 @@ including explicit choices and re-invocations. It is activated explicitly throug
 personal policy and tested as the delivered artifact. Direct-harness routes remain
 outside its enforcement. Provider is an owner-declared candidate attribute for
 model origin, not a gateway or an identity inferred from argv. The package
-exposes discoverable artifact-associated creator provenance to TypeScript;
-current configuration cannot reconstruct the original creator's identity. An
+exposes each recorded run's provider to TypeScript, and a review names its
+creator's run, as [a review carries its creator reference](a-review-carries-its-creator-reference.md)
+records; current configuration cannot reconstruct the original creator's
+identity. An
 explicit owner declaration remedies missing execution records and is visibly
 labelled as declared; absence of both forms stops review. This is a simple
 original-creator comparison, with no separate model-inequality check or

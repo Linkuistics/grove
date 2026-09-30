@@ -135,10 +135,12 @@ outside Grove.
   review-kind list or `Reviews` parser.
 - Provenance and later outcome association survive retirement and reordering of
   the producing leaf across sessions in the same live grove and workspace.
-  Grove supplies its stable handle; design namespaces it against other groves.
-  Association records live outside task bodies and retain their identities when
-  `.grove/` is removed. Automatic cross-checkout discovery and post-teardown
-  artifact lookup are not required in the first release.
+  Grove supplies its stable handle; lookups use globally unique run identities,
+  so handles need no namespace against other groves. Run and observation
+  records live outside task bodies and retain their identities when `.grove/` is
+  removed; a review task carries only its creator reference. Automatic
+  cross-checkout discovery and post-teardown artifact lookup are not required in
+  the first release.
 - Grove passes the kind, task path and stable handle from its authoritative
   selection along with the original prompt. Spaces, quotes and shell punctuation
   in the prompt or paths remain data. Existing direct-harness templates remain
@@ -265,21 +267,17 @@ per-grove dispatch scope in conflict with
 `docs/adr/one-live-driver-per-working-tree.md`. The human then questioned why
 creators need registering and why a handle namespace is needed at all.
 
-The artifact-identity, original-creator and supplied-review-policy area is
-therefore being redesigned by a new `design` leaf ahead of planning, and that
-leaf cuts its own `review-design`. The human's suggestions, none yet settled:
-
-- identify the grove from the task file given to the dispatcher;
-- for a review, find the reviewed task through `grove-llm` and read which
-  provider/model produced it;
-- have the Grove runner tell the dispatcher the reviewed artifact's
-  provider/model;
-- because the producer normally cuts its own review task, have it write its
-  provider/model into that review task.
-
-The redesign may amend two acceptance sentences — "Association records live
-outside task bodies" and "design namespaces it against other groves" — and two
-methodology rules, but only with the human's explicit confirmation. The review's
-original-creator requirement is unchanged: a different provider from the
+`harness-selection-and-execution-k8` redesigned that area. The human chose the
+review-carried creator reference, their own last suggestion, refined to name the
+producer's dispatch run rather than transcribe its provider. They confirmed the
+methodology amendments it needs and amended the two acceptance sentences above.
+Their other suggestions were compared and set aside. k8's running log and
+`docs/adr/a-review-carries-its-creator-reference.md` record why: a handle
+identifies no grove without stored state, and Grove cannot know a provider. The
+review's original-creator requirement is unchanged: a different provider from the
 original creator, recorded or explicitly declared, with missing both stopping
 review.
+
+`harness-selection-and-execution-k9` reviews the whole current design, including
+k7's unreviewed repairs, before `harness-selection-and-execution-k6` plans. A
+review with actionable findings inserts integration before planning.

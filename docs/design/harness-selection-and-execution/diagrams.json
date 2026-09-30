@@ -1,25 +1,28 @@
 {
   "title": "Harness selection and execution",
-  "intro": "First-release design, pending independent review. These are source-package and process views, not deployment containers. Graphs begin at a dark Start here node; sequence views begin at the first message.",
+  "intro": "First-release design, pending independent review. The human chose the original-creator mechanism; its details await that same review. These are source-package and process views, not deployment containers. Graphs begin at a dark Start here node; sequence views begin at the first message.",
   "groups": [
     {"id": "boundary", "title": "Package boundary", "description": "One public command, an installed private worker, optional caller adapters."},
     {"id": "execution", "title": "Execution and authority", "description": "Selection ends before the foreground process becomes the harness."},
-    {"id": "provenance", "title": "Original creator and review", "description": "Artifact identity and observed evidence outlive mutable task paths."}
+    {"id": "provenance", "title": "Original creator and review", "description": "A review carries a reference to its creator's run; run records outlive the task tree."}
   ],
   "discussion": {
-    "title": "Bounded policy evaluation followed by exec",
-    "status": "Design for review",
-    "summary": "Rust owns admission and durable receipts. A compiled Bun worker evaluates explicitly selected TypeScript without completion authority. Provider separation remains in the supplied policy. Creator registration distinguishes recorded execution from owner declarations.",
-    "diagramIds": ["packages", "handoff", "creator"],
+    "title": "A review carries its creator reference",
+    "status": "Chosen by the human; awaiting design review",
+    "summary": "The producer's finishing session writes a Creator line naming its dispatch run on its review leaf, and the supplied policy reads that immutable run's provider; an artifact without a run carries the owner's declaration. The scope, its slot and commands, the inode tripwire and creator registration are gone. The methodology amendments this needs ship with the dispatch implementation.",
+    "diagramIds": ["creator-options", "creator-flow", "creator", "packages"],
     "updatedDiagrams": [
-      {"id": "packages", "summary": "Assigned generic launch responsibilities to Rust and programmable selection to a private compiled worker."},
-      {"id": "handoff", "summary": "Made record persistence and worker cleanup precede the final exec handoff."},
-      {"id": "creator", "summary": "Made original-creator registration explicit and same-provider choices refuse without fallback."}
+      {"id": "creator-options", "summary": "New: compares where each option keeps the creator's provider and which standing rule it amends; option A is chosen."},
+      {"id": "creator-flow", "summary": "New: traces the chosen mechanism from the producer's launch to the review's provider check, with its refusal branch."},
+      {"id": "creator", "summary": "Replaced registration lookup with the Creator line, the fail-closed review recognition (F3) and the catalog membership check (F4)."},
+      {"id": "packages", "summary": "Corrected the adapter label: it reads only the supplied task file, as integration decided for F5."}
     ]
   },
   "diagrams": [
     {"id": "packages", "group": "boundary", "title": "Caller, dispatcher and policy packages", "source": "packages.mmd", "caption": "Source packages and runtime participants. Grove-specific relationship parsing belongs to the optional adapter; the generic command has no review-kind list."},
     {"id": "handoff", "group": "execution", "title": "Prepare, record and replace the foreground process", "source": "handoff.mmd", "caption": "The worker shares the enclosing job and receives no interactive stdin. Cancellation or timeout before admission launches nothing. Post-exec measurements require an external observer."},
-    {"id": "creator", "group": "provenance", "title": "Resolve one creator before selecting a reviewer", "source": "creator.mmd", "caption": "The policy owns provider comparison. A receipt of an attempted exec alone is insufficient for recorded creator registration; the owner can instead make an explicit declaration. Re-invocations preserve the existing creator association."}
+    {"id": "creator-options", "group": "provenance", "title": "Where each option keeps the creator's provider", "source": "creator-options.mmd", "caption": "Decided: the human chose A. A lookup keyed by handle must tell this grove's handle from an earlier grove's in the same workspace, which needs durable state Grove deliberately lacks (B). A globally unique run reference carried by the review needs none (A)."},
+    {"id": "creator-flow", "group": "provenance", "title": "Producer names its run; the review resolves it", "source": "creator-flow.mmd", "caption": "The run reference is written by the session that ran under it, so the provider comes from dispatch's immutable record rather than a transcription. Artifacts made by direct harnesses carry an owner declaration instead."},
+    {"id": "creator", "group": "provenance", "title": "Resolve the Creator line before selecting a reviewer", "source": "creator.mmd", "caption": "The supplied example policy. Every invocation, retry and explicit choice takes the same path; a retry reads the same line and the same immutable run, so it cannot change the creator."}
   ]
 }

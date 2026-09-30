@@ -1,11 +1,7 @@
 # Harness selection and execution
 
 This is the first-release design of **harness-dispatch**. It specifies new
-behavior; the command is not implemented yet. After design review, the
-[artifact identity and original creator](#identity-and-creator) and
-[supplied review policy](#review-policy) sections, with the Grove scope slot
-they rely on, are being redesigned and do not yet bind implementation planning.
-The other sections include the review's repairs.
+behavior; the command is not implemented yet.
 The [visual document](../design/harness-selection-and-execution/README.md) has
 matching package, execution and provenance views.
 
@@ -40,7 +36,7 @@ a system Node installation participates in policy evaluation.
 | Rust front process | Input validation, selected-policy authority, worker lifecycle and bounds, candidate/result validation, native argv expansion, durable records, final exec |
 | Compiled policy worker | Load the selected TypeScript entry, assemble context, evaluate a static table or asynchronous selector, return serializable evidence and a candidate ID |
 | Owner policy | Candidate catalog, model/effort values, context requirements, preferences and any review rule |
-| Optional Grove adapter and example | Read supplied task/brief data and interpret `Reviews`; translate it to generic artifact references |
+| Optional Grove adapter and example | Read the supplied task file's `Reviews` and `Creator` lines; translate them to a generic reviewed-artifact reference |
 | Grove | Select one task, compose the prompt, supply authoritative caller data, own the foreground job and completion channel |
 
 The SDK, the Grove adapter and the examples are embedded in the worker and
@@ -66,7 +62,7 @@ side-effect-free evaluation of trusted TypeScript. A later `run` evaluates afres
 | `--kind TEXT` | Required nonempty UTF-8 caller token; no enumeration or Grove filename grammar |
 | `--prompt TEXT` or `--prompt-file PATH` | Exactly one for `run`; optional for `inspect`, which otherwise renders the prompt argument as a marked placeholder; read once; valid UTF-8 with no NUL; preserve bytes, including trailing newlines; never read terminal stdin |
 | `--task-file PATH` | Optional source, resolved against the original cwd; does not supply kind or identity |
-| `--scope ID` with `--task-id ID` | Both or neither; identifies this task/artifact independently of paths |
+| `--task-id ID` | Optional task identity, independent of paths: an opaque nonempty UTF-8 string of at most 1024 bytes |
 | `--context PATH` | Optional version-1 JSON document, read as data; explicit generic context can replace a task file |
 | `--choice ID` | One configured joint candidate; visible to both context assembly and selection |
 | `--config PATH` | Explicit policy entry replacing the personal default, with no implicit merge |
@@ -77,13 +73,13 @@ side-effect-free evaluation of trusted TypeScript. A later `run` evaluates afres
 No task file or Grove installation is required. Without a task file or context,
 an owner can still route solely by kind if its policy declares no other required
 facts. A policy requiring more context refuses rather than inferring it from the
-prompt. Generic context can identify a reviewed artifact using its scope and
-stable ID without adopting any Grove review label.
+prompt. Generic context can identify a reviewed artifact and its creator's run
+or declared provider without adopting any Grove review label.
 
 `inspect --json` emits one versioned object on stdout. It includes the resolved
 entry path and its authority, policy/adapter versions, candidate/provider/model/
 effort, explicit-choice input, reason, context sources and hashes, measured UTF-8
-byte totals, effective bounds, timing, provenance evidence/revisions, executable
+byte totals, effective bounds, timing, the creator provenance used, executable
 resolution and expanded argv. Human output contains the same facts without
 requiring a parser. `run` reserves stdout and stdin for the final harness; its
 short choice/run-ID diagnostics go to stderr. Inspection includes the unchanged
@@ -112,14 +108,16 @@ its own table. Inspection then reports computed selection, and the policy's
 reason names the table entry it applied.
 
 The request fields are `schemaVersion`, `kind`, `cwd`, optional `taskFile`,
-optional `task` (the `scope`/`id` pair), optional `context`, optional
-`explicitChoice`, and effective `limits`. Caller context contains
-`schemaVersion`, optional `summary`, `acceptanceCriteria` (string array), `facts`
-(JSON object), `assessments` (attributed JSON object), `sources` (source records)
-and `reviewedArtifact` (a scope/ID pair). Empty optional collections remain
-distinct from unknown facts. Loaded context uses the same shape and additionally
-carries measured source metadata and any creator snapshot. No executable fields
-are admitted in a caller context document.
+optional `taskId`, optional `context`, optional `explicitChoice`, and effective
+`limits`. Caller context contains `schemaVersion`, optional `summary`,
+`acceptanceCriteria` (string array), `facts` (JSON object), `assessments`
+(attributed JSON object), `sources` (source records) and `reviewedArtifact`.
+A reviewed artifact has an `id` and an optional `creator` holding exactly one
+of `run` (a run ID) or `declared` (a provider-origin label). Empty optional
+collections remain distinct from unknown facts. Loaded context uses the same
+shape and additionally carries measured source metadata and the creator run
+snapshot it resolved. No executable fields are admitted in a caller context
+document.
 
 Each candidate has a unique ID, a nonempty provider-origin label, model and effort
 strings, a program and an argument array. Provider/model/effort are catalog
@@ -127,7 +125,7 @@ values, never inferred from the executable or its arguments. The program is a
 literal absolute path or PATH name; relative path programs containing a separator
 resolve against the caller's cwd and inspection reports that resolution.
 Arguments are literals or explicit slot objects. Slots are `prompt`, `kind`,
-`taskFile`, `taskId`, `scope`, `model`, `effort` and `runId`; `prompt` occurs
+`taskFile`, `taskId`, `model`, `effort` and `runId`; `prompt` occurs
 exactly once, and an absent optional input cannot satisfy a used slot. A slot
 occupies one whole argument. No shell splitting, interpolation inside literals,
 shell evaluation or second interpretation of prompt text occurs. Model and effort
@@ -225,7 +223,7 @@ facts, loaded sources, selector assessments and artifact/creator references.
 Unknown risk, scope or outcomes remain unknown. Policy states which facts it
 requires; a failed required read or loader fails the whole selection.
 
-The SDK supplies bounded text/JSON reads, source attribution, creator lookup,
+The SDK supplies bounded text/JSON reads, source attribution, run lookup,
 diagnostic output and an abort signal. It measures every delivered source, hashes
 the bytes actually read, and includes the adapter's explicit version. A context
 loader returns the final serializable context; both worker and Rust validate its
@@ -236,12 +234,14 @@ The receipt records the entry digest, declared policy version and worker build;
 it does not claim to hash every dynamic dependency or every remote response.
 
 SDK operations are `readText(path, maxBytes)`, `readJson(path, maxBytes)`,
-`originalCreator(scope, artifactId)`, `diagnostic(text)` and `signal`.
+`run(runId)`, `diagnostic(text)` and `signal`.
 Reads resolve explicit relative paths against request cwd and return content
 plus canonical source name, byte count and SHA-256. Policy imports use their own
-module-relative resolution. Creator lookup is a read-only protocol request to
-the Rust store and returns either an attributed snapshot/revision or missing;
-the worker never opens or writes the database. The loader returns context,
+module-relative resolution. Run lookup is a read-only protocol request to the
+Rust store. It returns the run's immutable launch fields, including task
+identity and catalog snapshot, plus any launch-failure detail, or missing. An
+unreadable store refuses rather than reading as missing. The worker never opens
+or writes the database. The loader returns context,
 and the selection callback receives that measured value. The supplied adapter
 uses these operations so its complete delivered context is inspectable.
 
@@ -323,95 +323,94 @@ harness it fronts. Dispatch fixes one joint choice; later model changes inside a
 harness are outside its observation and enforcement.
 
 <a id="identity-and-creator"></a>
-## Artifact identity and original creator
+## Identity and original creator
 
-Generic identity is the pair **scope ID + artifact ID**. A run may be associated
-with an output artifact, a task, a reviewed artifact, or no artifact. Paths are
-descriptive source locations only. Scope and artifact IDs are nonempty opaque
-strings with length limits (256 and 1024 UTF-8 bytes); IDs round-trip through
-inspection and record commands. Independent callers allocate a fresh scope for
-each unrelated workstream; `harness-dispatch scope new` returns a random UUID.
+A run may be associated with a **task identity**, a **reviewed artifact**, both,
+or neither. The task identity is the caller's `--task-id`, which survives the
+task's file being renamed, retired or reordered; Grove supplies its selected
+handle. A reviewed artifact comes from caller or loaded context. Paths are
+descriptive source locations only. Every run also has its own **run ID**: a
+collision-resistant identity that dispatch allocates, records with the run and
+exports to the final harness as `HARNESS_DISPATCH_RUN_ID`.
 
-Grove supplies its selected handle as artifact ID and an opaque dispatch scope
-through a new optional runtime slot. The dispatch scope is an evidence namespace,
-not a session epoch or tree-mutation authority. Grove stores its UUID/binding in
-the existing workspace control area, outside the task tree, lazily when a route
-uses that slot. It reuses the binding across sessions and driver restarts in the
-same live tree. Authoritative root creation invalidates any old binding; the next
-use allocates a fresh scope. Finish retires the binding without deleting records.
-The binding includes the observed workspace and task-root directory identities;
-unexpected replacement refuses delegated launch with a scope-reset remedy.
-Plain direct-harness routes do not allocate dispatch state. A manual/offline
-replacement or restoration of a root requires explicit scope reset; device/inode
-numbers alone are not proof against offline inode reuse. Cross-checkout discovery
-and post-teardown artifact lookup are not promised. All retained records still
-carry their IDs and can receive later observations by run ID.
+Dispatch looks nothing up by task or artifact identity. Handles restart in each
+grove, and one workspace hosts successive groves, so a lookup by handle would
+need a grove namespace that Grove deliberately does not keep. Creator provenance
+travels instead as a reference to a run, and a run ID needs no namespace. The
+[creator-reference decision](../adr/a-review-carries-its-creator-reference.md)
+records that trade-off.
 
-`grove dispatch-scope show --json` reports the current binding without allocating
-one. `grove dispatch-scope reset --expected UUID` explicitly replaces it with a
-fresh UUID after a manual root replacement; it requires an existing readable
-tree and no live driver, checks the expected binding and preserves old records.
-Neither command imports or evaluates selector policy. This is bookkeeping for
-caller identity, not an override of the selected harness or session kind.
+The **original creator** of a reviewed artifact is given by exactly one creator
+reference, in one of two forms:
 
-An original creator is registered once for that exact artifact identity:
+| Form | Evidence class | Where the provider comes from |
+|---|---|---|
+| `run <run-id>` | Execution-recorded | The named run's immutable catalog snapshot |
+| `declared <provider>` | Declared | The owner's literal declaration |
 
-- `creator bind --scope S --artifact A --run R --evidence TEXT` registers a
-  recorded run only if R belongs to S/A and an external observation confirms its
-  execution and production of A. It snapshots that run's provider/model/effort;
-  it never reads today's catalog to reconstruct yesterday's provider.
-- `creator declare --scope S --artifact A --provider P --evidence TEXT` supplies
-  the owner declaration needed for pre-adoption or direct-harness artifacts. It
-  is labelled `declared`, with owner-supplied evidence, not `execution_recorded`.
+A run reference is written by the session that ran under that run, which reads
+its own `HARNESS_DISPATCH_RUN_ID`; the reference is therefore itself evidence
+that the run executed. Its provider comes from dispatch's record of the
+configured launched choice, never from the session's transcription, today's
+catalog or the current mapping. A declaration remedies an artifact made before
+adoption or by a direct harness, which has no run to name. It is the owner's
+assertion and is always reported as declared.
 
-**The first explicit creator registration wins.** Neither a new launch nor a new
-observation overwrites it. Where a producer was invoked several times, the owner
-registers the run that originally produced the reviewed artifact; the tool never
-guesses from earliest attempt, latest success, current mapping or task retirement.
-An attempted handoff alone cannot be bound as execution-recorded. Registration
-with identical content is idempotent; a conflicting registration refuses and
-names the existing association. Correction is explicit, using an expected
-association revision and a reason; the prior assertion remains in record history.
-This is one original creator, not contributor accounting.
+In Grove the reference is the review leaf's `**Creator:**` line, directly under
+its `**Reviews:**` line. The session that finishes a producer launched through
+dispatch writes `**Creator:** run <run-id>` on the review leaf it cuts, and on
+any live review leaf that already names the producer's handle. That session's
+run is the original creator. When a producer was launched more than once,
+earlier attempts are not named: a restarted producer's finishing session
+replaces the line before the review runs. A review's retries read the same line
+and the same immutable record, so a retry cannot change the answer; only an
+explicit edit, visible in version control, can. A producer that did not run
+through dispatch has no run ID to write, so its review carries no run reference
+and refuses until the owner writes `**Creator:** declared <provider>`.
 
-Both registration commands accept `--expected-revision REV --reason TEXT` for
-that explicit correction; without both, replacing an existing different
-association is refused. `creator show --scope S --artifact A --json` reports the
-exact snapshot and revision used by policy, including its evidence class.
-
-The extra registration is deliberate: preserving direct exec means the tool
-cannot honestly infer which retry produced an artifact. An automation with real
-execution evidence may import the observation and register the creator; a human
-may use the declared-provider remedy. The supplied review policy's refusal
-explains both routes rather than converting an attempt into success.
+Independent callers supply the same association as data: `reviewedArtifact`
+carries the artifact ID and a creator of either form. The core validates that
+shape and offers run lookup; it compares no providers and has no review
+semantics. This is one original creator, not contributor accounting.
 
 <a id="review-policy"></a>
 ## Supplied review policy
 
 The inactive example uses exact configured review-kind entries, all of which
 apply the provider rule; other kinds use the owner's static table. It exports
-its rule as a reusable selector so non-Grove callers can give a generic reviewed
-artifact reference. Custom review labels require an explicit example-policy
-entry. The core knows no review list or `Reviews` grammar.
+its rule as a reusable selector over a generic reviewed artifact, so non-Grove
+callers can apply it without a task file. Custom review labels require an
+explicit example-policy entry. The core knows no review list and no `Reviews` or
+`Creator` grammar.
 
-The Grove adapter reads the supplied task and its ancestor briefs under the
-supplied root. For a configured review entry it requires exactly one standalone
-`**Reviews:** <stable-handle>` declaration, resolves that handle to exactly one
-task header within the bounded tree read, and constructs a reviewed-artifact
-reference in the supplied scope. It does not obtain kind/identity from the
-filename, infer associations from a shared slug, select another leaf, or use
-advisory running-session state. Missing, malformed or ambiguous declarations,
-unreadable sources, and traversal limits refuse. Retired/renumbered task paths
-continue to resolve through their stable headers. The adapter has independent
-fixtures for the Grove conventions it interprets.
+The Grove adapter reads only the supplied task file, on every invocation. For a
+configured review entry it requires exactly one standalone `**Reviews:**
+<handle>` line and exactly one standalone `**Creator:**` line in either form,
+and builds the generic reviewed artifact from them. A task that declares
+`**Reviews:**` under a kind that is not a configured review entry refuses, so
+an unlisted review kind cannot take a static route. The adapter does not obtain
+kind or identity from the filename, resolve the handle, enumerate the tree, read
+briefs, select another leaf or use advisory running-session state. Missing,
+duplicate or malformed lines and an unreadable task file refuse. The adapter has
+independent fixtures for the Grove conventions it interprets.
 
-The policy obtains the exact original-creator record through the SDK. Missing
-registration stops review with the bind/declaration remedy. It validates the
-requested or mapped candidate against that provider, requiring a different
-provider origin; a gateway label change cannot establish separation. It does not
-select a replacement on failure. The same check runs on every invocation and on
-explicit choices. Provenance kind, evidence and association revision appear in
-inspection and the run record. Direct-harness routes do not execute this policy.
+For a run reference the policy looks the run up through the SDK. A run missing
+from this record store, or carrying a launch-failure or not-executed detail,
+refuses with the declaration remedy. Inspection and the review's run record
+show the named run's task identity beside the `**Reviews:**` handle; the two
+need not be equal, because a decomposed producer is finished by a child task
+with its own handle.
+
+The creator's provider, recorded or declared, must be an exact, case-sensitive
+member of the current catalog's provider-origin set, with no normalisation. A
+relabelled origin or a misspelt declaration therefore refuses with a correction
+remedy instead of comparing as different. The requested or mapped candidate
+must then have a different provider origin; a gateway label change cannot
+establish separation. The policy never selects a replacement on failure. The
+same checks run on every invocation, retry and explicit choice. The evidence
+class, the creator reference, the resolved provider and the digest of the task
+file the reference came from appear in inspection and in the review's run
+record. Direct-harness routes do not execute this policy.
 
 <a id="records-and-outcomes"></a>
 ## Records and later observations
@@ -424,20 +423,20 @@ Concurrent invocations use short transactions, never a lock held across policy
 evaluation. Disk-full, permission, schema or lock failures before handoff refuse.
 
 Before exec, one committed transaction persists a collision-resistant run ID,
-timestamp, scope/task/artifact associations, kind, selected catalog values,
-explicit-choice input, resolved executable and argv, original cwd, policy entry
-authority/digest/version, worker and adapter versions, context source digests and
-sizes, effective limits, decision reason, selection timing and provenance used.
-Raw environment values are not stored. Argv contains the prompt, so records are
-private local execution data. The run ID is available to the final harness via
-its environment and the optional argument slot. Inspection uses a visibly marked
-proposed ID, creates no run or creator association, and does not promise that ID
-will be reused.
+timestamp, task identity and reviewed-artifact association, kind, selected
+catalog values, explicit-choice input, resolved executable and argv, original
+cwd, policy entry authority/digest/version, worker and adapter versions, context
+source digests and sizes, effective limits, decision reason, selection timing and
+the creator provenance used. Raw environment values are not stored. Argv
+contains the prompt, so records are private local execution data. The run ID is
+available to the final harness via its environment and the optional argument
+slot. Inspection uses a visibly marked proposed ID, creates no run, and does not
+promise that ID will be reused.
 
-Creator lookup returns a revision. The pre-handoff transaction checks every
-creator revision used in selection; a concurrent correction causes an explicit
-stale-provenance refusal, not a hidden selection retry. Readable but corrupt
-records never become missing-provider defaults.
+A committed run's launch fields never change, so a creator snapshot a review
+used cannot go stale before that review's own handoff. There is no creator
+registration to revise. Readable but corrupt records never become
+missing-provider defaults.
 
 | Evidence | Meaning |
 |---|---|
@@ -460,10 +459,10 @@ one version-1 observation. It requires a caller-generated observation ID, source
 observed-at timestamp and evidence description. Repeating identical ID/content
 is idempotent; conflicting content refuses. An import that corrects an earlier
 observation names the observation it replaces, retaining both. No import can
-change the immutable launch fields or silently change creator registration.
+change the immutable launch fields.
 
-Supported observation fields include execution confirmation and artifact
-production, exit/signal, duration, input/output/total usage with units, acceptance
+Supported observation fields include execution confirmation, exit/signal,
+duration, input/output/total usage with units, acceptance
 (accepted/rejected/unknown), missed defects, false findings, downstream repair,
 human-work measures and evidence links. Every field has an explicit
 observed/unknown/unobserved distinction; absence does not mean zero or false.
@@ -478,24 +477,32 @@ Concretely, an observation envelope has `schemaVersion`, `observationId`, `runId
 object. Every measurement is an object with `state` equal to `observed`, `unknown`
 or `unobserved`; `observed` requires a typed `value`, quantitative values require
 `unit`, and other states carry no numeric value. Fields not supplied in an import
-remain unobserved in the exported view. Creator binding requires an observed
-`executionConfirmed` value of true and an observed `producedArtifact` value
-matching the run's exact scope/ID. Observation source/evidence is an assertion by
-the importer; the package validates shape and association, not external truth.
+remain unobserved in the exported view. Observation source/evidence is an
+assertion by the importer; the package validates shape and association, not
+external truth. A review session can attach its findings to the producer's run,
+because its own task file names that run.
 
 <a id="grove-integration"></a>
 ## Grove integration
 
-Add optional whole-argument slots `kind`, `task_file`, `task_id` and `task_scope`
-to lifecycle configuration. Populate them from the same authoritative selected
-task used to compose the mandate: open kind token, absolute selected task path,
-stable handle and evidence namespace. The existing prompt is passed unchanged.
-Existing slots and direct-harness commands keep their current rules; prompt
-remains exactly once. No task-body metadata, new Grove invocation override, or
-prompt/filename scraping is introduced.
+Add optional whole-argument slots `kind`, `task_file` and `task_id` to lifecycle
+configuration. Populate them from the same authoritative selected task used to
+compose the mandate: open kind token, absolute selected task path and stable
+handle. The existing prompt is passed unchanged. Existing slots and
+direct-harness commands keep their current rules; prompt remains exactly once.
+No task-body launch metadata, new Grove invocation override, or prompt/filename
+scraping is introduced. Grove allocates and stores nothing for dispatch.
 
 Grove configuration inspection shows these slots symbolically when no task is
-selected. It does not fabricate a task, evaluate policy or allocate a scope.
+selected. It does not fabricate a task or evaluate policy.
+
+The `**Creator:**` line is a methodology convention, like `**Reviews:**`. The
+session writes it; Grove's own code neither writes nor reads either line and
+records nothing about how a producer ran. The
+[creator-reference decision](../adr/a-review-carries-its-creator-reference.md)
+names the methodology rules this amends. They ship with the dispatch
+implementation, so the methodology never asks a session to name a run from a
+tool that is not installed.
 Standalone `grove run` continues to offer its existing vocabulary. Lifecycle-only
 slots are rejected in standalone templates that request them; the common
 configuration machinery remains consumer-vocabulary-driven.
@@ -509,7 +516,7 @@ explains its selection. Grove's pre-authoring
 guarantee stops at the complete configured command. Static and computed delegated
 policy are checked only at launch, so task authoring can succeed and delegated
 launch subsequently refuse. Usage and configure-grove must explain both surfaces
-and the exact remedy for incomplete mappings and missing creator registration.
+and the exact remedy for incomplete mappings and a missing creator reference.
 
 <a id="diagnostics"></a>
 ## Diagnostics and exits
@@ -590,15 +597,16 @@ acceptance instruments; internal tests may support them without replacing them.
 | Seam | Required observable cases |
 |---|---|
 | New command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; a caller-ignored HUP or SIGPIPE and the entry signal mask reach the fake harness unchanged; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
-| Same command, actual shipped examples | Different-origin reviewer on every invocation and explicit choice; same-origin/gateway disguise refuses; missing/ambiguous review relation refuses; declaration adoption; recorded creator requires execution/production evidence; retries preserve creator; changed current mapping cannot rewrite provider history |
+| Same command, actual shipped examples | Different-origin reviewer on every invocation, retry and explicit choice; same-origin/gateway disguise refuses; a fake producer launched through dispatch writes its `Creator` line from `HARNESS_DISPATCH_RUN_ID`, and the dispatched review of that task file uses the named run's recorded provider, which a changed current mapping cannot rewrite; a store holding an earlier run of the same task identity does not satisfy a review task with no `Creator` line; an unknown run and a run marked not executed refuse; declaration adoption; missing, duplicate or malformed `Reviews`/`Creator` lines refuse; `Reviews` under a kind that is not a configured review entry refuses; a relabelled origin and a misspelt declaration refuse as non-members; the generic reviewed-artifact form selects without a task file |
 | Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow and BUN_OPTIONS stay inert through the public launcher, each beside its firing configuration below; explicit relative config and personal import are admitted; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
-| Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction, creator registration and concurrent revision refusal; later observations after tree teardown |
-| Existing Grove launch boundary | Original prompt and authoritative slots preserved as native data; task rename/retirement/reorder retains association; driver restart retains scope; root creation rotates scope; unexpected root replacement refuses; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
+| Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields and an unreadable store refuses; the review's run records the creator provenance used; later observations after tree teardown |
+| Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
 | Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
 
 Per-target release delivery adds the archive/install tests above. Documentation
-review verifies activation, both inspection surfaces, scope setup/reset, creator
-registration/declaration, later outcome entry and launch-time validation guidance.
+review verifies activation, both inspection surfaces, the `Creator` line
+conventions and their remedies, later outcome entry and launch-time validation
+guidance.
 Each hostile class has a named firing configuration, a positive control that
 must be seen to fire, so a test cannot pass merely because its fixture never ran:
 
@@ -620,8 +628,9 @@ identity, policy quality or task acceptance from these mechanics tests.
 
 Local LLM selection and its evaluation pilot, model comparisons/calibration,
 repository extraction, accumulated contributor exclusions, automatic fallbacks,
-partial overrides, automatic retries, automatic creator guessing, cross-checkout
-discovery, post-teardown artifact lookup and dedicated confined `grove run`
+partial overrides, automatic retries, automatic creator guessing, lookup of runs
+by task or artifact identity, cross-checkout discovery, post-teardown artifact
+lookup and dedicated confined `grove run`
 integration are not part of this increment. Windows is outside Grove's current
 release targets. A hostile-code sandbox and supervision after final exec are
 also outside this command's contract.

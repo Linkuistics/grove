@@ -1,0 +1,23 @@
+sequenceDiagram
+  participant G as Grove driver
+  participant D as harness-dispatch
+  participant S as Record store
+  participant P as Producer session
+  participant V as Review session
+  G->>D: Producer launch: kind, task file, handle H
+  D->>S: Commit run R: task H, provider of the chosen candidate
+  D->>P: exec, environment carries HARNESS_DISPATCH_RUN_ID=R
+  P->>P: Finish work, then cut review leaf with Reviews H and Creator run R
+  P->>G: Retire and commit (retire renames one file)
+  G->>D: Review launch: kind, review task file, review handle
+  D->>D: Adapter reads Reviews and Creator lines from the review task file
+  D->>S: run(R): read-only lookup of the immutable launch fields
+  S-->>D: provider of R (recorded), or missing
+  alt Creator run found, or Creator declared
+    D->>D: Example policy requires a reviewer provider not equal to the creator's
+    D->>S: Commit review run with the provenance it used
+    D->>V: exec the different-provider reviewer
+  else No Creator line, unknown run, or no eligible candidate
+    D-->>G: Refuse (exit 3) with the declaration remedy, nothing launches
+  end
+  Note over G,V: No lookup by handle, so a later grove reusing H cannot collide with R

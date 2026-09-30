@@ -194,6 +194,8 @@ consumer names, and no call site passes one where the other is expected.
   context, never both. The **grove** context owns
   [`complete-session-configuration`](docs/adr/complete-session-configuration.md),
   [`harness-selection-is-owned-by-policy`](docs/adr/harness-selection-is-owned-by-policy.md),
+  [`a-review-carries-its-creator-reference`](docs/adr/a-review-carries-its-creator-reference.md),
+  [`policy-evaluation-precedes-process-replacement`](docs/adr/policy-evaluation-precedes-process-replacement.md),
   [`untracked-configuration-delta`](docs/adr/untracked-configuration-delta.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
@@ -215,6 +217,7 @@ consumer names, and no call site passes one where the other is expected.
   and the specs
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
   [`module-decomposition`](docs/specs/module-decomposition.md),
+  [`harness-selection-and-execution`](docs/specs/harness-selection-and-execution.md),
   [`modular-configuration`](docs/specs/modular-configuration.md) and
   [`walkthrough-books`](docs/specs/walkthrough-books.md). The walkthrough records
   describe the book system and are **grove's while its validator is**:

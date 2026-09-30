@@ -23,7 +23,10 @@ the two process seams. No implementation tree has been pre-built.
 - The first executable increments can each be demonstrated or tested without
   waiting for a horizontal sibling to make them useful.
 - Implementation coverage includes the actual shipped example policy, the
-  original-creator mechanism k8 settles, later outcome observation, bounded
+  original-creator mechanism k8 settles with the methodology amendments,
+  conformance rows and pins that
+  `docs/adr/a-review-carries-its-creator-reference.md` says ship with it, later
+  outcome observation, bounded
   worker trust and cancellation, optional Grove slots, direct-harness
   compatibility and release layout.
 - Package tasks join the repository Taskfile. Per-target installed static and

@@ -11,8 +11,10 @@ The [foreground-job contract](the-launched-child-is-a-job.md) makes keeping the
 wrapper as a post-launch supervisor the wrong boundary. Replacing it preserves
 Grove's ownership of the real child, but sacrifices automatic exit/usage
 observation. A handoff receipt therefore remains an attempt until external
-evidence says otherwise. Original-creator registration uses such evidence or an
-explicit owner declaration; it cannot be reconstructed from an attempted exec.
+evidence says otherwise. The handoff does export the run's identity, so the
+launched session can name its own run later. That is how a review finds its
+creator without the tool reconstructing one from attempts
+([a review carries its creator reference](a-review-carries-its-creator-reference.md)).
 
 Bun supplies TypeScript and ordinary filesystem/network computation without
 maintaining a new JavaScript standard library. Compiling the worker keeps a

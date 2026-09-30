@@ -125,7 +125,7 @@ generation `2026-09-29T11:18:53Z`. These are bounded positive findings:
 - [Session expansion](../../../crates/grove-loop/src/session_config.rs) currently
   supplies prompt, session name, worktree and repository, with exact native
   argument boundaries. Its existing integration test exercises spaces and shell
-  punctuation. The four new lifecycle slots are proposed, not existing API.
+  punctuation. The three new lifecycle slots are proposed, not existing API.
 - [The loop driver](../../../crates/grove-loop/src/loop_driver.rs) expands the
   command from its authoritative selection, then activates the epoch and calls
   the observed runner. Inbound/outbound graph tracing and the exact launch
@@ -133,8 +133,8 @@ generation `2026-09-29T11:18:53Z`. These are bounded positive findings:
   two legacy harness PID values.
 - [Tree lifetime](../../../crates/grove-loop/src/observation.rs) is a pinned open
   directory, compared by device/inode while pinned. Its numbers alone are
-  unsuitable as permanent provenance identity. The proposed dispatch UUID is
-  evidence identity, not reuse of the advisory observer or epoch as authority.
+  unsuitable as permanent provenance identity. The design therefore carries
+  provenance as a dispatch run ID and derives none from tree identity.
 - [Release construction](../../../scripts/release-build.sh),
   [the target list](../../../scripts/release-common.sh) and
   [Homebrew installation](../../../scripts/templates/grove.rb.tmpl) currently

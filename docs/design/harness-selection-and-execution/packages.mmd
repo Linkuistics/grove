@@ -3,7 +3,7 @@ flowchart TB
   Native["harness-dispatch\nRust command and record store"]
   Worker["Private policy worker\nCompiled Bun + TypeScript SDK"]
   Policy["Selected owner policy\nCatalog, context, selection"]
-  Adapter["Optional Grove adapter\nBriefs and Reviews association"]
+  Adapter["Optional Grove adapter\nReads only the supplied task file"]
   Harness["Configured harness\nModel + effort fixed at dispatch"]
   Caller -->|"1. Kind, prompt, context, identity"| Native
   Native -->|"2. Bounded request; no prompt or control env"| Worker

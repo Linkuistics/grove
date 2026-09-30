@@ -1,17 +1,28 @@
 flowchart TB
-  Start["Start here: artifact identity\nScope + stable artifact ID"]:::start
-  Lookup{"Original creator\nregistered?"}
-  Bound["Use immutable provider snapshot\nRecorded run or owner declaration"]
-  Missing["Refuse review\nExplain creator registration remedy"]
-  Filter["Supplied policy validates choice\nReviewer provider differs"]
-  Choice{"Valid candidate?"}
-  Run["Record evidence and dispatch"]
-  Stop["Refuse; no substitution"]
-  Start -->|"1. Lookup exact association"| Lookup
-  Lookup -->|"2a. Yes"| Bound
-  Lookup -->|"2b. No"| Missing
-  Bound -->|"3. Compare provider origin"| Filter
-  Filter -->|"4. Include explicit choice"| Choice
-  Choice -->|"5a. Yes"| Run
-  Choice -->|"5b. No"| Stop
+  Start["Start here: review policy\nreads the task file"]:::start
+  Kind{"Configured\nreview kind?"}
+  Decl{"Declares\nReviews?"}
+  Plain["Owner's static\nroute"]
+  Line{"One Reviews and\none Creator line?"}
+  Form{"Creator\nform?"}
+  Run{"R found, not\nmarked failed?"}
+  Member{"Provider in current\ncatalog? (F4)"}
+  Choice{"Candidate has a\ndifferent provider?"}
+  Dispatch["Record provenance\nused, then dispatch"]
+  Refuse["Refuse, exit 3:\nno launch, no substitute,\nremedy named"]
+  Start -->|"1"| Kind
+  Kind -->|"2a. No"| Decl
+  Decl -->|"No"| Plain
+  Decl -->|"Yes (F3)"| Refuse
+  Kind -->|"2b. Yes"| Line
+  Line -->|"3a. No"| Refuse
+  Line -->|"3b. Yes"| Form
+  Form -->|"4a. run R"| Run
+  Form -->|"4b. declared P"| Member
+  Run -->|"No"| Refuse
+  Run -->|"Yes: recorded"| Member
+  Member -->|"5a. No"| Refuse
+  Member -->|"5b. Yes"| Choice
+  Choice -->|"6a. Yes"| Dispatch
+  Choice -->|"6b. No"| Refuse
   classDef start fill:#163a57,color:#fff,stroke:#163a57,font-weight:bold

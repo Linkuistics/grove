@@ -905,7 +905,8 @@ is explicit policy in [[Grove configuration]]. Grove does not interpret command
 templates to recover target identity, persist producer launch receipts, export
 session-target metadata, compare targets, or warn; a `review-*` leaf supplies a
 fresh session, and choosing a materially different command is the configuration
-owner's responsibility.
+owner's responsibility. The harness-dispatch design's supplied review policy
+compares providers itself, from a review's [[Creator reference]].
 
 <a id="selection-provider"></a>
 ### Selection provider
@@ -919,16 +920,20 @@ review policy; changing a gateway or harness does not change that origin.
 The one producer execution associated with an artifact for review selection,
 whose **selection provider** is execution-recorded or explicitly declared by the
 owner; it is neither today's producer mapping nor the set of all contributors.
-The harness-dispatch design registers one original creator explicitly; a retry
-or an attempted handoff does not choose or replace that association.
+In the harness-dispatch design it is the run of the session that finished the
+producer, named by the review's [[Creator reference]]; a retry or an attempted
+handoff does not choose or replace it.
 
-<a id="dispatch-scope"></a>
-### Dispatch scope
+<a id="creator-reference"></a>
+### Creator reference
 
-The opaque namespace paired with a stable artifact ID in harness-dispatch's
-execution evidence. Grove's adapter supplies one per live grove in a workspace;
-it is not a session epoch, tree lifetime proof, or authority to mutate the tree.
-Records keep the scope after the task tree is removed.
+The line under `**Reviews:**` that names a review's **original creator** in the
+harness-dispatch design: `**Creator:** run <run-id>`, written by the session
+that finished the producer, or `**Creator:** declared <provider>`, the owner's
+declaration for an artifact made without a run. It is the only record of a past
+session a task body carries.
+_Avoid_: calling it launch metadata; nothing in it routes the review's own
+session.
 
 <a id="joint-candidate"></a>
 ### Joint candidate

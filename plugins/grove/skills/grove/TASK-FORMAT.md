@@ -30,11 +30,11 @@ freeform markdown — a guide follows, not a schema.
 **What is convention rather than grammar** is everything a name might imply about
 *another* leaf: the shared stem a composed shape's steps carry, their relative
 ordering, and the two `**Reviews:**` / `**Integrates:**` declaration lines in
-their bodies. Every one of those is written by hand and parsed by nothing, and
-nothing reconstructs a relationship from a filename, a position, or a body. That
-is also the test the deleted step suffix failed and the bare stem passes — a
-convention that *adds* what nothing parses is legible, while one that
-*duplicates* a parsed field can disagree with it.
+their bodies. Every one of those is written by hand and parsed by none of Grove's
+own code, which reconstructs no relationship from a filename, a position, or a
+body. That is also the test the deleted step suffix failed and the bare stem
+passes — a convention that *adds* what Grove does not parse is legible, while
+one that *duplicates* a parsed field can disagree with it.
 
 Putting the kind in the name is what lets `pick`, the driver's routing lookup and
 your own eye read a session's discipline out of `find .grove` without opening a
@@ -130,7 +130,7 @@ is decomposed into a node, the handle gains a ` — brief` suffix
 (`# <slug>-k<key> — brief`) and nothing else changes.
 
 A review or an integration adds the one line that declares what it composes with,
-written by hand and parsed by nothing:
+written by hand and parsed by none of Grove's own code:
 
 ```markdown
 # sync-design-k14
@@ -138,11 +138,24 @@ written by hand and parsed by nothing:
 **Reviews:** sync-design-k13
 ```
 
-**The body carries no launch metadata at all** — no kind, no harness, no model,
-and no record of how any past session ran. A generated leaf is the header plus
-those four empty sections, and the only `**…:**` lines any leaf ever carries are
-the two composition relationships the *creating session* writes by hand
-(`**Reviews:**`, `**Integrates:**`), which describe how artifacts compose rather
-than how a session is launched. Everything about the launch comes from the
-filename's kind and the one configuration entry it keys
-(`references/driver.md`).
+**The body carries nothing that routes its own session** — no kind, no harness
+and no model. A generated leaf is the header plus those four empty sections, and
+every `**…:**` line a leaf ever carries is written by hand. Two are the
+composition relationships the *creating session* writes (`**Reviews:**`,
+`**Integrates:**`), which describe how artifacts compose rather than how a
+session is launched. The third is a review's alone: one `**Creator:**` line,
+directly under `**Reviews:**`, and **the only record of a past session any body
+carries**:
+
+```markdown
+**Reviews:** sync-design-k13
+**Creator:** run <run-id>
+```
+
+It names the run of the session that finished the reviewed producer.
+`references/retire.md` states who writes it, when, and when it is removed
+instead. The owner's `**Creator:** declared <provider>` takes its place for an
+artifact finished without a run. None of Grove's own code reads the line; its
+reader is a dispatch policy the configuration owner chose. Everything about the
+launch still comes from the filename's kind and the one configuration entry it
+keys (`references/driver.md`).

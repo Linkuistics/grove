@@ -1023,15 +1023,22 @@ Sessions outside that procedural predicate retain standalone doubt behavior. See
 [Grove owns escalated review](adr/grove-owns-escalated-review.md) and
 [doubt-grove-review-mechanics](specs/doubt-grove-review-mechanics.md).
 
-<!-- residue(none): the relationship lines; `composition_guidance.rs` pins `**Reviews:**` and `**Integrates:**` here -->
+<!-- residue(none): the relationship lines; `composition_guidance.rs` pins `**Reviews:**`, `**Integrates:**` and the scope of the no-parser claim here -->
 A chain's steps declare their relationships in their bodies: the review carries
 `**Reviews:** <producer-handle>` and the integration carries `**Integrates:**
 <review-handle>`. Those lines are **written by hand by the session authoring the
-body and parsed by nothing** — a documented convention (the spine's `TASK-FORMAT.md`)
-for the human and for the session that picks the step up, which is constraint 3:
-task files are freeform markdown and nothing validates them. Names and positions
-likewise remain presentation and walk order, never relationship grammar, and the
-driver routes a scheduled review solely by its filename kind.
+body and parsed by none of Grove's own code** — a documented convention (the
+spine's `TASK-FORMAT.md`) for the human and for the session that picks the step
+up, which is constraint 3: task files are freeform markdown and Grove validates
+nothing in them. A review may carry one more hand-written line, `**Creator:**`,
+which the session that finishes its producer writes or removes
+(`references/retire.md`) and which Grove's code reads no more than the other
+two. The reader of `**Reviews:**` and `**Creator:**` is outside Grove:
+`harness-dispatch/grove`, the adapter a dispatch policy imports
+([a review carries its creator reference](adr/a-review-carries-its-creator-reference.md)).
+Names and positions likewise remain presentation and walk order, never
+relationship grammar, and the driver routes a scheduled review solely by its
+filename kind.
 
 <a id="tree-access-lock"></a>
 ### Tree access lock

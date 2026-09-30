@@ -124,6 +124,22 @@ stood at the graft — a closed record, not part of the versioned sequence above
   Linux kernel floor is Bun 1.4.2's documented range, documented rather than
   executed: 5.1 in Bun's README, and 3.10 (RHEL 7) on its installation page.
   macOS needs 13.0 or later, Bun 1.4.2's documented minimum.
+- `grove` methodology: the session that finishes a producer names its run on
+  that producer's reviews. It finishes its own leaf by retiring it, and each
+  node its close cascade closes. On the review it cuts, and on every live review
+  whose `**Reviews:**` line names that handle, it writes `**Creator:** run
+  <run-id>` from its own `HARNESS_DISPATCH_RUN_ID`, in the task's commit. With
+  no run, it removes any `**Creator:**` line instead, and the owner declares
+  `**Creator:** declared <provider>`. `references/retire.md` owns the step, at
+  retirement and in the node-close steps. `TASK-FORMAT.md` now says a body
+  carries nothing that routes its own session, and admits that one line as the
+  only record of a past session a body carries. `leaf-retire` still touches one
+  filename, and Grove still records and compares nothing about how a producer
+  ran: a dispatch policy does the comparing. The statements that nothing reads
+  the `**Reviews:**` and `**Integrates:**` lines are scoped to Grove's own
+  code, because a dispatch policy's adapter reads them. Codex receives the same
+  files through `grove`'s provisioned skills
+  ([a review carries its creator reference](docs/adr/a-review-carries-its-creator-reference.md)).
 
 ## v21.12.0
 

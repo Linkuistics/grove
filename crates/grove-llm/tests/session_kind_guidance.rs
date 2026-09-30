@@ -810,12 +810,15 @@ fn the_environment_sweep_finds_a_reintroduced_routing_variable() {
 // ---------------------------------------------------------------------------
 // No example task body carries a launch field
 
-/// The whole declared body-marker set: the two composition relationships a
-/// generated chain writes. That these are the *only* markers Grove writes is
-/// asserted by enumeration over real generated bodies in
-/// `tests/task_marker_surface.rs`; this file's claim is the documentation half —
-/// the methodology may not show a body field Grove does not write.
-const DECLARED_BODY_MARKERS: [&str; 2] = ["**Reviews:**", "**Integrates:**"];
+/// The whole declared body-marker set, every one written by hand: the two
+/// composition relationships the creating session writes, and the
+/// `**Creator:**` line the session that finishes a producer writes on that
+/// producer's reviews (`docs/adr/a-review-carries-its-creator-reference.md`).
+/// None of them routes the session whose body carries it, and Grove's verbs
+/// write none of them — `tests/composition_verbs.rs` asserts a generated body
+/// is the bare template. This file's claim is the documentation half: the
+/// methodology may not show a body field outside this set.
+const DECLARED_BODY_MARKERS: [&str; 3] = ["**Reviews:**", "**Integrates:**", "**Creator:**"];
 
 /// Every `**…:**` marker inside a code block — fenced, or indented four spaces.
 /// The block boundary is what separates an *example of file content* from a bold

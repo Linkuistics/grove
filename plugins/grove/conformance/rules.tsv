@@ -85,7 +85,7 @@ spec-membership-test	grove/SPEC-FORMAT.md	B	on(writing a spec) @ grove/SPEC-FORM
 spec-set-is-current-state	grove/SPEC-FORMAT.md	B+S	on(changing a spec) @ grove/SKILL.md	never append a superseding spec
 spec-synthesises-never-re-interviews	grove/SPEC-FORMAT.md	B	on(writing a spec) @ grove/SPEC-FORMAT.md	
 test-seams-agreed-and-recorded	grove/SPEC-FORMAT.md	B	on(the increment covers tested code) @ grove/SPEC-FORMAT.md	
-body-carries-no-launch-metadata	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	The body carries no launch metadata at all
+body-carries-no-launch-metadata	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	The body carries nothing that routes its own session
 convention-not-grammar	grove/TASK-FORMAT.md	B+S	on(cutting a step) @ grove/references/decompose.md	What is convention rather than grammar
 handle-is-slug-key	grove/TASK-FORMAT.md	B	on(naming a work item) @ grove/references/decompose.md	
 header-is-position-free	grove/TASK-FORMAT.md	B	on(writing a task body) @ grove/references/decompose.md	
@@ -223,8 +223,9 @@ silence-is-a-finding	grove/references/research.md	B	static(research)
 walk-away-check-per-system	grove/references/research.md	B	static(research)	
 cascade-is-silent	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	
 finish-is-the-drivers-to-discover	grove/references/retire.md	B	on(the last live leaf retires) @ grove/SKILL.md	You do not discover that a grove is finished
+finishing-session-names-its-run	grove/references/retire.md	B	on(the work is done) @ grove/SKILL.md	The session that finishes a producer names its run on that producer's reviews
 no-fourth-status	grove/references/retire.md	B+S	on(a leaf's place is in doubt) @ grove/SKILL.md	There is no fourth state
-node-close-four-steps	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/references/retire.md	
+node-close-four-steps	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/references/retire.md	a node you close is a producer you finished
 node-close-is-implicit	grove/references/retire.md	B	on(a node has no live leaf left) @ grove/SKILL.md	The close asks the human nothing
 prune-scopes-to-the-whole-path	grove/references/retire.md	B	on(pruning a reviewed producer) @ grove/references/retire.md	prune each of its live steps
 pruning-is-hitl	grove/references/retire.md	B*	on(the path looks decided against) @ grove/SKILL.md	

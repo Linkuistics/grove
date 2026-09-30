@@ -12,8 +12,35 @@ its position and key in its directory. Mechanical bookkeeping, no need to ask.
 
 **Retirement touches one filename and nothing else** — not the leaf's own body
 (its `# <slug>-k<key>` header included), not a sibling, not an ancestor. A review
-leaf waiting beside the producer is no exception: it reads the committed
-artifact, and needs no record of how the session that produced it ran.
+leaf waiting beside the producer is no exception: the verb writes nothing into
+it. That review reads the committed artifact, and the one record it carries of
+how its producer ran is a line you write by hand, next.
+
+## Naming your run on what you finish
+
+**The session that finishes a producer names its run on that producer's
+reviews.** You finish your own leaf by retiring it, and you finish each node your
+close cascade closes (below), so one session can finish several producers. For
+each one, before the task's commit, take the review leaf you cut for it and every
+live review leaf whose `**Reviews:**` line already names its handle. Search
+`.grove/` for the handle, because a review cut earlier can sit anywhere in the
+tree. On each, settle the line directly under `**Reviews:**`:
+
+- **With `HARNESS_DISPATCH_RUN_ID` set in your environment**, write
+  `**Creator:** run <run-id>` with that value, replacing any `**Creator:**` line
+  already there.
+- **Without it you have no run to name**, so remove any `**Creator:**` line, in
+  either form, and write nothing in its place. A line already there describes an
+  earlier attempt at the producer, not the session that finished it.
+
+Take the value from your own environment and from nowhere else. A run ID copied
+from another review body, from version history or from a record store names some
+other session's run, and nothing at launch detects the substitution. Do not
+write the `declared` form either: it is the owner's assertion for an artifact
+finished without a run. Where a dispatch policy reads the line, a review without
+one refuses at launch until the owner declares. A leaf left live and a node left
+open finish nothing, and write nothing. What the line is, and who reads it, is
+`TASK-FORMAT.md`'s.
 
 ## Retiring the last live leaf is still an ordinary retirement
 
@@ -90,12 +117,14 @@ four steps:
    ordinary escalation, discretionary and always legitimate, not a routine gate.
 4. **Promote** anything still relevant from the brief upward — to the parent
    brief, an ADR, or the glossary — so it stays in the brief chain of future
-   siblings; and **report** the close by naming the node's `<slug>-k<key>` handle
-   in the commit message alongside the leaf's own. A brief is context rather than
-   a task, so it is never marked done and promotion is what a close does with it
-   (`BRIEF-FORMAT.md`). The human reviews the close after the fact, in the diff.
-   The brief and its now-terminal leaves stay exactly where they are (nothing
-   moves).
+   siblings; **name your run** on the node's reviews — a node you close is a
+   producer you finished, so take *Naming your run on what you finish* (above)
+   for the node's handle; and **report** the close by naming the node's
+   `<slug>-k<key>` handle in the commit message alongside the leaf's own. A
+   brief is context rather than a task, so it is never marked done and promotion
+   is what a close does with it (`BRIEF-FORMAT.md`). The human reviews the close
+   after the fact, in the diff. The brief and its now-terminal leaves stay
+   exactly where they are (nothing moves).
 
 Retirement is also the moment to **reconcile the ADR set** with what the
 finished work established — `ADR-FORMAT.md` carries how a set is reworked and

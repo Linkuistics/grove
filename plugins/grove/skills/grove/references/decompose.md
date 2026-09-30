@@ -200,8 +200,11 @@ a property of two entries in your configuration — in
 `~/.config/grove/config.kdl`, or in whichever of them an untracked `.grove.kdl`
 delta overrides. Grove cannot recover a target from an opaque command string, so
 it records nothing about how the producer ran, compares nothing, and warns about
-nothing. If the axis matters, read the two effective entries before you pay for
-the second leaf.
+nothing. Where a comparison is made at all, it is made outside Grove: the session
+that finishes the producer names its run on the review (`references/retire.md`),
+and a dispatcher's policy, where your configuration routes reviews through one,
+compares providers from that line. If the axis matters, read the two effective
+entries before you pay for the second leaf.
 
 ## A series is built one pass at a time
 

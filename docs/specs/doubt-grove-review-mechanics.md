@@ -120,10 +120,14 @@ and, for an integration:
 **Integrates:** sync-design-k21
 ```
 
-**Nothing writes those lines and nothing parses them.** They are a documented
-convention (`content/TASK-FORMAT.md`) for the human reading `find .grove` and for
-the session that picks the step up, which is Grove constraint 3: task files are
-freeform markdown and nothing validates them. A leaf carries no `**Kind:**`, `**Harness:**`, or producer target metadata.
+**None of Grove's own code writes those lines or parses them.** They are a
+documented convention (`content/TASK-FORMAT.md`) for the human reading `find
+.grove` and for the session that picks the step up, which is Grove constraint 3:
+task files are freeform markdown and Grove validates nothing in them. A leaf
+carries no `**Kind:**`, `**Harness:**`, or producer target metadata. The one
+`**Creator:**` line a review may carry names a dispatch run rather than a
+target, and is
+[harness selection and execution](harness-selection-and-execution.md#identity-and-creator)'s.
 
 A review that finds nothing worth acting on **creates nothing** and simply
 retires. That is the empty triage session this shape exists to remove, and the

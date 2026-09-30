@@ -86,6 +86,13 @@ check stops at the configured command, give the remedy for an incomplete
 mapping, and warn never to grant `GROVE_SIGNAL_FILE` to the policy.
 `harness-dispatch --help` carries the Grove command definition they quote,
 which is the one the launch-boundary suite runs.
+The methodology's [creator step](#identity-and-creator) is delivered. The Grove
+plugin's task format, retirement procedure and composition guidance, and the
+same files as Grove provisions them to Codex, direct the session that finishes
+a producer to write its run on that producer's reviews, or to remove the line
+when it has no run. Conformance rows and composition-guidance pins hold that
+wording. The creator lifecycle cases of the
+[Grove launch boundary](#test-seams) are not delivered yet.
 The [visual document](../design/harness-selection-and-execution/README.md) has
 matching package, execution and provenance views.
 
@@ -853,10 +860,13 @@ selected. It does not fabricate a task or evaluate policy.
 The `**Creator:**` line is a methodology convention, like `**Reviews:**`. The
 finishing session writes or removes it; Grove's own code neither writes nor
 reads either line and records nothing about how a producer ran. The
+methodology states the convention in the three rules the
 [creator-reference decision](../adr/a-review-carries-its-creator-reference.md)
-names the methodology rules this amends. They ship with the dispatch
-implementation, so the methodology never asks a session to name a run from a
-tool that is not installed.
+names. Its task format admits the line, its retirement procedure and node-close
+steps carry the finishing session's step, and its composition guidance leaves
+the comparing to the dispatcher's policy. They ship in the same release as
+dispatch, so the methodology never asks a session to name a run from a tool
+that is not installed.
 Standalone `grove run` continues to offer its existing vocabulary. Lifecycle-only
 slots are rejected in standalone templates that request them; the common
 configuration machinery remains consumer-vocabulary-driven.

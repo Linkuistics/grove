@@ -1065,9 +1065,12 @@ Nothing about the producer's leaf moves, so its stable handle and bytes are
 preserved by construction.
 
 Write the relationship into the new leaf's body by hand — `**Reviews:**
-<producer-handle>`, or `**Integrates:** <review-handle>`. Grove neither writes
-nor reads those lines; they are a convention for you and for the session that
-picks the step up.
+<producer-handle>`, or `**Integrates:** <review-handle>`. Grove's own code
+neither writes nor reads those lines; they are a convention for you and for the
+session that picks the step up. If you route reviews through
+[harness-dispatch](CONFIGURATION.md#harness-dispatch)'s review policy, the
+adapter that policy imports reads `**Reviews:**` too, with the `**Creator:**`
+line the session that finishes the producer writes under it.
 
 Grove then launches the review kind's configured command. Whether that command
 differs in harness or model from the producer's is **your** configuration policy:

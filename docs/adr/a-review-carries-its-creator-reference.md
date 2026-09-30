@@ -26,8 +26,8 @@ or by closing its node. A restarted producer's finishing
 session replaces the line, or removes it when it ran without dispatch, before
 the review runs. A review's retry reads the same line and the same record.
 
-The line amends three methodology rules, as the human confirmed in
-`harness-selection-and-execution-k8`:
+The methodology carries the line as an amendment to three of its rules, which
+the human confirmed in `harness-selection-and-execution-k8`:
 
 - `body-carries-no-launch-metadata` — a body still carries nothing that routes
   its own session. A review body may carry one `**Creator:**` line, the only
@@ -38,7 +38,9 @@ The line amends three methodology rules, as the human confirmed in
   it finishes, on the review it cuts and on any live review already naming that
   producer's handle, or removes the line when it has no run. It finishes its own
   leaf and each node its close cascade closes, so the node-close steps and
-  their `node-close-four-steps` row carry the same step.
+  their `node-close-four-steps` row carry the same step. The step has a
+  conformance row of its own, `finishing-session-names-its-run`, so a second
+  file that restates it fails.
 - `diversity-is-the-configs` — Grove still records and compares nothing about
   how a producer ran. The producing session names its run, and the dispatcher's
   policy does the comparing.
@@ -46,10 +48,11 @@ The line amends three methodology rules, as the human confirmed in
 The statements that no code reads the relationship lines are scoped to Grove's
 own code: the glossary, `TASK-FORMAT.md`, `docs/ARCHITECTURE.md` and
 `docs/USAGE.md` all make one. The requirements already implied this by giving
-the supplied adapter the `**Reviews:**` relationship. These amendments ship
-with the dispatch implementation, together with their conformance rows and
-composition-guidance pins, so the methodology never asks a session to name a
-run from a tool that is not installed.
+the supplied adapter the `**Reviews:**` relationship. The amendments are in the
+Grove plugin and in the skills Grove provisions to Codex, and ship in the same
+release as the dispatcher, so the methodology never asks a session to name a
+run from a tool that is not installed. Conformance rows and
+composition-guidance pins hold their wording.
 
 The costs are visible. The reference depends on a session copying its run ID,
 and is that session's attestation: the provider is execution-recorded, the

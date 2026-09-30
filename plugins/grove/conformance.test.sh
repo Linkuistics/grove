@@ -208,6 +208,35 @@ printf '\nCite at the decision site, beside the non-obvious call.\n' \
 expect_dirty "${root}" "cite-framework-decisions-to-source" \
   "one kind-owned rule stated by a second kind is caught"
 
+# -- The creator step: present, and stated once -------------------------------
+#
+# `finishing-session-names-its-run` and the node-close step that carries it are
+# `references/retire.md`'s. A spine whose retire procedure lacks either is the
+# methodology as it stood before the creator reference, and it has to read dirty
+# rather than merely shorter. The second owner built here is the likeliest one:
+# `references/decompose.md` is where a session cuts the review, so it is where
+# the step is most tempting to restate.
+
+root="$(new_skill_set creator-step-missing)"
+command grep -v 'names its run on that producer' \
+  "${root}/grove/references/retire.md" >"${root}/retire.tmp"
+mv "${root}/retire.tmp" "${root}/grove/references/retire.md"
+expect_dirty "${root}" "finishing-session-names-its-run" \
+  "a retire procedure without the creator step is caught"
+
+root="$(new_skill_set creator-step-missing-at-node-close)"
+command grep -v 'producer you finished, so take' \
+  "${root}/grove/references/retire.md" >"${root}/retire.tmp"
+mv "${root}/retire.tmp" "${root}/grove/references/retire.md"
+expect_dirty "${root}" "node-close-four-steps" \
+  "a node close without the creator step is caught"
+
+root="$(new_skill_set creator-step-restated)"
+printf "\nThe session that finishes a producer names its run on that producer's reviews.\n" \
+  >>"${root}/grove/references/decompose.md"
+expect_dirty "${root}" "finishing-session-names-its-run" \
+  "the creator step stated by a second file is caught"
+
 # -- Assertion 1: a load predicate in neither form ---------------------------
 
 root="$(new_skill_set bad-predicate)"

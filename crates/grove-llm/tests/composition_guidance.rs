@@ -719,14 +719,17 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
             RETIRE_REFERENCE,
             "**Retirement touches one filename and nothing else**",
         ),
-        // The claim is unchanged; its home moved back. *Nothing in a body is
-        // metadata* is body **grammar**, and the condition register says nothing
-        // about a rule a format file owns — so the task-file format document is
-        // where a session reads it, and where it is proved.
+        // *Nothing in a body routes its own session* is body **grammar**, and the
+        // condition register says nothing about a rule a format file owns — so
+        // the task-file format document is where a session reads it, and where
+        // it is proved. The claim used to be wider, *no record of how any past
+        // session ran*; a review's `**Creator:**` line is now the one such
+        // record, and `the_creator_reference_amendment_is_stated_where_each_rule_lives`
+        // holds that half.
         (
             "content/TASK-FORMAT.md",
             TASK_FORMAT,
-            "no record of how any past session ran",
+            "**The body carries nothing that routes its own session**",
         ),
         (
             "doubt-driven-development/SKILL.md",
@@ -764,12 +767,13 @@ fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
     for (surface, text, expected) in [
         // The composition relationships used to be *preserved* by the one thing
         // that rewrote task bodies — migration's marker strip. That is gone
-        // (`delete-migration-k6`), so the stronger claim is the one to hold: no
-        // code writes or reads them at all.
+        // (`delete-migration-k6`), so the stronger claim is the one to hold: none
+        // of Grove's own code writes or reads them at all. The scope is Grove's
+        // code and no wider, because a dispatch policy's adapter does read them.
         (
             "CONTEXT.md",
             CONTEXT,
-            "the session authoring the body, and **no code reads them**",
+            "the session authoring the body, and **none of Grove's own code reads them**",
         ),
         (
             "CONTEXT.md",
@@ -804,4 +808,136 @@ fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
     ] {
         assert_contains(surface, text, expected);
     }
+}
+
+/// The creator-reference amendment
+/// (`docs/adr/a-review-carries-its-creator-reference.md`), proved in the file
+/// that owns each amended rule (`plugins/grove/conformance/rules.tsv`) and
+/// nowhere else: a session that finishes a producer names its run on that
+/// producer's reviews, or removes the line when it has no run.
+///
+/// Each rule keeps the half it had and gains the half the amendment adds, so
+/// each owner is pinned on both. Retirement still touches one filename, and the
+/// finishing session's step sits beside it. Grove still records and compares
+/// nothing, and the comparing is named as a dispatcher's. A surface holding
+/// only the old half describes a review that can never learn its creator; one
+/// holding only the new half has let Grove's verbs start writing task bodies.
+///
+/// The statements that nothing reads the relationship lines are scoped to
+/// Grove's own code, because a dispatch policy's adapter reads them. **The
+/// negatives are the unscoped wordings themselves**: each was true until a
+/// reader outside Grove existed, so its return is the regression, and the
+/// scoped positive beside it keeps the pair from passing on a deleted paragraph.
+#[test]
+fn the_creator_reference_amendment_is_stated_where_each_rule_lives() {
+    let flat = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    // Every miss is collected before anything fails, so one run against a
+    // surface that lacks the amendment names each pin it lacks.
+    let mut misses = Vec::new();
+
+    for (surface, text, expected) in [
+        (
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "the only record of a past session any body carries",
+        ),
+        (
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "**Creator:** run <run-id>",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "**Retirement touches one filename and nothing else**",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "The session that finishes a producer names its run on that producer's reviews",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "`HARNESS_DISPATCH_RUN_ID`",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "remove any `**Creator:**` line",
+        ),
+        // The node-close steps carry the same step: a cascade finishes every
+        // node it closes, under that node's own handle.
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "a node you close is a producer you finished",
+        ),
+        (
+            "content/references/decompose.md",
+            DECOMPOSE_REFERENCE,
+            "it records nothing about how the producer ran, compares nothing, and warns about \
+             nothing",
+        ),
+        (
+            "content/references/decompose.md",
+            DECOMPOSE_REFERENCE,
+            "compares providers from that line",
+        ),
+        (
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "parsed by none of Grove's own code",
+        ),
+        (
+            "CONTEXT.md",
+            CONTEXT,
+            "**none of Grove's own code reads them**",
+        ),
+        (
+            "docs/ARCHITECTURE.md",
+            ARCHITECTURE,
+            "parsed by none of Grove's own code",
+        ),
+        (
+            "docs/USAGE.md",
+            USAGE,
+            "Grove's own code neither writes nor reads those lines",
+        ),
+    ] {
+        if !flat(text).contains(&flat(expected)) {
+            misses.push(format!("{surface} must contain {expected:?}"));
+        }
+    }
+
+    for (surface, text, rejected) in [
+        ("content/TASK-FORMAT.md", TASK_FORMAT, "parsed by nothing"),
+        (
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "no record of how any past session ran",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "needs no record of how the session that produced it ran",
+        ),
+        ("CONTEXT.md", CONTEXT, "**no code reads them**"),
+        ("docs/ARCHITECTURE.md", ARCHITECTURE, "parsed by nothing"),
+        (
+            "docs/USAGE.md",
+            USAGE,
+            "Grove neither writes nor reads those lines",
+        ),
+    ] {
+        if flat(text).contains(&flat(rejected)) {
+            misses.push(format!("{surface} still contains {rejected:?}"));
+        }
+    }
+
+    assert!(
+        misses.is_empty(),
+        "the creator-reference amendment is not where its rules live:\n  {}",
+        misses.join("\n  ")
+    );
 }

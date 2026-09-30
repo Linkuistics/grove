@@ -615,7 +615,8 @@ _Avoid_: treating either shape as enforced — grove validates no ordering betwe
 leaves, because a grammar is a relation *between* leaves and grove expresses
 none (task-kind-taxonomy). The shared stem is a habit nothing parses, and
 so are the `**Reviews:**` / `**Integrates:**` lines: they are written by hand by
-the session authoring the body, and **no code reads them**.
+the session authoring the body, and **none of Grove's own code reads them**. The
+one reader is outside Grove: the [[Grove adapter]] a dispatch policy imports.
 _Avoid_: expecting a chain's steps to stay contiguous. They are appended at the
 parent's next free position, so one cut after unrelated work lands after it, and
 a sibling `leaf-insert` can split a chain that was contiguous. Grove enforces
@@ -905,8 +906,8 @@ is explicit policy in [[Grove configuration]]. Grove does not interpret command
 templates to recover target identity, persist producer launch receipts, export
 session-target metadata, compare targets, or warn; a `review-*` leaf supplies a
 fresh session, and choosing a materially different command is the configuration
-owner's responsibility. The harness-dispatch design's supplied review policy
-compares providers itself, from a review's [[Creator reference]].
+owner's responsibility. harness-dispatch's supplied review policy compares
+providers itself, from a review's [[Creator reference]].
 
 <a id="selection-provider"></a>
 ### Selection provider
@@ -920,7 +921,7 @@ review policy; changing a gateway or harness does not change that origin.
 The one producer execution associated with an artifact for review selection,
 whose **selection provider** is execution-recorded or explicitly declared by the
 owner; it is neither today's producer mapping nor the set of all contributors.
-In the harness-dispatch design it is the run of the session that finished the
+Under harness-dispatch it is the run of the session that finished the
 producer, by retiring its leaf or closing its node, named by the review's
 [[Creator reference]]; a retry or an attempted handoff does not choose or
 replace it.
@@ -928,13 +929,15 @@ replace it.
 <a id="creator-reference"></a>
 ### Creator reference
 
-The line under `**Reviews:**` that names a review's **original creator** in the
-harness-dispatch design: `**Creator:** run <run-id>`, written by the session
-that finished the producer, or `**Creator:** declared <provider>`, the owner's
-declaration for an artifact finished without a run, whose finishing session
-removed any earlier line. It is the only record of a past session a task body
-carries. A run reference is the writing session's attestation: its provider is
-recorded, its association with the artifact is not verified.
+The line under `**Reviews:**` that names a review's **original creator** to a
+harness-dispatch review policy: `**Creator:** run <run-id>`, which the session
+that finished the producer writes from its own `HARNESS_DISPATCH_RUN_ID` as the
+methodology's retirement procedure directs, or `**Creator:** declared
+<provider>`, the owner's declaration for an artifact finished without a run,
+whose finishing session removed any earlier line. It is the only record of a
+past session a task body carries. A run reference is the writing session's
+attestation: its provider is recorded, its association with the artifact is not
+verified.
 _Avoid_: calling it launch metadata; nothing in it routes the review's own
 session.
 

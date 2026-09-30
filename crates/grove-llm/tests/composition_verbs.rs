@@ -130,6 +130,7 @@ fn a_freshly_added_leaf_carries_an_empty_body_for_its_creator_to_write() {
     for absent in [
         "**Reviews:**",
         "**Integrates:**",
+        "**Creator:**",
         "**Kind:**",
         "**Harness:**",
         "Adversarially review",

@@ -269,3 +269,46 @@ fn canonical_legacy_aliases_remove_obsolete_links_once_and_launch() {
         assert!(f.home.path().join("skills-seen").exists());
     }
 }
+
+/// The creator-reference amendment reaches Codex through the snapshot this
+/// binary embeds, not through a marketplace, so the installed spine has to
+/// carry it in each file that owns an amended rule. Byte equality with the
+/// plugin's source is the stronger half: both harnesses then read one
+/// methodology, and a stale embedded snapshot fails here rather than in a
+/// session that never names its run.
+#[test]
+fn provisioned_spine_carries_the_creator_reference_amendment() {
+    let f = Fixture::new(true);
+    f.run();
+    let spine = f.skills().join("grove");
+    for (file, source, amended) in [
+        (
+            "TASK-FORMAT.md",
+            include_str!("../../../plugins/grove/skills/grove/TASK-FORMAT.md"),
+            "the only record of a past session any body carries",
+        ),
+        (
+            "references/retire.md",
+            include_str!("../../../plugins/grove/skills/grove/references/retire.md"),
+            "The session that finishes a producer names its run on that producer's reviews",
+        ),
+        (
+            "references/retire.md",
+            include_str!("../../../plugins/grove/skills/grove/references/retire.md"),
+            "a node you close is a producer you finished",
+        ),
+        (
+            "references/decompose.md",
+            include_str!("../../../plugins/grove/skills/grove/references/decompose.md"),
+            "compares providers from that line",
+        ),
+    ] {
+        let installed = fs::read_to_string(spine.join(file)).unwrap();
+        assert_eq!(
+            installed, source,
+            "installed {file} differs from the plugin's"
+        );
+        let flat = installed.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(flat.contains(amended), "installed {file} lacks {amended:?}");
+    }
+}

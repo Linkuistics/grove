@@ -73,3 +73,12 @@ release push, and reaches Codex through the binary. So this grove's own
 sessions keep the cached, unamended skills. Verify the amendment by reading the
 files and running the instruments. The next session's behavior is not
 evidence.
+
+`creator-methodology-k39` landed the amendment. The finishing session's step
+is `references/retire.md`'s *Naming your run on what you finish*, and step 4
+of the node close carries it. `TASK-FORMAT.md` states what the line is. The
+step's conformance row is `finishing-session-names-its-run`, so a second
+shipped skill file that restates its lead sentence fails the runner. A fake
+producer follows that section. Owner documentation points to it, and the four
+dispatch-side statements `creator-lifecycle-k40` owns are false until that
+leaf makes them current.

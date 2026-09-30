@@ -703,12 +703,14 @@ reviews in its own body:
 ```
 
 `**Reviews:**` is the reviewed producer's handle. `**Creator:**` is that
-producer's original creator, in one of two forms. `run <run ID>` is written
-by the session that finished the producer, from its own
+producer's original creator, in one of two forms. `run <run ID>` names the
+dispatch run of the session that finished the producer, its
 `HARNESS_DISPATCH_RUN_ID`, and the creator's origin is the one the record store
-holds for that run. `declared <origin>` is written by you, for a producer
+holds for that run. `declared <origin>` is your declaration for a producer
 finished without harness-dispatch: before you adopted it, or by a harness Grove
-launched directly. Inspection and the run record label it declared.
+launched directly. Inspection and the run record label it declared. Grove's
+sessions do not yet write either form, so you write the line, as described
+under "When the creator line is missing" below.
 
 Activate it from your personal policy, with Grove's dispatch command:
 
@@ -769,14 +771,17 @@ it. One larger than the context budget refuses as `source_too_large`: raise
 review policy's own refusals follow, such as `creator_run_missing` and
 `creator_origin_unknown` (see [the review policy](#the-review-policy)).
 
-**When the creator line is missing.** The session that finished the producer
-owns the line. Under harness-dispatch it writes `**Creator:** run <run ID>`,
-from its `HARNESS_DISPATCH_RUN_ID`, directly under the review's `**Reviews:**`
-line. Without harness-dispatch it has no run to name, so it removes any
-`**Creator:**` line. harness-dispatch never looks a run up by its task, so a run
-of the producer's task in the record store does not stand in for the line. For
-a producer finished without harness-dispatch, write the declaration yourself,
-naming the origin that made it as your catalog labels it:
+**When the creator line is missing.** Grove's sessions do not yet maintain the
+line, so you write it, directly under the review's `**Reviews:**` line, once
+the producer is finished. For a producer a dispatched session finished, write
+`**Creator:** run <run ID>`, with that session's `HARNESS_DISPATCH_RUN_ID`, the
+run harness-dispatch named when it launched the session. Name the session that
+finished the producer, not an earlier attempt: a run reference is taken on its
+writer's word, since harness-dispatch cannot tell which run made the artifact.
+harness-dispatch never looks a run up by its task, so a run of the producer's
+task in the record store does not stand in for the line. For a producer
+finished without harness-dispatch, declare the origin that made it, as your
+catalog labels it:
 
 ```markdown
 **Reviews:** parser-k12

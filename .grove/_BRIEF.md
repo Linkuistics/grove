@@ -427,7 +427,11 @@ configure-grove's "Remedy a review that cannot name its creator". Those
 documents call the run line the dispatch run that finished the producer,
 without yet promising that a session writes it. The methodology that makes sessions write it,
 and the rescoping of "no code reads the relationship lines", are k38's, and
-join those same places.
+join those same places. `review-policy-k58` brought the dispatch side to the
+same interim. The README's Grove review section, the `grove-review` example's
+header, and the adapter's header and `creator_line_missing` remedy say that
+Grove's sessions do not yet write the line, so the owner does. When the
+methodology ships, k38 makes each of them current.
 
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and

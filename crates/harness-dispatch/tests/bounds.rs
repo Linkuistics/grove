@@ -290,6 +290,87 @@ fn one_read_holds_to_its_limit_whatever_the_policy_does_with_the_error() {
 }
 
 #[test]
+fn a_read_that_already_takes_the_whole_budget_is_remedied_by_the_budget() {
+    let sandbox = Sandbox::new();
+    let read = |path: &str, max: &str| {
+        sandbox.personal_policy(&policy(&format!(
+            "  loadContext(request, host) {{ host.readText({path:?}{max}); return {{ schemaVersion: 1 }}; }},\n{SELECT}"
+        )));
+    };
+    let said = |refusal: &Value, field: &str| refusal["error"][field].as_str().unwrap().to_owned();
+    sandbox.file("hundred-one.txt", &"a".repeat(101));
+    sandbox.file("budget-one.txt", &"a".repeat(262_145));
+    sandbox.file("kib-one.txt", &"a".repeat(1025));
+    sandbox.file("ceiling-one.txt", &"a".repeat(8_388_609));
+
+    // Below the budget, a read can ask for more.
+    read("hundred-one.txt", ", 100");
+    let refusal = refused_by(
+        &run(&sandbox, &[]),
+        &sandbox,
+        "source_too_large",
+        json!({ "bytes": 100, "from": "maxBytes" }),
+    );
+    assert!(
+        said(&refusal, "remedy").starts_with(
+            "read it with a larger maxBytes, up to the context budget of 262144 bytes"
+        ),
+        "{refusal}"
+    );
+
+    // A read that already takes the budget can ask for no more: a maxBytes
+    // that follows the budget, as the Grove adapter's does, and a default
+    // read under a budget below 64 KiB. The budget's flag is the remedy.
+    for (path, max, extra, bound, remedy) in [
+        (
+            "budget-one.txt",
+            ", request.limits.contextBytes",
+            &[][..],
+            json!({ "bytes": 262_144, "from": "maxBytes" }),
+            "raise the context budget with --context-bytes, up to 8388608: a read whose \
+             maxBytes is request.limits.contextBytes takes the new budget",
+        ),
+        (
+            "kib-one.txt",
+            "",
+            &["--context-bytes", "1024"][..],
+            json!({ "bytes": 1024, "from": "--context-bytes" }),
+            "raise the context budget with --context-bytes, up to 8388608: a read without \
+             maxBytes takes the budget, up to 65536 bytes",
+        ),
+    ] {
+        read(path, max);
+        let refusal = refused_by(&run(&sandbox, extra), &sandbox, "source_too_large", bound);
+        assert!(said(&refusal, "remedy").starts_with(remedy), "{refusal}");
+        assert!(
+            !said(&refusal, "remedy").contains("larger maxBytes"),
+            "{refusal}"
+        );
+        assert!(
+            said(&refusal, "message").ends_with(", the whole context budget"),
+            "{refusal}"
+        );
+    }
+
+    // At the budget's ceiling, only a smaller source.
+    read("ceiling-one.txt", ", request.limits.contextBytes");
+    let refusal = refused_by(
+        &run(&sandbox, &["--context-bytes", "8388608"]),
+        &sandbox,
+        "source_too_large",
+        json!({ "bytes": 8_388_608, "from": "maxBytes" }),
+    );
+    assert!(
+        said(&refusal, "remedy").starts_with("read a smaller source"),
+        "{refusal}"
+    );
+    assert!(
+        !said(&refusal, "remedy").contains("--context-bytes"),
+        "{refusal}"
+    );
+}
+
+#[test]
 fn a_context_holds_at_most_256_sources_the_document_included() {
     let sandbox = Sandbox::new();
     sandbox.file("s.txt", "s");

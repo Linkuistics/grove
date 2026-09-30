@@ -33,13 +33,14 @@
 //   **Reviews:** parser-k12
 //   **Creator:** run 5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34
 //
-// The session that finished the producer writes the `**Creator:**` line from its
-// own HARNESS_DISPATCH_RUN_ID, so the creator's origin is the one the record
-// store holds for that run, whatever the catalog says today. For a producer
-// finished without harness-dispatch, before you adopted it or by a harness
-// Grove launched directly, you write `**Creator:** declared <origin>` yourself.
-// A review with neither refuses, and so does one whose lines are duplicated or
-// malformed; harness-dispatch/grove states the grammar.
+// `**Creator:** run` names the dispatch run of the session that finished the
+// producer, its HARNESS_DISPATCH_RUN_ID, so the creator's origin is the one the
+// record store holds for that run, whatever the catalog says today. For a
+// producer finished without harness-dispatch, before you adopted it or by a
+// harness Grove launched directly, `**Creator:** declared <origin>` declares
+// its origin instead. Grove's sessions do not yet write either line, so you
+// do. A review with neither refuses, and so does one whose lines are
+// duplicated or malformed; harness-dispatch/grove states the grammar.
 //
 // THE RULE. For each of Grove's five review kinds, on every invocation, retry
 // and explicit choice, the reviewer is of another origin than the creator's:

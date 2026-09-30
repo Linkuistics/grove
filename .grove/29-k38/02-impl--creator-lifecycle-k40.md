@@ -16,6 +16,16 @@ reads `HARNESS_DISPATCH_RUN_ID`, writes or removes the review's line, and
 retires or closes through `grove-llm`. A real session's compliance is the
 conformance rows' concern, not this seam's.
 
+`review-policy-k58` qualified four dispatch-side statements until the
+methodology ships. Each says Grove's sessions do not yet write the line, so
+the owner does. They are, in `crates/harness-dispatch`: the README's Grove
+review section, in its form description and "When the creator line is
+missing"; `worker/examples/grove-review.ts`'s header; and
+`worker/grove/index.ts`'s header and `creator_line_missing` remedy. The
+remedy's command-seam assertions are in `tests/grove.rs`. Make each current
+with this leaf's documentation. Keep the owner's part for a producer with no
+run, and the warning that a run reference is its writer's word.
+
 ## Done when
 
 - **Retirement and reordering.** A dispatched producer writes its run on a

@@ -29,7 +29,7 @@ use std::path::Path;
 use serde_json::{json, Map, Value};
 use sha2::{Digest as _, Sha256};
 
-use crate::limits::{Bound, Limits, Origin, CONTEXT_MAX_BYTES};
+use crate::limits::{Bound, Limits, Origin, CONTEXT_MAX_BYTES, SOURCE_DEFAULT_BYTES};
 use crate::refusal::{Refusal, Stage, EXIT_REFUSED};
 use crate::run_id;
 
@@ -442,17 +442,44 @@ pub fn source_too_large(limits: &Limits, breach: &SourceBreach, entry: &str) -> 
         ),
         None => (
             format!(
-                "loadContext in {entry} read {name}, which holds more than its limit of {} bytes{}",
+                "loadContext in {entry} read {name}, which holds more than its limit of {} bytes{}{}",
                 breach.limit,
                 breach
                     .actual
                     .map(|actual| format!(" ({actual} bytes or more)"))
-                    .unwrap_or_default()
+                    .unwrap_or_default(),
+                if breach.limit < budget {
+                    ""
+                } else {
+                    ", the whole context budget"
+                }
             ),
-            format!(
-                "read it with a larger maxBytes, up to the context budget of {budget} bytes, or \
-                 read a smaller source; a read is never truncated"
-            ),
+            // A read that already takes the whole budget can ask for no more,
+            // so only the budget, or a smaller source, can meet it.
+            if breach.limit < budget {
+                format!(
+                    "read it with a larger maxBytes, up to the context budget of {budget} bytes, \
+                     or read a smaller source; a read is never truncated"
+                )
+            } else if budget == CONTEXT_MAX_BYTES {
+                format!(
+                    "read a smaller source: the read already takes the whole context budget, at \
+                     its ceiling of {CONTEXT_MAX_BYTES} bytes, and a read is never truncated"
+                )
+            } else if breach.from == Origin::Set("maxBytes") {
+                format!(
+                    "raise the context budget with --context-bytes, up to {CONTEXT_MAX_BYTES}: a \
+                     read whose maxBytes is request.limits.contextBytes takes the new budget, and \
+                     one with a fixed maxBytes needs it raised too; or read a smaller source, \
+                     since a read is never truncated"
+                )
+            } else {
+                format!(
+                    "raise the context budget with --context-bytes, up to {CONTEXT_MAX_BYTES}: a \
+                     read without maxBytes takes the budget, up to {SOURCE_DEFAULT_BYTES} bytes; \
+                     or read a smaller source, since a read is never truncated"
+                )
+            },
             Bound {
                 name: "source",
                 unit: "bytes",

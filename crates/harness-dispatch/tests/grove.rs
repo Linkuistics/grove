@@ -14,6 +14,7 @@
 
 mod support;
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
@@ -199,6 +200,39 @@ fn sha256(bytes: &[u8]) -> String {
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect()
+}
+
+/// Which examples bring the Grove adapter, by stem, given each example's
+/// source by its stem. An example brings it when it quotes
+/// `harness-dispatch/grove`, or the specifier of an example that brings it,
+/// in single or double quotes as an import names its module. A quote in a
+/// comment counts too, so the reading errs only towards expecting a report,
+/// which fails loudly, never towards the null a missing report gives. A
+/// specifier built at run time, or in a template literal, is not seen.
+fn adapter_bringers(sources: &BTreeMap<String, String>) -> BTreeSet<String> {
+    let quotes = |source: &str, specifier: &str| {
+        ['"', '\'']
+            .iter()
+            .any(|quote| source.contains(&format!("{quote}{specifier}{quote}")))
+    };
+    let mut bringers = BTreeSet::new();
+    loop {
+        let found: Vec<String> = sources
+            .iter()
+            .filter(|(stem, source)| {
+                !bringers.contains(*stem)
+                    && (quotes(source, "harness-dispatch/grove")
+                        || bringers.iter().any(|bringer| {
+                            quotes(source, &format!("harness-dispatch/examples/{bringer}"))
+                        }))
+            })
+            .map(|(stem, _)| stem.clone())
+            .collect();
+        if found.is_empty() {
+            return bringers;
+        }
+        bringers.extend(found);
+    }
 }
 
 /// The adapter's own `version`, as its source declares it.
@@ -798,6 +832,15 @@ fn a_task_file_that_cannot_be_read_refuses_naming_it() {
     )
     .refusal(3);
     assert_eq!(refusal["error"]["code"], "source_too_large", "{refusal}");
+    // The read already takes the whole budget, so the budget's flag is the
+    // remedy, never a larger read the owner cannot make.
+    assert!(
+        refusal["error"]["remedy"]
+            .as_str()
+            .unwrap()
+            .starts_with("raise the context budget with --context-bytes"),
+        "{refusal}"
+    );
 }
 
 #[test]
@@ -1017,29 +1060,50 @@ fn the_adapter_version_is_reported_exactly_when_the_policy_imports_it() {
     let routes = "  routes: { impl: \"only\" },";
 
     // Each shipped example, imported for its effect alone: the adapter is
-    // reported when, and only when, the example composes it.
+    // reported when, and only when, the example brings it, directly or
+    // through another example. One that brings it without joining
+    // `bringsAdapter` in worker/src/main.ts reports null, and fails here.
     let examples = Path::new(env!("CARGO_MANIFEST_DIR")).join("worker/examples");
-    let mut seen_with = 0;
+    let mut sources = BTreeMap::new();
     for entry in fs::read_dir(&examples).unwrap() {
         let path = entry.unwrap().path();
         let stem = path.file_stem().unwrap().to_string_lossy().into_owned();
-        let composes = fs::read_to_string(&path)
-            .unwrap()
-            .contains("from \"harness-dispatch/grove\"");
-        seen_with += usize::from(composes);
+        sources.insert(stem, fs::read_to_string(&path).unwrap());
+    }
+    let bringers = adapter_bringers(&sources);
+    // The Grove example brings it directly, and an example that composes only
+    // the Grove example brings it too.
+    assert!(bringers.contains("grove-review"), "{bringers:?}");
+    let mut composing = sources.clone();
+    composing.insert(
+        "mine".to_owned(),
+        "export { groveReviewSelector } from \"harness-dispatch/examples/grove-review\";\n"
+            .to_owned(),
+    );
+    assert!(adapter_bringers(&composing).contains("mine"));
+    for (stem, source) in &sources {
+        for relative in ["\"./", "\"../", "'./", "'../"] {
+            assert!(
+                !source.contains(relative),
+                "{stem} quotes a relative path: the examples import the adapter and each other \
+                 by specifier, as a policy does, which is what this test reads"
+            );
+        }
         sandbox.personal_policy(&routed(
             &format!("import \"harness-dispatch/examples/{stem}\";"),
             routes,
         ));
         let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-        let expected = if composes {
+        let expected = if bringers.contains(stem) {
             adapter_report()
         } else {
             Value::Null
         };
-        assert_eq!(report["adapter"], expected, "{stem}");
+        assert_eq!(
+            report["adapter"], expected,
+            "{stem}: an example that brings the adapter joins bringsAdapter in worker/src/main.ts"
+        );
     }
-    assert_eq!(seen_with, 1, "one shipped example composes the adapter");
 
     // The SDK alone brings no adapter; the adapter's own specifier does, at
     // load, in loadContext, or in select, and the run records it.

@@ -9,11 +9,12 @@
 //
 // `**Reviews:**` names the reviewed producer by its Grove handle. `**Creator:**`
 // names the producer's original creator: `run <run ID>` is the harness-dispatch
-// run of the session that finished it, which that session read from its own
-// HARNESS_DISPATCH_RUN_ID; `declared <origin>` is the owner's word for a
-// producer finished without such a run. Those are Grove's documented task
-// conventions (the plugin's TASK-FORMAT.md, and Grove's
-// docs/adr/a-review-carries-its-creator-reference.md). This module depends on
+// run of the session that finished it, that session's HARNESS_DISPATCH_RUN_ID;
+// `declared <origin>` is the owner's word for a producer finished without such
+// a run. `**Reviews:**` is Grove's documented task convention (the plugin's
+// TASK-FORMAT.md). `**Creator:**` is the one Grove's
+// docs/adr/a-review-carries-its-creator-reference.md adds to it, which Grove's
+// sessions do not yet write, so the owner writes it. This module depends on
 // them and on harness-dispatch/sdk, and on nothing else, so it can move to
 // Grove's side of an extraction unchanged.
 //
@@ -174,9 +175,9 @@ export function groveContext(request: SelectionRequest, host: ContextHost, revie
       "creator_line_missing",
       `${file} reviews ${quote(id)} but has no ${CREATOR} line, so the origin of its creator is unknown. ` +
         "No run is looked up by its task: a run of the same task in the record store does not stand in for the line",
-      `the session that finished ${id} writes "${CREATOR} run <run ID>" from its HARNESS_DISPATCH_RUN_ID, ` +
-        `directly under the ${REVIEWS} line; if it finished without harness-dispatch, write ` +
-        `"${CREATOR} declared <origin>" there yourself, naming the provider origin that made it as your catalog labels it`,
+      `directly under the ${REVIEWS} line, write "${CREATOR} run <run ID>" with the HARNESS_DISPATCH_RUN_ID ` +
+        `of the dispatched session that finished ${id}; if it finished without harness-dispatch, write ` +
+        `"${CREATOR} declared <origin>" there, naming the provider origin that made it as your catalog labels it`,
     );
   }
   if (creatorLine === "several") {

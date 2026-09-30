@@ -144,6 +144,74 @@ host, observed how `import()` treats an absolute path string:
   shows each substitute firing when it is named directly. Recheck this on a
   Bun upgrade.
 
+<a id="installed-smoke"></a>
+## Installed smoke
+
+`task release:smoke` builds the release archives from the working copy and
+runs `scripts/release-smoke.sh` over them. Each archive is extracted with its
+target environment's own `tar` into a fresh prefix. `bin/grove`,
+`bin/grove-llm` and `bin/harness-dispatch` must report the archive's version.
+Then `crates/harness-dispatch/scripts/installed-smoke.sh` runs its cases
+through the prefix's front and through a relative symlink to it. PATH is
+`/usr/bin:/bin`, with no Bun or Node on it. The static TypeScript case uses an
+interface, annotated bindings and a type-only import across a relative import,
+and imports the embedded `harness-dispatch/sdk`. Its candidate fills every
+slot. The case asserts `inspect`'s choice, expanded argv and worker path. A
+`run` against a temporary state directory must exit with the fake harness's
+42, and the harness must have received that argv, run ID, state directory and
+cwd. `record show` must read that run back, so the bundled SQLite executes.
+
+The C library instrument runs in `docker.io/library/centos:7@sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4`,
+CentOS Linux 7.9.2009, with `getconf GNU_LIBC_VERSION` required to be
+`glibc 2.17`. The container has no network and runs as uid 1000. Its positive
+control is two probes built by Zig 0.16.0 from one C source. The first, built
+against glibc 2.17, must run. The second, which calls `getrandom` and is built
+against glibc 2.25, must be refused for its symbol version. The first shows the
+container runs that architecture's binaries at all; only then does the refusal
+of the second show the floor is enforced.
+
+Observed on 2026-09-30 with archives of version 21.12.0, whose workers Bun
+1.4.2 compiled from its digest-pinned runtimes, and Docker Desktop 28.1.1 on an
+arm64 macOS host:
+
+| Target | Where | Result |
+|---|---|---|
+| aarch64-apple-darwin | Natively, macOS 26.6.2 (Darwin 25.6.0), bsdtar 3.5.3 | Passed through both fronts |
+| aarch64-unknown-linux-gnu | CentOS 7.9 aarch64, native to Docker's linux/arm64, GNU tar 1.26 | Passed through both fronts; control refused: ``/lib64/libc.so.6: version `GLIBC_2.25' not found`` |
+| x86_64-unknown-linux-gnu | CentOS 7.9 x86_64 under Docker's emulation | Not executed at the floor; control refused as on arm64 |
+
+**Docker Desktop cannot run the x64 userland.** With Rosetta off, its VM runs
+amd64 containers through a binfmt handler, `/usr/bin/qemu-x86_64` 8.1.5, which
+gives x86-64 guests no vDSO. Under it, CentOS 7's own `cat` segfaults reading a
+bash heredoc (`qemu: uncaught target signal 11`), and bash's own `read` hangs
+on one. So the in-container scripts write their fixtures with `printf`. After
+that change the x64 front ran, but its worker panicked with a segmentation
+fault at `0xFFFFFFFFFF601000`, the address bash crashes at. The same worker
+under the same QEMU in ubuntu:24.04 (glibc 2.39) inspected correctly, so the
+defect is this emulator running a glibc-2.17 x86-64 userland. That class is
+reported against Docker Desktop on Apple silicon
+([docker/for-mac#5883](https://github.com/docker/for-mac/issues/5883),
+[#6261](https://github.com/docker/for-mac/issues/6261)). Direct calls to
+`time()` and `gettimeofday()`, and `time()` in a forked child, did work, so the
+exact trigger is not established.
+
+A newer QEMU, 10.2.3 from `tonistiigi/binfmt`, does supply a vDSO. It was
+registered in a private binfmt_misc instance inside a user namespace of a
+privileged arm64 container, leaving Docker's own handler untouched, and run on
+a chroot of the same image's amd64 root filesystem. It ran CentOS 7's bash
+heredoc and reported glibc 2.17. There, though, the worker aborted with
+JavaScriptCore `MemoryExhaustion` at 33 MB RSS, with no resource limit set. So
+no x86-64 environment on this host has yet executed the x64 archive at the
+floor.
+
+Each assertion was seen to fail against a subject that violates it. For the
+cases, on macOS: Bun on PATH, a wrong version, a front copied rather than
+linked out of the prefix, the worker moved away, a harness exiting 0, and a
+wrong argv or record expectation. For the floor instrument, in arm64
+containers: ubuntu:24.04's glibc 2.39 was refused; with that check removed, the
+2.25 probe ran and the control failed; an x64 target in an arm64 container was
+refused for its machine.
+
 <a id="primary-runtime-references"></a>
 ## Primary runtime references
 

@@ -1,4 +1,4 @@
-# installed-smoke-k18
+# installed-smoke-k18 — brief
 
 ## Goal
 
@@ -35,3 +35,15 @@ test executes.
   `select` case arrives with `computed-selection-k21`.
 - The runtime evidence document records what executed, where, and which Bun and
   container images were used.
+
+## Decomposition
+
+The x64 case could not execute where the leaf expected it to: Docker Desktop's
+emulator crashes the glibc-2.17 x86-64 userland on this arm64 host. So the leaf
+became this node.
+
+1. `smoke-instrument-k48`: the tasks, the scripts and their extensible case
+   list, macOS arm64 natively, Linux arm64 in the floor container, and the glibc
+   control on both Linux architectures, with its runtime evidence.
+2. `x64-floor-k49`: an x86-64 environment that runs the glibc-2.17 userland,
+   and the x64 case executed in it.

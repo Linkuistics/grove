@@ -68,3 +68,11 @@ change. Any leaf that changes the worker, the layout or the native dependencies
 reruns the smoke task. Bundled SQLite arrived with `handoff-records-k24` in
 static dispatch, so this node's first cross-build already compiles C, and its
 floor instruments probe that native dependency from the start.
+
+Docker Desktop's own amd64 emulation cannot run the glibc-2.17 x86-64
+userland on this arm64 host. Its QEMU 8.1.5 crashes CentOS 7's bash, and then
+the worker (runtime evidence, `#installed-smoke`). So `installed-smoke-k18`
+became a node, and `x64-floor-k49` finds a working x86-64 implementation. The
+front scrubs the worker's environment, so an emulator option such as a CPU
+model cannot reach the worker through `QEMU_*` variables. `cpu-floor-k19`
+builds on whatever environment `x64-floor-k49` settles.

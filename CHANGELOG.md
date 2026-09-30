@@ -96,6 +96,13 @@ stood at the graft — a closed record, not part of the versioned sequence above
   Bun 1.4.2. The release tests compare the archive manifest with
   what harness-dispatch's build emits and with the formula, and
   `scripts/release-build.sh` is now linted.
+- Release checks: `task release:smoke` rebuilds the archives and runs each
+  one's installed layout on its target, with no Bun or Node on `PATH`:
+  `harness-dispatch` inspects and runs a static TypeScript policy through its
+  front and through a symlink to it, and reads the run's record back. macOS arm64
+  runs natively and Linux arm64 in a CentOS 7 (glibc 2.17) container, where a
+  binary built against a newer glibc must be refused. Linux x64 cannot run yet
+  under Docker Desktop on Apple silicon, whose emulator crashes that userland.
 
 ## v21.12.0
 

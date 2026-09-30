@@ -14,8 +14,11 @@ harness, and appends an exec failure to its attempt. `record show` exports a
 recorded run. Handled signals and a signal-transparent handoff are not yet
 delivered. Every release archive and the Homebrew formula carry the front and
 its worker in the [delivered layout](#delivery), each target's worker compiled
-from a digest-pinned Bun runtime; the per-target installed smoke tests and the
-Linux floor instruments are not yet delivered.
+from a digest-pinned Bun runtime. The installed smoke test runs the static
+TypeScript case from the extracted archive on macOS arm64 natively and on Linux
+arm64 in a glibc-2.17 container, whose floor its positive control shows is
+enforced. Linux x64 has not executed at that floor, and the CPU floor
+instrument is not yet delivered.
 Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
 symbolic inspection are delivered.

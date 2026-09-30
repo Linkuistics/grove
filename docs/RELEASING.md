@@ -223,6 +223,28 @@ The archive build needs two things more, which the doctor cannot check.
   runs. A digest mismatch is not something to re-pin past: the published
   runtime has changed, so find out why before building a release from it.
 
+A matching archive is not evidence until it has executed on its target.
+`task release:smoke` rebuilds the archives from the working copy, then
+extracts each into a fresh prefix where that target runs. There,
+harness-dispatch inspects and runs a static TypeScript policy against a fake
+harness and reads the run's record back, with no Bun or Node on `PATH`.
+`TARGETS=aarch64-unknown-linux-gnu` limits it to one target, as for
+`task release:archives`. `scripts/release-smoke.sh --archives DIR` tests
+archives that are already built, such as `target/dist/`.
+
+- **macOS arm64** runs natively, so it needs a macOS arm64 host.
+- **Each Linux target** runs in a CentOS 7 container of its architecture, the
+  glibc 2.17 floor, pinned by digest. That needs Docker, and Zig to build the
+  control's probes: a binary built against glibc 2.25 must be refused there, or
+  the container is not enforcing the floor.
+
+Docker Desktop on Apple silicon cannot yet run the x64 case. Its emulator
+crashes CentOS 7's x86-64 userland, so `x86_64-unknown-linux-gnu` fails. The
+[runtime evidence](design/harness-selection-and-execution/runtime-evidence.md#installed-smoke)
+records what was observed. The release task does not run the smoke test yet.
+Rerun it after any change to harness-dispatch's worker, the archive layout or
+native dependencies.
+
 ## One release, eight packages, one tag
 
 Every crate this release ships takes `version.workspace = true`, so a cut

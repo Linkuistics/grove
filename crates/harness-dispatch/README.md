@@ -57,6 +57,14 @@ binaries. `task dispatch:check` runs the package checks. Cargo never builds the
 worker, so after editing its TypeScript, run `task dispatch:worker` again. The
 front refuses a worker built from other source rather than using it.
 
+`scripts/installed-smoke.sh PREFIX VERSION` checks an installation from itself.
+It inspects and runs a TypeScript policy with a fake harness through
+`PREFIX/bin/harness-dispatch` and through a symlink to it, then reads the run
+back. VERSION is the version both must report. Run it with no Bun or Node on
+`PATH`, such as `env -i PATH=/usr/bin:/bin bash scripts/installed-smoke.sh
+~/.local "$VERSION"`. Grove's `task release:smoke` runs it on every release
+target.
+
 ## Which policy runs
 
 The personal default is `~/.config/harness-dispatch/policy.ts`. `--config PATH`

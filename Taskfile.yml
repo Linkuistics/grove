@@ -83,6 +83,18 @@ tasks:
     cmds:
       - scripts/release-build.sh --unreleased {{.TARGETS}}
 
+  # The installed-layout smoke test, rebuilding the archives first so it never
+  # reads a stale one. `task release:smoke TARGETS=x86_64-unknown-linux-gnu`
+  # tests one target; the default is every target. macOS arm64 runs natively,
+  # and each Linux target in a glibc-2.17 container, which needs Docker and Zig.
+  # Rerun it after any change to the worker, the layout or native dependencies.
+  release:smoke:
+    desc: Build archives of the working copy and smoke-test each one's installed layout on its target
+    cmds:
+      - task: release:archives
+        vars: {TARGETS: '{{.TARGETS}}'}
+      - scripts/release-smoke.sh {{.TARGETS}}
+
   release:notes:
     desc: Refresh Unreleased notes from all changes since the last release, without publishing
     preconditions:

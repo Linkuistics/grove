@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+#
+# The installed-layout smoke test: exercise an installed harness-dispatch pair
+# as its owner would, from the installation alone.
+#
+#   installed-smoke.sh PREFIX VERSION
+#
+# PREFIX holds bin/harness-dispatch and libexec/harness-dispatch/, as a release
+# archive and `dispatch.sh install` lay them out. VERSION is the package
+# version the front and its worker must both report. Run it where the
+# installation is meant to run, with no Bun or Node on PATH. It refuses to
+# start otherwise, because a host runtime could then stand in for the one
+# inside the worker. Grove's scripts/release-smoke.sh runs it for each release
+# target: natively on macOS arm64, and in a glibc-2.17 userland container on
+# Linux.
+#
+# It needs only bash 3.2, coreutils, grep and cmp, so one file runs under
+# macOS's /bin/bash and under CentOS 7's. Its policies, fake harnesses and run
+# records live in one fresh directory under TMPDIR, removed on exit. It writes
+# them with `write_lines`, never a heredoc: under Docker Desktop's x86_64
+# emulation (QEMU 8.1.5), CentOS 7's `cat` segfaults reading a heredoc and
+# bash's own `read` hangs on one.
+#
+# Every case runs twice: through PREFIX/bin/harness-dispatch, and through a
+# relative symlink to it from another directory, as Homebrew links a keg's
+# bin/ into its prefix. Both must find the worker under PREFIX's libexec/.
+#
+# ADDING A CASE. Write `case_<name> FRONT DIR` and add <name> to CASES. A case
+# works only inside DIR, a fresh directory of its own, and stops the smoke test
+# through `fail`. The computed `select` case joins with computed-selection-k21.
+
+set -euo pipefail
+IFS=$'\n\t'
+
+CASES=(static_typescript)
+
+fail() {
+  echo "installed-smoke: FAIL: $*" >&2
+  exit 1
+}
+
+note() {
+  echo "installed-smoke: $*"
+}
+
+# FILE must contain FRAGMENT verbatim. The reports are compact JSON with sorted
+# keys, so a fragment is a stable, exact assertion without a JSON parser, which
+# a glibc-2.17 userland does not have.
+expect_json() {
+  local file="$1" fragment="$2"
+  grep -Fq -- "$fragment" "$file" || fail "$file lacks $fragment; it holds: $(cat "$file")"
+}
+
+# The ID KEY names in FILE's JSON, at its last occurrence: inspection repeats
+# its proposed run ID in the argv, as the same value.
+json_id() {
+  local file="$1" key="$2"
+  sed -n "s/.*\"$key\":\"\([0-9a-f-]*\)\".*/\1/p" "$file" | head -n 1
+}
+
+# The static case's argv as the reports spell it, around RUN_ID, the run ID's
+# own JSON.
+argv_json() {
+  local harness="$1" task_file="$2" prompt_json="$3" run_id="$4"
+  printf '"argv":["%s","--kind","smoke","--task-file","%s","--task-id","smoke-task","--model","smoke-model","--effort","high","--run-id",%s,"%s"]' \
+    "$harness" "$task_file" "$run_id" "$prompt_json"
+}
+
+# The relative path from the canonical directory DIR up to /.
+up_to_root() {
+  local dir="$1" up=""
+  while [[ "$dir" != / ]]; do
+    up="../$up"
+    dir="$(dirname "$dir")"
+  done
+  printf '%s' "$up"
+}
+
+# Write LINES as FILE, each ending in a newline.
+write_lines() {
+  local file="$1"
+  shift
+  printf '%s\n' "$@" >"$file"
+}
+
+# A fake harness that records beside itself, in received/, its argv, the run
+# identity and state directory `run` exported, and its cwd; then exits 42, a
+# status none of harness-dispatch's own exits share, so `run`'s status can
+# only be the harness's.
+write_fake_harness() {
+  local path="$1"
+  mkdir -p "$(dirname "$path")/received"
+  # shellcheck disable=SC2016 # the harness's own code, expanded when it runs
+  write_lines "$path" \
+    '#!/bin/sh' \
+    'received="$(dirname "$0")/received"' \
+    'i=0' \
+    'for arg in "$0" "$@"; do' \
+    '  printf "%s" "$arg" >"$received/arg.$i"' \
+    '  i=$((i + 1))' \
+    'done' \
+    'printf "%s" "$#" >"$received/argc"' \
+    'printf "%s" "${HARNESS_DISPATCH_RUN_ID-unset}" >"$received/run-id"' \
+    'printf "%s" "${HARNESS_DISPATCH_STATE_DIR-unset}" >"$received/state-dir"' \
+    'pwd -P >"$received/cwd"' \
+    'exit 42'
+  chmod +x "$path"
+}
+
+# The harness must have received exactly ARGS as its argv, byte for byte.
+expect_received() {
+  local received="$1" i=0 arg
+  shift
+  [[ "$(cat "$received/argc")" == "$(($# - 1))" ]] ||
+    fail "the fake harness received $(cat "$received/argc") arguments after its program, not $(($# - 1))"
+  for arg in "$@"; do
+    printf '%s' "$arg" | cmp -s - "$received/arg.$i" ||
+      fail "the fake harness's argument $i is [$(cat "$received/arg.$i")], not [$arg]"
+    i=$((i + 1))
+  done
+}
+
+# A static routes policy in TypeScript: an interface, annotated bindings and a
+# type-only import, which only a TypeScript loader accepts, across a relative
+# import, with its SDK from the embedded `harness-dispatch/sdk`. Its candidate
+# fills every slot the command has, so each one is checked end to end.
+case_static_typescript() {
+  local front="$1" dir="$2"
+  local harness="$dir/harness/fake-harness" state="$dir/state"
+  local prompt=$'installed smoke; $HOME stays literal\n'
+  # shellcheck disable=SC2016 # the same text as JSON spells it, unexpanded
+  local prompt_json='installed smoke; $HOME stays literal\n'
+  mkdir -p "$dir/policy" "$dir/cwd"
+  write_fake_harness "$harness"
+  write_lines "$dir/policy/catalog.ts" \
+    'import type { Candidate } from "harness-dispatch/sdk";' \
+    '' \
+    'export interface SmokeCandidate extends Candidate {' \
+    '  readonly id: "smoke-static";' \
+    '}' \
+    '' \
+    'export const candidate: SmokeCandidate = {' \
+    '  id: "smoke-static",' \
+    '  provider: "smoke-provider",' \
+    '  model: "smoke-model",' \
+    '  effort: "high",' \
+    "  program: \"$harness\"," \
+    '  args: [' \
+    '    "--kind", { slot: "kind" },' \
+    '    "--task-file", { slot: "taskFile" },' \
+    '    "--task-id", { slot: "taskId" },' \
+    '    "--model", { slot: "model" },' \
+    '    "--effort", { slot: "effort" },' \
+    '    "--run-id", { slot: "runId" },' \
+    '    { slot: "prompt" },' \
+    '  ],' \
+    '};'
+  write_lines "$dir/policy/policy.ts" \
+    'import { definePolicy } from "harness-dispatch/sdk";' \
+    'import { candidate, type SmokeCandidate } from "./catalog.ts";' \
+    '' \
+    'const catalog: SmokeCandidate[] = [candidate];' \
+    '' \
+    'export const policy = definePolicy({' \
+    '  schemaVersion: 1,' \
+    '  version: "installed-smoke",' \
+    '  catalog,' \
+    '  routes: { smoke: candidate.id },' \
+    '});'
+  local selection=(--kind smoke --config "$dir/policy/policy.ts" --task-file task.md
+    --task-id smoke-task --state-dir "$state")
+
+  (cd "$dir/cwd" && "$front" inspect "${selection[@]}" --prompt "$prompt" --json) \
+    >"$dir/inspect.json" || fail "inspect exited $?"
+  local proposed
+  proposed="$(json_id "$dir/inspect.json" proposedRunId)"
+  [[ -n "$proposed" ]] || fail "inspect reported no proposed run ID: $(cat "$dir/inspect.json")"
+  expect_json "$dir/inspect.json" '"evidence":"proposal"'
+  expect_json "$dir/inspect.json" '"authority":"explicit"'
+  expect_json "$dir/inspect.json" '"version":"installed-smoke"'
+  expect_json "$dir/inspect.json" '"selection":{"candidateId":"smoke-static"'
+  expect_json "$dir/inspect.json" '"selectedBy":"route"'
+  expect_json "$dir/inspect.json" "$(argv_json "$harness" "$dir/cwd/task.md" "$prompt_json" "{\"proposedRunId\":\"$proposed\"}")"
+  expect_json "$dir/inspect.json" \
+    "\"packageVersion\":\"$VERSION\",\"path\":\"$PREFIX/libexec/harness-dispatch/harness-dispatch-policy\"}"
+
+  local status=0
+  (cd "$dir/cwd" && "$front" run "${selection[@]}" --prompt "$prompt" --json) \
+    >"$dir/run.stdout" 2>"$dir/run.stderr" || status=$?
+  [[ "$status" == 42 ]] ||
+    fail "run exited $status, not the fake harness's 42; its stderr: $(cat "$dir/run.stderr")"
+  local run_id received="$dir/harness/received"
+  run_id="$(json_id "$dir/run.stderr" runId)"
+  [[ -n "$run_id" ]] || fail "run reported no run ID: $(cat "$dir/run.stderr")"
+  expect_json "$dir/run.stderr" '"handoff":{"candidateId":"smoke-static"'
+  expect_received "$received" "$harness" --kind smoke --task-file "$dir/cwd/task.md" \
+    --task-id smoke-task --model smoke-model --effort high --run-id "$run_id" "$prompt"
+  [[ "$(cat "$received/run-id")" == "$run_id" ]] ||
+    fail "the harness's HARNESS_DISPATCH_RUN_ID is $(cat "$received/run-id"), not the run's $run_id"
+  [[ "$(cat "$received/state-dir")" == "$state" ]] ||
+    fail "the harness's HARNESS_DISPATCH_STATE_DIR is $(cat "$received/state-dir"), not $state"
+  [[ "$(cat "$received/cwd")" == "$dir/cwd" ]] ||
+    fail "the harness ran in $(cat "$received/cwd"), not the caller's $dir/cwd"
+
+  # Reading the committed run back executes the bundled SQLite both ways.
+  [[ -f "$state/records.sqlite3" ]] || fail "run left no record store in $state"
+  "$front" record show --run "$run_id" --state-dir "$state" --json >"$dir/record.json" ||
+    fail "record show of run $run_id exited $?"
+  expect_json "$dir/record.json" "\"runId\":\"$run_id\""
+  expect_json "$dir/record.json" '"evidence":"handoff_attempt"'
+  expect_json "$dir/record.json" '"execution":"unknown"'
+  expect_json "$dir/record.json" '"id":"smoke-static"'
+  expect_json "$dir/record.json" '"taskId":"smoke-task"'
+  expect_json "$dir/record.json" "$(argv_json "$harness" "$dir/cwd/task.md" "$prompt_json" "\"$run_id\"")"
+}
+
+main() {
+  (($# == 2)) || fail "usage: installed-smoke.sh PREFIX VERSION"
+  [[ -x "$1/bin/harness-dispatch" ]] || fail "$1/bin/harness-dispatch is not an executable"
+  PREFIX="$(cd "$1" && pwd -P)"
+  VERSION="$2"
+  local runtime found
+  for runtime in bun node; do
+    if found="$(command -v "$runtime")"; then
+      fail "PATH holds $runtime at $found; run with a PATH that has no Bun or Node, so only the worker's own runtime can evaluate TypeScript"
+    fi
+  done
+
+  local work
+  work="$(mktemp -d)"
+  # shellcheck disable=SC2064 # expand now: the trap must remove this directory
+  trap "rm -rf '$work'" EXIT
+  work="$(cd "$work" && pwd -P)"
+  # Policies embed these paths in TypeScript strings, and the assertions in
+  # JSON ones, both unescaped.
+  local path
+  for path in "$PREFIX" "$work"; do
+    [[ "$path" =~ ^[A-Za-z0-9/._-]+$ ]] ||
+      fail "$path holds a character the fixtures would have to escape; use a plainer TMPDIR or prefix"
+  done
+
+  local direct="$PREFIX/bin/harness-dispatch" linked="$work/linked/bin/harness-dispatch"
+  mkdir -p "$work/linked/bin"
+  ln -s "$(up_to_root "$work/linked/bin")${PREFIX#/}/bin/harness-dispatch" "$linked"
+  local front reported
+  for front in "$direct" "$linked"; do
+    reported="$("$front" --version)" || fail "$front --version exited $?"
+    [[ "$reported" == "harness-dispatch $VERSION" ]] ||
+      fail "$front reports '$reported', not 'harness-dispatch $VERSION'"
+  done
+  note "no bun or node on PATH ($PATH); $direct and a relative symlink to it report $VERSION"
+
+  local name label
+  for name in "${CASES[@]}"; do
+    for front in "$direct" "$linked"; do
+      label=direct
+      [[ "$front" == "$linked" ]] && label=symlink
+      "case_$name" "$front" "$work/$name-$label"
+      note "$name through the $label front: passed"
+    done
+  done
+  note "worker $(sed -n 's/.*"worker":\({[^}]*}\).*/\1/p' "$work/${CASES[0]}-direct/inspect.json")"
+  note "all ${#CASES[@]} case(s) passed through both fronts"
+}
+
+main "$@"

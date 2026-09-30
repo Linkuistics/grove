@@ -498,7 +498,7 @@ carried.
 
 ## Starter examples
 
-Three policies ship inside the worker as editable starting points. None is
+Four policies ship inside the worker as editable starting points. None is
 active until your own policy imports it.
 
 | Specifier | Kinds it routes |
@@ -506,6 +506,7 @@ active until your own policy imports it.
 | `harness-dispatch/examples/static` | A caller's own kinds, without Grove: `question`, `bugfix`, `feature`, `migration` and `architecture`, over one harness at four efforts |
 | `harness-dispatch/examples/grove-static` | All 23 of Grove's session kinds, exactly, over a lead harness and a reviewer from another provider |
 | `harness-dispatch/examples/dynamic` | The static example's kinds, through a `select` that applies their routes and polices explicit choices |
+| `harness-dispatch/examples/review` | The static example's kinds, and two review kinds under the provider rule: a review runs on another provider origin than its artifact's creator. See [the review policy](#the-review-policy) |
 
 The two static examples map their kinds exactly: a kind one does not list
 refuses. Each explains, kind
@@ -553,6 +554,117 @@ clock, file, network or model involved. Use it whole, or call its exported
 ```ts
 export { policy } from "harness-dispatch/examples/dynamic";
 ```
+
+### The review policy
+
+`harness-dispatch/examples/review` applies one rule to the review kinds it
+lists: every review it selects runs on a candidate whose provider origin
+differs from the original creator's, on every invocation, every retry and every
+explicit choice. The rule is this policy's, not harness-dispatch's: the command
+compares no providers and knows no review kinds. Activate it from your personal
+policy:
+
+```ts
+export { policy } from "harness-dispatch/examples/review";
+```
+
+It builds on the static example: that example's candidates and routes, a second
+harness from another origin (`my-other-agent-wrapper`, `your-other-provider`)
+for reviews, and one candidate, `gateway-careful`, that reaches the static
+example's model through a gateway. Its `provider` is still `your-provider`,
+because a gateway changes the route to a model, not the model's origin, so it
+can never pass as another provider's review. Every kind the static example
+routes is routed as it is there, and the rule does not apply to it.
+
+A review names its artifact and the artifact's creator in its
+[context document](#the-context-document), and nothing else supplies them:
+
+```json
+{ "schemaVersion": 1, "reviewedArtifact": { "id": "parser-k3", "creator": { "run": "5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34" } } }
+```
+
+```sh
+harness-dispatch run --kind code-review --context review.json --prompt-file review.md
+```
+
+The creator is the run that made the artifact, `{ "run": "<run ID>" }`, whose
+provider the record store holds, whatever the catalog says today. The session
+that ran it can read its ID from `HARNESS_DISPATCH_RUN_ID`. For an artifact
+made without such a run, before you adopted harness-dispatch or by a harness
+launched directly, you declare its origin instead, `{ "declared":
+"your-provider" }`, and inspection and the run record label it declared. A
+reviewed artifact of any ID is admitted with a run of any task identity: a run
+reference is its writer's word for which run made the artifact, and inspection
+shows the run's task beside the reviewed ID so that a mismatch can be seen.
+
+For each review kind, the policy's `reviews` table maps the creator's origin to
+the reviewer:
+
+```ts
+export const reviews = {
+  "code-review": { "your-provider": "other-careful", "your-other-provider": "careful" },
+  "architecture-review": { "your-provider": "other-deliberate", "your-other-provider": "deliberate" },
+};
+```
+
+So whichever provider made the artifact, the other one reviews it, and a
+change to which provider does your producing work needs no change here. In
+order, a review kind's selection:
+
+1. looks the creator's run up, and refuses a run the store does not hold or
+   one whose harness never executed;
+2. requires the creator's origin, recorded or declared, to be one of the
+   current catalog's `provider` values, matched exactly, with no
+   normalisation. A relabelled origin or a misspelt declaration therefore
+   refuses, rather than comparing as a different provider;
+3. takes the explicit choice, or else the entry's reviewer for that origin;
+4. requires that candidate's origin to differ from the creator's.
+
+Every failure refuses as `policy_refused`, exit 3, and nothing is chosen in
+place of the reviewer it refused. A kind `reviews` does not list takes the
+static routes. So a context that names a reviewed artifact under such a kind
+refuses, rather than taking a route without the rule: a review label of your
+own applies the rule only once you list it.
+
+| `policyCode` | Why | Remedy |
+|---|---|---|
+| `reviewed_artifact_missing` | A review kind's context names no reviewed artifact | Supply `reviewedArtifact` with the artifact's ID and creator |
+| `creator_missing` | The reviewed artifact names no creator | Name the creator's run, or declare its origin |
+| `creator_run_missing` | The record store does not hold the creator's run | Review with the store the creator ran with (`--state-dir`), or declare its origin |
+| `creator_not_executed` | The creator's run carries a launch failure, so its harness never ran | Name the run that did make the artifact, or declare its origin |
+| `creator_origin_unknown` | The recorded or declared origin is not one of the catalog's | Restore a relabelled origin's label in the catalog, or correct the declaration |
+| `incomplete_mapping` | The review kind's entry has no reviewer for the creator's origin, or another kind has no route | Add the entry or route, or name a candidate with `--choice` |
+| `same_origin` | The chosen or mapped reviewer is of the creator's origin | Choose, or map, a candidate of another origin; the remedy lists them |
+| `reviewer_unknown` | An entry names a candidate the catalog does not have | Name one of the catalog's candidates there |
+| `review_kind_unlisted` | A kind `reviews` does not list names a reviewed artifact | List the kind in `reviews`, or leave `reviewedArtifact` out |
+| `creator_not_looked_up` | A policy of your own selects with the example's `select` without looking the run up | Look it up with `lookUpCreator` in your `loadContext` |
+
+To apply the rule to a catalog, routes and review kinds of your own, use its
+`reviewSelector`, which returns the `loadContext` and `select` of such a
+policy. With a catalog declared `as const`, a route or reviewer that names no
+candidate, and an entry keyed by an origin the catalog lacks, are type errors:
+
+```ts
+import { definePolicy } from "harness-dispatch/sdk";
+import { reviewSelector } from "harness-dispatch/examples/review";
+
+const catalog = [/* … */] as const;
+
+export const policy = definePolicy({
+  schemaVersion: 1,
+  version: "mine-1",
+  catalog,
+  ...reviewSelector({
+    catalog,
+    routes: { feature: "builder" },
+    reviews: { audit: { "your-provider": "auditor", "your-other-provider": "builder" } },
+  }),
+});
+```
+
+A policy that assembles its own context, from a task file say, looks the
+creator up by passing that context to `lookUpCreator(context, host)` in its
+`loadContext`, and selects with the `select` that `reviewSelector` returns.
 
 ## Inputs
 

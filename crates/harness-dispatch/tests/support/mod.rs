@@ -14,6 +14,7 @@
 pub mod direct;
 pub mod hold;
 pub mod probe;
+pub mod stall;
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;

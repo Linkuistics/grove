@@ -37,6 +37,7 @@ import { type Bounds, deepFreeze, type Measured, Session, SourceUnreadable } fro
 import * as sdk from "../sdk/index.ts";
 import * as dynamicExample from "../examples/dynamic.ts";
 import * as groveStaticExample from "../examples/grove-static.ts";
+import * as reviewExample from "../examples/review.ts";
 import * as staticExample from "../examples/static.ts";
 
 // Build identity, replaced by `bun build --define` in `scripts/dispatch.sh`. The
@@ -62,18 +63,20 @@ const probe = typeof HARNESS_DISPATCH_PROBE === "string" ? HARNESS_DISPATCH_PROB
 // entry. The prefix reserves nothing by itself, so each specifier is
 // registered by name; this list is part of the versioned protocol.
 //
-// The examples import `harness-dispatch/sdk`, and the dynamic example imports
-// `harness-dispatch/examples/static`, as an owner's policy does. The bundler
-// resolves those through `paths` in `worker/tsconfig.json` when the worker is
-// compiled, to the same modules imported above, so an example and a policy
-// that imports it share one SDK and one static example. (Bun reads tsconfig at build time;
-// `--no-compile-autoload-tsconfig` governs only the compiled worker at run
-// time: https://github.com/oven-sh/bun/blob/bun-v1.4.2/docs/bundler/executables.mdx)
+// The examples import `harness-dispatch/sdk`, and the dynamic and review
+// examples import `harness-dispatch/examples/static`, as an owner's policy
+// does. The bundler resolves those through `paths` in `worker/tsconfig.json`
+// when the worker is compiled, to the same modules imported above, so an
+// example and a policy that imports it share one SDK and one static example.
+// (Bun reads tsconfig at build time; `--no-compile-autoload-tsconfig` governs
+// only the compiled worker at run time:
+// https://github.com/oven-sh/bun/blob/bun-v1.4.2/docs/bundler/executables.mdx)
 const embedded: Readonly<Record<string, object>> = {
   "harness-dispatch/sdk": sdk,
   "harness-dispatch/examples/static": staticExample,
   "harness-dispatch/examples/grove-static": groveStaticExample,
   "harness-dispatch/examples/dynamic": dynamicExample,
+  "harness-dispatch/examples/review": reviewExample,
 };
 // The `unregistered` probe skips this, so that a test can see a package shadow
 // beside an entry load in its place.

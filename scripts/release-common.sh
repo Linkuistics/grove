@@ -42,6 +42,8 @@ libexec/harness-dispatch/examples/dynamic.d.ts
 libexec/harness-dispatch/examples/dynamic.ts
 libexec/harness-dispatch/examples/grove-static.d.ts
 libexec/harness-dispatch/examples/grove-static.ts
+libexec/harness-dispatch/examples/review.d.ts
+libexec/harness-dispatch/examples/review.ts
 libexec/harness-dispatch/examples/static.d.ts
 libexec/harness-dispatch/examples/static.ts
 libexec/harness-dispatch/harness-dispatch-policy

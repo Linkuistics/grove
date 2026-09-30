@@ -152,8 +152,9 @@ export interface RecordedCandidate {
 export interface LaunchFailure {
   readonly recordedAt: string;
   /**
-   * `exec_error` when exec returned an error; `not_executed` when the
-   * selection was cancelled after the handoff was committed.
+   * `exec_error` when exec returned an error; `cancelled` when a signal
+   * stopped the launch after the handoff was committed. Either way the
+   * harness was not executed.
    */
   readonly cause: string;
   readonly [field: string]: Json;

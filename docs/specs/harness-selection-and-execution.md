@@ -23,8 +23,14 @@ and retained corrections, and `record show` exports the run with its
 observations, derived evidence and measurements. `loadContext` looks runs up
 with `host.run`, which the front answers from the record store under `inspect`
 and `run` alike. The delivered context carries each answer as a measured
-source, and a run records the creator provenance its context carried. INT,
-TERM and HUP not ignored at entry cancel a selection until its program is
+source, and a run records the creator provenance its context carried. The
+shipped `harness-dispatch/examples/review` exports the
+[supplied review policy](#review-policy)'s selector over a generic reviewed
+artifact: a looked-up creator run, refused when missing or never executed, or
+a declaration; the creator's origin an exact member of the current catalog's;
+and a reviewer of another origin, from its review kind's entry or the explicit
+choice, never replaced when refused. Its Grove adapter is not delivered yet.
+INT, TERM and HUP not ignored at entry cancel a selection until its program is
 resolved: the worker is stopped and reaped, nothing is recorded or launched,
 and the `selection_cancelled` refusal is followed by the re-raised signal.
 Their handlers stay installed across the record commit, and the linearization
@@ -600,10 +606,14 @@ semantics. This is one original creator, not contributor accounting.
 ## Supplied review policy
 
 The inactive example uses exact configured review-kind entries, all of which
-apply the provider rule; other kinds use the owner's static table. It exports
-its rule as a reusable selector over a generic reviewed artifact, so non-Grove
-callers can apply it without a task file. Custom review labels require an
-explicit example-policy entry. The core knows no review list and no `Reviews` or
+apply the provider rule; other kinds use the owner's static table. An entry
+maps each creator provider origin to its reviewer, so the reviewer follows
+whichever origin made the artifact; an origin the entry lacks refuses as an
+incomplete mapping. It exports its rule as a reusable selector over a generic
+reviewed artifact, so non-Grove callers can apply it without a task file.
+Custom review labels require an explicit example-policy entry: a context that
+names a reviewed artifact under a kind with no entry refuses, the generic form
+of the adapter's rule below. The core knows no review list and no `Reviews` or
 `Creator` grammar.
 
 The Grove adapter reads only the supplied task file, on every invocation. For a

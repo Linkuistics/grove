@@ -72,10 +72,16 @@ than appending a duplicate.
 ## Execution and inspection
 
 Templates are split into argv and executed directly, without a shell. Runtime
-slots are `${prompt}`, `${repo}`, `${worktree}` and `${session_name}`; `${prompt}`
-is required exactly once. Runtime slots occupy whole arguments. Declared
-`${param.name}` substitutions can also fill part of an argument. A wrapper must
-`exec` its foreground harness to preserve process ownership.
+slots are `${prompt}`, `${repo}`, `${worktree}` and `${session_name}`, plus the
+lifecycle-only `${kind}`, `${task_file}` and `${task_id}`: the selected leaf's
+kind token, absolute task path and `<slug>-k<key>` handle, taken from the
+selection that composes the prompt. `${prompt}` is required exactly once and
+every other slot may appear at most once. Runtime slots occupy whole arguments.
+Declared `${param.name}` substitutions can also fill part of an argument. A
+wrapper must `exec` its foreground harness to preserve process ownership.
+`grove run` refuses a routed command that uses a lifecycle-only slot, so do not
+route a standalone kind to such a command. Inspection shows these slots as
+`slot <kind>`, `slot <task_file>` and `slot <task_id>` and fills in nothing.
 
 Use `grove config show --json` for whole-policy validation and provenance, and
 `grove config show --kind KIND` for a focused human-readable view. Even the

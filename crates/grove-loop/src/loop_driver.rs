@@ -276,6 +276,7 @@ fn drive(
                 session_name: &session_name,
                 worktree,
                 repository: repo_path,
+                task: &selection,
             },
         )?;
 

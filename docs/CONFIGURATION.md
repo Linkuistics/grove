@@ -15,7 +15,7 @@ inspection and expansion do not reread files. Structured diagnostics and library
 inspection cover named reference chains, parameter histories and
 every contributing origin in a resolved word.
 Runtime vocabulary names beginning with `param.` are reserved;
-Grove's existing four slots are unaffected.
+none of Grove's [substitutions](#substitutions) uses that prefix.
 
 NUL is refused before an argument vector is returned. Command templates receive
 that check when an effective binding activates them.
@@ -70,6 +70,12 @@ the prompt remains one argument. `${worktree}` and `${repo}` both identify the
 temporary working directory, and `${session_name}` is `standalone:KIND`.
 The prompt supplies the matching `grove-llm complete --done` command; the harness
 must execute it after creating its outputs.
+
+A standalone invocation has no selected task, so it offers only those four
+slots. `grove run KIND` refuses before staging anything when the command routed
+for `KIND` uses `${kind}`, `${task_file}` or `${task_id}`, and names each one.
+Lifecycle routes in the same file may use them; only the invoked kind's command
+is refused.
 
 macOS uses Seatbelt and Linux requires system-installed bubblewrap. The command
 cannot run without confinement. Installed runtime resources and the configured
@@ -472,11 +478,31 @@ can never change argument boundaries.
 | `${session_name}` | `<repo-basename>: <grove-name> grove`. | At most once. |
 | `${worktree}` | Absolute root of the working tree holding `.grove/`. | At most once. |
 | `${repo}` | Absolute root of the main repository — the default jj workspace's root. | At most once. |
+| `${kind}` | The selected leaf's session kind, the open token from its filename, such as `impl`. | At most once. |
+| `${task_file}` | Absolute path of the selected leaf's task file. | At most once. |
+| `${task_id}` | The selected leaf's stable handle, `<slug>-k<key>`. | At most once. |
 
 `${prompt}` need not be last. These are errors: an unknown `${...}` name, a
 substitution embedded in a larger word (`--prompt=${prompt}`), a substitution in
 word zero, a missing or repeated `${prompt}`, and a repeated optional
 substitution.
+
+The last three give a wrapper the task it is launched for as ordinary arguments,
+so it never parses the prompt or a filename. Grove fills them from the same
+selection that composes the prompt's mandate, and the prompt is unchanged
+whether or not a template uses them:
+
+```kdl
+config {
+    command "wrapped" "my-wrapper --kind ${kind} --task ${task_file} --id ${task_id} ${prompt}"
+    bind "lead" "wrapped"
+    route "impl" "lead"
+}
+```
+
+`grove config show` prints them as `slot <kind>`, `slot <task_file>` and
+`slot <task_id>`; inspection selects no task and fills in nothing. They are
+lifecycle-only: [standalone invocations](#standalone-commands) refuse them.
 
 "Word zero" means the first shell-split word, literally. In
 `env MODE=review runner ${prompt}` it is `env`; the assignment and `runner` are

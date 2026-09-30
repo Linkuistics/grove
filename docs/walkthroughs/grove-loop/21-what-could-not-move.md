@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 14,610 lines. The fragment graph spans
+This chapter owns none of the crate's 14,641 lines. The fragment graph spans
 [chapter 1](01-orientation.md) through [chapter 20](20-the-loop.md),
 including the captured observer in chapter 5. Its 43 ownership blocks are
 `resolved`; the [source index](source-index.md) records that graph in full and
@@ -64,7 +64,7 @@ under their own headings, and the ten before them do not.
 | [15](15-the-verbs.md) | Every verb that names an entry takes a `Slug`, a `Kind`, a `Reference` or a `Handle`, and the store has a word for none of them | Structural rather than procedural: `root_init` takes a `Vacancy`, so the refusal to clobber is the shape and not a check | Twelve verbs and not fourteen; and that ending a session is the driver's job rather than the agent's |
 | [16](16-the-lease.md) | Not a grammar but a **word**: the namespace `grove`, one string handed to a seam that could not have guessed it | The whole of the block — that the descriptor still names the path it opened, that the record belongs to the epoch it was admitted under | Six values nothing beneath could default: the namespace, two file names, a retry count, a handoff bound, a poll interval |
 | [17](17-the-epoch.md) | No grammar and no parsing; one naming *decision* — the ambient context is a path, and the empty string is not a degenerate one | The admitted guard holds its shared lock for the operation's whole life rather than checking and releasing | Where its own evidence stops: four of the ladder's seven refusal arms held, and the rest named |
-| [18](18-which-files.md) | Four slot names — `prompt`, `session_name`, `worktree`, `repo` — the whole of what grove tells a runner about its own domain | Find, refuse, then parse: trackedness is asked of the candidate the search already selected | The refusal of a **tracked** delta: the boundary between an untrusted repository and arbitrary code execution |
+| [18](18-which-files.md) | Seven slot names — `prompt`, `session_name`, `worktree`, `repo`, and the selected task's `kind`, `task_file` and `task_id` — the whole of what grove tells a runner about its own domain | Find, refuse, then parse: trackedness is asked of the candidate the search already selected | The refusal of a **tracked** delta: the boundary between an untrusted repository and arbitrary code execution |
 | [19](19-the-core.md) | Almost nothing. One name, `PLUGIN`, because one token appears twice in one sentence and both spellings must land on the same target | None — and it is earned: this is the only one of the crate's twelve Rust roots with no fallible construct at all | A **test** rather than a value: a sentence rides `${prompt}` only if its failure mode is one the skill cannot repair |
 | [20](20-the-loop.md) | None of the grammar's, and one of its own — in the environment rather than in any grammar: `CHANNEL_VAR` | Two, and placed: the lease revalidated twice an iteration, the finish template asked of the **pre-transition** document | Four values a runner could not choose: whose directory, which variable publishes it, what a child may not inherit, how long the two graces are |
 
@@ -116,7 +116,7 @@ nothing.
 crate reads names it owns a grammar; where it writes names *outside* the tree it
 owns single agreed strings, and the pattern is exact:
 [16](16-the-lease.md) owns the namespace `grove`;
-[18](18-which-files.md) owns four slot names;
+[18](18-which-files.md) owns seven slot names;
 [19](19-the-core.md) owns `PLUGIN`;
 [20](20-the-loop.md) owns `CHANNEL_VAR`.
 [Chapter 17](17-the-epoch.md) is the fifth and owns no name at all — what it
@@ -206,7 +206,7 @@ list than any single page suggests: a default root slug and a fixed first kind
 two terminal marks rather than one, and an arity asymmetry between them
 ([13](13-outcomes.md)); a surface of twelve rather than fourteen
 ([15](15-the-verbs.md)); a namespace, two file names, a retry count, a handoff
-bound and a poll interval ([16](16-the-lease.md)); four slot names and the
+bound and a poll interval ([16](16-the-lease.md)); seven slot names and the
 refusal of a tracked delta ([18](18-which-files.md)); four launch choices
 ([20](20-the-loop.md)). [Chapter 19](19-the-core.md) is the odd one and the
 most revealing: its answer to question 3 is not a value but a **test** — a sentence
@@ -236,7 +236,7 @@ together.**
 | Value | Stated in | And again in | What holds them in step |
 |---|---|---|---|
 | The default root slug `plan` ([11](11-a-grove-begins.md)) | `DEFAULT_ROOT_SLUG` | a second crate's argument default | **One test**, and it postdates the reading |
-| The four slot names ([18](18-which-files.md)) | `SLOTS` | the operator-facing configuration document | A comment, checked by no one |
+| The seven slot names ([18](18-which-files.md)) | `SLOTS` | the operator-facing configuration document | A comment, checked by no one |
 | `PLUGIN` ([19](19-the-core.md)) | the constant | a marketplace manifest in another directory | **One test** |
 | `CHANNEL_VAR` ([20](20-the-loop.md)) | this crate | the binary that reads it back, with no shared constant | Renaming it makes **nine tests** fail or hang |
 
@@ -436,7 +436,7 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 504 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 643 + 764 + 808 + 527 + 522 + 1,149 + 3,824 + 460 + 245 + 752 = 14,610 lines across
+**Owned source.** 504 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 643 + 764 + 808 + 527 + 522 + 1,149 + 3,824 + 490 + 245 + 753 = 14,641 lines across
 20 source-owning chapters. This closing chapter owns zero lines. The source
 index records the root sizes, block ranges and chapter totals.
 
@@ -539,7 +539,7 @@ sessions made. In scoped mode a later chapter's range may be reserved by a defer
 and counted as deferred rather than resolved, and each of this book's first five
 children ended with thousands of lines legitimately deferred; in final mode a
 defer is an error, every source root must expand to its complete file, and the
-page inventory must match the manifest exactly. Sixteen files, 14,610 resolved
+page inventory must match the manifest exactly. Sixteen files, 14,641 resolved
 and 0 deferred is the whole frozen corpus reconstructed from explained fragments.
 
 ```console
@@ -584,7 +584,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 16 roots, 14,610 lines, 21 chapters, two
+The book is complete: 16 roots, 14,641 lines, 21 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

@@ -43,7 +43,7 @@ of every chapter before it:
 
 This is the outcome's third question one layer out from where chapter 19 asked
 it. *On the way out — the policy: what does this layer choose that nothing
-beneath it could have defaulted?* Chapter 18 answered with four slot **names**;
+beneath it could have defaulted?* Chapter 18 answered with seven slot **names**;
 chapter 19 answered with the contents of the required slot; this chapter answers
 with four **values handed to a library that has no opinion about any of them**.
 The cost the outcome names — *a chosen value must be stated where a reader can
@@ -187,7 +187,7 @@ loop, then the four chosen values are declared **before** anything uses them,
 then the outcome type, then the loop itself, then the five helpers it calls, and
 last the two tests that hold the one ordering the loop cannot get wrong.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-752" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-753" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-worktree-name» -->
@@ -958,7 +958,7 @@ read as though the operations had many callers. Chapter 15 recorded the
 `transition_to_current` half of this; the pair is enumerated here because this is
 the page where both are reached.
 
-<!-- fragment «loop-drive-expand» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="262-281" parent="loop-driver" -->
+<!-- fragment «loop-drive-expand» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="262-282" parent="loop-driver" -->
 ````rust
         let config = templates.load(&delta_roots)?;
         // The personal file holding this kind's command definition. Local
@@ -977,6 +977,7 @@ the page where both are reached.
                 session_name: &session_name,
                 worktree,
                 repository: repo_path,
+                task: &selection,
             },
         )?;
 
@@ -992,11 +993,15 @@ personal file where the missing kind must be authorized.
 
 **The kind is passed, never re-read**, and the chain is visible in this block:
 `selection.kind` indexes `config.source`, indexes `config.expand`, and is handed
-to `session_prompt`. One guarded selection reaches four consumers, so the prompt
-and the command a session receives cannot disagree about what kind it is. That is
-`session_prompt`'s doc comment's claim, and this block is where it is true.
+to `session_prompt`. The whole selection then rides into `ExpansionContext` as
+`task`, so `${kind}`, `${task_file}` and `${task_id}` are filled from the value
+the mandate was composed from rather than from a second pick or from the path.
+One guarded selection reaches every consumer, so the prompt, the command and the
+task slots a session receives cannot disagree about which leaf it is, or what
+kind. That is `session_prompt`'s doc comment's claim, and this block is where it
+is true.
 
-<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="282-309" parent="loop-driver" -->
+<!-- fragment «loop-drive-launch» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="283-310" parent="loop-driver" -->
 ````rust
         driver_lease
             .revalidate()
@@ -1053,7 +1058,7 @@ what the two inline tests can then assert without a session, a channel or a
 child. That is the whole reason this block is shaped the way it is, and the tests
 at the end of the file are its proof.
 
-<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="310-315" parent="loop-driver" -->
+<!-- fragment «loop-drive-discard» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="311-316" parent="loop-driver" -->
 ````rust
         if let Err(error) = channel.discard() {
             eprintln!(
@@ -1072,7 +1077,7 @@ a completed grove's `Finished` because a file could not be unlinked would be a
 worse failure than the leftover. `a_signal_removal_failure_does_not_override_a_done_disposition`
 is the test that holds it.
 
-<!-- fragment «loop-drive-interrupted» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="316-320" parent="loop-driver" -->
+<!-- fragment «loop-drive-interrupted» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="317-321" parent="loop-driver" -->
 ````rust
         if let End::Interrupted { signal } = ended.end {
             eprintln!("grove: interrupted by signal {signal} — stopping the loop.");
@@ -1085,7 +1090,7 @@ is the test that holds it.
 And the last statement in the loop body is the one that decides whether there is
 another iteration.
 
-<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="321-346" parent="loop-driver" -->
+<!-- fragment «loop-drive-endings» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="322-347" parent="loop-driver" -->
 ````rust
         match signal {
             Some(Disposition::Relaunch) => continue,
@@ -1140,7 +1145,7 @@ session that happened to signal turn a `timeout(1)` into a clean finish.
 
 The first of the five helpers `drive` calls, and the one that reaches chapter 19.
 
-<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="347-379" parent="loop-driver" -->
+<!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="348-380" parent="loop-driver" -->
 ````rust
 /// The whole `${prompt}`: the guaranteed core, composed for the launched kind.
 ///
@@ -1215,7 +1220,7 @@ side.
 
 Twenty-five lines of contract, then a signature and a single diagnostic line.
 
-<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="380-420" parent="loop-driver" -->
+<!-- fragment «loop-launch-contract» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="381-421" parent="loop-driver" -->
 ````rust
 /// Launch one fresh foreground session owning the real TTY, and hand it to
 /// `keyed_launch::run_observed`, which spawns it directly — no shell — and supervises it
@@ -1276,7 +1281,7 @@ under `leaf-insert`, while the handle does not. This is chapter 3's
 handle-not-position rule arriving at the one place where a human reads it back,
 and it is why the loop's log is legible after a tree has been reordered under it.
 
-<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="421-448" parent="loop-driver" -->
+<!-- fragment «loop-launch-spawn» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="422-449" parent="loop-driver" -->
 ````rust
     driver_lease
         .prepare_launch(selected.lifetime, selection, channel.path())
@@ -1338,7 +1343,7 @@ the record behind the process-group half of it, named here and cited nowhere.
 
 The only function in the file with no doc comment at all.
 
-<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="449-466" parent="loop-driver" -->
+<!-- fragment «loop-handoff» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="450-467" parent="loop-driver" -->
 ````rust
 fn complete_post_reap_epoch_handoff<E, T>(
     ended: Result<E>,
@@ -1395,7 +1400,7 @@ still on disk with a token in it, which the next driver will find.
 
 Two durations, and eight lines saying where each number came from.
 
-<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="467-479" parent="loop-driver" -->
+<!-- fragment «loop-escalation» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="468-480" parent="loop-driver" -->
 ````rust
 /// The kill escalation the runner applies once the completion channel appears.
 ///
@@ -1434,7 +1439,7 @@ restate* instruction appearing inside the source it applies to.
 Thirteen lines of comment over eighteen of code, and the comment is entirely
 about the second of the function's two early returns.
 
-<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="480-511" parent="loop-driver" -->
+<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="481-512" parent="loop-driver" -->
 ````rust
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
@@ -1506,7 +1511,7 @@ succeeded.
 
 The other half of what `run` does before it delegates.
 
-<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="512-542" parent="loop-driver" -->
+<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="513-543" parent="loop-driver" -->
 ````rust
 /// Ignore SIGINT in the driver so a terminal Ctrl-C does not kill the loop. The
 /// driver must survive the interrupt to reach the relaunch-vs-stop decision.
@@ -1587,7 +1592,7 @@ returning it releases the tree guard. `picked_after_finish` discards the value
 returned by materialization and selects again under a fresh guard, so concurrent
 changes supply a new selection rather than an identity attached to old names.
 
-<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="543-582" parent="loop-driver" -->
+<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="544-583" parent="loop-driver" -->
 ````rust
 /// The driver's own `pick`, over the worktree it is driving.
 ///
@@ -1666,7 +1671,7 @@ The remaining tests hold the separate handoff invariant: completion
 interpretation stays behind successful epoch invalidation, and a failed handoff
 preserves the preceding launch failure.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="583-693" parent="loop-driver" -->
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="584-694" parent="loop-driver" -->
 ````rust
 #[cfg(test)]
 mod tests {
@@ -1792,7 +1797,7 @@ end-to-end behaviour is `crates/keyed-launch/tests/launch.rs`'s, against a fake
 child, and the comment says so rather than leaving the gap to be read as an
 omission.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="694-729" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="695-730" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1862,7 +1867,7 @@ things, and they are different in kind.
   so the pair of assertions together does reach this arm, though neither does
   alone.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="730-752" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="731-753" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {

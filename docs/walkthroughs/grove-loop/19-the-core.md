@@ -48,7 +48,7 @@ now, how to end — and nothing between them but a blank line.
 
 This is the outcome's third question in its most direct form. *On the way out — the
 policy: what does this layer choose that nothing beneath it could have
-defaulted?* Chapter 18 answered it with four slot **names**. This chapter answers
+defaulted?* Chapter 18 answered it with seven slot **names**. This chapter answers
 it with the contents of the one slot that is required, and the cost the outcome
 names — *a chosen value must be stated where a reader can find it, and the layer
 must not restate what the layer above owns* — is visible here as a rule with a

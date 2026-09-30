@@ -48,3 +48,38 @@ Grove nouns.
 This leaf adds no dispatch-specific behavior, no environment variable, no
 task-body metadata and no new invocation override. The spec's Grove-seam rows
 that need a dispatcher belong to `grove-dispatch-k31`.
+
+## Decisions (running log)
+
+**The expansion context carries the selection, not three values.** The lifecycle
+`ExpansionContext` gains one field holding the driver's selected task
+(`grove_loop::Selection`), and `expand` reads `${kind}`, `${task_file}` and
+`${task_id}` from it: `Kind::label()`, `Selection::path` and the handle's
+`<slug>-k<key>` rendering. The driver passes the same selection that composed
+the mandate, so the three values and the prompt cannot come from two sources.
+The path is absolute because the tree root is the lease's canonical worktree
+root; nothing re-reads the kind from the path. The three slots are
+`AtMostOnce`; `${prompt}` and the other three keep their rules.
+
+**Standalone keeps the whole lifecycle vocabulary at load and refuses per key.**
+`grove run` reads the same personal file, so validating it against a four-slot
+vocabulary would let one lifecycle route using `${task_file}` break every
+standalone kind. Instead it inspects the routed command's compiled words and
+refuses any task slot before staging anything, naming each slot and `grove run`.
+Expansion's value contract covers the whole vocabulary, so the three task slots
+are offered empty values that the refusal has proved cannot reach argv.
+`keyed-launch` is unchanged: it learns no Grove noun and no new API.
+
+**`grove config show` needs no code change.** It already renders every slot word
+as `slot <name>` from inspection, with no task selected; a test pins that for
+the three new names in human and JSON output.
+
+**Statements the slots made false are corrected where they stand.** The
+methodology's `driver.md` said `${session_name}`, `${worktree}` and `${repo}`
+were the only slots besides the prompt; it now names the task slots too. The
+keyed-launch book keeps its four-slot carried example, since its source did not
+change, and only its two claims that those four are Grove's whole vocabulary
+are reframed. The grove-loop pin test is renamed to
+`the_slots_are_the_vocabulary_and_prompt_is_the_required_one`, with its book and
+structure-spec citations. The overview book gains a `standalone-slot-refusal`
+fragment for the new function.

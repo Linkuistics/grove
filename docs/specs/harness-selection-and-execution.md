@@ -1,7 +1,10 @@
 # Harness selection and execution
 
 This is the first-release design of **harness-dispatch**. It specifies new
-behavior; the command is not implemented yet.
+behavior; the command is not implemented yet. Of the
+[Grove integration](#grove-integration), only the lifecycle `kind`, `task_file`
+and `task_id` slots, their standalone refusal and their symbolic inspection are
+delivered.
 The [visual document](../design/harness-selection-and-execution/README.md) has
 matching package, execution and provenance views.
 

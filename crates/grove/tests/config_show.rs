@@ -152,6 +152,53 @@ fn reports_profiles_words_and_provenance_without_a_tree_or_writes() {
     assert_eq!(snapshot(fixture.dir.path()), before);
 }
 
+// The task slots are filled only by a launch's selection. Inspection shows them
+// by name whether or not a tree holds a live leaf, and fills in nothing.
+#[test]
+fn task_slots_render_symbolically_with_no_task_selected() {
+    let fixture = Fixture::new();
+    fixture.personal(
+        r#"config {
+            command "agent" "absent-agent --kind ${kind} ${task_file} --id ${task_id} ${prompt}"
+            bind "lead" "agent"
+            route "impl" "lead"
+        }"#,
+    );
+    let slots = ["kind", "task_file", "task_id"];
+    for tree in [false, true] {
+        if tree {
+            fs::create_dir(fixture.repo.join(".grove")).unwrap();
+            fs::write(fixture.repo.join(".grove/_BRIEF.md"), "# Existing work\n").unwrap();
+            fs::write(
+                fixture.repo.join(".grove/01-impl--live-leaf-k4.md"),
+                "# live-leaf-k4\n",
+            )
+            .unwrap();
+        }
+        let before = snapshot(fixture.dir.path());
+        let report = success(fixture.show(&["--kind", "impl"]));
+        for slot in slots {
+            assert!(
+                report.contains(&format!("slot <{slot}>")),
+                "missing symbolic {slot} (tree: {tree}): {report}"
+            );
+        }
+        let json = json_success(fixture.show(&["--json", "--kind", "impl"]));
+        let names: Vec<_> = json["commands"][0]["words"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|record| record["word"]["type"] == "slot")
+            .map(|record| record["word"]["name"].as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(names, ["kind", "task_file", "task_id", "prompt"]);
+        for text in [report, json.to_string()] {
+            assert!(!text.contains("live-leaf"), "a task was filled in: {text}");
+        }
+        assert_eq!(snapshot(fixture.dir.path()), before);
+    }
+}
+
 #[test]
 fn inspection_ignores_a_held_driver_lease_and_stale_signal() {
     let fixture = Fixture::new();
@@ -684,6 +731,7 @@ fn json_native_paths_round_trip_in_sources_spans_and_failures() {
 #[test]
 fn json_tagged_words_filled_with_context_equal_fake_launch_argv() {
     use grove_loop::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
+    use grove_loop::{Handle, Kind, Selection};
     use std::ffi::OsString;
     use std::os::unix::ffi::{OsStrExt, OsStringExt};
     let fixture = Fixture::new();
@@ -693,7 +741,7 @@ fn json_tagged_words_filled_with_context_equal_fake_launch_argv() {
     )
     .unwrap();
     fixture.personal(r#"config {
-        command "a" "/bin/sh capture.sh ${param.text} --mode=${param.mode} ${param.empty} ${prompt} ${session_name} ${worktree} ${repo}" {
+        command "a" "/bin/sh capture.sh ${param.text} --mode=${param.mode} ${param.empty} ${prompt} ${session_name} ${worktree} ${repo} ${kind} ${task_file} ${task_id}" {
             param "text" "${prompt} 'quoted'; $(no-shell)"
             param "mode" "medium"
             param "empty" ""
@@ -709,11 +757,17 @@ fn json_tagged_words_filled_with_context_equal_fake_launch_argv() {
     let native = fixture
         .repo
         .join(OsString::from_vec(b"native-\xff".to_vec()));
+    let task = Selection {
+        path: native.join(".grove/01-impl--known task-k3.md"),
+        handle: Handle::parse("known-k3").unwrap(),
+        kind: Kind::new("impl").unwrap(),
+    };
     let context = ExpansionContext {
         prompt: "known prompt\nwith spaces",
         session_name: "known-session",
         worktree: &native,
         repository: &fixture.repo,
+        task: &task,
     };
     let filled: Vec<OsString> = report["commands"][0]["words"]
         .as_array()
@@ -728,6 +782,9 @@ fn json_tagged_words_filled_with_context_equal_fake_launch_argv() {
                     "session_name" => context.session_name.into(),
                     "worktree" => context.worktree.as_os_str().into(),
                     "repo" => context.repository.as_os_str().into(),
+                    "kind" => "impl".into(),
+                    "task_file" => task.path.as_os_str().into(),
+                    "task_id" => "known-k3".into(),
                     other => panic!("unknown slot: {other}"),
                 },
                 other => panic!("unknown word tag: {other}"),

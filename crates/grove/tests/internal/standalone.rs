@@ -10,12 +10,18 @@ struct Fixture {
 
 impl Fixture {
     fn new(body: &str) -> Self {
+        Self::with_arguments(body, "${prompt}", "")
+    }
+
+    /// `arguments` follow the script in the routed template; `extra` is further
+    /// configuration inside the same `config` block.
+    fn with_arguments(body: &str, arguments: &str, extra: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let script = dir.path().join("harness.sh");
         fs::write(&script, body).unwrap();
-        let template = format!("/bin/sh '{}' ${{prompt}}", script.display());
+        let template = format!("/bin/sh '{}' {arguments}", script.display());
         let config = dir.path().join("config.kdl");
-        fs::write(&config, format!("config {{\ncommand \"fixture\" {template:?}\nbind \"writer\" \"fixture\"\nroute \"release-notes\" \"writer\"\n}}\n")).unwrap();
+        fs::write(&config, format!("config {{\ncommand \"fixture\" {template:?}\nbind \"writer\" \"fixture\"\nroute \"release-notes\" \"writer\"\n{extra}}}\n")).unwrap();
         fs::write(dir.path().join(".grove.kdl"), "not valid configuration").unwrap();
         Self {
             dir,
@@ -94,6 +100,64 @@ fn standalone_stages_inputs_exports_notes_and_never_needs_a_project() {
     );
     assert!(!fixture.dir.path().join(".grove").exists());
     assert!(!fixture.dir.path().join(".jj").exists());
+}
+
+// `grove run` keeps the vocabulary it offered before the task slots existed.
+#[test]
+fn standalone_offers_its_existing_slots_unchanged() {
+    let fixture = Fixture::with_arguments(
+        "set -eu\nprintf '%s\\n' \"$1\" \"$2\" \"$3\" \"$(pwd -P)\" > notes.md\ncase \"$4\" in 'Produce notes.'*) ;; *) exit 9 ;; esac\nprintf done > \"$GROVE_RUN_SIGNAL_FILE\"\n",
+        "${session_name} ${worktree} ${repo} ${prompt}",
+        "",
+    );
+    fixture.run(fixture.args()).unwrap();
+    let notes = fs::read_to_string(fixture.dir.path().join("notes.md")).unwrap();
+    let lines: Vec<_> = notes.lines().collect();
+    assert_eq!(lines.len(), 4, "{notes}");
+    assert_eq!(lines[0], "standalone:release-notes");
+    assert_eq!(
+        lines[1], lines[3],
+        "${{worktree}} is the invocation directory"
+    );
+    assert_eq!(lines[2], lines[3], "${{repo}} is the invocation directory");
+}
+
+// A standalone invocation has no selected task, so a template that asks for one
+// is refused before anything is staged or launched, naming what it asked for.
+#[test]
+fn a_standalone_template_requesting_a_task_slot_refuses_before_launch() {
+    for slot in ["kind", "task_file", "task_id"] {
+        let fixture = Fixture::with_arguments(
+            "printf launched > notes.md\nprintf done > \"$GROVE_RUN_SIGNAL_FILE\"\n",
+            &format!("${{{slot}}} ${{prompt}}"),
+            "",
+        );
+        let error = format!("{:#}", fixture.run(fixture.args()).unwrap_err());
+        assert!(error.contains(&format!("`${{{slot}}}`")), "{error}");
+        assert!(error.contains("grove run"), "{error}");
+        assert!(error.contains("release-notes"), "{error}");
+        assert!(!fixture.dir.path().join("notes.md").exists());
+        assert!(
+            !fixture.dir.path().join("logs").exists(),
+            "nothing may be staged for a refused template"
+        );
+    }
+}
+
+// The personal file is shared with lifecycle sessions. A lifecycle route using
+// the task slots must not stop `grove run` for a kind whose command does not.
+#[test]
+fn a_lifecycle_route_using_task_slots_leaves_standalone_kinds_working() {
+    let fixture = Fixture::with_arguments(
+        "printf ok > notes.md\nprintf done > \"$GROVE_RUN_SIGNAL_FILE\"\n",
+        "${prompt}",
+        "command \"session\" \"agent --kind ${kind} ${task_file} --id ${task_id} ${prompt}\"\nbind \"lead\" \"session\"\nroute \"impl\" \"lead\"\n",
+    );
+    fixture.run(fixture.args()).unwrap();
+    assert_eq!(
+        fs::read_to_string(fixture.dir.path().join("notes.md")).unwrap(),
+        "ok"
+    );
 }
 
 #[test]

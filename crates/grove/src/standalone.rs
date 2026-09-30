@@ -9,7 +9,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context, Result};
-use keyed_launch::{Catalog, Channel, Confinement, End, Escalation, Launch, Selection, Slot};
+use keyed_launch::{
+    Catalog, Channel, CompiledWord, Confinement, End, Escalation, Launch, Selection, Slot,
+    Templates,
+};
+
+/// The slots a standalone invocation fills. Grove's other slots describe a
+/// lifecycle session's selected task, and a standalone invocation has none.
+const OFFERED: [&str; 4] = ["prompt", "session_name", "worktree", "repo"];
 
 #[derive(clap::Args)]
 pub(crate) struct Args {
@@ -65,10 +72,13 @@ pub(crate) fn execute(args: Args, policy: &Path, helper: &Path, logs: &Path) -> 
         !prompt.trim().is_empty(),
         "the standalone prompt must not be empty"
     );
+    // The whole lifecycle vocabulary, because lifecycle routes share this file:
+    // a route whose command uses a task slot must not stop every standalone kind.
     let catalog = Catalog::load(policy, None, grove_loop::session_config::vocabulary())?;
     let default_selection = Selection::default();
     let templates = catalog.resolve(catalog.primary_selection().unwrap_or(&default_selection))?;
     templates.require(&args.kind)?;
+    refuse_unoffered_slots(&templates, &args.kind, policy)?;
 
     let temporary = tempfile::Builder::new().prefix("grove-run-").tempdir()?;
     let root = temporary.path().canonicalize()?;
@@ -149,7 +159,22 @@ pub(crate) fn execute(args: Args, policy: &Path, helper: &Path, logs: &Path) -> 
                 name: "repo",
                 value: work.as_os_str(),
             },
-        ],
+        ]
+        .into_iter()
+        // Expansion takes a value for every slot in the vocabulary. The refusal
+        // above proved this command spells none of the others, so these empty
+        // values cannot reach argv.
+        .chain(
+            grove_loop::session_config::vocabulary()
+                .slots
+                .iter()
+                .filter(|slot| !OFFERED.contains(&slot.name))
+                .map(|slot| Slot {
+                    name: slot.name,
+                    value: OsStr::new(""),
+                }),
+        )
+        .collect::<Vec<_>>(),
     )?;
     let channel = Channel::allocate(&control)?;
     // Hold the original directory, since the harness can rename paths inside
@@ -248,6 +273,40 @@ pub(crate) fn execute(args: Args, policy: &Path, helper: &Path, logs: &Path) -> 
         log_path.display()
     );
     result
+}
+
+/// Refuse a routed command that requests a slot only a lifecycle launch fills,
+/// before anything is staged. The check reads the same compiled words expansion
+/// fills, so it covers exactly what would have reached argv.
+fn refuse_unoffered_slots(templates: &Templates, kind: &str, policy: &Path) -> Result<()> {
+    let command = templates
+        .inspect()
+        .commands
+        .iter()
+        .find(|command| command.key == kind)
+        .with_context(|| format!("resolved kind `{kind}` has no inspected command"))?;
+    let requested: Vec<String> = command
+        .words
+        .iter()
+        .filter_map(|word| match &word.word {
+            CompiledWord::Slot(name) if !OFFERED.contains(&name.as_str()) => {
+                Some(format!("`${{{name}}}`"))
+            }
+            _ => None,
+        })
+        .collect();
+    if requested.is_empty() {
+        return Ok(());
+    }
+    bail!(
+        "grove run cannot launch kind `{kind}`: its command `{command}` requests {requested}, \
+         which only a lifecycle session's selected task fills. A standalone invocation offers \
+         `${{prompt}}`, `${{session_name}}`, `${{worktree}}` and `${{repo}}`.\n  Route `{kind}` \
+         in {policy} to a command that does not use {requested}.",
+        command = command.command,
+        requested = requested.join(", "),
+        policy = policy.display(),
+    )
 }
 
 fn inherited(name: &OsStr) -> bool {

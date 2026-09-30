@@ -7,7 +7,7 @@
 //! [`keyed_launch`], which knows nothing about grove. What is left here is the
 //! part that is grove's alone: the personal file's path, the two roots the
 //! [configuration delta](`DELTA_FILE_NAME`) is searched at, the refusal of a
-//! **tracked** delta, and the four slots grove's templates are written against.
+//! **tracked** delta, and the slots grove's templates are written against.
 //!
 //! The trackedness refusal in particular could not move. It is a question about
 //! grove's worktree, answered through grove's version control seam, and it is
@@ -31,14 +31,15 @@ const CONFIG_PATH: &str = ".config/grove/config.kdl";
 /// [`DeltaRoots`] carries (`docs/adr/untracked-configuration-delta.md`).
 pub const DELTA_FILE_NAME: &str = ".grove.kdl";
 
-/// The four slots grove's command templates are written against, and the whole
-/// of what grove tells the runner about its own domain.
+/// The slots grove's command templates are written against, and the whole of
+/// what grove tells the runner about its own domain.
 ///
 /// `${prompt}` is required because a launch that does not carry the prompt
-/// launches a session with no mandate; the other three are conveniences a
-/// template may take or leave. There is no fifth, and adding one is a change to
-/// this list and to `docs/CONFIGURATION.md` together.
-const SLOTS: [SlotRule<'static>; 4] = [
+/// launches a session with no mandate; the others are conveniences a template
+/// may take or leave. The last three describe the selected task, so only a
+/// lifecycle launch can fill them. Adding a slot is a change to this list and
+/// to `docs/CONFIGURATION.md` together.
+const SLOTS: [SlotRule<'static>; 7] = [
     SlotRule {
         name: "prompt",
         requirement: Requirement::ExactlyOnce,
@@ -55,6 +56,18 @@ const SLOTS: [SlotRule<'static>; 4] = [
         name: "repo",
         requirement: Requirement::AtMostOnce,
     },
+    SlotRule {
+        name: "kind",
+        requirement: Requirement::AtMostOnce,
+    },
+    SlotRule {
+        name: "task_file",
+        requirement: Requirement::AtMostOnce,
+    },
+    SlotRule {
+        name: "task_id",
+        requirement: Requirement::AtMostOnce,
+    },
 ];
 
 /// Grove's slot vocabulary, supplied at load so every template rule is checked
@@ -69,6 +82,10 @@ pub struct ExpansionContext<'a> {
     pub session_name: &'a str,
     pub worktree: &'a Path,
     pub repository: &'a Path,
+    /// The leaf whose handle and kind composed `prompt`. `${kind}`,
+    /// `${task_file}` and `${task_id}` are read from it and from nothing else,
+    /// so they cannot describe a different leaf from the mandate.
+    pub task: &'a crate::Selection,
 }
 
 /// The two roots the [configuration delta](`DELTA_FILE_NAME`) is searched at,
@@ -259,6 +276,7 @@ impl SessionConfig {
     /// As [`Self::require`], plus a slot the template spells that grove's
     /// vocabulary does not supply.
     pub fn expand(&self, kind: &str, context: &ExpansionContext<'_>) -> Result<Argv, crate::Error> {
+        let task_id = context.task.handle.to_string();
         let argv = self
             .templates
             .expand(
@@ -279,6 +297,18 @@ impl SessionConfig {
                     Slot {
                         name: "repo",
                         value: context.repository.as_os_str(),
+                    },
+                    Slot {
+                        name: "kind",
+                        value: context.task.kind.label().as_ref(),
+                    },
+                    Slot {
+                        name: "task_file",
+                        value: context.task.path.as_os_str(),
+                    },
+                    Slot {
+                        name: "task_id",
+                        value: task_id.as_ref(),
                     },
                 ],
             )

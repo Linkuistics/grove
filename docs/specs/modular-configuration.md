@@ -253,8 +253,10 @@ supply any of its contents.
   must be declared. Every declaration without a default requires a value on
   every instantiated route, even if the template does not use that parameter.
 * Runtime slots keep the consumer-supplied vocabulary. For Grove, `${prompt}`
-  occurs exactly once after word zero, and `${session_name}`, `${worktree}`, and
-  `${repo}` each occur at most once. Each occupies a whole word. A parameter
+  occurs exactly once after word zero, and `${session_name}`, `${worktree}`,
+  `${repo}`, `${kind}`, `${task_file}` and `${task_id}` each occur at most once.
+  The last three describe the selected task; standalone `grove run` refuses a
+  routed command that uses one. Each occupies a whole word. A parameter
   named `prompt` is distinct from the runtime slot `prompt`.
   Catalog reserves the `param.` prefix and rejects a runtime vocabulary that
   collides with it, including through the `Templates::load` convenience. Grove's

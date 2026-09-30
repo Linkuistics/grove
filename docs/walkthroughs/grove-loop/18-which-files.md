@@ -13,7 +13,7 @@ is allowed to have a say.
 
 > **Everything a template *is* belongs to `keyed-launch`. What is left here is
 > whose file, and whether the second one is admissible.** The personal file's
-> path, the two roots the configuration delta is searched at, the four slots
+> path, the two roots the configuration delta is searched at, the slots
 > grove's templates are written against, and the refusal of a **tracked** delta.
 > The last of those could not move because it is a question about grove's
 > worktree, answered through grove's version-control seam, and it is the
@@ -31,8 +31,8 @@ what-could-not-move test asks three questions of a layer that stayed behind when
 a domain-free library was extracted from underneath it, and the third is *on the
 way out — the policy: what does this layer choose that nothing beneath it could
 have defaulted?* Its named pin is
-`the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one`, and that test
-is about this root. Four slot names and their cardinalities are the whole of what
+`the_slots_are_the_vocabulary_and_prompt_is_the_required_one`, and that test
+is about this root. Seven slot names and their cardinalities are the whole of what
 grove tells the runner about its own domain; the runner could not have guessed
 them, and grove cannot delegate them without ceasing to be the thing that knows
 what a session is.
@@ -48,8 +48,8 @@ The carried example reaches the moment a kind becomes a command.
     -> delta search: <worktree>/.grove.kdl holds something  -> that is the delta
     -> tracked?      no                                     -> admissible
     -> require("impl")                                      -> resolves
-    -> expand("impl", {prompt, session_name, worktree, repo})
-                                                            -> Argv, and only then a spawn
+    -> expand("impl", {prompt, session_name, worktree, repo,
+                       kind, task_file, task_id})           -> Argv, and only then a spawn
 ```
 
 Two files, searched in one order, and a single yes/no question standing between
@@ -112,11 +112,11 @@ order, because the file is already in the order the concept wants: what the
 module kept, the two names, the vocabulary, the two roots, the source, the
 configuration, candidate discovery/admission, and diagnostic transport.
 
-<!-- fragment «whose-file» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="1-460" parent="source-session-config" -->
+<!-- fragment «whose-file» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="1-490" parent="source-session-config" -->
 <!-- insert «config-header» -->
 <!-- insert «config-imports» -->
 <!-- insert «config-two-paths» -->
-<!-- insert «config-four-slots» -->
+<!-- insert «config-slots» -->
 <!-- insert «config-vocabulary» -->
 <!-- insert «config-expansion-context» -->
 <!-- insert «config-delta-roots» -->
@@ -156,7 +156,7 @@ what stayed. The second list is the chapter's contents page.
 //! [`keyed_launch`], which knows nothing about grove. What is left here is the
 //! part that is grove's alone: the personal file's path, the two roots the
 //! [configuration delta](`DELTA_FILE_NAME`) is searched at, the refusal of a
-//! **tracked** delta, and the four slots grove's templates are written against.
+//! **tracked** delta, and the slots grove's templates are written against.
 //!
 //! The trackedness refusal in particular could not move. It is a question about
 //! grove's worktree, answered through grove's version control seam, and it is
@@ -173,7 +173,7 @@ that a key resolves only if the primary file declares it are all
 `keyed-launch`'s, and that crate knows nothing about grove — its own book reads
 them. What is left is four things, and the header ranks them by how hard they
 were to move: the personal file's path, the two roots, the tracked refusal, and
-the four slots.
+the slots.
 
 The paragraph on the trackedness refusal is the one to read twice. It does not
 claim the refusal is *important*; it claims it **could not move**, and gives the
@@ -231,22 +231,23 @@ from nowhere outside this file: three uses here, plus the two doc comments that
 link to it. Its publicness buys the intra-doc link the header opens with rather
 than a caller.
 
-<a id="the-four-slots"></a>
-## The four slots, and the claim that there is no fifth
+<a id="the-slots"></a>
+## The slots, and the three that need a selected task
 
-This is the outcome's third question in twenty-five lines: the values this
-layer chooses that nothing beneath it could have defaulted.
+This is the outcome's third question in one array: the values this layer
+chooses that nothing beneath it could have defaulted.
 
-<!-- fragment «config-four-slots» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="34-59" parent="whose-file" -->
+<!-- fragment «config-slots» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="34-72" parent="whose-file" -->
 ````rust
-/// The four slots grove's command templates are written against, and the whole
-/// of what grove tells the runner about its own domain.
+/// The slots grove's command templates are written against, and the whole of
+/// what grove tells the runner about its own domain.
 ///
 /// `${prompt}` is required because a launch that does not carry the prompt
-/// launches a session with no mandate; the other three are conveniences a
-/// template may take or leave. There is no fifth, and adding one is a change to
-/// this list and to `docs/CONFIGURATION.md` together.
-const SLOTS: [SlotRule<'static>; 4] = [
+/// launches a session with no mandate; the others are conveniences a template
+/// may take or leave. The last three describe the selected task, so only a
+/// lifecycle launch can fill them. Adding a slot is a change to this list and
+/// to `docs/CONFIGURATION.md` together.
+const SLOTS: [SlotRule<'static>; 7] = [
     SlotRule {
         name: "prompt",
         requirement: Requirement::ExactlyOnce,
@@ -263,39 +264,56 @@ const SLOTS: [SlotRule<'static>; 4] = [
         name: "repo",
         requirement: Requirement::AtMostOnce,
     },
+    SlotRule {
+        name: "kind",
+        requirement: Requirement::AtMostOnce,
+    },
+    SlotRule {
+        name: "task_file",
+        requirement: Requirement::AtMostOnce,
+    },
+    SlotRule {
+        name: "task_id",
+        requirement: Requirement::AtMostOnce,
+    },
 ];
 
 ````
 <!-- /fragment -->
 
-The doc comment makes three claims and the code makes one of them
+The doc comment makes three claims and the code makes two of them
 checkable. That `${prompt}` is required *because a launch that does not carry the
 prompt launches a session with no mandate* is an argument, and
-`Requirement::ExactlyOnce` is where it binds. That the other three are
-conveniences a template may take or leave is `AtMostOnce`, three times. The
-third claim — **there is no fifth** — is the array's length, and it is the one a
-reader should hold loosely.
+`Requirement::ExactlyOnce` is where it binds. That the others are conveniences a
+template may take or leave is `AtMostOnce`, six times. The third claim — *the
+last three describe the selected task, so only a lifecycle launch can fill them*
+— is not in the array at all. Nothing here marks `kind`, `task_file` and
+`task_id` as different from `repo`; the runner sees seven names and two
+cardinalities. The three are lifecycle-only because the one value
+`SessionConfig::expand` has for them is the selected task `ExpansionContext`
+carries, and because the vocabulary's other consumer, standalone `grove run`,
+refuses a command that spells one.
 
-`the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one` is the test.
-It builds a template per case and asserts on the refusal each produces: a missing
+`the_slots_are_the_vocabulary_and_prompt_is_the_required_one` is the test. It
+builds a template per case and asserts on the refusal each produces: a missing
 `${prompt}` and a doubled one both give *must contain `${prompt}` exactly once*;
-each of the three optional slots doubled gives *may appear at most once*; and
-`${settings}` gives *unknown substitution*. It then loads `runner ${prompt}` and
-expands it, so the three optional slots are shown to be genuinely optional rather
-than merely permitted.
+each optional slot doubled gives *may appear at most once*; `--kind=${kind}`
+gives *must occupy a whole argument*; and `${settings}` gives *unknown
+substitution*. It then loads `runner ${prompt}` and expands it, so the optional
+slots are shown to be genuinely optional rather than merely permitted.
 
 **What it would still pass under.** The refusals it matches are produced inside
 `keyed-launch`, not here, so what the test observes is grove's vocabulary *seen
 through the runner's validator* — the honest form, and the same shape chapters 7
-and 14 had to use for the grammar. And *there is no fifth* is pinned only against
-the one name the test tries: adding a fifth `SlotRule` called `settings` turns it
-red, and adding one called anything else leaves it green. The claim the array
-actually holds is that these four have these cardinalities.
+and 14 had to use for the grammar. And the vocabulary's closedness is pinned only
+against the one unknown name the test tries: adding a `SlotRule` called
+`settings` turns it red, and adding one called anything else leaves it green. The
+claim the array actually holds is that these names have these cardinalities.
 
-The comment's other coupling — *adding one is a change to this list and to
+The comment's other coupling — *adding a slot is a change to this list and to
 `docs/CONFIGURATION.md` together* — is true today and held by nobody. That
-document's *Substitutions* table lists exactly these four names with exactly
-these cardinalities, and no test in the workspace compares the two. It is a
+document's *Substitutions* table lists exactly these names with exactly these
+cardinalities, and no test in the workspace compares the two. It is a
 coupling kept by discipline, and the comment is the only place it is written
 down.
 
@@ -306,7 +324,7 @@ The vocabulary reaches the runner through one function, and the reason it
 is handed over at load rather than at expansion is the whole of its doc
 comment.
 
-<!-- fragment «config-vocabulary» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="60-66" parent="whose-file" -->
+<!-- fragment «config-vocabulary» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="73-79" parent="whose-file" -->
 ````rust
 /// Grove's slot vocabulary, supplied at load so every template rule is checked
 /// before anything is spawned (`docs/specs/module-decomposition.md`, decision 7).
@@ -331,42 +349,52 @@ public modifier exists so that *grove's configuration can be held to the runner'
 own kit from outside the runner*, which is what
 `a_grove_configuration_conforms_to_the_runners_own_kit` does.
 
-**What that test would still pass under.** It writes one document using all four
-slots and asserts the kit passes it. The kit checks a document against a
+**What that test would still pass under.** It writes one document using every
+slot and asserts the kit passes it. The kit checks a document against a
 vocabulary, so it would pass just as well if `SLOTS` had the wrong cardinalities
 — a document with one `${prompt}` conforms whether `prompt` is `ExactlyOnce` or
 `AtMostOnce`. It pins *this document and this vocabulary are kit-clean*, and the
 cardinalities are pinned by its sibling above. `catalog_and_grove_refuse_the_same_document`
 is what closes the pair, refusing one document from both sides.
 
-<a id="the-four-values"></a>
-## The four values, and the two roots that are taken rather than derived
+<a id="the-values"></a>
+## The values, and the two roots that are taken rather than derived
 
-`ExpansionContext` is the other half of the vocabulary: four names above,
-four values here, checked against each other at expansion.
+`ExpansionContext` is the other half of the vocabulary: the names above, and
+here the values that fill them, checked against each other at expansion.
 
-<!-- fragment «config-expansion-context» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="67-73" parent="whose-file" -->
+<!-- fragment «config-expansion-context» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="80-90" parent="whose-file" -->
 ````rust
 pub struct ExpansionContext<'a> {
     pub prompt: &'a str,
     pub session_name: &'a str,
     pub worktree: &'a Path,
     pub repository: &'a Path,
+    /// The leaf whose handle and kind composed `prompt`. `${kind}`,
+    /// `${task_file}` and `${task_id}` are read from it and from nothing else,
+    /// so they cannot describe a different leaf from the mandate.
+    pub task: &'a crate::Selection,
 }
 
 ````
 <!-- /fragment -->
 
-No doc comment, and it needs none — the field names are the slot names.
+The struct has no doc comment, and four of its fields need none — their names
+are the slot names, with `repository` for `${repo}`. The fifth is the one field
+with a comment, because it is not a value: `task` is the driver's selection
+itself, and `${kind}`, `${task_file}` and `${task_id}` are read from it and from
+nothing else. No caller can hand those three slots a leaf other than the one
+whose handle and kind composed the prompt; chapter 20's call site passes the same
+`selection` it composed the mandate from.
 **Seven of the block's twenty-five items carry none**, and in a root at 44%
 comment prose that set is worth naming rather than guessing at: two are `impl`
 blocks, which conventionally take no comment of their own, and the other five are
 the mechanical ones — the private `CONFIG_PATH`, this struct and `SessionConfig`,
-whose fields are their own documentation, the one-line `SessionConfig::path`, and
+whose fields carry what documentation they need, the one-line `SessionConfig::path`, and
 the private `read` whose documented public wrapper sits directly above it. Every
 item in the block that carries an argument carries a comment.
 
-<!-- fragment «config-delta-roots» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="74-87" parent="whose-file" -->
+<!-- fragment «config-delta-roots» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="91-104" parent="whose-file" -->
 ````rust
 /// The two roots the [configuration delta](`DELTA_FILE_NAME`) is searched at,
 /// **in that order** — the same two `${worktree}` and `${repo}` expand to.
@@ -404,7 +432,7 @@ This is the type the book carried an adjudication for from chapter 1's cast
 onward, and the count in its doc comment has since been corrected at source.
 Line 89 reads *twice per iteration*; it said *once* while this book was drafted.
 
-<!-- fragment «config-template-source» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="88-104" parent="whose-file" -->
+<!-- fragment «config-template-source» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="105-121" parent="whose-file" -->
 ````rust
 /// **Where each iteration's launch templates are read from** — the third
 /// argument [`crate::run`] takes.
@@ -470,7 +498,7 @@ above.
 The impl block opens on the constructor that takes a home directory
 outright, which is the plainest of the four and the only one nothing uses.
 
-<!-- fragment «config-template-source-open» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="105-111" parent="whose-file" -->
+<!-- fragment «config-template-source-open» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="122-128" parent="whose-file" -->
 ````rust
 impl TemplateSource {
     /// The personal configuration under `home`.
@@ -489,7 +517,7 @@ every `.rs` file, the only match for the name is an unrelated function in
 the constructor a test *would* use if the tests did not build a home directory
 and go through `SessionConfig::load` instead.
 
-<!-- fragment «config-from-env» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="112-129" parent="whose-file" -->
+<!-- fragment «config-from-env» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="129-146" parent="whose-file" -->
 ````rust
     /// The personal configuration under `$HOME`.
     ///
@@ -517,7 +545,7 @@ file from, and rather than defaulting to a path it names the remedy — set it, 
 run `grove` from a login shell. `crates/grove/src/cli.rs` line 47 is the one
 production call site, so this refusal is the human binary's front door.
 
-<!-- fragment «config-personal-path» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="130-136" parent="whose-file" -->
+<!-- fragment «config-personal-path» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="147-153" parent="whose-file" -->
 ````rust
     /// The personal policy path, also used as a diagnostic fallback
     /// when no command resolves for the requested kind.
@@ -533,7 +561,7 @@ production call site, so this refusal is the human binary's front door.
 `loop_driver.rs` line 216, to hold the fallback path every launch diagnostic
 falls back to when a kind resolved from no file at all.
 
-<!-- fragment «config-template-source-load» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="137-142" parent="whose-file" -->
+<!-- fragment «config-template-source-load» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="154-159" parent="whose-file" -->
 ````rust
     /// Read the personal file, and at most one delta laid over it.
     pub(crate) fn load(&self, roots: &DeltaRoots<'_>) -> Result<SessionConfig> {
@@ -555,7 +583,7 @@ passes roots it did not derive.
 The loaded configuration is a newtype over the runner's `Templates`, and
 everything below it is grove deciding which files that type is built from.
 
-<!-- fragment «config-session-config» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="143-146" parent="whose-file" -->
+<!-- fragment «config-session-config» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="160-163" parent="whose-file" -->
 ````rust
 pub struct SessionConfig {
     templates: Templates,
@@ -567,7 +595,7 @@ pub struct SessionConfig {
 One field, and it is the runner's type. Everything a template is lives
 behind it.
 
-<!-- fragment «config-path-and-candidates» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="147-161" parent="whose-file" -->
+<!-- fragment «config-path-and-candidates» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="164-178" parent="whose-file" -->
 ````rust
 impl SessionConfig {
     pub fn path(home: &Path) -> PathBuf {
@@ -598,7 +626,7 @@ That the two paths *diverge* in the secondary-workspace family is what makes the
 pair worth having at all, and it is the same fact the version-control seam's own
 book states about `main_repo`.
 
-<!-- fragment «config-load» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="162-179" parent="whose-file" -->
+<!-- fragment «config-load» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="179-196" parent="whose-file" -->
 ````rust
     /// The personal file, then at most one delta laid over it per kind.
     ///
@@ -634,7 +662,7 @@ to: both documents receive structural validation; effective bindings, routes,
 command templates and values are checked during resolution. These checks run before
 tree mutation and again before launch; kind presence is asked at use.
 
-<!-- fragment «config-read» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="180-196" parent="whose-file" -->
+<!-- fragment «config-read» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="197-213" parent="whose-file" -->
 ````rust
     fn read(home: &Path, roots: &DeltaRoots<'_>) -> Result<Self> {
         let path = Self::path(home);
@@ -677,7 +705,7 @@ any kind without an active personal target.
 The loop is not the only thing that loads a configuration. A `grove-llm`
 verb does too, and this is the entry point that keeps the two agreeing.
 
-<!-- fragment «config-load-for-worktree» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="197-222" parent="whose-file" -->
+<!-- fragment «config-load-for-worktree» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="214-239" parent="whose-file" -->
 ````rust
     /// Load from the worktree a verb is running in, resolving `$HOME` and the
     /// two delta roots the same way the loop driver does.
@@ -718,7 +746,7 @@ again, discharged at the one place a caller could have got it wrong.
 it is followed immediately by `require`. That pairing is the just-in-time
 presence rule reaching the agent-side binary.
 
-<!-- fragment «config-source-and-require» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="223-249" parent="whose-file" -->
+<!-- fragment «config-source-and-require» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="240-266" parent="whose-file" -->
 ````rust
     /// The personal file holding the resolved command definition for `kind`.
     /// Use `inspect` for delta contributions to targets and parameter values.
@@ -774,7 +802,7 @@ reached a template a kind does not resolve for is not reachable. The comment say
 The last method on `SessionConfig`, and the one whose argument is about
 types rather than behaviour.
 
-<!-- fragment «config-expand» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="250-289" parent="whose-file" -->
+<!-- fragment «config-expand» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="267-319" parent="whose-file" -->
 ````rust
     /// The launch this kind names, as the runner's own `Argv`.
     ///
@@ -788,6 +816,7 @@ types rather than behaviour.
     /// As [`Self::require`], plus a slot the template spells that grove's
     /// vocabulary does not supply.
     pub fn expand(&self, kind: &str, context: &ExpansionContext<'_>) -> Result<Argv, crate::Error> {
+        let task_id = context.task.handle.to_string();
         let argv = self
             .templates
             .expand(
@@ -809,6 +838,18 @@ types rather than behaviour.
                         name: "repo",
                         value: context.repository.as_os_str(),
                     },
+                    Slot {
+                        name: "kind",
+                        value: context.task.kind.label().as_ref(),
+                    },
+                    Slot {
+                        name: "task_file",
+                        value: context.task.path.as_os_str(),
+                    },
+                    Slot {
+                        name: "task_id",
+                        value: task_id.as_ref(),
+                    },
                 ],
             )
             .map_err(configuration_error)?;
@@ -825,9 +866,13 @@ author* a fact about the types: `Argv` has no constructor, so the only way to
 obtain one is expansion, and the only thing that expands is a template. Grove
 cannot assemble a command even by mistake, and the compiler is what says so.
 
-The four `Slot` values are the vocabulary's four names again, matched by name
-rather than by position — and `worktree` and `repo` go in as `OsStr` rather than
-`str`, so a path that is not valid UTF-8 survives the round trip into the spawn.
+The seven `Slot` values are the vocabulary's names again, matched by name rather
+than by position — and `worktree`, `repo` and `task_file` go in as `OsStr` rather
+than `str`, so a path that is not valid UTF-8 survives the round trip into the
+spawn. `task_id` is the one value built here rather than borrowed: the handle's
+`Display` renders `<slug>-k<key>`, the spelling the prompt's mandate names, into
+a `String` that lives for the call. Nothing reads the kind back out of
+`task_file`; `${kind}` is the selection's own `Kind`, by its label.
 
 <a id="only-notfound-is-absence"></a>
 ## Only `NotFound` is absence
@@ -835,7 +880,7 @@ rather than by position — and `worktree` and `repo` go in as `OsStr` rather th
 The first of the two free functions: selection. It decides *which* file,
 and refuses to guess.
 
-<!-- fragment «config-find-delta» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="290-325" parent="whose-file" -->
+<!-- fragment «config-find-delta» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="320-355" parent="whose-file" -->
 ````rust
 /// The first of the two searched paths that **holds anything at all**; the other
 /// is not read, and the two are never merged with each other.
@@ -928,7 +973,7 @@ fragment range below it in this chapter.
 The second free function: validation. It runs on the file the search
 already chose, and never to choose it.
 
-<!-- fragment «config-refuse-tracked» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="326-368" parent="whose-file" -->
+<!-- fragment «config-refuse-tracked» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="356-398" parent="whose-file" -->
 ````rust
 /// Refuse the selected delta if it is **tracked**, before anything reads it.
 ///
@@ -1015,7 +1060,7 @@ remedy names the ignore line first.
 
 The last item, and the boundary the module header opened on.
 
-<!-- fragment «config-delta-is-tracked» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="369-401" parent="whose-file" -->
+<!-- fragment «config-delta-is-tracked» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="399-431" parent="whose-file" -->
 ````rust
 /// Is the delta at `path` **tracked** by the workspace it sits in?
 ///
@@ -1122,9 +1167,10 @@ the file by hand.
 The book's question, asked of a root whose whole subject is a choice rather
 than state.
 
-**On the way in — the names.** Four of them, and they are the clearest instance
-of an owned vocabulary in the crate. `prompt`, `session_name`, `worktree` and
-`repo` are not Unix facts and not runner facts; they are the whole of what grove
+**On the way in — the names.** Seven of them, and they are the clearest instance
+of an owned vocabulary in the crate. `prompt`, `session_name`, `worktree`, `repo`
+and the task's `kind`, `task_file` and `task_id` are not Unix facts and not
+runner facts; they are the whole of what grove
 tells `keyed-launch` about its own domain, and the runner is built to receive
 them without understanding any of them. The cost is the one the outcome names: a
 chosen value has to be stated where a reader can find it, and this layer pays it
@@ -1142,8 +1188,8 @@ form where the snapshot is a file on disk rather than a tree.
 was written for, and the honest account of its evidence is thinner than the
 argument above it. Twenty tests cover the vocabulary, the presence rule, the
 seam and the delta. Against that: the refusal's entire remedy is held by nothing
-and survives deletion; *there is no fifth slot* is pinned only against the single
-name a test happens to try; the coupling between `SLOTS` and the operator
+and survives deletion; the vocabulary's closedness is pinned only against the
+single unknown name a test happens to try; the coupling between `SLOTS` and the operator
 document is written down in a comment and checked by no one; and three public
 items — `DELTA_FILE_NAME`, `delta_candidates` and `TemplateSource::under` — have
 no consumer outside this file, `under` having none anywhere. None of that makes
@@ -1173,7 +1219,7 @@ records. Discovery and trackedness failures occur before text is captured;
 `SourceError` supplies the same record shape with the candidate path and no
 invented span. This lets the future inspector report the same refusal as launch.
 
-<!-- fragment «config-diagnostics» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="402-460" parent="whose-file" -->
+<!-- fragment «config-diagnostics» owner="whose-file-and-whether" source="crates/grove-loop/src/session_config.rs" lines="432-490" parent="whose-file" -->
 ````rust
 /// Generic diagnostic messages need not repeat their structured source paths.
 /// Keep the records intact and add those paths to Grove's human error chain.

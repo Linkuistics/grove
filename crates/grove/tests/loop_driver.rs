@@ -17,7 +17,9 @@
 
 mod support;
 
+use std::ffi::OsString;
 use std::fs;
+use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -889,6 +891,89 @@ fn the_mandate_states_a_native_jj_workspace_and_its_root() {
 #[test]
 fn the_mandate_states_a_colocated_jj_workspace_and_its_root() {
     assert_the_mandate_states_the_resolved_vcs(Shape::Colocated);
+}
+
+// The task slots carry the driver's own selection as whole native arguments,
+// and adding them leaves the prompt byte-identical to a direct-harness launch
+// of the same leaf. The worktree's name puts spaces, quotes and shell
+// punctuation into the task path and into the prompt, which states the root.
+#[test]
+fn the_selected_task_arrives_as_native_arguments_beside_an_unchanged_prompt() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture
+        .path()
+        .join("work tree 'single' \"double\" $(touch x) `y`; a|b & *");
+    init_worktree(&worktree);
+    plant_tree(&worktree, "01-impl--subject-k1.md");
+    let captured = fixture.path().join("captured.argv");
+    let command = fixture.path().join("capture");
+    write_exec(
+        &command,
+        &format!(
+            "#!/bin/sh\nprintf '%s\\0' \"$@\" > {}\n",
+            shell_quote(&captured)
+        ),
+    );
+    let launch = |template: &str| {
+        let routes = SESSION_KINDS
+            .iter()
+            .map(|kind| format!("    route {kind:?} \"lead\"\n"))
+            .collect::<String>();
+        let config_dir = home.join(".config/grove");
+        fs::create_dir_all(&config_dir).unwrap();
+        fs::write(
+            config_dir.join("config.kdl"),
+            format!(
+                "config {{\n    command \"agent\" {:?}\n    bind \"lead\" \"agent\"\n{routes}}}\n",
+                format!("{} {template}", shell_quote(&command))
+            ),
+        )
+        .unwrap();
+        let output = run_driver(&worktree, &home);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let bytes = fs::read(&captured).unwrap();
+        fs::remove_file(&captured).unwrap();
+        let mut words: Vec<OsString> = bytes
+            .split(|b| *b == 0)
+            .map(|word| OsString::from_vec(word.to_vec()))
+            .collect();
+        assert_eq!(words.pop(), Some(OsString::new()), "NUL-terminated");
+        words
+    };
+
+    let direct = launch("${prompt}");
+    assert_eq!(
+        direct.len(),
+        1,
+        "a direct-harness launch receives only its prompt"
+    );
+    let prompt = &direct[0];
+    assert!(prompt
+        .to_string_lossy()
+        .contains(&format!("{MANDATED_LEAF}subject-k1`")));
+
+    let slotted = launch("--kind ${kind} ${task_file} --id ${task_id} ${prompt}");
+    let task_file = worktree
+        .canonicalize()
+        .unwrap()
+        .join(".grove/01-impl--subject-k1.md");
+    assert!(task_file.is_absolute() && task_file.is_file());
+    assert_eq!(
+        slotted,
+        [
+            OsString::from("--kind"),
+            OsString::from("impl"),
+            task_file.into_os_string(),
+            OsString::from("--id"),
+            OsString::from("subject-k1"),
+            prompt.clone(),
+        ]
+    );
 }
 
 // A `done` signal — the finish cycle's last teardown action — must end the loop

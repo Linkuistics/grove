@@ -100,7 +100,7 @@ three provable inside this corpus.
 |---:|---|---|---|---|
 | 1 | **On the way in — the names.** Does the layer own a grammar the library beneath it cannot check? | A grammar you own must be canonical — `format(parse(f)) == f` — or one entity occupies two files, sharing a key and a position. Canonicity costs a conformance kit. | the conformance kit (`task_name.rs` 1059–1177); *question 2: the grammar is canonical* (1257–1312); `pick_refuses_a_species_mismatch_at_a_task_shaped_name` | 2, 3, 4, 5 |
 | 2 | **On the way through — the preconditions.** Does it check what the library cannot see, and against *which* snapshot? | The check must run against the same snapshot the operation then plans from, or it is a race with a name. A refused run must consume nothing. | `prune_node_is_atomic_bails_clean_on_a_leaf_it_cannot_address`; `a_refused_run_does_not_consume_positions_or_keys`; `one_process_creating_and_reading_a_grove_never_waits_on_itself` | 6–13 |
-| 3 | **On the way out — the policy.** What does it choose that nothing beneath it could have defaulted? | A chosen value must be stated where a reader can find it, and the layer must not restate what the layer above owns. | `the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one`; `the_runtime_facts_restate_no_rule_the_skill_owns`; `the_library_imposes_only_libc` | 14–20 |
+| 3 | **On the way out — the policy.** What does it choose that nothing beneath it could have defaulted? | A chosen value must be stated where a reader can find it, and the layer must not restate what the layer above owns. | `the_slots_are_the_vocabulary_and_prompt_is_the_required_one`; `the_runtime_facts_restate_no_rule_the_skill_owns`; `the_library_imposes_only_libc` | 14–20 |
 
 The three parts are the three things that are provably hard to move — meaning,
 timing and choice — and grove pays a visible price for each. Chapter 21 applies
@@ -545,11 +545,11 @@ under.
 **The rule: everything a template *is* belongs to `keyed-launch`; what is left
 here is whose file, and whether the second one is admissible.** The personal
 file's path, the two roots the delta is searched at, `DeltaRoots`,
-`TemplateSource`, the four slots grove's templates are written against, and the
+`TemplateSource`, the slots grove's templates are written against, and the
 refusal of a **tracked** delta — which could not move because it is a question
 about grove's worktree, answered through grove's version-control seam, and it is
 the boundary between an untrusted repository and arbitrary code execution.
-Pinned by `the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one`,
+Pinned by `the_slots_are_the_vocabulary_and_prompt_is_the_required_one`,
 `a_snapshotted_jj_delta_is_refused_in_both_jj_shapes`,
 `a_trackedness_probe_that_cannot_be_completed_fails_closed` and
 `a_grove_configuration_conforms_to_the_runners_own_kit`.
@@ -779,7 +779,7 @@ not is not this book's.
 | 15 | the twelve | a session mid-task | every verb returns the paths it wrote |
 | 16 | the lease | bare `grove` in a worktree | one driver; a second exits naming the canonical worktree |
 | 17 | the epoch | a driver replaced under a running one | admitted calls finish; new ones are refused |
-| 18 | `config.kdl` and its delta | a repository with an untracked delta | templates for four slots — or a **tracked** delta refused |
+| 18 | `config.kdl` and its delta | a repository with an untracked delta | templates for grove's slots — or a **tracked** delta refused |
 | 19 | `${prompt}` | the selected leaf | three parts in the session's own timeline order |
 | 20 | the loop | bare `grove` | relaunch with fresh context, or a stop that is resumable |
 | 21 | — | the twenty chapters | the three questions, answered for the crate |
@@ -1022,7 +1022,7 @@ test is where the crate draws it.
 roots**. Its tests are cited by name throughout — `the_library_imposes_only_libc`,
 `distinct_worktrees_hold_independent_leases`,
 `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt`,
-`the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one` — and none of
+`the_slots_are_the_vocabulary_and_prompt_is_the_required_one` — and none of
 it is reproduced. `src/task_grow/tests.rs` is treated the same way for the same
 reason, though it reaches the book through the corpus exception inventory rather
 than through the `tests/` rule.

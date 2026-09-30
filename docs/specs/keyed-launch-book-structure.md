@@ -496,7 +496,8 @@ nothing for the crate to refuse. The starting values are real and published:
 - an overlay `config { bind "lead" "reviewer"; }`, redirecting `impl` to the
   personal reviewer command;
 - the vocabulary `prompt` (`ExactlyOnce`) with `session_name`, `worktree` and
-  `repo` (`AtMostOnce`), which is grove's real four-slot set;
+  `repo` (`AtMostOnce`), the four slots every Grove launch can fill; grove's
+  lifecycle vocabulary adds three optional task slots the book does not carry;
 - the channel variable `GROVE_SIGNAL_FILE`.
 
 | Chapter | Anchor | Starts at | Observable end |

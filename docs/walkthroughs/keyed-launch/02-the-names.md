@@ -219,8 +219,10 @@ than over the template's own words.
 <a id="the-four-slots"></a>
 ## The four slots
 
-Grove supplies four slots: `prompt` is `ExactlyOnce`, while `session_name`,
-`worktree` and `repo` are `AtMostOnce`. The runner knows these names and counts,
+The carried vocabulary has four slots: `prompt` is `ExactlyOnce`, while
+`session_name`, `worktree` and `repo` are `AtMostOnce`. Grove's lifecycle
+vocabulary adds `kind`, `task_file` and `task_id`, all `AtMostOnce`, and they
+change none of the rules below. The runner knows these names and counts,
 without knowing what their values mean. Consider an active review definition
 whose author omitted the prompt:
 

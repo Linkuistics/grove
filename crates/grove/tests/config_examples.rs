@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use grove_loop::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
+use grove_loop::{Handle, Kind, Selection};
 use serde_json::{json, Value};
 
 mod support;
@@ -120,11 +121,17 @@ impl Fixture {
     }
 
     fn check_launch(&self, config: &SessionConfig, report: &Value, kind: &str, expected: &[&str]) {
+        let task = Selection {
+            path: self.repo.join(".grove/01-impl--example-k1.md"),
+            handle: Handle::parse("example-k1").unwrap(),
+            kind: Kind::new(kind).unwrap(),
+        };
         let context = ExpansionContext {
             prompt: PROMPT,
             session_name: "example-session",
             worktree: &self.repo,
             repository: &self.repo,
+            task: &task,
         };
         let argv = config.expand(kind, &context).unwrap();
         let expected: Vec<OsString> = expected.iter().map(OsString::from).collect();

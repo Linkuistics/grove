@@ -52,6 +52,14 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove`: lifecycle command templates may use three optional slots, `${kind}`,
+  `${task_file}` and `${task_id}`. They carry the selected leaf's kind token,
+  absolute task path and `<slug>-k<key>` handle as whole arguments, taken from the
+  selection that composes the prompt, so a wrapper need not parse the prompt or a
+  filename. The prompt is unchanged. `grove config show` prints them
+  symbolically. `grove run` refuses a routed command that uses one, naming the
+  slot, because a standalone invocation has no selected task.
+
 ## v21.12.0
 
 - `grove` / `configure-grove`: add an operator skill for inspecting and updating

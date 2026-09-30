@@ -11,8 +11,10 @@
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use grove_loop::session_config::{DeltaRoots, ExpansionContext, SessionConfig};
+use grove_loop::{Handle, Kind, Selection};
 use tempfile::TempDir;
 
 /// Kinds the fixtures below declare. Not *the* kind set — grove no longer holds
@@ -104,36 +106,55 @@ fn write_delta(root: &Path, document: &str) -> PathBuf {
     path
 }
 
+/// A selected task as the driver hands one over. Its kind differs from every
+/// key the fixtures route, so a template that echoed the configuration key
+/// instead of the selection's kind would show.
+fn selected(path: &Path) -> Selection {
+    Selection {
+        path: path.to_owned(),
+        handle: Handle::parse("subject-k7").unwrap(),
+        kind: Kind::new("review-impl").unwrap(),
+    }
+}
+
+static TASK: LazyLock<Selection> =
+    LazyLock::new(|| selected(Path::new("/worktree/.grove/01-review-impl--subject-k7.md")));
+
 fn context<'a>(prompt: &'a str) -> ExpansionContext<'a> {
     ExpansionContext {
         prompt,
         session_name: "session",
         worktree: Path::new("/worktree"),
         repository: Path::new("/repo"),
+        task: &TASK,
     }
 }
 
 // ---------------------------------------------------------------------------
 // Grove's slot vocabulary
 //
-// The four names, and their cardinalities, are the whole of what grove tells the
+// The names, and their cardinalities, are the whole of what grove tells the
 // runner about its own domain. Everything else about a template is the runner's
 // and is tested in `crates/keyed-launch/tests/templates.rs`.
 
-/// Each of the four slots expands to exactly one argument, whatever it holds —
+/// Each grove slot expands to exactly one argument, whatever it holds —
 /// nothing re-splits a prompt, a session name or a path with spaces in it.
+/// The three task slots are the selection's own kind, path and handle.
 #[test]
 fn each_grove_slot_expands_to_one_argument() {
     let home = TempDir::new().unwrap();
     write_config(
         home.path(),
         "env RUN_MODE=review wrapper --before ${prompt} --name ${session_name} \
-         --tree ${worktree} --repo ${repo}",
+         --tree ${worktree} --repo ${repo} --kind ${kind} ${task_file} --id ${task_id}",
     );
 
     let config = load(home.path()).unwrap();
     let worktree = Path::new("/worktrees/config with spaces; touch nope");
     let repository = Path::new("/repos/main with spaces");
+    let task = selected(Path::new(
+        "/worktrees/it's \"quoted\" $(x) & | ;/.grove/01-review-impl--subject-k7.md",
+    ));
     let argv = config
         .expand(
             "requirements",
@@ -142,6 +163,7 @@ fn each_grove_slot_expands_to_one_argument() {
                 session_name: "grove repo: config grove",
                 worktree,
                 repository,
+                task: &task,
             },
         )
         .unwrap()
@@ -161,15 +183,20 @@ fn each_grove_slot_expands_to_one_argument() {
             worktree.as_os_str().to_owned(),
             OsString::from("--repo"),
             repository.as_os_str().to_owned(),
+            OsString::from("--kind"),
+            OsString::from("review-impl"),
+            task.path.as_os_str().to_owned(),
+            OsString::from("--id"),
+            OsString::from("subject-k7"),
         ]
     );
 }
 
 /// `${prompt}` is required — a launch that does not carry the prompt launches a
-/// session with no mandate — and the other three are optional. There is no
-/// fifth.
+/// session with no mandate — and every other slot is optional. A name the
+/// vocabulary does not hold is refused.
 #[test]
-fn the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one() {
+fn the_slots_are_the_vocabulary_and_prompt_is_the_required_one() {
     for (template, expected) in [
         ("runner", "must contain `${prompt}` exactly once"),
         (
@@ -189,6 +216,22 @@ fn the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one() {
             "`${repo}` may appear at most once",
         ),
         (
+            "runner ${kind} ${kind} ${prompt}",
+            "`${kind}` may appear at most once",
+        ),
+        (
+            "runner ${task_file} ${task_file} ${prompt}",
+            "`${task_file}` may appear at most once",
+        ),
+        (
+            "runner ${task_id} ${task_id} ${prompt}",
+            "`${task_id}` may appear at most once",
+        ),
+        (
+            "runner --kind=${kind} ${prompt}",
+            "must occupy a whole argument",
+        ),
+        (
             "runner ${settings} ${prompt}",
             "unknown substitution `${settings}`",
         ),
@@ -202,7 +245,7 @@ fn the_four_slots_are_the_vocabulary_and_prompt_is_the_required_one() {
         );
     }
 
-    // And the three optional ones may be left out entirely.
+    // And the optional ones may be left out entirely.
     let home = TempDir::new().unwrap();
     write_config(home.path(), "runner ${prompt}");
     assert_eq!(
@@ -309,7 +352,7 @@ fn a_grove_configuration_conforms_to_the_runners_own_kit() {
     let home = TempDir::new().unwrap();
     write_config(
         home.path(),
-        "runner ${session_name} ${worktree} ${repo} ${prompt}",
+        "runner ${session_name} ${worktree} ${repo} ${kind} ${task_file} ${task_id} ${prompt}",
     );
 
     let catalog = keyed_launch::Catalog::load(

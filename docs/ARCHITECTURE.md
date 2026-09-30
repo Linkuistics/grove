@@ -354,8 +354,9 @@ and applies the kill escalation — so `Argv`, which has no constructor, is both
 the only thing expansion produces and the only thing a spawn accepts. *Nothing
 reaches a spawn that a template did not author* is therefore a fact about the
 types rather than a convention grove keeps. `crates/grove-loop/src/session_config.rs`
-is what is left of grove's side: the personal file's path, the four slots (`prompt`, `session_name`, `worktree`,
-`repo`) grove's templates are written against, and the delta's search and
+is what is left of grove's side: the personal file's path, the slots grove's
+templates are written against (`prompt`, `session_name`, `worktree`, `repo`, and
+the selected task's `kind`, `task_file` and `task_id`), and the delta's search and
 trackedness rules below. The user-facing grammar and diagnostics are in
 [CONFIGURATION.md](CONFIGURATION.md).
 

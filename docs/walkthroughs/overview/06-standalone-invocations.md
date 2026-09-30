@@ -48,11 +48,12 @@ The following table separates the authorities used by this operation.
 The source below follows those boundaries. The temporary directory owns staged
 work, while destination writes and terminal display remain parent operations.
 
-<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-338" parent="source-standalone" -->
+<!-- fragment «standalone-invocation» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-397" parent="source-standalone" -->
 <!-- insert «standalone-interface» -->
 <!-- insert «standalone-policy» -->
 <!-- insert «standalone-launch-context» -->
 <!-- insert «standalone-supervision» -->
+<!-- insert «standalone-slot-refusal» -->
 <!-- insert «standalone-artifact-checks» -->
 <!-- insert «standalone-publication» -->
 <!-- /fragment -->
@@ -64,9 +65,11 @@ work, while destination writes and terminal display remain parent operations.
 display mode explicit. `run` locates the personal policy, matching completion
 helper and persistent log directory; it passes those paths to `execute` without
 resolving a repository. In the example, `release-notes` selects a configured
-route, and `--input` and `--output` describe the transfer boundary.
+route, and `--input` and `--output` describe the transfer boundary. `OFFERED`
+names the four slots a standalone invocation fills; the
+[slot refusal](#standalone-slot-refusal) holds every routed command to it.
 
-<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-56" parent="standalone-invocation" -->
+<!-- fragment «standalone-interface» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="1-63" parent="standalone-invocation" -->
 ````rust
 //! One configured invocation, with no workspace or task-tree authority.
 use std::collections::HashSet;
@@ -79,7 +82,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context, Result};
-use keyed_launch::{Catalog, Channel, Confinement, End, Escalation, Launch, Selection, Slot};
+use keyed_launch::{
+    Catalog, Channel, CompiledWord, Confinement, End, Escalation, Launch, Selection, Slot,
+    Templates,
+};
+
+/// The slots a standalone invocation fills. Grove's other slots describe a
+/// lifecycle session's selected task, and a standalone invocation has none.
+const OFFERED: [&str; 4] = ["prompt", "session_name", "worktree", "repo"];
 
 #[derive(clap::Args)]
 pub(crate) struct Args {
@@ -131,13 +141,14 @@ pub(crate) fn run(args: Args) -> Result<()> {
 ## Resolve policy and stage artifacts
 
 `execute` reads exactly one nonempty prompt, resolves the personal catalog's
-selection and requires the named kind before creating scratch state. Each input
+selection, requires the named kind and refuses a lifecycle-only slot in its
+command before creating scratch state. Each input
 is opened as a regular file without following a final symlink and copied under
 its basename. Input and output basenames share one uniqueness set. Destination
 parents must resolve and destinations must be absent before launch. This makes
 `changes.txt` available to the child while reserving `notes.md` for a new output.
 
-<!-- fragment «standalone-policy» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="57-121" parent="standalone-invocation" -->
+<!-- fragment «standalone-policy» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="64-131" parent="standalone-invocation" -->
 ````rust
 pub(crate) fn execute(args: Args, policy: &Path, helper: &Path, logs: &Path) -> Result<()> {
     let prompt = match (&args.prompt, &args.prompt_file) {
@@ -150,10 +161,13 @@ pub(crate) fn execute(args: Args, policy: &Path, helper: &Path, logs: &Path) -> 
         !prompt.trim().is_empty(),
         "the standalone prompt must not be empty"
     );
+    // The whole lifecycle vocabulary, because lifecycle routes share this file:
+    // a route whose command uses a task slot must not stop every standalone kind.
     let catalog = Catalog::load(policy, None, grove_loop::session_config::vocabulary())?;
     let default_selection = Selection::default();
     let templates = catalog.resolve(catalog.primary_selection().unwrap_or(&default_selection))?;
     templates.require(&args.kind)?;
+    refuse_unoffered_slots(&templates, &args.kind, policy)?;
 
     let temporary = tempfile::Builder::new().prefix("grove-run-").tempdir()?;
     let root = temporary.path().canonicalize()?;
@@ -212,12 +226,14 @@ pub(crate) fn execute(args: Args, policy: &Path, helper: &Path, logs: &Path) -> 
 
 The composed instructions name the staged artifacts and the copied completion
 helper. Expansion receives the scratch working directory for both path slots;
-it never receives the caller's repository path through those slots. The parent
+it never receives the caller's repository path through those slots. The slots
+standalone does not offer receive empty values, which the earlier refusal has
+proved this command never spells. The parent
 holds the original work directory and allocates a separate completion channel
 before opening a private persistent log. Holding the directory prevents a child
 from redirecting later output reads by replacing `work` with a symlink.
 
-<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="122-178" parent="standalone-invocation" -->
+<!-- fragment «standalone-launch-context» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="132-203" parent="standalone-invocation" -->
 ````rust
     let instructions = format!(
         "{prompt}\n\nStandalone invocation: work only on the staged files in the current directory. \
@@ -249,7 +265,22 @@ from redirecting later output reads by replacing `work` with a symlink.
                 name: "repo",
                 value: work.as_os_str(),
             },
-        ],
+        ]
+        .into_iter()
+        // Expansion takes a value for every slot in the vocabulary. The refusal
+        // above proved this command spells none of the others, so these empty
+        // values cannot reach argv.
+        .chain(
+            grove_loop::session_config::vocabulary()
+                .slots
+                .iter()
+                .filter(|slot| !OFFERED.contains(&slot.name))
+                .map(|slot| Slot {
+                    name: slot.name,
+                    value: OsStr::new(""),
+                }),
+        )
+        .collect::<Vec<_>>(),
     )?;
     let channel = Channel::allocate(&control)?;
     // Hold the original directory, since the harness can rename paths inside
@@ -290,7 +321,7 @@ supervisor-driven termination or a successful natural exit. Only then does
 publication run. The final status records publication success as well as child
 completion, so an export failure cannot be displayed as completed.
 
-<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="179-252" parent="standalone-invocation" -->
+<!-- fragment «standalone-supervision» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="204-277" parent="standalone-invocation" -->
 ````rust
     // Build a small inherited environment. In particular no GROVE_*, GIT_*,
     // JJ_*, terminal/mux sockets, loader injection, or parent harness identifiers.
@@ -369,6 +400,62 @@ completion, so an export failure cannot be displayed as completed.
 ````
 <!-- /fragment -->
 
+<a id="standalone-slot-refusal"></a>
+## Refuse a slot only a lifecycle launch can fill
+
+Standalone and lifecycle routes share the personal file, so `execute` loads it
+with Grove's whole slot vocabulary. Otherwise one lifecycle route using
+`${task_file}` would make every `grove run` fail to load. The vocabulary's last
+three slots, `${kind}`, `${task_file}` and `${task_id}`, describe the leaf a loop
+driver selected, and a standalone invocation has no leaf. `OFFERED` names the
+four slots this path fills. This function reads the compiled words of the one
+command routed for the invoked kind and refuses any other slot. It names each one,
+the kind, the command and `grove run`, and it runs before `execute` creates
+scratch state, so a refused template stages and launches nothing. The inspection
+words are the ones expansion fills, so the check covers exactly the slots that
+could reach argv. That lets the launch context offer an empty value for each
+unoffered slot to satisfy expansion's whole-vocabulary contract: none can appear
+in a command that got this far.
+
+<!-- fragment «standalone-slot-refusal» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="278-311" parent="standalone-invocation" -->
+````rust
+/// Refuse a routed command that requests a slot only a lifecycle launch fills,
+/// before anything is staged. The check reads the same compiled words expansion
+/// fills, so it covers exactly what would have reached argv.
+fn refuse_unoffered_slots(templates: &Templates, kind: &str, policy: &Path) -> Result<()> {
+    let command = templates
+        .inspect()
+        .commands
+        .iter()
+        .find(|command| command.key == kind)
+        .with_context(|| format!("resolved kind `{kind}` has no inspected command"))?;
+    let requested: Vec<String> = command
+        .words
+        .iter()
+        .filter_map(|word| match &word.word {
+            CompiledWord::Slot(name) if !OFFERED.contains(&name.as_str()) => {
+                Some(format!("`${{{name}}}`"))
+            }
+            _ => None,
+        })
+        .collect();
+    if requested.is_empty() {
+        return Ok(());
+    }
+    bail!(
+        "grove run cannot launch kind `{kind}`: its command `{command}` requests {requested}, \
+         which only a lifecycle session's selected task fills. A standalone invocation offers \
+         `${{prompt}}`, `${{session_name}}`, `${{worktree}}` and `${{repo}}`.\n  Route `{kind}` \
+         in {policy} to a command that does not use {requested}.",
+        command = command.command,
+        requested = requested.join(", "),
+        policy = policy.display(),
+    )
+}
+
+````
+<!-- /fragment -->
+
 <a id="standalone-artifact-checks"></a>
 ## Validate transfer paths
 
@@ -379,7 +466,7 @@ a FIFO from hanging the staging reader, and `O_NOFOLLOW` refuses the final
 symlink. These checks turn the example's caller paths into bounded file inputs,
 not access grants to the caller's project.
 
-<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="253-298" parent="standalone-invocation" -->
+<!-- fragment «standalone-artifact-checks» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="312-357" parent="standalone-invocation" -->
 ````rust
 fn inherited(name: &OsStr) -> bool {
     let Some(name) = name.to_str() else {
@@ -443,7 +530,7 @@ it refuses paths that cannot be represented as UTF-8. The trailing test-only
 module declaration loads `tests/internal/standalone.rs`; those fixtures remain
 external evidence, outside this book's reconstructed corpus.
 
-<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="299-338" parent="standalone-invocation" -->
+<!-- fragment «standalone-publication» owner="isolated-invocation" source="crates/grove/src/standalone.rs" lines="358-397" parent="standalone-invocation" -->
 ````rust
 fn publish_outputs(work: &File, destinations: &[PathBuf]) -> Result<()> {
     let mut staged = Vec::new();

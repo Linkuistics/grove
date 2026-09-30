@@ -420,8 +420,10 @@ config {
 ```
 
 The consumer also supplies a vocabulary: the slot names its own templates are
-written against, each with a cardinality. grove's is four slots, and the crate
-learns nothing from them except their spelling and how often each may appear.
+written against, each with a cardinality. This book carries the four slots every
+Grove launch can fill; Grove's lifecycle vocabulary adds three optional task
+slots, which would add rows here and no rules. The crate learns nothing from
+any of them except their spelling and how often each may appear.
 The table states what the loader will check, not what the values will be.
 
 | Slot | Cardinality | What grove will put there |

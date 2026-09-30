@@ -40,6 +40,139 @@ SH
 chmod +x "$scratch/bin/gh" "$scratch/bin/git"
 export PATH="$scratch/bin:$PATH"
 
+# Release archive contents. release-build.sh packs every archive with
+# release-common.sh's pack_archive and checks it against the manifest there;
+# these cases show that check fires on each way an archive can be wrong, and
+# that the manifest agrees with what harness-dispatch's build emits and with the
+# formula, here, before any version is cut.
+# shellcheck source=scripts/release-common.sh
+source "$repo_root/scripts/release-common.sh"
+fail() {
+  echo "FAIL: $*" >&2
+  exit 1
+}
+# Stage placeholder files in the manifest's layout under $scratch/archive/stage.
+stage_archive() {
+  local top="$1" entry
+  rm -rf "$scratch/archive"
+  mkdir -p "$scratch/archive/stage/$top"
+  while IFS= read -r entry; do
+    mkdir -p "$(dirname "$scratch/archive/stage/$top/$entry")"
+    printf 'fixture %s\n' "$entry" >"$scratch/archive/stage/$top/$entry"
+  done < <(archive_manifest)
+  while IFS= read -r entry; do
+    chmod +x "$scratch/archive/stage/$top/$entry"
+  done < <(archive_executables)
+}
+pack_fixture() {
+  pack_archive "$scratch/archive/stage" "$1" "$scratch/archive/$1.tar.xz"
+}
+# The check must refuse the archive, reporting exactly the line given.
+refused_archive() {
+  local top="$1" expected="$scratch/archive/$1.tar.xz: $2"
+  if assert_archive "$scratch/archive/$top.tar.xz" "$top" >"$scratch/archive/output"; then
+    fail "an archive with '$2' passed the manifest check"
+  fi
+  grep -Fxq -- "$expected" "$scratch/archive/output" ||
+    fail "the manifest check did not report '$2': $(cat "$scratch/archive/output")"
+}
+
+# The layout the spec places harness-dispatch in, stated independently of the
+# manifest so that dropping an entry cannot quietly narrow what ships.
+for required in bin/grove bin/grove-llm bin/harness-dispatch \
+  libexec/harness-dispatch/harness-dispatch-policy \
+  libexec/harness-dispatch/sdk/index.d.ts libexec/harness-dispatch/sdk/index.ts \
+  libexec/harness-dispatch/notices/NOTICES.md libexec/harness-dispatch/notices/bun-LICENSE.md \
+  libexec/harness-dispatch/notices/sqlite.md; do
+  archive_manifest | grep -Fxq -- "$required" || fail "the archive manifest omits $required"
+done
+archive_executables | while IFS= read -r entry; do
+  archive_manifest | grep -Fxq -- "$entry" || fail "executable $entry is not in the archive manifest"
+done
+
+# The manifest's harness-dispatch files are exactly what `dispatch.sh build`
+# emits, so a file that build starts shipping without a manifest entry, or
+# stops shipping, fails here rather than at release time. This is the build
+# itself, not a restatement of its rules.
+bash "$repo_root/crates/harness-dispatch/scripts/dispatch.sh" build "$scratch/dispatch-out" >/dev/null
+(cd "$scratch/dispatch-out" && find . ! -type d | sed 's|^\./||' | LC_ALL=C sort) >"$scratch/dispatch-built"
+archive_manifest | sed -n 's|^libexec/harness-dispatch/||p' | LC_ALL=C sort >"$scratch/dispatch-manifest"
+diff -u "$scratch/dispatch-built" "$scratch/dispatch-manifest" >&2 ||
+  fail "the archive manifest's harness-dispatch files differ from what dispatch.sh build emits"
+
+# The formula installs exactly the manifest's executables and its one libexec
+# directory; everything else it ships is a top-level metafile.
+template="$repo_root/scripts/templates/grove.rb.tmpl"
+formula_bins="$(sed -n 's/^ *bin\.install //p' "$template" | tr -d '"' | tr ',' '\n' | tr -d ' ' | LC_ALL=C sort)"
+[[ "$formula_bins" == "$(archive_manifest | grep '^bin/' | LC_ALL=C sort)" ]] ||
+  fail "the formula's bin.install ($formula_bins) differs from the manifest's bin/ entries"
+grep -Fxq '    libexec.install "libexec/harness-dispatch"' "$template" ||
+  fail 'the formula does not install libexec/harness-dispatch'
+if archive_manifest | grep -v -e '^bin/' -e '^libexec/harness-dispatch/' | grep -q /; then
+  fail 'the manifest ships a directory the formula does not install'
+fi
+
+for target in "${TARGETS[@]}"; do
+  top="grove-v1.2.3-$target"
+  stage_archive "$top"
+  pack_fixture "$top"
+  assert_archive "$scratch/archive/$top.tar.xz" "$top" >"$scratch/archive/output" ||
+    fail "a complete $target archive failed the manifest check: $(cat "$scratch/archive/output")"
+  [[ ! -s "$scratch/archive/output" ]] || fail 'a passing manifest check printed output'
+done
+
+# Positive controls: each file's omission is seen to fail, by name.
+top="grove-v1.2.3-${TARGETS[0]}"
+while IFS= read -r entry; do
+  stage_archive "$top"
+  rm "$scratch/archive/stage/$top/$entry"
+  pack_fixture "$top"
+  refused_archive "$top" "missing $top/$entry"
+done < <(archive_manifest)
+
+stage_archive "$top"
+touch "$scratch/archive/stage/$top/libexec/harness-dispatch/bun-darwin-aarch64-v1.4.2"
+pack_fixture "$top"
+refused_archive "$top" "unexpected $top/libexec/harness-dispatch/bun-darwin-aarch64-v1.4.2"
+
+stage_archive "$top"
+mkdir -p "$scratch/archive/stage/$top/libexec/harness-dispatch/node_modules/.cache"
+pack_fixture "$top"
+refused_archive "$top" "unexpected $top/libexec/harness-dispatch/node_modules/"
+
+stage_archive "$top"
+chmod -x "$scratch/archive/stage/$top/libexec/harness-dispatch/harness-dispatch-policy"
+pack_fixture "$top"
+refused_archive "$top" "$top/libexec/harness-dispatch/harness-dispatch-policy is not executable"
+
+stage_archive "$top"
+ln -sf ../../bin/harness-dispatch "$scratch/archive/stage/$top/libexec/harness-dispatch/harness-dispatch-policy"
+pack_fixture "$top"
+refused_archive "$top" "$top/libexec/harness-dispatch/harness-dispatch-policy is not a regular file"
+
+stage_archive "$top"
+mkdir "$scratch/archive/stage/stray"
+COPYFILE_DISABLE=1 tar -C "$scratch/archive/stage" --no-xattrs -cJf "$scratch/archive/$top.tar.xz" "$top" stray
+refused_archive "$top" "top level is not exactly $top/:"
+
+# A file with an extended attribute, as macOS marks most staged files. Packed
+# as bsdtar does by default, the archive gains an AppleDouble member that
+# bsdtar hides when it reads; the check must see it. pack_archive must leave
+# both the member and the attribute out.
+stage_archive "$top"
+policy="libexec/harness-dispatch/harness-dispatch-policy"
+xattr -w org.linkuistics.grove.probe fixture "$scratch/archive/stage/$top/$policy"
+tar -C "$scratch/archive/stage" -cJf "$scratch/archive/$top.tar.xz" "$top"
+refused_archive "$top" "unexpected $top/libexec/harness-dispatch/._harness-dispatch-policy"
+pack_fixture "$top"
+assert_archive "$scratch/archive/$top.tar.xz" "$top" >"$scratch/archive/output" ||
+  fail "pack_archive kept macOS metadata: $(cat "$scratch/archive/output")"
+mkdir "$scratch/archive/restored"
+tar -xJf "$scratch/archive/$top.tar.xz" -C "$scratch/archive/restored" --xattrs
+if xattr -p org.linkuistics.grove.probe "$scratch/archive/restored/$top/$policy" >/dev/null 2>&1; then
+  fail 'pack_archive kept an extended attribute'
+fi
+
 cp "$repo_root/scripts/release-publish.sh" "$scratch/source/scripts/"
 printf '## Unreleased\n\n## v1.2.3\n\n- Meaningful release notes.\n' >"$scratch/source/CHANGELOG.md"
 "$real_git" init -q "$scratch/source"

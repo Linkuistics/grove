@@ -107,6 +107,29 @@ with the same Bun 1.4.2 on the same macOS arm64 host.
   its working directory, whatever the output path. The build script therefore
   compiles from a throwaway directory.
 
+Building the release layout on 2026-09-30, with Bun 1.4.2 on the same host,
+observed how a cross-compile obtains its target runtime:
+
+- **Bun fetches it unverified.** The `bun-v1.4.2` source
+  (`src/options_types/compile_target.rs`, `to_npm_registry_url` and
+  `exe_path`; `src/standalone_graph/StandaloneModuleGraph.rs`,
+  `target_executable`) downloads `@oven/bun-<os>-<arch>` 1.4.2 from
+  `registry.npmjs.org` into `$BUN_INSTALL_CACHE_DIR` (default
+  `~/.bun/install/cache`) with no integrity check, and reuses any cached file
+  of the right name as is. `--compile-executable-path` skips that fetch.
+- **The pinned path fetches nothing.** Compiling for all three targets with
+  `--compile-executable-path` and an empty isolated cache left the cache empty.
+  The positive control, the same compile without the flag, was seen to
+  download `bun-linux-x64-v1.4.2` into that cache, byte-identical to the `bun`
+  in the pinned tarball. Each pinned tarball's SHA-512 equalled npm's published
+  `dist.integrity`. The darwin output is ad-hoc signed, and none of these
+  compiles left a template in the working directory.
+- **Homebrew leaves the worker's bytes alone.** A keg installed from a local
+  archive held a front and worker byte-identical to the archive's, and its
+  `brew test` passed under Homebrew's sandbox. Homebrew 7.0.7's source runs
+  `patchelf` only when bottling or pouring, and skips files with a `.bun`
+  section even then.
+
 Integrating the static-dispatch review on the same date, with the same Bun and
 host, observed how `import()` treats an absolute path string:
 

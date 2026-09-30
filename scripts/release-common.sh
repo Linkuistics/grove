@@ -24,6 +24,134 @@ TARGETS=(
   x86_64-unknown-linux-gnu
 )
 
+# Every file a release archive holds, relative to its one top directory
+# `grove-v<version>-<target>/`, and nothing else. That directory is an
+# installation prefix: harness-dispatch finds its worker at
+# ../libexec/harness-dispatch/ from its own real path
+# (docs/specs/harness-selection-and-execution.md, *Delivery and release*), and
+# the Homebrew formula installs the same two directories into its keg. A later
+# change that ships another file adds it here in the same change.
+archive_manifest() {
+  cat <<'EOF'
+LICENSE
+README.md
+bin/grove
+bin/grove-llm
+bin/harness-dispatch
+libexec/harness-dispatch/examples/grove-static.d.ts
+libexec/harness-dispatch/examples/grove-static.ts
+libexec/harness-dispatch/examples/static.d.ts
+libexec/harness-dispatch/examples/static.ts
+libexec/harness-dispatch/harness-dispatch-policy
+libexec/harness-dispatch/notices/NOTICES.md
+libexec/harness-dispatch/notices/bun-LICENSE.md
+libexec/harness-dispatch/notices/sqlite.md
+libexec/harness-dispatch/sdk/index.d.ts
+libexec/harness-dispatch/sdk/index.ts
+EOF
+}
+
+# The manifest entries that must be executable.
+archive_executables() {
+  cat <<'EOF'
+bin/grove
+bin/grove-llm
+bin/harness-dispatch
+libexec/harness-dispatch/harness-dispatch-policy
+EOF
+}
+
+# The manifest's files and every directory holding them, directories with a
+# trailing slash.
+archive_layout() {
+  local entry dir
+  archive_manifest | while IFS= read -r entry; do
+    echo "$entry"
+    dir="$entry"
+    while [[ "$dir" == */* ]]; do
+      dir="${dir%/*}"
+      echo "$dir/"
+    done
+  done | LC_ALL=C sort -u
+}
+
+# Pack DIR's one entry TOP into the .tar.xz ARCHIVE, carrying file contents and
+# modes only. macOS's bsdtar otherwise adds an AppleDouble `._<name>` member for
+# every file with an extended attribute (`com.apple.provenance` marks most of
+# them) and pax headers for the attributes themselves. It hides both again when
+# it reads, but GNU tar and Homebrew on Linux extract the `._` files beside the
+# real ones.
+pack_archive() {
+  local dir="$1" top="$2" archive="$3"
+  COPYFILE_DISABLE=1 tar -C "$dir" --no-xattrs -cJf "$archive" "$top"
+}
+
+# Extract ARCHIVE into DIR exactly as stored. bsdtar's tar reader folds
+# AppleDouble `._` members into the file they describe unless told not to,
+# which would hide the very members `pack_archive` exists to keep out.
+extract_exactly() {
+  local archive="$1" dir="$2" exact=()
+  if tar --version 2>/dev/null | grep -q bsdtar; then
+    exact=(--options '!mac-ext')
+  fi
+  tar -xJf "$archive" -C "$dir" ${exact[@]+"${exact[@]}"}
+}
+
+# Extract ARCHIVE and check it holds exactly TOP/, and within it exactly the
+# manifest's files and their directories, each file regular and the
+# executables executable. Prints what is missing, unexpected or wrong and
+# returns nonzero; prints nothing on success.
+assert_archive() {
+  local archive="$1" top="$2" scratch status=0 entry
+  scratch="$(mktemp -d)"
+  if ! extract_exactly "$archive" "$scratch"; then
+    echo "$archive: cannot be extracted"
+    rm -rf "$scratch"
+    return 1
+  fi
+  if [[ "$(ls -A "$scratch")" != "$top" ]]; then
+    echo "$archive: top level is not exactly $top/:"
+    ls -A "$scratch"
+    status=1
+  fi
+  local expected actual
+  expected="$(archive_layout)"
+  actual="$(
+    cd "$scratch/$top" 2>/dev/null || exit 0
+    {
+      find . -mindepth 1 -type d | sed 's|$|/|'
+      find . -mindepth 1 ! -type d
+    } | sed 's|^\./||' | LC_ALL=C sort
+  )"
+  while IFS= read -r entry; do
+    if [[ -n "$entry" ]]; then
+      echo "$archive: missing $top/$entry"
+      status=1
+    fi
+  done < <(LC_ALL=C comm -23 <(echo "$expected") <(echo "$actual"))
+  while IFS= read -r entry; do
+    if [[ -n "$entry" ]]; then
+      echo "$archive: unexpected $top/$entry"
+      status=1
+    fi
+  done < <(LC_ALL=C comm -13 <(echo "$expected") <(echo "$actual"))
+  while IFS= read -r entry; do
+    local path="$scratch/$top/$entry"
+    if [[ -L "$path" ]] || { [[ -e "$path" ]] && [[ ! -f "$path" ]]; }; then
+      echo "$archive: $top/$entry is not a regular file"
+      status=1
+    fi
+  done < <(archive_manifest)
+  while IFS= read -r entry; do
+    if [[ -f "$scratch/$top/$entry" && ! -x "$scratch/$top/$entry" ]]; then
+      echo "$archive: $top/$entry is not executable"
+      status=1
+    fi
+  done < <(archive_executables)
+  rm -rf "$scratch"
+  return "$status"
+}
+
 # NO METHODOLOGY PAIRING ASSERTION. Until delete-provisioning-k19 this file
 # carried CONTENT_MARKER -- a phrase that existed only in content/ -- and
 # assert_methodology_pairing, which grepped each staged binary for it and failed

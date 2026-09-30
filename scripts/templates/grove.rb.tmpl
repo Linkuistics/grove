@@ -25,7 +25,13 @@ class Grove < Formula
   def install
     # Codex skill snapshots are embedded in grove and provisioned at startup.
     # Claude Code retains marketplace delivery; no separate payload is fetched.
-    bin.install "grove", "grove-llm"
+    #
+    # The archive is an installation prefix, and the keg keeps its shape:
+    # harness-dispatch finds its private policy worker at
+    # ../libexec/harness-dispatch/ from its own real path, which the bin/
+    # symlink Homebrew links resolves to. No system Bun or Node takes part.
+    bin.install "bin/grove", "bin/grove-llm", "bin/harness-dispatch"
+    libexec.install "libexec/harness-dispatch"
   end
 
   def caveats
@@ -56,7 +62,26 @@ class Grove < Formula
   end
 
   test do
-    assert_match "grove @VERSION@", shell_output("#{bin}/grove --version")
-    assert_match "grove-llm @VERSION@", shell_output("#{bin}/grove-llm --version")
+    assert_equal "grove @VERSION@\n", shell_output("#{bin}/grove --version")
+    assert_equal "grove-llm @VERSION@\n", shell_output("#{bin}/grove-llm --version")
+    assert_equal "harness-dispatch @VERSION@\n", shell_output("#{bin}/harness-dispatch --version")
+
+    # The worker reports its own version, and the front refuses a worker from
+    # another build before evaluating anything. Inspect through a symlink to
+    # the front, as bin/ is linked, so the worker is found from the real path.
+    (testpath/"policy.ts").write <<~TS
+      export const policy = {
+        schemaVersion: 1,
+        version: "brew-test",
+        catalog: [{ id: "check", provider: "check", model: "check", effort: "check", program: "true", args: [{ slot: "prompt" }] }],
+        routes: { check: "check" },
+      };
+    TS
+    ln_s bin/"harness-dispatch", testpath/"harness-dispatch"
+    report = JSON.parse(shell_output(
+      "#{testpath}/harness-dispatch inspect --kind check --config #{testpath}/policy.ts --json",
+    ))
+    assert_equal "@VERSION@", report["worker"]["packageVersion"]
+    assert_equal (libexec/"harness-dispatch/harness-dispatch-policy").realpath.to_s, report["worker"]["path"]
   end
 end

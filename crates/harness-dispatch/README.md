@@ -20,6 +20,21 @@ Signal handling at the handoff, computed selection, task context and later
 observations come in later releases. Until each arrives, its input is refused
 by name. It is never accepted and ignored.
 
+## Install
+
+Grove's Homebrew formula and release archives install harness-dispatch with
+Grove:
+
+```sh
+brew install linkuistics/taps/grove
+harness-dispatch --version
+```
+
+A release archive unpacks to an installation prefix holding `bin/` and
+`libexec/`; keep the two together and put `bin/` on `PATH`. The notices for
+the Bun runtime inside the worker and the SQLite inside the front are in
+`libexec/harness-dispatch/notices/`.
+
 ## Install from a checkout
 
 ```sh

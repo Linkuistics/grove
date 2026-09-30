@@ -73,11 +73,29 @@ stood at the graft — a closed record, not part of the versioned sequence above
   whole-argument slots without a shell, resolves its program as the shell
   would, and shows the exact argv the harness would receive. A slot with no
   input, a missing program (exit 127) or an unexecutable one (exit 126) refuses
-  instead. Build and install it from a checkout with `task dispatch:install`;
-  release archives do not carry it yet.
+  instead. Build and install it from a checkout with `task dispatch:install`.
+- Release archives and the Homebrew formula now carry `harness-dispatch` with
+  its compiled policy worker. Each archive unpacks to an installation prefix:
+  `bin/grove`, `bin/grove-llm` and `bin/harness-dispatch`, and
+  `libexec/harness-dispatch/` holding the worker, the declarations and sources
+  of its SDK and examples, and Bun's and SQLite's notices. `grove` and
+  `grove-llm` moved from the archive's top level into `bin/`; put the extracted
+  `bin/` on `PATH`. `harness-dispatch` finds its worker from its own real path,
+  through the Homebrew symlink too, and `brew test` checks that the front, the
+  worker and Grove report one version. No system Bun or Node is needed.
+- Release builds: each target's worker is compiled from that target's Bun
+  1.4.2 runtime, downloaded from npm and checked against a pinned SHA-256
+  rather than fetched unverified by Bun. Every archive is checked against a
+  manifest of its files as it is built. Archives no longer carry the hidden
+  AppleDouble `._*` files and extended attributes that macOS's `tar` added to
+  earlier ones, which GNU `tar` extracts as stray files. `task
+  release:archives` builds archives of the working copy without a tag or
+  publication.
 - Repository checks: `scripts/check.sh` now builds and type-checks the
   harness-dispatch worker, so it and `scripts/release-doctor.sh` require
-  Bun 1.4.2.
+  Bun 1.4.2. The release tests compare the archive manifest with
+  what harness-dispatch's build emits and with the formula, and
+  `scripts/release-build.sh` is now linted.
 
 ## v21.12.0
 

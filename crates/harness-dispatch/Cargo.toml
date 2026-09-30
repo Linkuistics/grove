@@ -50,7 +50,7 @@ workspace = true
 # `cargo release` cuts *grove* (`crates/grove`) and nothing else. This package
 # takes `version.workspace = true` and ships inside that cut, and its worker
 # embeds the same version; `release = false` buys it no tag, changelog section
-# or publish of its own (`docs/RELEASING.md`, *One release, seven packages, one
+# or publish of its own (`docs/RELEASING.md`, *One release, eight packages, one
 # tag*).
 [package.metadata.release]
 release = false

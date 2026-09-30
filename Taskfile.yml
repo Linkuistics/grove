@@ -75,6 +75,14 @@ tasks:
       - task: release
         vars: {LEVEL: major}
 
+  # Unreleased archives of the working copy, in the release layout, for the
+  # installed-layout smoke tests. `task release:archives TARGETS=x86_64-unknown-linux-gnu`
+  # builds one target; the default is every target.
+  release:archives:
+    desc: Build release archives of the working copy into target/archives, without a tag or publication
+    cmds:
+      - scripts/release-build.sh --unreleased {{.TARGETS}}
+
   release:notes:
     desc: Refresh Unreleased notes from all changes since the last release, without publishing
     preconditions:
@@ -122,8 +130,12 @@ tasks:
       - |
         tag="$(git describe --tags --exact-match HEAD)"
         version="${tag#v}"
-        test "$(grove --version)" = "grove $version"
-        test "$(grove-llm --version)" = "grove-llm $version"
-        grove view --help
+        # The Homebrew prefix's commands, not whichever copy PATH finds first:
+        # `task dispatch:install` puts one in ~/.local/bin by default.
+        brew_bin="$(brew --prefix)/bin"
+        test "$("$brew_bin/grove" --version)" = "grove $version"
+        test "$("$brew_bin/grove-llm" --version)" = "grove-llm $version"
+        test "$("$brew_bin/harness-dispatch" --version)" = "harness-dispatch $version"
+        "$brew_bin/grove" view --help
         gh release view "$tag" --repo Linkuistics/grove --json url,assets
         test "$(gh release view "$tag" --repo Linkuistics/grove --json assets --jq '.assets | length')" = 3

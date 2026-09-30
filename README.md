@@ -24,7 +24,9 @@ brew install grove
 ```
 
 There is no per-project installation step. `grove --version` reports the
-installed binary version. The first bare `grove` run provisions Codex skills when
+installed binary version. The same installation carries `harness-dispatch`, a
+separate command that selects and runs an agent harness from its owner's
+TypeScript policy ([its README](crates/harness-dispatch/README.md)). The first bare `grove` run provisions Codex skills when
 `~/.codex` is a directory or `CODEX_HOME` is set to a nonempty value. Claude Code and other
 harnesses need the setup below.
 

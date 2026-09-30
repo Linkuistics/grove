@@ -8,7 +8,7 @@ in lockstep, which is why they live together (see
 `ordinal-fs-tree`, is declared on vocabulary alone: it has a glossary whose terms
 mean something else in grove's, and its crate ships by no path of its own — it
 rides inside grove's cut, wearing grove's version, and is not published
-separately (`docs/RELEASING.md`, *One release, seven packages, one tag*).
+separately (`docs/RELEASING.md`, *One release, eight packages, one tag*).
 
 ## Contexts
 

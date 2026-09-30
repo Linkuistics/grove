@@ -249,7 +249,7 @@ question rather than an open one, and names where the answer lives.
 # (`docs/specs/module-decomposition.md`, decision 1).
 #
 # **This crate is not published on its own, and that is settled**
-# (`docs/RELEASING.md`, *One release, seven packages, one tag*): it ships inside
+# (`docs/RELEASING.md`, *One release, eight packages, one tag*): it ships inside
 # grove's cut, wearing grove's version, and no library member has a release lane
 # of its own. Removing this line does not reopen the question — it corrupts the
 # cut, which was measured rather than assumed.

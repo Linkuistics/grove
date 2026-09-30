@@ -107,13 +107,12 @@ run_check "shellcheck" shellcheck \
   scripts/release-prepare.sh scripts/release-prepare.test.sh \
   scripts/release-notes.sh \
   scripts/release-notes/codex-headless.sh scripts/release-notes/codex-headless.test.sh \
-  scripts/release-doctor.sh scripts/release-common.sh \
+  scripts/release-doctor.sh scripts/release-common.sh scripts/release-build.sh \
   crates/harness-dispatch/scripts/dispatch.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh
 run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
-run_check "release tasks" bash scripts/release.test.sh
 run_check "release preparation" bash scripts/release-prepare.test.sh
 run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.sh
 # Before `cargo test`, which needs the worker: harness-dispatch's command-seam
@@ -121,6 +120,9 @@ run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.
 # it from the current source with the pinned Bun, then type-checks the worker,
 # the SDK and its fixtures against the declarations that build emitted.
 run_check "dispatch worker and types" task dispatch:typecheck
+# After the worker task, which installs its pinned type checker: the release
+# tests compare the archive manifest with what the worker build emits.
+run_check "release tasks" bash scripts/release.test.sh
 run_check "cargo test" cargo test --locked --workspace
 run_check "book-check" book_check
 

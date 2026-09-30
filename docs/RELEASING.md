@@ -207,26 +207,42 @@ pins: the release's `scripts/check.sh` compiles that package's policy worker,
 and its first run fetches the worker's pinned type checker with `bun install
 --frozen-lockfile`. The doctor installs nothing.
 
-## One release, seven packages, one tag
+The archive build needs two things more, which the doctor cannot check.
+
+- **A C compiler for each Linux target.** harness-dispatch compiles SQLite in
+  from source, so its Linux front executables compile C through `cargo
+  zigbuild`'s Zig at the glibc 2.17 floor. A clean host build says nothing
+  about those cross-builds; `task release:archives` builds all three targets
+  without a tag, as a rehearsal.
+- **Network access to npm, once per Bun runtime.** Each target's policy worker
+  is that target's Bun 1.4.2 runtime with the policy host appended.
+  `crates/harness-dispatch/scripts/dispatch.sh` downloads the
+  `@oven/bun-<platform>` tarball from `registry.npmjs.org`, refuses it unless
+  its SHA-256 equals the digest pinned in that script, and caches it under
+  `target/bun-runtimes/`; Bun's own download, which verifies nothing, never
+  runs. A digest mismatch is not something to re-pin past: the published
+  runtime has changed, so find out why before building a release from it.
+
+## One release, eight packages, one tag
 
 Every crate this release ships takes `version.workspace = true`, so a cut
-rewrites one field and moves all seven versions together — one workspace, one
+rewrites one field and moves all eight versions together — one workspace, one
 release version, one changelog, one tag
 (`docs/specs/module-decomposition.md`, decision 1). Only `crates/grove` is
-*released*: it is the human's binary and the thing the tag names. The other six
-carry `[package.metadata.release] release = false`.
+*released*: it is the human's binary and the thing the tag names. The other
+seven carry `[package.metadata.release] release = false`.
 
-The workspace has an eighth member the cut does not ship.
+`crates/harness-dispatch` is the one of the eight that ships as its own
+executable rather than inside `grove` or `grove-llm`. Every archive and the
+formula install it beside them, with its compiled policy worker, which embeds
+the same workspace version; the formula's test checks that the front, the
+worker and Grove report one version.
+
+The workspace has a ninth member the cut does not ship.
 `crates/book-validation` is the authoring tool behind `docs/walkthroughs/`, not
 part of the shipped system; it sets `publish = false` and carries a
 `version = "0.1.0"` of its own rather than inheriting. Read every claim on this
-page as a claim about the seven, not about workspace membership.
-
-`crates/harness-dispatch` is a ninth member, and the cut does not ship it yet:
-no archive or formula carries it. It inherits the workspace version and carries
-`release = false` like the six library crates, for the reasons below, so a cut
-already moves its version with theirs. This section counts it among the shipped
-packages once the archives do.
+page as a claim about the eight, not about workspace membership.
 
 **It does need a `release = false` line, and until v20.2.0 it did not have one.**
 This page used to say the opposite — that carrying its own version was enough to
@@ -240,7 +256,7 @@ makes that heading absurd rather than merely duplicated.
 
 Its exclusion is also what makes the cut *run at all*. cargo-release forces
 `consolidate-commits = true` on every package in a `shared-version` group, which
-the seven inheriting crates form and `book-validation` — carrying its own version —
+the eight inheriting crates form and `book-validation` — carrying its own version —
 does not; a `release.toml` asking for `false` therefore reached only that one
 crate, and the cut refused with `error: inconsistent `consolidate-commits`
 setting` rather than releasing anything. `release.toml` records the measurement
@@ -320,7 +336,7 @@ cargo release patch --execute
 ```
 
 The first `cargo release` is a dry run. The executed command bumps the root
-`Cargo.toml`'s `[workspace.package] version` — the one field all seven inherit,
+`Cargo.toml`'s `[workspace.package] version` — the one field all eight inherit,
 so they move together — and `Cargo.lock`, closes the changelog's
 `## Unreleased` section, creates a `chore: release v<version>` commit, and
 creates the corresponding `v<version>` tag. Use `minor` or `major` instead of `patch` when appropriate.
@@ -354,11 +370,11 @@ Do the three edits `cargo release` would have made, then let jj and git make the
 two artifacts it would have created:
 
 ```sh
-# 1. the version — ONE field, the workspace's. All seven shipped crates take
+# 1. the version — ONE field, the workspace's. All eight shipped crates take
 #    `version.workspace = true`, so editing `[workspace.package] version` in the
-#    root `Cargo.toml` moves all seven together; no member manifest is touched.
+#    root `Cargo.toml` moves all eight together; no member manifest is touched.
 #    Edit `version = "<old>"` → "<new>" there, then:
-cargo check                                  # rewrites Cargo.lock's seven entries
+cargo check                                  # rewrites Cargo.lock's eight entries
 # 2. close the changelog heading, exactly as pre-release-replacements would:
 #    insert `## v<new>` two lines under the standing `## Unreleased`
 # 3. the release change, the bookmark, and git's HEAD
@@ -425,6 +441,39 @@ that changes an instructed verb must land the methodology and CLI together —
 manually installed skills can still differ from the installed CLI; describe
 verb-surface changes in the changelog.
 
+Each archive unpacks to one directory, `grove-v<version>-<target>/`, laid out
+as an installation prefix, and the formula installs the same shape into its
+keg:
+
+```text
+bin/grove
+bin/grove-llm
+bin/harness-dispatch
+libexec/harness-dispatch/harness-dispatch-policy   the compiled policy worker
+libexec/harness-dispatch/sdk/                      SDK declarations and source
+libexec/harness-dispatch/examples/                 example declarations and sources
+libexec/harness-dispatch/notices/                  Bun's and SQLite's notices
+LICENSE
+README.md
+```
+
+`harness-dispatch` finds its worker at `../libexec/harness-dispatch/` from its
+own real path, so the Homebrew `bin/` symlink and a moved prefix both work, and
+an archive user can put the extracted `bin/` on `PATH` as it stands.
+`archive_manifest` in `scripts/release-common.sh` lists every file, and the
+build checks each archive against it as soon as it is packed: a missing,
+unexpected or non-executable entry, or an extra directory, stops the build
+before the formula is rendered, and the failed archive is removed. Archives are
+packed without macOS extended attributes, so they hold none of the AppleDouble
+`._*` files that macOS's `tar` would otherwise add and then hide when it reads
+them back; the check reads them as GNU `tar` would. A change that ships another
+file adds it to that list; `bash scripts/release.test.sh`, which
+`scripts/check.sh` runs, fails before any cut when the list disagrees with what
+harness-dispatch's build emits or with the formula. So a failure at this step is
+a build fault, not a stale list. Correct it and rerun `scripts/release-build.sh`;
+the tagged version is not cut again. The build also refuses a tag that differs
+from the workspace version.
+
 Inspect `target/dist/`, which should contain three `.tar.xz` archives and
 `grove.rb`. Then publish both repositories:
 
@@ -456,12 +505,15 @@ If Grove is not installed yet, use `brew install linkuistics/taps/grove` instead
 of `brew upgrade grove`.
 
 Confirm that the reported version matches the tag and that the GitHub Release
-contains all three archives. For a behavioral smoke test of the installed
-binary, use the isolated harness procedure documented in
-`scripts/release-publish.sh`.
+contains all three archives. `harness-dispatch --version` must report the same
+version. `brew test grove` checks the three commands' versions and has the
+installed `harness-dispatch`, through a symlink, inspect a static policy, which
+proves it finds and accepts its worker and that the worker reports that version
+too. For a behavioral smoke test of the installed binary, use the isolated
+harness procedure documented in `scripts/release-publish.sh`.
 
-The read-only monitor ships inside `grove`; the archive and formula still install
-only `grove` and `grove-llm`. Check `grove view --help` from the installed pair,
+The read-only monitor ships inside `grove`, not as a command of its own. Check
+`grove view --help` from the installed binaries,
 then run `grove view /path/to/worktree` in a terminal and edit a scratch tree
 externally to check automatic updates. The viewer needs no launch configuration,
 jj workspace or skill installation. Its binary PTY regression tests cover live

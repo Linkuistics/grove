@@ -12,7 +12,10 @@ refused `run` names its equivalent `inspect` invocation. `run` commits its
 required handoff record before a plain exec, exports the run's identity to the
 harness, and appends an exec failure to its attempt. `record show` exports a
 recorded run. Handled signals and a signal-transparent handoff are not yet
-delivered.
+delivered. Every release archive and the Homebrew formula carry the front and
+its worker in the [delivered layout](#delivery), each target's worker compiled
+from a digest-pinned Bun runtime; the per-target installed smoke tests and the
+Linux floor instruments are not yet delivered.
 Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
 symbolic inspection are delivered.
@@ -641,7 +644,13 @@ relative to the real installed front executable, including through a Homebrew
 symlink, at `../libexec/harness-dispatch/harness-dispatch-policy`. The SDK's
 declarations and readable source sit beside it in `sdk/`, and each example's in
 `examples/`. The supported portable
-archive preserves the same relative layout.
+archive preserves the same relative layout: its top directory is an
+installation prefix, with Grove's own executables beside the front in `bin/`.
+A cross-compiled worker is its target's Bun runtime with the policy host
+appended, so that runtime ships. Bun would fetch it unverified; the build
+instead fetches each target's pinned runtime itself, refuses one whose digest
+differs, and hands it to the compiler, so no release builds against an
+unpinned runtime.
 The Rust package builds independently; running selection additionally needs the
 matching compiled worker, supplied by the package's build/install task.
 

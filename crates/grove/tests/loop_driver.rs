@@ -1655,3 +1655,605 @@ while :; do sleep 0.1; done
     assert!(signal_was_left_unconsumed);
     assert_eq!(fs::read_to_string(&launch_count).unwrap().trim(), "1");
 }
+
+// ---------------------------------------------------------------------------
+// Sessions launched through `harness-dispatch`
+//
+// An owner routes a kind through dispatch by pointing a personal command
+// definition at `harness-dispatch run` with the task slots and the prompt.
+// Grove learns nothing new for it: the wrapper is one more configured command,
+// resolved, expanded and launched like any other. These cases put the real
+// front and its compiled worker between the real driver and a fake harness,
+// under a temporary personal dispatch policy in the fixture's HOME, where the
+// default record store lives too. What they pin is the seam seen from Grove's
+// side: the harness receives what a direct harness would, plus its run
+// identity; the authority to end the session reaches the harness and not the
+// policy; and Grove's pre-authoring check stops at the command it can see.
+
+/// The `harness-dispatch` front, whose worker `task dispatch:worker` builds
+/// beside it. A missing or stale worker refuses with exit 5, so every case
+/// here fails rather than skips without one.
+fn harness_dispatch() -> PathBuf {
+    support::harness_dispatch()
+}
+
+/// A fixture for dispatched sessions: a HOME, a jj working tree, a fake
+/// harness, and the places the harness and the policy leave their evidence.
+struct Dispatch {
+    _fixture: TempDir,
+    /// The fixture's own directory, for evidence a case adds.
+    root: PathBuf,
+    home: PathBuf,
+    worktree: PathBuf,
+    /// The fake harness: a dispatch catalog's program, and a direct route's
+    /// command.
+    harness: PathBuf,
+    /// One numbered directory per harness start, in launch order.
+    launches: PathBuf,
+    /// Where a policy probe writes what it observed.
+    view: PathBuf,
+}
+
+/// What the fake harness observed at one start.
+struct Launch {
+    args: Vec<OsString>,
+    /// `HARNESS_DISPATCH_RUN_ID`, or `<unset>`.
+    run_id: String,
+    /// `GROVE_SIGNAL_FILE`, or `<unset>`.
+    channel: String,
+    /// The driver's session epoch, as it stood while the harness ran.
+    epoch: String,
+}
+
+impl Dispatch {
+    /// A fixture whose working tree is named `worktree`. Its fake harness
+    /// ends each session with `done` until [`Dispatch::harness_then`] says
+    /// otherwise.
+    fn new(worktree: &str) -> Self {
+        let fixture = TempDir::new().unwrap();
+        let root = fixture.path().to_path_buf();
+        let worktree = root.join(worktree);
+        init_worktree(&worktree);
+        let launches = root.join("launches");
+        fs::create_dir(&launches).unwrap();
+        let dispatch = Dispatch {
+            home: root.join("home"),
+            harness: root.join("fake-harness"),
+            view: root.join("view.json"),
+            _fixture: fixture,
+            root,
+            worktree,
+            launches,
+        };
+        dispatch.harness_then(&complete_done());
+        dispatch
+    }
+
+    /// Rewrite the fake harness so that it records how it was started and
+    /// then runs `then`, a shell fragment in which `$n` is this start's
+    /// number, counted from 0.
+    fn harness_then(&self, then: &str) {
+        write_exec(
+            &self.harness,
+            &format!(
+                "#!/bin/sh\n\
+                 n=0\n\
+                 until mkdir {launches}/$n 2>/dev/null; do\n\
+                 n=$((n + 1)); [ $n -lt 10 ] || exit 90\n\
+                 done\n\
+                 record={launches}/$n\n\
+                 for argument in \"$@\"; do printf '%s\\0' \"$argument\"; done > \"$record/args\"\n\
+                 printf '%s' \"${{HARNESS_DISPATCH_RUN_ID-<unset>}}\" > \"$record/run-id\"\n\
+                 printf '%s' \"${{GROVE_SIGNAL_FILE-<unset>}}\" > \"$record/channel\"\n\
+                 cp .jj/grove/session.epoch \"$record/epoch\"\n\
+                 {then}\n",
+                launches = shell_quote(&self.launches),
+            ),
+        );
+    }
+
+    /// Replace the personal dispatch policy, at the default entry path.
+    fn policy(&self, source: &str) {
+        let entry = self.home.join(".config/harness-dispatch/policy.ts");
+        fs::create_dir_all(entry.parent().unwrap()).unwrap();
+        fs::write(entry, source).unwrap();
+    }
+
+    /// Replace the personal Grove configuration: each named command with a
+    /// binding of the same name, and each kind routed to one of them.
+    fn config(&self, commands: &[(&str, &str)], routes: &[(&str, &str)]) {
+        let mut document = String::from("config {\n");
+        for (name, template) in commands {
+            document += &format!("    command {name:?} {template:?}\n    bind {name:?} {name:?}\n");
+        }
+        for (kind, name) in routes {
+            document += &format!("    route {kind:?} {name:?}\n");
+        }
+        document += "}\n";
+        let config_dir = self.home.join(".config/grove");
+        fs::create_dir_all(&config_dir).unwrap();
+        fs::write(config_dir.join("config.kdl"), document).unwrap();
+    }
+
+    /// Run the loop until a session signals `done`, returning what the driver
+    /// said.
+    fn drive_to_completion(&self) -> String {
+        let output = run_driver(&self.worktree, &self.home);
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        assert!(output.status.success(), "{stderr}");
+        assert!(
+            stderr.contains("grove finished — loop complete"),
+            "the loop did not end on its session's `done`: {stderr}"
+        );
+        stderr
+    }
+
+    fn launch_count(&self) -> usize {
+        fs::read_dir(&self.launches).unwrap().count()
+    }
+
+    fn launch(&self, n: usize) -> Launch {
+        let record = self.launches.join(n.to_string());
+        let bytes = fs::read(record.join("args")).expect("the fake harness started");
+        let mut args: Vec<OsString> = bytes
+            .split(|byte| *byte == 0)
+            .map(|word| OsString::from_vec(word.to_vec()))
+            .collect();
+        assert_eq!(args.pop(), Some(OsString::new()), "NUL-terminated");
+        Launch {
+            args,
+            run_id: fs::read_to_string(record.join("run-id")).unwrap(),
+            channel: fs::read_to_string(record.join("channel")).unwrap(),
+            epoch: fs::read_to_string(record.join("epoch")).unwrap(),
+        }
+    }
+
+    /// What the policy probe last wrote, consumed so that a later launch
+    /// cannot be read through an earlier one's view.
+    fn view(&self) -> serde_json::Value {
+        let view = fs::read_to_string(&self.view).expect("the policy probe ran");
+        fs::remove_file(&self.view).unwrap();
+        serde_json::from_str(&view).unwrap()
+    }
+
+    /// `harness-dispatch record show` of one run, from the default store
+    /// under this fixture's HOME.
+    fn recorded(&self, run_id: &str) -> serde_json::Value {
+        let output = Command::new(harness_dispatch())
+            .env_clear()
+            .env("HOME", &self.home)
+            .args(["record", "show", "--run", run_id, "--json"])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "run {run_id} is not recorded: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        serde_json::from_slice(&output.stdout).unwrap()
+    }
+
+    /// The selected leaf's task file as the driver names it: under the
+    /// canonical working-tree root.
+    fn task_file(&self, leaf: &str) -> PathBuf {
+        self.worktree
+            .canonicalize()
+            .unwrap()
+            .join(".grove")
+            .join(leaf)
+    }
+}
+
+/// `grove-llm complete --done`, the fake harness's usual last act. It passes
+/// the session-epoch admission against the channel it was handed before it
+/// writes, so a loop that ends on it shows the harness held the live channel.
+fn complete_done() -> String {
+    format!("exec {} complete --done", shell_quote(&own_grove_llm()))
+}
+
+/// An owner's command definition for dispatch: `harness-dispatch run` with the
+/// three task slots, any `extra` words, and the prompt.
+fn dispatch_template(extra: &str) -> String {
+    format!(
+        "{} run --kind ${{kind}} --task-file ${{task_file}} --task-id ${{task_id}} {extra} --prompt ${{prompt}}",
+        shell_quote(&harness_dispatch())
+    )
+}
+
+/// A direct-harness command definition: the fake harness and the prompt.
+fn direct_template(harness: &Path) -> String {
+    format!("{} ${{prompt}}", shell_quote(harness))
+}
+
+/// A static dispatch policy routing each of `kinds` to the fake harness, whose
+/// arguments are the kind, the task file, the task identity and the prompt.
+///
+/// At import it writes `view` with the names in the worker's environment and
+/// in the environment of a child it spawns, and the worker's value of
+/// `GROVE_SIGNAL_FILE`, so that what selection code can reach is observed
+/// where it runs.
+fn probing_policy(view: &Path, harness: &Path, kinds: &[&str]) -> String {
+    let routes = kinds
+        .iter()
+        .map(|kind| format!("{kind:?}: \"fake\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        r#"import {{ writeFileSync }} from "node:fs";
+import {{ execFileSync }} from "node:child_process";
+const names = (lines: string) => lines.split("\n").filter(Boolean).map((line) => line.slice(0, line.indexOf("="))).sort();
+writeFileSync({view:?}, JSON.stringify({{
+  worker: Object.keys(process.env).sort(),
+  child: names(execFileSync("/usr/bin/env", [], {{ encoding: "utf8" }})),
+  channel: process.env.GROVE_SIGNAL_FILE ?? null,
+}}));
+export const policy = {{
+  schemaVersion: 1,
+  version: "grove-seam-1",
+  catalog: [
+    {{ id: "fake", provider: "origin-a", model: "model-a", effort: "high", program: {harness:?},
+      args: [{{ slot: "kind" }}, {{ slot: "taskFile" }}, {{ slot: "taskId" }}, {{ slot: "prompt" }}] }},
+  ],
+  routes: {{ {routes} }},
+}};
+"#,
+        view = view.to_str().unwrap(),
+        harness = harness.to_str().unwrap(),
+    )
+}
+
+/// Whether a session epoch names `channel` as its live signal path.
+fn epoch_names(epoch: &str, channel: &str) -> bool {
+    let hex: String = channel
+        .as_bytes()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    epoch.starts_with("state=active\n") && epoch.contains(&format!("signal-path-hex={hex}\n"))
+}
+
+// A lifecycle session routed through `harness-dispatch run` receives what a
+// direct harness receives, the same prompt byte for byte, plus the
+// authoritative kind, task path and handle, each one whole native argument, and
+// a run identity the record store holds. The working tree's name puts spaces,
+// quotes and shell punctuation into the task path and into the prompt, which
+// states the root and runs over many lines.
+//
+// Only the final harness holds the authority to end the session. It receives
+// the channel the driver's live epoch names, and completes through it. The
+// policy worker, and a child it spawns, see no Grove variable at all. The
+// control grants the channel to the worker with `--policy-env`, which no owner
+// should do, and the same probe then reads it: the absence is the scrubbing,
+// not a probe that cannot see.
+#[test]
+fn a_dispatched_session_receives_its_task_as_native_data_and_only_its_harness_the_channel() {
+    let dispatch = Dispatch::new("work tree 'single' \"double\" $(touch x) `y`; a|b & *");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    dispatch.policy(&probing_policy(
+        &dispatch.view,
+        &dispatch.harness,
+        &["impl"],
+    ));
+
+    // The reference: the same leaf, launched straight to the harness.
+    let direct = direct_template(&dispatch.harness);
+    dispatch.config(&[("direct", &direct)], &[("impl", "direct")]);
+    dispatch.drive_to_completion();
+    let reference = dispatch.launch(0);
+    assert_eq!(reference.run_id, "<unset>");
+    let [prompt] = reference.args.as_slice() else {
+        panic!(
+            "a direct launch receives only its prompt: {:?}",
+            reference.args
+        );
+    };
+    let text = prompt.to_str().unwrap();
+    assert!(
+        text.contains(&format!("{MANDATED_LEAF}subject-k1`")),
+        "{text}"
+    );
+    let root = dispatch.worktree.canonicalize().unwrap();
+    assert!(
+        text.contains(root.to_str().unwrap()) && text.lines().count() > 1,
+        "the prompt carries the awkward root over many lines: {text}"
+    );
+
+    let routed = dispatch_template("");
+    dispatch.config(&[("routed", &routed)], &[("impl", "routed")]);
+    dispatch.drive_to_completion();
+    let launch = dispatch.launch(1);
+    let task_file = dispatch.task_file("01-impl--subject-k1.md");
+    assert!(task_file.is_file());
+    assert_eq!(
+        launch.args,
+        [
+            OsString::from("impl"),
+            task_file.clone().into_os_string(),
+            OsString::from("subject-k1"),
+            prompt.clone(),
+        ],
+        "the dispatched harness's prompt must be the direct one, unchanged"
+    );
+
+    let recorded = dispatch.recorded(&launch.run_id);
+    assert_eq!(recorded["runId"], launch.run_id.as_str(), "{recorded}");
+    let fields = &recorded["launch"];
+    assert_eq!(fields["kind"], "impl", "{recorded}");
+    assert_eq!(fields["taskId"], "subject-k1", "{recorded}");
+    assert_eq!(
+        fields["taskFile"],
+        task_file.to_str().unwrap(),
+        "{recorded}"
+    );
+    assert_eq!(fields["candidate"]["id"], "fake", "{recorded}");
+
+    assert!(
+        epoch_names(&launch.epoch, &launch.channel),
+        "the harness's channel {:?} is not the one the live epoch names: {:?}",
+        launch.channel,
+        launch.epoch
+    );
+    assert_ne!(
+        launch.channel, reference.channel,
+        "each launch gets a fresh channel"
+    );
+
+    let view = dispatch.view();
+    for place in ["worker", "child"] {
+        let names: Vec<&str> = view[place]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|name| name.as_str().unwrap())
+            .collect();
+        assert!(names.contains(&"HOME"), "the probe read nothing: {view}");
+        assert!(
+            !names.iter().any(|name| name.starts_with("GROVE_")),
+            "the policy's {place} holds a Grove variable: {view}"
+        );
+    }
+    assert_eq!(view["channel"], serde_json::Value::Null, "{view}");
+
+    // The control: granted, the channel reaches the same probe, and it is the
+    // harness's own.
+    let granting = dispatch_template("--policy-env GROVE_SIGNAL_FILE");
+    dispatch.config(&[("routed", &granting)], &[("impl", "routed")]);
+    dispatch.drive_to_completion();
+    let granted = dispatch.launch(2);
+    assert_eq!(dispatch.view()["channel"], granted.channel.as_str());
+}
+
+// Grove's pre-authoring guarantee covers the configured command and stops
+// there. The wrapper resolves for `design`, so a session may author a `design`
+// leaf although the policy behind the wrapper routes no such kind: that policy
+// is evaluated only when the leaf is launched. The launch then refuses with
+// dispatch's incomplete-mapping diagnostic and the `inspect` invocation that
+// reproduces it, no harness starts, and the leaf stays live. Once the owner
+// routes the kind, the next run launches that same leaf.
+#[test]
+fn a_leaf_authored_under_a_valid_wrapper_is_refused_at_launch_and_stays_live() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    let grove_llm = shell_quote(&own_grove_llm());
+    let authored = dispatch.root.join("authored");
+    dispatch.harness_then(&format!(
+        "if [ $n = 0 ]; then\n\
+         {grove_llm} leaf-add . follow-up --kind design > {authored} 2>&1 || exit 91\n\
+         {grove_llm} leaf-retire .grove/01-impl--subject-k1.md > /dev/null 2>&1 || exit 92\n\
+         exec {grove_llm} complete\n\
+         fi\n\
+         {complete}",
+        authored = shell_quote(&authored),
+        complete = complete_done(),
+    ));
+    dispatch.policy(&probing_policy(
+        &dispatch.view,
+        &dispatch.harness,
+        &["impl"],
+    ));
+    let routed = dispatch_template("");
+    dispatch.config(
+        &[("routed", &routed)],
+        &[("impl", "routed"), ("design", "routed")],
+    );
+
+    let output = run_driver(&dispatch.worktree, &dispatch.home);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    let leaf = dispatch.task_file("02-design--follow-up-k2.md");
+    assert_eq!(
+        fs::read_to_string(&authored).unwrap(),
+        format!("{}\n", leaf.display()),
+        "authoring the leaf must succeed under the valid wrapper"
+    );
+    assert!(dispatch.task_file("01-DONE-impl--subject-k1.md").is_file());
+    assert_eq!(
+        dispatch.launch_count(),
+        1,
+        "the refused launch must reach no harness: {stderr}"
+    );
+    for said in [
+        "refused (incomplete_mapping, stage selection)",
+        "  remedy: ",
+        "session ended without a completion signal",
+        "configured session kind `design` failed",
+    ] {
+        assert!(stderr.contains(said), "no {said:?} in: {stderr}");
+    }
+
+    // The refusal's own reproduction, run as its reader would run it, refuses
+    // the same selection for the same task without launching anything.
+    let line = stderr
+        .lines()
+        .find_map(|line| line.strip_prefix("  inspect: "))
+        .unwrap_or_else(|| panic!("no inspect line: {stderr}"));
+    for word in ["inspect --kind design", "--task-id follow-up-k2"] {
+        assert!(line.contains(word), "{line}");
+    }
+    assert!(line.contains(leaf.to_str().unwrap()), "{line}");
+    let reproduced = Command::new("/bin/sh")
+        .args(["-c", line])
+        .env_clear()
+        .env("HOME", &dispatch.home)
+        .env("PATH", std::env::var_os("PATH").unwrap())
+        .output()
+        .unwrap();
+    let said = String::from_utf8_lossy(&reproduced.stderr);
+    assert_eq!(reproduced.status.code(), Some(3), "{line}\n{said}");
+    assert!(
+        said.contains("refused (incomplete_mapping, stage selection)"),
+        "{said}"
+    );
+    assert_eq!(dispatch.launch_count(), 1);
+
+    // Still live: route the kind, and the next run launches that leaf.
+    dispatch.policy(&probing_policy(
+        &dispatch.view,
+        &dispatch.harness,
+        &["impl", "design"],
+    ));
+    dispatch.drive_to_completion();
+    assert_eq!(
+        dispatch.launch(1).args[..3],
+        [
+            OsString::from("design"),
+            leaf.into_os_string(),
+            OsString::from("follow-up-k2"),
+        ]
+    );
+}
+
+// One configuration routes one kind through dispatch and another straight to
+// its harness, and one loop runs both. The dispatched session retires its leaf
+// and relaunches; the direct session that follows receives only its prompt and
+// no run identity, and finishes the loop. Each holds its own launch's channel.
+#[test]
+fn a_dispatched_and_a_direct_kind_coexist_in_one_configuration() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    fs::write(
+        dispatch.worktree.join(".grove/02-design--sequel-k2.md"),
+        "# planted\n",
+    )
+    .unwrap();
+    let grove_llm = shell_quote(&own_grove_llm());
+    dispatch.harness_then(&format!(
+        "if [ $n = 0 ]; then\n\
+         {grove_llm} leaf-retire .grove/01-impl--subject-k1.md > /dev/null 2>&1 || exit 92\n\
+         exec {grove_llm} complete\n\
+         fi\n\
+         {complete}",
+        complete = complete_done(),
+    ));
+    dispatch.policy(&probing_policy(
+        &dispatch.view,
+        &dispatch.harness,
+        &["impl"],
+    ));
+    let routed = dispatch_template("");
+    let direct = direct_template(&dispatch.harness);
+    dispatch.config(
+        &[("routed", &routed), ("direct", &direct)],
+        &[("impl", "routed"), ("design", "direct")],
+    );
+
+    dispatch.drive_to_completion();
+
+    let dispatched = dispatch.launch(0);
+    assert_eq!(
+        dispatched.args[..3],
+        [
+            OsString::from("impl"),
+            dispatch
+                .task_file("01-impl--subject-k1.md")
+                .into_os_string(),
+            OsString::from("subject-k1"),
+        ]
+    );
+    assert_eq!(
+        dispatch.recorded(&dispatched.run_id)["launch"]["taskId"],
+        "subject-k1"
+    );
+    let direct = dispatch.launch(1);
+    assert_eq!(direct.run_id, "<unset>");
+    let [prompt] = direct.args.as_slice() else {
+        panic!(
+            "a direct launch receives only its prompt: {:?}",
+            direct.args
+        );
+    };
+    assert!(prompt
+        .to_string_lossy()
+        .contains(&format!("{MANDATED_LEAF}sequel-k2`")));
+    for launch in [&dispatched, &direct] {
+        assert!(
+            epoch_names(&launch.epoch, &launch.channel),
+            "{:?} is not the live channel: {:?}",
+            launch.channel,
+            launch.epoch
+        );
+    }
+    assert_ne!(dispatched.channel, direct.channel);
+    assert_eq!(dispatch.launch_count(), 2);
+}
+
+// A literal `--choice` in the personal command definition reaches the policy as
+// the request's explicit choice, beside the kind and task the slots supplied,
+// and the run records it. The control is the same command without the word:
+// the same policy then sees no choice and selects otherwise.
+#[test]
+fn a_literal_choice_in_the_command_definition_reaches_policy_as_the_explicit_choice() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    let candidate = |id: &str, model: &str| {
+        format!(
+            r#"{{ id: {id:?}, provider: "origin-a", model: {model:?}, effort: "high", program: {:?}, args: ["--model", {{ slot: "model" }}, {{ slot: "prompt" }}] }}"#,
+            dispatch.harness.to_str().unwrap()
+        )
+    };
+    dispatch.policy(&format!(
+        r#"import {{ writeFileSync }} from "node:fs";
+export const policy = {{
+  schemaVersion: 1,
+  version: "grove-seam-1",
+  catalog: [{quick}, {deep}],
+  select(request) {{
+    const {{ kind, taskFile, taskId }} = request;
+    const explicitChoice = request.explicitChoice ?? null;
+    writeFileSync({view:?}, JSON.stringify({{ kind, taskFile, taskId, explicitChoice }}));
+    return {{ status: "selected", candidateId: explicitChoice ?? "quick", reason: "the owner's choice, else quick" }};
+  }},
+}};
+"#,
+        quick = candidate("quick", "small"),
+        deep = candidate("deep", "large"),
+        view = dispatch.view.to_str().unwrap(),
+    ));
+
+    let chosen = dispatch_template("--choice deep");
+    dispatch.config(&[("routed", &chosen)], &[("impl", "routed")]);
+    dispatch.drive_to_completion();
+    let launch = dispatch.launch(0);
+    let task_file = dispatch.task_file("01-impl--subject-k1.md");
+    assert_eq!(
+        dispatch.view(),
+        serde_json::json!({
+            "kind": "impl",
+            "taskFile": task_file.to_str().unwrap(),
+            "taskId": "subject-k1",
+            "explicitChoice": "deep",
+        })
+    );
+    assert_eq!(launch.args[..2], ["--model", "large"]);
+    let recorded = dispatch.recorded(&launch.run_id);
+    let fields = &recorded["launch"];
+    assert_eq!(fields["selection"]["explicitChoice"], "deep", "{recorded}");
+    assert_eq!(fields["candidate"]["id"], "deep", "{recorded}");
+
+    // The control: without the word, no choice reaches the policy.
+    let unchosen = dispatch_template("");
+    dispatch.config(&[("routed", &unchosen)], &[("impl", "routed")]);
+    dispatch.drive_to_completion();
+    assert_eq!(dispatch.view()["explicitChoice"], serde_json::Value::Null);
+    assert_eq!(dispatch.launch(1).args[..2], ["--model", "small"]);
+}

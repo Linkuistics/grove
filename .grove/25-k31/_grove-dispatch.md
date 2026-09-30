@@ -54,3 +54,10 @@ documented where an owner configures Grove.
   explicitly and never rely on the ambient one.
 - The creator-line lifecycle cases are `creator-reference-k38`'s, not this
   node's.
+- `dispatched-launch-k32` added the `Dispatch` fixture to
+  `crates/grove/tests/loop_driver.rs`. It holds a HOME with personal Grove
+  configuration and dispatch policy, and a fake harness that records each start
+  and completes through `grove-llm complete`. `dispatch_template` there is the
+  tested command definition:
+  `harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}`.
+  Extend the fixture for the PTY cases, and quote that form in the guidance.

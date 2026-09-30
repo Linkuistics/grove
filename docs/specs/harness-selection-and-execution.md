@@ -49,9 +49,16 @@ floor and that each CPU model refuses an instruction beyond it. The release
 task runs the archive-content assertions and this smoke test before it
 publishes anything.
 Every selection input in the [command interface](#command-interface) is
-delivered. Of the [Grove integration](#grove-integration), only the lifecycle
+delivered. Of the [Grove integration](#grove-integration), the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
-symbolic inspection are delivered.
+symbolic inspection are delivered, and so is launching a session through a
+personal command definition that runs `harness-dispatch run` with those slots
+and the prompt, beside a direct-harness kind in the same configuration. Grove's
+launch-boundary suite shows the harness receiving the unchanged prompt, the
+task as native arguments, its run identity and Grove's completion channel,
+which the policy worker does not receive. A literal `--choice` there reaches
+policy. A leaf authored under that wrapper, whose policy lacks its kind,
+refuses at launch and stays live.
 The [visual document](../design/harness-selection-and-execution/README.md) has
 matching package, execution and provenance views.
 

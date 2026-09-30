@@ -865,11 +865,22 @@ Each `--policy-env NAME` passes that one variable, exactly as named, with its
 value, to the policy and to any process it starts. A name that is not set is
 simply absent. Some names are never granted, and naming one refuses with
 `excluded_grant`, exit 2, before any policy runs: Bun's `BUN_*` (`BUN_OPTIONS`
-can preload code, and `BUN_BE_BUN` turns the worker into Bun itself),
-`NODE_OPTIONS` and `NODE_PATH`, the dynamic loaders' `LD_*` and `DYLD_*`, and
-harness-dispatch's own `HARNESS_DISPATCH_*`, which it sets for the harness. No
-value is ever printed or recorded. A refused `run` reproduces its grants in its
-`inspect` invocation by name.
+can preload code, and `BUN_BE_BUN` turns the worker into Bun itself);
+`NODE_OPTIONS`, `NODE_PATH` and `NODE_PRESERVE_SYMLINKS`, which change what
+loads and from where; `NODE_CHANNEL_*`, through which Bun would take the
+worker's private channel to its front as its own IPC channel; the dynamic
+loaders' `LD_*` and `DYLD_*`; and harness-dispatch's own `HARNESS_DISPATCH_*`,
+which it sets for the harness. Other `NODE_*` names, such as
+`NODE_EXTRA_CA_CERTS`, can be granted. No value is ever printed or recorded. A
+refused `run` reproduces its grants in its `inspect` invocation by name.
+
+harness-dispatch adds one variable of its own,
+`BUN_RUNTIME_TRANSPILER_CACHE_PATH=0`, which turns Bun's runtime transpiler
+cache off. Left on, Bun would run a cached transpilation of any imported file
+of 4 KiB or more, kept under your HOME or a granted `XDG_CACHE_HOME`, in place
+of the file itself. The worker neither reads nor writes that cache, so what
+runs is always the file inspection names. No value of yours replaces the
+setting, since `BUN_*` names are never granted.
 
 **Do not grant `GROVE_SIGNAL_FILE`.** Grove ends a session when a file appears
 at that path, so a policy holding it could end the session it is selecting for.

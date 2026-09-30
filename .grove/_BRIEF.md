@@ -369,12 +369,14 @@ fills the run record's `creator`, and inspection's, from the delivered context:
 `{ reference, evidence, provider, lookup }`, with evidence `execution_recorded`
 or `declared`. Neither the selector nor the adapter records it itself.
 
-The evaluation boundary closed with `ambient-authority-k30`. Later leaves build
-on four facts. First, `environment::Grants` owns the worker's whole
-environment: the base set, exact `--policy-env` grants, and the excluded
-classes `BUN_*`, `NODE_OPTIONS`, `NODE_PATH`, `LD_*`, `DYLD_*` and
-`HARNESS_DISPATCH_*`. Inspection reports `policyEnv`, names only, and runs
-record no grant. Grove's documented configurations grant nothing. Second,
+The evaluation boundary closed with `ambient-authority-k30`, and
+`evaluation-boundary-k54` integrated its review. Later leaves build on four
+facts. First, `environment::Grants` owns the worker's whole environment: the
+base set, exact `--policy-env` grants, the front's own `environment::HOST`
+setting `BUN_RUNTIME_TRANSPILER_CACHE_PATH=0`, and the excluded classes
+`BUN_*`, `NODE_OPTIONS`, `NODE_PATH`, `NODE_PRESERVE_SYMLINKS`,
+`NODE_CHANNEL_*`, `LD_*`, `DYLD_*` and `HARNESS_DISPATCH_*`. Inspection
+reports `policyEnv`, names only, and runs record no grant. Grove's documented configurations grant nothing. Second,
 `task dispatch:probes` builds three probe builds, each the shipped source with
 one control removed, and `task check` builds them before `cargo test`. A probe
 reports `probe-<name>-<source digest>`, which no front accepts. Tests drive a

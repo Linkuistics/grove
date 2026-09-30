@@ -33,7 +33,8 @@ not-executed detail, and is re-raised after the `handoff_cancelled` refusal.
 Otherwise the harness receives the entry signal mask and every disposition
 that survives exec, SIGPIPE's included. The worker's environment is its base
 set plus exact `--policy-env` grants, which refuse the excluded names as
-`excluded_grant` and which inspection lists by name, never by value. Each
+`excluded_grant` and which inspection lists by name, never by value, and the
+front's own setting that turns Bun's runtime transpiler cache off. Each
 hostile class in the [firing-configuration table](#test-seams) is proved inert
 through the front beside its firing configuration, and the probe builds those
 configurations need are test instruments that no front accepts.
@@ -302,14 +303,25 @@ discovery.
 
 Rust constructs a fresh worker environment containing only HOME, a PATH snapshot,
 TMPDIR, LANG and LC_* values, plus exact `--policy-env` grants. It always excludes
-BUN_*, NODE_OPTIONS, NODE_PATH, dynamic-loader injection variables (every `LD_*`
-and `DYLD_*` name) and its private protocol variables (every `HARNESS_DISPATCH_*`
-name: the worker is never told the run or where its records are) from grants.
+BUN_*, NODE_OPTIONS, NODE_PATH, NODE_PRESERVE_SYMLINKS (a resolver option),
+the inherited IPC channel variables (every `NODE_CHANNEL_*` name, through
+which Bun would adopt descriptor 3 as its own channel), dynamic-loader injection
+variables (every `LD_*` and `DYLD_*` name) and its private protocol variables
+(every `HARNESS_DISPATCH_*` name: the worker is never told the run or where its
+records are) from grants. Other `NODE_*` names are grantable; Bun 1.4.2 reads
+none of them to load code in the worker.
 Naming one refuses as `excluded_grant`, exit 2, before any policy runs; an
 empty name or one holding `=` is `malformed_input`. A granted name the caller
 has not set is absent from the worker, and duplicates are one grant.
 Inspection lists each grant as `policyEnv`, `{ name, set }`, and no value is
-printed or recorded anywhere. Installation control variables never come from
+printed or recorded anywhere. Beside them, Rust sets one value of its own,
+`BUN_RUNTIME_TRANSPILER_CACHE_PATH=0`, which turns Bun's runtime transpiler cache
+off. Left on, it would run the cached transpiled output of any imported file of
+4 KiB or more, from under HOME or a granted `XDG_CACHE_HOME`, in place of that
+file. So bytes nobody admitted as policy could change what the admitted file
+does, while inspection and the run record report the file's own digest. Bun
+consults the setting before either location, and no caller value replaces it,
+because it is a `BUN_*` name. Installation control variables never come from
 ambient input: the worker is located from the front's real path, never from
 PATH, the cwd, `argv[0]` or a variable, and `BUN_BE_BUN`, which would make the
 worker Bun itself, is a `BUN_*` name. The generic command cannot know a caller's completion variables,
@@ -894,7 +906,7 @@ acceptance instruments; internal tests may support them without replacing them.
 |---|---|
 | New command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; a caller-ignored HUP or SIGPIPE and the entry signal mask reach the fake harness unchanged; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
 | Same command, actual shipped examples | Different-origin reviewer on every invocation, retry and explicit choice; same-origin/gateway disguise refuses; a fake producer launched through dispatch writes its `Creator` line from `HARNESS_DISPATCH_RUN_ID`, and the dispatched review of that task file uses the named run's recorded provider, which a changed current mapping cannot rewrite; a store holding an earlier run of the same task identity does not satisfy a review task with no `Creator` line; an unknown run and a run marked not executed refuse; declaration adoption; missing, duplicate or malformed `Reviews`/`Creator` lines refuse; `Reviews` under a kind that is not a configured review entry refuses; a relabelled origin and a misspelt declaration refuse as non-members; the generic reviewed-artifact form selects without a task file |
-| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow and BUN_OPTIONS stay inert through the public launcher, each beside its firing configuration below; explicit relative config and personal import are admitted; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
+| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; explicit relative config and personal import are admitted; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
 | Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields, reads no observation history, and an unreadable store refuses; a stored launch record or observation this release cannot read refuses every read of it; the review's run records the creator provenance used; later observations after tree teardown |
 | Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a dispatched producer attempt followed by a direct-harness finish leaves the pre-existing review with no `Creator` line, and that review refuses with the declaration remedy; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
 | Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
@@ -916,6 +928,8 @@ must be seen to fire, so a test cannot pass merely because its fixture never ran
 | `BUN_OPTIONS` preload, and `BUN_BE_BUN` | The shipped worker launched directly with the variable set, bypassing the front process's scrubbing |
 | `node_modules/harness-dispatch` shadow | The fixture beside an admitted entry, under a probe build that does not register the virtual modules |
 | tsconfig `paths` | The fixture beside an admitted entry, under a probe build with tsconfig and package.json autoloading enabled |
+| Runtime transpiler cache under HOME or `XDG_CACHE_HOME` | The shipped worker launched directly without the front's cache setting, after its own cache entry for the policy has had its output altered |
+| `NODE_PRESERVE_SYMLINKS`, and `NODE_CHANNEL_FD` | The shipped worker launched directly with the variable set: a helper reached through a directory symlink resolves its bare import beside the link, and a module's `process.send` writes Bun's IPC message where the policy frame belongs |
 
 `task dispatch:probes` builds the three probe builds from the shipped source,
 each with one control removed. A probe reports the identity

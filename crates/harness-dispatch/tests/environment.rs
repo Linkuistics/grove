@@ -3,10 +3,11 @@
 //! runtime discovery*).
 //!
 //! The worker gets HOME, PATH, TMPDIR, LANG and `LC_*`, plus the exact names
-//! `--policy-env` grants. Each case here reads the environment from inside the
-//! worker, and from a child the policy spawns, so an absence is observed where
-//! it matters. Each absence has a control in the same test: the same name,
-//! granted, is seen to arrive through the same instrument.
+//! `--policy-env` grants, and the front's own setting that turns Bun's
+//! runtime transpiler cache off. Each case here reads the environment from
+//! inside the worker, and from a child the policy spawns, so an absence is
+//! observed where it matters. Each absence has a control in the same test:
+//! the same name, granted, is seen to arrive through the same instrument.
 
 mod support;
 
@@ -64,14 +65,21 @@ fn a_grant_passes_exactly_the_named_variables_beyond_the_base_set() {
     let view_path = sandbox.root.join("view.json");
     sandbox.personal_policy(&viewing_policy(
         &view_path,
-        &["ROUTER_TOKEN", "NODE_EXTRA_CA_CERTS", "ROUTER_TOKENS"],
+        &[
+            "ROUTER_TOKEN",
+            "NODE_EXTRA_CA_CERTS",
+            "ROUTER_TOKENS",
+            "BUN_RUNTIME_TRANSPILER_CACHE_PATH",
+        ],
     ));
+    // The caller's own cache setting names a cache; the front's replaces it.
     let caller = [
         ("ROUTER_TOKEN", "router-token-value"),
         ("ROUTER_TOKENS", "a longer name, never granted"),
         ("NODE_EXTRA_CA_CERTS", "/etc/ssl/owner.pem"),
         ("UNRELATED", "never granted"),
         ("LANG", "C"),
+        ("BUN_RUNTIME_TRANSPILER_CACHE_PATH", "/caller/cache"),
     ];
 
     let mut command = sandbox.command();
@@ -80,7 +88,22 @@ fn a_grant_passes_exactly_the_named_variables_beyond_the_base_set() {
         .args(["inspect", "--kind", "impl", "--json"]);
     run(&mut command).report();
     let base = view(&view_path);
-    assert_eq!(base["worker"], json!(["HOME", "LANG", "PATH", "TMPDIR"]));
+    assert_eq!(
+        base["worker"],
+        json!([
+            "BUN_RUNTIME_TRANSPILER_CACHE_PATH",
+            "HOME",
+            "LANG",
+            "PATH",
+            "TMPDIR"
+        ])
+    );
+    for place in ["workerValues", "childValues"] {
+        assert_eq!(
+            base[place]["BUN_RUNTIME_TRANSPILER_CACHE_PATH"], "0",
+            "{place}: {base}"
+        );
+    }
 
     // The same caller, with two names granted, one granted twice, and one
     // the caller does not have. NODE_EXTRA_CA_CERTS is a NODE_* name beside
@@ -105,6 +128,7 @@ fn a_grant_passes_exactly_the_named_variables_beyond_the_base_set() {
     assert_eq!(
         granted["worker"],
         json!([
+            "BUN_RUNTIME_TRANSPILER_CACHE_PATH",
             "HOME",
             "LANG",
             "NODE_EXTRA_CA_CERTS",
@@ -119,6 +143,7 @@ fn a_grant_passes_exactly_the_named_variables_beyond_the_base_set() {
             "ROUTER_TOKEN": "router-token-value",
             "NODE_EXTRA_CA_CERTS": "/etc/ssl/owner.pem",
             "ROUTER_TOKENS": null,
+            "BUN_RUNTIME_TRANSPILER_CACHE_PATH": "0",
         })
     );
     // A child the policy spawns inherits the worker's environment, grants
@@ -156,6 +181,9 @@ fn excluded_names_are_refused_before_any_policy_runs() {
         "BUN_INSTALL",
         "NODE_OPTIONS",
         "NODE_PATH",
+        "NODE_PRESERVE_SYMLINKS",
+        "NODE_CHANNEL_FD",
+        "NODE_CHANNEL_SERIALIZATION_MODE",
         "LD_PRELOAD",
         "LD_LIBRARY_PATH",
         "DYLD_INSERT_LIBRARIES",
@@ -215,7 +243,13 @@ fn excluded_names_are_refused_before_any_policy_runs() {
     // The control: the policy does run, with a near miss of each class granted.
     let mut command = sandbox.command();
     command.args(["inspect", "--kind", "impl", "--json"]);
-    for name in ["BUNDLE_GEMFILE", "LDFLAGS", "HARNESS_DISPATCHER"] {
+    for name in [
+        "BUNDLE_GEMFILE",
+        "NODE_PRESERVE_SYMLINKS_MAIN",
+        "NODE_CHANNEL",
+        "LDFLAGS",
+        "HARNESS_DISPATCHER",
+    ] {
         command.args(["--policy-env", name]);
     }
     run(&mut command).report();

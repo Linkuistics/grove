@@ -24,7 +24,10 @@ checks. Native probes on one macOS arm64 host saw several ambient classes fire a
 the chosen controls hold. cwd dotenv and bunfig preloads fired in a default build
 and stayed inert under both the no-autoload build and the private worker cwd. A
 `BUN_OPTIONS` preload fired even in the guarded build, which is why Rust scrubs
-the environment before start. A `node_modules` shadow beside the entry lost to a
+the environment before start. A later control found a second input of that
+kind. Bun's runtime transpiler cache, under HOME, ran an altered cached output
+of an imported file in place of the file, and only a variable set before start
+turns the cache off, so Rust sets it. A `node_modules` shadow beside the entry lost to a
 registered embedded module. tsconfig `paths` fired only in a build that enables
 tsconfig and package.json autoloading. Other classes were not seen to fire at
 all. The

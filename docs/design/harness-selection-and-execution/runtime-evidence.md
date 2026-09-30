@@ -207,6 +207,8 @@ worker path refuses with exit 5.
 | `node_modules/harness-dispatch` shadow beside an admitted entry | Each of the four documented specifiers resolved to its embedded module | The `unregistered` probe loaded every shadow | `hostile::every_documented_specifier_resolves_to_its_embedded_module_beside_a_package_shadow` |
 | tsconfig `paths` beside an admitted entry | The alias did not apply, and the import refused | The `tsconfig` probe applied it and loaded the aliased module | `hostile::tsconfig_paths_beside_an_admitted_entry_stay_inert_and_fire_under_the_tsconfig_probe` |
 | Worker location | No decoy on PATH, in the cwd, named by a variable or at `argv[0]`'s prefix ran | A decoy at the real layout path, or beside a front really in that prefix, ran | `worker::a_front_without_its_worker_refuses_and_no_ambient_decoy_substitutes`, `worker::an_argv0_naming_another_prefix_never_relocates_the_worker` |
+| Runtime transpiler cache, under HOME or a granted `XDG_CACHE_HOME` | The front's worker wrote no cache entry, and beside an altered entry in each place it ran the admitted file | The shipped worker started directly cached the policy under HOME, and once that entry's output was altered, ran the altered output from HOME and from a copy under `XDG_CACHE_HOME` | `hostile::the_runtime_transpiler_cache_stays_inert_through_the_front_and_fires_in_the_worker_started_directly` |
+| `NODE_PRESERVE_SYMLINKS` and `NODE_CHANNEL_FD` | The caller's values stayed out of the worker, and each grant refused | The shipped worker started directly with each: a helper behind a directory symlink resolved its `dep` beside the link, and a module's `process.send` put Bun's JSON (`{"vi…`) where the policy frame belonged | `hostile::node_resolver_and_channel_variables_stay_inert_through_the_front_and_fire_in_the_worker_started_directly` |
 
 The dotenv case also ran the other two corners of its square. The shipped
 worker, started directly in the hostile directory, and the `autoload` probe in
@@ -216,6 +218,23 @@ saw. A mutated front showed the same from the other side. With the worker
 started in the caller's cwd, the case stayed green. With the shipped build's
 dotenv and bunfig autoloading on, the front stayed inert, and only the
 direct-start corner failed. With both, the front arm failed.
+
+`evaluation-boundary-k54` added the last two rows on the same host and worker
+build, triaging `evaluation-boundary-k53`. Before its fix, the front's worker
+wrote `Library/Caches/bun/@t@/<input hash>.pile` under the caller's HOME for an
+imported file of 4 KiB or more, and one altered entry changed the selection
+while inspection reported the admitted file's unchanged `sha256`. The front now
+sets `BUN_RUNTIME_TRANSPILER_CACHE_PATH=0`. That is the only switch that turns
+the cache off, and Bun reads it before `XDG_CACHE_HOME` and HOME (bun-v1.4.2
+`src/jsc/RuntimeTranspilerCache.rs`, `really_get_cache_dir`). The control
+patches Bun 1.4.2's entry layout, version 28, and says so when it meets
+another, so a Bun upgrade re-derives it. Before the fix, the three
+`NODE_*` grants were admitted. `NODE_PRESERVE_SYMLINKS` changed the helper's
+resolution, and only through a symlinked directory; a symlinked file resolved
+alike either way. With `NODE_CHANNEL_FD=3`, the policy ended in
+`protocol_error` or `worker_failed`, so it failed closed rather than
+selecting. Each fixture is inert without its variable, which is the control's
+other corner.
 
 Two classes have no known firing configuration, and neither is counted. A
 `~/.bunfig.toml` preload did not fire under the `autoload` probe with that HOME.

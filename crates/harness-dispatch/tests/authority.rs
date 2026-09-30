@@ -237,7 +237,14 @@ writeFileSync({report:?}, JSON.stringify({{
     );
     assert_eq!(
         view["env"],
-        serde_json::json!(["HOME", "LANG", "LC_ALL", "PATH", "TMPDIR"])
+        serde_json::json!([
+            "BUN_RUNTIME_TRANSPILER_CACHE_PATH",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "PATH",
+            "TMPDIR"
+        ])
     );
     assert_eq!(view["stdinBytes"], 0);
     // The probe can see an open descriptor (the channel), and sees none of

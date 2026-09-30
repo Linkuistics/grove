@@ -193,6 +193,259 @@ fn bun_runtime_variables_stay_inert_through_the_front_and_fire_in_the_worker_sta
     assert!(be_bun.exists(), "BUN_BE_BUN did not make the worker Bun");
 }
 
+/// A routes policy of at least 4 KiB, from which size Bun caches an imported
+/// file's transpiled output, routing `impl` to `admitted` with `poisoned`
+/// beside it in the catalog.
+fn cacheable_policy() -> String {
+    format!(
+        r#"export const policy = {{
+  schemaVersion: 1,
+  version: "cache-1",
+  catalog: [
+    {{ id: "admitted", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{{ slot: "prompt" }}] }},
+    {{ id: "poisoned", provider: "origin-b", model: "model-large", effort: "high", program: "fake-harness", args: [{{ slot: "prompt" }}] }},
+  ],
+  routes: {{ impl: "admitted" }},
+}};
+// {}
+"#,
+        "padding ".repeat(640)
+    )
+}
+
+/// Every entry of Bun's runtime transpiler cache under `dir`, each named
+/// `<input hash>.pile`.
+fn cache_entries(dir: &Path) -> Vec<PathBuf> {
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            entries.extend(cache_entries(&path));
+        } else if path
+            .extension()
+            .is_some_and(|extension| extension == "pile")
+        {
+            entries.push(path);
+        }
+    }
+    entries
+}
+
+/// Change a cached `cacheable_policy`'s route from `admitted` to `poisoned`,
+/// leaving everything that ties the entry to the policy file's bytes. The
+/// header is bun-v1.4.2's (`src/jsc/RuntimeTranspilerCache.rs`,
+/// `Metadata::encode`): version 28 as a little-endian u32, then the module
+/// type and output encoding bytes, then little-endian u64s, among them the
+/// output's offset at byte 30, its length at 38 and its hash at 46. A zero
+/// hash is never checked, so the altered output needs no new one.
+fn poison(entry: &Path) {
+    let mut bytes = fs::read(entry).unwrap();
+    assert_eq!(
+        bytes[..4],
+        28u32.to_le_bytes(),
+        "{} is not in Bun 1.4.2's cache layout; re-derive this control at each Bun upgrade",
+        entry.display()
+    );
+    assert!(
+        [1, 3].contains(&bytes[5]),
+        "the cached output is not UTF-8 or Latin-1"
+    );
+    let field = |at: usize| {
+        usize::try_from(u64::from_le_bytes(bytes[at..at + 8].try_into().unwrap())).unwrap()
+    };
+    let (offset, length) = (field(30), field(38));
+    let output = &mut bytes[offset..offset + length];
+    let (from, to) = (b"impl: \"admitted\"", b"impl: \"poisoned\"");
+    let at = output
+        .windows(from.len())
+        .position(|window| window == from)
+        .expect("the cached output routes impl to admitted");
+    output[at..at + from.len()].copy_from_slice(to);
+    bytes[46..54].fill(0);
+    fs::write(entry, bytes).unwrap();
+}
+
+#[test]
+fn the_runtime_transpiler_cache_stays_inert_through_the_front_and_fires_in_the_worker_started_directly(
+) {
+    let sandbox = Sandbox::new();
+    let entry = sandbox.personal_policy(&cacheable_policy());
+    assert!(fs::metadata(&entry).unwrap().len() >= 4096);
+
+    // Through the public launcher, the worker writes no cache under HOME.
+    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    assert_eq!(report["selection"]["candidateId"], "admitted");
+    assert_eq!(
+        cache_entries(&sandbox.home),
+        Vec::<PathBuf>::new(),
+        "the front's worker wrote Bun's cache"
+    );
+
+    // The firing configuration: the shipped worker, started directly without
+    // the front's setting, caches the policy under HOME. With the cached
+    // output altered, the same file selects what the cache says.
+    let drive = |env: &[(&str, OsString)]| {
+        direct::drive(&shipped_worker(), &sandbox.root, env, &entry).loaded()["policy"]["routes"]
+            ["impl"]
+            .clone()
+    };
+    assert_eq!(drive(&base_env(&sandbox)), "admitted");
+    let entries = cache_entries(&sandbox.home);
+    assert_eq!(entries.len(), 1, "the worker cached nothing under HOME");
+    poison(&entries[0]);
+    assert_eq!(
+        drive(&base_env(&sandbox)),
+        "poisoned",
+        "the altered cache under HOME never fired"
+    );
+    // The same entry under a cache that XDG_CACHE_HOME names, which Bun
+    // prefers to HOME's, fires the same way.
+    let xdg = sandbox.root.join("xdg-cache");
+    fs::create_dir_all(xdg.join("bun/@t@")).unwrap();
+    fs::copy(
+        &entries[0],
+        xdg.join("bun/@t@").join(entries[0].file_name().unwrap()),
+    )
+    .unwrap();
+    let empty_home = sandbox.root.join("empty-home");
+    fs::create_dir(&empty_home).unwrap();
+    let mut env = base_env(&sandbox);
+    env.retain(|(name, _)| *name != "HOME");
+    env.push(("HOME", empty_home.into()));
+    env.push(("XDG_CACHE_HOME", xdg.clone().into()));
+    assert_eq!(
+        drive(&env),
+        "poisoned",
+        "the altered cache under XDG_CACHE_HOME never fired"
+    );
+
+    // Through the public launcher, beside both altered caches, the admitted
+    // file selects, the XDG_CACHE_HOME one granted.
+    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    assert_eq!(report["selection"]["candidateId"], "admitted");
+    let mut command = sandbox.command();
+    command.env("XDG_CACHE_HOME", &xdg).args([
+        "inspect",
+        "--kind",
+        "impl",
+        "--policy-env",
+        "XDG_CACHE_HOME",
+        "--json",
+    ]);
+    let report = run(&mut command).report();
+    assert_eq!(report["selection"]["candidateId"], "admitted");
+    assert_eq!(
+        report["policyEnv"],
+        json!([{ "name": "XDG_CACHE_HOME", "set": true }])
+    );
+}
+
+/// A policy routing `impl` to whichever `dep` its helper imports. The helper
+/// sits in `lib/real`, reached through the directory symlink
+/// `policies/linked`, and `lib` and `policies` each hold a `dep` named for
+/// its side: the real directory's parent, or the link's.
+fn symlinked_helper_policy(root: &Path) -> PathBuf {
+    support::write(
+        &root.join("lib/real/helper.ts"),
+        "export { which } from \"dep\";\n",
+    );
+    support::write(
+        &root.join("lib/node_modules/dep/index.js"),
+        "export const which = \"real\";\n",
+    );
+    support::write(
+        &root.join("policies/node_modules/dep/index.js"),
+        "export const which = \"link\";\n",
+    );
+    std::os::unix::fs::symlink("../lib/real", root.join("policies/linked")).unwrap();
+    let entry = root.join("policies/policy.ts");
+    support::write(
+        &entry,
+        r#"import { which } from "./linked/helper.ts";
+export const policy = {
+  schemaVersion: 1,
+  version: "symlink-1",
+  catalog: [
+    { id: "real", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
+    { id: "link", provider: "origin-b", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
+  ],
+  routes: { impl: which },
+};
+"#,
+    );
+    entry
+}
+
+#[test]
+fn node_resolver_and_channel_variables_stay_inert_through_the_front_and_fire_in_the_worker_started_directly(
+) {
+    let sandbox = Sandbox::new();
+    let linked = symlinked_helper_policy(&sandbox.root);
+    // An ordinary module that reports to a parent process when it has one.
+    let reporting = sandbox.root.join("reporting.ts");
+    support::write(
+        &reporting,
+        &format!("if (process.send) process.send({{ via: \"ipc\" }});\n{ROUTED}"),
+    );
+    let caller = [
+        ("NODE_PRESERVE_SYMLINKS", "1"),
+        ("NODE_CHANNEL_FD", "3"),
+        ("NODE_CHANNEL_SERIALIZATION_MODE", "json"),
+    ];
+
+    // Through the public launcher the caller's values never reach the
+    // worker, and granting any of them refuses even where the caller lacks
+    // it (`tests/environment.rs` grants each one set).
+    for (entry, chosen) in [(&linked, "real"), (&reporting, "deep")] {
+        let mut command = sandbox.command();
+        command.envs(caller).args([
+            "inspect",
+            "--kind",
+            "impl",
+            "--config",
+            &text(entry),
+            "--json",
+        ]);
+        assert_eq!(
+            run(&mut command).report()["selection"]["candidateId"],
+            chosen
+        );
+    }
+    for (name, _) in caller {
+        let refusal = sandbox
+            .inspect(&["--kind", "impl", "--policy-env", name, "--json"])
+            .refusal(2);
+        assert_eq!(refusal["error"]["code"], "excluded_grant", "{name}");
+    }
+
+    // The firing configurations: the shipped worker, started directly. With
+    // NODE_PRESERVE_SYMLINKS the helper's `dep` resolves beside the link
+    // rather than beside the real directory, with no import changed.
+    let drive = |entry: &Path, set: &[(&'static str, &str)]| {
+        let mut env = base_env(&sandbox);
+        env.extend(set.iter().map(|&(name, value)| (name, value.into())));
+        direct::drive(&shipped_worker(), &sandbox.root, &env, entry)
+    };
+    let routed = |driven: direct::Driven| driven.loaded()["policy"]["routes"]["impl"].clone();
+    assert_eq!(routed(drive(&linked, &[])), "real");
+    assert_eq!(
+        routed(drive(&linked, &[("NODE_PRESERVE_SYMLINKS", "1")])),
+        "link",
+        "NODE_PRESERVE_SYMLINKS never changed the resolution"
+    );
+    // With NODE_CHANNEL_FD naming descriptor 3, Bun adopts the private
+    // protocol channel as its IPC channel, and the module's message reaches
+    // it as Bun's JSON, where the policy's report belongs.
+    drive(&reporting, &[]).loaded();
+    let driven = drive(&reporting, &[("NODE_CHANNEL_FD", "3")]);
+    assert_eq!(
+        driven.report,
+        Some(json!({ "type": "malformed", "header": b"{\"vi" })),
+        "Bun never wrote to the channel\nstderr: {}",
+        driven.stderr
+    );
+}
+
 /// Every specifier the worker documents: its SDK and one per shipped example.
 /// `grove-review-adapter-k37` adds `harness-dispatch/grove`.
 fn documented_specifiers() -> Vec<String> {

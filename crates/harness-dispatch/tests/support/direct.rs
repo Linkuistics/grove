@@ -189,11 +189,21 @@ pub fn drive(worker: &Path, cwd: &Path, env: &[(&str, OsString)], entry: &Path) 
     }
 }
 
+/// The bound on a frame the worker sends, the `messageBytes` limit `drive`
+/// hands it.
+const MESSAGE_BYTES: u32 = 1_048_576;
+
 /// One frame: a four-byte big-endian length and that much JSON, as
-/// `src/frame.rs` reads it. `None` once the worker has closed its end.
+/// `src/frame.rs` reads it. `None` once the worker has closed its end. A
+/// length over the bound is `{ "type": "malformed", "header": <its four
+/// bytes> }`, unread beyond them, as the front refuses it: whatever wrote
+/// those bytes, it was not the worker's framing.
 fn read_frame(channel: &mut UnixStream) -> Option<Value> {
     let mut length = [0; 4];
     channel.read_exact(&mut length).ok()?;
+    if u32::from_be_bytes(length) > MESSAGE_BYTES {
+        return Some(json!({ "type": "malformed", "header": length }));
+    }
     let mut body = vec![0; u32::from_be_bytes(length) as usize];
     channel.read_exact(&mut body).expect("a whole frame");
     Some(serde_json::from_slice(&body).expect("a JSON frame"))

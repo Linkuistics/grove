@@ -240,7 +240,7 @@ pub struct SelectionArgs {
     #[arg(long, value_name = "PATH")]
     pub state_dir: Option<PathBuf>,
 
-    /// Give the policy worker this environment variable, by exact name, beyond HOME, PATH, TMPDIR, LANG and LC_*; repeatable. BUN_*, NODE_OPTIONS, NODE_PATH, LD_*, DYLD_* and HARNESS_DISPATCH_* are never granted, and values are never shown. Do not grant GROVE_SIGNAL_FILE: it would give the policy the power to end a Grove session
+    /// Give the policy worker this environment variable, by exact name, beyond HOME, PATH, TMPDIR, LANG and LC_*; repeatable. BUN_*, NODE_OPTIONS, NODE_PATH, NODE_PRESERVE_SYMLINKS, NODE_CHANNEL_*, LD_*, DYLD_* and HARNESS_DISPATCH_* are never granted, and values are never shown. Do not grant GROVE_SIGNAL_FILE: it would give the policy the power to end a Grove session
     #[arg(long, value_name = "NAME")]
     pub policy_env: Vec<OsString>,
 }

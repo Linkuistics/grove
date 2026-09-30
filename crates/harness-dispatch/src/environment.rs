@@ -9,10 +9,22 @@
 //!
 //! - `BUN_*`, Bun's own: `BUN_OPTIONS` can preload a module before any of the
 //!   worker's code runs, and `BUN_BE_BUN` turns the worker into Bun itself;
-//! - `NODE_OPTIONS` and `NODE_PATH`, which change what loads and from where;
+//! - `NODE_OPTIONS`, `NODE_PATH` and `NODE_PRESERVE_SYMLINKS`, which change
+//!   what loads and from where;
+//! - `NODE_CHANNEL_*`, which names a descriptor Bun adopts as its IPC channel,
+//!   and so could hand it the private protocol channel on descriptor 3;
 //! - `LD_*` and `DYLD_*`, which the dynamic loaders read to inject libraries;
 //! - `HARNESS_DISPATCH_*`, harness-dispatch's own, which it sets for the
 //!   harness: the worker is never told the run or where its records are.
+//!
+//! Beside them the front sets one value of its own, [`HOST`]: Bun's runtime
+//! transpiler cache is off. Left on, Bun reads the transpiled output of any
+//! imported file of 4 KiB or more from a cache under HOME, or under a granted
+//! `XDG_CACHE_HOME`, keyed by the file's bytes, and runs that output in place
+//! of the file. An entry nobody named as policy could then change what the
+//! admitted file does, while inspection and the run record report the file's
+//! own digest. No caller value replaces the setting, since `BUN_*` is never
+//! granted, and Bun consults it before either cache location.
 //!
 //! Nothing ambient reaches the worker without a grant, installation control
 //! included: the worker's location comes from the front's own path alone
@@ -60,7 +72,7 @@ impl Grants {
     }
 
     /// The worker's whole environment: the base set and the granted names,
-    /// with the caller's values.
+    /// with the caller's values, and the front's own [`HOST`] settings.
     pub fn worker_environment(&self) -> Vec<(OsString, OsString)> {
         std::env::vars_os()
             .filter(|(name, _)| {
@@ -70,6 +82,10 @@ impl Grants {
                         .iter()
                         .any(|grant| grant.name.as_bytes() == name.as_bytes())
             })
+            .chain(
+                HOST.iter()
+                    .map(|(name, value)| (OsString::from(name), OsString::from(value))),
+            )
             .collect()
     }
 
@@ -83,7 +99,7 @@ impl Grants {
 
     pub fn to_text(&self) -> String {
         if self.0.is_empty() {
-            return "none granted; the worker has HOME, PATH, TMPDIR, LANG and LC_* only"
+            return "none granted; the worker has only HOME, PATH, TMPDIR, LANG and LC_* of yours"
                 .to_owned();
         }
         let granted: Vec<String> = self
@@ -98,6 +114,13 @@ impl Grants {
     }
 }
 
+/// The values the front itself sets in the worker's environment, each under an
+/// excluded name, so no caller value or grant can replace it.
+/// `BUN_RUNTIME_TRANSPILER_CACHE_PATH` of `0` turns Bun's runtime transpiler
+/// cache off (bun-v1.4.2 `src/jsc/RuntimeTranspilerCache.rs`,
+/// `really_get_cache_dir`).
+pub const HOST: [(&str, &str); 1] = [("BUN_RUNTIME_TRANSPILER_CACHE_PATH", "0")];
+
 /// Whether the worker gets `name` without a grant.
 fn base(name: &[u8]) -> bool {
     matches!(name, b"HOME" | b"PATH" | b"TMPDIR" | b"LANG") || name.starts_with(b"LC_")
@@ -110,8 +133,19 @@ fn excluded(name: &str) -> Option<&'static str> {
             "Bun reads its runtime options from BUN_* variables, and BUN_OPTIONS can preload \
              code and BUN_BE_BUN turn the worker into Bun itself",
         )
-    } else if name == "NODE_OPTIONS" || name == "NODE_PATH" {
-        Some("NODE_OPTIONS and NODE_PATH change what code loads, and from where")
+    } else if matches!(
+        name,
+        "NODE_OPTIONS" | "NODE_PATH" | "NODE_PRESERVE_SYMLINKS"
+    ) {
+        Some(
+            "NODE_OPTIONS, NODE_PATH and NODE_PRESERVE_SYMLINKS change what code loads, and from \
+             where",
+        )
+    } else if name.starts_with("NODE_CHANNEL_") {
+        Some(
+            "NODE_CHANNEL_* variables name a descriptor that Bun adopts as its IPC channel, which \
+             could make the policy worker's private protocol channel its own",
+        )
     } else if name.starts_with("LD_") || name.starts_with("DYLD_") {
         Some("the dynamic loaders read LD_* and DYLD_* variables, which can inject libraries")
     } else if name.starts_with("HARNESS_DISPATCH_") {
@@ -154,8 +188,8 @@ fn checked(name: &OsStr) -> Result<String, Refusal> {
             EXIT_MALFORMED,
             format!("--policy-env {name} is never granted to the policy worker: {why}"),
             "remove it; the worker's environment is HOME, PATH, TMPDIR, LANG and LC_* plus the \
-             names you grant, and BUN_*, NODE_OPTIONS, NODE_PATH, LD_*, DYLD_* and \
-             HARNESS_DISPATCH_* are excluded from grants",
+             names you grant, and BUN_*, NODE_OPTIONS, NODE_PATH, NODE_PRESERVE_SYMLINKS, \
+             NODE_CHANNEL_*, LD_*, DYLD_* and HARNESS_DISPATCH_* are excluded from grants",
         )
         .input("--policy-env"));
     }
@@ -174,6 +208,9 @@ mod tests {
             "BUN_INSTALL",
             "NODE_OPTIONS",
             "NODE_PATH",
+            "NODE_PRESERVE_SYMLINKS",
+            "NODE_CHANNEL_FD",
+            "NODE_CHANNEL_SERIALIZATION_MODE",
             "LD_PRELOAD",
             "LD_LIBRARY_PATH",
             "LD_AUDIT",
@@ -188,6 +225,9 @@ mod tests {
             "BUN",
             "BUNDLE_GEMFILE",
             "NODE_EXTRA_CA_CERTS",
+            "NODE_PRESERVE_SYMLINKS_MAIN",
+            "NODE_CHANNEL",
+            "NODE_UNIQUE_ID",
             "LDFLAGS",
             "HARNESS_DISPATCHER",
             "bun_options",

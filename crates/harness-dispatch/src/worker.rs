@@ -116,6 +116,26 @@ pub struct WorkerIdentity {
     pub bun_version: String,
 }
 
+/// An adapter the policy imported, as the worker reported it: the embedded
+/// module's specifier and its own version. The worker knows which embedded
+/// module is an adapter; the front only carries what it says.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Adapter {
+    pub specifier: String,
+    pub version: String,
+}
+
+impl Adapter {
+    pub fn to_json(&self) -> Value {
+        json!({ "specifier": self.specifier, "version": self.version })
+    }
+
+    /// `specifier version`, as text reports show it.
+    pub fn to_text(&self) -> String {
+        format!("{} {}", self.specifier, self.version)
+    }
+}
+
 /// What the worker reported about the selected entry.
 #[derive(Debug)]
 pub enum Outcome {
@@ -205,9 +225,35 @@ pub struct Loaded<'a> {
     /// The caller's `--context` document, as the front measured it.
     caller: Option<&'a Measured>,
     assembled: bool,
+    selected: bool,
+    /// The adapter the policy had imported, as the latest phase frame said.
+    adapter: Option<Adapter>,
 }
 
 impl Loaded<'_> {
+    /// The adapter the policy had imported by the last phase the worker
+    /// reported: loading, the context or the selection. An import can happen
+    /// in any of them, and none can be undone, so the last report is the
+    /// whole of it.
+    pub fn adapter(&self) -> Option<&Adapter> {
+        self.adapter.as_ref()
+    }
+
+    /// Keep the adapter a phase frame reports; a phase frame without a valid
+    /// report is the worker breaking the protocol.
+    fn reported(&mut self, frame: &Value) -> Result<(), Halt> {
+        self.adapter = adapter(frame).ok_or_else(|| {
+            Halt(broken(
+                self.worker,
+                format!(
+                    "a phase frame without a valid adapter report: {}",
+                    shown(frame)
+                ),
+            ))
+        })?;
+        Ok(())
+    }
+
     /// Ask the worker, once, to assemble the context, and wait, within what is
     /// left of the deadline, for it, answering each `host.run` the loader
     /// makes meanwhile with `lookup`. `lookup` is given the run and the
@@ -272,6 +318,7 @@ impl Loaded<'_> {
             ))
         })?;
         if let Assembled::Context { measured, runs, .. } = &assembled {
+            self.reported(&frame)?;
             let from_caller = measured
                 .iter()
                 .filter(|source| source.via == crate::context::VIA_CALLER)
@@ -308,10 +355,11 @@ impl Loaded<'_> {
         Ok(assembled)
     }
 
-    /// Ask the worker to call the policy's `select`, and wait, within what is
-    /// left of the deadline, for what it produced. It consumes the conversation,
-    /// so `select` is called at most once.
-    pub fn select(mut self) -> Result<Produced, Halt> {
+    /// Ask the worker, once, to call the policy's `select`, and wait, within
+    /// what is left of the deadline, for what it produced.
+    pub fn select(&mut self) -> Result<Produced, Halt> {
+        assert!(!self.selected, "select is called at most once");
+        self.selected = true;
         write_frame(
             &mut self.channel,
             &json!({ "type": "select", "protocol": PROTOCOL }),
@@ -319,12 +367,16 @@ impl Loaded<'_> {
         .map_err(|error| Halt(Conversation::failed(error, true)))?;
         let max = message_max(self.limits);
         let frame = receive(&mut self.channel, self.worker, true, max).map_err(Halt)?;
-        produced(&frame).ok_or_else(|| {
+        let produced = produced(&frame).ok_or_else(|| {
             Halt(broken(
                 self.worker,
                 format!("unexpected selection frame: {}", shown(&frame)),
             ))
-        })
+        })?;
+        if matches!(produced, Produced::Result(_)) {
+            self.reported(&frame)?;
+        }
+        Ok(produced)
     }
 }
 
@@ -713,13 +765,18 @@ fn converse<T>(
             format!("unexpected result frame: {}", shown(&reported)),
         )
     })?;
-    let loaded = Loaded {
+    let mut loaded = Loaded {
         channel,
         worker,
         limits,
         caller,
         assembled: false,
+        selected: false,
+        adapter: None,
     };
+    if matches!(outcome, Outcome::Policy(_)) {
+        loaded.reported(&reported).map_err(|Halt(halted)| halted)?;
+    }
     let decided = judge(outcome, loaded).map_err(|Halt(halted)| halted)?;
     Ok((identity, decided, started.elapsed()))
 }
@@ -752,6 +809,29 @@ fn broken(worker: &Path, message: String) -> Conversation {
         )
         .source(worker.to_string_lossy()),
     )
+}
+
+/// A phase frame's adapter report: `null`, or the specifier and version of the
+/// adapter the policy has imported, each a nonblank string. `None` when the
+/// report is missing or malformed.
+fn adapter(frame: &Value) -> Option<Option<Adapter>> {
+    match frame.get("adapter")? {
+        Value::Null => Some(None),
+        Value::Object(fields) if fields.len() == 2 => {
+            let field = |name: &str| {
+                fields
+                    .get(name)
+                    .and_then(Value::as_str)
+                    .filter(|text| !text.trim().is_empty())
+                    .map(str::to_owned)
+            };
+            Some(Some(Adapter {
+                specifier: field("specifier")?,
+                version: field("version")?,
+            }))
+        }
+        _ => None,
+    }
 }
 
 /// A frame's string field.

@@ -706,6 +706,130 @@ fn a_failing_loader_refuses_and_launches_nothing() {
 }
 
 #[test]
+fn a_loader_can_refuse_as_the_policy_and_nothing_is_selected() {
+    // A loader that finds what it requires invalid returns select's refusal
+    // shape. It is the policy's own refusal, at the context stage, and select
+    // is never asked; a routes table is never consulted either.
+    let sandbox = Sandbox::new();
+    let asked = sandbox.root.join("select-asked");
+    let refusing = r#"{ status: "refused", code: "ticket_closed", message: "ticket 12 is closed", remedy: "reopen ticket 12" }"#;
+    for loader in [
+        format!("  loadContext() {{ return {refusing}; }},"),
+        format!("  async loadContext() {{ return {refusing}; }},"),
+    ] {
+        for members in [
+            format!("{loader}\n{}", recording_select(&asked)),
+            format!("{loader}\n  routes: {{ impl: \"deep\" }},"),
+        ] {
+            sandbox.personal_policy(&policy(&members));
+            for (extra, input) in [
+                (&[][..], "--kind impl"),
+                (&["--choice", "quick"][..], "--choice quick"),
+            ] {
+                let mut args = vec!["--kind", "impl", "--prompt", "p", "--json"];
+                args.extend(extra);
+                let refusal = sandbox.run(&args).refusal(3);
+                let error = &refusal["error"];
+                assert_eq!(error["code"], "policy_refused", "{refusal}");
+                assert_eq!(error["policyCode"], "ticket_closed", "{refusal}");
+                assert_eq!(error["stage"], "context", "{refusal}");
+                assert_eq!(error["location"], "policy.loadContext", "{refusal}");
+                assert_eq!(error["input"], input, "{refusal}");
+                assert_eq!(error["remedy"], "reopen ticket 12", "{refusal}");
+                assert!(
+                    error["message"]
+                        .as_str()
+                        .unwrap()
+                        .ends_with("refused the selection in loadContext: ticket 12 is closed"),
+                    "{refusal}"
+                );
+                assert!(!sandbox.harness_ran(), "{refusal}");
+                assert!(!asked.exists(), "select was asked: {refusal}");
+                assert!(!sandbox.default_store().exists(), "{refusal}");
+            }
+        }
+    }
+
+    // A `status` makes a loader's result a refusal or nothing: each part of
+    // the shape is required, and nothing else may sit beside it.
+    for (result, location) in [
+        (
+            r#"{ status: "selected", candidateId: "quick", reason: "r" }"#,
+            "context.status",
+        ),
+        (
+            r#"{ status: "refused", code: "", message: "m", remedy: "r" }"#,
+            "context.code",
+        ),
+        (
+            r#"{ status: "refused", code: "c", message: 3, remedy: "r" }"#,
+            "context.message",
+        ),
+        (
+            r#"{ status: "refused", code: "c", message: "m" }"#,
+            "context.remedy",
+        ),
+        (
+            r#"{ status: "refused", code: "c", message: "m", remedy: "r", candidateId: "deep" }"#,
+            "context.candidateId",
+        ),
+        (
+            r#"{ schemaVersion: 1, status: "refused", code: "c", message: "m", remedy: "r" }"#,
+            "context.schemaVersion",
+        ),
+    ] {
+        sandbox.personal_policy(&policy(&format!(
+            "  loadContext() {{ return {result}; }},\n{SELECT}"
+        )));
+        let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
+        assert_eq!(refusal["error"]["code"], "context_invalid", "{refusal}");
+        assert_eq!(refusal["error"]["location"], location, "{refusal}");
+        assert!(
+            refusal["error"]["remedy"]
+                .as_str()
+                .unwrap()
+                .contains("{ status: \"refused\", code, message, remedy }"),
+            "{refusal}"
+        );
+    }
+
+    // Only a loader refuses so: a caller's document with a `status` is an
+    // invalid context, whatever else it holds.
+    sandbox.personal_policy(&policy(SELECT));
+    sandbox.file(
+        "refusal.json",
+        r#"{ "status": "refused", "code": "c", "message": "m", "remedy": "r" }"#,
+    );
+    let refusal = sandbox
+        .inspect(&["--kind", "impl", "--context", "refusal.json", "--json"])
+        .refusal(3);
+    assert_eq!(refusal["error"]["code"], "context_invalid", "{refusal}");
+    assert_eq!(refusal["error"]["input"], "--context", "{refusal}");
+
+    // A bound the loader exceeded is reported, even when it catches the
+    // error and returns a refusal instead.
+    sandbox.file("large.md", &"x".repeat(65_537));
+    sandbox.personal_policy(&policy(&format!(
+        r#"  loadContext(request, host) {{
+    try {{ host.readText("large.md"); }} catch {{}}
+    return {refusing};
+  }},
+{SELECT}"#
+    )));
+    let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
+    assert_eq!(refusal["error"]["code"], "source_too_large", "{refusal}");
+
+    // The control: the same policy, its loader returning a context.
+    sandbox.personal_policy(&policy(&format!(
+        "  loadContext() {{ return {{ schemaVersion: 1 }}; }},\n{}",
+        recording_select(&asked)
+    )));
+    let control = sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"]);
+    assert_eq!(control.code, Some(0), "{}", control.stderr);
+    assert!(sandbox.harness_ran() && asked.exists());
+}
+
+#[test]
 fn select_reads_nothing_through_its_host_and_the_loaders_reads_close() {
     // `select` sees the measured context, so its host has no reads, and a
     // read the loader leaves for later fails once its context is delivered.

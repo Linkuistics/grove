@@ -29,7 +29,12 @@ shipped `harness-dispatch/examples/review` exports the
 artifact: a looked-up creator run, refused when missing or never executed, or
 a declaration; the creator's origin an exact member of the current catalog's;
 and a reviewer of another origin, from its review kind's entry or the explicit
-choice, never replaced when refused. Its Grove adapter is not delivered yet.
+choice, never replaced when refused. The Grove adapter, `harness-dispatch/grove`,
+reads the supplied task file's `**Reviews:**` and `**Creator:**` lines through
+the measured read, and `harness-dispatch/examples/grove-review` composes it with
+that selector over Grove's session kinds. A loader may return a refusal in
+`select`'s shape, which refuses as the policy's own. Inspection and the run
+record report the adapter's version whenever the policy imported it.
 INT, TERM and HUP not ignored at entry cancel a selection until its program is
 resolved: the worker is stopped and reaped, nothing is recorded or launched,
 and the `selection_cancelled` refusal is followed by the re-raised signal.
@@ -371,13 +376,23 @@ stable identity, generic context and explicit candidate ID. It sees neither the
 launch prompt nor reserved final environment. The context value separates caller
 facts, loaded sources, selector assessments and artifact/creator references.
 Unknown risk, scope or outcomes remain unknown. Policy states which facts it
-requires; a failed required read or loader fails the whole selection.
+requires; a failed required read or loader fails the whole selection. A loader
+that finds a required fact present but invalid can say why instead, by
+returning a refusal in `select`'s shape, `{ status: "refused", code, message,
+remedy }`. That is the policy's own refusal, `policy_refused` at the context
+stage, and `select` is not called. A version-1 context has no `status`, so a
+loader's result with one is judged as a refusal, and a malformed refusal is an
+invalid context. A bound the loader exceeded is still reported in its place.
 
 The SDK supplies bounded text/JSON reads, source attribution, run lookup,
 diagnostic output and an abort signal. It measures every delivered source, hashes
-the bytes actually read, and includes the adapter's explicit version. A context
-loader returns the final serializable context; both worker and Rust validate its
-size. Reads of arbitrary files or HTTP by trusted policy remain possible, but
+the bytes actually read, and reports the adapter's explicit version. The worker
+reports `{ specifier, version }` for the Grove adapter once the policy has
+imported it, directly or through an embedded example that composes it, and
+`null` otherwise. It reports this after loading, after the context and after
+the selection, and the front keeps the last report, so an import during
+`loadContext` or `select` counts too. A context loader returns the final
+serializable context, or a refusal; both worker and Rust validate its size. Reads of arbitrary files or HTTP by trusted policy remain possible, but
 unreported ambient reads are not advertised as reproducible context. Such a
 policy must supply versions/digests for the evidence it puts into the context.
 The receipt records the entry digest, declared policy version and worker build;
@@ -398,8 +413,9 @@ measured one. `diagnostic` writes one line to the worker's captured stderr.
 cancellation; a worker whose
 policy installs no TERM listener of its own then exits once the abort listeners
 have run. The loader returns context, and the selection callback receives that
-measured value. The supplied adapter uses these operations so its complete
-delivered context is inspectable.
+measured value. The supplied adapter reads its task file through these
+operations, so the file is a measured source, and inspection and the run record
+show its digest.
 
 **Run lookup** is a read-only protocol request that the front answers from the
 invocation's record store, under `inspect` as under `run`. The worker never
@@ -627,6 +643,31 @@ briefs, select another leaf or use advisory running-session state. Missing,
 duplicate or malformed lines and an unreadable task file refuse. The adapter has
 independent fixtures for the Grove conventions it interprets.
 
+A standalone line begins with its marker at its first character, so a mention
+inside a line or an indented one is prose. Every such line counts wherever it
+is, a fenced example included: the adapter parses no markdown, so a quoted
+example refuses as a duplicate rather than being skipped. The line is exactly
+the marker, one space and the value, with nothing after it but a CRLF ending's
+CR. `**Reviews:**` takes a Grove handle, `<slug>-k<key>` in the task-name
+grammar. `**Creator:**` takes `run <run ID>` in the canonical form, or
+`declared <label>`, whose label is the rest of the line, verbatim, so a stray
+space makes it a non-member rather than being trimmed. The task file is read
+whole, up to the context budget rather than the per-read default, because
+leaves can be larger and only its digest enters the context. The adapter reads
+the task file for every kind, and a review kind without one refuses. A caller
+context that already names a reviewed artifact under a review kind refuses as
+a conflict, since the task file names it. The adapter returns each refusal from
+the loader, never from `select`. So a policy that composes the adapter's loader
+with a `select` of its own still cannot route an unlisted review. Its refusal
+codes are `task_file_missing`, `reviewed_artifact_conflict`,
+`reviews_line_missing`, `reviews_line_duplicate`, `reviews_line_malformed`,
+`creator_line_missing`, `creator_line_duplicate`, `creator_line_malformed`, and
+`review_kind_unlisted`, which the selector's generic form shares.
+`harness-dispatch/examples/grove-review` composes the adapter's loader, the run
+lookup and the selector over the Grove static example's catalog and routes. Its
+entries cover Grove's five `review-*` kinds, each at that example's effort for
+the kind.
+
 For a run reference the policy looks the run up through the SDK. A run missing
 from this record store, or carrying a launch-failure or not-executed detail,
 refuses with the declaration remedy. Inspection and the review's run record
@@ -673,7 +714,8 @@ reference is the `run` or `declared` form as given, and the evidence class is
 found run's recorded provider, else `null`. The lookup is the first answer in
 `runs` for the referenced run, or `null` when none was looked up. Inspection
 reports the same object, and both text forms show it with the run's task
-identity. Argv
+identity. The adapter is the worker's last adapter report, `{ specifier,
+version }` or `null`, and inspection reports it too. Argv
 contains the prompt, so records are private local execution data. The run ID is
 available to the final harness via its environment and the optional argument
 slot. Inspection uses a visibly marked proposed ID, creates no run, and does not
@@ -879,8 +921,8 @@ floor. The worker is an
 installed private companion, not a runtime downloaded on invocation. It is found
 relative to the real installed front executable, including through a Homebrew
 symlink, at `../libexec/harness-dispatch/harness-dispatch-policy`. The SDK's
-declarations and readable source sit beside it in `sdk/`, and each example's in
-`examples/`. The supported portable
+declarations and readable source sit beside it in `sdk/`, the Grove adapter's
+in `grove/`, and each example's in `examples/`. The supported portable
 archive preserves the same relative layout: its top directory is an
 installation prefix, with Grove's own executables beside the front in `bin/`.
 A cross-compiled worker is its target's Bun runtime with the policy host

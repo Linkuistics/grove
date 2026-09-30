@@ -7,15 +7,16 @@
 #   dispatch.sh build-id            print the worker source digest
 #   dispatch.sh build [--target T] [OUT_DIR]
 #                                   compile the worker, and the declarations and
-#                                   readable sources of its SDK and examples,
+#                                   readable sources of its SDK, Grove adapter
+#                                   and examples,
 #                                   with the notices, into OUT_DIR (default: the
 #                                   checkout's target/libexec/harness-dispatch).
 #                                   --target cross-compiles for the Bun target
 #                                   T (bun-darwin-arm64, bun-linux-arm64 or
 #                                   bun-linux-x64) from its pinned runtime
-#   dispatch.sh typecheck [OUT_DIR] type-check the worker, the SDK, the examples
-#                                   and the fixtures against OUT_DIR's
-#                                   declarations
+#   dispatch.sh typecheck [OUT_DIR] type-check the worker, the SDK, the adapter,
+#                                   the examples and the fixtures against
+#                                   OUT_DIR's declarations
 #   dispatch.sh probes [OUT_DIR]    compile the test-only probe builds into
 #                                   OUT_DIR/<probe>/ (default: the checkout's
 #                                   target/probes/harness-dispatch)
@@ -86,7 +87,7 @@ sha256() {
 source_files() {
   (
     cd "$CRATE_DIR"
-    find worker/src worker/sdk worker/examples -type f -name '*.ts'
+    find worker/src worker/sdk worker/grove worker/examples -type f -name '*.ts'
     printf '%s\n' worker/tsconfig.json worker/tsconfig.declarations.json scripts/dispatch.sh
   ) | LC_ALL=C sort
 }
@@ -216,7 +217,7 @@ build() {
   local id version
   id="$(build_id)"
   version="$(metadata_field version)"
-  mkdir -p "$out_dir/sdk" "$out_dir/examples" "$out_dir/notices"
+  mkdir -p "$out_dir/sdk" "$out_dir/grove" "$out_dir/examples" "$out_dir/notices"
   # Bun compiles from a scratch directory, where a relative OUT_DIR would name
   # somewhere inside that directory.
   out_dir="$(cd "$out_dir" && pwd)"
@@ -229,12 +230,14 @@ build() {
     --no-compile-autoload-tsconfig \
     --no-compile-autoload-package-json
 
-  # The declarations and readable sources an owner's editor reads, as sdk/
-  # and examples/ beside the worker; the worker carries its own embedded copy.
-  # An example imports `harness-dispatch/sdk` as an owner's policy does, and
-  # its declarations keep that specifier.
+  # The declarations and readable sources an owner's editor reads, as sdk/,
+  # grove/ and examples/ beside the worker; the worker carries its own
+  # embedded copy. The adapter and the examples import `harness-dispatch/sdk`
+  # and one another by specifier, as an owner's policy does, and their
+  # declarations keep those specifiers.
   tsc -p "$WORKER_DIR/tsconfig.declarations.json" --outDir "$out_dir"
   cp "$WORKER_DIR/sdk/index.ts" "$out_dir/sdk/index.ts"
+  cp "$WORKER_DIR/grove/index.ts" "$out_dir/grove/index.ts"
   cp "$WORKER_DIR"/examples/*.ts "$out_dir/examples/"
   cp "$CRATE_DIR"/notices/*.md "$out_dir/notices/"
   echo "dispatch: worker $version ($id)${target:+ for $target} in $out_dir"
@@ -252,8 +255,9 @@ typecheck() {
   out_dir="$(cd "$out_dir" && pwd)"
   tsc -p "$WORKER_DIR/tsconfig.json"
 
-  # Fixtures import `harness-dispatch/sdk` and the examples as an owner's
-  # policy does, resolved to the shipped declarations rather than the sources.
+  # Fixtures import `harness-dispatch/sdk`, the adapter and the examples as an
+  # owner's policy does, resolved to the shipped declarations rather than the
+  # sources.
   local scratch
   scratch="$(mktemp -d)"
   # shellcheck disable=SC2064 # expand now: the trap must remove this directory
@@ -265,6 +269,7 @@ typecheck() {
     "types": [],
     "paths": {
       "harness-dispatch/sdk": ["$out_dir/sdk/index.d.ts"],
+      "harness-dispatch/grove": ["$out_dir/grove/index.d.ts"],
       "harness-dispatch/examples/*": ["$out_dir/examples/*.d.ts"]
     }
   },

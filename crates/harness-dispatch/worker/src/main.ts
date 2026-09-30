@@ -22,6 +22,12 @@
 //      select, and the worker calls `select` with the request and the measured
 //      context, and returns what it produced.
 //
+// The snapshot, the context and the selection each also report whether the
+// policy has imported the Grove adapter yet, and its version if so, so an
+// import at any point is reported; the front keeps the last report. A loader
+// may return a refusal rather than a context, and that too is the front's to
+// tell apart and judge.
+//
 // The worker judges nothing it can hand over as data. The front validates the
 // snapshot's shape, resolves routes, checks any explicit choice, validates and
 // measures the context, validates a selection against the snapshot and reports
@@ -35,7 +41,9 @@
 import { encode, PROTOCOL, receive, send, sendEncoded } from "./channel.ts";
 import { type Bounds, deepFreeze, type Measured, Session, SourceUnreadable } from "./host.ts";
 import * as sdk from "../sdk/index.ts";
+import * as groveAdapter from "../grove/index.ts";
 import * as dynamicExample from "../examples/dynamic.ts";
+import * as groveReviewExample from "../examples/grove-review.ts";
 import * as groveStaticExample from "../examples/grove-static.ts";
 import * as reviewExample from "../examples/review.ts";
 import * as staticExample from "../examples/static.ts";
@@ -63,21 +71,40 @@ const probe = typeof HARNESS_DISPATCH_PROBE === "string" ? HARNESS_DISPATCH_PROB
 // entry. The prefix reserves nothing by itself, so each specifier is
 // registered by name; this list is part of the versioned protocol.
 //
-// The examples import `harness-dispatch/sdk`, and the dynamic and review
-// examples import `harness-dispatch/examples/static`, as an owner's policy
-// does. The bundler resolves those through `paths` in `worker/tsconfig.json`
-// when the worker is compiled, to the same modules imported above, so an
-// example and a policy that imports it share one SDK and one static example.
+// The examples import `harness-dispatch/sdk`, the Grove adapter and each other
+// by their specifiers, as an owner's policy does. The bundler resolves those
+// through `paths` in `worker/tsconfig.json` when the worker is compiled, to the
+// same modules imported above, so an example and a policy that imports it
+// share one SDK, one adapter and one copy of each example.
 // (Bun reads tsconfig at build time; `--no-compile-autoload-tsconfig` governs
 // only the compiled worker at run time:
 // https://github.com/oven-sh/bun/blob/bun-v1.4.2/docs/bundler/executables.mdx)
 const embedded: Readonly<Record<string, object>> = {
   "harness-dispatch/sdk": sdk,
+  "harness-dispatch/grove": groveAdapter,
   "harness-dispatch/examples/static": staticExample,
   "harness-dispatch/examples/grove-static": groveStaticExample,
+  "harness-dispatch/examples/grove-review": groveReviewExample,
   "harness-dispatch/examples/dynamic": dynamicExample,
   "harness-dispatch/examples/review": reviewExample,
 };
+
+// Whether the policy imported the Grove adapter, which inspection and the run
+// record report with its version. Bun calls a registered module's callback
+// lazily, once, on its first import, so the callback is the import. An
+// embedded example's own import of the adapter was resolved when the worker
+// was bundled, never through this registration, so importing an example that
+// composes the adapter counts as importing it. Both are named by module, since
+// the table above is the one place a specifier is spelled.
+const bringsAdapter: ReadonlySet<object> = new Set([groveAdapter, groveReviewExample]);
+const adapterSpecifier = Object.keys(embedded).find((specifier) => embedded[specifier] === groveAdapter) ?? "";
+let adapterImported = false;
+
+/** What the phase frames report of the adapter: its specifier and version once imported. */
+function adapter(): { specifier: string; version: string } | null {
+  return adapterImported ? { specifier: adapterSpecifier, version: groveAdapter.version } : null;
+}
+
 // The `unregistered` probe skips this, so that a test can see a package shadow
 // beside an entry load in its place.
 if (probe !== "unregistered") {
@@ -85,7 +112,10 @@ if (probe !== "unregistered") {
     name: "harness-dispatch embedded modules",
     setup(build) {
       for (const [specifier, module] of Object.entries(embedded)) {
-        build.module(specifier, () => ({ exports: { ...module }, loader: "object" }));
+        build.module(specifier, () => {
+          if (bringsAdapter.has(module)) adapterImported = true;
+          return { exports: { ...module }, loader: "object" };
+        });
       }
     },
   });
@@ -235,7 +265,7 @@ async function load(entry: string): Promise<Loaded> {
   } catch (error) {
     return invalid(`\`policy\` cannot be serialized: ${describe(error).message}`);
   }
-  return { frame: { type: "policy", policy: snapshot }, policy: policy as Record<string, unknown> };
+  return { frame: { type: "policy", policy: snapshot, adapter: adapter() }, policy: policy as Record<string, unknown> };
 }
 
 /** A frame to the front, by its type. */
@@ -304,7 +334,7 @@ async function assemble(policy: Record<string, unknown>, request: Request, sessi
   // The frame also carries what a loader supplied that the front will refuse,
   // such as a `measured` of its own, so it is bounded as well. The front
   // checks the lookups it carries against the answers it gave.
-  const body = encode({ type: "context", context: value, measured, runs });
+  const body = encode({ type: "context", context: value, measured, runs, adapter: adapter() });
   if (size > budget || body.length > budget + CONTEXT_ENVELOPE) {
     session.breach = { bound: { name: "context", actual: Math.max(size, body.length - CONTEXT_ENVELOPE) } };
     return { frame: breachFrame("context", session) };
@@ -341,9 +371,9 @@ async function select(
   }
   if (session.breach !== undefined) return breachFrame("select", session);
   // JSON has no `undefined`; the front reads `null` as the same abstention.
-  if (result === undefined) return { type: "selection", result: null };
+  if (result === undefined) return { type: "selection", result: null, adapter: adapter() };
   try {
-    return { type: "selection", result: JSON.parse(JSON.stringify(result, mark)) };
+    return { type: "selection", result: JSON.parse(JSON.stringify(result, mark)), adapter: adapter() };
   } catch (error) {
     return { type: "failure", stage: "select", unserializable: true, ...describe(error) };
   }

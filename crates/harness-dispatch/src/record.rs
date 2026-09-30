@@ -95,7 +95,7 @@ pub fn launch(choice: &Choice) -> Value {
             "buildId": worker.build_id,
             "bunVersion": worker.bun_version,
         },
-        "adapter": null,
+        "adapter": choice.adapter.as_ref().map(crate::worker::Adapter::to_json),
         "bounds": inputs.limits.to_json(),
         "timing": { "selectionMs": millis(choice.elapsed) },
     })
@@ -371,7 +371,7 @@ impl Export {
         text.push_str(&measurements_text(&observation::summary(self.current())));
         let candidate = &launch["candidate"];
         let policy = &launch["policy"];
-        let rows = [
+        let mut rows = vec![
             ("kind", field(&launch["kind"])),
             ("task id", field(&launch["taskId"])),
             ("task file", field(&launch["taskFile"])),
@@ -419,6 +419,17 @@ impl Export {
                 ),
             ),
             (
+                "adapter",
+                match &launch["adapter"] {
+                    Value::Null => "none".to_owned(),
+                    adapter => format!(
+                        "{} {}",
+                        field(&adapter["specifier"]),
+                        field(&adapter["version"])
+                    ),
+                },
+            ),
+            (
                 "timing",
                 format!(
                     "selection took {} ms",
@@ -426,6 +437,26 @@ impl Export {
                 ),
             ),
         ];
+        // Each measured source under the context's own row, the task file a
+        // review's creator came from included, with its digest.
+        let sources = launch["context"]["sources"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let at = rows
+            .iter()
+            .position(|(label, _)| *label == "context")
+            .map_or(rows.len(), |at| at + 1);
+        for (index, source) in sources.iter().enumerate().rev() {
+            let line = format!(
+                "source [{index}] {} ({}, {} bytes, sha256 {})",
+                field(&source["name"]),
+                field(&source["via"]),
+                field(&source["bytes"]),
+                field(&source["sha256"])
+            );
+            rows.insert(at, ("", line));
+        }
         for (label, value) in rows {
             let _ = writeln!(text, "  {label:<10} {value}");
         }

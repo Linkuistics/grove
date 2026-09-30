@@ -938,6 +938,18 @@ recorded, its association with the artifact is not verified.
 _Avoid_: calling it launch metadata; nothing in it routes the review's own
 session.
 
+<a id="grove-adapter"></a>
+### Grove adapter
+
+`harness-dispatch/grove`, the explicit import that turns a supplied Grove task
+file's `**Reviews:**` and `**Creator:**` lines into the generic reviewed
+artifact a dispatch policy reads. It reads only that file, through the measured
+read, and returns a refusal rather than guessing when a line is missing,
+duplicated or malformed. harness-dispatch's core never imports it, and Grove's
+own code reads neither line.
+_Avoid_: calling it part of dispatch or of Grove; it is a policy import that
+sits between them.
+
 <a id="joint-candidate"></a>
 ### Joint candidate
 

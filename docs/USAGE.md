@@ -473,8 +473,11 @@ grove: session ended without a completion signal — status exit status: 3, elap
 
 Run the `inspect:` line: it reproduces the refusal and launches nothing. Do
 what the remedy says, here adding `design` to the policy's routes, and run the
-line again until it reports a candidate. Then rerun `grove`, and the same leaf
-launches:
+line again until it reports a candidate. A review under the Grove review
+example refuses the same way when its task file names no creator, and the
+configuration reference gives
+[that remedy](CONFIGURATION.md#when-a-dispatched-launch-refuses). Then rerun
+`grove`, and the same leaf launches:
 
 ```console
 $ grove

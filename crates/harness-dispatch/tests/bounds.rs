@@ -331,23 +331,23 @@ fn a_context_holds_at_most_256_sources_the_document_included() {
 }
 
 /// A routes policy whose catalog snapshot, as the worker frames it
-/// (`{"type":"policy","policy":…}`), is exactly `bytes` long. It pads its
-/// version to fit, measuring the frame as the worker encodes it.
+/// (`{"type":"policy","policy":…,"adapter":null}`), is exactly `bytes` long.
+/// It pads its version to fit, measuring the frame as the worker encodes it.
 fn snapshot_of(bytes: usize) -> String {
     format!(
         "const policy = {{ schemaVersion: 1, version: \"v\", catalog: {CATALOG}, routes: {{ impl: \"deep\" }} }};\n\
-         const framed = () => Buffer.byteLength(JSON.stringify({{ type: \"policy\", policy }}));\n\
+         const framed = () => Buffer.byteLength(JSON.stringify({{ type: \"policy\", policy, adapter: null }}));\n\
          policy.version = \"v\" + \"x\".repeat({bytes} - framed());\n\
          export {{ policy }};\n"
     )
 }
 
 /// A select whose result, as the worker frames it
-/// (`{"type":"selection","result":…}`), is exactly `bytes` long.
+/// (`{"type":"selection","result":…,"adapter":null}`), is exactly `bytes` long.
 fn result_of(bytes: usize) -> String {
     policy(&format!(
         "  select() {{\n    const result = {{ status: \"selected\", candidateId: \"deep\", reason: \"r\" }};\n    \
-         const framed = () => Buffer.byteLength(JSON.stringify({{ type: \"selection\", result }}));\n    \
+         const framed = () => Buffer.byteLength(JSON.stringify({{ type: \"selection\", result, adapter: null }}));\n    \
          result.reason = \"r\" + \"x\".repeat({bytes} - framed());\n    return result;\n  }},"
     ))
 }

@@ -259,14 +259,15 @@ worker:
   "compilerOptions": {
     "paths": {
       "harness-dispatch/sdk": ["<prefix>/libexec/harness-dispatch/sdk/index.d.ts"],
+      "harness-dispatch/grove": ["<prefix>/libexec/harness-dispatch/grove/index.d.ts"],
       "harness-dispatch/examples/*": ["<prefix>/libexec/harness-dispatch/examples/*.d.ts"]
     }
   }
 }
 ```
 
-The readable sources, `sdk/index.ts` and `examples/*.ts`, sit beside the
-declarations.
+The readable sources, `sdk/index.ts`, `grove/index.ts` and `examples/*.ts`,
+sit beside the declarations.
 
 ## Context
 
@@ -360,6 +361,26 @@ nothing or an invalid context refuses as `context_invalid` with the location.
 Return plain JSON data: a function, a `NaN` and a cycle each refuse where they
 sit. The request it receives is frozen, so build a new context rather than
 changing `request.context`.
+
+A loader that finds what it requires present but wrong can say so, rather than
+throw: it returns a refusal in `select`'s shape.
+
+```ts
+loadContext(request, host) {
+  const ticket = host.readText("ticket.md");
+  if (ticket.text.includes("Status: closed")) {
+    return { status: "refused", code: "ticket_closed", message: "ticket.md says the ticket is closed", remedy: "reopen the ticket, or run without it" };
+  }
+  return { schemaVersion: 1, sources: [ticket.source] };
+}
+```
+
+That is the policy's own refusal: `policy_refused`, exit 3, at stage
+`context`, with its code as `policyCode` and its remedy. `select` is not
+called. A context has no `status`, so a loader's result that has one is
+judged as a refusal, and anything but `{ status: "refused", code, message,
+remedy }`, each nonblank, refuses as `context_invalid`. A bound the loader
+exceeded is reported in its place.
 
 The `host` a loader receives reads files for it:
 
@@ -498,7 +519,7 @@ carried.
 
 ## Starter examples
 
-Four policies ship inside the worker as editable starting points. None is
+Five policies ship inside the worker as editable starting points. None is
 active until your own policy imports it.
 
 | Specifier | Kinds it routes |
@@ -507,6 +528,7 @@ active until your own policy imports it.
 | `harness-dispatch/examples/grove-static` | All 23 of Grove's session kinds, exactly, over a lead harness and a reviewer from another provider |
 | `harness-dispatch/examples/dynamic` | The static example's kinds, through a `select` that applies their routes and polices explicit choices |
 | `harness-dispatch/examples/review` | The static example's kinds, and two review kinds under the provider rule: a review runs on another provider origin than its artifact's creator. See [the review policy](#the-review-policy) |
+| `harness-dispatch/examples/grove-review` | Grove's session kinds as the Grove example routes them, with Grove's five review kinds under the provider rule, each review's artifact and creator read from its task file. See [the Grove review policy](#the-grove-review-policy) |
 
 The two static examples map their kinds exactly: a kind one does not list
 refuses. Each explains, kind
@@ -666,13 +688,150 @@ A policy that assembles its own context, from a task file say, looks the
 creator up by passing that context to `lookUpCreator(context, host)` in its
 `loadContext`, and selects with the `select` that `reviewSelector` returns.
 
+### The Grove review policy
+
+`harness-dispatch/examples/grove-review` applies the review policy's rule to
+Grove's reviews. Grove passes each session's kind, task file and handle
+([called from Grove](#called-from-grove)). A Grove review leaf names what it
+reviews in its own body:
+
+```markdown
+# parser-k13
+
+**Reviews:** parser-k12
+**Creator:** run 5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34
+```
+
+`**Reviews:**` is the reviewed producer's handle. `**Creator:**` is that
+producer's original creator, in one of two forms. `run <run ID>` is written
+by the session that finished the producer, from its own
+`HARNESS_DISPATCH_RUN_ID`, and the creator's origin is the one the record store
+holds for that run. `declared <origin>` is written by you, for a producer
+finished without harness-dispatch: before you adopted it, or by a harness Grove
+launched directly. Inspection and the run record label it declared.
+
+Activate it from your personal policy, with Grove's dispatch command:
+
+```ts
+export { policy } from "harness-dispatch/examples/grove-review";
+```
+
+It keeps the Grove static example's catalog and routes for every kind but
+Grove's five reviews: `review-requirements`, `review-design`,
+`review-planning`, `review-prototype` and `review-impl`. Each of those maps the
+creator's origin to a reviewer from the other provider, at the effort the
+static example gives that review. So every review it selects runs on another
+origin than its producer's creator, on every invocation, every retry and every
+explicit choice, by the checks [the review policy](#the-review-policy) lists.
+
+The task file is read by the Grove adapter, `harness-dispatch/grove`, an
+explicit import that ordinary dispatch never loads. It reads the one task file
+Grove supplies, through the host's measured read, on every invocation and for
+every kind. Inspection therefore lists that file among the context's sources
+with its digest, and the run record keeps the digest. It reads the whole file,
+up to the context budget (`--context-bytes`), rather than the 64 KiB a read
+takes by default. It takes the kind from `--kind`, never from the file's name.
+It resolves no handle, and reads no brief, sibling or other file of the tree.
+
+A line counts when it begins with `**Reviews:**` or `**Creator:**` at its first
+character. A mention inside a sentence does not, and nor does an indented line.
+A counted line is exactly the marker, one space and the value, with nothing
+after it:
+
+- for `**Reviews:**`, a handle, such as `parser-k12`;
+- for `**Creator:**`, `run` and a run ID exactly as `HARNESS_DISPATCH_RUN_ID`
+  gave it, or `declared` and an origin.
+
+A declared origin is the rest of the line, verbatim, and must be one of your
+catalog's origins exactly. The adapter has no markdown parser, so a line quoted
+in a fenced block counts too, and refuses as a second line.
+
+A review kind needs exactly one line of each. Any other kind whose task file has
+a `**Reviews:**` line refuses, so a review of a kind you have not listed cannot
+take a static route. The adapter's refusals come from `loadContext`, at stage
+`context`:
+
+| `policyCode` | Why | Remedy |
+|---|---|---|
+| `task_file_missing` | A review kind was given no `--task-file` | Pass the review's task file, as Grove's dispatch command does with `${task_file}` |
+| `reviewed_artifact_conflict` | A `--context` document names a reviewed artifact too | Leave `reviewedArtifact` out of the document |
+| `reviews_line_missing` | A review kind's task file has no `**Reviews:**` line | Add `**Reviews:** <handle>`, naming the producer it reviews |
+| `reviews_line_duplicate` | It has more than one | Keep one; reword or indent the others, a fenced example included |
+| `reviews_line_malformed` | The line is not `**Reviews:** <handle>` | Write the producer's handle, such as `parser-k12`, with one space before it and nothing after it |
+| `creator_line_missing` | A review kind's task file has no `**Creator:**` line | Name the run, or declare the origin: see below |
+| `creator_line_duplicate` | It has more than one | Keep the one for the session that finished the producer |
+| `creator_line_malformed` | The line is neither `run <run ID>` nor `declared <origin>` | Write the run ID exactly as `HARNESS_DISPATCH_RUN_ID` gave it, or the declaration |
+| `review_kind_unlisted` | A kind the policy does not list as a review has a `**Reviews:**` line | List the kind in `reviews` in your copy of the policy, or remove the line if the task is not a review |
+
+A task file that cannot be read refuses as `context_source_unreadable`, naming
+it. One larger than the context budget refuses as `source_too_large`: raise
+`--context-bytes` in the command Grove runs. Once the lines are read, the
+review policy's own refusals follow, such as `creator_run_missing` and
+`creator_origin_unknown` (see [the review policy](#the-review-policy)).
+
+**When the creator line is missing.** The session that finished the producer
+owns the line. Under harness-dispatch it writes `**Creator:** run <run ID>`,
+from its `HARNESS_DISPATCH_RUN_ID`, directly under the review's `**Reviews:**`
+line. Without harness-dispatch it has no run to name, so it removes any
+`**Creator:**` line. harness-dispatch never looks a run up by its task, so a run
+of the producer's task in the record store does not stand in for the line. For
+a producer finished without harness-dispatch, write the declaration yourself,
+naming the origin that made it as your catalog labels it:
+
+```markdown
+**Reviews:** parser-k12
+**Creator:** declared openai
+```
+
+Then run the refused launch's `inspect:` line until it reports a reviewer, and
+run Grove again.
+
+To apply the rule to a catalog, routes and review kinds of your own, use the
+example's `groveReviewSelector`, as you would the review policy's
+`reviewSelector`:
+
+```ts
+import { definePolicy } from "harness-dispatch/sdk";
+import { groveReviewSelector } from "harness-dispatch/examples/grove-review";
+
+const catalog = [/* … */] as const;
+
+export const policy = definePolicy({
+  schemaVersion: 1,
+  version: "mine-1",
+  catalog,
+  ...groveReviewSelector({
+    catalog,
+    routes: { impl: "codex-high" },
+    reviews: { "review-impl": { openai: "claude-high", anthropic: "codex-high" } },
+  }),
+});
+```
+
+Or call the adapter from a loader of your own. `groveContext(request, host,
+reviews)` returns the context the task file declares, or the refusal, and the
+review policy's `lookUpCreator` looks the creator up before you return it:
+
+```ts
+import { groveContext } from "harness-dispatch/grove";
+import { lookUpCreator } from "harness-dispatch/examples/review";
+
+// Inside definePolicy({ … }):
+loadContext(request, host) {
+  const context = groveContext(request, host, reviews);
+  return "status" in context ? context : lookUpCreator(context, host);
+},
+```
+
+`groveContext` reads the `reviews` table's keys only, as the review kinds.
+
 ## Inputs
 
 | Input | Meaning |
 |---|---|
 | `--kind TEXT` | Required. Any nonempty token, matched exactly against the routes, or given to `select`. Nothing else supplies the kind. |
 | `--prompt TEXT` or `--prompt-file PATH` | The harness prompt. `run` needs exactly one; `inspect` shows a placeholder without either. |
-| `--task-file PATH` | Optional. Resolved against the current directory and passed on as data. It is not read, need not exist, and supplies no kind or identity. |
+| `--task-file PATH` | Optional. Resolved against the current directory and passed on as data. harness-dispatch itself does not read it, and it need not exist, but a policy's loader may read it, as [the Grove adapter](#the-grove-review-policy) does. It supplies no kind or identity. |
 | `--task-id ID` | Optional. The task's stable identity, such as a Grove handle: opaque UTF-8 of at most 1024 bytes. |
 | `--config PATH` | Optional. The policy entry to use instead of the personal default. |
 | `--choice ID` | Optional. Select this configured candidate: a routes policy takes it instead of the kind's route, and `select` accepts or refuses it. See [explicit choice](#explicit-choice). |
@@ -892,7 +1051,8 @@ and version, the task file, task identity and prompt it was given, the
 artifact and its creator provenance, any explicit choice, the chosen candidate with its provider, model
 and effort, what selected it and why, the resolved program,
 the expanded argv, every effective [bound](#bounds), the selection time, the
-worker's identity, and where `run` would record. It also shows a proposed run
+worker's identity, any adapter the policy imported, and where `run` would
+record. It also shows a proposed run
 ID. That ID is marked as proposed, no run holds it, and a later `run`
 allocates its own. Inspection never writes the record store, so it cannot tell
 you in advance that `run` would find the store unusable for its commit. It
@@ -928,6 +1088,7 @@ version-1 object:
               "message": { "bytes": 1048576, "from": "fixed" }, "diagnostics": { "bytes": 262144, "from": "fixed" } },
   "timing": { "selectionMs": 15 },
   "worker": { "path": "…/libexec/harness-dispatch/harness-dispatch-policy", "packageVersion": "…", "buildId": "…", "bunVersion": "1.4.2" },
+  "adapter": null,
   "diagnostics": { "stdout": "", "stderr": "" }
 }
 ```
@@ -952,6 +1113,13 @@ size, digest and each measured source, and leaves the value to `--json`.
 `policyEnv` lists each name granted with `--policy-env`, and whether it was
 set, as `{ "name", "set" }`; text shows a `policy env` row. Neither ever shows
 a value.
+
+`adapter` is `{ "specifier": "harness-dispatch/grove", "version": "1" }` once
+the policy has imported the [Grove adapter](#the-grove-review-policy), whether
+directly or through an example that composes it, and whether while loading,
+in `loadContext` or in `select`. Otherwise it is `null`. Text shows an
+`adapter` row. The version is the adapter's own, which changes when what it
+reads or how it reads it changes. The worker's version identifies its bytes.
 
 The worker runs in a private empty directory with null stdin, and with the
 environment [below](#the-policys-environment). It talks to the front over a
@@ -1077,6 +1245,9 @@ and your policy selects the harness. Grove checks its own command before it
 writes a leaf, but not your policy, which is evaluated only at launch.
 [`harness-dispatch/examples/grove-static`](#starter-examples) routes every
 kind Grove ships.
+[`harness-dispatch/examples/grove-review`](#the-grove-review-policy) routes them
+the same way, and applies the provider rule to Grove's reviews, reading each
+review's creator from its task file.
 
 The harness receives Grove's completion channel, `GROVE_SIGNAL_FILE`, in the
 environment it inherits. The policy does not, and must not be granted it with
@@ -1124,8 +1295,10 @@ and the selection time. With a context, it keeps the reviewed artifact the
 context names, and the context's measured sources, sizes and digest, but not
 the context itself, and as `creator` the creator provenance its context
 carried, as [inspection shows it](#what-select-receives-and-what-inspection-shows),
-or `null` without one. An adapter version, which a later release supplies, is
-`null`. No environment value is recorded. The argv includes the prompt, so the
+or `null` without one. It keeps the adapter the policy imported, as
+[inspection](#inspect) reports it, or `null`. `record show` lists each measured
+source with its digest under the context's row, so a Grove review's task file
+shows there. No environment value is recorded. The argv includes the prompt, so the
 records are private execution data. A committed run's launch fields never
 change.
 
@@ -1313,7 +1486,7 @@ inspection reads the store as `run` does.
 | 3 | `load` | `policy_import_failed` (a missing import, the entry threw while loading, or an await in it never settled) |
 | 3 | `load` | `message_too_large` (the policy's snapshot is over 1 MiB) |
 | 3 | `validation` | `policy_invalid` and `unsupported_version`, each with its `location` |
-| 3 | `context` | `context_unreadable` (the `--context` file); `context_invalid` and `unsupported_version`, each with its `location`; `context_loader_failed`, `context_loader_unsettled` and `context_source_unreadable` (see [loading context](#loading-context)); `context_too_large`, `source_too_large` and `too_many_sources` (see [bounds](#bounds)) |
+| 3 | `context` | `context_unreadable` (the `--context` file); `context_invalid` and `unsupported_version`, each with its `location`; `context_loader_failed`, `context_loader_unsettled` and `context_source_unreadable` (see [loading context](#loading-context)); `policy_refused` (a loader's own refusal, with `policyCode`); `context_too_large`, `source_too_large` and `too_many_sources` (see [bounds](#bounds)) |
 | 3 | `selection` | `incomplete_mapping`; `unknown_choice` (a `--choice` the catalog does not have); `policy_refused` (the policy's own refusal, with `policyCode`); `selection_threw`, `selection_unsettled`, `selection_abstained`, `selection_malformed`, `unknown_candidate` and `explicit_choice_mismatch` (see [a select policy](#a-select-policy)); `message_too_large` (a result over 1 MiB) |
 | 3 | `evaluation` | `output_limit` (the policy printed more than 256 KiB) |
 | 3 | `expansion` | `missing_input` (a slot whose input was not supplied) |

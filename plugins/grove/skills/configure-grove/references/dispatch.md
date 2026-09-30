@@ -61,6 +61,18 @@ Compose and publish each file as SKILL.md's *Verify and report* directs.
    neither personal file. A candidate's program that is a wrapper must `exec`
    its harness.
 
+   When the user wants every review on another provider than the one that
+   created the reviewed artifact, use `harness-dispatch/examples/grove-review`
+   instead, or a copy of it. It routes other kinds as the Grove starter does.
+   For the five `review-*` kinds it reads the review leaf's own `**Reviews:**`
+   and `**Creator:**` lines through its Grove adapter, `harness-dispatch/grove`,
+   and chooses a reviewer from the other provider. Route those review kinds to
+   the dispatch binding too. A review needs `**Creator:** run <run-id>`, naming
+   the dispatch run that finished its producer, or `**Creator:** declared
+   <provider>`, the user's declaration for a producer finished without
+   dispatch. Do not write a declaration on the user's behalf. The provider is
+   their assertion about who made the artifact.
+
 3. For a kind that must run one particular candidate, add a separate command
    definition with a literal `--choice ID` before `--prompt ${prompt}`, and
    route that kind to it. The ID names a whole catalog candidate. A routes
@@ -112,3 +124,31 @@ reproduces the selection. The remedy:
    a catch-all or a fallback candidate.
 3. Run the `inspect:` line again until it reports a candidate.
 4. Run `grove` again. The same leaf launches.
+
+## Remedy a review that cannot name its creator
+
+Under the Grove review example, a review task file that cannot name its
+producer's creator refuses as `policy_refused` at stage `context`, before any
+reviewer is chosen. Its `policyCode` says which line is wrong:
+
+- `creator_line_missing`: the review has `**Reviews:**` and no
+  `**Creator:**`. A recorded run of the producer's task does not stand in,
+  because harness-dispatch never looks a run up by task. Ask the user which
+  provider made the producer when it was finished without dispatch, and have
+  them write `**Creator:** declared <provider>` directly under `**Reviews:**`.
+  When a dispatched session finished it, the line is `**Creator:** run
+  <run-id>` with that session's `HARNESS_DISPATCH_RUN_ID`.
+- `reviews_line_missing`, `reviews_line_duplicate`, `reviews_line_malformed`,
+  `creator_line_duplicate`, `creator_line_malformed`: the review needs exactly
+  one line of each, each beginning its own line, with one space after the
+  marker and nothing after the value. A line quoted in a fenced block counts.
+- `review_kind_unlisted`: a kind the policy does not list as a review has a
+  `**Reviews:**` line. List the kind among the policy's reviews, or remove the
+  line if the task is not a review.
+- `creator_run_missing`, `creator_origin_unknown`, `same_origin`: the named run
+  is not in the record store, the creator's provider is not one of the
+  catalog's, or the reviewer shares it. Follow the refusal's remedy.
+
+Run the refusal's `inspect:` line after each correction until it reports a
+reviewer, then run `grove` again. Never replace a refused reviewer with one of
+the creator's provider.

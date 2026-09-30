@@ -609,6 +609,25 @@ Neither file exists until you write it, and installing or upgrading Grove
 writes neither. An example you import is part of the installation and changes
 with it, whereas a copy stays yours.
 
+To hold Grove's reviews to a provider rule, activate the Grove review example
+instead:
+
+```ts
+export { policy } from "harness-dispatch/examples/grove-review";
+```
+
+It routes every other kind as the Grove starter does. For `review-requirements`,
+`review-design`, `review-planning`, `review-prototype` and `review-impl`, it
+reads the review leaf's own `**Reviews:**` and `**Creator:**` lines from the
+task file Grove passes. It then chooses a reviewer from another provider than
+the producer's original creator. `**Creator:** run <run-id>` names the dispatch
+run that finished the producer, whose provider that run's record holds.
+`**Creator:** declared <provider>` is your declaration for a producer finished
+without dispatch. A review with neither refuses. Route the review kinds to the
+dispatch binding like any other dispatched kind. The lines' grammar and every
+refusal are in
+[the Grove review policy](../crates/harness-dispatch/README.md#the-grove-review-policy).
+
 Optionally, name one candidate for some kinds with a literal `--choice` in a
 command definition of its own:
 
@@ -708,7 +727,27 @@ The remedy:
 
 A `select` policy that refuses a kind itself reports `policy_refused` with its
 own code. The dynamic starter uses `incomplete_mapping` there, and the remedy
-is the policy's own. Other refusals take the same path, each with its own exit
+is the policy's own.
+
+Under the Grove review example, a review whose task file cannot name its
+creator refuses the same way, as `policy_refused` at stage `context`. The
+commonest code is `creator_line_missing`: the review has a `**Reviews:**` line
+and no `**Creator:**` line. A run recorded for the producer's task does not
+stand in for the line, because harness-dispatch never looks a run up by task.
+The remedy:
+
+1. Run the `inspect:` line. It refuses the same way.
+2. Directly under the review's `**Reviews:**` line, write the producer's
+   creator. For a producer finished without dispatch, that is
+   `**Creator:** declared <provider>`, naming the provider that made it as your
+   catalog labels it. For one a dispatched session finished, it is
+   `**Creator:** run <run-id>`, with that session's `HARNESS_DISPATCH_RUN_ID`.
+3. Run the `inspect:` line again until it reports a reviewer, then run `grove`.
+
+A `**Reviews:**` line under a kind the example does not list as a review
+refuses as `review_kind_unlisted`. List the kind among the reviews in your copy
+of the policy, or remove the line. Each other code and its remedy is in
+[the Grove review policy](../crates/harness-dispatch/README.md#the-grove-review-policy). Other refusals take the same path, each with its own exit
 status and remedy
 ([refusals](../crates/harness-dispatch/README.md#refusals)).
 

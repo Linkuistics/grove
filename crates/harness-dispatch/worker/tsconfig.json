@@ -13,8 +13,9 @@
     "types": ["bun"],
     "paths": {
       "harness-dispatch/sdk": ["./sdk/index.ts"],
+      "harness-dispatch/grove": ["./grove/index.ts"],
       "harness-dispatch/examples/*": ["./examples/*.ts"]
     }
   },
-  "include": ["src", "sdk", "examples"]
+  "include": ["src", "sdk", "grove", "examples"]
 }

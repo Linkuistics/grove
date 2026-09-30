@@ -40,12 +40,16 @@ bin/grove-llm
 bin/harness-dispatch
 libexec/harness-dispatch/examples/dynamic.d.ts
 libexec/harness-dispatch/examples/dynamic.ts
+libexec/harness-dispatch/examples/grove-review.d.ts
+libexec/harness-dispatch/examples/grove-review.ts
 libexec/harness-dispatch/examples/grove-static.d.ts
 libexec/harness-dispatch/examples/grove-static.ts
 libexec/harness-dispatch/examples/review.d.ts
 libexec/harness-dispatch/examples/review.ts
 libexec/harness-dispatch/examples/static.d.ts
 libexec/harness-dispatch/examples/static.ts
+libexec/harness-dispatch/grove/index.d.ts
+libexec/harness-dispatch/grove/index.ts
 libexec/harness-dispatch/harness-dispatch-policy
 libexec/harness-dispatch/notices/NOTICES.md
 libexec/harness-dispatch/notices/bun-LICENSE.md

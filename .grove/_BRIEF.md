@@ -407,6 +407,28 @@ Third, the documents activate `harness-dispatch/examples/grove-static`, which
 enforces no provider rule. They advise copying it rather than importing it,
 since an imported example changes with the installation.
 
+The review policy closed with `grove-review-adapter-k37`. Later leaves build
+on four facts. First, `harness-dispatch/grove` reads the supplied task file's
+`**Reviews:**` and `**Creator:**` lines, and
+`harness-dispatch/examples/grove-review` composes it with the selector over
+the Grove static example's catalog and routes. `tests/grove.rs` drives it with
+a fake producer that writes its own `**Creator:** run` line from
+`HARNESS_DISPATCH_RUN_ID`. `creator-reference-k38`'s lifecycle cases can reuse
+that producer. Second, a `loadContext` may return a refusal in `select`'s
+shape, which the front reports as `policy_refused` at stage `context`; the
+adapter refuses that way, so no `select` can drop its refusals. Third, the
+worker reports the adapter's version when a policy imports it, and names by
+module the embedded examples that bring it in (`bringsAdapter` in
+`worker/src/main.ts`). A new example that composes the adapter joins that set,
+and `tests/grove.rs` fails until it does. Fourth, the Grove-side guidance
+activates the example in `docs/CONFIGURATION.md#harness-dispatch`, and gives
+the missing-creator remedy under "When a dispatched launch refuses" and in
+configure-grove's "Remedy a review that cannot name its creator". Those
+documents call the run line the dispatch run that finished the producer,
+without yet promising that a session writes it. The methodology that makes sessions write it,
+and the rescoping of "no code reads the relationship lines", are k38's, and
+join those same places.
+
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and
 `creator-reference-k38`. The leaf whose retirement closes a node cuts its review

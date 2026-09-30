@@ -446,11 +446,14 @@ fn node_resolver_and_channel_variables_stay_inert_through_the_front_and_fire_in_
     );
 }
 
-/// Every specifier the worker documents: its SDK and one per shipped example.
-/// `grove-review-adapter-k37` adds `harness-dispatch/grove`.
+/// Every specifier the worker documents: its SDK, its Grove adapter and one per
+/// shipped example.
 fn documented_specifiers() -> Vec<String> {
     let examples = Path::new(env!("CARGO_MANIFEST_DIR")).join("worker/examples");
-    let mut specifiers = vec!["harness-dispatch/sdk".to_owned()];
+    let mut specifiers = vec![
+        "harness-dispatch/sdk".to_owned(),
+        "harness-dispatch/grove".to_owned(),
+    ];
     let mut stems: Vec<String> = fs::read_dir(&examples)
         .unwrap()
         .map(|entry| entry.unwrap().path())

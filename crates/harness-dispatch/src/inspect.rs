@@ -109,6 +109,7 @@ impl Report {
             "bounds": choice.inputs.limits.to_json(),
             "timing": { "selectionMs": millis(choice.elapsed) },
             "worker": worker_json(&choice.worker),
+            "adapter": choice.adapter.as_ref().map(crate::worker::Adapter::to_json),
             "diagnostics": choice.diagnostics.to_json(),
         })
     }
@@ -212,6 +213,13 @@ impl Report {
                     worker.package_version,
                     &worker.build_id[..worker.build_id.len().min(12)],
                     worker.bun_version
+                ),
+            ),
+            (
+                "adapter",
+                choice.adapter.as_ref().map_or_else(
+                    || "none; the policy imported no adapter".to_owned(),
+                    |adapter| format!("{}, which the policy imported", adapter.to_text()),
                 ),
             ),
             (

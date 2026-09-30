@@ -787,6 +787,91 @@ pub fn computed(
     })
 }
 
+/// Judge what a loader returned in place of a context: an object with a
+/// `status`, which a version-1 context never has. `select`'s refusal shape,
+/// `{ status: "refused", code, message, remedy }`, is the policy's own
+/// refusal, reported as `select`'s is but at the context stage, and `select`
+/// is never asked. Anything else with a `status` is neither a context nor a
+/// refusal, and is refused where it sits.
+pub fn loader_refused(
+    fields: &Map<String, Value>,
+    kind: &str,
+    choice: Option<&str>,
+    source: &str,
+) -> Refusal {
+    let malformed = |location: &str, message: String| {
+        Refusal::new(
+            "context_invalid",
+            Stage::Context,
+            EXIT_REFUSED,
+            format!("loadContext in {source} returned neither a context nor a refusal: {message}"),
+            format!(
+                "return a version-1 context, or {{ status: \"refused\", code, message, remedy }} \
+                 to decline, from loadContext in {source}; the types in harness-dispatch/sdk \
+                 describe both"
+            ),
+        )
+        .source(source)
+        .location(location)
+    };
+    let status = &fields["status"];
+    if status.as_str() != Some("refused") {
+        return malformed(
+            "context.status",
+            format!(
+                "`status` must be \"refused\", found {}: a context has no status, and a \
+                 selection is select's to make",
+                describe_value(status)
+            ),
+        );
+    }
+    if let Some(unknown) = fields
+        .keys()
+        .find(|key| !REFUSED_FIELDS.contains(&key.as_str()))
+    {
+        return malformed(
+            &format!("context.{unknown}"),
+            format!(
+                "unknown field `{unknown}`: a refusal has only {}",
+                REFUSED_FIELDS.join(", ")
+            ),
+        );
+    }
+    let mut said = Vec::with_capacity(3);
+    for field in ["code", "message", "remedy"] {
+        let location = format!("context.{field}");
+        match fields.get(field) {
+            None => return malformed(&location, format!("`{field}` is missing")),
+            Some(Value::String(text)) if !text.trim().is_empty() => said.push(text.clone()),
+            Some(Value::String(_)) => {
+                return malformed(&location, format!("`{field}` must not be blank"))
+            }
+            Some(value) => {
+                return malformed(
+                    &location,
+                    format!("`{field}` must be a string, found {}", describe(value)),
+                )
+            }
+        }
+    }
+    let [code, message, remedy]: [String; 3] = said.try_into().expect("three fields were said");
+    let input = match choice {
+        Some(choice) => format!("--choice {choice}"),
+        None => format!("--kind {kind}"),
+    };
+    Refusal::new(
+        "policy_refused",
+        Stage::Context,
+        EXIT_REFUSED,
+        format!("the policy {source} refused the selection in loadContext: {message}"),
+        remedy,
+    )
+    .policy_code(code)
+    .input(input)
+    .source(source)
+    .location("policy.loadContext")
+}
+
 /// A snapshot or result the worker would not send, because it encodes to more
 /// than the fixed protocol message bound. Nothing is cut to fit.
 pub fn message_too_large(stage: Stage, breach: &Breach, source: &str, limits: &Limits) -> Refusal {

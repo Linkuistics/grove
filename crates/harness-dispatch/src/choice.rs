@@ -39,7 +39,7 @@ use crate::record;
 use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED, EXIT_WORKER};
 use crate::run_id::RunId;
 use crate::store::{self, StateDir};
-use crate::worker::{self, Assembled, Breach, Halt, Loaded, Outcome, WorkerIdentity};
+use crate::worker::{self, Adapter, Assembled, Breach, Halt, Loaded, Outcome, WorkerIdentity};
 
 #[derive(Debug)]
 pub struct Choice {
@@ -62,6 +62,8 @@ pub struct Choice {
     pub context: Option<Delivered>,
     pub elapsed: Duration,
     pub worker: WorkerIdentity,
+    /// The Grove adapter the policy imported, as the worker reported it last.
+    pub adapter: Option<Adapter>,
     pub diagnostics: Diagnostics,
 }
 
@@ -176,6 +178,7 @@ fn evaluate_and_resolve(
         mut policy,
         selection: Selection { index, reason, by },
         context,
+        adapter,
     } = evaluation.decided;
     let candidate = policy.catalog.swap_remove(index);
     let argv = argv::expand(&candidate, index, &inputs, &run, &source).map_err(refuse)?;
@@ -200,16 +203,18 @@ fn evaluate_and_resolve(
         context,
         elapsed: evaluation.elapsed,
         worker: evaluation.worker,
+        adapter,
         diagnostics,
     })
 }
 
-/// What the judge decided: the valid policy, its selection, and the context
-/// it was made with.
+/// What the judge decided: the valid policy, its selection, the context it was
+/// made with, and the adapter the policy had imported by the end.
 struct Judged {
     policy: Policy,
     selection: Selection,
     context: Option<Delivered>,
+    adapter: Option<Adapter>,
 }
 
 /// Decide on what the worker reported. Validate the policy, then run the
@@ -319,12 +324,14 @@ fn judge(
         policy,
         selection,
         context,
+        adapter: loaded.adapter().cloned(),
     })
 }
 
 /// Judge what the worker assembled as the context: validate and measure it,
-/// or refuse for the reason it could not be assembled. Without a loader it is
-/// the caller's own document, and a refusal about it names that document.
+/// or refuse for the reason it could not be assembled, or with the refusal the
+/// loader returned in its place. Without a loader it is the caller's own
+/// document, and a refusal about it names that document.
 fn deliver(
     assembled: Assembled,
     policy: &Policy,
@@ -343,6 +350,19 @@ fn deliver(
             measured,
             runs,
         } => {
+            // A version-1 context has no `status`, so a loader's result with
+            // one is its refusal, or neither.
+            if let Some(fields) = context
+                .as_object()
+                .filter(|fields| policy.loader && fields.contains_key("status"))
+            {
+                return Err(policy::loader_refused(
+                    fields,
+                    &inputs.kind,
+                    inputs.choice.as_deref(),
+                    source,
+                ));
+            }
             let about = match (&inputs.context, policy.loader) {
                 (Some(caller), false) => caller.measured.name.as_str(),
                 _ => source,

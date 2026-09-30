@@ -329,8 +329,8 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_meas
         env!("CARGO_PKG_VERSION")
     );
     assert_eq!(launch["worker"]["bunVersion"], "1.4.2");
-    // A run given no context records none, and no reviewed artifact. Creator
-    // provenance and the adapter are later increments', absent until then.
+    // A run given no context records none, no reviewed artifact and no
+    // creator, and a policy that imports no adapter records none.
     for absent in ["reviewedArtifact", "context", "creator", "adapter"] {
         assert_eq!(launch[absent], Value::Null, "{absent}");
     }

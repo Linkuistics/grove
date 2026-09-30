@@ -10,7 +10,8 @@
 //
 // This release reads the static `routes` form and the computed `select` form,
 // either with a `loadContext`, and hosts the measured reads, run lookup,
-// diagnostics and abort signal.
+// diagnostics and abort signal. Grove's task conventions are not here: the
+// explicit `harness-dispatch/grove` adapter reads them.
 
 /**
  * The caller inputs one argument of a candidate's argument array can name.
@@ -258,8 +259,16 @@ export interface ContextHost extends SelectHost {
  * built from `request.context` and host reads, and harness-dispatch attaches
  * the measured sources. A loader that throws, rejects or returns nothing
  * refuses the selection, and nothing is selected without its context.
+ *
+ * A loader that finds what it requires invalid, rather than unreadable, can
+ * say why by returning a {@link Refused}, as `select` does. The selection then
+ * refuses as the policy's own, `policy_refused` with its code, message and
+ * remedy, and `select` is not called.
  */
-export type LoadContext = (request: SelectionRequest, host: ContextHost) => Context | PromiseLike<Context>;
+export type LoadContext = (
+  request: SelectionRequest,
+  host: ContextHost,
+) => Context | Refused | PromiseLike<Context | Refused>;
 
 /**
  * The static form: an exact table from session kind to candidate ID.
@@ -381,8 +390,9 @@ export interface Selected<Id extends string = string> {
 }
 
 /**
- * The policy's own refusal. It is reported as `policy_refused`, exit 3, with
- * `code` beside it as `policyCode`, and launches nothing.
+ * The policy's own refusal, from `select` or `loadContext`. It is reported as
+ * `policy_refused`, exit 3, with `code` beside it as `policyCode`, and
+ * launches nothing.
  */
 export interface Refused {
   readonly status: "refused";

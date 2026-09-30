@@ -349,24 +349,41 @@ reference, in one of two forms:
 | `declared <provider>` | Declared | The owner's literal declaration |
 
 A run reference is written by the session that ran under that run, which reads
-its own `HARNESS_DISPATCH_RUN_ID`; the reference is therefore itself evidence
-that the run executed. Its provider comes from dispatch's record of the
-configured launched choice, never from the session's transcription, today's
-catalog or the current mapping. A declaration remedies an artifact made before
-adoption or by a direct harness, which has no run to name. It is the owner's
-assertion and is always reported as declared.
+its own `HARNESS_DISPATCH_RUN_ID`. Its provider comes from dispatch's record of
+the configured launched choice, never from the session's transcription, today's
+catalog or the current mapping. *Execution-recorded* describes that provider,
+not the association. That the named run produced the artifact, and that it
+executed, is the writing session's attestation, which dispatch cannot verify.
+A session can reach other runs' IDs: other review bodies, version history,
+`record show`, or an inherited variable when a direct harness runs inside a
+dispatched session. A wrong but existing run lends its provider, and launch
+does not detect it. A declaration remedies an artifact finished before adoption
+or by a direct harness, which has no run to name. It is the owner's assertion and
+is always reported as declared.
 
 In Grove the reference is the review leaf's `**Creator:**` line, directly under
-its `**Reviews:**` line. The session that finishes a producer launched through
-dispatch writes `**Creator:** run <run-id>` on the review leaf it cuts, and on
-any live review leaf that already names the producer's handle. That session's
-run is the original creator. When a producer was launched more than once,
-earlier attempts are not named: a restarted producer's finishing session
-replaces the line before the review runs. A review's retries read the same line
+its `**Reviews:**` line. A session **finishes** a producer when it retires the
+producer's leaf, and when its close cascade closes the producer's node, so one
+session can finish several. For each producer it finishes, in its task's commit,
+it owns the line on the review leaf it cuts and on every live review leaf that
+already names that producer's handle. Under dispatch it writes
+`**Creator:** run <run-id>`, replacing any line already there. Without
+`HARNESS_DISPATCH_RUN_ID` it has no run to name, so it removes any `**Creator:**`
+line, run or declared. Those reviews refuse until the owner writes
+`**Creator:** declared <provider>` for the finished artifact. A declaration
+written before the producer finished is removed with the rest, so no reference
+outlives the invocation it described.
+
+The finishing session is the original creator: its run, or the owner's
+declaration of it. When a producer was
+launched more than once, earlier attempts are not named: the finishing session
+replaces or removes their line before the review runs. For a decomposed
+producer it is the run whose retirement closed the node, whatever kind that
+child was. This is the one-creator simplification, not contributor accounting.
+A node that stays open writes nothing, and later work that repairs an already
+finished producer changes no reference. A review's retries read the same line
 and the same immutable record, so a retry cannot change the answer; only an
-explicit edit, visible in version control, can. A producer that did not run
-through dispatch has no run ID to write, so its review carries no run reference
-and refuses until the owner writes `**Creator:** declared <provider>`.
+explicit edit, visible in version control, can.
 
 Independent callers supply the same association as data: `reviewedArtifact`
 carries the artifact ID and a creator of either form. The core validates that
@@ -399,7 +416,9 @@ from this record store, or carrying a launch-failure or not-executed detail,
 refuses with the declaration remedy. Inspection and the review's run record
 show the named run's task identity beside the `**Reviews:**` handle; the two
 need not be equal, because a decomposed producer is finished by a child task
-with its own handle.
+with its own handle. Launch therefore admits an existing run of any task
+identity, and an attempt whose execution is unknown, on the reference's
+attestation. Inspection is where such a mismatch shows.
 
 The creator's provider, recorded or declared, must be an exact, case-sensitive
 member of the current catalog's provider-origin set, with no normalisation. A
@@ -497,8 +516,8 @@ Grove configuration inspection shows these slots symbolically when no task is
 selected. It does not fabricate a task or evaluate policy.
 
 The `**Creator:**` line is a methodology convention, like `**Reviews:**`. The
-session writes it; Grove's own code neither writes nor reads either line and
-records nothing about how a producer ran. The
+finishing session writes or removes it; Grove's own code neither writes nor
+reads either line and records nothing about how a producer ran. The
 [creator-reference decision](../adr/a-review-carries-its-creator-reference.md)
 names the methodology rules this amends. They ship with the dispatch
 implementation, so the methodology never asks a session to name a run from a
@@ -600,13 +619,16 @@ acceptance instruments; internal tests may support them without replacing them.
 | Same command, actual shipped examples | Different-origin reviewer on every invocation, retry and explicit choice; same-origin/gateway disguise refuses; a fake producer launched through dispatch writes its `Creator` line from `HARNESS_DISPATCH_RUN_ID`, and the dispatched review of that task file uses the named run's recorded provider, which a changed current mapping cannot rewrite; a store holding an earlier run of the same task identity does not satisfy a review task with no `Creator` line; an unknown run and a run marked not executed refuse; declaration adoption; missing, duplicate or malformed `Reviews`/`Creator` lines refuse; `Reviews` under a kind that is not a configured review entry refuses; a relabelled origin and a misspelt declaration refuse as non-members; the generic reviewed-artifact form selects without a task file |
 | Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow and BUN_OPTIONS stay inert through the public launcher, each beside its firing configuration below; explicit relative config and personal import are admitted; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
 | Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields and an unreadable store refuses; the review's run records the creator provenance used; later observations after tree teardown |
-| Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
+| Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a dispatched producer attempt followed by a direct-harness finish leaves the pre-existing review with no `Creator` line, and that review refuses with the declaration remedy; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
 | Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
 
 Per-target release delivery adds the archive/install tests above. Documentation
 review verifies activation, both inspection surfaces, the `Creator` line
 conventions and their remedies, later outcome entry and launch-time validation
-guidance.
+guidance. Fake producers in the lifecycle cases follow the documented
+convention, including removal without a run and the node-close step. A real
+session's compliance is the methodology's to check, through the conformance
+rows that ship with the amendment, not these seams'.
 Each hostile class has a named firing configuration, a positive control that
 must be seen to fire, so a test cannot pass merely because its fixture never ran:
 

@@ -4,9 +4,10 @@ A review selected through the supplied review policy learns its original
 creator's provider from a reference in its own task file, never from a lookup by
 task handle. The session that finishes a producer launched through
 `harness-dispatch` takes the run ID from its own environment and writes
-`**Creator:** run <run-id>` directly under `**Reviews:**` on its review leaf. The
+`**Creator:** run <run-id>` directly under `**Reviews:**` on its review leaf; a
+finishing session with no run removes any such line instead. The
 policy reads that run's immutable catalog snapshot. An artifact with no run,
-made before adoption or by a direct harness, carries the owner's
+finished before adoption or by a direct harness, carries the owner's
 `**Creator:** declared <provider>` instead, and a review with neither refuses.
 The [area specification](../specs/harness-selection-and-execution.md#identity-and-creator)
 owns the reference forms, the checks and the refusals.
@@ -20,9 +21,10 @@ across separately created groves. A run ID is unique without any namespace.
 Carrying it in the tree therefore keeps handles incomparable and Grove
 stateless. The reference dies with `.grove/`, while the run and observation
 records it names survive teardown. It also fixes which invocation is the
-original creator: the run of the session that finished the producer. A
-restarted producer's finishing session replaces the line before the review
-runs, and a review's retry reads the same line and the same record.
+original creator: the session that finished the producer, by retiring its leaf
+or by closing its node. A restarted producer's finishing
+session replaces the line, or removes it when it ran without dispatch, before
+the review runs. A review's retry reads the same line and the same record.
 
 The line amends three methodology rules, as the human confirmed in
 `harness-selection-and-execution-k8`:
@@ -32,8 +34,11 @@ The line amends three methodology rules, as the human confirmed in
   record of a past session any body carries.
 - `retirement-is-filename-only` — retirement still touches one filename. The
   claim that a waiting review needs no record of how its producer ran is
-  rescoped: before retiring, the finishing producer writes its line on the
-  review it cuts and on any live review already naming its handle.
+  rescoped. In its task's commit, a session writes its line for each producer
+  it finishes, on the review it cuts and on any live review already naming that
+  producer's handle, or removes the line when it has no run. It finishes its own
+  leaf and each node its close cascade closes, so the node-close steps and
+  their `node-close-four-steps` row carry the same step.
 - `diversity-is-the-configs` — Grove still records and compares nothing about
   how a producer ran. The producing session names its run, and the dispatcher's
   policy does the comparing.
@@ -46,13 +51,18 @@ with the dispatch implementation, together with their conformance rows and
 composition-guidance pins, so the methodology never asks a session to name a
 run from a tool that is not installed.
 
-The costs are visible. The reference depends on a session copying its run ID. A
-missing line or an unknown run refuses. A line naming some other existing run
-would lend that run's provider, but the only run ID within a producer session's
-reach is its own. Inspection also shows the named run's task identity beside
-the reviewed handle. An artifact without a run needs a human declaration, the
-per-review step the requirements accept for that case. Producer and review must
-use the same record store.
+The costs are visible. The reference depends on a session copying its run ID,
+and is that session's attestation: the provider is execution-recorded, the
+association is not. A missing line or an unknown run refuses. A line naming some
+other existing run lends that run's provider, and a session can reach such IDs
+in other review bodies, in version history, or inherited by a direct harness
+launched inside a dispatched session. An attempt whose execution is unknown
+passes on the line's word too. Inspection shows the named run's task identity
+beside the reviewed handle; launch does not compare them. The run that closes a
+decomposed producer's node stands for the whole producer, whatever kind that
+child was. An artifact without a run needs a human declaration once it is
+finished, the per-review step the requirements accept for that case. Producer
+and review must use the same record store.
 
 ## Considered options
 
@@ -82,9 +92,10 @@ use the same record store.
 - **Write a `**Produced-by:**` line into the producer at retirement.**
   Retirement would stop being a filename-only transition. `complete` runs after
   the task's commit, which is too late to write.
-- **Write the provider name instead of the run ID.** A transcribed name cannot
-  be told apart from a declaration, so recorded provenance would lose its
-  meaning.
+- **Write the provider name instead of the run ID**, or have a finishing session
+  without a run declare its own provider. A transcribed name cannot be told
+  apart from a declaration, so recorded provenance would lose its meaning, and
+  a declaration is the owner's assertion rather than the session's.
 - **Require the named run's task identity to equal the reviewed handle.** A
   decomposed producer is finished by a child task with its own handle, so the
   check would refuse correctly named runs. All it would add is protection

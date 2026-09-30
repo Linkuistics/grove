@@ -921,8 +921,9 @@ The one producer execution associated with an artifact for review selection,
 whose **selection provider** is execution-recorded or explicitly declared by the
 owner; it is neither today's producer mapping nor the set of all contributors.
 In the harness-dispatch design it is the run of the session that finished the
-producer, named by the review's [[Creator reference]]; a retry or an attempted
-handoff does not choose or replace it.
+producer, by retiring its leaf or closing its node, named by the review's
+[[Creator reference]]; a retry or an attempted handoff does not choose or
+replace it.
 
 <a id="creator-reference"></a>
 ### Creator reference
@@ -930,8 +931,10 @@ handoff does not choose or replace it.
 The line under `**Reviews:**` that names a review's **original creator** in the
 harness-dispatch design: `**Creator:** run <run-id>`, written by the session
 that finished the producer, or `**Creator:** declared <provider>`, the owner's
-declaration for an artifact made without a run. It is the only record of a past
-session a task body carries.
+declaration for an artifact finished without a run, whose finishing session
+removed any earlier line. It is the only record of a past session a task body
+carries. A run reference is the writing session's attestation: its provider is
+recorded, its association with the artifact is not verified.
 _Avoid_: calling it launch metadata; nothing in it routes the review's own
 session.
 

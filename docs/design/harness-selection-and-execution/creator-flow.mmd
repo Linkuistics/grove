@@ -8,6 +8,7 @@ sequenceDiagram
   D->>S: Commit run R: task H, provider of the chosen candidate
   D->>P: exec, environment carries HARNESS_DISPATCH_RUN_ID=R
   P->>P: Finish work, then cut review leaf with Reviews H and Creator run R
+  Note over P: Same line on live reviews of H and of each node<br/>its close cascade closes. Without a run, remove the line
   P->>G: Retire and commit (retire renames one file)
   G->>D: Review launch: kind, review task file, review handle
   D->>D: Adapter reads Reviews and Creator lines from the review task file

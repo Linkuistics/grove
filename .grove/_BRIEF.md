@@ -281,3 +281,11 @@ review.
 `harness-selection-and-execution-k9` reviews the whole current design, including
 k7's unreviewed repairs, before `harness-selection-and-execution-k6` plans. A
 review with actionable findings inserts integration before planning.
+
+`harness-selection-and-execution-k10` integrated that review within the chosen
+mechanism; its running log holds the dispositions. A session finishes a producer
+by retiring its leaf or closing its node, and it replaces the review's
+`**Creator:**` line with its run, or removes the line when it has no run. A run
+reference is the session's attestation: its provider is recorded, but its
+association is not verified. The creator-reference ADR carries the amendment
+text, including the node-close step, that ships with the implementation.

@@ -18,13 +18,15 @@ Sequence views start with the first message. These views distinguish source
 packages and process participants; none claims to be a C4 deployment container
 or a formally checked state machine.
 
-Current changes, from the original-creator redesign:
+Current changes, from integrating design review
+`harness-selection-and-execution-k9`:
 
-- [Original creator → Where each option keeps the creator's provider](http://127.0.0.1:8769/#diagram-creator-options) — New: compares the four options by where provenance lives and which standing rule each amends; the human chose A.
-- [Original creator → Producer names its run; the review resolves it](http://127.0.0.1:8769/#diagram-creator-flow) — New: traces the chosen mechanism from the producer's launch to the review's provider check.
-- [Original creator → Resolve the Creator line before selecting a reviewer](http://127.0.0.1:8769/#diagram-creator) — Replaced registration lookup with the Creator line, fail-closed review recognition and the catalog membership check.
-- [Package boundary → Caller, dispatcher and policy packages](http://127.0.0.1:8769/#diagram-packages) — Corrected the adapter label: it reads only the supplied task file.
-- [Source grounding](runtime-evidence.md#source-grounding) — Replaced the dispatch-UUID note with run-ID provenance and counted three proposed slots.
+- [Original creator → Producer names its run; the review resolves it](http://127.0.0.1:8769/#diagram-creator-flow) — Repaired: the finishing session also updates reviews of each node its close cascade closes, and removes the line when it ran without dispatch. The caption states that the run reference is the session's attestation.
+
+The original-creator redesign that review read added the
+[options comparison](http://127.0.0.1:8769/#diagram-creator-options) and the
+creator flow, and replaced registration lookup in the
+[review policy's path](http://127.0.0.1:8769/#diagram-creator).
 
 The [native probe](runtime-evidence.md#native-probe) and the
 [integration probe](runtime-evidence.md#integration-probe) remain the runtime

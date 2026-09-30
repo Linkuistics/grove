@@ -52,8 +52,11 @@ pub enum Stage {
     Expansion,
     /// Finding the selected candidate's program.
     Resolution,
-    /// Placing, opening, committing to or reading the run record store.
+    /// Placing, opening, committing to or reading the run record store, and
+    /// what it decides about an observation: its run, a repeat, a correction.
     Record,
+    /// Reading and validating an observation document.
+    Observation,
     /// Replacing this process with the harness.
     Exec,
 }
@@ -72,6 +75,7 @@ impl Stage {
             Stage::Expansion => "expansion",
             Stage::Resolution => "resolution",
             Stage::Record => "record",
+            Stage::Observation => "observation",
             Stage::Exec => "exec",
         }
     }

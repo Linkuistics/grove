@@ -628,11 +628,6 @@ fn forms_later_increments_own_are_refused_by_name() {
         .refusal(2);
     assert_eq!(refusal["error"]["input"], "--policy-env");
     assert!(!sandbox.harness_ran());
-    let mut invocation = sandbox.command();
-    invocation.args(["record", "observe", "--run", "r", "--json"]);
-    let refusal = support::run(&mut invocation).refusal(2);
-    assert_eq!(refusal["error"]["code"], "unsupported_input");
-    assert_eq!(refusal["error"]["input"], "record observe");
 }
 
 #[test]

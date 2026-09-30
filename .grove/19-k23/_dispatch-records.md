@@ -42,7 +42,9 @@ its record.
   there is no lookup by task or artifact identity. Do not add one.
 - The store and its handoff commit are `handoff-records-k24`'s, in
   `static-dispatch-k12`. Extend its schema as that leaf's running log records;
-  never rewrite a committed launch field.
+  never rewrite a committed launch field. `run-observations-k25` took the store
+  to schema 2, the observations table, which only `record observe` migrates
+  to; its running log records the envelope, the vocabulary and that rule.
 
 ## Review
 

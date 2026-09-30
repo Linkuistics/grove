@@ -228,7 +228,8 @@ fn inspect_proposes_a_marked_run_id_and_writes_nothing() {
 }
 
 #[test]
-fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_outcome_unobserved() {
+fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_measurement_unobserved()
+{
     let sandbox = Sandbox::new();
     let entry = sandbox.personal_policy(ROUTED);
     let mut command = sandbox.command();
@@ -260,12 +261,12 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_outc
     assert_eq!(export["execution"], "unknown");
     assert_eq!(export["launchFailure"], Value::Null);
     assert_eq!(export["observations"], serde_json::json!([]));
-    let outcomes = export["outcomes"].as_object().unwrap();
-    assert!(outcomes.len() >= 10, "{export}");
-    for (name, outcome) in outcomes {
+    let measurements = export["measurements"].as_object().unwrap();
+    assert!(measurements.len() >= 10, "{export}");
+    for (name, measurement) in measurements {
         assert_eq!(
-            outcome,
-            &serde_json::json!({ "state": "unobserved" }),
+            measurement,
+            &serde_json::json!({ "state": "unobserved", "current": [] }),
             "{name}"
         );
     }
@@ -345,7 +346,7 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_outc
     for expected in [
         run_id.as_str(),
         "handoff attempt",
-        "every outcome unobserved",
+        "unobserved every measurement",
         "origin-a",
         "\"Implement the parser\"",
     ] {
@@ -707,9 +708,9 @@ fn a_store_that_is_corrupt_foreign_or_newer_refuses_and_is_left_as_it_was() {
     launched(&sandbox, &["--kind", "impl", "--prompt", "p"]);
     Connection::open(&store)
         .unwrap()
-        .execute_batch("PRAGMA user_version = 2;")
+        .execute_batch("PRAGMA user_version = 3;")
         .unwrap();
-    refuses("record schema version 2");
+    refuses("record schema version 3");
 
     // Positive control: an empty file is a store with nothing in it yet.
     fs::remove_file(&store).unwrap();

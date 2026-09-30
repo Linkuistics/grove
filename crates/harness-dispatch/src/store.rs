@@ -37,6 +37,12 @@
 //! it into new runs' documents, at a new document version if schema 1 has no
 //! field for it, and a new table arrives by a migration that only creates. No
 //! committed launch field is ever rewritten.
+//!
+//! **Observations.** Schema 2 adds one table of observations: later evidence an
+//! observer attaches to a run, each an immutable validated document. A version-1
+//! store is migrated only by `record observe`, which creates that table inside
+//! its own exclusive transaction, so a refused import leaves the store at
+//! version 1. Every other operation reads and writes both versions as they are.
 
 use std::ffi::OsStr;
 use std::fs::{DirBuilder, File, OpenOptions};
@@ -62,12 +68,13 @@ pub const LOCK_WAIT: Duration = Duration::from_secs(2);
 
 /// "HDRS", at offset 68 of the database header.
 const APPLICATION_ID: i32 = 0x4844_5253;
-const SCHEMA_VERSION: i32 = 1;
+const SCHEMA_VERSION: i32 = 2;
 
-/// Schema 1's tables and triggers. [`prepare`] writes them together with
-/// the header's application ID and version, in the transaction that found the
-/// file pristine, so a concurrent first use sees either nothing or all of it.
-const SCHEMA: &str = "
+/// Schema 1's tables and triggers. [`prepare`] writes them, and
+/// [`OBSERVATIONS`], together with the header's application ID and version, in
+/// the transaction that found the file pristine, so a concurrent first use sees
+/// either nothing or all of it.
+const SCHEMA_1: &str = "
 CREATE TABLE runs (
     run_id TEXT PRIMARY KEY NOT NULL,
     recorded_at TEXT NOT NULL,
@@ -86,6 +93,25 @@ CREATE TRIGGER launch_failures_never_change BEFORE UPDATE ON launch_failures
 BEGIN SELECT RAISE(ABORT, 'a recorded launch failure never changes'); END;
 CREATE TRIGGER launch_failures_are_never_removed BEFORE DELETE ON launch_failures
 BEGIN SELECT RAISE(ABORT, 'a recorded launch failure is never removed'); END;
+";
+
+/// What schema 2 adds, and all the migration from version 1 does: it only
+/// creates. `supersedes` is unique, so an observation is corrected at most
+/// once and corrections form a chain; `record observe` checks that first, to
+/// refuse by name, and the constraint backs it.
+const OBSERVATIONS: &str = "
+CREATE TABLE observations (
+    observation_id TEXT PRIMARY KEY NOT NULL,
+    run_id TEXT NOT NULL REFERENCES runs (run_id),
+    recorded_at TEXT NOT NULL,
+    supersedes TEXT UNIQUE REFERENCES observations (observation_id),
+    document TEXT NOT NULL
+);
+CREATE INDEX observations_by_run ON observations (run_id);
+CREATE TRIGGER observations_never_change BEFORE UPDATE ON observations
+BEGIN SELECT RAISE(ABORT, 'a recorded observation never changes'); END;
+CREATE TRIGGER observations_are_never_removed BEFORE DELETE ON observations
+BEGIN SELECT RAISE(ABORT, 'a recorded observation is never removed'); END;
 ";
 
 /// SQLite's clock, UTC to the millisecond, evaluated in the committing
@@ -172,7 +198,7 @@ pub fn commit(dir: &StateDir, run_id: &RunId, launch: &Value) -> Result<Committe
     let mut connection = create(dir, &file).map_err(fail)?;
     let transaction = exclusive(&mut connection).map_err(fail)?;
     let recorded_at = (|| {
-        prepare(&transaction, Initialize::IfPristine)?;
+        prepare(&transaction, Prepare::IfPristine)?;
         let recorded_at: String = transaction.query_row(
             &format!(
                 "INSERT INTO runs (run_id, recorded_at, launch) VALUES (?1, {NOW}, ?2) \
@@ -201,7 +227,7 @@ pub fn append_launch_failure(
     let mut connection = open(&file).map_err(fail)?;
     let transaction = exclusive(&mut connection).map_err(fail)?;
     (|| {
-        prepare(&transaction, Initialize::Never)?;
+        prepare(&transaction, Prepare::AsItIs)?;
         transaction.execute(
             &format!(
                 "INSERT INTO launch_failures (run_id, recorded_at, detail) VALUES (?1, {NOW}, ?2)"
@@ -214,6 +240,155 @@ pub fn append_launch_failure(
     .map_err(fail)
 }
 
+/// An observation to append. `document` is the validated envelope's compact
+/// encoding, which is what a repeat is compared by.
+pub struct NewObservation<'a> {
+    pub observation_id: &'a str,
+    pub run_id: &'a RunId,
+    pub supersedes: Option<&'a str>,
+    /// Whether it observes that the harness executed, which a run with a
+    /// launch failure contradicts.
+    pub confirms_execution: bool,
+    pub document: &'a str,
+}
+
+/// What an append found. Only `Recorded` wrote anything; every other outcome
+/// rolled its transaction back, a version-1 migration included.
+#[derive(Debug)]
+pub enum Appended {
+    Recorded {
+        recorded_at: String,
+    },
+    /// The same ID with the same document and run: nothing changed.
+    AlreadyRecorded {
+        recorded_at: String,
+    },
+    RunMissing {
+        store_exists: bool,
+    },
+    /// The ID is recorded with another document or against another run.
+    Conflict {
+        run_id: String,
+        recorded_at: String,
+    },
+    /// `supersedes` names no observation of this run: none at all, or one of
+    /// the run named here.
+    SupersedesUnknown {
+        belongs_to: Option<String>,
+    },
+    /// `supersedes` names an observation another one already corrects.
+    AlreadySuperseded {
+        by: String,
+    },
+    /// An execution confirmation for a run whose launch failure is recorded,
+    /// with the failure's cause.
+    ContradictsLaunchFailure {
+        cause: Option<String>,
+    },
+}
+
+/// Append one observation to a recorded run, in one exclusive transaction that
+/// migrates a version-1 store first. Nothing is created: a store that does not
+/// exist, or holds nothing yet, holds no run to observe.
+pub fn append_observation(dir: &StateDir, new: &NewObservation<'_>) -> Result<Appended, Refusal> {
+    let file = dir.store();
+    if !file.try_exists().unwrap_or(true) {
+        return Ok(Appended::RunMissing {
+            store_exists: false,
+        });
+    }
+    let fail = |failure: StoreFailure| failure.refusal(dir, &file, "record the observation");
+    let mut connection = open(&file).map_err(fail)?;
+    let transaction = exclusive(&mut connection).map_err(fail)?;
+    (|| {
+        if prepare(&transaction, Prepare::Migrate)? == Contents::Pristine {
+            return Ok(Appended::RunMissing { store_exists: true });
+        }
+        let run = new.run_id.as_str();
+        let exists = transaction
+            .query_row("SELECT 1 FROM runs WHERE run_id = ?1", params![run], |_| {
+                Ok(())
+            })
+            .optional()?
+            .is_some();
+        if !exists {
+            return Ok(Appended::RunMissing { store_exists: true });
+        }
+        // A repeat first, so that a correction repeated after it took effect
+        // is still the same import rather than a second correction.
+        let recorded = transaction
+            .query_row(
+                "SELECT run_id, recorded_at, document FROM observations WHERE observation_id = ?1",
+                params![new.observation_id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                },
+            )
+            .optional()?;
+        if let Some((run_id, recorded_at, document)) = recorded {
+            return Ok(if run_id == run && document == new.document {
+                Appended::AlreadyRecorded { recorded_at }
+            } else {
+                Appended::Conflict {
+                    run_id,
+                    recorded_at,
+                }
+            });
+        }
+        if let Some(target) = new.supersedes {
+            let belongs_to: Option<String> = transaction
+                .query_row(
+                    "SELECT run_id FROM observations WHERE observation_id = ?1",
+                    params![target],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if belongs_to.as_deref() != Some(run) {
+                return Ok(Appended::SupersedesUnknown { belongs_to });
+            }
+            let by: Option<String> = transaction
+                .query_row(
+                    "SELECT observation_id FROM observations WHERE supersedes = ?1",
+                    params![target],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if let Some(by) = by {
+                return Ok(Appended::AlreadySuperseded { by });
+            }
+        }
+        if new.confirms_execution {
+            let failure: Option<String> = transaction
+                .query_row(
+                    "SELECT detail FROM launch_failures WHERE run_id = ?1",
+                    params![run],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if let Some(detail) = failure {
+                let detail = document(&detail, "launch_failures.detail")?;
+                let cause = detail["cause"].as_str().map(str::to_owned);
+                return Ok(Appended::ContradictsLaunchFailure { cause });
+            }
+        }
+        let recorded_at: String = transaction.query_row(
+            &format!(
+                "INSERT INTO observations (observation_id, run_id, recorded_at, supersedes, \
+                 document) VALUES (?1, ?2, {NOW}, ?3, ?4) RETURNING recorded_at"
+            ),
+            params![new.observation_id, run, new.supersedes, new.document],
+            |row| row.get(0),
+        )?;
+        transaction.commit()?;
+        Ok(Appended::Recorded { recorded_at })
+    })()
+    .map_err(fail)
+}
+
 /// A run as the store holds it.
 #[derive(Debug)]
 pub struct StoredRun {
@@ -221,6 +396,18 @@ pub struct StoredRun {
     pub launch: Value,
     /// When the detail was appended, and the detail.
     pub launch_failure: Option<(String, Value)>,
+    /// In the order they were recorded.
+    pub observations: Vec<StoredObservation>,
+}
+
+/// One recorded observation of a run.
+#[derive(Debug)]
+pub struct StoredObservation {
+    pub recorded_at: String,
+    /// The validated envelope as it was imported.
+    pub document: Value,
+    /// The observation that corrects this one, if any.
+    pub superseded_by: Option<String>,
 }
 
 #[derive(Debug)]
@@ -247,7 +434,8 @@ pub fn load(dir: &StateDir, run_id: &RunId) -> Result<Lookup, Refusal> {
         .transaction_with_behavior(TransactionBehavior::Deferred)
         .map_err(|error| fail(error.into()))?;
     (|| {
-        if prepare(&transaction, Initialize::Never)? == Contents::Pristine {
+        let contents = prepare(&transaction, Prepare::AsItIs)?;
+        if contents == Contents::Pristine {
             return Ok(Lookup::Missing { store_exists: true });
         }
         let run = transaction
@@ -273,10 +461,35 @@ pub fn load(dir: &StateDir, run_id: &RunId) -> Result<Lookup, Refusal> {
                 Ok::<_, StoreFailure>((at, document(&detail, "launch_failures.detail")?))
             })
             .transpose()?;
+        let mut observations = Vec::new();
+        if contents == Contents::Version(2) {
+            let mut statement = transaction.prepare(
+                "SELECT observed.recorded_at, observed.document, (SELECT correction.observation_id \
+                 FROM observations AS correction WHERE correction.supersedes = \
+                 observed.observation_id) FROM observations AS observed WHERE observed.run_id = \
+                 ?1 ORDER BY observed.rowid",
+            )?;
+            let rows = statement.query_map(params![run_id.as_str()], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            })?;
+            for row in rows {
+                let (recorded_at, text, superseded_by) = row?;
+                observations.push(StoredObservation {
+                    recorded_at,
+                    document: document(&text, "observations.document")?,
+                    superseded_by,
+                });
+            }
+        }
         Ok(Lookup::Found(StoredRun {
             recorded_at,
             launch,
             launch_failure,
+            observations,
         }))
     })()
     .map_err(fail)
@@ -363,25 +576,27 @@ fn exclusive(connection: &mut Connection) -> Result<Transaction<'_>, StoreFailur
     Ok(connection.transaction_with_behavior(TransactionBehavior::Exclusive)?)
 }
 
+/// What [`prepare`] may change.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Initialize {
+enum Prepare {
+    /// Initialize a pristine file at the current version.
     IfPristine,
-    Never,
+    /// Migrate a version-1 store to the current version.
+    Migrate,
+    /// Neither: take the store as it is.
+    AsItIs,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 enum Contents {
     Pristine,
-    Schema1,
+    Version(i32),
 }
 
 /// Check the store's identity and version inside the open transaction, and
-/// initialize a pristine one if asked. A file that is neither pristine nor
-/// this store's current version refuses.
-fn prepare(
-    transaction: &Transaction<'_>,
-    initialize: Initialize,
-) -> Result<Contents, StoreFailure> {
+/// initialize or migrate it if asked. A file that is neither pristine nor a
+/// version this release reads refuses.
+fn prepare(transaction: &Transaction<'_>, prepare: Prepare) -> Result<Contents, StoreFailure> {
     let application: i32 =
         transaction.pragma_query_value(None, "application_id", |row| row.get(0))?;
     let version: i32 = transaction.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -389,8 +604,9 @@ fn prepare(
         transaction.query_row("SELECT count(*) FROM sqlite_schema", [], |row| row.get(0))?;
     match (application, version) {
         (0, 0) if objects == 0 => {
-            if initialize == Initialize::IfPristine {
-                transaction.execute_batch(SCHEMA)?;
+            if prepare == Prepare::IfPristine {
+                transaction.execute_batch(SCHEMA_1)?;
+                transaction.execute_batch(OBSERVATIONS)?;
                 // Header pragmas are journaled like any page 1 change, so they
                 // roll back with the transaction: a probe with the system
                 // sqlite3 saw both read 0 again after ROLLBACK.
@@ -398,14 +614,19 @@ fn prepare(
                     "PRAGMA application_id = {APPLICATION_ID}; PRAGMA user_version = \
                      {SCHEMA_VERSION};"
                 ))?;
-                return Ok(Contents::Schema1);
+                return Ok(Contents::Version(SCHEMA_VERSION));
             }
             Ok(Contents::Pristine)
         }
-        (APPLICATION_ID, SCHEMA_VERSION) => Ok(Contents::Schema1),
+        (APPLICATION_ID, 1) if prepare == Prepare::Migrate => {
+            transaction.execute_batch(OBSERVATIONS)?;
+            transaction.execute_batch(&format!("PRAGMA user_version = {SCHEMA_VERSION};"))?;
+            Ok(Contents::Version(SCHEMA_VERSION))
+        }
+        (APPLICATION_ID, version @ (1 | SCHEMA_VERSION)) => Ok(Contents::Version(version)),
         (APPLICATION_ID, other) => Err(StoreFailure::Invalid(format!(
             "it is record schema version {other}, and this release of harness-dispatch reads \
-             version {SCHEMA_VERSION}"
+             versions 1 and {SCHEMA_VERSION}"
         ))),
         _ => Err(StoreFailure::Invalid(format!(
             "it is not a harness-dispatch record store (application ID {application}, user \

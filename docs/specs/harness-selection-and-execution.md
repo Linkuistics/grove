@@ -17,8 +17,11 @@ and structured refusals with their exit results. A refused `run` names its
 equivalent `inspect` invocation. `run` commits its required handoff record,
 with any reviewed artifact and the context's source digests and sizes, before a
 plain exec, exports the run's identity to the harness, and appends an exec
-failure to its attempt. `record show` exports a recorded run. Run lookup
-(`host.run`) is refused by name. Handled signals and a signal-transparent
+failure to its attempt. `record observe` validates and appends a version-1
+observation against a recorded run, with idempotent repeats, refused conflicts
+and retained corrections, and `record show` exports the run with its
+observations, derived evidence and measurements. Run lookup (`host.run`) is
+refused by name. Handled signals and a signal-transparent
 handoff are not yet delivered. Every release
 archive and the Homebrew formula carry the front and its worker in the
 [delivered layout](#delivery), each target's worker compiled from a
@@ -30,7 +33,7 @@ native container. Positive controls show that the userland enforces the glibc
 floor and that each CPU model refuses an instruction beyond it. The release
 task runs the archive-content assertions and this smoke test before it
 publishes anything.
-Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
+Every other input is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
 symbolic inspection are delivered.
 The [visual document](../design/harness-selection-and-execution/README.md) has
@@ -565,7 +568,11 @@ SQLite reports as corrupt refuses with exit 4, and is never reset or replaced.
 A run's launch fields are one document with its own version. Every field that
 a later increment supplies is present in it, as `null` until then. A release
 that records something new therefore writes it into new runs only, and a new
-table arrives by a migration that only creates. The commit is one exclusive
+table arrives by a migration that only creates. Schema 2 adds the observations
+table. A new store is created at version 2. Only `record observe` migrates a
+version-1 store, by creating that table inside its own import transaction, so a
+refused import leaves the store at version 1; every other command reads and
+writes either version as it is. The commit is one exclusive
 transaction in a rollback journal at `synchronous = EXTRA`, the setting SQLite
 documents as durable in that mode, with `fullfsync` on for macOS. That sync
 reaches only the store's own directory. So on first use, the parent of every
@@ -589,9 +596,15 @@ only: it creates no run and no record. Only a committed attempt can carry a
 launch-failure detail.
 
 `record show --run R --json` exports the run and its observations. The export
-names the run's evidence: `handoff_attempt`, whose execution is `unknown`, or
-`launch_failure`, whose harness was `not_executed`. Every outcome not observed
-is `unobserved`.
+names the run's evidence: `handoff_attempt`, whose execution is `unknown`;
+`execution_confirmed`, whose execution a current observation confirms; or
+`launch_failure`, whose harness was `not_executed`. Dispatch's own
+launch-failure detail comes first. Each observation is exported as imported,
+with every supported measurement, those it did not supply as `unobserved`, and
+with `recordedAt` and `supersededBy`. The run-level `measurements` give every
+field a `state` and the `current` entries that supplied it: `observed` if any
+current observation observed it, else `unknown` if one reported that, else
+`unobserved`. Several current values are listed side by side, never combined.
 `record observe --run R --file observation.json` validates and atomically appends
 one version-1 observation. It requires a caller-generated observation ID, source,
 observed-at timestamp and evidence description. Repeating identical ID/content
@@ -619,6 +632,32 @@ remain unobserved in the exported view. Observation source/evidence is an
 assertion by the importer; the package validates shape and association, not
 external truth. A review session can attach its findings to the producer's run,
 because its own task file names that run.
+
+| Measurement | Observed `value` | `unit` |
+|---|---|---|
+| `executionConfirmation` | `true`; an observer that cannot tell reports `unknown` | none |
+| `exit` | `{ code }` from 0 to 255, or `{ signal }` named like `SIGTERM` | none |
+| `duration`, `humanTime` | a number of at least 0 | `ms`, `s`, `min` or `h` |
+| `inputUsage`, `outputUsage`, `totalUsage` | a number of at least 0 | any nonblank unit |
+| `acceptance` | `accepted` or `rejected` | none |
+| `missedDefects`, `falseFindings` | findings `{ id, summary?, repairs? }`, IDs unique within the list | none |
+| `downstreamRepair` | repairs `{ id, summary?, findings?, runId? }` | none |
+| `humanInterventions` | a whole number of at least 0 | none |
+| `evidenceLinks` | nonblank strings | none |
+| `choiceProbability` | a number from 0 to 1 | none |
+| `successProbability` | `{ probability, calibration }` naming its data or version, or `{ probability, uncalibrated: true }` | none |
+
+The envelope's `observationId` is a nonblank string of at most 1024 bytes,
+unique in the store. `runId` must name the run `--run` names, and `observedAt`
+is an RFC 3339 date-time. A finding's `repairs` name observation IDs that may
+be recorded later, and a repair's `runId` names the run that made it. Repeats
+are compared as parsed JSON, so layout and key order do not make a conflict.
+`supersedes` names an observation of the same run that nothing supersedes yet,
+so corrections form a chain. A correction replaces the whole observation: what
+it omits is no longer current. An execution confirmation for a run with a
+recorded launch failure refuses, because that failure is dispatch's own record
+that exec never happened. The document is read from a regular file, within a
+fixed 1 MiB bound.
 
 <a id="grove-integration"></a>
 ## Grove integration
@@ -677,7 +716,8 @@ format. A `--json` word that is the value of another flag, such as the
 prompt, is data.
 
 Exit codes before exec are 2 for malformed CLI input, 3 for policy/context/
-selection refusal, 4 for required-record failure, 5 for worker/protocol/internal
+selection refusal and for a refused record lookup or observation, 4 for
+required-record or record-store failure, 5 for worker/protocol/internal
 failure, 124 for timeout, 126 for an unexecutable selected program, and 127 for
 one not found. An exec error after resolution exits 127 for `ENOENT`, including a
 missing `#!` interpreter, and 126 otherwise. INT/TERM/HUP cleanup ends by

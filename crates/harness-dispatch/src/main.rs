@@ -14,6 +14,7 @@ mod frame;
 mod inputs;
 mod inspect;
 mod limits;
+mod observation;
 mod policy;
 mod program;
 mod record;
@@ -53,7 +54,7 @@ fn main() -> ExitCode {
         Command::Run(args) => args.json,
         Command::Record(record) => match &record.command {
             RecordCommand::Show(args) => args.json,
-            RecordCommand::Observe(_) => scanned,
+            RecordCommand::Observe(args) => args.json,
         },
     };
     let result = match &cli.command {
@@ -76,9 +77,15 @@ fn main() -> ExitCode {
                     }
                 })
                 .map_err(Failure::from),
-            RecordCommand::Observe(_) => {
-                Err(cli::unsupported("`record observe`", "record observe").into())
-            }
+            RecordCommand::Observe(args) => observation::observe(args)
+                .map(|receipt| {
+                    if args.json {
+                        println!("{}", receipt.to_json());
+                    } else {
+                        print!("{}", receipt.to_text());
+                    }
+                })
+                .map_err(Failure::from),
         },
     };
     match result {
@@ -198,7 +205,9 @@ fn command_path(arguments: &[OsString]) -> String {
         .map_while(|word| word.to_str())
         .collect();
     match words.as_slice() {
-        ["record", "show", ..] => "harness-dispatch record show".to_owned(),
+        ["record", command @ ("show" | "observe"), ..] => {
+            format!("harness-dispatch record {command}")
+        }
         [command @ ("inspect" | "run" | "record"), ..] => format!("harness-dispatch {command}"),
         _ => "harness-dispatch".to_owned(),
     }

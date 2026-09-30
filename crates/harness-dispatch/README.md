@@ -12,7 +12,8 @@ or a computed `select`, with bounded context**. `inspect` reports the choice,
 the harness's expanded arguments and the program that would run. `run` makes
 the same choice, commits a durable record of the handoff with a fresh run ID,
 and then replaces itself with the harness. `record show` exports what a run
-recorded. A caller can name one configured candidate with `--choice`, which a
+recorded, and `record observe` attaches later evidence to it: whether the
+harness ran, how it went, and how its work was judged. A caller can name one configured candidate with `--choice`, which a
 routes policy takes instead of the kind's route and a `select` policy accepts
 or refuses. A caller can hand the policy a JSON context document with
 `--context`, and a policy can assemble its own context with `loadContext`,
@@ -21,9 +22,9 @@ its context, reads, messages and output in size, so a policy that never
 finishes, or delivers or prints too much, is stopped and nothing runs. Every
 refusal says what to fix, and a refused `run` gives the `inspect` command that
 reproduces it. Three starter policies ship inside the worker, two static and
-one computed. Signal handling at the handoff, run lookup and later
-observations come in later releases. Until each arrives, its input is refused
-by name. It is never accepted and ignored.
+one computed. Signal handling at the handoff and run lookup come in later
+releases. Until each arrives, its input is refused by name. It is never
+accepted and ignored.
 
 ## Install
 
@@ -778,17 +779,108 @@ harness-dispatch record show --run 5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34 --state-
   "launch": { "schemaVersion": 1, "kind": "impl", "taskId": "T-12", "candidate": { "id": "deep", "provider": "anthropic", "…": "…" }, "…": "…" },
   "launchFailure": null,
   "observations": [],
-  "outcomes": { "executionConfirmation": { "state": "unobserved" }, "exit": { "state": "unobserved" }, "…": "…" }
+  "measurements": { "acceptance": { "state": "unobserved", "current": [] }, "duration": { "state": "unobserved", "current": [] }, "…": "…" }
 }
 ```
 
-`evidence` is `handoff_attempt`, with `execution` `unknown`, until an exec
-failure is appended. It is then `launch_failure`, with `execution`
-`not_executed`, and `launchFailure` holds the error. Every outcome, from exit
-and duration to acceptance and findings, is `unobserved`: this release has no
-way to add observations, and an absent measurement is never zero. The run ID
+`evidence` is `handoff_attempt`, with `execution` `unknown`, until something
+more is known. An exec failure appended to the run makes it `launch_failure`,
+with `execution` `not_executed`, and `launchFailure` holds the error. An
+[observation](#observations) that confirms the harness ran makes it
+`execution_confirmed`, with `execution` `confirmed`. Every measurement, from
+exit and duration to acceptance and findings, is `unobserved` until an
+observation supplies it, and an absent measurement is never zero. The run ID
 must be exactly as reported, in lowercase. An unknown run refuses with exit 3,
 saying whether a store exists at the directory it looked in.
+
+## Observations
+
+harness-dispatch cannot see what happens after it execs, so it never records
+an outcome. An observer can: a wrapper that saw the harness exit, a review that
+judged its work, a person who repaired it. It writes what it saw as one
+version-1 observation document, and imports it against the run:
+
+```sh
+harness-dispatch record observe --run "$HARNESS_DISPATCH_RUN_ID" --file observation.json
+harness-dispatch record observe --run 5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34 --file correction.json --state-dir ./records --json
+```
+
+```json
+{
+  "schemaVersion": 1,
+  "observationId": "review-k46-outcome",
+  "runId": "5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34",
+  "source": "review-impl session for static-dispatch-k12",
+  "observedAt": "2026-10-01T09:30:00Z",
+  "evidence": "the review's findings, integrated in change qrksvsyv",
+  "measurements": {
+    "executionConfirmation": { "state": "observed", "value": true },
+    "duration": { "state": "observed", "value": 1260, "unit": "s" },
+    "acceptance": { "state": "observed", "value": "accepted" },
+    "missedDefects": { "state": "observed", "value": [{ "id": "F3", "summary": "unbounded read" }] },
+    "totalUsage": { "state": "unknown" }
+  }
+}
+```
+
+The envelope needs every field but `supersedes`. `observationId` is your own
+ID for the observation, a nonblank string of at most 1024 bytes, unique in the
+store. `runId` must name the run `--run` names. `source` says who observed, and
+`evidence` what the observation rests on. `observedAt` is an RFC 3339
+date-time, with an uppercase `T` and a `Z` or numeric offset. harness-dispatch
+checks the document's shape and that it names this run. It does not check
+whether the observation is true: the source and evidence are yours to assert.
+
+Each measurement has a `state`. `observed` carries a `value`, and a quantity
+also its `unit`. `unknown` says the observer looked and could not tell.
+`unobserved` says it did not look, which is also what a measurement left out
+means. Neither carries a value or a unit, so nothing unknown is ever read as
+zero, false or accepted.
+
+| Measurement | Observed `value` | `unit` |
+|---|---|---|
+| `executionConfirmation` | `true`: the harness ran | none |
+| `exit` | `{ "code": 0 }` from 0 to 255, or `{ "signal": "SIGTERM" }` | none |
+| `duration`, `humanTime` | a number of at least 0 | `ms`, `s`, `min` or `h` |
+| `inputUsage`, `outputUsage`, `totalUsage` | a number of at least 0 | any nonblank unit, such as `tokens` or `USD` |
+| `acceptance` | `accepted` or `rejected` | none |
+| `missedDefects`, `falseFindings` | a list of findings, `{ id, summary?, repairs? }`, each ID once | none |
+| `downstreamRepair` | a list of repairs, `{ id, summary?, findings?, runId? }`, each ID once | none |
+| `humanInterventions` | a whole number of at least 0 | none |
+| `evidenceLinks` | a list of nonblank strings, such as URLs or commit IDs | none |
+| `choiceProbability` | the probability the selector gave its choice, from 0 to 1 | none |
+| `successProbability` | `{ "probability": 0.8, "calibration": "pilot-2026-10" }`, or `{ "probability": 0.8, "uncalibrated": true }` | none |
+
+A finding's `repairs` name the observations that record its repair, which may
+be imported later. A repair's `findings` name the findings it repaired, and its
+`runId` the run that made it. A success probability must say which calibration
+data or version it came from, or say that it is uncalibrated, so that it is
+never mistaken for a choice probability. The shipped policies emit neither.
+
+Importing the same `observationId` with the same content again changes nothing
+and succeeds, reporting `"status": "already_recorded"`. Content is compared as
+parsed JSON, so layout and key order do not matter. The same ID with other
+content, or against another run, is refused as `observation_conflict`: a
+recorded observation never changes. To correct one, import a new observation
+whose `supersedes` names it. Both are kept, and the export marks the old one
+`supersededBy`. The correction replaces it whole, so a measurement the
+correction leaves out is no longer current. An observation is corrected at most
+once; to correct a correction, supersede the correction. An observation cannot
+confirm execution for a run whose launch failure harness-dispatch recorded.
+Nothing an observation says changes the run's launch fields, and a document
+that tries to carry them is refused.
+
+`record show` lists each observation as it was imported, with every measurement,
+those it left out as `unobserved`, and when it was recorded. Its
+`measurements` then give, for every field, the `current` values from
+observations nothing supersedes, each with its `observationId`, and a `state`:
+`observed` if any of them observed the field, `unknown` if one reported that,
+and `unobserved` otherwise. When two observers disagree, both values are listed:
+harness-dispatch combines and scores nothing.
+
+A store that an older harness-dispatch created, at record schema version 1, is
+migrated to version 2 by its first observation, in the same transaction, which
+only adds the observations table. Nothing else migrates it.
 
 ## Refusals
 
@@ -854,7 +946,8 @@ never opens the store.
 | 3 | `selection` | `incomplete_mapping`; `unknown_choice` (a `--choice` the catalog does not have); `policy_refused` (the policy's own refusal, with `policyCode`); `selection_threw`, `selection_unsettled`, `selection_abstained`, `selection_malformed`, `unknown_candidate` and `explicit_choice_mismatch` (see [a select policy](#a-select-policy)); `message_too_large` (a result over 1 MiB); `unsupported_operation` |
 | 3 | `evaluation` | `output_limit` (the policy printed more than 256 KiB) |
 | 3 | `expansion` | `missing_input` (a slot whose input was not supplied) |
-| 3 | `record` | `run_not_found` (`record show` of a run the store does not hold), `cwd_unavailable` |
+| 3 | `record` | `run_not_found` (`record show` or `record observe` of a run the store does not hold), `cwd_unavailable`; for `record observe`, `observation_conflict`, `supersedes_unknown`, `already_superseded` and `observation_contradicts_record` (see [observations](#observations)) |
+| 3 | `observation` | `observation_unreadable` (the `--file`); `observation_too_large` (over the fixed 1 MiB bound); `observation_invalid` and `unsupported_version`, each with its `location` |
 | 4 | `record` | `record_store_unwritable`, `record_store_locked` (held past the 2-second wait), `record_store_full`, `record_store_invalid` (another application's file, another version, or corrupt), `record_commit_failed`, `run_id_unavailable`, `home_unset` (HOME cannot place the default state directory) |
 | 5 | `worker` | `worker_missing`, `worker_identity_mismatch`, `worker_failed`, `protocol_error` |
 | 124 | `evaluation` | `selection_timeout` (the selection bound ran out) |

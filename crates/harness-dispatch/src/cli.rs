@@ -6,10 +6,11 @@
 //! caller's context document, the explicit choice, the selection and context
 //! bounds and the record directory, for a static `routes` policy or a computed
 //! `select`, either with a `loadContext`.
-//! `record show` exports a recorded run.
-//! The spec's other input and command belong to later increments, and until
-//! each lands it is refused explicitly, by name, rather than accepted and
-//! ignored. They are hidden from help so that help lists only what works.
+//! `record show` exports a recorded run, and `record observe` appends a later
+//! observation to one.
+//! The spec's other input belongs to a later increment, and until it lands it
+//! is refused explicitly, by name, rather than accepted and ignored. It is
+//! hidden from help so that help lists only what works.
 
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
@@ -32,7 +33,8 @@ use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
     after_help = "Examples:\n  \
         harness-dispatch inspect --kind impl\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
-        harness-dispatch record show --run \"$HARNESS_DISPATCH_RUN_ID\" --json\n\n\
+        harness-dispatch record show --run \"$HARNESS_DISPATCH_RUN_ID\" --json\n  \
+        harness-dispatch record observe --run \"$HARNESS_DISPATCH_RUN_ID\" --file observation.json\n\n\
         Exit results before the harness runs: 2 malformed command line; 3 refused by the \
         policy, the selection or its inputs; 4 run record failure; 5 worker or protocol failure; \
         124 selection timeout; 126 program not executable; 127 program not found. Once the \
@@ -89,7 +91,7 @@ pub enum Command {
         Nothing is retried for you."
     )]
     Run(RunArgs),
-    /// Read the run records that run commits
+    /// Export the run records that run commits, and add later observations to them
     Record(RecordArgs),
 }
 
@@ -101,19 +103,53 @@ pub struct RecordArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum RecordCommand {
-    /// Export one recorded run: its launch fields, its evidence and its outcomes
+    /// Export one recorded run: its launch fields, its evidence, its observations and its measurements
     #[command(
         after_help = "A run is a handoff attempt: it was recorded just before exec, and \
         whether the harness then ran, and how it went, stays unknown until observed. An exec \
-        that failed is recorded as a launch failure. No outcome is ever inferred.\n\n\
+        that failed is recorded as a launch failure. A current observation that confirms \
+        execution makes the run execution_confirmed. Every measurement no current observation \
+        supplies is unobserved; nothing is inferred, and values from several observations are \
+        listed side by side, never combined.\n\n\
         Examples:\n  \
         harness-dispatch record show --run \"$HARNESS_DISPATCH_RUN_ID\" --json\n  \
         harness-dispatch record show --run 0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d9e --state-dir ./records"
     )]
     Show(ShowArgs),
-    /// Not supported by this release
-    #[command(hide = true)]
-    Observe(Later),
+    /// Validate one version-1 observation of a recorded run and append it to the run's record
+    #[command(
+        after_help = "An observation is later evidence about a run, from an observer: that \
+        its harness ran, how it exited, how long it took and what it used, whether its work was \
+        accepted, the defects it missed and the findings that were false, the repair it caused \
+        downstream, the human work it needed, and links to the evidence. Each measurement's \
+        state is observed (with a value, and a unit for a quantity), unknown or unobserved; a \
+        measurement left out stays unobserved. harness-dispatch checks the document's shape and \
+        that it names this run, not whether it is true, and never changes the run's launch \
+        fields.\n\n\
+        Importing the same observationId with the same content again changes nothing; with \
+        other content it is refused. To correct an observation, import a new one whose \
+        supersedes names it: both are kept, and the correction replaces it.\n\n\
+        An observation (observation.json):\n  \
+        {\n    \
+          \"schemaVersion\": 1,\n    \
+          \"observationId\": \"review-k46-outcome\",\n    \
+          \"runId\": \"0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d9e\",\n    \
+          \"source\": \"review-impl session for static-dispatch-k12\",\n    \
+          \"observedAt\": \"2026-10-01T09:30:00Z\",\n    \
+          \"evidence\": \"the review's findings, integrated in change qrksvsyv\",\n    \
+          \"measurements\": {\n      \
+            \"executionConfirmation\": { \"state\": \"observed\", \"value\": true },\n      \
+            \"duration\": { \"state\": \"observed\", \"value\": 1260, \"unit\": \"s\" },\n      \
+            \"acceptance\": { \"state\": \"observed\", \"value\": \"accepted\" },\n      \
+            \"missedDefects\": { \"state\": \"observed\", \"value\": [{ \"id\": \"F3\", \"summary\": \"unbounded read\" }] },\n      \
+            \"totalUsage\": { \"state\": \"unknown\" }\n    \
+          }\n  \
+        }\n\n\
+        Examples:\n  \
+        harness-dispatch record observe --run \"$HARNESS_DISPATCH_RUN_ID\" --file observation.json\n  \
+        harness-dispatch record observe --run 0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d9e --file correction.json --state-dir ./records --json"
+    )]
+    Observe(ObserveArgs),
 }
 
 #[derive(Debug, Args)]
@@ -122,6 +158,22 @@ pub struct ShowArgs {
     #[arg(long, value_name = "RUN_ID")]
     pub run: OsString,
     /// Read records from this directory instead of ~/.local/state/harness-dispatch; relative to the current directory
+    #[arg(long, value_name = "PATH")]
+    pub state_dir: Option<PathBuf>,
+    /// Print one version-1 JSON object on stdout, or one JSON error on stderr
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct ObserveArgs {
+    /// The observed run's ID; the observation's runId must name the same run
+    #[arg(long, value_name = "RUN_ID")]
+    pub run: OsString,
+    /// The version-1 observation document, a JSON file relative to the current directory
+    #[arg(long, value_name = "PATH")]
+    pub file: PathBuf,
+    /// Read and append records in this directory instead of ~/.local/state/harness-dispatch; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub state_dir: Option<PathBuf>,
     /// Print one version-1 JSON object on stdout, or one JSON error on stderr
@@ -193,14 +245,6 @@ pub struct SelectionArgs {
     // The spec's remaining selection input, owned by a later increment.
     #[arg(long, hide = true)]
     pub policy_env: Vec<OsString>,
-}
-
-/// Arguments of a command this release refuses, taken whole so that the
-/// refusal names the command rather than its first unfamiliar flag.
-#[derive(Debug, Args)]
-pub struct Later {
-    #[arg(trailing_var_arg = true, allow_hyphen_values = true, hide = true)]
-    pub rest: Vec<OsString>,
 }
 
 impl SelectionArgs {
@@ -328,7 +372,8 @@ pub fn unsupported(what: &str, input: &str) -> Refusal {
         format!("{what} is not supported by this release of harness-dispatch"),
         "omit it; this release selects through a routes or select policy with --kind, --choice, \
          --config, --prompt or --prompt-file, --task-file, --task-id, --context, --timeout-ms, \
-         --context-bytes, --state-dir and --json, and exports runs with record show",
+         --context-bytes, --state-dir and --json, exports runs with record show and adds \
+         observations to them with record observe",
     )
     .input(input)
 }

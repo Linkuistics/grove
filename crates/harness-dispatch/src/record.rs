@@ -72,12 +72,13 @@ pub fn launch(choice: &Choice) -> Value {
     };
     let worker = &choice.worker;
     let inputs = &choice.inputs;
+    let context = choice.context.as_ref();
     json!({
         "schemaVersion": LAUNCH_VERSION,
         "kind": inputs.kind,
         "taskId": inputs.task_id,
         "taskFile": inputs.task_file,
-        "reviewedArtifact": null,
+        "reviewedArtifact": context.and_then(|context| context.reviewed_artifact()),
         "cwd": inputs.cwd.to_string_lossy(),
         "policy": policy,
         "selection": {
@@ -93,7 +94,8 @@ pub fn launch(choice: &Choice) -> Value {
             "path": executable.path.to_string_lossy(),
         },
         "argv": choice.argv.iter().map(crate::argv::Word::to_json).collect::<Vec<_>>(),
-        "context": null,
+        // Digests and sizes only: the delivered value can hold whole sources.
+        "context": context.map(|context| context.to_json(false)),
         "creator": null,
         "worker": {
             "path": worker.path.to_string_lossy(),
@@ -102,7 +104,7 @@ pub fn launch(choice: &Choice) -> Value {
             "bunVersion": worker.bun_version,
         },
         "adapter": null,
-        "bounds": { "selection": inputs.selection.to_json() },
+        "bounds": inputs.limits.to_json(),
         "timing": { "selectionMs": millis(choice.elapsed) },
     })
 }
@@ -237,6 +239,20 @@ impl Export {
             ("kind", field(&launch["kind"])),
             ("task id", field(&launch["taskId"])),
             ("task file", field(&launch["taskFile"])),
+            ("reviewed", field(&launch["reviewedArtifact"])),
+            (
+                "context",
+                match &launch["context"] {
+                    Value::Null => "none".to_owned(),
+                    context => format!(
+                        "{} bytes encoded from {} sources ({} bytes), sha256 {}",
+                        field(&context["encodedBytes"]),
+                        context["sources"].as_array().map_or(0, Vec::len),
+                        field(&context["sourceBytes"]),
+                        field(&context["sha256"])
+                    ),
+                },
+            ),
             ("cwd", field(&launch["cwd"])),
             (
                 "policy",

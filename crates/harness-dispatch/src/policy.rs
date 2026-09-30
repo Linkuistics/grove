@@ -15,8 +15,9 @@ use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
 
+use crate::limits::Limits;
 use crate::refusal::{Refusal, Stage, EXIT_REFUSED};
-use crate::worker::Produced;
+use crate::worker::{Breach, Produced};
 
 const TOP_LEVEL: [&str; 6] = [
     "schemaVersion",
@@ -36,6 +37,8 @@ pub struct Policy {
     pub version: String,
     pub catalog: Vec<Candidate>,
     pub form: Form,
+    /// Whether it has a `loadContext`, which only the worker can call.
+    pub loader: bool,
 }
 
 /// How a valid policy selects: exactly one of the two.
@@ -190,22 +193,6 @@ impl<'a> Validator<'a> {
         .location(location)
     }
 
-    fn unsupported(&self, field: &str) -> Refusal {
-        Refusal::new(
-            "unsupported_form",
-            Stage::Validation,
-            EXIT_REFUSED,
-            format!("`{field}` is not supported by this release of harness-dispatch"),
-            format!(
-                "remove `{field}` from {}: this release evaluates `routes` or `select` without \
-                 loaded context",
-                self.source
-            ),
-        )
-        .source(self.source)
-        .location(format!("policy.{field}"))
-    }
-
     pub fn validate(&self, snapshot: &Value) -> Result<Policy, Refusal> {
         let policy = self.object(snapshot, "policy")?;
 
@@ -257,8 +244,15 @@ impl<'a> Validator<'a> {
                     },
                 )),
             };
-        if present("loadContext") {
-            return Err(self.unsupported("loadContext"));
+        let loader = present("loadContext");
+        if loader && !is_function(&policy["loadContext"]) {
+            return Err(self.invalid(
+                "policy.loadContext",
+                format!(
+                    "`loadContext` must be a function, found {}",
+                    describe(&policy["loadContext"])
+                ),
+            ));
         }
 
         let version = self.string(policy, "version", "policy.version")?;
@@ -282,6 +276,7 @@ impl<'a> Validator<'a> {
             version,
             catalog,
             form,
+            loader,
         })
     }
 
@@ -607,6 +602,7 @@ pub fn computed(
     kind: &str,
     choice: Option<&str>,
     source: &str,
+    limits: &Limits,
 ) -> Result<Selection, Refusal> {
     let shape = format!(
         "return {{ status: \"selected\", candidateId, reason }} or {{ status: \"refused\", code, \
@@ -653,6 +649,17 @@ pub fn computed(
             return Err(malformed(
                 "result",
                 format!("the result of select cannot be serialized: {name}: {message}"),
+            ))
+        }
+        Produced::Breach(breach) => {
+            return Err(message_too_large(Stage::Selection, &breach, source, limits))
+        }
+        Produced::Unsupported { operation } => {
+            return Err(unsupported_operation(
+                Stage::Selection,
+                &operation,
+                "select",
+                source,
             ))
         }
     };
@@ -788,6 +795,68 @@ pub fn computed(
     })
 }
 
+/// A snapshot or result the worker would not send, because it encodes to more
+/// than the fixed protocol message bound. Nothing is cut to fit.
+pub fn message_too_large(stage: Stage, breach: &Breach, source: &str, limits: &Limits) -> Refusal {
+    let bound = limits.message.value;
+    let size = breach
+        .actual
+        .map(|actual| format!("{actual} bytes"))
+        .unwrap_or_else(|| "more".to_owned());
+    let (what, remedy) = if stage == Stage::Load {
+        (
+            format!("the policy {source}, catalog included,"),
+            "keep the exported policy object, catalog included, under 1 MiB of JSON",
+        )
+    } else if stage == Stage::Context {
+        (
+            format!("the failure loadContext in {source} reported"),
+            "throw a shorter error from loadContext, under 1 MiB of JSON",
+        )
+    } else {
+        (
+            format!("the result of select in {source}"),
+            "return a smaller result: a candidate ID and a reason, or a refusal, under 1 MiB of \
+             JSON",
+        )
+    };
+    Refusal::new(
+        "message_too_large",
+        stage,
+        EXIT_REFUSED,
+        format!(
+            "{what} encodes to {size} as a protocol message, over the fixed bound of {bound} bytes"
+        ),
+        format!("{remedy}; harness-dispatch never truncates a message to fit"),
+    )
+    .source(source)
+    .bound(limits.message)
+}
+
+/// A host operation this release refuses, even when the policy caught the
+/// error it threw: a later release delivers it.
+pub fn unsupported_operation(
+    stage: Stage,
+    operation: &str,
+    callback: &str,
+    source: &str,
+) -> Refusal {
+    Refusal::new(
+        "unsupported_operation",
+        stage,
+        EXIT_REFUSED,
+        format!(
+            "{callback} in {source} called {operation}, which this release of harness-dispatch \
+             does not support"
+        ),
+        format!(
+            "remove the call to {operation} from {source}; run lookup arrives in a later release"
+        ),
+    )
+    .source(source)
+    .location(operation)
+}
+
 /// Whether a snapshot value is the marker for a JavaScript function.
 fn is_function(value: &Value) -> bool {
     is_marker(value) && value["$harnessDispatch"] == "function"
@@ -852,6 +921,58 @@ mod tests {
         by_routes(policy, routes, kind, choice, source)
     }
 
+    fn limits() -> Limits {
+        Limits::read(None, None).unwrap()
+    }
+
+    #[test]
+    fn a_load_context_is_valid_only_as_a_function_beside_either_form() {
+        let mut policy = valid();
+        policy["loadContext"] = json!({"$harnessDispatch": "function"});
+        assert!(Validator::new("/p.ts").validate(&policy).unwrap().loader);
+        policy["loadContext"] = Value::Null;
+        assert!(!Validator::new("/p.ts").validate(&policy).unwrap().loader);
+        policy["loadContext"] = json!("load");
+        let refusal = Validator::new("/p.ts").validate(&policy).unwrap_err();
+        assert_eq!(refusal.code, "policy_invalid");
+        assert_eq!(refusal.location.as_deref(), Some("policy.loadContext"));
+    }
+
+    #[test]
+    fn a_result_over_the_message_bound_and_an_unsupported_operation_refuse_by_name() {
+        let policy = computing();
+        let breach = Breach {
+            bound: "message".into(),
+            actual: Some(2_000_000),
+            source: None,
+            max_bytes: None,
+        };
+        let refusal = computed(
+            &policy,
+            Produced::Breach(breach),
+            "impl",
+            None,
+            "/p.ts",
+            &limits(),
+        )
+        .unwrap_err();
+        assert_eq!(refusal.code, "message_too_large");
+        assert_eq!(refusal.bound.map(|bound| bound.value), Some(1_048_576));
+        let refusal = computed(
+            &policy,
+            Produced::Unsupported {
+                operation: "host.run".into(),
+            },
+            "impl",
+            None,
+            "/p.ts",
+            &limits(),
+        )
+        .unwrap_err();
+        assert_eq!(refusal.code, "unsupported_operation");
+        assert_eq!(refusal.location.as_deref(), Some("host.run"));
+    }
+
     /// `valid()` with `select` in place of its routes, and a second candidate.
     fn computing() -> Policy {
         let mut policy = valid();
@@ -871,6 +992,7 @@ mod tests {
             "impl",
             choice,
             "/p.ts",
+            &limits(),
         )
     }
 
@@ -1015,7 +1137,8 @@ mod tests {
     #[test]
     fn each_other_failure_of_select_has_its_own_code() {
         let policy = computing();
-        let refused = |produced| computed(&policy, produced, "impl", None, "/p.ts").unwrap_err();
+        let refused =
+            |produced| computed(&policy, produced, "impl", None, "/p.ts", &limits()).unwrap_err();
         let threw = refused(Produced::Threw {
             name: "TypeError".into(),
             message: "x is undefined".into(),

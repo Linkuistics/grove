@@ -2,7 +2,15 @@
 // type check if its line stops being an error, so this file is the negative
 // control for `routes-policy.ts`: declarations that accepted anything would
 // fail here rather than pass there.
-import { definePolicy, type Candidate, type Policy, type SelectPolicy } from "harness-dispatch/sdk";
+import {
+  definePolicy,
+  type Candidate,
+  type Context,
+  type Creator,
+  type Policy,
+  type SelectPolicy,
+  type SourceRecord,
+} from "harness-dispatch/sdk";
 
 const candidate: Candidate = {
   id: "c",
@@ -63,10 +71,43 @@ export const noRemedy: SelectPolicy = {
   select: async () => ({ status: "refused", code: "c", message: "m" }),
 };
 
-export const noContextYet: SelectPolicy = {
+export const selectReadsNothing: SelectPolicy = {
   schemaVersion: 1,
   version: "v",
   catalog: [candidate],
-  // @ts-expect-error `select` is given the request alone in this release
-  select: (request, context: object) => ({ status: "selected", candidateId: "c", reason: `${request.kind} ${context}` }),
+  select: (_request, _context, host) => {
+    // @ts-expect-error select's host has no reads: its context is the measured one
+    host.readText("notes.md");
+    return { status: "selected", candidateId: "c", reason: "r" };
+  },
 };
+
+export const noRunLookupYet: SelectPolicy = {
+  schemaVersion: 1,
+  version: "v",
+  catalog: [candidate],
+  loadContext: (_request, host) => {
+    // @ts-expect-error run lookup is not in this release
+    host.run("5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34");
+    return { schemaVersion: 1 };
+  },
+  select: () => ({ status: "selected", candidateId: "c", reason: "r" }),
+};
+
+export const loaderWithoutVersion: SelectPolicy = {
+  schemaVersion: 1,
+  version: "v",
+  catalog: [candidate],
+  // @ts-expect-error a loaded context is a version-1 context
+  loadContext: () => ({ summary: "s" }),
+  select: () => ({ status: "selected", candidateId: "c", reason: "r" }),
+};
+
+// @ts-expect-error a creator has exactly one form
+export const bothCreators: Creator = { run: "5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34", declared: "origin-a" };
+
+// @ts-expect-error a source record pins its evidence by sha256 or version
+export const unpinnedSource: SourceRecord = { name: "notes.md" };
+
+// @ts-expect-error a context is data, with no executable field
+export const executableContext: Context = { schemaVersion: 1, program: "sh" };

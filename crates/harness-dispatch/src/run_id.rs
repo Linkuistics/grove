@@ -81,7 +81,9 @@ impl fmt::Display for RunId {
     }
 }
 
-fn is_canonical(given: &str) -> bool {
+/// Whether `given` has the canonical run ID shape: 36 characters of lowercase
+/// hexadecimal digits with hyphens at 8, 13, 18 and 23.
+pub fn is_canonical(given: &str) -> bool {
     given.len() == 36
         && given.bytes().enumerate().all(|(at, byte)| match at {
             8 | 13 | 18 | 23 => byte == b'-',

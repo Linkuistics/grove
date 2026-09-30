@@ -8,9 +8,10 @@
 // policy that satisfies them can still be refused at run time, and every
 // refusal names the location it found.
 //
-// This release reads the static `routes` form and the computed `select` form.
-// Context loading and host operations arrive in a later release, and
-// `loadContext` is refused until then; nothing here stands in for them.
+// This release reads the static `routes` form and the computed `select` form,
+// either with a `loadContext`, and hosts the measured reads, diagnostics and
+// abort signal. Run lookup arrives in a later release, and nothing here stands
+// in for it.
 
 /**
  * The caller inputs one argument of a candidate's argument array can name.
@@ -58,6 +59,133 @@ export interface Candidate {
   readonly args: readonly Argument[];
 }
 
+/** Any JSON value. A context carries data, never code. */
+export type Json = null | boolean | number | string | readonly Json[] | { readonly [key: string]: Json };
+
+/**
+ * A piece of evidence a context attributes: its name, and its SHA-256, its
+ * version or both, so that the context never claims evidence it cannot pin.
+ * A host read returns one, ready to put in `sources`.
+ */
+export type SourceRecord = {
+  /** Nonblank: a path, URL or other name for the evidence. */
+  readonly name: string;
+  /** Its length, when known. */
+  readonly bytes?: number;
+} & (
+  | { readonly sha256: string; readonly version?: string }
+  | { readonly sha256?: string; readonly version: string }
+);
+
+/** A judgment in a context, attributed to whoever made it. */
+export interface Assessment {
+  /** Nonblank: who assessed it, such as `owner` or `triage-model`. */
+  readonly by: string;
+  readonly value: Json;
+}
+
+/**
+ * The run that created a reviewed artifact, or its owner's declaration of the
+ * provider that did: exactly one of the two.
+ */
+export type Creator = { readonly run: string; readonly declared?: never } | { readonly declared: string; readonly run?: never };
+
+/** The artifact a review is of, and at most one creator form. */
+export interface ReviewedArtifact {
+  /** Nonblank, such as a task's stable identity. */
+  readonly id: string;
+  readonly creator?: Creator;
+}
+
+/**
+ * A version-1 context: what a caller supplies with `--context`, and what
+ * `loadContext` returns. Every field but the version is optional, and absent
+ * means unknown: an empty `facts` is a known empty set, not a missing one.
+ * Unknown fields are refused, and so is any field named like an executable
+ * one, such as `program` or `args`.
+ */
+export interface Context {
+  readonly schemaVersion: 1;
+  readonly summary?: string;
+  readonly acceptanceCriteria?: readonly string[];
+  /** The caller's facts, as data. */
+  readonly facts?: { readonly [key: string]: Json };
+  /** Judgments about the work, each attributed. */
+  readonly assessments?: { readonly [name: string]: Assessment };
+  /** The evidence the context draws on; at most 256 records. */
+  readonly sources?: readonly SourceRecord[];
+  readonly reviewedArtifact?: ReviewedArtifact;
+}
+
+/** One source harness-dispatch measured for the context. */
+export interface MeasuredSource {
+  /** The canonical path. */
+  readonly name: string;
+  /** The `--context` document, or the host read that delivered it. */
+  readonly via: "--context" | "readText" | "readJson";
+  /** The bytes actually read. */
+  readonly bytes: number;
+  /** The SHA-256 of those bytes, in lowercase hexadecimal. */
+  readonly sha256: string;
+}
+
+/**
+ * The context `select` receives: the context `loadContext` returned, or the
+ * caller's without a loader, and every source harness-dispatch measured for
+ * it, the `--context` document first and then each read in order. Its whole
+ * JSON encoding, `measured` included, is within `limits.contextBytes`, and it
+ * is exactly what inspection shows. It is frozen.
+ */
+export interface DeliveredContext extends Context {
+  readonly measured: readonly MeasuredSource[];
+}
+
+/** What a host read returns beside the content: a source record to attribute it. */
+export interface ReadSource {
+  readonly name: string;
+  readonly bytes: number;
+  readonly sha256: string;
+}
+
+/** The host `select` receives. */
+export interface SelectHost {
+  /** Write one line of diagnostic text, which inspection shows as the policy's stderr. */
+  diagnostic(text: string): void;
+  /**
+   * Aborted when harness-dispatch stops the selection, at its deadline, so
+   * that work in flight, such as a `fetch`, can stop too.
+   */
+  readonly signal: AbortSignal;
+}
+
+/**
+ * The host `loadContext` receives. Its reads are the only measured ones: each
+ * resolves a relative path against `request.cwd`, reads a regular file once,
+ * and returns its content with the canonical name, byte count and SHA-256 of
+ * the bytes read. A read over its limit, or past the 256th source, refuses the
+ * selection, even if the error it throws is caught. A missing or unreadable
+ * source throws an error that, if `loadContext` fails because of it, names
+ * that source in the refusal.
+ */
+export interface ContextHost extends SelectHost {
+  /**
+   * Read a UTF-8 text file. `maxBytes` defaults to `limits.sourceBytes` and
+   * may be set up to `limits.contextBytes`, never beyond.
+   */
+  readText(path: string, maxBytes?: number): { readonly text: string; readonly source: ReadSource };
+  /** Read a JSON file, as `readText` does, and parse it. */
+  readJson(path: string, maxBytes?: number): { readonly value: Json; readonly source: ReadSource };
+}
+
+/**
+ * Assemble the context `select` will receive. It may be asynchronous, and it
+ * runs within the selection bound. It returns a version-1 context, typically
+ * built from `request.context` and host reads, and harness-dispatch attaches
+ * the measured sources. A loader that throws, rejects or returns nothing
+ * refuses the selection, and nothing is selected without its context.
+ */
+export type LoadContext = (request: SelectionRequest, host: ContextHost) => Context | PromiseLike<Context>;
+
 /**
  * The static form: an exact table from session kind to candidate ID.
  *
@@ -76,6 +204,11 @@ export interface RoutesPolicy {
   readonly catalog: readonly Candidate[];
   /** Kind to candidate ID. Kinds are open tokens the caller supplies. */
   readonly routes: Readonly<Record<string, string>>;
+  /**
+   * Optional. A routes table does not read the context, but the context is
+   * still assembled, measured and inspected, and a loader that fails refuses.
+   */
+  readonly loadContext?: LoadContext;
   /** A policy has exactly one of `routes` or `select`. */
   readonly select?: never;
 }
@@ -85,7 +218,8 @@ export interface RoutesPolicy {
  * refuses, for each invocation.
  *
  * It may be synchronous or return a promise, and may compute anything, within
- * the whole-selection bound in `request.limits`. It is called only once the
+ * the whole-selection bound in `request.limits`. It receives the request, the
+ * measured context and a host without reads. It is called only once the
  * front has accepted the policy, catalog included, and it can name only a
  * candidate that catalog already holds. A result that names another, adds a
  * field, abstains with `undefined` or `null`, throws, rejects or is left
@@ -105,14 +239,26 @@ export interface SelectPolicy {
   /** Nonempty, owner-maintained version, reported by inspection. */
   readonly version: string;
   readonly catalog: readonly Candidate[];
-  select(request: SelectionRequest): SelectionResult | PromiseLike<SelectionResult>;
+  /** Optional: assembles the context `select` receives. */
+  readonly loadContext?: LoadContext;
+  /**
+   * `context` is what `loadContext` returned, or the caller's `--context`
+   * without a loader, with its measured sources; `undefined` when there is
+   * neither.
+   */
+  select(
+    request: SelectionRequest,
+    context: DeliveredContext | undefined,
+    host: SelectHost,
+  ): SelectionResult | PromiseLike<SelectionResult>;
   /** A policy has exactly one of `routes` or `select`. */
   readonly routes?: never;
 }
 
 /**
- * What `select` is asked: the caller's data, never the prompt. Optional fields
- * are absent, not empty, when the caller did not supply them.
+ * What `loadContext` and `select` are asked: the caller's data, never the
+ * prompt. Optional fields are absent, not empty, when the caller did not
+ * supply them. It is frozen.
  */
 export interface SelectionRequest {
   readonly schemaVersion: 1;
@@ -124,15 +270,30 @@ export interface SelectionRequest {
   readonly taskFile?: string;
   /** The caller's `--task-id`. */
   readonly taskId?: string;
+  /** The caller's `--context` document, validated, as data. */
+  readonly context?: Context;
   /** The candidate ID the caller's `--choice` names, known to the catalog. */
   readonly explicitChoice?: string;
   readonly limits: Limits;
 }
 
-/** The bounds in effect for this invocation. */
+/**
+ * The bounds in effect for this invocation. They are for reading: the worker
+ * enforces its own copies, and a policy cannot raise one.
+ */
 export interface Limits {
   /** The whole-selection bound, in milliseconds, from the worker's start. */
   readonly selectionMs: number;
+  /** The delivered context's JSON encoding, `measured` included, in bytes. */
+  readonly contextBytes: number;
+  /** One host read's default limit, in bytes; `maxBytes` may raise it to `contextBytes`. */
+  readonly sourceBytes: number;
+  /** Measured sources, the `--context` document included. */
+  readonly sources: number;
+  /** A catalog snapshot or selection result, as a protocol message, in bytes. */
+  readonly messageBytes: number;
+  /** Everything the policy prints on stdout and stderr together, in bytes. */
+  readonly diagnosticsBytes: number;
 }
 
 /** A candidate chosen, and why. */

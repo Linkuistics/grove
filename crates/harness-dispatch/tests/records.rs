@@ -313,7 +313,14 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_outc
     );
     assert_eq!(
         launch["bounds"],
-        serde_json::json!({ "selection": { "ms": 20000, "from": "--timeout-ms" } })
+        serde_json::json!({
+            "selection": { "ms": 20000, "from": "--timeout-ms" },
+            "context": { "bytes": 262_144, "from": "default" },
+            "source": { "bytes": 65_536, "from": "default" },
+            "sources": { "sources": 256, "from": "fixed" },
+            "message": { "bytes": 1_048_576, "from": "fixed" },
+            "diagnostics": { "bytes": 262_144, "from": "fixed" },
+        })
     );
     assert!(launch["timing"]["selectionMs"].is_u64());
     assert_eq!(
@@ -321,9 +328,10 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_outc
         env!("CARGO_PKG_VERSION")
     );
     assert_eq!(launch["worker"]["bunVersion"], "1.4.2");
-    // Supplied by later increments, and absent until they are.
-    for later in ["reviewedArtifact", "context", "creator", "adapter"] {
-        assert_eq!(launch[later], Value::Null, "{later}");
+    // A run given no context records none, and no reviewed artifact. Creator
+    // provenance and the adapter are later increments', absent until then.
+    for absent in ["reviewedArtifact", "context", "creator", "adapter"] {
+        assert_eq!(launch[absent], Value::Null, "{absent}");
     }
 
     // No raw environment value reaches the store.

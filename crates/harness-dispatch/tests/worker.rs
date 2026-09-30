@@ -339,9 +339,22 @@ fn the_request_carries_the_task_inputs_explicit_choice_and_limits_and_never_the_
                 "taskFile": text(&sandbox.cwd.join("tasks/t.md")),
                 "taskId": "T-7",
                 "explicitChoice": "deep",
-                "limits": { "selectionMs": 30_000 },
+                "limits": {
+                    "selectionMs": 30_000, "contextBytes": 262_144, "sourceBytes": 65_536,
+                    "sources": 256, "messageBytes": 1_048_576, "diagnosticsBytes": 262_144,
+                },
             })
         );
+        // The worker's own copies of the bounds, and no measured source
+        // without a --context document.
+        assert_eq!(
+            message["bounds"],
+            json!({
+                "contextBytes": 262_144, "sourceBytes": 65_536, "sources": 256,
+                "messageBytes": 1_048_576,
+            })
+        );
+        assert_eq!(message["measured"], json!([]));
         for leak in ["prompt-token", "mandate.md", text(&prompt_file).as_str()] {
             assert!(!raw.contains(leak), "{leak} reached the worker: {raw}");
         }

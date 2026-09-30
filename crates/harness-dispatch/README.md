@@ -8,16 +8,20 @@ contract is the
 [area specification](../../docs/specs/harness-selection-and-execution.md).
 
 This release delivers **inspection and running of a static `routes` policy
-or a computed `select`**. `inspect` reports the choice, the harness's expanded
-arguments and the program that would run. `run` makes the same choice, commits a durable
-record of the handoff with a fresh run ID, and then replaces itself with the
-harness. `record show` exports what a run recorded. A caller can name one
-configured candidate with `--choice`, which a routes policy takes instead of
-the kind's route and a `select` policy accepts or refuses. Selection is bounded
-in time, so a policy that never finishes is stopped and nothing runs. Every
+or a computed `select`, with bounded context**. `inspect` reports the choice,
+the harness's expanded arguments and the program that would run. `run` makes
+the same choice, commits a durable record of the handoff with a fresh run ID,
+and then replaces itself with the harness. `record show` exports what a run
+recorded. A caller can name one configured candidate with `--choice`, which a
+routes policy takes instead of the kind's route and a `select` policy accepts
+or refuses. A caller can hand the policy a JSON context document with
+`--context`, and a policy can assemble its own context with `loadContext`,
+through reads that are measured and hashed. Selection is bounded in time, and
+its context, reads, messages and output in size, so a policy that never
+finishes, or delivers or prints too much, is stopped and nothing runs. Every
 refusal says what to fix, and a refused `run` gives the `inspect` command that
 reproduces it. Three starter policies ship inside the worker, two static and
-one computed. Signal handling at the handoff, task context and later
+one computed. Signal handling at the handoff, run lookup and later
 observations come in later releases. Until each arrives, its input is refused
 by name. It is never accepted and ignored.
 
@@ -190,11 +194,13 @@ the request:
 | `kind` | `--kind` |
 | `cwd` | The caller's current directory, as data. The worker does not run there. |
 | `taskFile`, `taskId` | `--task-file`, as an absolute path, and `--task-id`. Each is absent when not given. |
+| `context` | The `--context` document, as data, absent when not given. See [context](#context). |
 | `explicitChoice` | The `--choice` ID, absent when not given. It is always an ID the catalog has. |
-| `limits` | `{ selectionMs }`, the effective whole-selection bound in milliseconds |
+| `limits` | The effective [bounds](#bounds): `selectionMs`, `contextBytes`, `sourceBytes`, `sources`, `messageBytes` and `diagnosticsBytes` |
 
-The prompt is never part of it. Loaded context, `loadContext` and `--context`
-come in a later release, and are refused until then.
+The prompt is never part of it, and the request is frozen. `select` also
+receives the measured context, or `undefined` when there is none, and a host
+with `diagnostic` and `signal`, as [context](#context) describes.
 
 `select` returns, or resolves to, one of two results:
 
@@ -231,8 +237,9 @@ called.
 A policy that wants exact routes for most kinds and computation for a few
 exports `select` and consults its own table. Its reason should name the entry
 it applied, as the dynamic example's does. The types for all of this,
-`SelectPolicy`, `SelectionRequest` and `SelectionResult`, are in
-`harness-dispatch/sdk`, and `definePolicy` types `request` for you.
+`SelectPolicy`, `SelectionRequest`, `DeliveredContext`, `SelectHost` and
+`SelectionResult`, are in `harness-dispatch/sdk`, and `definePolicy` types
+`select`'s arguments for you.
 
 `harness-dispatch/sdk` is built into the worker, so there is nothing to install.
 For editor type checking, map the specifiers to the declarations beside the
@@ -251,6 +258,144 @@ worker:
 
 The readable sources, `sdk/index.ts` and `examples/*.ts`, sit beside the
 declarations.
+
+## Context
+
+A policy can be given more than the kind. A caller supplies a version-1 JSON
+document with `--context`, and a policy can assemble its own context in a
+`loadContext` callback. Either way, what `select` receives is measured,
+hashed and bounded, and inspection shows exactly that.
+
+### The context document
+
+```json
+{
+  "schemaVersion": 1,
+  "summary": "Rename the --verbose flag to --trace",
+  "acceptanceCriteria": ["--verbose still parses, with a deprecation warning"],
+  "facts": { "filesTouched": 3, "publicInterface": true },
+  "assessments": { "risk": { "by": "triage", "value": "medium" } },
+  "sources": [{ "name": "https://example.com/issues/12", "version": "2026-09-30" }],
+  "reviewedArtifact": { "id": "parser-k3", "creator": { "declared": "anthropic" } }
+}
+```
+
+Only `schemaVersion`, which is `1`, is required:
+
+| Field | Value |
+|---|---|
+| `summary` | A string |
+| `acceptanceCriteria` | An array of strings |
+| `facts` | An object of any JSON: the caller's facts, as data |
+| `assessments` | An object whose members are each `{ by, value }`: a judgment, attributed to whoever made it |
+| `sources` | At most 256 source records, `{ name, sha256?, bytes?, version? }`, each with a nonblank `name` and a `sha256` (64 lowercase hexadecimal digits), a `version` or both, so that the evidence is pinned |
+| `reviewedArtifact` | `{ id, creator? }`: the artifact a review is of, and at most one creator form, `{ run: "<run ID>" }` or `{ declared: "<provider>" }` |
+
+A field you leave out stays out, and an empty one stays empty: `"facts": {}`
+says there are no facts, while no `facts` says nothing about them. Nothing is
+filled in for you. An unknown field refuses, and so does a later version. A
+field named like an executable one, such as `program`, `args` or `select`,
+refuses with a message saying that a context is data. Nothing in a context can
+become a program or an argument, because a selection only ever names a catalog
+candidate. The document is read once, relative to the current directory, and
+must be a regular file within the [context budget](#bounds). It is checked
+before any policy runs, and a refusal names its `location`, such as
+`context.reviewedArtifact.creator.run`.
+
+A policy without a loader sees the document as `request.context` and, with
+its measured source attached, as the `context` argument of `select`. A routes
+table reads no context, but a document given to a routes policy is still
+measured and inspected.
+
+### Loading context
+
+```ts
+import { definePolicy, type Context } from "harness-dispatch/sdk";
+
+const claude = { provider: "anthropic", program: "claude", args: ["--model", { slot: "model" }, { slot: "prompt" }] } as const;
+
+export const policy = definePolicy({
+  schemaVersion: 1,
+  version: "2026-10-01",
+  catalog: [
+    { id: "deep", model: "claude-opus-5-5", effort: "high", ...claude },
+    { id: "quick", model: "claude-haiku-4-5", effort: "low", ...claude },
+  ],
+  loadContext(request, host): Context {
+    // A task file, when the caller names one, is read through the host, so it is measured.
+    const task = request.taskFile === undefined ? undefined : host.readText(request.taskFile, 16384);
+    return {
+      ...request.context,
+      schemaVersion: 1,
+      ...(task === undefined ? {} : { summary: task.text.split("\n")[0], sources: [task.source] }),
+    };
+  },
+  select(request, context) {
+    const risky = context?.assessments?.["risk"]?.value === "high";
+    const id = request.explicitChoice ?? (risky ? "deep" : "quick");
+    return { status: "selected", candidateId: id, reason: `risk is ${risky ? "high" : "not high"}` };
+  },
+});
+```
+
+Either form of policy may export `loadContext(request, host)`. It runs once the
+policy has been accepted, and after an explicit choice has been checked
+against the catalog, so a `--choice` it could not satisfy refuses before any
+loader runs. For a routes policy, the kind's route is checked first as well.
+It may be `async`, and it runs within the selection bound. It returns a
+version-1 context, shaped like the document above, and that is what `select`
+receives. Nothing is selected without it. A loader that throws or rejects
+refuses as `context_loader_failed`, one that is still pending when nothing is
+left to settle it refuses as `context_loader_unsettled`, and one that returns
+nothing or an invalid context refuses as `context_invalid` with the location.
+Return plain JSON data: a function, a `NaN` and a cycle each refuse where they
+sit. The request it receives is frozen, so build a new context rather than
+changing `request.context`.
+
+The `host` a loader receives reads files for it:
+
+| Operation | What it does |
+|---|---|
+| `host.readText(path, maxBytes?)` | Reads a UTF-8 text file once and returns `{ text, source }` |
+| `host.readJson(path, maxBytes?)` | Reads a JSON file the same way and returns `{ value, source }` |
+| `host.diagnostic(text)` | Writes one line to the policy's stderr, which inspection shows and the run notice carries |
+| `host.signal` | An `AbortSignal`, aborted when harness-dispatch stops the selection at its deadline, so that a `fetch` in flight can stop too |
+
+A relative `path` resolves against the caller's directory, `request.cwd`, and
+never against the worker's own. Your policy's `import`s still resolve from its
+own file. A read must name a regular file. It reads at most `maxBytes`, which
+defaults to 64 KiB and may be raised to the whole context budget, but no
+further. `source` is `{ name, bytes, sha256 }`: the canonical path, the number
+of bytes read and their SHA-256, ready to attribute in `sources`. A missing
+file, one that is not UTF-8 or, for `readJson`, not JSON throws. If the loader
+fails because of that, even as the `cause` of its own error, the refusal is
+`context_source_unreadable` and names the file. A source the policy can do
+without is simply one it catches.
+
+`select`'s host has `diagnostic` and `signal`, and no reads: it receives the
+context the loader returned, as it was measured, and reads nothing more
+through the host. A read the loader leaves for later fails once its context
+is delivered. Trusted policy can still read anything through Bun's own APIs,
+or fetch over HTTP. Those reads are not measured, so put the versions or
+digests of anything you use that way into `sources` yourself. Run lookup,
+`host.run`, arrives in a later release; calling it now refuses the selection
+as `unsupported_operation`.
+
+### What select receives, and what inspection shows
+
+harness-dispatch attaches every source it measured to the context, as
+`measured`: the `--context` document first, then each read in order, each
+`{ name, via, bytes, sha256 }` with `via` naming `--context`, `readText` or
+`readJson`. A loader cannot supply `measured` itself. The context with
+`measured` attached is the **delivered context**. `select` receives it frozen,
+and its whole encoding, `measured` included, must fit the context budget.
+
+Inspection reports it as `context`: whether a loader assembled it, every
+measured source, their total bytes (`sourceBytes`), the delivered context's
+encoded size (`encodedBytes`) and its SHA-256, and in `--json` the delivered
+value itself. Sizes are bytes of UTF-8 JSON, measured as harness-dispatch
+encodes the context: compactly, with object keys in sorted order. The digest is
+of that same encoding. A context's `reviewedArtifact` is reported beside it.
 
 ## Starter examples
 
@@ -320,7 +465,9 @@ export { policy } from "harness-dispatch/examples/dynamic";
 | `--task-id ID` | Optional. The task's stable identity, such as a Grove handle: opaque UTF-8 of at most 1024 bytes. |
 | `--config PATH` | Optional. The policy entry to use instead of the personal default. |
 | `--choice ID` | Optional. Select this configured candidate: a routes policy takes it instead of the kind's route, and `select` accepts or refuses it. See [explicit choice](#explicit-choice). |
+| `--context PATH` | Optional. A version-1 JSON context document, read as data, relative to the current directory. See [context](#context). |
 | `--timeout-ms MS` | Optional. The whole-selection bound in milliseconds, from 1000 to 120000. The default is 30000. See [the selection bound](#the-selection-bound). |
+| `--context-bytes BYTES` | Optional. The context budget in bytes, from 1 to 8388608 (8 MiB). The default is 262144 (256 KiB). See [bounds](#bounds). |
 | `--state-dir PATH` | Optional. The directory holding run records, instead of `~/.local/state/harness-dispatch`, resolved against the current directory. See [run records](#run-records). |
 
 The prompt is read once and kept byte for byte, trailing newlines included. It
@@ -354,12 +501,38 @@ The choice names the whole joint candidate. There is no way to override its
 model or effort alone. Each invocation, a retry included, evaluates the policy
 afresh.
 
-## The selection bound
+## Bounds
+
+Every selection runs within these bounds. None of them is met by cutting
+something short: each overflow refuses, names its bound, and launches nothing.
+Your policy sees their values in `request.limits`, but it cannot raise one,
+and a policy that catches the error a bound throws is refused all the same.
+
+| Bound | Default | Limit, and what exceeding it does |
+|---|---|---|
+| The whole selection, from the worker's start to its result | 30 seconds | `--timeout-ms` sets 1 to 120 seconds; `selection_timeout`, exit 124 |
+| The delivered context's encoded JSON, `measured` included | 256 KiB | `--context-bytes` sets 1 byte to 8 MiB; `context_too_large` |
+| One host read | 64 KiB, or the context budget if that is smaller | A read's `maxBytes` sets up to the context budget; `source_too_large` |
+| Measured sources, the `--context` document included, and records in a context's `sources` | 256 | Fixed; `too_many_sources` |
+| The policy's catalog snapshot, or `select`'s result, as a protocol message | 1 MiB | Fixed; `message_too_large` |
+| What the policy prints, stdout and stderr together | 256 KiB | Fixed; `output_limit` |
+| The prompt | 1 MiB | Fixed; `prompt_invalid`, exit 2 |
+
+The prompt never reaches the policy, so it never counts against the context
+budget. Output past its bound is read and discarded, so that the policy never
+blocks writing it, and the worker is stopped at once. The first 256 KiB are
+kept in `diagnostics`. Inspection reports every bound, with `from` saying
+whether it is the `default`, `fixed`, or set by `--timeout-ms`,
+`--context-bytes` or a read's `maxBytes`. A refusal a bound caused names it as
+`bound`.
+
+### The selection bound
 
 Your policy is trusted TypeScript, and it can hang: a loop at import, or an
 `await` on work that never settles. So the whole selection has a wall-clock
 bound. It runs from the worker's start to its result, and it covers the
-policy's import, everything the policy does while it loads, and its `select`.
+policy's import, everything the policy does while it loads, its
+`loadContext` and its `select`.
 The default is
 30 seconds. `--timeout-ms` sets it for one invocation, anywhere from 1000
 (1 second) to 120000 (2 minutes). A value outside that range, or anything but
@@ -380,7 +553,9 @@ is launched, and the command exits **124**:
 ```
 
 `bound.from` is `--timeout-ms` or `default`, and whatever the policy printed
-before it was stopped is kept in `diagnostics`. A worker that returns its result
+before it was stopped is kept in `diagnostics`. `host.signal` aborts when the
+worker is sent TERM, and a policy with no TERM listener of its own then ends
+once its abort listeners have run. A worker that returns its result
 in time but then does not exit, because an exit handler holds it, also gets one
 second before it is killed. Its selection stands. A policy that starts
 processes of its own must end them before it returns; the front stops only the
@@ -443,10 +618,11 @@ trusted TypeScript, and is not promised to be free of that code's side
 effects. It makes the same choice `run` would, and refuses where `run` would,
 with the same exit. It
 reports the policy's path, its authority (personal or explicit), its SHA-256
-and version, the task file, task identity and prompt it was given, any explicit
-choice, the chosen candidate with its provider, model and effort, what selected
-it and why, the resolved program,
-the expanded argv, the effective selection bound, the selection time, the
+and version, the task file, task identity and prompt it was given, the
+[context](#context) selection saw with its measured sources, any reviewed
+artifact, any explicit choice, the chosen candidate with its provider, model
+and effort, what selected it and why, the resolved program,
+the expanded argv, every effective [bound](#bounds), the selection time, the
 worker's identity, and where `run` would record. It also shows a proposed run
 ID. That ID is marked as proposed, no run holds it, and a later `run`
 allocates its own. Inspection never opens the record store, so it cannot tell
@@ -465,6 +641,8 @@ version-1 object:
   "taskFile": null,
   "taskId": "T-12",
   "prompt": { "supplied": true, "from": "--prompt", "bytes": 20 },
+  "reviewedArtifact": null,
+  "context": null,
   "policy": { "path": "/home/me/.config/harness-dispatch/policy.ts", "authority": "personal",
               "sha256": "9c1f…", "version": "2026-09-30" },
   "selection": { "form": "routes", "selectedBy": "route", "explicitChoice": null, "candidateId": "deep",
@@ -472,7 +650,9 @@ version-1 object:
                  "reason": "routes[\"impl\"] names candidate \"deep\"" },
   "executable": { "program": "claude", "resolvedBy": "PATH", "pathEntry": "/opt/homebrew/bin", "path": "/opt/homebrew/bin/claude" },
   "argv": ["claude", "--model", "claude-opus-5-5", "Implement the parser"],
-  "bounds": { "selection": { "ms": 30000, "from": "default" } },
+  "bounds": { "selection": { "ms": 30000, "from": "default" }, "context": { "bytes": 262144, "from": "default" },
+              "source": { "bytes": 65536, "from": "default" }, "sources": { "sources": 256, "from": "fixed" },
+              "message": { "bytes": 1048576, "from": "fixed" }, "diagnostics": { "bytes": 262144, "from": "fixed" } },
   "timing": { "selectionMs": 15 },
   "worker": { "path": "…/libexec/harness-dispatch/harness-dispatch-policy", "packageVersion": "…", "buildId": "…", "bunVersion": "1.4.2" },
   "diagnostics": { "stdout": "", "stderr": "" }
@@ -490,7 +670,11 @@ prompt, `"prompt"` is `{ "supplied": false }` and its argument in `argv` is
 `{ "placeholder": "prompt" }`, and a `runId` argument is
 `{ "proposedRunId": "…" }`. `stateDir.from` is `default` or `--state-dir`.
 `resolvedBy` is `absolute`, `cwd` or `PATH`, and only `PATH` adds `pathEntry`,
-the entry as it is spelled in PATH.
+the entry as it is spelled in PATH. With a context, `context` is
+`{ "loader", "sources", "sourceBytes", "encodedBytes", "sha256", "value" }`,
+as [context](#what-select-receives-and-what-inspection-shows) describes, and
+`reviewedArtifact` is the context's, when it names one. Text shows the context's
+size, digest and each measured source, and leaves the value to `--json`.
 
 The worker runs in a private empty directory with null stdin. Its environment
 contains only HOME, PATH, TMPDIR, LANG and `LC_*`. It talks to the front over a
@@ -570,9 +754,10 @@ authority, SHA-256 and version. It keeps the selected candidate exactly as the
 catalog configured it, how it was selected and why, including any explicit
 choice, the resolved program and the full argv. It keeps the worker's identity,
 the effective bounds
-and the selection time. Fields that later releases supply, such as a reviewed
-artifact, loaded context, an adapter version and creator provenance, are
-`null`. No environment value is recorded. The argv includes the prompt, so the
+and the selection time. With a context, it keeps the reviewed artifact the
+context names, and the context's measured sources, sizes and digest, but not
+the context itself. Fields that later releases supply, an adapter version and
+creator provenance, are `null`. No environment value is recorded. The argv includes the prompt, so the
 records are private execution data. A committed run's launch fields never
 change.
 
@@ -615,8 +800,8 @@ any output the policy printed, each line of it prefixed `policy stdout:` or
 `policy stderr:`. `--json` prints one object on stderr,
 `{"schemaVersion":1,"error":{…},"diagnostics":{…}}`, and nothing on stdout. The
 error names `input`, such as `--kind design`, or `source`, usually the policy
-entry, or both, and `location` where the problem is inside a policy or a
-`select` result. A policy's own refusal adds `policyCode`, and a
+entry, or both, and `location` where the problem is inside a policy, a context
+or a `select` result. A policy's own refusal adds `policyCode`, and a
 `policy code:` line in text. A refusal
 caused by running out of a bound also names that bound, as `bound` in JSON and
 a `bound:` line in text. A command line that cannot be parsed is refused the
@@ -663,8 +848,11 @@ never opens the store.
 | 2 | `cli` | `malformed_input` (including a command line that cannot be parsed, and an empty `--choice`), `unsupported_input` (an input or command a later release delivers), `prompt_invalid`, `prompt_unreadable` |
 | 3 | `authority` | `policy_missing`, `policy_unreadable`, `home_unset`, `cwd_unavailable` |
 | 3 | `load` | `policy_import_failed` (a missing import, the entry threw while loading, or an await in it never settled) |
-| 3 | `validation` | `policy_invalid` and `unsupported_version`, each with its `location`; `unsupported_form` (`loadContext`) |
-| 3 | `selection` | `incomplete_mapping`; `unknown_choice` (a `--choice` the catalog does not have); `policy_refused` (the policy's own refusal, with `policyCode`); `selection_threw`, `selection_unsettled`, `selection_abstained`, `selection_malformed`, `unknown_candidate` and `explicit_choice_mismatch` (see [a select policy](#a-select-policy)) |
+| 3 | `load` | `message_too_large` (the policy's snapshot is over 1 MiB) |
+| 3 | `validation` | `policy_invalid` and `unsupported_version`, each with its `location` |
+| 3 | `context` | `context_unreadable` (the `--context` file); `context_invalid` and `unsupported_version`, each with its `location`; `context_loader_failed`, `context_loader_unsettled` and `context_source_unreadable` (see [loading context](#loading-context)); `context_too_large`, `source_too_large` and `too_many_sources` (see [bounds](#bounds)); `unsupported_operation` (`host.run`) |
+| 3 | `selection` | `incomplete_mapping`; `unknown_choice` (a `--choice` the catalog does not have); `policy_refused` (the policy's own refusal, with `policyCode`); `selection_threw`, `selection_unsettled`, `selection_abstained`, `selection_malformed`, `unknown_candidate` and `explicit_choice_mismatch` (see [a select policy](#a-select-policy)); `message_too_large` (a result over 1 MiB); `unsupported_operation` |
+| 3 | `evaluation` | `output_limit` (the policy printed more than 256 KiB) |
 | 3 | `expansion` | `missing_input` (a slot whose input was not supplied) |
 | 3 | `record` | `run_not_found` (`record show` of a run the store does not hold), `cwd_unavailable` |
 | 4 | `record` | `record_store_unwritable`, `record_store_locked` (held past the 2-second wait), `record_store_full`, `record_store_invalid` (another application's file, another version, or corrupt), `record_commit_failed`, `run_id_unavailable`, `home_unset` (HOME cannot place the default state directory) |

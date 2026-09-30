@@ -421,11 +421,11 @@ fn every_invalid_policy_shape_refuses_with_its_location() {
             "policy.select",
         ),
         (
-            "loadContext is later",
+            "loadContext that is not a function",
             policy(
-                r#"schemaVersion: 1, version: "v", catalog: [$C], routes: { impl: "deep" }, loadContext: () => ({})"#,
+                r#"schemaVersion: 1, version: "v", catalog: [$C], routes: { impl: "deep" }, loadContext: {}"#,
             ),
-            "unsupported_form",
+            "policy_invalid",
             "policy.loadContext",
         ),
         (
@@ -610,25 +610,23 @@ fn a_refusal_carries_the_policy_output_separately() {
 fn forms_later_increments_own_are_refused_by_name() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);
-    for flag in ["--context", "--policy-env", "--context-bytes"] {
-        let refusal = sandbox
-            .inspect(&["--kind", "impl", flag, "value", "--json"])
-            .refusal(2);
-        assert_eq!(refusal["error"]["code"], "unsupported_input", "{flag}");
-        assert_eq!(refusal["error"]["input"], flag, "{flag}");
-    }
+    let refusal = sandbox
+        .inspect(&["--kind", "impl", "--policy-env", "TOKEN", "--json"])
+        .refusal(2);
+    assert_eq!(refusal["error"]["code"], "unsupported_input");
+    assert_eq!(refusal["error"]["input"], "--policy-env");
     let refusal = sandbox
         .run(&[
             "--kind",
             "impl",
             "--prompt",
             "p",
-            "--context",
-            "c.json",
+            "--policy-env",
+            "TOKEN",
             "--json",
         ])
         .refusal(2);
-    assert_eq!(refusal["error"]["input"], "--context");
+    assert_eq!(refusal["error"]["input"], "--policy-env");
     assert!(!sandbox.harness_ran());
     let mut invocation = sandbox.command();
     invocation.args(["record", "observe", "--run", "r", "--json"]);
@@ -673,6 +671,8 @@ fn help_lists_only_the_forms_this_release_delivers() {
         "--timeout-ms",
         "--state-dir",
         "--choice",
+        "--context",
+        "--context-bytes",
     ] {
         assert!(
             run.stdout.contains(delivered),
@@ -680,13 +680,11 @@ fn help_lists_only_the_forms_this_release_delivers() {
             run.stdout
         );
     }
-    for later in ["--context", "--policy-env"] {
-        assert!(
-            !run.stdout.contains(later),
-            "help advertises {later}:\n{}",
-            run.stdout
-        );
-    }
+    assert!(
+        !run.stdout.contains("--policy-env"),
+        "help advertises --policy-env:\n{}",
+        run.stdout
+    );
     let mut version = sandbox.command();
     version.arg("--version");
     let version = support::run(&mut version);

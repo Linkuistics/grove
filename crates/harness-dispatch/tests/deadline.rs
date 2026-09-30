@@ -1,9 +1,9 @@
 //! The whole-selection deadline, through the command seam.
 //!
 //! A policy that holds evaluation, by spinning or by awaiting a promise that
-//! live work keeps pending, at import or inside its `select`, is stopped when
-//! the caller's bound runs out: the front exits 124, launches nothing and
-//! leaves no worker behind.
+//! live work keeps pending, at import or inside its `loadContext` or `select`,
+//! is stopped when the caller's bound runs out: the front exits 124, launches
+//! nothing and leaves no worker behind.
 //! Each hold records the worker's PID before it starts, so a test can show
 //! that evaluation began and that the process it began in is gone. Variants
 //! whose hold ends within the bound reach the fake harness, so no timeout case
@@ -41,6 +41,9 @@ enum Place {
     /// Inside the `select` of a computed policy, which the front calls only
     /// once it has accepted the policy the worker loaded.
     Select,
+    /// Inside the `loadContext` of a computed policy, which the front calls
+    /// only once it has accepted the policy, and before `select`.
+    LoadContext,
 }
 
 /// A computed policy whose `select` runs `$HOLD`, then selects `deep`.
@@ -53,6 +56,24 @@ const SELECTING: &str = r#"export const policy = {
   async select() {
     $HOLD
     return { status: "selected", candidateId: "deep", reason: "the hold ended" };
+  },
+};
+"#;
+
+/// A computed policy whose `loadContext` runs `$HOLD`, then returns a context
+/// that its `select` selects with.
+const LOADING: &str = r#"export const policy = {
+  schemaVersion: 1,
+  version: "seam-1",
+  catalog: [
+    { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
+  ],
+  async loadContext() {
+    $HOLD
+    return { schemaVersion: 1, summary: "the hold ended" };
+  },
+  select(request, context) {
+    return { status: "selected", candidateId: "deep", reason: context.summary };
   },
 };
 "#;
@@ -87,6 +108,7 @@ fn holding(
     let policy = match place {
         Place::Import => format!("{hold}{ROUTED}"),
         Place::Select => SELECTING.replace("$HOLD", &hold),
+        Place::LoadContext => LOADING.replace("$HOLD", &hold),
     };
     format!("import {{ writeFileSync }} from \"node:fs\";\n{prelude}\n{policy}")
 }
@@ -260,6 +282,110 @@ fn a_select_awaiting_a_promise_that_live_work_keeps_pending_is_stopped_at_the_de
 }
 
 #[test]
+fn a_load_context_that_spins_is_stopped_at_the_deadline() {
+    for command in ["inspect", "run"] {
+        assert_stopped_at_the_deadline(command, Place::LoadContext, Hold::Spin, "");
+    }
+}
+
+#[test]
+fn a_load_context_awaiting_a_promise_that_live_work_keeps_pending_is_stopped_at_the_deadline() {
+    for command in ["inspect", "run"] {
+        assert_stopped_at_the_deadline(command, Place::LoadContext, Hold::Pending, "");
+    }
+}
+
+#[test]
+fn the_host_signal_aborts_when_the_deadline_stops_a_waiting_loader() {
+    // The loader listens on its host's signal and then awaits work that never
+    // settles. At the deadline the front sends TERM, the signal aborts and its
+    // listener runs, and the worker still ends and is reaped. A loader with a
+    // TERM listener of its own, registered after it took the signal, owns its
+    // exit: its listener runs as well, after the abort. The control is the
+    // same loader returning at once: it selects, and the signal never aborts.
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    enum Loader {
+        Waits,
+        WaitsWithItsOwnListener,
+        Returns,
+    }
+    let policy = |sandbox: &Sandbox, loader: Loader| {
+        let own = match loader {
+            Loader::WaitsWithItsOwnListener => format!(
+                "process.on(\"SIGTERM\", () => {{ writeFileSync({:?}, \"own\"); process.exit(0); }});",
+                text(&sandbox.root.join("own"))
+            ),
+            _ => String::new(),
+        };
+        format!(
+            r#"import {{ writeFileSync }} from "node:fs";
+export const policy = {{
+  schemaVersion: 1,
+  version: "seam-1",
+  catalog: [
+    {{ id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{{ slot: "prompt" }}] }},
+  ],
+  async loadContext(request, host) {{
+    writeFileSync({pid:?}, String(process.pid));
+    host.signal.addEventListener("abort", () => writeFileSync({marker:?}, host.signal.reason.message));
+    {own}
+    if ({wait}) await new Promise(() => setInterval(() => {{}}, 20));
+    return {{ schemaVersion: 1 }};
+  }},
+  select() {{ return {{ status: "selected", candidateId: "deep", reason: "r" }}; }},
+}};
+"#,
+            pid = text(&sandbox.root.join("worker-pid")),
+            marker = text(&sandbox.root.join("aborted")),
+            wait = loader != Loader::Returns,
+        )
+    };
+    for loader in [
+        Loader::Waits,
+        Loader::WaitsWithItsOwnListener,
+        Loader::Returns,
+    ] {
+        let sandbox = Sandbox::new();
+        let pid_file = sandbox.root.join("worker-pid");
+        let aborted = sandbox.root.join("aborted");
+        sandbox.personal_policy(&policy(&sandbox, loader));
+        let mut invocation = sandbox.command();
+        let bound = BOUND_MS.to_string();
+        invocation.args([
+            "run",
+            "--kind",
+            "impl",
+            "--prompt",
+            "p",
+            "--timeout-ms",
+            &bound,
+            "--json",
+        ]);
+        let timed = guarded(&mut invocation, &pid_file, WATCHDOG);
+        if loader == Loader::Returns {
+            assert_eq!(timed.run.code, Some(0), "{}", timed.run.stderr);
+            assert!(sandbox.harness_ran());
+            assert!(!aborted.exists(), "the signal aborted without a stop");
+        } else {
+            let refusal = timed.run.refusal(124);
+            assert_eq!(refusal["error"]["code"], "selection_timeout", "{loader:?}");
+            assert_eq!(
+                fs::read_to_string(&aborted).ok().as_deref(),
+                Some("harness-dispatch stopped this selection"),
+                "{loader:?}"
+            );
+            assert!(!sandbox.harness_ran(), "{loader:?}");
+        }
+        assert_eq!(
+            sandbox.root.join("own").exists(),
+            loader == Loader::WaitsWithItsOwnListener,
+            "{loader:?}: the policy's own TERM listener"
+        );
+        assert!(!exists(recorded_pid(&pid_file).unwrap()), "{loader:?}");
+    }
+}
+
+#[test]
 fn a_hold_that_ends_within_the_bound_reaches_the_harness() {
     // The positive control for every timeout fixture: the same holds, at
     // import and in select, ended after longer than the timeout cases' bound
@@ -272,6 +398,8 @@ fn a_hold_that_ends_within_the_bound_reaches_the_harness() {
         (Place::Import, Hold::Pending),
         (Place::Select, Hold::Spin),
         (Place::Select, Hold::Pending),
+        (Place::LoadContext, Hold::Spin),
+        (Place::LoadContext, Hold::Pending),
     ] {
         let hold_name = format!("{place:?} {hold:?}");
         let sandbox = Sandbox::new();
@@ -301,7 +429,7 @@ fn a_hold_that_ends_within_the_bound_reaches_the_harness() {
         let notice: Value = serde_json::from_str(&timed.run.stderr).unwrap();
         let selected_by = match place {
             Place::Import => "route",
-            Place::Select => "select",
+            Place::Select | Place::LoadContext => "select",
         };
         assert_eq!(notice["handoff"]["selectedBy"], selected_by, "{hold_name}");
         assert!(sandbox.harness_ran(), "{hold_name}: the harness never ran");

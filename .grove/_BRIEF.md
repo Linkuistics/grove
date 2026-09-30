@@ -339,6 +339,23 @@ publishes nothing unless every archive passes that smoke test, so a leaf that
 breaks a floor also blocks the release. The smoke needs an arm64 Docker and Zig
 (`docs/RELEASING.md`).
 
+Computed policy closed with `bounded-context-k22`. A caller's `--context`
+document and a `loadContext` result are checked by one version-1 shape in
+`src/context.rs`. `select` receives the delivered context, which is that value
+with its measured sources attached as `measured`. Later leaves build on four
+facts. First, `host.run` is refused by a sticky `unsupported` breach in
+`worker/src/host.ts` and is absent from the SDK declarations.
+`run-lookup-k26` replaces that refusal with a protocol request the front
+answers. It declares the operation on both hosts and decides where the
+delivered context carries the creator run snapshot. Second, a bound or refusal
+the worker records is reported even if the policy catches its error, and a new
+host operation follows the same rule. Third, the Grove adapter
+(`grove-review-adapter-k37`) reads its task file through `host.readText`, so
+the file becomes a measured source whose digest inspection and the run record
+show; the SDK already exports `ReviewedArtifact` and `Creator`. Fourth, the run
+record's launch document fills `reviewedArtifact` and `context`, and it carries
+all six bounds within version 1. `adapter` and `creator` stay `null`.
+
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and
 `creator-reference-k38`. The leaf whose retirement closes a node cuts its review

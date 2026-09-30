@@ -6,23 +6,39 @@
 // Stdout and stderr stay the policy's diagnostic streams, which the front
 // captures separately, so nothing a policy prints can reach a frame.
 //
-// A frame is a four-byte big-endian length followed by that many bytes of UTF-8
-// JSON. Reads and writes are synchronous: the worker does nothing else while it
+// A frame is a four-byte big-endian length followed by that many bytes of
+// UTF-8 JSON. Reads and writes are synchronous: the worker does nothing else while it
 // waits for the front, and a synchronous write cannot be reordered with a later
 // `process.exit`.
+//
+// Each frame the worker sends has a bound, which the front applies again as it
+// reads: the protocol message bound for a snapshot or a result, the context
+// budget for a context. The caller checks a frame's encoded length against its
+// bound before sending it, and reports an overflow in a small frame instead.
 
 import { readSync, writeSync } from "node:fs";
 
 const CHANNEL = 3;
 
-/** The largest frame either side sends or accepts. */
-export const MAX_FRAME_BYTES = 1024 * 1024;
+/**
+ * The largest frame the front sends: its evaluate message carries the caller's
+ * context, up to the 8 MiB ceiling as the front re-encodes it, beside the
+ * request. The front's `FRONT_FRAME_BYTES` is the same.
+ */
+export const FRONT_FRAME_BYTES = 2 * 8 * 1024 * 1024 + 1024 * 1024;
 
+/** A message's frame body: its UTF-8 JSON. */
+export function encode(message: object): Buffer {
+  return Buffer.from(JSON.stringify(message), "utf8");
+}
+
+/** Send a message whose frame is small by construction: a hello or a failure. */
 export function send(message: object): void {
-  const body = Buffer.from(JSON.stringify(message), "utf8");
-  if (body.length > MAX_FRAME_BYTES) {
-    throw new Error(`protocol frame of ${body.length} bytes exceeds ${MAX_FRAME_BYTES}`);
-  }
+  sendEncoded(encode(message));
+}
+
+/** Send a frame body already encoded, and checked against its bound. */
+export function sendEncoded(body: Buffer): void {
   const frame = Buffer.alloc(4 + body.length);
   frame.writeUInt32BE(body.length, 0);
   body.copy(frame, 4);
@@ -40,8 +56,8 @@ export function receive(): unknown {
   const header = readExact(4, true);
   if (header === null) return null;
   const length = header.readUInt32BE(0);
-  if (length > MAX_FRAME_BYTES) {
-    throw new Error(`protocol frame of ${length} bytes exceeds ${MAX_FRAME_BYTES}`);
+  if (length > FRONT_FRAME_BYTES) {
+    throw new Error(`protocol frame of ${length} bytes exceeds ${FRONT_FRAME_BYTES}`);
   }
   return JSON.parse(readExact(length, false)!.toString("utf8"));
 }

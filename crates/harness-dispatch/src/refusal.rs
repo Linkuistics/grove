@@ -13,7 +13,7 @@ use std::fmt::Write as _;
 
 use serde_json::{json, Map, Value};
 
-use crate::inputs::Bound;
+use crate::limits::Bound;
 
 /// Exit results before exec.
 pub const EXIT_MALFORMED: u8 = 2;
@@ -41,6 +41,9 @@ pub enum Stage {
     Evaluation,
     /// Importing the policy entry.
     Load,
+    /// Reading the caller's context document, or assembling, validating and
+    /// measuring the context delivered to selection.
+    Context,
     /// The policy's exported shape.
     Validation,
     /// Choosing a candidate from a valid policy.
@@ -63,6 +66,7 @@ impl Stage {
             Stage::Worker => "worker",
             Stage::Evaluation => "evaluation",
             Stage::Load => "load",
+            Stage::Context => "context",
             Stage::Validation => "validation",
             Stage::Selection => "selection",
             Stage::Expansion => "expansion",

@@ -9,12 +9,22 @@
 //! before the worker learns which entry to evaluate: a worker from another build
 //! is never handed a policy.
 //!
-//! The conversation has two phases. The worker loads the entry and reports a
-//! snapshot of its policy, which the caller's judge validates while the worker
-//! waits. Only then may the judge ask the worker, once, to call the policy's
-//! `select`, and it judges what that produced against the snapshot it already
-//! holds. A judge that needs nothing more simply ends the conversation, and the
-//! worker exits (*Policy and joint choice*).
+//! The conversation has up to three phases. The worker loads the entry and
+//! reports a snapshot of its policy, which the caller's judge validates while
+//! the worker waits. Only then may the judge ask the worker, once, to assemble
+//! the context, running the policy's `loadContext` if it has one, and it
+//! validates and measures what comes back (*Bounded context*). Then it may ask
+//! the worker, once, to call the policy's `select`, and it judges what that
+//! produced against the snapshot it already holds. A judge that needs nothing
+//! more simply ends the conversation, and the worker exits (*Policy and joint
+//! choice*).
+//!
+//! Every frame the worker sends has a bound, which the worker checks before it
+//! sends and the front checks again as it reads: the fixed protocol message
+//! bound for a snapshot or a result, and the caller's context budget for a
+//! context. The policy's output on both diagnostic streams is kept within one
+//! shared bound. Past it the front stops reading into memory, stops the
+//! worker, and refuses, rather than keeping a truncated account.
 //!
 //! The whole selection is bounded from the worker's start to its result, by the
 //! front's own clock (*Bounded context*, *Execution and authority*). A policy
@@ -32,15 +42,19 @@ use std::os::unix::net::UnixStream;
 use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 
+use crate::context::Measured;
 use crate::frame::{read_frame, write_frame, FrameError};
-use crate::inputs::{Bound, SELECTION_MAX_MS};
-use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_TIMEOUT, EXIT_WORKER};
+use crate::limits::{Bound, Limits, SELECTION_MAX_MS};
+use crate::refusal::{
+    Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED, EXIT_TIMEOUT, EXIT_WORKER,
+};
 
 pub const PROTOCOL: u64 = 1;
 pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -70,6 +84,15 @@ const DRAIN_GRACE: Duration = Duration::from_secs(1);
 /// after its result, before it is killed.
 const CLEANUP_GRACE: Duration = Duration::from_secs(1);
 
+/// The longest a channel read or write waits before it looks again at the
+/// diagnostics bound, so that a policy printing without end is stopped for
+/// that, promptly, rather than at the deadline.
+const POLL: Duration = Duration::from_millis(50);
+
+/// What a context frame carries beyond the delivered context the worker
+/// measured: its type, and the `measured` key it moves out of the context.
+const CONTEXT_ENVELOPE: usize = 1024;
+
 const REBUILD: &str =
     "reinstall harness-dispatch so that its front and worker come from one build; \
      in a source checkout, run `task dispatch:worker`";
@@ -93,6 +116,8 @@ pub enum Outcome {
     LoadUnsettled,
     /// The export is not a policy-shaped object at all.
     Invalid { location: String, message: String },
+    /// The snapshot would have exceeded the protocol message bound.
+    Breach(Breach),
 }
 
 /// What the policy's `select` produced, as the worker reported it. Every value
@@ -107,6 +132,49 @@ pub enum Produced {
     Unserializable { name: String, message: String },
     /// Its promise was still pending when nothing was left to settle it.
     Unsettled,
+    /// Its result would have exceeded the protocol message bound.
+    Breach(Breach),
+    /// It called a host operation this release refuses.
+    Unsupported { operation: String },
+}
+
+/// What the worker assembled as the context, or why it could not.
+#[derive(Debug)]
+pub enum Assembled {
+    /// The loader's result, or the caller's context when there is no loader,
+    /// as the worker encoded it, and every source it measured, in order.
+    Context {
+        context: Value,
+        measured: Vec<Measured>,
+    },
+    /// `loadContext` threw, or its promise rejected.
+    Threw { name: String, message: String },
+    /// `loadContext` failed because an SDK read of `source` did.
+    SourceUnreadable { source: String, message: String },
+    /// Its promise was still pending when nothing was left to settle it.
+    Unsettled,
+    /// Its result cannot be serialized.
+    Unserializable { name: String, message: String },
+    /// A bound was exceeded, whether or not the policy caught the error.
+    Breach(Breach),
+    /// It called a host operation this release refuses.
+    Unsupported { operation: String },
+}
+
+/// A bound the worker saw exceeded, as it reported it. Only the facts the
+/// front cannot know come from the worker: which bound, how much, and for a
+/// read its source and any `maxBytes` the policy passed. The limits
+/// themselves are the front's own.
+#[derive(Debug)]
+pub struct Breach {
+    /// `context`, `source`, `sources` or `message`.
+    pub bound: String,
+    /// The size or count reached, or at least reached.
+    pub actual: Option<u64>,
+    /// The source a read or count bound was exceeded at.
+    pub source: Option<String>,
+    /// The `maxBytes` a read passed, if it passed one.
+    pub max_bytes: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -120,13 +188,59 @@ pub struct Evaluation<T> {
 }
 
 /// The worker after it has reported on the entry, waiting to learn whether the
-/// judge needs a selection from it.
+/// judge needs a context or a selection from it.
 pub struct Loaded<'a> {
     channel: Bounded<'a>,
     worker: &'a Path,
+    limits: &'a Limits,
+    /// The caller's `--context` document, as the front measured it.
+    caller: Option<&'a Measured>,
+    assembled: bool,
 }
 
 impl Loaded<'_> {
+    /// Ask the worker, once, to assemble the context, and wait, within what is
+    /// left of the deadline, for it. Its measured sources must begin with the
+    /// caller's document exactly as the front measured it, when there is one,
+    /// and name no other.
+    pub fn context(&mut self) -> Result<Assembled, Halt> {
+        assert!(!self.assembled, "the context is assembled at most once");
+        self.assembled = true;
+        write_frame(
+            &mut self.channel,
+            &json!({ "type": "context", "protocol": PROTOCOL }),
+        )
+        .map_err(|error| Halt(Conversation::failed(error, true)))?;
+        let max =
+            usize::try_from(self.limits.context.value).unwrap_or(usize::MAX) + CONTEXT_ENVELOPE;
+        let frame = receive(&mut self.channel, self.worker, true, max).map_err(Halt)?;
+        let assembled = assembled(&frame).ok_or_else(|| {
+            Halt(broken(
+                self.worker,
+                format!("unexpected context frame: {}", shown(&frame)),
+            ))
+        })?;
+        if let Assembled::Context { measured, .. } = &assembled {
+            let from_caller = measured
+                .iter()
+                .filter(|source| source.via == crate::context::VIA_CALLER)
+                .count();
+            let consistent = match self.caller {
+                Some(caller) => measured.first() == Some(caller) && from_caller == 1,
+                None => from_caller == 0,
+            };
+            if !consistent {
+                return Err(Halt(broken(
+                    self.worker,
+                    "the worker's measured sources do not begin with the --context document \
+                     exactly as the front measured it"
+                        .to_owned(),
+                )));
+            }
+        }
+        Ok(assembled)
+    }
+
     /// Ask the worker to call the policy's `select`, and wait, within what is
     /// left of the deadline, for what it produced. It consumes the conversation,
     /// so `select` is called at most once.
@@ -136,14 +250,20 @@ impl Loaded<'_> {
             &json!({ "type": "select", "protocol": PROTOCOL }),
         )
         .map_err(|error| Halt(Conversation::failed(error, true)))?;
-        let frame = receive(&mut self.channel, self.worker, true).map_err(Halt)?;
+        let max = message_max(self.limits);
+        let frame = receive(&mut self.channel, self.worker, true, max).map_err(Halt)?;
         produced(&frame).ok_or_else(|| {
             Halt(broken(
                 self.worker,
-                format!("unexpected selection frame: {frame}"),
+                format!("unexpected selection frame: {}", shown(&frame)),
             ))
         })
     }
+}
+
+/// The bound on a snapshot or result frame, the fixed protocol message bound.
+fn message_max(limits: &Limits) -> usize {
+    usize::try_from(limits.message.value).unwrap_or(usize::MAX)
 }
 
 /// Why a conversation stopped before the judge decided: a refusal of the
@@ -229,15 +349,19 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 /// Start the worker, verify it, have it evaluate `entry`, and let `judge`
-/// decide on what it reports, asking it to select if the judge needs to, all
-/// within `bound`, which counts from the worker's start.
+/// decide on what it reports, asking it for a context or a selection if the
+/// judge needs one, all within the selection bound, which counts from the
+/// worker's start, and every other bound in `limits`. `caller` is the
+/// `--context` document as the front measured it, the first measured source.
 pub fn evaluate<T>(
     worker: &Path,
     entry: &str,
     request: Value,
-    bound: Bound,
+    limits: &Limits,
+    caller: Option<&Measured>,
     judge: impl FnOnce(Outcome, Loaded<'_>) -> Result<T, Halt>,
 ) -> Result<Evaluation<T>, Failure> {
+    let bound = limits.selection;
     let failed = |message: String| {
         Refusal::new(
             "worker_failed",
@@ -342,17 +466,33 @@ pub fn evaluate<T>(
     })?;
     // The front keeps only its own end, so the worker's exit reads as EOF.
     drop(worker_end);
-    let stdout = drain(child.stdout.take());
-    let stderr = drain(child.stderr.take());
+    let capture = Capture::start(
+        child.stdout.take(),
+        child.stderr.take(),
+        limits.diagnostics.value,
+    );
 
     let channel = Bounded {
         channel: &front_end,
         deadline,
+        overflow: &capture.overflow,
     };
-    let result = converse(channel, worker, entry, request, started, judge);
+    let asked = Asked {
+        worker,
+        entry,
+        request,
+        limits,
+        caller,
+    };
+    let result = converse(channel, asked, started, judge);
     // The closed channel is the worker's signal that nothing more is asked.
     drop(front_end);
     let status = match &result {
+        // Output past its bound ends evaluation at once.
+        _ if capture.overflowed() => {
+            let _ = child.kill();
+            child.wait()
+        }
         // Its work is done, or the judge refused what it reported: either way
         // it exits by itself, flushing what the policy printed, unless the
         // policy keeps it.
@@ -364,13 +504,17 @@ pub fn evaluate<T>(
             child.wait()
         }
     };
-    let drained_by = Instant::now() + DRAIN_GRACE;
-    let diagnostics = Diagnostics {
-        stdout: stdout.collect(drained_by),
-        stderr: stderr.collect(drained_by),
-    };
+    let (diagnostics, overflowed) = capture.collect(Instant::now() + DRAIN_GRACE);
     drop(private_dir);
 
+    // The bound holds for as long as the worker lives, so output past it
+    // refuses whatever else happened, a completed selection included.
+    if overflowed {
+        return Err(Failure::with_diagnostics(
+            output_limit(entry, limits),
+            diagnostics,
+        ));
+    }
     match result {
         Ok((worker, decided, elapsed)) => Ok(Evaluation {
             worker,
@@ -423,15 +567,30 @@ impl Conversation {
     }
 }
 
+/// What the worker is asked to evaluate, and within what.
+struct Asked<'a> {
+    worker: &'a Path,
+    entry: &'a str,
+    request: Value,
+    limits: &'a Limits,
+    caller: Option<&'a Measured>,
+}
+
 fn converse<T>(
     mut channel: Bounded<'_>,
-    worker: &Path,
-    entry: &str,
-    request: Value,
+    asked: Asked<'_>,
     started: Instant,
     judge: impl FnOnce(Outcome, Loaded<'_>) -> Result<T, Halt>,
 ) -> Result<(WorkerIdentity, T, Duration), Conversation> {
-    let hello = receive(&mut channel, worker, false)?;
+    let Asked {
+        worker,
+        entry,
+        request,
+        limits,
+        caller,
+    } = asked;
+    let max = message_max(limits);
+    let hello = receive(&mut channel, worker, false, max)?;
     let identity = verify_hello(&hello, worker).map_err(Conversation::Broken)?;
 
     write_frame(
@@ -443,14 +602,34 @@ fn converse<T>(
             // no string names exactly.
             "entry": entry,
             "request": request,
+            // The worker's own copies, which nothing the policy does can
+            // raise; the policy sees the same values in `request.limits`.
+            "bounds": {
+                "contextBytes": limits.context.value,
+                "sourceBytes": limits.source.value,
+                "sources": limits.sources.value,
+                "messageBytes": limits.message.value,
+            },
+            "measured": caller.map(Measured::to_json).into_iter().collect::<Vec<_>>(),
         }),
     )
     .map_err(|error| Conversation::failed(error, false))?;
 
-    let reported = receive(&mut channel, worker, true)?;
-    let outcome = outcome(&reported)
-        .ok_or_else(|| broken(worker, format!("unexpected result frame: {reported}")))?;
-    let decided = judge(outcome, Loaded { channel, worker }).map_err(|Halt(halted)| halted)?;
+    let reported = receive(&mut channel, worker, true, max)?;
+    let outcome = outcome(&reported).ok_or_else(|| {
+        broken(
+            worker,
+            format!("unexpected result frame: {}", shown(&reported)),
+        )
+    })?;
+    let loaded = Loaded {
+        channel,
+        worker,
+        limits,
+        caller,
+        assembled: false,
+    };
+    let decided = judge(outcome, loaded).map_err(|Halt(halted)| halted)?;
     Ok((identity, decided, started.elapsed()))
 }
 
@@ -460,9 +639,10 @@ fn receive(
     channel: &mut Bounded<'_>,
     worker: &Path,
     handed_over: bool,
+    max: usize,
 ) -> Result<Value, Conversation> {
-    match read_frame(channel) {
-        Err(error @ (FrameError::TooLarge(_) | FrameError::NotJson(_))) => Err(broken(
+    match read_frame(channel, max) {
+        Err(error @ (FrameError::TooLarge(..) | FrameError::NotJson(_))) => Err(broken(
             worker,
             format!("the policy worker sent a malformed frame: {error}"),
         )),
@@ -488,50 +668,171 @@ fn text(frame: &Value, field: &str) -> Option<String> {
     frame.get(field).and_then(Value::as_str).map(str::to_owned)
 }
 
+/// A frame, abbreviated for an error message: a context frame can be
+/// megabytes long, and the message only needs to show what it is.
+fn shown(frame: &Value) -> String {
+    let text = frame.to_string();
+    match text.char_indices().nth(400) {
+        Some((at, _)) => format!("{}… ({} bytes)", &text[..at], text.len()),
+        None => text,
+    }
+}
+
+/// How a phase failed, as the worker reported it in a `failure` frame. Each
+/// phase admits its own subset.
+enum Fault {
+    Breach(Breach),
+    Unsupported(String),
+    Unsettled,
+    Unserializable { name: String, message: String },
+    SourceUnreadable { source: String, message: String },
+    Threw { name: String, message: String },
+}
+
+/// The failure a `failure` frame reports for `stage`, if it is one.
+fn fault(frame: &Value, stage: &str) -> Option<Fault> {
+    if text(frame, "type").as_deref() != Some("failure")
+        || text(frame, "stage").as_deref() != Some(stage)
+    {
+        return None;
+    }
+    let flag = |field: &str| frame.get(field) == Some(&Value::Bool(true));
+    if let Some(bound) = frame.get("bound") {
+        let number = |field: &str| bound.get(field).and_then(Value::as_u64);
+        return Some(Fault::Breach(Breach {
+            bound: text(bound, "name")?,
+            actual: number("actual"),
+            source: text(bound, "source"),
+            max_bytes: number("maxBytes"),
+        }));
+    }
+    if let Some(operation) = text(frame, "unsupported") {
+        return Some(Fault::Unsupported(operation));
+    }
+    if flag("unsettled") {
+        return Some(Fault::Unsettled);
+    }
+    if let Some(unreadable) = frame.get("sourceUnreadable") {
+        return Some(Fault::SourceUnreadable {
+            source: text(unreadable, "source")?,
+            message: text(unreadable, "message")?,
+        });
+    }
+    let message = text(frame, "message")?;
+    let name = text(frame, "name").unwrap_or_else(|| "Error".to_owned());
+    Some(if flag("unserializable") {
+        Fault::Unserializable { name, message }
+    } else {
+        Fault::Threw { name, message }
+    })
+}
+
 /// The worker's report on the entry, if the frame is one.
 fn outcome(frame: &Value) -> Option<Outcome> {
-    let unsettled = frame.get("unsettled") == Some(&Value::Bool(true));
-    match (
-        text(frame, "type").as_deref(),
-        text(frame, "stage").as_deref(),
-    ) {
-        (Some("policy"), _) => frame.get("policy").cloned().map(Outcome::Policy),
-        (Some("failure"), Some("load")) if unsettled => Some(Outcome::LoadUnsettled),
-        (Some("failure"), Some("load")) => {
-            text(frame, "message").map(|message| Outcome::LoadFailed {
-                name: text(frame, "name").unwrap_or_else(|| "Error".to_owned()),
-                message,
-            })
-        }
-        (Some("failure"), Some("validation")) => {
-            text(frame, "message").map(|message| Outcome::Invalid {
-                location: text(frame, "location").unwrap_or_else(|| "policy".to_owned()),
-                message,
-            })
-        }
+    if text(frame, "type").as_deref() == Some("policy") {
+        return frame.get("policy").cloned().map(Outcome::Policy);
+    }
+    if text(frame, "type").as_deref() == Some("failure")
+        && text(frame, "stage").as_deref() == Some("validation")
+    {
+        return text(frame, "message").map(|message| Outcome::Invalid {
+            location: text(frame, "location").unwrap_or_else(|| "policy".to_owned()),
+            message,
+        });
+    }
+    match fault(frame, "load")? {
+        Fault::Breach(breach) => Some(Outcome::Breach(breach)),
+        Fault::Unsettled => Some(Outcome::LoadUnsettled),
+        Fault::Threw { name, message } => Some(Outcome::LoadFailed { name, message }),
         _ => None,
     }
 }
 
+/// The worker's report on the context, if the frame is one.
+fn assembled(frame: &Value) -> Option<Assembled> {
+    if text(frame, "type").as_deref() == Some("context") {
+        return Some(Assembled::Context {
+            context: frame.get("context")?.clone(),
+            measured: measured(frame.get("measured")?)?,
+        });
+    }
+    Some(match fault(frame, "context")? {
+        Fault::Breach(breach) => Assembled::Breach(breach),
+        Fault::Unsupported(operation) => Assembled::Unsupported { operation },
+        Fault::Unsettled => Assembled::Unsettled,
+        Fault::Unserializable { name, message } => Assembled::Unserializable { name, message },
+        Fault::SourceUnreadable { source, message } => {
+            Assembled::SourceUnreadable { source, message }
+        }
+        Fault::Threw { name, message } => Assembled::Threw { name, message },
+    })
+}
+
+/// The measured sources the worker lists: each exactly a canonical name, how
+/// it was read, its bytes and their SHA-256.
+fn measured(list: &Value) -> Option<Vec<Measured>> {
+    list.as_array()?
+        .iter()
+        .map(|entry| {
+            let fields = entry.as_object()?;
+            let name = fields
+                .get("name")?
+                .as_str()
+                .filter(|name| !name.is_empty())?;
+            let via = fields
+                .get("via")?
+                .as_str()
+                .filter(|via| [crate::context::VIA_CALLER, "readText", "readJson"].contains(via))?;
+            let sha256 = fields.get("sha256")?.as_str().filter(|digest| {
+                digest.len() == 64
+                    && digest
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            })?;
+            (fields.len() == 4).then_some(())?;
+            Some(Measured {
+                name: name.to_owned(),
+                via: via.to_owned(),
+                bytes: fields.get("bytes")?.as_u64()?,
+                sha256: sha256.to_owned(),
+            })
+        })
+        .collect()
+}
+
 /// The worker's report on `select`, if the frame is one.
 fn produced(frame: &Value) -> Option<Produced> {
-    let flag = |field: &str| frame.get(field) == Some(&Value::Bool(true));
-    match (
-        text(frame, "type").as_deref(),
-        text(frame, "stage").as_deref(),
-    ) {
-        (Some("selection"), _) => frame.get("result").cloned().map(Produced::Result),
-        (Some("failure"), Some("select")) if flag("unsettled") => Some(Produced::Unsettled),
-        (Some("failure"), Some("select")) => text(frame, "message").map(|message| {
-            let name = text(frame, "name").unwrap_or_else(|| "Error".to_owned());
-            if flag("unserializable") {
-                Produced::Unserializable { name, message }
-            } else {
-                Produced::Threw { name, message }
-            }
-        }),
-        _ => None,
+    if text(frame, "type").as_deref() == Some("selection") {
+        return frame.get("result").cloned().map(Produced::Result);
     }
+    Some(match fault(frame, "select")? {
+        Fault::Breach(breach) => Produced::Breach(breach),
+        Fault::Unsupported(operation) => Produced::Unsupported { operation },
+        Fault::Unsettled => Produced::Unsettled,
+        Fault::Unserializable { name, message } => Produced::Unserializable { name, message },
+        Fault::Threw { name, message } => Produced::Threw { name, message },
+        Fault::SourceUnreadable { .. } => return None,
+    })
+}
+
+/// Output past the diagnostics bound: the worker was stopped, whatever it was
+/// doing, and what it printed up to the bound is kept.
+fn output_limit(entry: &str, limits: &Limits) -> Refusal {
+    let bound = limits.diagnostics.value;
+    Refusal::new(
+        "output_limit",
+        Stage::Evaluation,
+        EXIT_REFUSED,
+        format!(
+            "the policy {entry} printed more than {bound} bytes on stdout and stderr together, \
+             so its worker was stopped and nothing was launched; its first {bound} bytes are \
+             kept, and the rest was read and discarded"
+        ),
+        "print less while selecting: keep diagnostics to short notes, and write anything longer \
+         to a file of your own; this bound is fixed",
+    )
+    .source(entry)
+    .bound(limits.diagnostics)
 }
 
 /// The refusal when the deadline passes: after the entry was handed over, the
@@ -569,7 +870,7 @@ fn expired(worker: &Path, entry: &str, bound: Bound, handed_over: bool) -> Refus
         .source(worker.to_string_lossy())
     };
     let refusal = refusal.bound(bound);
-    match bound.flag {
+    match bound.flag() {
         Some(flag) => refusal.input(flag),
         None => refusal,
     }
@@ -603,48 +904,61 @@ fn stop(child: &mut Child, signal: Option<libc::c_int>) -> io::Result<ExitStatus
 }
 
 /// The protocol channel with the deadline applied: each read or write waits
-/// only for the time left, and once none is left it fails with `TimedOut`.
+/// only for the time left, and once none is left it fails with `TimedOut`. It
+/// waits in slices of at most `POLL`, and between slices it fails at once if
+/// the policy's output has passed its bound.
 #[derive(Clone, Copy)]
 struct Bounded<'a> {
     channel: &'a UnixStream,
     deadline: Instant,
+    overflow: &'a AtomicBool,
 }
 
 impl Bounded<'_> {
-    /// The time left, which is never zero: std refuses a zero socket timeout,
-    /// and rounds a sub-microsecond one up to a microsecond.
-    fn left(&self) -> io::Result<Duration> {
+    /// The next slice to wait, which is never zero: std refuses a zero socket
+    /// timeout, and rounds a sub-microsecond one up to a microsecond.
+    fn slice(&self) -> io::Result<Duration> {
+        if self.overflow.load(Ordering::SeqCst) {
+            return Err(io::Error::other("the policy's output passed its bound"));
+        }
         let left = self.deadline.saturating_duration_since(Instant::now());
         if left.is_zero() {
             Err(ErrorKind::TimedOut.into())
         } else {
-            Ok(left)
+            Ok(left.min(POLL))
         }
     }
 }
 
-/// An expired socket timeout reads as `WouldBlock` (`EAGAIN`) on Unix; std
-/// documents either kind, and both mean the deadline passed.
-fn timed_out(error: io::Error) -> io::Error {
-    match error.kind() {
-        ErrorKind::WouldBlock | ErrorKind::TimedOut => ErrorKind::TimedOut.into(),
-        _ => error,
-    }
+/// Whether an error is a socket timeout expiring: `WouldBlock` (`EAGAIN`) on
+/// Unix, though std documents either kind.
+fn expired_slice(error: &io::Error) -> bool {
+    matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut)
 }
 
 impl Read for Bounded<'_> {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        self.channel.set_read_timeout(Some(self.left()?))?;
-        let mut channel = self.channel;
-        channel.read(buffer).map_err(timed_out)
+        loop {
+            self.channel.set_read_timeout(Some(self.slice()?))?;
+            let mut channel = self.channel;
+            match channel.read(buffer) {
+                Err(error) if expired_slice(&error) => {}
+                other => return other,
+            }
+        }
     }
 }
 
 impl Write for Bounded<'_> {
     fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
-        self.channel.set_write_timeout(Some(self.left()?))?;
-        let mut channel = self.channel;
-        channel.write(buffer).map_err(timed_out)
+        loop {
+            self.channel.set_write_timeout(Some(self.slice()?))?;
+            let mut channel = self.channel;
+            match channel.write(buffer) {
+                Err(error) if expired_slice(&error) => {}
+                other => return other,
+            }
+        }
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -742,46 +1056,99 @@ fn held_descriptors() -> io::Result<Vec<RawFd>> {
     Ok(held)
 }
 
-/// A diagnostic stream being read to its end on another thread.
-struct Drain {
-    captured: Arc<Mutex<Vec<u8>>>,
+/// Both diagnostic streams, each read to its end on a thread of its own and
+/// kept within one shared bound. Past the bound the threads go on reading,
+/// so that the worker never blocks on a full pipe, but keep nothing more, and
+/// set the flag the channel watches.
+struct Capture {
+    captured: Arc<Mutex<Diagnostics>>,
+    overflow: Arc<AtomicBool>,
     done: mpsc::Receiver<()>,
+    streams: usize,
 }
 
-fn drain(stream: Option<impl Read + Send + 'static>) -> Drain {
-    let captured = Arc::new(Mutex::new(Vec::new()));
-    let (sender, done) = mpsc::channel();
-    if let Some(mut stream) = stream {
-        let captured = Arc::clone(&captured);
-        thread::spawn(move || {
-            let mut chunk = [0; 8192];
-            loop {
-                match stream.read(&mut chunk) {
-                    Ok(0) => break,
-                    Ok(read) => captured
-                        .lock()
-                        .unwrap_or_else(|poisoned| poisoned.into_inner())
-                        .extend_from_slice(&chunk[..read]),
-                    Err(error) if error.kind() == ErrorKind::Interrupted => {}
-                    Err(_) => break,
+impl Capture {
+    fn start(
+        stdout: Option<impl Read + Send + 'static>,
+        stderr: Option<impl Read + Send + 'static>,
+        limit: u64,
+    ) -> Capture {
+        let captured = Arc::new(Mutex::new(Diagnostics::default()));
+        let overflow = Arc::new(AtomicBool::new(false));
+        let (sender, done) = mpsc::channel();
+        let limit = usize::try_from(limit).unwrap_or(usize::MAX);
+        let mut streams = 0;
+        let mut spawn = |stream: Option<Box<dyn Read + Send>>, stdout: bool| {
+            let Some(mut stream) = stream else { return };
+            streams += 1;
+            let (captured, overflow, sender) =
+                (Arc::clone(&captured), Arc::clone(&overflow), sender.clone());
+            thread::spawn(move || {
+                let mut chunk = [0; 8192];
+                loop {
+                    match stream.read(&mut chunk) {
+                        Ok(0) => break,
+                        Ok(read) => {
+                            let mut captured = captured
+                                .lock()
+                                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                            let room =
+                                limit.saturating_sub(captured.stdout.len() + captured.stderr.len());
+                            let kept = read.min(room);
+                            let buffer = if stdout {
+                                &mut captured.stdout
+                            } else {
+                                &mut captured.stderr
+                            };
+                            buffer.extend_from_slice(&chunk[..kept]);
+                            if kept < read {
+                                overflow.store(true, Ordering::SeqCst);
+                            }
+                        }
+                        Err(error) if error.kind() == ErrorKind::Interrupted => {}
+                        Err(_) => break,
+                    }
                 }
-            }
-            let _ = sender.send(());
-        });
+                let _ = sender.send(());
+            });
+        };
+        spawn(
+            stdout.map(|stream| Box::new(stream) as Box<dyn Read + Send>),
+            true,
+        );
+        spawn(
+            stderr.map(|stream| Box::new(stream) as Box<dyn Read + Send>),
+            false,
+        );
+        Capture {
+            captured,
+            overflow,
+            done,
+            streams,
+        }
     }
-    Drain { captured, done }
-}
 
-impl Drain {
-    /// Everything read so far, once the stream ends or `by` passes.
-    fn collect(self, by: Instant) -> Vec<u8> {
-        let _ = self
-            .done
-            .recv_timeout(by.saturating_duration_since(Instant::now()));
+    fn overflowed(&self) -> bool {
+        self.overflow.load(Ordering::SeqCst)
+    }
+
+    /// Everything kept so far, once both streams end or `by` passes, and
+    /// whether any output went past the bound.
+    fn collect(self, by: Instant) -> (Diagnostics, bool) {
+        for _ in 0..self.streams {
+            if self
+                .done
+                .recv_timeout(by.saturating_duration_since(Instant::now()))
+                .is_err()
+            {
+                break;
+            }
+        }
         let captured = self
             .captured
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        captured.clone()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        (captured, self.overflowed())
     }
 }

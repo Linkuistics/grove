@@ -163,6 +163,27 @@ observed what an abandoned `await` does to the worker:
   and `an_import_left_unsettled_refuses_as_a_load_failure_at_once` fail with
   that handler disabled. Recheck this on a Bun upgrade.
 
+Adding bounded context on 2026-10-01, with the same Bun and host, observed
+three behaviours the SDK's reads and signal rely on:
+
+- **A FIFO opened without blocking returns at once.** `openSync` with
+  `O_RDONLY | O_NONBLOCK` on a FIFO with no writer returned in under a
+  millisecond, and `fstatSync` reported it as a FIFO, not a file. The host
+  therefore opens every read that way and refuses anything but a regular file.
+  The front opens a `--context` document the same way. The command-seam tests
+  `a_context_document_that_cannot_be_read_refuses_without_waiting_on_it` and
+  `a_missing_required_source_refuses_and_names_it` each include a FIFO.
+- **Strict decoding keeps a BOM.** `new TextDecoder("utf-8", { fatal: true,
+  ignoreBOM: true })` threw a `TypeError` on invalid UTF-8 and kept a leading
+  byte-order mark in the text, so the text a read returns matches the bytes it
+  measured.
+- **TERM listeners are countable.** `process.listenerCount("SIGTERM")` counted
+  the listeners registered with `process.on`. The host's signal registers one,
+  aborts on TERM, and exits only when no other listener remains, so a policy
+  with a TERM handler of its own still owns its exit. The command-seam test
+  `the_host_signal_aborts_when_the_deadline_stops_a_waiting_loader` covers
+  both, and fails if the host's listener exits regardless.
+
 <a id="installed-smoke"></a>
 ## Installed smoke
 

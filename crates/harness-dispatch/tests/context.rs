@@ -1,0 +1,811 @@
+//! The context a selection sees, through the command seam: the caller's
+//! `--context` document, a policy's `loadContext` and the SDK's measured reads,
+//! and how inspection and the run record report them
+//! (`docs/specs/harness-selection-and-execution.md`, *Bounded context*).
+//!
+//! Every refusal here is checked beside a control that selects, with the same
+//! policy and the input put right, so that no refusal can pass because its
+//! fixture never ran. The limits themselves are `bounds.rs`'s.
+
+mod support;
+
+use std::ffi::CString;
+use std::fs;
+use std::os::unix::ffi::OsStrExt as _;
+use std::path::Path;
+
+use serde_json::{json, Value};
+use sha2::{Digest as _, Sha256};
+use support::{text, Sandbox};
+
+const CATALOG: &str = r#"[
+    { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
+    { id: "quick", provider: "origin-b", model: "model-small", effort: "low", program: "fake-harness", args: [{ slot: "prompt" }] },
+  ]"#;
+
+/// A policy with its catalog, then `members`: a `loadContext`, a `select`
+/// or `routes`. `writeFileSync` is in scope for members that record.
+fn policy(members: &str) -> String {
+    format!(
+        "import {{ writeFileSync }} from \"node:fs\";\n\
+         export const policy = {{\n  schemaVersion: 1,\n  version: \"context-1\",\n  catalog: {CATALOG},\n{members}\n}};\n"
+    )
+}
+
+/// A `select` that records the request and context it received at `path`,
+/// then selects `quick`.
+fn recording_select(path: &Path) -> String {
+    format!(
+        r#"  select(request, context) {{
+    writeFileSync({:?}, JSON.stringify({{ request, context: context === undefined ? "undefined" : context }}));
+    return {{ status: "selected", candidateId: "quick", reason: "recorded" }};
+  }},"#,
+        text(path)
+    )
+}
+
+/// A `select` that selects `quick` and records nothing.
+const SELECT: &str =
+    r#"  select() { return { status: "selected", candidateId: "quick", reason: "selected" }; },"#;
+
+/// Every version-1 field, with an empty collection kept empty.
+const DOCUMENT: &str = r#"{
+  "schemaVersion": 1,
+  "summary": "Rename the flag",
+  "acceptanceCriteria": [],
+  "facts": {},
+  "assessments": { "risk": { "by": "owner", "value": "high" } },
+  "sources": [{ "name": "issue 12", "version": "2026-09-30" }],
+  "reviewedArtifact": { "id": "parser-k3", "creator": { "declared": "origin-a" } }
+}
+"#;
+
+fn sha256(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+/// The front's measure of a delivered context: its compact encoding, keys
+/// sorted, which is serde_json's without `preserve_order`.
+fn encoding(value: &Value) -> Vec<u8> {
+    serde_json::to_vec(value).unwrap()
+}
+
+fn read_json(path: &Path) -> Value {
+    serde_json::from_str(&fs::read_to_string(path).expect("the policy recorded"))
+        .expect("the policy recorded JSON")
+}
+
+fn mkfifo(path: &Path) {
+    let name = CString::new(path.as_os_str().as_bytes()).unwrap();
+    // SAFETY: mkfifo reads the NUL-terminated path and creates a FIFO.
+    assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0, "mkfifo");
+}
+
+#[test]
+fn a_caller_context_reaches_the_policy_as_data_and_inspection_measures_it() {
+    let sandbox = Sandbox::new();
+    let seen = sandbox.root.join("seen.json");
+    sandbox.personal_policy(&policy(&recording_select(&seen)));
+    let path = sandbox.file("context/review.json", DOCUMENT);
+
+    let report = sandbox
+        .inspect(&[
+            "--kind",
+            "review",
+            "--context",
+            "context/review.json",
+            "--json",
+        ])
+        .report();
+
+    let document: Value = serde_json::from_str(DOCUMENT).unwrap();
+    let measured = json!([{
+        "name": text(&path), "via": "--context", "bytes": DOCUMENT.len(),
+        "sha256": sha256(DOCUMENT.as_bytes()),
+    }]);
+    let mut delivered = document.clone();
+    delivered["measured"] = measured.clone();
+    assert_eq!(
+        report["context"],
+        json!({
+            "loader": false,
+            "sources": measured,
+            "sourceBytes": DOCUMENT.len(),
+            "encodedBytes": encoding(&delivered).len(),
+            "sha256": sha256(&encoding(&delivered)),
+            "value": delivered,
+        })
+    );
+    assert_eq!(report["reviewedArtifact"], document["reviewedArtifact"]);
+
+    // The request carries the document as data, exactly: the empty
+    // collections stay empty, and nothing absent is filled in. `select`
+    // receives the measured context.
+    let seen_value = read_json(&seen);
+    assert_eq!(seen_value["request"]["context"], document);
+    assert_eq!(seen_value["context"], delivered);
+
+    // A minimal document stays minimal: no facts is not an empty set of them.
+    sandbox.file("context/minimal.json", r#"{"schemaVersion":1}"#);
+    sandbox
+        .inspect(&[
+            "--kind",
+            "review",
+            "--context",
+            "context/minimal.json",
+            "--json",
+        ])
+        .report();
+    let seen_value = read_json(&seen);
+    assert_eq!(
+        seen_value["request"]["context"],
+        json!({ "schemaVersion": 1 })
+    );
+    let keys: Vec<&String> = seen_value["context"].as_object().unwrap().keys().collect();
+    assert_eq!(keys, ["measured", "schemaVersion"]);
+
+    // A routes policy is not given the context, but it is still measured and
+    // reported, and the route still selects.
+    sandbox.personal_policy(&policy(r#"  routes: { review: "deep" },"#));
+    let report = sandbox
+        .inspect(&[
+            "--kind",
+            "review",
+            "--context",
+            "context/review.json",
+            "--json",
+        ])
+        .report();
+    assert_eq!(report["selection"]["selectedBy"], "route");
+    assert_eq!(report["context"]["sources"], measured);
+
+    // Text inspection names each measured source and the context digest.
+    let human = sandbox.inspect(&["--kind", "review", "--context", "context/review.json"]);
+    assert_eq!(human.code, Some(0), "{}", human.stderr);
+    assert!(
+        human.stdout.contains(&format!(
+            "source [0] {} (--context, {} bytes",
+            text(&path),
+            DOCUMENT.len()
+        )),
+        "{}",
+        human.stdout
+    );
+    assert!(human.stdout.contains("parser-k3"), "{}", human.stdout);
+}
+
+#[test]
+fn run_records_the_reviewed_artifact_and_the_context_by_digest_and_size() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(&policy(SELECT));
+    sandbox.file("review.json", DOCUMENT);
+    let inputs = ["--kind", "review", "--context", "review.json", "--json"];
+
+    let proposal = sandbox.inspect(&inputs).report();
+    let run = sandbox.run(&[&inputs[..], &["--prompt", "p"]].concat());
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let run_id = sandbox.harness_run_id();
+
+    let mut show = sandbox.command();
+    show.args(["record", "show", "--run", &run_id, "--json"]);
+    let export = support::run(&mut show).report();
+    let launch = &export["launch"];
+    let document: Value = serde_json::from_str(DOCUMENT).unwrap();
+    assert_eq!(launch["reviewedArtifact"], document["reviewedArtifact"]);
+    let mut recorded = proposal["context"].clone();
+    recorded.as_object_mut().unwrap().remove("value");
+    assert_eq!(launch["context"], recorded);
+    assert_eq!(launch["bounds"], proposal["bounds"]);
+
+    // Digests and sizes only: the delivered value is not stored.
+    let store = fs::read(sandbox.default_store()).unwrap();
+    let contains = |needle: &[u8]| store.windows(needle.len()).any(|window| window == needle);
+    assert!(contains(run_id.as_bytes()), "the store is readable");
+    assert!(
+        !contains(b"Rename the flag"),
+        "the context value was stored"
+    );
+
+    let mut show = sandbox.command();
+    show.args(["record", "show", "--run", &run_id]);
+    let human = support::run(&mut show);
+    assert!(human.stdout.contains("parser-k3"), "{}", human.stdout);
+    assert!(
+        human.stdout.contains(&format!(
+            "{} bytes encoded from 1 sources",
+            recorded["encodedBytes"]
+        )),
+        "{}",
+        human.stdout
+    );
+}
+
+#[test]
+fn each_invalid_caller_context_refuses_at_its_location_before_any_policy_runs() {
+    let sandbox = Sandbox::new();
+    let sentinel = sandbox.root.join("policy-ran");
+    sandbox.personal_policy(&format!(
+        "import {{ writeFileSync as mark }} from \"node:fs\";\nmark({:?}, \"ran\");\n{}",
+        text(&sentinel),
+        policy(SELECT)
+    ));
+    let run = |document: &str| {
+        let _ = fs::remove_file(&sentinel);
+        sandbox.file("context.json", document);
+        sandbox.run(&[
+            "--kind",
+            "review",
+            "--context",
+            "context.json",
+            "--prompt",
+            "p",
+            "--json",
+        ])
+    };
+
+    for (case, document, code, location) in [
+        ("not JSON", "{", "context_invalid", "context"),
+        ("an array", "[]", "context_invalid", "context"),
+        (
+            "no version",
+            "{}",
+            "context_invalid",
+            "context.schemaVersion",
+        ),
+        (
+            "a later version",
+            r#"{"schemaVersion":2,"summary":"s"}"#,
+            "unsupported_version",
+            "context.schemaVersion",
+        ),
+        (
+            "an unknown field",
+            r#"{"schemaVersion":1,"owner":"me"}"#,
+            "context_invalid",
+            "context.owner",
+        ),
+        (
+            "an executable field",
+            r#"{"schemaVersion":1,"program":"/bin/sh"}"#,
+            "context_invalid",
+            "context.program",
+        ),
+        (
+            "an assessment without its assessor",
+            r#"{"schemaVersion":1,"assessments":{"risk":{"value":"high"}}}"#,
+            "context_invalid",
+            "context.assessments[\"risk\"].by",
+        ),
+        (
+            "a source record pinned by nothing",
+            r#"{"schemaVersion":1,"sources":[{"name":"issue 12"}]}"#,
+            "context_invalid",
+            "context.sources[0]",
+        ),
+        (
+            "two creator forms",
+            r#"{"schemaVersion":1,"reviewedArtifact":{"id":"a","creator":{"run":"5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34","declared":"origin-a"}}}"#,
+            "context_invalid",
+            "context.reviewedArtifact.creator",
+        ),
+        (
+            "a creator run that is no run ID",
+            r#"{"schemaVersion":1,"reviewedArtifact":{"id":"a","creator":{"run":"producer-k3"}}}"#,
+            "context_invalid",
+            "context.reviewedArtifact.creator.run",
+        ),
+        (
+            "a reviewed artifact without its ID",
+            r#"{"schemaVersion":1,"reviewedArtifact":{"creator":{"declared":"origin-a"}}}"#,
+            "context_invalid",
+            "context.reviewedArtifact.id",
+        ),
+        (
+            "the worker's reserved marker",
+            r#"{"schemaVersion":1,"facts":{"f":{"$harnessDispatch":"function"}}}"#,
+            "context_invalid",
+            "context.facts[\"f\"]",
+        ),
+    ] {
+        let refusal = run(document).refusal(3);
+        let context = format!("{case}: {refusal}");
+        assert_eq!(refusal["error"]["code"], code, "{context}");
+        assert_eq!(refusal["error"]["stage"], "context", "{context}");
+        assert_eq!(refusal["error"]["location"], location, "{context}");
+        assert_eq!(refusal["error"]["input"], "--context", "{context}");
+        assert_eq!(
+            refusal["error"]["source"],
+            text(&sandbox.cwd.join("context.json")),
+            "{context}"
+        );
+        assert!(!sandbox.harness_ran(), "{context}");
+        assert!(!sentinel.exists(), "{context}: the policy ran");
+        if case == "an executable field" {
+            let message = refusal["error"]["message"].as_str().unwrap();
+            assert!(message.contains("a context is data"), "{context}");
+        }
+    }
+
+    // The positive control: the whole document, valid, reaches the harness.
+    let control = run(DOCUMENT);
+    assert_eq!(control.code, Some(0), "{}", control.stderr);
+    assert!(sandbox.harness_ran() && sentinel.exists());
+}
+
+#[test]
+fn a_context_document_that_cannot_be_read_refuses_without_waiting_on_it() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(&policy(SELECT));
+    fs::create_dir(sandbox.cwd.join("a-directory")).unwrap();
+    mkfifo(&sandbox.cwd.join("a-fifo"));
+
+    for (given, what) in [
+        ("missing.json", "cannot be opened"),
+        ("a-directory", "is not a regular file"),
+        ("a-fifo", "is not a regular file"),
+    ] {
+        let refusal = sandbox
+            .inspect(&["--kind", "review", "--context", given, "--json"])
+            .refusal(3);
+        assert_eq!(refusal["error"]["code"], "context_unreadable", "{given}");
+        assert_eq!(refusal["error"]["input"], "--context", "{given}");
+        assert!(
+            refusal["error"]["message"].as_str().unwrap().contains(what),
+            "{given}: {refusal}"
+        );
+    }
+}
+
+#[test]
+fn a_loader_reads_measured_sources_against_the_callers_directory() {
+    // The policy lives outside the caller's directory and imports a helper
+    // beside itself, which resolves from the policy. Its reads name paths
+    // relative to the caller's directory, which resolve there, although the
+    // worker runs in a private one of its own. Each read is measured under
+    // its canonical name, so a symlink is named by its target.
+    let sandbox = Sandbox::new();
+    let loaded = sandbox.root.join("loaded.json");
+    support::write(
+        &sandbox.root.join("policies/helper.ts"),
+        "export const floor = \"high\";\n",
+    );
+    support::write(
+        &sandbox.root.join("policies/policy.ts"),
+        &format!(
+            "import {{ floor }} from \"./helper.ts\";\n{}",
+            policy(&format!(
+                r#"  loadContext(request, host) {{
+    const risk = host.readJson("data/risk.json");
+    const notes = host.readText("notes-link.md");
+    writeFileSync({:?}, JSON.stringify({{ explicitChoice: request.explicitChoice ?? null, risk, notes }}));
+    return {{
+      schemaVersion: 1,
+      summary: notes.text,
+      assessments: {{ risk: {{ by: "data/risk.json", value: risk.value.level }} }},
+      sources: [risk.source, notes.source],
+    }};
+  }},
+  select(request, context) {{
+    const risk = context.assessments.risk.value;
+    const id = request.explicitChoice ?? (risk === floor ? "deep" : "quick");
+    return {{ status: "selected", candidateId: id, reason: `risk ${{risk}} against floor ${{floor}}` }};
+  }},"#,
+                text(&loaded)
+            ))
+        ),
+    );
+    let risk = sandbox.file("data/risk.json", "{\"level\": \"high\"}\n");
+    let notes = sandbox.file("docs/notes.md", "Rename the flag\n");
+    std::os::unix::fs::symlink("docs/notes.md", sandbox.cwd.join("notes-link.md")).unwrap();
+
+    let report = sandbox
+        .inspect(&[
+            "--kind",
+            "impl",
+            "--config",
+            "../policies/policy.ts",
+            "--json",
+        ])
+        .report();
+    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(
+        report["selection"]["reason"],
+        "risk high against floor high"
+    );
+
+    let record = |path: &Path, via: &str| {
+        let bytes = fs::read(path).unwrap();
+        json!({ "name": text(path), "via": via, "bytes": bytes.len(), "sha256": sha256(&bytes) })
+    };
+    let measured = json!([record(&risk, "readJson"), record(&notes, "readText")]);
+    let context = &report["context"];
+    assert_eq!(context["loader"], true);
+    assert_eq!(context["sources"], measured);
+    assert_eq!(
+        context["sourceBytes"],
+        fs::read(&risk).unwrap().len() + fs::read(&notes).unwrap().len()
+    );
+    assert_eq!(context["value"]["measured"], measured);
+    assert_eq!(
+        context["encodedBytes"],
+        encoding(&context["value"]).len(),
+        "the reported size is the delivered value's"
+    );
+    assert_eq!(context["sha256"], sha256(&encoding(&context["value"])));
+
+    // Each read returned a source record the loader could attribute, the
+    // measured one without its `via`, and the content itself.
+    let seen = read_json(&loaded);
+    assert_eq!(seen["notes"]["text"], "Rename the flag\n");
+    assert_eq!(seen["risk"]["value"], json!({ "level": "high" }));
+    let mut attributed = measured.clone();
+    for entry in attributed.as_array_mut().unwrap() {
+        entry.as_object_mut().unwrap().remove("via");
+    }
+    assert_eq!(context["value"]["sources"], attributed);
+    assert_eq!(seen["explicitChoice"], Value::Null);
+
+    // An explicit choice is visible to context assembly as well as to select.
+    sandbox
+        .inspect(&[
+            "--kind",
+            "impl",
+            "--config",
+            "../policies/policy.ts",
+            "--choice",
+            "quick",
+            "--json",
+        ])
+        .report();
+    assert_eq!(read_json(&loaded)["explicitChoice"], "quick");
+}
+
+#[test]
+fn the_typed_context_fixture_selects_through_the_worker() {
+    // `worker/typecheck/context-policy.ts` is type-checked against the shipped
+    // declarations; here the same file runs, with a --context document whose
+    // own fields its loader keeps.
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(include_str!("../worker/typecheck/context-policy.ts"));
+    sandbox.file("risk.json", r#"{"level":"high"}"#);
+    sandbox.file("notes.md", "  Rename the flag  \n");
+    sandbox.file(
+        "context.json",
+        r#"{"schemaVersion":1,"facts":{"ticket":12}}"#,
+    );
+
+    let report = sandbox
+        .inspect(&["--kind", "impl", "--context", "context.json", "--json"])
+        .report();
+    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(
+        report["selection"]["reason"],
+        "kind impl, risk \"high\", measured --context:41,readJson:16,readText:20"
+    );
+    let value = &report["context"]["value"];
+    assert_eq!(value["facts"], json!({ "ticket": 12 }));
+    assert_eq!(value["summary"], "Rename the flag");
+    assert_eq!(report["diagnostics"]["stderr"], "read 20 bytes of notes\n");
+}
+
+#[test]
+fn a_missing_required_source_refuses_and_names_it() {
+    // The loader requires `ticket.md`. Each way the read can fail refuses the
+    // whole selection and names the source, including when the loader wraps
+    // the error as the cause of its own. The control supplies the file.
+    let sandbox = Sandbox::new();
+    let ticket = sandbox.cwd.join("ticket.md");
+    let loader = |read: &str| {
+        policy(&format!(
+            r#"  loadContext(request, host) {{
+    try {{
+      return {{ schemaVersion: 1, summary: {read} }};
+    }} catch (error) {{
+      throw new Error("a ticket is required", {{ cause: error }});
+    }}
+  }},
+{SELECT}"#
+        ))
+    };
+    let run = |read: &str| {
+        sandbox.personal_policy(&loader(read));
+        sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"])
+    };
+
+    for (case, prepare, read, what) in [
+        (
+            "missing",
+            None,
+            r#"host.readText("ticket.md").text"#,
+            "cannot be opened",
+        ),
+        (
+            "not UTF-8",
+            Some(&b"\xff\xfe"[..]),
+            r#"host.readText("ticket.md").text"#,
+            "is not valid UTF-8",
+        ),
+        (
+            "not JSON",
+            Some(&b"# Ticket\n"[..]),
+            r#"String(host.readJson("ticket.md").value)"#,
+            "is not JSON",
+        ),
+    ] {
+        let _ = fs::remove_file(&ticket);
+        if let Some(bytes) = prepare {
+            fs::write(&ticket, bytes).unwrap();
+        }
+        let refusal = run(read).refusal(3);
+        let context = format!("{case}: {refusal}");
+        assert_eq!(
+            refusal["error"]["code"], "context_source_unreadable",
+            "{context}"
+        );
+        assert_eq!(refusal["error"]["stage"], "context", "{context}");
+        assert_eq!(refusal["error"]["source"], text(&ticket), "{context}");
+        assert!(
+            refusal["error"]["message"].as_str().unwrap().contains(what),
+            "{context}"
+        );
+        assert!(!sandbox.harness_ran(), "{context}");
+    }
+
+    for (case, make) in [("a directory", "dir"), ("a FIFO", "fifo")] {
+        let _ = fs::remove_file(&ticket);
+        if make == "dir" {
+            fs::create_dir(&ticket).unwrap();
+        } else {
+            mkfifo(&ticket);
+        }
+        let refusal = run(r#"host.readText("ticket.md").text"#).refusal(3);
+        assert_eq!(
+            refusal["error"]["code"], "context_source_unreadable",
+            "{case}"
+        );
+        assert!(
+            refusal["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("is not a regular file"),
+            "{case}: {refusal}"
+        );
+        let _ = fs::remove_dir(&ticket);
+        let _ = fs::remove_file(&ticket);
+    }
+
+    // The control: with the ticket present, the same loader selects.
+    fs::write(&ticket, "Rename the flag\n").unwrap();
+    let control = run(r#"host.readText("ticket.md").text"#);
+    assert_eq!(control.code, Some(0), "{}", control.stderr);
+    assert!(sandbox.harness_ran());
+}
+
+#[test]
+fn a_failing_loader_refuses_and_launches_nothing() {
+    let sandbox = Sandbox::new();
+    for (case, loader, code, location) in [
+        (
+            "throws",
+            r#"loadContext() { throw new TypeError("no ticket system"); },"#,
+            "context_loader_failed",
+            "policy.loadContext",
+        ),
+        (
+            "rejects",
+            r#"async loadContext() { throw new Error("no ticket system"); },"#,
+            "context_loader_failed",
+            "policy.loadContext",
+        ),
+        (
+            "never settles",
+            "loadContext() { return new Promise(() => {}); },",
+            "context_loader_unsettled",
+            "policy.loadContext",
+        ),
+        (
+            "returns nothing",
+            "loadContext() {},",
+            "context_invalid",
+            "context",
+        ),
+        (
+            "returns an invalid shape",
+            r#"loadContext() { return { schemaVersion: 1, summary: 3 }; },"#,
+            "context_invalid",
+            "context.summary",
+        ),
+        (
+            "supplies its own measurements",
+            r#"loadContext() { return { schemaVersion: 1, measured: [] }; },"#,
+            "context_invalid",
+            "context.measured",
+        ),
+        (
+            "delivers a function",
+            r#"loadContext() { return { schemaVersion: 1, facts: { check: () => true } }; },"#,
+            "context_invalid",
+            "context.facts[\"check\"]",
+        ),
+        (
+            "delivers a number JSON cannot",
+            r#"loadContext() { return { schemaVersion: 1, facts: { ratio: 0 / 0 } }; },"#,
+            "context_invalid",
+            "context.facts[\"ratio\"]",
+        ),
+        (
+            "cannot be serialized",
+            r#"loadContext() { const facts = {}; facts.self = facts; return { schemaVersion: 1, facts }; },"#,
+            "context_invalid",
+            "context",
+        ),
+        (
+            "mutates the frozen request",
+            r#"loadContext(request) { request.kind = "design"; return { schemaVersion: 1 }; },"#,
+            "context_loader_failed",
+            "policy.loadContext",
+        ),
+    ] {
+        for members in [
+            format!("  {loader}\n{SELECT}"),
+            format!("  {loader}\n  routes: {{ impl: \"deep\" }},"),
+        ] {
+            sandbox.personal_policy(&policy(&members));
+            let refusal = sandbox
+                .run(&["--kind", "impl", "--prompt", "p", "--json"])
+                .refusal(3);
+            let context = format!("{case}: {refusal}");
+            assert_eq!(refusal["error"]["code"], code, "{context}");
+            assert_eq!(refusal["error"]["stage"], "context", "{context}");
+            assert_eq!(refusal["error"]["location"], location, "{context}");
+            assert!(!sandbox.harness_ran(), "{context}");
+        }
+    }
+    let message = |loader: &str| {
+        sandbox.personal_policy(&policy(&format!("  {loader}\n{SELECT}")));
+        sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    assert!(message(
+        r#"loadContext() { return { schemaVersion: 1, facts: { check: () => true } }; },"#
+    )
+    .contains("a function cannot be carried in JSON"));
+    assert!(
+        message(r#"loadContext() { throw new TypeError("no ticket system"); },"#)
+            .contains("TypeError: no ticket system")
+    );
+
+    // The control: the same policy, its loader returning a valid context.
+    sandbox.personal_policy(&policy(&format!(
+        "  loadContext() {{ return {{ schemaVersion: 1 }}; }},\n{SELECT}"
+    )));
+    let control = sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"]);
+    assert_eq!(control.code, Some(0), "{}", control.stderr);
+    assert!(sandbox.harness_ran());
+}
+
+#[test]
+fn host_run_refuses_even_when_the_policy_catches_the_error() {
+    let sandbox = Sandbox::new();
+    let caught = r#"try { host.run("5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34"); } catch {}"#;
+    for (members, stage) in [
+        (
+            format!("  loadContext(request, host) {{ {caught} return {{ schemaVersion: 1 }}; }},\n{SELECT}"),
+            "context",
+        ),
+        (
+            format!(
+                "  select(request, context, host) {{ {caught} return {{ status: \"selected\", candidateId: \"quick\", reason: \"r\" }}; }},"
+            ),
+            "selection",
+        ),
+    ] {
+        sandbox.personal_policy(&policy(&members));
+        let refusal = sandbox
+            .run(&["--kind", "impl", "--prompt", "p", "--json"])
+            .refusal(3);
+        assert_eq!(refusal["error"]["code"], "unsupported_operation", "{refusal}");
+        assert_eq!(refusal["error"]["stage"], stage, "{refusal}");
+        assert_eq!(refusal["error"]["location"], "host.run", "{refusal}");
+        assert!(!sandbox.harness_ran());
+    }
+    // The control: the same policy without the call selects.
+    sandbox.personal_policy(&policy(&format!(
+        "  loadContext(request, host) {{ return {{ schemaVersion: 1 }}; }},\n{SELECT}"
+    )));
+    let control = sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"]);
+    assert_eq!(control.code, Some(0), "{}", control.stderr);
+}
+
+#[test]
+fn select_reads_nothing_through_its_host_and_the_loaders_reads_close() {
+    // `select` sees the measured context, so its host has no reads, and a
+    // read the loader leaves for later fails once its context is delivered.
+    // Neither is a bound: the policy catches each and selects, and says what
+    // it caught.
+    let sandbox = Sandbox::new();
+    sandbox.file("notes.md", "n\n");
+    sandbox.personal_policy(&policy(
+        r#"  loadContext(request, host) {
+    globalThis.laterRead = () => host.readText("notes.md");
+    return { schemaVersion: 1 };
+  },
+  select(request, context, host) {
+    const errors = [];
+    try { host.readText("notes.md"); } catch (error) { errors.push(error.message); }
+    try { globalThis.laterRead(); } catch (error) { errors.push(error.message); }
+    return { status: "selected", candidateId: "quick", reason: errors.join(" | ") };
+  },"#,
+    ));
+    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    let reason = report["selection"]["reason"].as_str().unwrap();
+    assert!(
+        reason.contains("host.readText is available in loadContext only"),
+        "{reason}"
+    );
+    assert!(
+        reason.contains("after loadContext returned its context"),
+        "{reason}"
+    );
+    assert_eq!(report["context"]["sources"], json!([]));
+}
+
+#[test]
+fn diagnostics_the_host_writes_stay_out_of_the_json_report() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(&policy(
+        r#"  loadContext(request, host) {
+    host.diagnostic("loading {\"forged\": true}");
+    console.log("{\"schemaVersion\": 99}");
+    return { schemaVersion: 1 };
+  },
+  select(request, context, host) {
+    host.diagnostic("selecting\n");
+    return { status: "selected", candidateId: "quick", reason: "r" };
+  },"#,
+    ));
+    let report = sandbox.inspect(&["--kind", "impl", "--json"]);
+    let document = report.report();
+    assert_eq!(report.stdout.matches('\n').count(), 1, "{}", report.stdout);
+    assert_eq!(
+        document["diagnostics"]["stderr"],
+        "loading {\"forged\": true}\nselecting\n"
+    );
+    assert_eq!(
+        document["diagnostics"]["stdout"],
+        "{\"schemaVersion\": 99}\n"
+    );
+
+    let run = sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"]);
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let notice: Value = serde_json::from_str(run.stderr.trim_end()).unwrap();
+    assert_eq!(
+        notice["diagnostics"]["stderr"],
+        "loading {\"forged\": true}\nselecting\n"
+    );
+}
+
+#[test]
+fn an_unknown_choice_refuses_before_the_loader_runs() {
+    let sandbox = Sandbox::new();
+    let sentinel = sandbox.root.join("loader-ran");
+    sandbox.personal_policy(&policy(&format!(
+        "  loadContext() {{ writeFileSync({:?}, \"ran\"); return {{ schemaVersion: 1 }}; }},\n{SELECT}",
+        text(&sentinel)
+    )));
+    let refusal = sandbox
+        .inspect(&["--kind", "impl", "--choice", "nope", "--json"])
+        .refusal(3);
+    assert_eq!(refusal["error"]["code"], "unknown_choice");
+    assert!(!sentinel.exists(), "the loader ran");
+    // The control: a configured choice reaches the loader.
+    sandbox
+        .inspect(&["--kind", "impl", "--choice", "quick", "--json"])
+        .report();
+    assert!(sentinel.exists());
+}

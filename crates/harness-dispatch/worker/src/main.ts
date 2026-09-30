@@ -11,19 +11,27 @@
 //      a policy.
 //   3. The worker imports the entry and returns a serializable snapshot of its
 //      `policy` export, or a failure naming the stage.
-//   4. The front judges the snapshot. For a `routes` policy, or one it refuses,
-//      it closes the channel and the worker exits. For a valid `select` policy
-//      it asks the worker to select, and the worker calls `select` with the
-//      request and returns what it produced.
+//   4. The front judges the snapshot. If the policy has a `loadContext`, or the
+//      caller gave a context, it asks the worker for the context, and the
+//      worker returns the loader's result, or the caller's context, with every
+//      source it measured, or a failure.
+//   5. For a `routes` policy, or one it refuses, the front closes the channel
+//      and the worker exits. For a valid `select` policy it asks the worker to
+//      select, and the worker calls `select` with the request and the measured
+//      context, and returns what it produced.
 //
 // The worker judges nothing it can hand over as data. The front validates the
-// snapshot's shape, resolves routes, checks any explicit choice, validates a
-// selection against the snapshot and reports every refusal with its location,
-// so there is one validator and it is the one inspection reports. `select` runs
-// only once that validator has accepted the policy it belongs to, and the
-// snapshot it is checked against was taken before it ran.
+// snapshot's shape, resolves routes, checks any explicit choice, validates and
+// measures the context, validates a selection against the snapshot and reports
+// every refusal with its location, so there is one validator and it is the one
+// inspection reports. `select` runs only once that validator has accepted the
+// policy it belongs to and the context it is given, and the snapshot it is
+// checked against was taken before it ran. What the worker does enforce is the
+// bounds, because only it sees a read or an encoding before it is sent: each
+// is checked here and again by the front.
 
-import { receive, send } from "./channel.ts";
+import { encode, receive, send, sendEncoded } from "./channel.ts";
+import { type Bounds, type Measured, Session, SourceUnreadable } from "./host.ts";
 import * as sdk from "../sdk/index.ts";
 import * as dynamicExample from "../examples/dynamic.ts";
 import * as groveStaticExample from "../examples/grove-static.ts";
@@ -76,7 +84,7 @@ send({ type: "hello", protocol: PROTOCOL, packageVersion, buildId, bunVersion: B
 // worker that ended without a word. The event is emitted when the loop
 // empties, and never for `process.exit`, which ends every other path:
 // https://nodejs.org/api/process.html#event-beforeexit
-let awaiting: "load" | "select" | undefined;
+let awaiting: "load" | "context" | "select" | undefined;
 process.once("beforeExit", () => {
   if (awaiting === undefined) return;
   send({ type: "failure", stage: awaiting, unsettled: true });
@@ -92,45 +100,92 @@ process.once("beforeExit", () => {
 void converse().then(() => process.exit(0));
 
 async function converse(): Promise<void> {
-  const request = receive();
-  if (request === null) return;
-  if (!isEvaluate(request)) {
-    throw new Error(`unexpected protocol request: ${JSON.stringify(request)}`);
+  const evaluate = receive();
+  if (evaluate === null) return;
+  if (!isEvaluate(evaluate)) {
+    throw new Error(`unexpected protocol request: ${JSON.stringify(evaluate).slice(0, 400)}`);
   }
-  awaiting = "load";
-  const loaded = await load(request.entry);
-  awaiting = undefined;
-  send(loaded.frame);
-  if (loaded.policy === undefined) return;
+  // The policy sees the request frozen, so nothing it does to it can reach
+  // `select`'s view of it, or pass for measured context.
+  const request = deepFreeze(evaluate.request);
+  const session = new Session(request.cwd, evaluate.bounds, evaluate.measured);
+  const limit = evaluate.bounds.messageBytes;
 
-  const next = receive();
+  awaiting = "load";
+  const loaded = await load(evaluate.entry);
+  awaiting = undefined;
+  if (!sendBounded(loaded.frame, "load", limit) || loaded.policy === undefined) return;
+
+  let next = receive();
   if (next === null) return;
-  if (!isSelect(next)) {
-    throw new Error(`unexpected protocol request: ${JSON.stringify(next)}`);
+  let delivered: unknown;
+  if (isRequest(next, "context")) {
+    awaiting = "context";
+    const assembled = await assemble(loaded.policy, request, session);
+    awaiting = undefined;
+    if ("delivered" in assembled) {
+      sendEncoded(assembled.body);
+      delivered = assembled.delivered;
+    } else if (!sendBounded(assembled.frame, "context", limit) || assembled.frame.type !== "context") {
+      return;
+    }
+    next = receive();
+    if (next === null) return;
+  }
+  if (!isRequest(next, "select")) {
+    throw new Error(`unexpected protocol request: ${JSON.stringify(next).slice(0, 400)}`);
   }
   awaiting = "select";
-  const frame = await select(loaded.policy, request.request);
+  const frame = await select(loaded.policy, request, delivered, session);
   awaiting = undefined;
-  send(frame);
+  sendBounded(frame, "select", limit);
+}
+
+interface Request {
+  readonly cwd: string;
+  readonly context?: unknown;
 }
 
 interface Evaluate {
   type: "evaluate";
   protocol: number;
   entry: string;
-  request: unknown;
+  request: Request;
+  bounds: Bounds;
+  measured: Measured[];
 }
 
 function isEvaluate(value: unknown): value is Evaluate {
   if (typeof value !== "object" || value === null) return false;
   const message = value as Record<string, unknown>;
-  return message.type === "evaluate" && message.protocol === PROTOCOL && typeof message.entry === "string";
+  return (
+    message.type === "evaluate" &&
+    message.protocol === PROTOCOL &&
+    typeof message.entry === "string" &&
+    typeof (message.request as Request | undefined)?.cwd === "string" &&
+    typeof message.bounds === "object" &&
+    Array.isArray(message.measured)
+  );
 }
 
-function isSelect(value: unknown): boolean {
+function isRequest(value: unknown, type: "context" | "select"): boolean {
   if (typeof value !== "object" || value === null) return false;
   const message = value as Record<string, unknown>;
-  return message.type === "select" && message.protocol === PROTOCOL;
+  return message.type === type && message.protocol === PROTOCOL;
+}
+
+/**
+ * Send `frame` if it encodes within the protocol message bound, and otherwise
+ * report the overflow in its place. Whether it was sent.
+ */
+function sendBounded(frame: object, stage: "load" | "context" | "select", limit: number): boolean {
+  const body = encode(frame);
+  if (body.length > limit) {
+    send({ type: "failure", stage, bound: { name: "message", actual: body.length } });
+    return false;
+  }
+  sendEncoded(body);
+  return true;
 }
 
 /** The frame reporting the entry, and the policy object when there is one. */
@@ -168,18 +223,103 @@ async function load(entry: string): Promise<Loaded> {
   return { frame: { type: "policy", policy: snapshot }, policy: policy as Record<string, unknown> };
 }
 
+/** A frame to the front, by its type. */
+interface Frame {
+  readonly type: string;
+  readonly [field: string]: unknown;
+}
+
+/** The context frame, already encoded and within its bound, or a failure. */
+type Assembled = { body: Buffer; delivered: unknown } | { frame: Frame };
+
 /**
- * Call `select` as a method of its policy, and report what it produced as
- * data: the value it returned or resolved to, or what it threw. The front
- * judges every value, abstention included.
+ * Run the policy's `loadContext`, if it has one, with the request and a host
+ * whose reads are measured; without one, the context is the caller's. Encode
+ * the result as JSON, and check that it, with the measured sources attached,
+ * fits the context budget. `select` will receive exactly the value this
+ * encoding parses to, which is the value the front measures.
  */
-async function select(policy: Record<string, unknown>, request: unknown): Promise<object> {
+async function assemble(policy: Record<string, unknown>, request: Request, session: Session): Promise<Assembled> {
+  let context: unknown;
+  if (typeof policy.loadContext === "function") {
+    session.reading = true;
+    try {
+      context = await (policy.loadContext as (request: unknown, host: object) => unknown).call(
+        policy,
+        request,
+        session.contextHost(),
+      );
+    } catch (error) {
+      if (session.breach !== undefined) return { frame: breachFrame("context", session) };
+      const unreadable = sourceUnreadable(error);
+      if (unreadable !== undefined) {
+        return {
+          frame: {
+            type: "failure",
+            stage: "context",
+            sourceUnreadable: { source: unreadable.source, message: unreadable.message },
+          },
+        };
+      }
+      return { frame: { type: "failure", stage: "context", ...describe(error) } };
+    } finally {
+      session.reading = false;
+    }
+  } else {
+    context = request.context;
+  }
+  if (session.breach !== undefined) return { frame: breachFrame("context", session) };
+
+  const measured = [...session.ledger];
+  let encoded: string;
+  try {
+    // `undefined` abstains; JSON has no such value, so it travels as `null`.
+    encoded = context === undefined ? "null" : JSON.stringify(context, markData);
+  } catch (error) {
+    return { frame: { type: "failure", stage: "context", unserializable: true, ...describe(error) } };
+  }
+  const value: unknown = JSON.parse(encoded);
+  const delivered = isPlainObject(value) ? { ...value, measured } : value;
+  const budget = session.bounds.contextBytes;
+  const size = Buffer.byteLength(JSON.stringify(delivered), "utf8");
+  // The frame also carries what a loader supplied that the front will refuse,
+  // such as a `measured` of its own, so it is bounded as well.
+  const body = encode({ type: "context", context: value, measured });
+  if (size > budget || body.length > budget + CONTEXT_ENVELOPE) {
+    session.breach = { bound: { name: "context", actual: Math.max(size, body.length - CONTEXT_ENVELOPE) } };
+    return { frame: breachFrame("context", session) };
+  }
+  return { body, delivered: deepFreeze(delivered) };
+}
+
+/** What a context frame carries beyond the delivered context, as the front allows. */
+const CONTEXT_ENVELOPE = 1024;
+
+/**
+ * Call `select` as a method of its policy, with the request, the measured
+ * context and a host without reads, and report what it produced as data: the
+ * value it returned or resolved to, or what it threw. The front judges every
+ * value, abstention included.
+ */
+async function select(
+  policy: Record<string, unknown>,
+  request: unknown,
+  context: unknown,
+  session: Session,
+): Promise<object> {
   let result: unknown;
   try {
-    result = await (policy.select as (request: unknown) => unknown).call(policy, request);
+    result = await (policy.select as (request: unknown, context: unknown, host: object) => unknown).call(
+      policy,
+      request,
+      context,
+      session.selectHost(),
+    );
   } catch (error) {
+    if (session.breach !== undefined) return breachFrame("select", session);
     return { type: "failure", stage: "select", ...describe(error) };
   }
+  if (session.breach !== undefined) return breachFrame("select", session);
   // JSON has no `undefined`; the front reads `null` as the same abstention.
   if (result === undefined) return { type: "selection", result: null };
   try {
@@ -187,6 +327,33 @@ async function select(policy: Record<string, unknown>, request: unknown): Promis
   } catch (error) {
     return { type: "failure", stage: "select", unserializable: true, ...describe(error) };
   }
+}
+
+/** The recorded breach, as the failure frame of `stage`. */
+function breachFrame(stage: "context" | "select", session: Session): Frame {
+  return { type: "failure", stage, ...session.breach };
+}
+
+/** The failed read `error` is, or was caused by, if any. */
+function sourceUnreadable(error: unknown): SourceUnreadable | undefined {
+  for (let cause = error, depth = 0; cause !== undefined && depth < 8; depth++) {
+    if (cause instanceof SourceUnreadable) return cause;
+    cause = cause instanceof Error ? cause.cause : undefined;
+  }
+  return undefined;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** `value`, with every object and array in it frozen. */
+function deepFreeze<T>(value: T): T {
+  if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Object.keys(value)) deepFreeze((value as Record<string, unknown>)[key]);
+  }
+  return value;
 }
 
 function invalid(message: string): Loaded {
@@ -197,6 +364,23 @@ function invalid(message: string): Loaded {
 // never turned into a string that could pass as one: a function where a model
 // string belongs must be refused as a function.
 function mark(_key: string, value: unknown): unknown {
+  return marked(value);
+}
+
+// A context is data throughout, so it is held to more: a number JSON would
+// write as `null` and a string with a lone surrogate, which the front cannot
+// read as Unicode, are marked too, and the front refuses each where it sits.
+function markData(_key: string, value: unknown): unknown {
+  if (typeof value === "number" && !Number.isFinite(value)) {
+    return { $harnessDispatch: `non-finite number (${value})` };
+  }
+  if (typeof value === "string" && !value.isWellFormed()) {
+    return { $harnessDispatch: "string with a lone surrogate" };
+  }
+  return marked(value);
+}
+
+function marked(value: unknown): unknown {
   if (typeof value === "function" || typeof value === "bigint" || typeof value === "symbol") {
     return { $harnessDispatch: typeof value };
   }

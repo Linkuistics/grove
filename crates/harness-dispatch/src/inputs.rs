@@ -5,20 +5,18 @@
 //! caller data: the task file supplies neither kind nor identity, and nothing
 //! is recovered from a file name. The prompt is read once, kept byte for byte, and never sent to the
 //! policy worker; it only ever fills the candidate's `prompt` argument.
-//! Terminal stdin is never read. The caller's bounds are read here too, so a
-//! malformed one refuses before any policy runs.
+//! Terminal stdin is never read. The caller's bounds and `--context` document
+//! are read here too, so a malformed one refuses before any policy runs.
 
+use crate::cli::SelectionArgs;
+use crate::context::{self, CallerContext};
+use crate::limits::Limits;
+use crate::refusal::{Refusal, Stage, EXIT_MALFORMED, EXIT_REFUSED};
 use std::ffi::OsString;
 use std::fs;
 use std::io::Read as _;
 use std::os::fd::AsRawFd as _;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
-
-use serde_json::{json, Value};
-
-use crate::cli::SelectionArgs;
-use crate::refusal::{Refusal, Stage, EXIT_MALFORMED, EXIT_REFUSED};
 
 /// The prompt's fixed bound, in bytes. Platform argv limits can refuse a
 /// smaller one at exec.
@@ -26,12 +24,6 @@ pub const PROMPT_LIMIT: usize = 1024 * 1024;
 
 /// The task identity's bound, in bytes of UTF-8.
 pub const TASK_ID_LIMIT: usize = 1024;
-
-/// The whole-selection bound, in milliseconds: its default and the range a
-/// caller may choose with `--timeout-ms`.
-pub const SELECTION_DEFAULT_MS: u64 = 30_000;
-pub const SELECTION_MIN_MS: u64 = 1_000;
-pub const SELECTION_MAX_MS: u64 = 120_000;
 
 #[derive(Debug)]
 pub struct Inputs {
@@ -47,45 +39,11 @@ pub struct Inputs {
     /// selection's question, not the command line's.
     pub choice: Option<String>,
     pub prompt: Option<Prompt>,
-    /// How long the worker has, from its start to its result.
-    pub selection: Bound,
-}
-
-/// A bound the caller may adjust within its hard range: its name, its value,
-/// and whether the caller set it or it is the default. Inspection reports it,
-/// and a refusal it caused names it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Bound {
-    pub name: &'static str,
-    pub unit: &'static str,
-    pub value: u64,
-    /// The flag that set it, or `None` for the default.
-    pub flag: Option<&'static str>,
-}
-
-impl Bound {
-    /// The whole-selection bound as a duration.
-    pub fn duration(self) -> Duration {
-        Duration::from_millis(self.value)
-    }
-
-    /// Where the value came from: the flag that set it, or `default`.
-    pub fn from(self) -> &'static str {
-        self.flag.unwrap_or("default")
-    }
-
-    /// `{"ms": 30000, "from": "default"}`, keyed by its unit.
-    pub fn to_json(self) -> Value {
-        let mut value = json!({ "from": self.from() });
-        value[self.unit] = self.value.into();
-        value
-    }
-
-    /// `30000 ms (the default)`, or `2500 ms (--timeout-ms)`.
-    pub fn to_text(self) -> String {
-        let from = self.flag.unwrap_or("the default");
-        format!("{} {} ({from})", self.value, self.unit)
-    }
+    /// The caller's `--context` document, read, measured and validated.
+    pub context: Option<CallerContext>,
+    /// Every bound in effect, the caller's `--timeout-ms` and
+    /// `--context-bytes` included.
+    pub limits: Limits,
 }
 
 #[derive(Debug)]
@@ -148,7 +106,12 @@ impl Inputs {
             }
             (None, None) => None,
         };
-        let selection = selection_bound(args.timeout_ms.as_deref())?;
+        let limits = Limits::read(args.timeout_ms.as_deref(), args.context_bytes.as_deref())?;
+        let context = args
+            .context
+            .as_deref()
+            .map(|path| context::read_caller(path, &cwd, &limits))
+            .transpose()?;
         Ok(Inputs {
             kind: args.kind.clone(),
             cwd,
@@ -156,7 +119,8 @@ impl Inputs {
             task_id,
             choice,
             prompt,
-            selection,
+            context,
+            limits,
         })
     }
 }
@@ -228,40 +192,6 @@ fn choice(id: OsString) -> Result<String, Refusal> {
         return Err(malformed("--choice", "--choice must not be empty", remedy));
     }
     Ok(id)
-}
-
-/// `--timeout-ms`: whole milliseconds from 1 to 120 seconds, written as plain
-/// digits. Anything else, a sign or an exponent included, is malformed rather
-/// than read generously, and nothing out of range is clamped.
-fn selection_bound(given: Option<&std::ffi::OsStr>) -> Result<Bound, Refusal> {
-    let bound = |value, flag| Bound {
-        name: "selection",
-        unit: "ms",
-        value,
-        flag,
-    };
-    let Some(given) = given else {
-        return Ok(bound(SELECTION_DEFAULT_MS, None));
-    };
-    let shown = given.to_string_lossy();
-    let value = given
-        .to_str()
-        .filter(|text| !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit()))
-        .and_then(|digits| digits.parse::<u64>().ok())
-        .filter(|ms| (SELECTION_MIN_MS..=SELECTION_MAX_MS).contains(ms));
-    value
-        .map(|ms| bound(ms, Some("--timeout-ms")))
-        .ok_or_else(|| {
-            malformed(
-                "--timeout-ms",
-                format!(
-                    "--timeout-ms {shown:?} is not a whole number of milliseconds from \
-                 {SELECTION_MIN_MS} to {SELECTION_MAX_MS}"
-                ),
-                "give the whole-selection bound in milliseconds, from 1000 (1 second) to 120000 \
-             (120 seconds), or omit --timeout-ms for the 30-second default",
-            )
-        })
 }
 
 /// Read a prompt file once, bounded, refusing a terminal rather than waiting

@@ -6,15 +6,20 @@ behavior that is not implemented yet. Of the command itself, `inspect` and
 policy authority, the compiled worker with its identity check, embedded SDK,
 the two static starter examples and the dynamic one, policy validation, the
 `select` result contract with its distinct refusals and the policy's own,
-explicit-choice policing under `select`, the request without context, the
-prompt, task file, task identity, explicit choice and state directory inputs,
-argument-slot expansion including `runId`, program resolution, the
-whole-selection deadline with its exit 124, the human and version-1 JSON
-reports, and structured refusals with their exit results. A refused `run` names
-its equivalent `inspect` invocation. `run` commits its required handoff record
-before a plain exec, exports the run's identity to the harness, and appends an
-exec failure to its attempt. `record show` exports a recorded run. Handled
-signals and a signal-transparent handoff are not yet delivered. Every release
+explicit-choice policing under `select`, the request, the prompt, task file,
+task identity, explicit choice, `--context` document and state directory
+inputs, `loadContext` with the SDK's measured reads, diagnostics and abort
+signal, the measured delivered context, every [resource bound](#bounded-context)
+with its refusal, argument-slot expansion including `runId`, program
+resolution, the whole-selection deadline with its exit 124, the human and
+version-1 JSON reports with their context sources, digests, sizes and bounds,
+and structured refusals with their exit results. A refused `run` names its
+equivalent `inspect` invocation. `run` commits its required handoff record,
+with any reviewed artifact and the context's source digests and sizes, before a
+plain exec, exports the run's identity to the harness, and appends an exec
+failure to its attempt. `record show` exports a recorded run. Run lookup
+(`host.run`) is refused by name. Handled signals and a signal-transparent
+handoff are not yet delivered. Every release
 archive and the Homebrew formula carry the front and its worker in the
 [delivered layout](#delivery), each target's worker compiled from a
 digest-pinned Bun runtime. The installed smoke test runs the static and
@@ -140,15 +145,27 @@ reason names the table entry it applied.
 
 The request fields are `schemaVersion`, `kind`, `cwd`, optional `taskFile`,
 optional `taskId`, optional `context`, optional `explicitChoice`, and effective
-`limits`. Caller context contains `schemaVersion`, optional `summary`,
+`limits`: `selectionMs`, `contextBytes`, `sourceBytes`, `sources`,
+`messageBytes` and `diagnosticsBytes`. The policy receives the request frozen.
+Caller context contains `schemaVersion`, optional `summary`,
 `acceptanceCriteria` (string array), `facts` (JSON object), `assessments`
 (attributed JSON object), `sources` (source records) and `reviewedArtifact`.
+Each assessment is `{ by, value }`: a nonblank assessor and any JSON value. A
+source record is `{ name, sha256?, bytes?, version? }`, with a nonblank name and
+a digest (64 lowercase hexadecimal digits), a version or both, so that it pins
+its evidence; a context holds at most 256.
 A reviewed artifact has an `id` and an optional `creator` holding exactly one
-of `run` (a run ID) or `declared` (a provider-origin label). Empty optional
-collections remain distinct from unknown facts. Loaded context uses the same
-shape and additionally carries measured source metadata and the creator run
-snapshot it resolved. No executable fields are admitted in a caller context
-document.
+of `run` (a canonical run ID) or `declared` (a provider-origin label). Empty
+optional collections remain distinct from unknown facts, and nothing absent is
+defaulted. Loaded context uses the same
+shape. The delivered context additionally carries measured source metadata,
+which harness-dispatch attaches as `measured` and a loader cannot supply, and,
+once run lookup is delivered, the creator run snapshot it resolved. No
+executable fields are admitted in a caller context document: an unknown field
+refuses with its location, and one named like an executable field (`program`,
+`args`, `catalog`, `select`, `loadContext` and the like) says why. `facts` and
+assessment values are data, never checked for such names, because nothing in a
+context can become an argument.
 
 Each candidate has a unique ID, a nonempty provider-origin label, nonempty model
 and effort strings, a program and an argument array. Provider/model/effort are catalog
@@ -176,9 +193,11 @@ an owner assertion, not verified backend identity.
 
 The selection result has `status: selected`, `candidateId` and a nonblank
 `reason`, or `status: refused`, `code`, `message` and `remedy`. The worker
-returns the catalog snapshot taken at import, and Rust validates it before any
-`select` runs; the result follows, and Rust validates it against that snapshot
-before use. A result cannot supply new executable words, and a field beyond
+returns the catalog snapshot taken at import, and Rust validates it, and any
+explicit choice against it, before any `loadContext` or `select` runs. The
+context follows when there is a loader or a caller context, and Rust validates
+and measures it. The result comes last, and Rust validates it against that
+snapshot before use. A result cannot supply new executable words, and a field beyond
 its status's own is refused. Invalid exports, unknown candidate IDs, malformed
 arguments, exceptions, an unresolved promise or abstention refuse, each with
 its own code. A policy's own refusal is reported under the stable
@@ -296,7 +315,16 @@ SDK operations are `readText(path, maxBytes)`, `readJson(path, maxBytes)`,
 `run(runId)`, `diagnostic(text)` and `signal`.
 Reads resolve explicit relative paths against request cwd and return content
 plus canonical source name, byte count and SHA-256. Policy imports use their own
-module-relative resolution. Run lookup is a read-only protocol request to the
+module-relative resolution. A read is synchronous, opens a regular file without
+blocking, decodes strict UTF-8 and, for `readJson`, parses it. Its `maxBytes`
+defaults to the per-read bound and may be set up to the context budget. A
+failed read throws, and a loader that fails because of it refuses naming that
+source. Reads are open only while `loadContext` runs: `select`'s host has
+`diagnostic` and `signal` alone, since the context it receives is the measured
+one. `diagnostic` writes one line to the worker's captured stderr. `signal`
+aborts when the front stops the worker at its deadline; a worker whose policy
+installs no TERM listener of its own then exits once the abort listeners have
+run. Run lookup is a read-only protocol request to the
 Rust store. It returns the run's immutable launch fields, including task
 identity and catalog snapshot, plus any launch-failure detail, or missing. An
 unreadable store refuses rather than reading as missing. The worker never opens
@@ -304,14 +332,27 @@ or writes the database. The loader returns context,
 and the selection callback receives that measured value. The supplied adapter
 uses these operations so its complete delivered context is inspectable.
 
+The **delivered context** is the loader's result, or the caller's document when
+there is no loader, with `measured` attached: the `--context` document first,
+then each SDK read in call order, each `{ name, via, bytes, sha256 }`. A routes
+policy with a loader or a caller context has its context assembled, measured
+and inspected too. The worker checks the delivered size before it sends it, and
+the front, which validates it by the caller-context rules, measures it again
+and is the authority. **Final encoded bytes** and the context digest are those
+of the front's compact encoding with object keys sorted. A bound exceeded
+inside the worker is recorded the first time: the policy is thrown an error,
+and catching it changes nothing, because the phase reports the recorded breach
+instead of its value. The worker takes its limits from the front, never from
+the `request.limits` the policy sees.
+
 | Resource | Default | Hard ceiling and behavior |
 |---|---|---|
 | Whole selection, from worker start to its result, including imports, context and callback | 30 seconds | Caller can choose 1–120 seconds; timeout refuses |
-| Context delivered to selection, including caller JSON and source metadata | 256 KiB UTF-8 JSON | Caller can choose up to 8 MiB; overflow refuses, never silently truncates |
-| One SDK source read | 64 KiB | At most the effective context budget; oversize source refuses |
+| Context delivered to selection, including caller JSON and source metadata | 256 KiB UTF-8 JSON | Caller can choose 1 byte to 8 MiB; overflow refuses, never silently truncates |
+| One SDK source read | 64 KiB, or the context budget if smaller | A read's `maxBytes` can choose up to the effective context budget; oversize source refuses |
 | Number of context sources | 256 | Fixed; excess refuses |
 | Policy result/catalog protocol message | 1 MiB | Fixed; excess refuses |
-| Worker diagnostics, both streams together | 256 KiB | Drain within the bound; excess terminates evaluation with an output-limit error |
+| Worker diagnostics, both streams together | 256 KiB | Drain within the bound; excess terminates evaluation with an output-limit error, keeping the first 256 KiB |
 | Prompt | 1 MiB | Fixed; platform argv/environment limits can refuse smaller payloads at exec |
 | Record-store lock wait | 2 seconds | Fixed; separate from the selection bound, which it neither extends nor consumes |
 

@@ -73,6 +73,7 @@ impl Report {
             }
         };
         let candidate = &choice.candidate;
+        let context = choice.context.as_ref();
         json!({
             "schemaVersion": 1,
             "evidence": "proposal",
@@ -82,6 +83,8 @@ impl Report {
             "taskFile": choice.inputs.task_file,
             "taskId": choice.inputs.task_id,
             "prompt": prompt,
+            "reviewedArtifact": context.and_then(|context| context.reviewed_artifact()),
+            "context": context.map(|context| context.to_json(true)),
             "policy": policy,
             "selection": {
                 "form": choice.selected_by.form(),
@@ -95,7 +98,7 @@ impl Report {
             },
             "executable": choice.executable.to_json(),
             "argv": choice.argv.iter().map(crate::argv::Word::to_json).collect::<Vec<_>>(),
-            "bounds": { "selection": choice.inputs.selection.to_json() },
+            "bounds": choice.inputs.limits.to_json(),
             "timing": { "selectionMs": millis(choice.elapsed) },
             "worker": worker_json(&choice.worker),
             "diagnostics": choice.diagnostics.to_json(),
@@ -141,6 +144,14 @@ impl Report {
             ),
             ("prompt", prompt),
             (
+                "reviewed",
+                choice
+                    .context
+                    .as_ref()
+                    .and_then(|context| context.reviewed_artifact())
+                    .map_or("none".to_owned(), |artifact| shown(&artifact.to_string())),
+            ),
+            (
                 "choice",
                 match (inputs.choice.as_deref(), choice.selected_by) {
                     (None, SelectedBy::Select) => "none; the policy's select chooses".to_owned(),
@@ -171,10 +182,6 @@ impl Report {
             ("reason", shown(&choice.reason)),
             ("executable", choice.executable.to_text()),
             (
-                "bounds",
-                format!("selection within {}", inputs.selection.to_text()),
-            ),
-            (
                 "timing",
                 format!("selection took {} ms", millis(choice.elapsed)),
             ),
@@ -201,6 +208,20 @@ impl Report {
             String::from("Proposal only: nothing was launched and no run was recorded.\n");
         for (label, value) in rows {
             let _ = writeln!(text, "  {label:<10} {value}");
+        }
+        let context = match &choice.context {
+            None => vec!["none; select receives no context".to_owned()],
+            Some(context) => {
+                let mut lines = context.to_text();
+                lines.push("the delivered value itself is in --json".to_owned());
+                lines
+            }
+        };
+        for (label, lines) in [("context", context), ("bounds", inputs.limits.to_text())] {
+            for (index, line) in lines.iter().enumerate() {
+                let label = if index == 0 { label } else { "" };
+                let _ = writeln!(text, "  {label:<10} {line}");
+            }
         }
         for (index, word) in choice.argv.iter().enumerate() {
             let label = if index == 0 { "argv" } else { "" };

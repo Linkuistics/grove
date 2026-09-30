@@ -3,10 +3,11 @@
 //!
 //! `inspect` and `run` accept the same selection inputs. This release reads the
 //! kind, the policy entry, the prompt, the optional task file and identity, the
-//! explicit choice, the whole-selection bound and the record directory, for a
-//! static `routes` policy or a computed `select`.
+//! caller's context document, the explicit choice, the selection and context
+//! bounds and the record directory, for a static `routes` policy or a computed
+//! `select`, either with a `loadContext`.
 //! `record show` exports a recorded run.
-//! The spec's other inputs and commands belong to later increments, and until
+//! The spec's other input and command belong to later increments, and until
 //! each lands it is refused explicitly, by name, rather than accepted and
 //! ignored. They are hidden from help so that help lists only what works.
 
@@ -56,6 +57,7 @@ pub enum Command {
         harness-dispatch inspect --kind impl\n  \
         harness-dispatch inspect --kind impl --task-id T-12 --prompt 'Implement the parser'\n  \
         harness-dispatch inspect --kind impl --choice deep\n  \
+        harness-dispatch inspect --kind review --context ./review-context.json --json\n  \
         harness-dispatch inspect --kind review-impl --config ./policies/review.ts --json\n\n\
         Recovering from a refusal:\n  \
         A refused run prints this command's equivalent invocation, without the prompt. Run it \
@@ -77,6 +79,7 @@ pub enum Command {
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind impl --task-file ./tasks/parser.md --task-id T-12 --prompt-file ./mandate.md\n  \
         harness-dispatch run --kind impl --choice deep --prompt 'Implement the parser'\n  \
+        harness-dispatch run --kind review --context ./review-context.json --context-bytes 1048576 --prompt-file ./mandate.md\n  \
         harness-dispatch run --kind impl --state-dir ./records --prompt 'Implement the parser'\n\n\
         Recovering from a refusal:\n  \
         A refused run launches nothing, and names its code, stage, input or source, and remedy, \
@@ -173,21 +176,23 @@ pub struct SelectionArgs {
     /// Select this configured candidate by its catalog ID: routes take it instead of the kind's route, and select must accept or refuse it; an ID the catalog lacks refuses
     #[arg(long, value_name = "ID")]
     pub choice: Option<OsString>,
+    /// A version-1 JSON context document for the policy, read as data; relative to the current directory
+    #[arg(long, value_name = "PATH")]
+    pub context: Option<PathBuf>,
     /// Stop the policy and launch nothing (exit 124) if selection takes longer; 1000 to 120000 [default: 30000]
     #[arg(long, value_name = "MS")]
     pub timeout_ms: Option<OsString>,
+    /// Refuse a context delivered to selection that encodes to more bytes; 1 to 8388608 [default: 262144]
+    #[arg(long, value_name = "BYTES")]
+    pub context_bytes: Option<OsString>,
 
     /// Keep run records in this directory instead of ~/.local/state/harness-dispatch; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub state_dir: Option<PathBuf>,
 
-    // The spec's remaining selection inputs, owned by later increments.
-    #[arg(long, hide = true)]
-    pub context: Option<OsString>,
+    // The spec's remaining selection input, owned by a later increment.
     #[arg(long, hide = true)]
     pub policy_env: Vec<OsString>,
-    #[arg(long, hide = true)]
-    pub context_bytes: Option<OsString>,
 }
 
 /// Arguments of a command this release refuses, taken whole so that the
@@ -203,13 +208,8 @@ impl SelectionArgs {
     /// the ones this release reads. The values themselves are read and checked
     /// by `inputs`.
     pub fn refuse_unsupported(&self) -> Result<(), Refusal> {
-        let later = [
-            ("--context", self.context.is_some()),
-            ("--policy-env", !self.policy_env.is_empty()),
-            ("--context-bytes", self.context_bytes.is_some()),
-        ];
-        if let Some((flag, _)) = later.iter().find(|(_, given)| *given) {
-            return Err(unsupported(&format!("`{flag}`"), flag));
+        if !self.policy_env.is_empty() {
+            return Err(unsupported("`--policy-env`", "--policy-env"));
         }
         if self.kind.is_empty() {
             return Err(Refusal::new(
@@ -272,7 +272,10 @@ impl SelectionArgs {
                 "--state-dir",
                 self.state_dir.as_deref().map(|path| path.as_os_str()),
             ),
-            ("--context", self.context.as_deref()),
+            (
+                "--context",
+                self.context.as_deref().map(|path| path.as_os_str()),
+            ),
             ("--context-bytes", self.context_bytes.as_deref()),
         ];
         for (flag, value) in given {
@@ -324,8 +327,8 @@ pub fn unsupported(what: &str, input: &str) -> Refusal {
         EXIT_MALFORMED,
         format!("{what} is not supported by this release of harness-dispatch"),
         "omit it; this release selects through a routes or select policy with --kind, --choice, \
-         --config, --prompt or --prompt-file, --task-file, --task-id, --timeout-ms, --state-dir \
-         and --json, and exports runs with record show",
+         --config, --prompt or --prompt-file, --task-file, --task-id, --context, --timeout-ms, \
+         --context-bytes, --state-dir and --json, and exports runs with record show",
     )
     .input(input)
 }

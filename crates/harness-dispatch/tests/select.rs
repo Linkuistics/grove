@@ -135,14 +135,18 @@ fn run_launches_the_computed_choice_and_records_how_it_was_made() {
 }
 
 #[test]
-fn select_is_called_as_a_method_with_the_versioned_request_alone() {
+fn select_is_called_as_a_method_with_the_versioned_request_no_context_and_a_host() {
     // The policy records exactly what it was called with: the request, how
-    // many arguments there were, and whether `this` was the policy.
+    // many arguments there were, whether `this` was the policy, and, with no
+    // --context and no loader, an undefined context and a host without reads.
     let sandbox = Sandbox::new();
     let seen = sandbox.root.join("seen.json");
     sandbox.personal_policy(&selecting(&format!(
-        "select(request) {{
-    writeFileSync({:?}, JSON.stringify({{ request, arity: arguments.length, version: this.version }}));
+        "select(request, context, host) {{
+    writeFileSync({:?}, JSON.stringify({{
+      request, arity: arguments.length, version: this.version, context: typeof context,
+      host: Object.keys(host).sort(), frozen: Object.isFrozen(request) && Object.isFrozen(request.limits),
+    }}));
     return {QUICK};
   }},",
         text(&seen)
@@ -175,10 +179,16 @@ fn select_is_called_as_a_method_with_the_versioned_request_alone() {
                 "cwd": text(&sandbox.cwd),
                 "taskFile": text(&sandbox.cwd.join("tasks/t.md")),
                 "taskId": "T-7",
-                "limits": { "selectionMs": 20_000 },
+                "limits": {
+                    "selectionMs": 20_000, "contextBytes": 262_144, "sourceBytes": 65_536,
+                    "sources": 256, "messageBytes": 1_048_576, "diagnosticsBytes": 262_144,
+                },
             },
-            "arity": 1,
+            "arity": 3,
             "version": "select-1",
+            "context": "undefined",
+            "host": ["diagnostic", "readJson", "readText", "run", "signal"],
+            "frozen": true,
         })
     );
     assert!(
@@ -196,7 +206,10 @@ fn select_is_called_as_a_method_with_the_versioned_request_alone() {
             "schemaVersion": 1,
             "kind": "review",
             "cwd": text(&sandbox.cwd),
-            "limits": { "selectionMs": 30_000 },
+            "limits": {
+                "selectionMs": 30_000, "contextBytes": 262_144, "sourceBytes": 65_536,
+                "sources": 256, "messageBytes": 1_048_576, "diagnosticsBytes": 262_144,
+            },
         })
     );
 }

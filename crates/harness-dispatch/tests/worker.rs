@@ -8,10 +8,12 @@
 mod support;
 
 use std::fs;
+use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 use serde_json::json;
-use support::{executable, run, text, Sandbox, FRONT, ROUTED};
+use support::{executable, run, text, Run, Sandbox, FRONT, ROUTED};
 
 const LAYOUT: &str = "libexec/harness-dispatch/harness-dispatch-policy";
 
@@ -45,6 +47,30 @@ fn fake_worker(sandbox: &Sandbox, path: &Path, hello: &serde_json::Value) {
         path,
         &format!("#!/bin/sh\nexec /bin/cat '{}' >&3\n", text(&frame_file)),
     );
+}
+
+/// Run the front as the leader of a new process group, and say whether any
+/// member of that group outlived it. The front forks its worker into its own
+/// group, so the answer covers the worker from the fork on, whether or not it
+/// ever ran a line of its own.
+fn run_leading_a_group(command: &mut Command) -> (Run, bool) {
+    // A PGID of 0 makes the child's PID its group's ID:
+    // https://doc.rust-lang.org/std/os/unix/process/trait.CommandExt.html#tymethod.process_group
+    let child = command
+        .process_group(0)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the front executable runs");
+    let group = libc::pid_t::try_from(child.id()).unwrap();
+    let run = Run::from(child.wait_with_output().expect("the front exits"));
+    // SAFETY: signal 0 sent to the negated group ID only checks whether the
+    // group has a member. The front is reaped, so a member is a process it
+    // left behind.
+    let result = unsafe { libc::kill(-group, 0) };
+    let outlived =
+        result == 0 || std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH);
+    (run, outlived)
 }
 
 #[test]
@@ -119,30 +145,26 @@ fn a_worker_that_never_identifies_itself_is_stopped_at_the_deadline() {
     // So exit 124 is the evidence here. How promptly the bound acts is
     // asserted in `deadline.rs`, with the built front: a fresh copy like this
     // one pays a first-exec cost, which under parallel load has taken seconds.
+    //
+    // The freshly written worker pays that cost inside the bound, so under
+    // load it is often stopped before its first line runs. Nothing it could
+    // record is therefore evidence; the front's process group is.
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);
     let (front, prefix) = copied_front(&sandbox);
-    let pid_file = sandbox.root.join("worker-pid");
-    executable(
-        &prefix.join(LAYOUT),
-        &format!(
-            "#!/bin/sh\necho $$ > '{}'\nexec /bin/sleep 30\n",
-            text(&pid_file)
-        ),
-    );
+    executable(&prefix.join(LAYOUT), "#!/bin/sh\nexec /bin/sleep 30\n");
 
     let mut command = sandbox.command_for(&front);
-    // Three seconds, so that even a loaded machine starts the worker and
-    // runs its first line, which records the PID read below.
     command.args([
         "inspect",
         "--kind",
         "impl",
         "--timeout-ms",
-        "3000",
+        "1000",
         "--json",
     ]);
-    let refusal = run(&mut command).refusal(124);
+    let (run, outlived) = run_leading_a_group(&mut command);
+    let refusal = run.refusal(124);
 
     assert_eq!(refusal["error"]["code"], "selection_timeout", "{refusal}");
     assert_eq!(refusal["error"]["stage"], "evaluation");
@@ -154,14 +176,7 @@ fn a_worker_that_never_identifies_itself_is_stopped_at_the_deadline() {
             .contains("was not ready for the policy"),
         "{refusal}"
     );
-    let pid: libc::pid_t = fs::read_to_string(&pid_file)
-        .unwrap()
-        .trim()
-        .parse()
-        .unwrap();
-    // SAFETY: signal 0 only checks that the process exists.
-    let alive = unsafe { libc::kill(pid, 0) } == 0;
-    assert!(!alive, "the worker {pid} survived the front");
+    assert!(!outlived, "the worker survived the front");
 }
 
 #[test]

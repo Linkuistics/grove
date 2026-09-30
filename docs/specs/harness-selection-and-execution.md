@@ -31,7 +31,12 @@ Their handlers stay installed across the record commit, and the linearization
 point follows it. A signal seen there launches nothing, appends the
 not-executed detail, and is re-raised after the `handoff_cancelled` refusal.
 Otherwise the harness receives the entry signal mask and every disposition
-that survives exec, SIGPIPE's included.
+that survives exec, SIGPIPE's included. The worker's environment is its base
+set plus exact `--policy-env` grants, which refuse the excluded names as
+`excluded_grant` and which inspection lists by name, never by value. Each
+hostile class in the [firing-configuration table](#test-seams) is proved inert
+through the front beside its firing configuration, and the probe builds those
+configurations need are test instruments that no front accepts.
 Every release archive and the Homebrew formula carry the front and its worker
 in the [delivered layout](#delivery), each target's worker compiled from a
 digest-pinned Bun runtime. The installed smoke test runs the static and
@@ -42,7 +47,8 @@ native container. Positive controls show that the userland enforces the glibc
 floor and that each CPU model refuses an instruction beyond it. The release
 task runs the archive-content assertions and this smoke test before it
 publishes anything.
-Every other input is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
+Every selection input in the [command interface](#command-interface) is
+delivered. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
 symbolic inspection are delivered.
 The [visual document](../design/harness-selection-and-execution/README.md) has
@@ -282,7 +288,12 @@ specifier is on it.
 Other external imports start at the selected absolute entry. Bare specifiers
 resolve through `node_modules` from the importing module's directory, and
 relative imports from the importing module, never from the invocation directory.
-No automatic package installation runs. Missing imports fail. Because tsconfig
+No automatic package installation runs. Missing imports fail. Because
+package.json autoloading is off as well, the delivered worker reads no
+`package.json` at run time, so a package resolves only by its file layout, such
+as its `index.js`: one whose entry point `main` or `exports` declares does not
+load. Whether that limitation is kept is open (`package-entry-resolution-k52`).
+Because tsconfig
 autoloading is off, `paths` aliases in a tsconfig beside owner policy do not
 apply at run time. The shipped declarations serve editor and package type
 checking only. Trusted policy may deliberately use normal module imports or
@@ -291,9 +302,17 @@ discovery.
 
 Rust constructs a fresh worker environment containing only HOME, a PATH snapshot,
 TMPDIR, LANG and LC_* values, plus exact `--policy-env` grants. It always excludes
-BUN_*, NODE_OPTIONS, NODE_PATH, dynamic-loader injection variables and its private
-protocol variables from grants. Installation control variables never come from
-ambient input. The generic command cannot know a caller's completion variables,
+BUN_*, NODE_OPTIONS, NODE_PATH, dynamic-loader injection variables (every `LD_*`
+and `DYLD_*` name) and its private protocol variables (every `HARNESS_DISPATCH_*`
+name: the worker is never told the run or where its records are) from grants.
+Naming one refuses as `excluded_grant`, exit 2, before any policy runs; an
+empty name or one holding `=` is `malformed_input`. A granted name the caller
+has not set is absent from the worker, and duplicates are one grant.
+Inspection lists each grant as `policyEnv`, `{ name, set }`, and no value is
+printed or recorded anywhere. Installation control variables never come from
+ambient input: the worker is located from the front's real path, never from
+PATH, the cwd, `argv[0]` or a variable, and `BUN_BE_BUN`, which would make the
+worker Bun itself, is a `BUN_*` name. The generic command cannot know a caller's completion variables,
 so it cannot refuse to grant them. Naming one with `--policy-env` is the owner
 explicitly giving the worker that authority. Grove's documented configurations
 grant none, and the usage documentation warns against granting
@@ -786,7 +805,8 @@ equivalent. Once a command line parses, its own `--json` flag chooses the
 format. A `--json` word that is the value of another flag, such as the
 prompt, is data.
 
-Exit codes before exec are 2 for malformed CLI input, 3 for policy/context/
+Exit codes before exec are 2 for malformed CLI input, an excluded
+`--policy-env` name included, 3 for policy/context/
 selection refusal and for a refused record lookup or observation, 4 for
 required-record or record-store failure, 5 for worker/protocol/internal
 failure, 124 for timeout, 126 for an unexecutable selected program, and 127 for
@@ -893,12 +913,24 @@ must be seen to fire, so a test cannot pass merely because its fixture never ran
 |---|---|
 | cwd policy entry | The same file named by an explicit relative `--config`, which loads it |
 | cwd `.env` and bunfig preload | A default-autoload probe build of the same worker, run in the hostile directory |
-| `BUN_OPTIONS` preload | The shipped worker launched directly with the variable set, bypassing the front process's scrubbing |
+| `BUN_OPTIONS` preload, and `BUN_BE_BUN` | The shipped worker launched directly with the variable set, bypassing the front process's scrubbing |
 | `node_modules/harness-dispatch` shadow | The fixture beside an admitted entry, under a probe build that does not register the virtual modules |
 | tsconfig `paths` | The fixture beside an admitted entry, under a probe build with tsconfig and package.json autoloading enabled |
 
+`task dispatch:probes` builds the three probe builds from the shipped source,
+each with one control removed. A probe reports the identity
+`probe-<name>-<source digest>`, which no front accepts, so a probe can never
+serve as an installation's worker, and an archive carrying one there fails the
+installed smoke test before a release publishes. A firing configuration
+therefore drives its probe directly, playing the front's side of the protocol.
+Probe builds are never built by a release and never ship.
+
 A class with no known firing configuration is reported as such, not counted as a
-passing control. Missing-source fixtures carry the same obligation. The runtime
+passing control. On Bun 1.4.2 a `~/.bunfig.toml` preload and tsconfig `paths`
+in the caller's cwd are two: neither fired under any build. A test keeps
+checking that each still fails to fire under its most permissive probe, and
+fails if one gains a firing configuration. Missing-source fixtures carry the
+same obligation. The runtime
 evidence records which of these have been seen to fire. Do not infer backend
 identity, policy quality or task acceptance from these mechanics tests.
 

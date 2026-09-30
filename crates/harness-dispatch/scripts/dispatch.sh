@@ -16,6 +16,9 @@
 #   dispatch.sh typecheck [OUT_DIR] type-check the worker, the SDK, the examples
 #                                   and the fixtures against OUT_DIR's
 #                                   declarations
+#   dispatch.sh probes [OUT_DIR]    compile the test-only probe builds into
+#                                   OUT_DIR/<probe>/ (default: the checkout's
+#                                   target/probes/harness-dispatch)
 #   dispatch.sh install PREFIX      build the release pair and install it as
 #                                   PREFIX/bin and PREFIX/libexec/harness-dispatch
 #
@@ -170,6 +173,34 @@ digest_of() {
   sha256 "$1" | cut -d' ' -f1
 }
 
+# Compile the worker to OUT_FILE, reporting build identity ID and package
+# VERSION, with PROBE naming the control a probe build removes ("" for the
+# shipped build) and TARGET a Bun cross-compile target or "". The remaining
+# arguments are the autoload switches. Bun 1.4.2 leaves a copy of its ~60 MB
+# compile template in its cwd after every compile, so it runs in a throwaway
+# directory rather than the source tree, where jj would try to snapshot the
+# copy.
+compile_worker() {
+  local out_file="$1" id="$2" version="$3" probe="$4" target="$5"
+  shift 5
+  (
+    scratch="$(mktemp -d)"
+    # shellcheck disable=SC2064 # expand now: the trap must remove this directory
+    trap "rm -rf '$scratch'" EXIT
+    cd "$scratch"
+    cross=()
+    if [[ -n "$target" ]]; then
+      runtime="$(pinned_runtime "$target" "$scratch")"
+      cross=(--target="$target" --compile-executable-path="$runtime")
+    fi
+    bun build --compile ${cross[@]+"${cross[@]}"} "$@" \
+      --define "HARNESS_DISPATCH_BUILD_ID=\"$id\"" \
+      --define "HARNESS_DISPATCH_PACKAGE_VERSION=\"$version\"" \
+      --define "HARNESS_DISPATCH_PROBE=\"$probe\"" \
+      "$WORKER_DIR/src/main.ts" --outfile "$out_file"
+  )
+}
+
 build() {
   local target=""
   if [[ "${1:-}" == "--target" ]]; then
@@ -192,28 +223,11 @@ build() {
 
   # All four no-autoload switches, stated even where 1.4.2's default already
   # agrees, so that a Bun upgrade changing a default cannot change the build.
-  # Bun 1.4.2 leaves a copy of its ~60 MB compile template in its cwd after
-  # every compile, so it runs in a throwaway directory rather than the source
-  # tree, where jj would try to snapshot the copy.
-  (
-    scratch="$(mktemp -d)"
-    # shellcheck disable=SC2064 # expand now: the trap must remove this directory
-    trap "rm -rf '$scratch'" EXIT
-    cd "$scratch"
-    cross=()
-    if [[ -n "$target" ]]; then
-      runtime="$(pinned_runtime "$target" "$scratch")"
-      cross=(--target="$target" --compile-executable-path="$runtime")
-    fi
-    bun build --compile ${cross[@]+"${cross[@]}"} \
-      --no-compile-autoload-dotenv \
-      --no-compile-autoload-bunfig \
-      --no-compile-autoload-tsconfig \
-      --no-compile-autoload-package-json \
-      --define "HARNESS_DISPATCH_BUILD_ID=\"$id\"" \
-      --define "HARNESS_DISPATCH_PACKAGE_VERSION=\"$version\"" \
-      "$WORKER_DIR/src/main.ts" --outfile "$out_dir/$WORKER_NAME"
-  )
+  compile_worker "$out_dir/$WORKER_NAME" "$id" "$version" "" "$target" \
+    --no-compile-autoload-dotenv \
+    --no-compile-autoload-bunfig \
+    --no-compile-autoload-tsconfig \
+    --no-compile-autoload-package-json
 
   # The declarations and readable sources an owner's editor reads, as sdk/
   # and examples/ beside the worker; the worker carries its own embedded copy.
@@ -261,6 +275,52 @@ EOF
   echo "dispatch: worker, SDK and fixtures type-check"
 }
 
+# WHY PROBE BUILDS, AND WHY NONE CAN SHIP. Each hostile class a command-seam
+# test proves inert has a firing configuration, which must be seen to fire so
+# that a clean result cannot come from a fixture that never could have
+# (docs/specs/harness-selection-and-execution.md, the firing-configuration
+# table under *Agreed test seams and acceptance*). Three of them need the same
+# worker source with one control removed:
+#
+#   autoload      dotenv and bunfig autoloading on, as in Bun's defaults
+#   tsconfig      tsconfig and package.json autoloading on
+#   unregistered  every autoload switch off, and no embedded-module
+#                 registration (main.ts reads HARNESS_DISPATCH_PROBE)
+#
+# Each reports the identity probe-<name>-<source digest>, which no front
+# accepts, so a probe is refused with exit 5 wherever an installation's worker
+# belongs, and an archive carrying one as its worker fails the installed smoke
+# test before a release publishes. Tests drive a probe directly. They live in
+# target/probes, outside the libexec layout, and nothing else builds them.
+probes() {
+  local out_dir
+  out_dir="${1:-$(metadata_field target)/probes/harness-dispatch}"
+  require_bun
+  local id version name
+  id="$(build_id)"
+  version="$(metadata_field version)"
+  for name in autoload tsconfig unregistered; do
+    mkdir -p "$out_dir/$name"
+  done
+  out_dir="$(cd "$out_dir" && pwd)"
+  compile_worker "$out_dir/autoload/$WORKER_NAME" "probe-autoload-$id" "$version" autoload "" \
+    --compile-autoload-dotenv \
+    --compile-autoload-bunfig \
+    --no-compile-autoload-tsconfig \
+    --no-compile-autoload-package-json
+  compile_worker "$out_dir/tsconfig/$WORKER_NAME" "probe-tsconfig-$id" "$version" tsconfig "" \
+    --no-compile-autoload-dotenv \
+    --no-compile-autoload-bunfig \
+    --compile-autoload-tsconfig \
+    --compile-autoload-package-json
+  compile_worker "$out_dir/unregistered/$WORKER_NAME" "probe-unregistered-$id" "$version" unregistered "" \
+    --no-compile-autoload-dotenv \
+    --no-compile-autoload-bunfig \
+    --no-compile-autoload-tsconfig \
+    --no-compile-autoload-package-json
+  echo "dispatch: probe builds of worker $version ($id) in $out_dir; test instruments, never shipped"
+}
+
 install_pair() {
   local prefix="${1:?install needs a PREFIX}"
   require_bun
@@ -295,8 +355,9 @@ main() {
     build-id) build_id ;;
     build) build "$@" ;;
     typecheck) typecheck "$@" ;;
+    probes) probes "$@" ;;
     install) install_pair "$@" ;;
-    *) die "usage: dispatch.sh build-id | build [--target T] [OUT_DIR] | typecheck [OUT_DIR] | install PREFIX" ;;
+    *) die "usage: dispatch.sh build-id | build [--target T] [OUT_DIR] | typecheck [OUT_DIR] | probes [OUT_DIR] | install PREFIX" ;;
   esac
 }
 

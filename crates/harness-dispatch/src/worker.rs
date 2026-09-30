@@ -3,7 +3,8 @@
 //! runtime discovery*; `docs/adr/policy-evaluation-precedes-process-replacement.md`).
 //!
 //! The worker is found only relative to the real front executable. It starts in
-//! a private empty directory with null stdin, a fresh environment, captured
+//! a private empty directory with null stdin, a fresh environment
+//! (`environment`), captured
 //! stdout and stderr, and one socket at descriptor 3 as its private channel. Its
 //! first frame states its protocol and build identity, and the front checks both
 //! before the worker learns which entry to evaluate: a worker from another build
@@ -46,7 +47,6 @@ use std::ffi::OsString;
 use std::fs;
 use std::io::{self, ErrorKind, Read, Write};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
-use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::net::UnixStream;
 use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
@@ -420,12 +420,14 @@ fn normalize(path: &Path) -> PathBuf {
 /// judge needs one, all within the selection bound, which counts from the
 /// worker's start, and every other bound in `limits`. `caller` is the
 /// `--context` document as the front measured it, the first measured source.
+/// `environment` is the worker's whole environment (`environment::Grants`).
 pub fn evaluate<T>(
     worker: &Path,
     entry: &str,
     request: Value,
     limits: &Limits,
     caller: Option<&Measured>,
+    environment: Vec<(OsString, OsString)>,
     judge: impl FnOnce(Outcome, Loaded<'_>) -> Result<T, Halt>,
 ) -> Result<Evaluation<T>, Failure> {
     let bound = limits.selection;
@@ -461,7 +463,7 @@ pub fn evaluate<T>(
     command
         .current_dir(private_dir.path())
         .env_clear()
-        .envs(worker_environment())
+        .envs(environment)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -1092,17 +1094,6 @@ fn verify_hello(hello: &Value, worker: &Path) -> Result<WorkerIdentity, Refusal>
         build_id: BUILD_ID.to_owned(),
         bun_version: text("bunVersion").to_owned(),
     })
-}
-
-/// HOME, a PATH snapshot, TMPDIR, LANG and LC_*, from the caller; nothing else.
-/// Later increments add the owner's exact `--policy-env` grants.
-fn worker_environment() -> Vec<(OsString, OsString)> {
-    std::env::vars_os()
-        .filter(|(name, _)| {
-            let name = name.as_bytes();
-            matches!(name, b"HOME" | b"PATH" | b"TMPDIR" | b"LANG") || name.starts_with(b"LC_")
-        })
-        .collect()
 }
 
 /// A close-on-exec duplicate of `stream` numbered 3 or higher. A caller that

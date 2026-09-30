@@ -369,6 +369,22 @@ fills the run record's `creator`, and inspection's, from the delivered context:
 `{ reference, evidence, provider, lookup }`, with evidence `execution_recorded`
 or `declared`. Neither the selector nor the adapter records it itself.
 
+The evaluation boundary closed with `ambient-authority-k30`. Later leaves build
+on four facts. First, `environment::Grants` owns the worker's whole
+environment: the base set, exact `--policy-env` grants, and the excluded
+classes `BUN_*`, `NODE_OPTIONS`, `NODE_PATH`, `LD_*`, `DYLD_*` and
+`HARNESS_DISPATCH_*`. Inspection reports `policyEnv`, names only, and runs
+record no grant. Grove's documented configurations grant nothing. Second,
+`task dispatch:probes` builds three probe builds, each the shipped source with
+one control removed, and `task check` builds them before `cargo test`. A probe
+reports `probe-<name>-<source digest>`, which no front accepts. Tests drive a
+probe directly through `tests/support/direct.rs`. Third, the fake harness now
+records its environment's names (`Sandbox::harness_env`), so a lifecycle test
+can show a completion value reaching only the final harness. Fourth, the
+shipped worker reads no `package.json` at run time, so a package whose entry
+`main` or `exports` declares does not load. `package-entry-resolution-k52`
+decides whether that stays, before the documentation consolidates.
+
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and
 `creator-reference-k38`. The leaf whose retirement closes a node cuts its review
@@ -409,6 +425,8 @@ Obligations common to every implementation leaf:
 - A new embedded specifier joins the `embedded` table in
   `worker/src/main.ts`. Its source joins the digest set that `build.rs` and
   `scripts/dispatch.sh` both compute, and `dispatch.sh build` ships its
-  declarations and readable source beside the worker. The static starter
+  declarations and readable source beside the worker. `documented_specifiers`
+  in `tests/hostile.rs` lists it too, and fails while the table registers a
+  specifier that list lacks. The static starter
   examples export `catalog`, `routes`, `CandidateId` and `policy`, so a later
   example can build on their routes.

@@ -11,6 +11,7 @@
 
 #![allow(dead_code)] // each test binary uses its own subset
 
+pub mod direct;
 pub mod hold;
 pub mod probe;
 
@@ -45,7 +46,8 @@ pub const ROUTED: &str = r#"export const policy = {
 ///
 /// It also records the run identity it was handed, a copy of the record store
 /// as it found it (so a test can see the handoff was committed before the
-/// harness started), and which of descriptors 3 to 9 it inherited open.
+/// harness started), which of descriptors 3 to 9 it inherited open, and the
+/// names in its environment.
 pub const FAKE_HARNESS: &str = r#"#!/bin/sh
 record=$FAKE_HARNESS_RECORD
 mkdir "$record" || exit 90
@@ -60,6 +62,7 @@ fi
 for fd in 3 4 5 6 7 8 9; do
   if (: <&"$fd") 2>/dev/null; then printf '%s\n' "$fd"; fi
 done > "$record/fds"
+env | sed 's/=.*//' | LC_ALL=C sort > "$record/env"
 cat
 if [ -n "$FAKE_HARNESS_FD7" ]; then echo "$FAKE_HARNESS_FD7" >&7; fi
 if [ -n "$FAKE_HARNESS_SIGNAL" ]; then kill -s "$FAKE_HARNESS_SIGNAL" $$; fi
@@ -142,6 +145,12 @@ impl Sandbox {
         fds.lines()
             .map(|fd| fd.parse().expect("a descriptor"))
             .collect()
+    }
+
+    /// The names in the fake harness's environment, sorted.
+    pub fn harness_env(&self) -> Vec<String> {
+        let names = fs::read_to_string(self.record.join("env")).expect("the fake harness ran");
+        names.lines().map(str::to_owned).collect()
     }
 
     /// The default record store, under the sandbox's HOME.

@@ -48,7 +48,8 @@ The throwaway experiment is under `/tmp/harness-dispatch-probe.hDMPYZ`; its
 durable results are the observations above. Production acceptance must reproduce
 these cases against the shipped Rust entry point, including worker-location
 spoofing, explicit config authority, module shadowing, cancellation and structured
-output. The prototype is not an implementation to adopt.
+output. The prototype is not an implementation to adopt. The
+[ambient authority](#ambient-authority) section records that reproduction.
 
 <a id="integration-probe"></a>
 ## Integration probe
@@ -183,6 +184,68 @@ three behaviours the SDK's reads and signal rely on:
   with a TERM handler of its own still owns its exit. The command-seam test
   `the_host_signal_aborts_when_the_deadline_stops_a_waiting_loader` covers
   both, and fails if the host's listener exits regardless.
+
+<a id="ambient-authority"></a>
+## Ambient authority
+
+On 2026-10-01, `ambient-authority-k30` proved each hostile class against the
+shipped launcher. The host was macOS 26.6.2 (Darwin 25.6.0) on arm64, with Bun
+1.4.2 and worker build `ad1b0271bbc3…`. Each class stayed inert through the
+checkout's front and its shipped worker. In the same test, the class's firing
+configuration was seen to fire. `task dispatch:probes` builds the three probe
+builds from the same source, and each reports `probe-<name>-<source digest>`,
+which no front accepts. So a probe is driven directly, by a test that plays
+the front's side of the protocol, and a probe placed at an installation's
+worker path refuses with exit 5.
+
+| Class | Through the shipped front | Firing configuration, seen to fire | Command-seam test |
+|---|---|---|---|
+| cwd policy entry | No cwd, parent, XDG or variable-named entry ran | The same file named by `--config` ran | `authority::no_cwd_search_or_environment_variable_selects_an_entry` |
+| cwd `.env`, `.env.local` and bunfig preload | Neither variable set, no preload, under `inspect` and `run` | The `autoload` probe in the hostile directory loaded both files and ran the preload | `hostile::a_cwd_dotenv_and_bunfig_preload_stay_inert_and_fire_under_the_autoload_probe` |
+| `BUN_OPTIONS` preload | No preload, and the policy selected | The shipped worker started directly with it ran the preload | `hostile::bun_runtime_variables_stay_inert_through_the_front_and_fire_in_the_worker_started_directly` |
+| `BUN_BE_BUN` | The worker identified itself and the policy selected | The shipped worker started directly with it ran `-e` code as Bun | the same |
+| `node_modules/harness-dispatch` shadow beside an admitted entry | Each of the four documented specifiers resolved to its embedded module | The `unregistered` probe loaded every shadow | `hostile::every_documented_specifier_resolves_to_its_embedded_module_beside_a_package_shadow` |
+| tsconfig `paths` beside an admitted entry | The alias did not apply, and the import refused | The `tsconfig` probe applied it and loaded the aliased module | `hostile::tsconfig_paths_beside_an_admitted_entry_stay_inert_and_fire_under_the_tsconfig_probe` |
+| Worker location | No decoy on PATH, in the cwd, named by a variable or at `argv[0]`'s prefix ran | A decoy at the real layout path, or beside a front really in that prefix, ran | `worker::a_front_without_its_worker_refuses_and_no_ambient_decoy_substitutes`, `worker::an_argv0_naming_another_prefix_never_relocates_the_worker` |
+
+The dotenv case also ran the other two corners of its square. The shipped
+worker, started directly in the hostile directory, and the `autoload` probe in
+an empty directory, like the front's private one, were each inert. So each of
+the two controls holds on its own, as the [integration probe](#integration-probe)
+saw. A mutated front showed the same from the other side. With the worker
+started in the caller's cwd, the case stayed green. With the shipped build's
+dotenv and bunfig autoloading on, the front stayed inert, and only the
+direct-start corner failed. With both, the front arm failed.
+
+Two classes have no known firing configuration, and neither is counted. A
+`~/.bunfig.toml` preload did not fire under the `autoload` probe with that HOME.
+tsconfig `paths` in the caller's cwd did not apply under the `tsconfig` probe
+run there. `hostile::classes_with_no_known_firing_configuration_are_reported_not_counted`
+keeps checking both, and fails if either begins to fire.
+
+The environment has its own instrument, `tests/environment.rs`. A policy
+records the environment it was given and that of a child it spawns. Grove's
+`GROVE_SIGNAL_FILE`, `GROVE_HARNESS_PID` and `GROVE_CLAUDE_PID` reached
+neither. The harness received all three, unchanged. Granted by
+`--policy-env GROVE_SIGNAL_FILE`, the channel reached both the worker and its
+child, which is the control. A policy that flooded both streams at import, in
+`loadContext` and in `select`, with a well-formed protocol frame and a JSON
+report naming another candidate, left `inspect --json` one document, the
+selection its own, and `run --json` one notice line. That is
+`hostile::a_policy_flooding_both_streams_leaves_json_output_and_the_protocol_intact`.
+
+**The worker reads no `package.json` at run time.** The worker is compiled with
+`--no-compile-autoload-package-json`. Through the shipped front, a
+`node_modules` package with an `index.js` loaded. One whose `package.json` has
+`"main": "./lib/entry.js"`, or only an `exports` map, refused with "Cannot find
+package". Plain `bun` loaded all three. That is why the shadow fixture is laid
+out as files. Whether the limitation stays is `package-entry-resolution-k52`'s
+question.
+
+The classes were observed on this one host. The installed smoke test runs no
+hostile fixture, so the Linux targets are unmeasured for these controls. Each
+control there is the same compile switch, Rust scrubbing or JavaScript
+registration.
 
 <a id="installed-smoke"></a>
 ## Installed smoke

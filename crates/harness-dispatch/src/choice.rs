@@ -166,6 +166,7 @@ fn evaluate_and_resolve(
         request(&inputs),
         &inputs.limits,
         inputs.context.as_ref().map(|caller| &caller.measured),
+        inputs.grants.worker_environment(),
         |outcome, loaded| judge(outcome, loaded, &inputs, &source, &state_dir),
     )?;
     let diagnostics = evaluation.diagnostics;
@@ -487,6 +488,7 @@ mod tests {
                 },
             }),
             limits: Limits::read(None, None).unwrap(),
+            grants: crate::environment::Grants::default(),
         };
         let request = request(&inputs);
         assert_eq!(

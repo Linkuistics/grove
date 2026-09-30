@@ -119,8 +119,11 @@ run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.
 # Before `cargo test`, which needs the worker: harness-dispatch's command-seam
 # tests refuse a missing or stale one with exit 5 rather than skip. This builds
 # it from the current source with the pinned Bun, then type-checks the worker,
-# the SDK and its fixtures against the declarations that build emitted.
-run_check "dispatch worker and types" task dispatch:typecheck
+# the SDK and its fixtures against the declarations that build emitted. The
+# probe builds, which the hostile-fixture tests drive to see each fixture fire,
+# come from the same source here, and those tests fail rather than skip
+# without them.
+run_check "dispatch worker, probes and types" task dispatch:typecheck dispatch:probes
 # After the worker task, which installs its pinned type checker: the release
 # tests compare the archive manifest with what the worker build emits.
 run_check "release tasks" bash scripts/release.test.sh

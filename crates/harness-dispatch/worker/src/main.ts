@@ -39,7 +39,7 @@ import * as dynamicExample from "../examples/dynamic.ts";
 import * as groveStaticExample from "../examples/grove-static.ts";
 import * as staticExample from "../examples/static.ts";
 
-// Build identity, replaced by `bun build --define` in `scripts/worker.sh`. The
+// Build identity, replaced by `bun build --define` in `scripts/dispatch.sh`. The
 // `typeof` guard keeps an undefined name from throwing when the source is run
 // without that build step; such a worker then reports an identity no front
 // accepts.
@@ -48,6 +48,14 @@ declare const HARNESS_DISPATCH_PACKAGE_VERSION: string;
 const buildId = typeof HARNESS_DISPATCH_BUILD_ID === "string" ? HARNESS_DISPATCH_BUILD_ID : "unbuilt";
 const packageVersion =
   typeof HARNESS_DISPATCH_PACKAGE_VERSION === "string" ? HARNESS_DISPATCH_PACKAGE_VERSION : "unbuilt";
+
+// The control a probe build removes, or "" in the shipped build; both define
+// it, so each build folds it to a constant. Probe builds are test instruments
+// that never ship: `scripts/dispatch.sh probes` makes them, and each reports
+// an identity no front accepts (`docs/specs/harness-selection-and-execution.md`,
+// the firing-configuration table under *Agreed test seams and acceptance*).
+declare const HARNESS_DISPATCH_PROBE: string;
+const probe = typeof HARNESS_DISPATCH_PROBE === "string" ? HARNESS_DISPATCH_PROBE : "";
 
 // Every documented specifier resolves to the worker's own embedded copy, even
 // when a `node_modules/harness-dispatch` package sits beside the importing
@@ -67,14 +75,18 @@ const embedded: Readonly<Record<string, object>> = {
   "harness-dispatch/examples/grove-static": groveStaticExample,
   "harness-dispatch/examples/dynamic": dynamicExample,
 };
-Bun.plugin({
-  name: "harness-dispatch embedded modules",
-  setup(build) {
-    for (const [specifier, module] of Object.entries(embedded)) {
-      build.module(specifier, () => ({ exports: { ...module }, loader: "object" }));
-    }
-  },
-});
+// The `unregistered` probe skips this, so that a test can see a package shadow
+// beside an entry load in its place.
+if (probe !== "unregistered") {
+  Bun.plugin({
+    name: "harness-dispatch embedded modules",
+    setup(build) {
+      for (const [specifier, module] of Object.entries(embedded)) {
+        build.module(specifier, () => ({ exports: { ...module }, loader: "object" }));
+      }
+    },
+  });
+}
 
 send({ type: "hello", protocol: PROTOCOL, packageVersion, buildId, bunVersion: Bun.version });
 

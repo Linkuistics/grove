@@ -1,16 +1,13 @@
 //! The command line (`docs/specs/harness-selection-and-execution.md`, *Command
 //! interface*).
 //!
-//! `inspect` and `run` accept the same selection inputs. This release reads the
-//! kind, the policy entry, the prompt, the optional task file and identity, the
-//! caller's context document, the explicit choice, the selection and context
-//! bounds and the record directory, for a static `routes` policy or a computed
-//! `select`, either with a `loadContext`.
+//! `inspect` and `run` accept the same selection inputs: the kind, the policy
+//! entry, the prompt, the optional task file and identity, the caller's context
+//! document, the explicit choice, the selection and context bounds, the record
+//! directory and the worker's environment grants, for a static `routes` policy
+//! or a computed `select`, either with a `loadContext`.
 //! `record show` exports a recorded run, and `record observe` appends a later
 //! observation to one.
-//! The spec's other input belongs to a later increment, and until it lands it
-//! is refused explicitly, by name, rather than accepted and ignored. It is
-//! hidden from help so that help lists only what works.
 
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
@@ -60,7 +57,8 @@ pub enum Command {
         harness-dispatch inspect --kind impl --task-id T-12 --prompt 'Implement the parser'\n  \
         harness-dispatch inspect --kind impl --choice deep\n  \
         harness-dispatch inspect --kind review --context ./review-context.json --json\n  \
-        harness-dispatch inspect --kind review-impl --config ./policies/review.ts --json\n\n\
+        harness-dispatch inspect --kind review-impl --config ./policies/review.ts --json\n  \
+        harness-dispatch inspect --kind impl --policy-env ROUTER_TOKEN\n\n\
         Recovering from a refusal:\n  \
         A refused run prints this command's equivalent invocation, without the prompt. Run it \
         to reproduce the selection and its refusal without launching anything, correct the \
@@ -242,19 +240,15 @@ pub struct SelectionArgs {
     #[arg(long, value_name = "PATH")]
     pub state_dir: Option<PathBuf>,
 
-    // The spec's remaining selection input, owned by a later increment.
-    #[arg(long, hide = true)]
+    /// Give the policy worker this environment variable, by exact name, beyond HOME, PATH, TMPDIR, LANG and LC_*; repeatable. BUN_*, NODE_OPTIONS, NODE_PATH, LD_*, DYLD_* and HARNESS_DISPATCH_* are never granted, and values are never shown. Do not grant GROVE_SIGNAL_FILE: it would give the policy the power to end a Grove session
+    #[arg(long, value_name = "NAME")]
     pub policy_env: Vec<OsString>,
 }
 
 impl SelectionArgs {
-    /// Refuse the first input a later increment owns, and the empty values of
-    /// the ones this release reads. The values themselves are read and checked
-    /// by `inputs`.
-    pub fn refuse_unsupported(&self) -> Result<(), Refusal> {
-        if !self.policy_env.is_empty() {
-            return Err(unsupported("`--policy-env`", "--policy-env"));
-        }
+    /// Refuse the empty values clap admits. The values themselves are read and
+    /// checked by `inputs`.
+    pub fn refuse_empty(&self) -> Result<(), Refusal> {
         if self.kind.is_empty() {
             return Err(Refusal::new(
                 "malformed_input",
@@ -361,19 +355,4 @@ fn option(argv: &mut Vec<String>, flag: &str, value: &OsStr) -> Result<(), Strin
         argv.push(value);
     }
     Ok(())
-}
-
-/// The refusal for an input or command a later release delivers.
-pub fn unsupported(what: &str, input: &str) -> Refusal {
-    Refusal::new(
-        "unsupported_input",
-        Stage::Cli,
-        EXIT_MALFORMED,
-        format!("{what} is not supported by this release of harness-dispatch"),
-        "omit it; this release selects through a routes or select policy with --kind, --choice, \
-         --config, --prompt or --prompt-file, --task-file, --task-id, --context, --timeout-ms, \
-         --context-bytes, --state-dir and --json, exports runs with record show and adds \
-         observations to them with record observe",
-    )
-    .input(input)
 }

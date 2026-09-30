@@ -607,30 +607,6 @@ fn a_refusal_carries_the_policy_output_separately() {
 }
 
 #[test]
-fn forms_later_increments_own_are_refused_by_name() {
-    let sandbox = Sandbox::new();
-    sandbox.personal_policy(ROUTED);
-    let refusal = sandbox
-        .inspect(&["--kind", "impl", "--policy-env", "TOKEN", "--json"])
-        .refusal(2);
-    assert_eq!(refusal["error"]["code"], "unsupported_input");
-    assert_eq!(refusal["error"]["input"], "--policy-env");
-    let refusal = sandbox
-        .run(&[
-            "--kind",
-            "impl",
-            "--prompt",
-            "p",
-            "--policy-env",
-            "TOKEN",
-            "--json",
-        ])
-        .refusal(2);
-    assert_eq!(refusal["error"]["input"], "--policy-env");
-    assert!(!sandbox.harness_ran());
-}
-
-#[test]
 fn malformed_command_lines_exit_2_and_honour_json() {
     let sandbox = Sandbox::new();
     let refusal = sandbox.inspect(&["--json"]).refusal(2);
@@ -652,7 +628,7 @@ fn malformed_command_lines_exit_2_and_honour_json() {
 }
 
 #[test]
-fn help_lists_only_the_forms_this_release_delivers() {
+fn help_lists_every_selection_input() {
     let sandbox = Sandbox::new();
     let run = sandbox.inspect(&["--help"]);
     assert_eq!(run.code, Some(0));
@@ -668,6 +644,7 @@ fn help_lists_only_the_forms_this_release_delivers() {
         "--choice",
         "--context",
         "--context-bytes",
+        "--policy-env",
     ] {
         assert!(
             run.stdout.contains(delivered),
@@ -676,8 +653,8 @@ fn help_lists_only_the_forms_this_release_delivers() {
         );
     }
     assert!(
-        !run.stdout.contains("--policy-env"),
-        "help advertises --policy-env:\n{}",
+        run.stdout.contains("Do not grant GROVE_SIGNAL_FILE"),
+        "help does not warn against granting GROVE_SIGNAL_FILE:\n{}",
         run.stdout
     );
     let mut version = sandbox.command();

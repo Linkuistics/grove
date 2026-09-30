@@ -30,6 +30,14 @@ tasks:
       - task: dispatch:worker
       - bash crates/harness-dispatch/scripts/dispatch.sh typecheck
 
+  # The probe builds are test instruments: the shipped worker with one control
+  # removed, each reporting an identity no front accepts. The command-seam
+  # tests drive them to see each hostile fixture fire, and fail without them.
+  dispatch:probes:
+    desc: Compile the test-only probe builds of the policy worker into target/probes/harness-dispatch; they never ship
+    cmds:
+      - bash crates/harness-dispatch/scripts/dispatch.sh probes
+
   dispatch:build:
     desc: Build the harness-dispatch pair in this checkout
     cmds:
@@ -37,9 +45,10 @@ tasks:
       - cargo build --locked -p harness-dispatch
 
   dispatch:check:
-    desc: Run harness-dispatch's package checks against a freshly built worker
+    desc: Run harness-dispatch's package checks against a freshly built worker and its probe builds
     cmds:
       - task: dispatch:typecheck
+      - task: dispatch:probes
       - cargo test --locked -p harness-dispatch
 
   dispatch:install:

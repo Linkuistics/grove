@@ -26,9 +26,10 @@ so a review can learn which provider its creator ran under from the record,
 never from today's catalog. Three starter policies ship inside the worker, two
 static and one computed. An interrupt before the harness starts cancels the
 run, and nothing runs. The harness inherits the caller's signal mask and
-ignored signals, SIGPIPE's included. `--policy-env` grants come in a later
-release. Until then, `--policy-env` is refused by name. It is never accepted
-and ignored.
+ignored signals, SIGPIPE's included. The policy runs with a scrubbed
+environment, plus exactly the variables you grant it with `--policy-env`, and
+nothing in the current directory or the environment can run code in it or
+change which worker runs.
 
 ## Install
 
@@ -112,7 +113,10 @@ path as a string, which would then name another file: its runtime reads
 `policy.ts?x` as `policy.ts` with a query. Nothing is
 installed on the policy's behalf. Relative imports resolve from the importing
 file, bare imports resolve through `node_modules` beside it, and a missing
-import refuses.
+import refuses. In this release the worker reads no `package.json` at run
+time, so a package resolves only through its files, such as its `index.js`:
+one whose entry point its `package.json` declares, with `main` or `exports`,
+fails to load.
 
 ## A routes policy
 
@@ -564,6 +568,7 @@ export { policy } from "harness-dispatch/examples/dynamic";
 | `--timeout-ms MS` | Optional. The whole-selection bound in milliseconds, from 1000 to 120000. The default is 30000. See [the selection bound](#the-selection-bound). |
 | `--context-bytes BYTES` | Optional. The context budget in bytes, from 1 to 8388608 (8 MiB). The default is 262144 (256 KiB). See [bounds](#bounds). |
 | `--state-dir PATH` | Optional. The directory holding run records, instead of `~/.local/state/harness-dispatch`, resolved against the current directory. See [run records](#run-records). |
+| `--policy-env NAME` | Optional and repeatable. Give the policy this environment variable, by exact name, from harness-dispatch's own environment. See [the policy's environment](#the-policys-environment). |
 
 The prompt is read once and kept byte for byte, trailing newlines included. It
 must be valid UTF-8 with no NUL, and at most 1 MiB. A prompt file is resolved
@@ -800,6 +805,7 @@ version-1 object:
   "context": null,
   "policy": { "path": "/home/me/.config/harness-dispatch/policy.ts", "authority": "personal",
               "sha256": "9c1f…", "version": "2026-09-30" },
+  "policyEnv": [],
   "selection": { "form": "routes", "selectedBy": "route", "explicitChoice": null, "candidateId": "deep",
                  "provider": "anthropic", "model": "claude-opus-5-5", "effort": "high",
                  "reason": "routes[\"impl\"] names candidate \"deep\"" },
@@ -831,13 +837,56 @@ as [context](#what-select-receives-and-what-inspection-shows) describes, and
 `reviewedArtifact` is the context's, when it names one, with its `creator`. Text shows the context's
 size, digest and each measured source, and leaves the value to `--json`.
 
-The worker runs in a private empty directory with null stdin. Its environment
-contains only HOME, PATH, TMPDIR, LANG and `LC_*`. It talks to the front over a
+`policyEnv` lists each name granted with `--policy-env`, and whether it was
+set, as `{ "name", "set" }`; text shows a `policy env` row. Neither ever shows
+a value.
+
+The worker runs in a private empty directory with null stdin, and with the
+environment [below](#the-policys-environment). It talks to the front over a
 private channel on descriptor 3 and inherits no other descriptors, however high
 a descriptor you started harness-dispatch with is numbered. Whatever the
-policy prints is captured and kept apart from the report. `--json` carries it in
+policy prints is captured and kept apart from the report, so no output of its
+own, not even text shaped like the report or like a protocol message, can
+become part of either. `--json` carries it in
 `diagnostics`, and text mode prints it on stderr, each line prefixed with
 `policy stdout:` or `policy stderr:`.
+
+### The policy's environment
+
+The policy starts with only HOME, PATH, TMPDIR, LANG and `LC_*` from
+harness-dispatch's own environment. Anything else it needs, such as a token
+for a routing service it calls, you grant by name:
+
+```sh
+harness-dispatch inspect --kind impl --policy-env ROUTER_TOKEN
+```
+
+Each `--policy-env NAME` passes that one variable, exactly as named, with its
+value, to the policy and to any process it starts. A name that is not set is
+simply absent. Some names are never granted, and naming one refuses with
+`excluded_grant`, exit 2, before any policy runs: Bun's `BUN_*` (`BUN_OPTIONS`
+can preload code, and `BUN_BE_BUN` turns the worker into Bun itself),
+`NODE_OPTIONS` and `NODE_PATH`, the dynamic loaders' `LD_*` and `DYLD_*`, and
+harness-dispatch's own `HARNESS_DISPATCH_*`, which it sets for the harness. No
+value is ever printed or recorded. A refused `run` reproduces its grants in its
+`inspect` invocation by name.
+
+**Do not grant `GROVE_SIGNAL_FILE`.** Grove ends a session when a file appears
+at that path, so a policy holding it could end the session it is selecting for.
+harness-dispatch cannot tell a caller's completion variables from any other, so
+it does not refuse them. Without a grant, the policy and everything it starts
+lack them, and the harness alone receives them, in the caller's unchanged
+environment. The same holds for any credential: grant only what the policy
+itself uses.
+
+Nothing ambient takes part otherwise. A `.env` file, a `bunfig.toml` preload,
+a `tsconfig.json` path alias, or a `node_modules/harness-dispatch` package
+beside your entry changes nothing: the worker is compiled with Bun's dotenv,
+bunfig, tsconfig and package.json autoloading off, it runs in its own empty
+directory, and the documented `harness-dispatch/…` specifiers always resolve
+to its embedded modules. The worker is found only beside the front's real
+path, so neither PATH, the current directory, `argv[0]` nor a variable can
+substitute another.
 
 ## Run
 
@@ -1106,7 +1155,7 @@ inspection reads the store as `run` does.
 
 | Exit | Stage | Codes |
 |---|---|---|
-| 2 | `cli` | `malformed_input` (including a command line that cannot be parsed, and an empty `--choice`), `unsupported_input` (an input or command a later release delivers), `prompt_invalid`, `prompt_unreadable` |
+| 2 | `cli` | `malformed_input` (including a command line that cannot be parsed, an empty `--choice`, and a `--policy-env` name that is empty or holds `=`), `excluded_grant` (a `--policy-env` name that is never granted), `prompt_invalid`, `prompt_unreadable` |
 | 3 | `authority` | `policy_missing`, `policy_unreadable`, `home_unset`, `cwd_unavailable` |
 | 3 | `load` | `policy_import_failed` (a missing import, the entry threw while loading, or an await in it never settled) |
 | 3 | `load` | `message_too_large` (the policy's snapshot is over 1 MiB) |

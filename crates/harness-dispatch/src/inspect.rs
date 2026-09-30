@@ -93,6 +93,7 @@ impl Report {
             "creator": context.and_then(Delivered::creator),
             "context": context.map(|context| context.to_json(true)),
             "policy": policy,
+            "policyEnv": choice.inputs.grants.to_json(),
             "selection": {
                 "form": choice.selected_by.form(),
                 "selectedBy": choice.selected_by.as_str(),
@@ -140,6 +141,7 @@ impl Report {
             ("authority", authority),
             ("version", choice.version.clone()),
             ("sha256", choice.entry.sha256.clone()),
+            ("policy env", inputs.grants.to_text()),
             ("kind", shown(&inputs.kind)),
             (
                 "task file",

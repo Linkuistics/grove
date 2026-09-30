@@ -138,6 +138,36 @@ fn a_front_without_its_worker_refuses_and_no_ambient_decoy_substitutes() {
 }
 
 #[test]
+fn an_argv0_naming_another_prefix_never_relocates_the_worker() {
+    // argv[0] is whatever the caller passes to exec; the front's own path
+    // comes from the operating system (`std::env::current_exe`).
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(ROUTED);
+    let decoy_prefix = sandbox.root.join("decoy-prefix");
+    let sentinel = sandbox.root.join("decoy-ran");
+    executable(&decoy_prefix.join(LAYOUT), &decoy(&sentinel));
+    let spoofed = decoy_prefix.join("bin/harness-dispatch");
+
+    let mut command = sandbox.command();
+    command
+        .arg0(&spoofed)
+        .args(["inspect", "--kind", "impl", "--json"]);
+    let report = run(&mut command).report();
+    let real_bin = fs::canonicalize(FRONT).unwrap();
+    let expected = real_bin.parent().unwrap().parent().unwrap().join(LAYOUT);
+    assert_eq!(report["worker"]["path"], text(&expected));
+    assert!(!sentinel.exists(), "the decoy named by argv[0] was run");
+
+    // The firing configuration: a front really at that path runs the decoy.
+    fs::create_dir_all(spoofed.parent().unwrap()).unwrap();
+    fs::copy(FRONT, &spoofed).unwrap();
+    let mut command = sandbox.command_for(&spoofed);
+    command.args(["inspect", "--kind", "impl", "--json"]);
+    run(&mut command).refusal(5);
+    assert!(sentinel.exists(), "the decoy prefix's worker never ran");
+}
+
+#[test]
 fn a_worker_that_never_identifies_itself_is_stopped_at_the_deadline() {
     // The bound counts from the worker's start, not from handing it the
     // entry. This worker never says hello; if the deadline did not hold, its

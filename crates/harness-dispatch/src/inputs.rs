@@ -5,11 +5,13 @@
 //! caller data: the task file supplies neither kind nor identity, and nothing
 //! is recovered from a file name. The prompt is read once, kept byte for byte, and never sent to the
 //! policy worker; it only ever fills the candidate's `prompt` argument.
-//! Terminal stdin is never read. The caller's bounds and `--context` document
-//! are read here too, so a malformed one refuses before any policy runs.
+//! Terminal stdin is never read. The caller's bounds, `--context` document and
+//! `--policy-env` grants are read here too, so a malformed or excluded one
+//! refuses before any policy runs.
 
 use crate::cli::SelectionArgs;
 use crate::context::{self, CallerContext};
+use crate::environment::Grants;
 use crate::limits::Limits;
 use crate::refusal::{Refusal, Stage, EXIT_MALFORMED, EXIT_REFUSED};
 use std::ffi::OsString;
@@ -44,6 +46,8 @@ pub struct Inputs {
     /// Every bound in effect, the caller's `--timeout-ms` and
     /// `--context-bytes` included.
     pub limits: Limits,
+    /// The names `--policy-env` grants the worker beyond its base set.
+    pub grants: Grants,
 }
 
 #[derive(Debug)]
@@ -69,7 +73,7 @@ pub enum PromptRequirement {
 
 impl Inputs {
     pub fn read(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Inputs, Refusal> {
-        args.refuse_unsupported()?;
+        args.refuse_empty()?;
         let cwd = std::env::current_dir().map_err(|error| {
             Refusal::new(
                 "cwd_unavailable",
@@ -106,6 +110,7 @@ impl Inputs {
             }
             (None, None) => None,
         };
+        let grants = Grants::read(&args.policy_env)?;
         let limits = Limits::read(args.timeout_ms.as_deref(), args.context_bytes.as_deref())?;
         let context = args
             .context
@@ -121,6 +126,7 @@ impl Inputs {
             prompt,
             context,
             limits,
+            grants,
         })
     }
 }

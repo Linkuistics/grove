@@ -140,6 +140,17 @@ mkdir -p "$scratch/archive/stage/$top/libexec/harness-dispatch/node_modules/.cac
 pack_fixture "$top"
 refused_archive "$top" "unexpected $top/libexec/harness-dispatch/node_modules/"
 
+# A probe build (`dispatch.sh probes`) is a test instrument and never ships.
+# Beside the worker, the manifest refuses it by path. In the worker's own
+# place it passes the manifest but not the installed smoke test, whose front
+# refuses a probe's identity (tests/hostile.rs,
+# a_probe_build_is_never_accepted_as_an_installations_worker).
+stage_archive "$top"
+mkdir -p "$scratch/archive/stage/$top/libexec/harness-dispatch/probes/unregistered"
+printf 'fixture probe\n' >"$scratch/archive/stage/$top/libexec/harness-dispatch/probes/unregistered/harness-dispatch-policy"
+pack_fixture "$top"
+refused_archive "$top" "unexpected $top/libexec/harness-dispatch/probes/"
+
 stage_archive "$top"
 chmod -x "$scratch/archive/stage/$top/libexec/harness-dispatch/harness-dispatch-policy"
 pack_fixture "$top"

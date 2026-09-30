@@ -11,6 +11,7 @@ mod cancellation;
 mod choice;
 mod cli;
 mod context;
+mod environment;
 mod frame;
 mod inputs;
 mod inspect;

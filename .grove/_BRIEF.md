@@ -289,3 +289,61 @@ by retiring its leaf or closing its node, and it replaces the review's
 reference is the session's attestation: its provider is recorded, but its
 association is not verified. The creator-reference ADR carries the amendment
 text, including the node-close step, that ships with the implementation.
+
+## Implementation plan
+
+`harness-selection-and-execution-k6` cut the implementation from the reviewed
+design, and its running log gives the reasons for this order.
+`harness-selection-and-execution-k42` reviews the plan before any increment
+runs. If that review has actionable findings, the integration goes in before
+`grove-task-slots-k11`. Each entry below leaves `task check` green and Grove
+releasable, and adds behavior its successors build on:
+
+1. `grove-task-slots-k11`: Grove's optional `kind`, `task_file` and `task_id`
+   lifecycle slots, useful to any wrapper.
+2. `static-dispatch-k12`: a standalone `harness-dispatch` that inspects and runs
+   a static TypeScript `routes` policy through the compiled worker.
+3. `dispatch-delivery-k16`: the pair in every release archive and the Homebrew
+   formula, smoke-tested on each target at the Linux floor.
+4. `computed-policy-k20`: `select`, caller and loaded context, and the SDK reads,
+   within the documented bounds.
+5. `dispatch-records-k23`: required handoff records, run IDs, later
+   observations and policy run lookup.
+6. `evaluation-boundary-k27`: deadlines and cancellation, signal-transparent
+   handoff, and proof that ambient authority stays inert.
+7. `grove-dispatch-k31`: Grove sessions launched through dispatch, at the launch
+   boundary and the controlling PTY, with configure-grove guidance.
+8. `review-policy-k35`: the shipped example review selector and the Grove
+   adapter.
+9. `creator-reference-k38`: the methodology amendment, its conformance rows and
+   pins, and the Grove creator lifecycle cases.
+10. `dispatch-documentation-k41`: the consolidated usage and spec current state,
+    then the mandatory documentation-acceptance review.
+
+Delivery is deliberately third. The supported-target floor is the design's
+largest untested risk, and the worker ADR's reopen condition names it. After
+delivery lands, the per-target installed smoke task is a regression instrument.
+Any later leaf that changes the worker, the installed layout or the native
+dependencies reruns it.
+
+Obligations common to every implementation leaf:
+
+- Implement against the spec; it is the contract. As behavior lands, narrow the
+  spec's "not implemented" notice to state what is delivered, and never claim
+  the whole feature early. Until its owning leaf lands, a form is explicitly
+  refused, never accepted and ignored, and no stub methods are published.
+- The two agreed process seams are the acceptance instruments. The command seam
+  uses temporary policies and fake harnesses with no Grove. The other is Grove's
+  existing launch boundary and PTY tests. Internal tests support them and never
+  replace them. Map each spec acceptance row the leaf owns to a named test.
+- A test that needs the compiled worker obtains it deterministically. If the
+  worker is absent, the test fails; it never skips. Every hostile, limit and
+  missing-source fixture has a positive control that has been seen to fire.
+- `task check` passes, with clippy at deny and fmt clean. The walkthrough book
+  for any touched crate stays source-exact. Reusable workflows go through the
+  Taskfile. Invoke `grove-llm` directly, never through `cargo run`.
+- Bun stays pinned at 1.4.2 and the worker builds only through Taskfile tasks.
+  Keep the TypeScript worker, SDK, adapter and examples inside the package
+  boundary, so that an extraction can move them without taking Grove.
+- A decision records durably only if it clears the ADR bar. Otherwise the spec
+  and the leaf's running log hold it.

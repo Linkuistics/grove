@@ -39,6 +39,13 @@ reads resolve explicit relative paths against the request cwd.
 - Inspection reports the sources, digests, actual source bytes, final encoded
   bytes, effective limits and any bound errors. Policy diagnostics never
   corrupt `--json` output.
+- `run`'s handoff record carries the reviewed-artifact association and the
+  context source digests and sizes. These fill the fields
+  `handoff-records-k24` recorded as absent, and `record show` exports them.
+- The whole-selection deadline ends a `loadContext` that awaits a promise kept
+  pending by a live timer, and one that spins synchronously. Each exits 124,
+  starts no fake harness and leaves no worker. Variants that finish within the
+  bound, seen to select, are the positive controls.
 - Command-seam tests cover a missing required source and a failed loader. They
   cover each overflow at and just past its bound, with the boundary case seen
   to pass. They also show that an oversize prompt does not count against the

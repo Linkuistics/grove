@@ -2,19 +2,17 @@
 
 ## Goal
 
-Make dispatch safe to run unattended, in any directory. A stuck or interrupted
-selection launches nothing and leaves no worker behind. The harness receives
+Make dispatch safe to run unattended, in any directory. An interrupted
+selection launches nothing and leaves no worker behind, as a stuck one already
+does under static dispatch's deadline. The harness receives
 exactly the signal state its caller had. Ambient repository and environment
 inputs can neither run code nor gain authority, and each such claim is proved
 against a configuration that has been seen to fire.
 
 ## Done when
 
-- The whole-selection bound holds: 30 seconds by default, 1 to 120 through
-  `--timeout-ms`. It counts from worker start and covers imports, context and
-  the callback. A hard wall-clock deadline kills a worker stuck in module
-  import or a synchronous loop, after a cleanup grace of at most one second.
-  Timeout exits 124 and launches nothing.
+- The whole-selection deadline that `selection-deadline-k44` delivered in
+  static dispatch still holds, unweakened, with the signal handlers installed.
 - INT, TERM and HUP are handled during evaluation unless the caller ignored them
   at entry. The worker is stopped and reaped, nothing launches, and the process
   ends by restoring and re-raising the signal. Cancellation is checked at every
@@ -38,8 +36,8 @@ against a configuration that has been seen to fire.
 
 ## Decomposition
 
-1. `selection-cancellation-k28`: the deadline, hard kill, cleanup grace and
-   signal cancellation during evaluation.
+1. `selection-cancellation-k28`: signal cancellation during evaluation and the
+   post-result cancellation checks, beside the existing deadline.
 2. `signal-transparent-handoff-k29`: the linearization point, the not-executed
    append, and entry-state transparency including SIGPIPE.
 3. `ambient-authority-k30`: `--policy-env`, environment scrubbing, worker-location
@@ -61,7 +59,10 @@ against a configuration that has been seen to fire.
 ## Review
 
 This node is expected to end with a `review-impl` naming this node's handle.
-Its last leaf cuts that review inside this node. Signal races, ordering around
+Retiring the node's last leaf closes it. That leaf cuts the review as the node's
+sibling, directly after it and ahead of the next increment. Inside the node, a
+review would keep the node open, so no session would finish the producer it
+reviews (spec `#identity-and-creator`). Signal races, ordering around
 the linearization point, pre-main SIGPIPE capture and environment authority
 are claims the compiler cannot check. A mistake here silently ends Grove
 sessions or grants completion authority.

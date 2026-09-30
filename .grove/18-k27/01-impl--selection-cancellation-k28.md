@@ -2,31 +2,30 @@
 
 ## Goal
 
-Bound and cancel selection. A worker that hangs, spins or is interrupted is
-stopped and reaped, nothing launches, and the caller sees the documented exit
-or the re-raised signal.
+Cancel selection on a signal. A worker interrupted by INT, TERM or HUP is
+stopped and reaped, nothing launches, and the caller sees the re-raised
+signal. The whole-selection deadline keeps working beside the handlers.
 
 ## Context
 
 The spec's `#execution-contract` and its resource table own the contract. The
 worker joins the caller's existing job, and neither process creates a session
 or detaches. Signal cancellation reaches ordinary descendants through the
-enclosing process group.
+enclosing process group. The deadline, its hard kill and exit 124 arrived with
+`selection-deadline-k44` in static dispatch. `computed-selection-k21` and
+`bounded-context-k22` extended its timeout cases to their callbacks. This leaf
+adds the handled signals and must not weaken the deadline.
 
 ## Done when
 
-- `--timeout-ms` accepts 1 to 120 seconds, and the default is 30. The bound runs
-  from worker start to result. A policy stuck in import, in `loadContext`, in a
-  synchronous loop or in a never-settling `select` is killed. That means a
-  grace of at most one second, then KILL. It exits 124 with a structured
-  diagnostic, and the fake harness never starts.
 - INT, TERM and HUP received while evaluating stop and reap the worker, launch
   nothing, and end by restoring the entry disposition and re-raising. A signal
   ignored at entry gets no handler and cannot cancel selection.
+- The existing timeout cases still exit 124 with the handlers installed.
 - Cancellation is checked after the result arrives, after descriptor close and
   reap, after choice validation and after executable resolution.
-- Command-seam tests interrupt import, the loader and the callback. They cover a
-  timeout in each, and assert that no fake-harness marker appears, no worker
-  process survives, and the exit is correct. Positive control: the same
-  fixtures without interruption do reach the harness.
+- Command-seam tests interrupt import, the loader and the callback. They
+  assert that no fake-harness marker appears, no worker process survives, and
+  the signal is re-raised. Positive control: the same fixtures without
+  interruption do reach the harness.
 - Structured `--json` output stays a single clean error on interruption.

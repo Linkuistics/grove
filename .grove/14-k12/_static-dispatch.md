@@ -3,9 +3,11 @@
 ## Goal
 
 Deliver a standalone `harness-dispatch` command that evaluates an owner's
-TypeScript `routes` policy through the installed, matching compiled worker. The
-command inspects the joint choice and runs it by replacing itself with the
-configured harness. This is the walking skeleton every later increment extends.
+TypeScript `routes` policy through the installed, matching compiled worker,
+within the whole-selection deadline. The command inspects the joint choice. It
+runs it by committing the required handoff record and then replacing itself with
+the configured harness. This is the walking skeleton every later increment
+extends.
 
 ## Done when
 
@@ -29,6 +31,18 @@ configured harness. This is the walking skeleton every later increment extends.
   executable resolution, expanded argv and timing. It does so in both `--json`
   schema version 1 and human form. Refusals carry the spec's stable codes,
   stages, remedies and exit results.
+- The whole-selection deadline holds from worker start: 30 seconds by default,
+  1 to 120 through `--timeout-ms`. A worker spinning at import, or awaiting a
+  promise that live work keeps pending, is killed after at most one second of
+  grace and reaped. The command exits 124 and launches nothing.
+- Every `run` commits one handoff record before exec, in a versioned local
+  SQLite store with bundled SQLite. The default directory is
+  `~/.local/state/harness-dispatch`, and `--state-dir` replaces it. A failed
+  commit exits 4 and launches nothing, and a pre-commit refusal creates no run.
+  The harness receives `HARNESS_DISPATCH_RUN_ID` and
+  `HARNESS_DISPATCH_STATE_DIR`, and the `runId` slot works. An attempt is never
+  a success, an exec failure is appended to its attempt, and committed launch
+  fields never change. `record show` exports the run.
 - Taskfile tasks build, install and check the pair. `scripts/check.sh` runs the
   package checks, including TypeScript type checking of the SDK and examples.
   `cargo test` obtains the worker deterministically or fails loudly.
@@ -38,20 +52,28 @@ configured harness. This is the walking skeleton every later increment extends.
 1. `routed-inspection-k13`: the crate, worker, protocol and authority, and
    `inspect` of a static route.
 2. `harness-exec-k14`: argv slot expansion, prompt input, program resolution,
-   and `run` by exec.
-3. `choice-and-refusals-k15`: `--choice` under routes, the actionable-refusal
+   and the plain exec behind `run`.
+3. `selection-deadline-k44`: the whole-selection deadline, hard kill, reaping
+   and exit 124.
+4. `handoff-records-k24`: the store, the run ID, the required pre-exec commit,
+   exported run identity, the exec-failure detail and `record show`.
+5. `choice-and-refusals-k15`: `--choice` under routes, the actionable-refusal
    contract, help examples and the static starter examples.
 
 Each child leaves the command usable, with behavior its successor needs but does
-not have to wait for. Forms owned by later increments must be refused
-explicitly: `select`, `loadContext`, `--context`, records and `--policy-env`.
+not have to wait for. The node is the release boundary. `run` becomes a
+delivered form only with its required record, and evaluation is bounded before
+the node closes (review `harness-selection-and-execution-k42`, findings F2 and
+F3). Forms owned by later increments must be refused explicitly: `select`,
+`loadContext`, `--context`, `record observe`, `host.run` and `--policy-env`.
 They must not be accepted and ignored.
 
 ## Pointers
 
 - Spec sections: `#package-boundary`, `#command-interface`, `#policy-and-choice`,
-  `#policy-authority`, `#execution-contract` (only the exec itself here) and
-  `#diagnostics`.
+  `#policy-authority`, `#execution-contract` (the deadline and the exec itself
+  here), `#records-and-outcomes` (the handoff commit and `record show`), the
+  whole-selection and lock-wait rows of `#bounded-context`, and `#diagnostics`.
 - ADRs: `docs/adr/harness-selection-is-owned-by-policy.md` and
   `docs/adr/policy-evaluation-precedes-process-replacement.md`.
 - Evidence: the native and integration probes in
@@ -63,7 +85,11 @@ They must not be accepted and ignored.
 ## Review
 
 This node is expected to end with a `review-impl` naming this node's handle.
-Its last leaf cuts that review inside this node. The reason is that the protocol,
-the worker location and identity check, and policy authority are the foundation
-of every later increment and of the trust boundary. They are cheaper to correct
-before four increments build on them.
+Retiring the node's last leaf closes it. That leaf cuts the review as the node's
+sibling, directly after it and ahead of the next increment. Inside the node, a
+review would keep the node open, so no session would finish the producer it
+reviews (spec `#identity-and-creator`). The reason for the review is that the
+protocol, the worker location and identity check, policy authority, the
+deadline's hard kill and reaping, and the durability of the pre-exec commit are
+the foundation of every later increment and of the trust boundary. They are
+cheaper to correct before later increments build on them.

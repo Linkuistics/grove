@@ -45,7 +45,10 @@ controls. This leaf proves them and adds the explicit grant.
 - `runtime-evidence.md` records which controls were seen to fire against the
   shipped launcher, on which host and Bun version. The archive assertions
   confirm that no probe build ships.
-- This node's `Done when` holds. As this leaf's last act, cut the node's
-  `review-impl`: run `grove-llm leaf-add evaluation-boundary-k27
-  evaluation-boundary --kind review-impl`, with `**Reviews:**
-  evaluation-boundary-k27`. Write the node brief's review doubts into its body.
+- This node's `Done when` holds. Retiring this leaf closes the node. As this
+  leaf's last act, cut the node's `review-impl` as the node's sibling,
+  directly after it, never inside it. Run `grove-llm leaf-insert --kind
+  review-impl grove-dispatch-k31 evaluation-boundary`, targeting the first root
+  entry after this node (today `grove-dispatch-k31`). Give it
+  `**Reviews:** evaluation-boundary-k27`, and write the node brief's review doubts
+  into its body.

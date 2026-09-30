@@ -30,7 +30,10 @@ semantics: that is the review policy's work, in `review-policy-k35`.
 - Command-seam tests: a round trip of `host.run` against a recorded run; missing
   versus unreadable; a run that carries a launch-failure detail; and a changed
   current catalog that does not alter the returned snapshot.
-- This node's `Done when` holds. As this leaf's last act, cut the node's
-  `review-impl`: run `grove-llm leaf-add dispatch-records-k23 dispatch-records
-  --kind review-impl`, with `**Reviews:** dispatch-records-k23`. Write the node
-  brief's review doubts into its body.
+- This node's `Done when` holds. Retiring this leaf closes the node. As this
+  leaf's last act, cut the node's `review-impl` as the node's sibling,
+  directly after it, never inside it. Run `grove-llm leaf-insert --kind
+  review-impl evaluation-boundary-k27 dispatch-records`, targeting the first root
+  entry after this node (today `evaluation-boundary-k27`). Give it
+  `**Reviews:** dispatch-records-k23`, and write the node brief's review doubts
+  into its body.

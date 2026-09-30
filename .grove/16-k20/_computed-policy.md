@@ -13,9 +13,13 @@ are policed under `select`.
 - A policy exports exactly one of `routes` or `select`. `select(request,
   context, host)` may return a promise. It returns either `selected` with a
   candidate ID and a nonblank reason, or `refused` with a code, message and
-  remedy. Exceptions, an unresolved promise, an unknown ID, abstention and
-  malformed results refuse. Rust validates the result and the returned catalog
-  snapshot, and a result cannot add executable words.
+  remedy. Exceptions, an unknown ID, abstention and malformed results refuse.
+  So does a promise left unsettled once the worker's event loop drains. A
+  promise kept pending by live asynchronous work, and a synchronous spin, in
+  `select` or `loadContext` are ended by the whole-selection deadline from
+  static dispatch: exit 124, nothing launched and no worker left. Rust
+  validates the result and the returned catalog snapshot, and a result cannot
+  add executable words.
 - Under `select`, an explicit choice is visible to context assembly and to
   selection. The policy must explicitly accept or refuse it. Any other returned
   ID is `explicit_choice_mismatch`, whatever reason the policy gives.
@@ -28,8 +32,9 @@ are policed under `select`.
   `diagnostic` and `signal` behave as specified. Reads resolve against the
   request cwd, and each source is measured, SHA-256 hashed and attributed. A
   failed required read or loader fails the whole selection.
-- The spec's resource bounds hold, except the timeout, the lock wait and the
-  prompt budget, which other increments own. The bounds are context bytes
+- The spec's resource bounds hold. Static dispatch already delivers the
+  whole-selection deadline, the lock wait and the prompt budget. The bounds
+  this increment adds are context bytes
   (`--context-bytes`, up to 8 MiB), per-source reads, the source count, the
   result/catalog message size, and the combined diagnostics bound. Each
   overflow refuses and is never truncated.
@@ -52,4 +57,6 @@ are policed under `select`.
 - Spec sections: `#policy-and-choice`, `#bounded-context` and `#command-interface`
   (`--context`, `--context-bytes`, the JSON schema rules).
 - Run lookup (`host.run`) is `run-lookup-k26`'s. Refuse it explicitly until
-  then. The whole-selection timeout is `selection-cancellation-k28`'s.
+  then. The whole-selection deadline is `selection-deadline-k44`'s, in static
+  dispatch. This increment adds the hang cases for its own callbacks. Signal
+  cancellation is `selection-cancellation-k28`'s.

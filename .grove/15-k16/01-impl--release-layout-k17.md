@@ -18,13 +18,18 @@ verification and the documentation. Record the choice in the running log.
 Bun cross-compiles by fetching target runtimes at build time. Pin and verify
 what it fetches, so that a release never builds against an unpinned runtime.
 
+The front executable links bundled SQLite from `handoff-records-k24`. That
+brings C into the Linux cross-builds, which use zigbuild at glibc 2.17. A clean
+host build is not evidence that they work.
+
 ## Done when
 
 - The release build compiles the worker for all three targets with Bun 1.4.2
   and the no-autoload switches. It stages the front executable, the worker, the
   SDK and example declarations and readable sources, and the runtime and
   license notices. The notices include those Bun 1.4.2 documents for its
-  embedded components.
+  embedded components, and SQLite's. Each Linux front executable is
+  cross-built with bundled SQLite at the glibc 2.17 floor.
 - The formula installs the layout, and the front resolves its worker through
   the `bin` symlink. `brew test` checks that the front, the worker and Grove
   report one version. The release task's verification checks

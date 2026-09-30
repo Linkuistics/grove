@@ -12,9 +12,12 @@ descriptors and exit behavior. `inspect` shows the same expanded argv.
 The contract is in the spec's `#command-interface`, `#policy-and-choice` (slots
 and program resolution) and `#execution-contract` sections. Take only the plain
 exec here. Handled signals, the linearization point and signal-state
-transparency belong to `evaluation-boundary-k27`. The handoff record and the
-`runId` slot belong to `dispatch-records-k23`, so `runId` is refused as not yet
-supported.
+transparency belong to `evaluation-boundary-k27`. The whole-selection deadline
+is the next leaf's. The required handoff record, the run ID and the `runId`
+slot belong to `handoff-records-k24`, later in this node, so `runId` is refused
+as not yet supported. Until that leaf lands, this plain `run` is an internal
+step of the increment, not a delivered form. The spec's notice does not list
+`run` as delivered, and no increment boundary exposes it without its record.
 
 ## Done when
 

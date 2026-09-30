@@ -43,7 +43,10 @@ themselves.
   declarations and sources. The per-target smoke passes.
 - The usage documentation gives the explicit activation steps, a personal
   policy importing the Grove example by specifier, and every refusal's remedy.
-- This node's `Done when` holds. As this leaf's last act, cut the node's
-  `review-impl`: run `grove-llm leaf-add review-policy-k35 review-policy
-  --kind review-impl`, with `**Reviews:** review-policy-k35`. Write the node
-  brief's review doubts into its body.
+- This node's `Done when` holds. Retiring this leaf closes the node. As this
+  leaf's last act, cut the node's `review-impl` as the node's sibling,
+  directly after it, never inside it. Run `grove-llm leaf-insert --kind
+  review-impl creator-reference-k38 review-policy`, targeting the first root
+  entry after this node (today `creator-reference-k38`). Give it
+  `**Reviews:** review-policy-k35`, and write the node brief's review doubts
+  into its body.

@@ -21,7 +21,8 @@ test executes.
   `harness-dispatch inspect` and `run` against a static TypeScript policy and a
   fake harness, with PATH holding no Bun or Node. It asserts the selected
   candidate, the expanded argv and the fake harness's received arguments and
-  exit.
+  exit. `run` uses a temporary state directory, and `record show` reads back
+  its committed run, so the bundled SQLite executes on every target.
 - The macOS arm64 case runs natively and also resolves its worker through a
   symlinked front executable, as Homebrew installs it.
 - Each Linux target runs the same case in a glibc-2.17 userland container

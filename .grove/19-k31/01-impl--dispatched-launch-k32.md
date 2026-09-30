@@ -9,7 +9,7 @@ existing direct-harness routes are unaffected.
 ## Context
 
 The slots come from `grove-task-slots-k11`. The run identity comes from
-`dispatch-records-k23` and the environment scrubbing from `ambient-authority-k30`.
+`handoff-records-k24` and the environment scrubbing from `ambient-authority-k30`.
 Grove's launch-boundary integration suite builds temporary configurations with
 fake harnesses. Extend it rather than creating a parallel harness. The suite
 must obtain `harness-dispatch` and its worker by the same deterministic route

@@ -13,8 +13,10 @@ separately installed runtime may be present.
 - `scripts/release-build.sh` compiles the worker for macOS arm64, Linux arm64
   and Linux x64 with pinned Bun 1.4.2. It stages the front executable, the
   worker with its embedded SDK and examples, their type declarations and
-  readable sources, and the runtime and license notices into each of the three
-  existing archives. The release still publishes exactly three archives.
+  readable sources, and the runtime and license notices, SQLite's included,
+  into each of the three existing archives. The Linux front executables compile
+  bundled SQLite at the glibc 2.17 floor. The release still publishes exactly
+  three archives.
 - The archive and the Homebrew install keep the same relative layout, so the
   front finds its worker from its real path, including through Homebrew's
   symlink. The formula installs that layout, and `brew test` checks that the
@@ -23,7 +25,8 @@ separately installed runtime may be present.
 - The new member opts out of a second cargo-release cut, and the worker embeds
   the workspace version. The release scripts' tests assert the archive contents.
 - Each target runs an installed-layout smoke test from the extracted archive:
-  static TypeScript policy, fake harness, and no Bun or Node on PATH. macOS
+  static TypeScript policy, fake harness, a `run` whose record is read back
+  from a temporary state directory, and no Bun or Node on PATH. macOS
   arm64 runs natively. Each Linux target runs in a glibc-2.17 userland
   container, and again under user-mode emulation with the Nehalem and
   Cortex-A53 CPU models. Each floor instrument has a positive control that has
@@ -62,5 +65,6 @@ separately installed runtime may be present.
 Later increments add shipped files: the Grove adapter, the review example and
 more declarations. Each adding leaf extends the archive assertions in the same
 change. Any leaf that changes the worker, the layout or the native dependencies
-reruns the smoke task. `dispatch-records-k23` adds bundled SQLite C code to what
-is a pure-Rust cross-build today.
+reruns the smoke task. Bundled SQLite arrived with `handoff-records-k24` in
+static dispatch, so this node's first cross-build already compiles C, and its
+floor instruments probe that native dependency from the start.

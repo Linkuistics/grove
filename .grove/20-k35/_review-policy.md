@@ -60,7 +60,10 @@ tasks through an adapter that reads only the supplied task file.
 ## Review
 
 This node is expected to end with a `review-impl` naming this node's handle.
-Its last leaf cuts that review inside this node. The provider rule is the
+Retiring the node's last leaf closes it. That leaf cuts the review as the node's
+sibling, directly after it and ahead of the next increment. Inside the node, a
+review would keep the node open, so no session would finish the producer it
+reviews (spec `#identity-and-creator`). The provider rule is the
 first release's flagship requirement. A permissive comparison, or a refusal
 that quietly admits, reads exactly like a working policy in every test that
 does not target it.

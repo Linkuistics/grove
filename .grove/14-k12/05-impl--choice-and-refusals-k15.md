@@ -27,7 +27,8 @@ before.
 - A refused `run` also reports the equivalent `inspect` invocation, without the
   prompt: a command line in text mode and an argv array in JSON.
 - The exit results match the spec's table for the stages that exist: 2
-  malformed CLI, 3 refusal, 5 worker or protocol failure, 126 and 127.
+  malformed CLI, 3 refusal, 4 required-record failure, 5 worker or protocol
+  failure, 124 timeout, 126 and 127.
 - Help carries independent-use and refusal-recovery examples. It has no pager,
   no interactive confirmation and no retry.
 - The static starter examples give exact kind mappings. They explain effort by
@@ -37,11 +38,15 @@ before.
   source. A test imports each from a temporary personal policy and selects
   through it.
 - The package's usage documentation covers standalone inspect and run, policy
-  authority, the static form and explicit choice. It states that `inspect` is a
+  authority, the static form, explicit choice, the required run record and
+  `record show`. It states that `inspect` is a
   proposal: it is not a launch reservation, and evaluating trusted TypeScript
   is not promised to be free of side effects. The spec's notice states what is
   delivered.
-- This node's `Done when` holds. As this leaf's last act, cut the node's
-  `review-impl`: run `grove-llm leaf-add static-dispatch-k12 static-dispatch
-  --kind review-impl`, with `**Reviews:** static-dispatch-k12`. Write into its
-  body the doubts the node brief names.
+- This node's `Done when` holds. Retiring this leaf closes the node. As this
+  leaf's last act, cut the node's `review-impl` as the node's sibling,
+  directly after it, never inside it. Run `grove-llm leaf-insert --kind
+  review-impl dispatch-delivery-k16 static-dispatch`, targeting the first root
+  entry after this node (today `dispatch-delivery-k16`). Give it
+  `**Reviews:** static-dispatch-k12`, and write into its body the doubts the
+  node brief names.

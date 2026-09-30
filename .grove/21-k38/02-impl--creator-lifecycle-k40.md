@@ -35,7 +35,10 @@ conformance rows' concern, not this seam's.
 - The usage documentation and configure-grove explain the `**Creator:**` forms,
   who writes or removes the line, the declaration remedy for artifacts with no
   run, and why a wrong but existing run is not detected at launch.
-- This node's `Done when` holds. As this leaf's last act, cut the node's
-  `review-impl`: run `grove-llm leaf-add creator-reference-k38
-  creator-reference --kind review-impl`, with `**Reviews:**
-  creator-reference-k38`. Write the node brief's review doubts into its body.
+- This node's `Done when` holds. Retiring this leaf closes the node. As this
+  leaf's last act, cut the node's `review-impl` as the node's sibling,
+  directly after it, never inside it. Run `grove-llm leaf-insert --kind
+  review-impl dispatch-documentation-k41 creator-reference`, targeting the first root
+  entry after this node (today `dispatch-documentation-k41`). Give it
+  `**Reviews:** creator-reference-k38`, and write the node brief's review doubts
+  into its body.

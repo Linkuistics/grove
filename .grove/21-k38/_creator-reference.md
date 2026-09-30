@@ -58,7 +58,10 @@ the documented convention.
 ## Review
 
 This node is expected to end with a `review-impl` naming this node's handle.
-Its last leaf cuts that review inside this node. The amendment changes rules
+Retiring the node's last leaf closes it. That leaf cuts the review as the node's
+sibling, directly after it and ahead of the next increment. Inside the node, a
+review would keep the node open, so no session would finish the producer it
+reviews (spec `#identity-and-creator`). The amendment changes rules
 every future session follows. Conformance rows can prove that wording is
 present on a loaded path, but not that the steps are coherent where a session
 meets them, at retirement and at node close.

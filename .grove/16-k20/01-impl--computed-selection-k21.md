@@ -21,9 +21,15 @@ with `bounded-context-k22`. Until then, pass an absent context and refuse
   be synchronous or return a promise. `selected` requires a configured
   candidate ID and a nonblank reason. `refused` requires a code, message and
   remedy, and inspection and `run` report them with exit 3.
-- Exceptions, a never-settling promise the worker can detect, an unknown ID,
-  abstention and malformed results refuse with distinct codes. A result cannot
-  supply argv. Rust validates the result against the catalog snapshot.
+- Exceptions, a promise left unsettled once the worker's event loop drains, an
+  unknown ID, abstention and malformed results refuse with distinct codes. A
+  result cannot supply argv. Rust validates the result against the catalog
+  snapshot.
+- The whole-selection deadline from `selection-deadline-k44` ends a `select`
+  that awaits a promise kept pending by a live timer. It also ends one that
+  spins synchronously. Command-seam tests show each exiting 124 with no
+  fake-harness marker and no surviving worker. Variants that finish within the
+  bound, seen to select, are the positive controls.
 - With `--choice`, `select` receives `explicitChoice`. Returning the same ID
   accepts it and returning `refused` refuses it. Any other ID is
   `explicit_choice_mismatch`, including one the policy calls a fallback.

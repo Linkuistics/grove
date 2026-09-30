@@ -55,6 +55,14 @@ test is skipped.
 
 ## Notes
 
-Argv expansion, `run` and the choice contract are the next two leaves.
-Inspection may omit argv until `harness-exec-k14` adds it, but must not print a
-placeholder that implies expansion happened.
+Argv expansion and `run`, the selection deadline, the handoff record and the
+choice contract are this node's later leaves. Inspection may omit argv until
+`harness-exec-k14` adds it, but must not print a placeholder that implies
+expansion happened.
+
+This is the plan's largest leaf (review `harness-selection-and-execution-k42`,
+finding F4). If it proves too big, decompose it along behavior, so that each
+child still inspects something. For example, human-text inspection of a
+route can come first and `--json` inspection with version refusals after it.
+Do not split out a crate-only or protocol-only child: nothing could
+demonstrate it.

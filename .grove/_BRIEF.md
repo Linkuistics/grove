@@ -294,23 +294,31 @@ text, including the node-close step, that ships with the implementation.
 
 `harness-selection-and-execution-k6` cut the implementation from the reviewed
 design, and its running log gives the reasons for this order.
-`harness-selection-and-execution-k42` reviews the plan before any increment
-runs. If that review has actionable findings, the integration goes in before
-`grove-task-slots-k11`. Each entry below leaves `task check` green and Grove
-releasable, and adds behavior its successors build on:
+`harness-selection-and-execution-k42` reviewed the plan before any increment
+ran. `harness-selection-and-execution-k43` integrated that review, and its
+running log holds each finding's disposition. Two obligations moved into
+static dispatch: the whole-selection deadline, because static policy already
+executes TypeScript at import, and the required handoff record, because every
+run needs it. Node reviews moved out of their nodes.
+
+Each entry below leaves `task check` green and Grove releasable, and adds
+behavior its successors build on. Releasability is claimed at these increment
+boundaries, not at a leaf boundary inside a node:
 
 1. `grove-task-slots-k11`: Grove's optional `kind`, `task_file` and `task_id`
    lifecycle slots, useful to any wrapper.
-2. `static-dispatch-k12`: a standalone `harness-dispatch` that inspects and runs
-   a static TypeScript `routes` policy through the compiled worker.
-3. `dispatch-delivery-k16`: the pair in every release archive and the Homebrew
-   formula, smoke-tested on each target at the Linux floor.
+2. `static-dispatch-k12`: a standalone `harness-dispatch` that inspects a static
+   TypeScript `routes` policy through the compiled worker within the selection
+   deadline, and runs it after committing the required handoff record.
+3. `dispatch-delivery-k16`: the pair, with bundled SQLite, in every release
+   archive and the Homebrew formula, smoke-tested on each target at the Linux
+   floor.
 4. `computed-policy-k20`: `select`, caller and loaded context, and the SDK reads,
    within the documented bounds.
-5. `dispatch-records-k23`: required handoff records, run IDs, later
-   observations and policy run lookup.
-6. `evaluation-boundary-k27`: deadlines and cancellation, signal-transparent
-   handoff, and proof that ambient authority stays inert.
+5. `dispatch-records-k23`: later observations against recorded runs, and policy
+   run lookup.
+6. `evaluation-boundary-k27`: signal cancellation, signal-transparent handoff,
+   and proof that ambient authority stays inert.
 7. `grove-dispatch-k31`: Grove sessions launched through dispatch, at the launch
    boundary and the controlling PTY, with configure-grove guidance.
 8. `review-policy-k35`: the shipped example review selector and the Grove
@@ -321,10 +329,21 @@ releasable, and adds behavior its successors build on:
     then the mandatory documentation-acceptance review.
 
 Delivery is deliberately third. The supported-target floor is the design's
-largest untested risk, and the worker ADR's reopen condition names it. After
-delivery lands, the per-target installed smoke task is a regression instrument.
-Any later leaf that changes the worker, the installed layout or the native
-dependencies reruns it.
+largest untested risk, and the worker ADR's reopen condition names it. Its first
+cross-build already carries bundled SQLite. After delivery lands, the per-target
+installed smoke task is a regression instrument. Any later leaf that changes the
+worker, the installed layout or the native dependencies reruns it.
+
+Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
+`dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and
+`creator-reference-k38`. The leaf whose retirement closes a node cuts its review
+as the node's root sibling, with `leaf-insert` ahead of the next increment. So
+review still precedes dependent work, and the review names a finished producer.
+
+Each increment is a node of this grove, not a separately created grove as the
+planning rule literally asks. This grove charters one first release, and its
+finish sequence releases once. No requirement asks for per-increment releases.
+k42 found this deviation advisory, and k43 accepted it as a visible trade-off.
 
 Obligations common to every implementation leaf:
 

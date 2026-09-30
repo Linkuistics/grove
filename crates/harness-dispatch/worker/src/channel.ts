@@ -32,21 +32,29 @@ export function send(message: object): void {
   }
 }
 
+/**
+ * The front's next message, or `null` if the front closed the channel between
+ * frames: it has nothing more to ask. A channel closed inside a frame throws.
+ */
 export function receive(): unknown {
-  const length = readExact(4).readUInt32BE(0);
+  const header = readExact(4, true);
+  if (header === null) return null;
+  const length = header.readUInt32BE(0);
   if (length > MAX_FRAME_BYTES) {
     throw new Error(`protocol frame of ${length} bytes exceeds ${MAX_FRAME_BYTES}`);
   }
-  return JSON.parse(readExact(length).toString("utf8"));
+  return JSON.parse(readExact(length, false)!.toString("utf8"));
 }
 
-function readExact(length: number): Buffer {
+/** `length` bytes, or `null` when `mayEnd` and the channel ends before the first. */
+function readExact(length: number, mayEnd: boolean): Buffer | null {
   const buffer = Buffer.alloc(length);
   let filled = 0;
   while (filled < length) {
     const read = readSync(CHANNEL, buffer, filled, length - filled, null);
     if (read === 0) {
-      throw new Error("the front process closed the protocol channel");
+      if (mayEnd && filled === 0) return null;
+      throw new Error("the front process closed the protocol channel inside a frame");
     }
     filled += read;
   }

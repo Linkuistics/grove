@@ -126,9 +126,10 @@ fn announce(choice: &Choice, run_id: &RunId, committed: &Committed, json: bool) 
         eprintln!("{notice}");
     } else {
         eprint!("{}", choice.diagnostics.to_text());
-        let chosen = match choice.selected_by {
-            SelectedBy::Route => "",
-            SelectedBy::ExplicitChoice => "explicitly chosen ",
+        // A choice `select` accepted was still the caller's explicit choice.
+        let chosen = match (choice.selected_by, &choice.inputs.choice) {
+            (SelectedBy::ExplicitChoice, _) | (SelectedBy::Select, Some(_)) => "explicitly chosen ",
+            _ => "",
         };
         eprintln!(
             "harness-dispatch: running {chosen}candidate {:?} (provider {}, model {}, effort {}) \

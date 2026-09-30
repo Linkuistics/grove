@@ -1,7 +1,8 @@
 //! The selection both commands share: read the caller's inputs, evaluate the
 //! selected policy, select by the caller's explicit choice or the kind's route,
-//! expand the candidate's argv and resolve its program (`docs/specs/harness-selection-and-execution.md`, *Command
-//! interface*).
+//! or by the policy's own `select`, then expand the candidate's argv and
+//! resolve its program (`docs/specs/harness-selection-and-execution.md`,
+//! *Command interface*, *Policy and joint choice*).
 //!
 //! `inspect` reports the resulting choice and `run` execs it, so the two cannot
 //! disagree about what a selection means. Every step refuses rather than
@@ -20,11 +21,11 @@ use crate::argv::{self, RunSlot, Word};
 use crate::authority::{self, PolicyEntry};
 use crate::cli::SelectionArgs;
 use crate::inputs::{Inputs, PromptRequirement};
-use crate::policy::{self, Candidate, SelectedBy, Validator};
+use crate::policy::{self, Candidate, Form, Policy, SelectedBy, Selection, Validator};
 use crate::program::{self, Executable};
 use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED};
 use crate::store::StateDir;
-use crate::worker::{self, Outcome, WorkerIdentity};
+use crate::worker::{self, Halt, Loaded, Outcome, WorkerIdentity};
 
 #[derive(Debug)]
 pub struct Choice {
@@ -38,7 +39,7 @@ pub struct Choice {
     /// The candidate's place in the catalog, for refusal locations.
     pub index: usize,
     pub reason: String,
-    /// The routes table, or the explicit choice.
+    /// The routes table, the explicit choice, or the policy's `select`.
     pub selected_by: SelectedBy,
     pub argv: Vec<Word>,
     pub executable: Executable,
@@ -64,49 +65,12 @@ pub fn choose(
         &entry.path,
         request(&inputs),
         inputs.selection,
+        |outcome, loaded| judge(outcome, loaded, &inputs, &source),
     )?;
     let diagnostics = evaluation.diagnostics;
     let refuse = |refusal: Refusal| Failure::with_diagnostics(refusal, diagnostics.clone());
 
-    let snapshot = match evaluation.outcome {
-        Outcome::Policy(snapshot) => snapshot,
-        Outcome::LoadFailed { name, message } => {
-            return Err(refuse(
-                Refusal::new(
-                    "policy_import_failed",
-                    Stage::Load,
-                    EXIT_REFUSED,
-                    format!("the policy entry {source} failed to load: {name}: {message}"),
-                    format!(
-                        "fix {source} or the module it imports; relative imports resolve from \
-                         the importing file, bare ones through node_modules beside it, and \
-                         nothing is installed automatically"
-                    ),
-                )
-                .source(source.clone()),
-            ));
-        }
-        Outcome::Invalid { location, message } => {
-            return Err(refuse(
-                Refusal::new(
-                    "policy_invalid",
-                    Stage::Validation,
-                    EXIT_REFUSED,
-                    message,
-                    format!(
-                        "export a plain object as `export const policy = {{ ... }}` from {source}"
-                    ),
-                )
-                .source(source.clone())
-                .location(location),
-            ));
-        }
-    };
-    let mut policy = Validator::new(&source)
-        .validate(&snapshot)
-        .map_err(refuse)?;
-    let policy::Selection { index, reason, by } =
-        policy::select(&policy, &inputs.kind, inputs.choice.as_deref(), &source).map_err(refuse)?;
+    let (mut policy, Selection { index, reason, by }) = evaluation.decided;
     let candidate = policy.catalog.swap_remove(index);
     let argv = argv::expand(&candidate, index, &inputs, &run, &source).map_err(refuse)?;
     let path = std::env::var_os("PATH");
@@ -131,10 +95,75 @@ pub fn choose(
     })
 }
 
+/// Decide on what the worker reported: validate the policy, then select
+/// through its routes, or, for `select`, check any explicit choice against the
+/// catalog before asking the worker to run it, and judge what it produced.
+/// Nothing is asked of the worker once a refusal is known.
+fn judge(
+    outcome: Outcome,
+    loaded: Loaded<'_>,
+    inputs: &Inputs,
+    source: &str,
+) -> Result<(Policy, Selection), Halt> {
+    let import_failed = |detail: String| {
+        Refusal::new(
+            "policy_import_failed",
+            Stage::Load,
+            EXIT_REFUSED,
+            format!("the policy entry {source} failed to load: {detail}"),
+            format!(
+                "fix {source} or the module it imports; relative imports resolve from the \
+                 importing file, bare ones through node_modules beside it, and nothing is \
+                 installed automatically"
+            ),
+        )
+        .source(source)
+    };
+    let snapshot = match outcome {
+        Outcome::Policy(snapshot) => snapshot,
+        Outcome::LoadFailed { name, message } => {
+            return Err(import_failed(format!("{name}: {message}")).into());
+        }
+        Outcome::LoadUnsettled => {
+            return Err(import_failed(
+                "an await in it, or in a module it imports, never settled, and nothing was left \
+                 running that could settle it"
+                    .to_owned(),
+            )
+            .into());
+        }
+        Outcome::Invalid { location, message } => {
+            return Err(Refusal::new(
+                "policy_invalid",
+                Stage::Validation,
+                EXIT_REFUSED,
+                message,
+                format!("export a plain object as `export const policy = {{ ... }}` from {source}"),
+            )
+            .source(source)
+            .location(location)
+            .into());
+        }
+    };
+    let policy = Validator::new(source).validate(&snapshot)?;
+    let choice = inputs.choice.as_deref();
+    let selection = match &policy.form {
+        Form::Routes(routes) => policy::by_routes(&policy, routes, &inputs.kind, choice, source)?,
+        Form::Select => {
+            if let Some(choice) = choice {
+                policy::configured(&policy, choice, source)?;
+            }
+            let produced = loaded.select()?;
+            policy::computed(&policy, produced, &inputs.kind, choice, source)?
+        }
+    };
+    Ok((policy, selection))
+}
+
 /// The request the worker receives: the caller's data, the explicit choice
-/// included, and never the prompt, which only ever fills the candidate's
-/// `prompt` argument. The worker hands it to a `select` callback once computed
-/// selection lands; a `routes` policy never sees it.
+/// included, the effective bounds, and never the prompt, which only ever fills
+/// the candidate's `prompt` argument. A `select` callback receives it; a
+/// `routes` policy never sees it.
 fn request(inputs: &Inputs) -> Value {
     let mut request = Map::new();
     request.insert("schemaVersion".into(), 1.into());
@@ -149,6 +178,10 @@ fn request(inputs: &Inputs) -> Value {
     if let Some(choice) = &inputs.choice {
         request.insert("explicitChoice".into(), choice.clone().into());
     }
+    request.insert(
+        "limits".into(),
+        serde_json::json!({ "selectionMs": inputs.selection.value }),
+    );
     Value::Object(request)
 }
 
@@ -184,6 +217,7 @@ mod tests {
             serde_json::json!({
                 "schemaVersion": 1, "kind": "impl", "cwd": "/work",
                 "taskFile": "/work/task.md", "taskId": "T-1", "explicitChoice": "deep",
+                "limits": { "selectionMs": 30_000 },
             })
         );
         let absent = Inputs {
@@ -194,7 +228,10 @@ mod tests {
         };
         assert_eq!(
             super::request(&absent),
-            serde_json::json!({ "schemaVersion": 1, "kind": "impl", "cwd": "/work" })
+            serde_json::json!({
+                "schemaVersion": 1, "kind": "impl", "cwd": "/work",
+                "limits": { "selectionMs": 30_000 },
+            })
         );
     }
 }

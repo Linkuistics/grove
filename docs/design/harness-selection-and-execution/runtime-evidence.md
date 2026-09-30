@@ -144,6 +144,25 @@ host, observed how `import()` treats an absolute path string:
   shows each substitute firing when it is named directly. Recheck this on a
   Bun upgrade.
 
+Adding computed selection on the same date, with the same Bun and host,
+observed what an abandoned `await` does to the worker:
+
+- **A pending top-level await spins.** A main module whose top-level `await`
+  waited on a promise that nothing was left to settle ran at full CPU, never
+  exited and never emitted `beforeExit`, both under `bun` and compiled. The
+  same await inside an async function, which the module called without a
+  top-level await, let the event loop empty: `beforeExit` fired and the
+  process could report and exit. That held for a pending dynamic `import()` of
+  a module whose own top-level await never settles, and for a pending promise
+  a policy callback returned. Node documents the event for an emptied loop and
+  never for `process.exit`
+  ([`'beforeExit'`](https://nodejs.org/api/process.html#event-beforeexit)).
+  The worker therefore drives its conversation from an async function and
+  reports an abandoned import or `select` from `beforeExit`. The command-seam
+  tests `each_way_select_can_fail_refuses_with_its_own_code_and_launches_nothing`
+  and `an_import_left_unsettled_refuses_as_a_load_failure_at_once` fail with
+  that handler disabled. Recheck this on a Bun upgrade.
+
 <a id="installed-smoke"></a>
 ## Installed smoke
 
@@ -160,6 +179,13 @@ slot. The case asserts `inspect`'s choice, expanded argv and worker path. A
 `run` against a temporary state directory must exit with the fake harness's
 42, and the harness must have received that argv, run ID, state directory and
 cwd. `record show` must read that run back, so the bundled SQLite executes.
+The computed TypeScript case exports an asynchronous `select`, annotated with
+the SDK's types, that waits on a timer, reads the request and imports the
+embedded `harness-dispatch/examples/dynamic`. `inspect` must report the
+computed selection, with a reason carrying the request's kind and task
+identity. A `run` whose explicit choice the policy refuses must exit 3 with
+the policy's code and start nothing. The plain `run` must reach the fake
+harness with its run ID, and `record show` must report the `select` form.
 
 The C library instrument runs in `docker.io/library/centos:7@sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4`,
 CentOS Linux 7.9.2009, with `getconf GNU_LIBC_VERSION` required to be
@@ -184,6 +210,12 @@ arm64 macOS host:
 | aarch64-unknown-linux-gnu | CentOS 7.9 aarch64, native to Docker's linux/arm64, GNU tar 1.26 | Passed through both fronts; control refused: ``/lib64/libc.so.6: version `GLIBC_2.25' not found`` |
 | aarch64-unknown-linux-gnu | The same userland under QEMU 10.2.2 with `-cpu cortex-a53` ([CPU floor](#cpu-floor)), in a chroot inside an arm64 ubuntu:24.04 container | Passed through both fronts; glibc control refused as above; CPU control fired |
 | x86_64-unknown-linux-gnu | CentOS 7.9 x86_64 under QEMU 10.2.3 user-mode emulation with `-cpu Nehalem` and a 2^47 guest base, in the same kind of chroot, GNU tar 1.26 | Passed through both fronts; glibc control refused as on arm64; CPU control fired |
+
+On 2026-10-01, once computed selection landed, the same instruments ran the
+static and computed cases from archives of version 21.12.0 whose workers
+report build `77b6f49de68c…`, on the same host and Docker. Every row above
+held for both cases: each passed through both fronts on every target, and the
+glibc and CPU controls fired as before.
 
 **Docker Desktop cannot run the x64 userland.** With Rosetta off, its VM runs
 amd64 containers through a binfmt handler, `/usr/bin/qemu-x86_64` 8.1.5, which

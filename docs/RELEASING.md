@@ -239,8 +239,9 @@ as for `task release:archives`.
 
 Each archive must first match the archive manifest, as the build checked it.
 Then it is extracted into a fresh prefix where its target runs. There,
-harness-dispatch inspects and runs a static TypeScript policy against a fake
-harness and reads the run's record back, with no Bun or Node on `PATH`.
+harness-dispatch inspects and runs a static and a computed TypeScript policy
+against a fake harness and reads each run's record back, with no Bun or Node on
+`PATH`.
 
 - **macOS arm64** runs natively, so it needs an Apple silicon Mac.
 - **Each Linux target** runs in the CentOS 7 userland of its architecture, the

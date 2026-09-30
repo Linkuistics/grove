@@ -3,7 +3,8 @@
 //!
 //! `inspect` and `run` accept the same selection inputs. This release reads the
 //! kind, the policy entry, the prompt, the optional task file and identity, the
-//! explicit choice, the whole-selection bound and the record directory.
+//! explicit choice, the whole-selection bound and the record directory, for a
+//! static `routes` policy or a computed `select`.
 //! `record show` exports a recorded run.
 //! The spec's other inputs and commands belong to later increments, and until
 //! each lands it is refused explicitly, by name, rather than accepted and
@@ -146,7 +147,7 @@ pub struct RunArgs {
 /// The selection inputs `inspect` and `run` share.
 #[derive(Debug, Args)]
 pub struct SelectionArgs {
-    /// The caller's session kind: any nonempty token, matched exactly against the policy's routes
+    /// The caller's session kind: any nonempty token, matched exactly against the policy's routes or given to its select
     #[arg(long, value_name = "TEXT")]
     pub kind: String,
     /// The harness prompt, passed unchanged as one argument; run needs this or --prompt-file
@@ -169,7 +170,7 @@ pub struct SelectionArgs {
     /// Evaluate this policy entry instead of the personal default; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub config: Option<PathBuf>,
-    /// Select this configured candidate by its catalog ID instead of the kind's route; an ID the catalog lacks refuses
+    /// Select this configured candidate by its catalog ID: routes take it instead of the kind's route, and select must accept or refuse it; an ID the catalog lacks refuses
     #[arg(long, value_name = "ID")]
     pub choice: Option<OsString>,
     /// Stop the policy and launch nothing (exit 124) if selection takes longer; 1000 to 120000 [default: 30000]
@@ -322,7 +323,7 @@ pub fn unsupported(what: &str, input: &str) -> Refusal {
         Stage::Cli,
         EXIT_MALFORMED,
         format!("{what} is not supported by this release of harness-dispatch"),
-        "omit it; this release selects through a static routes policy with --kind, --choice, \
+        "omit it; this release selects through a routes or select policy with --kind, --choice, \
          --config, --prompt or --prompt-file, --task-file, --task-id, --timeout-ms, --state-dir \
          and --json, and exports runs with record show",
     )

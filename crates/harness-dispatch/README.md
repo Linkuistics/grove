@@ -7,16 +7,17 @@ prompt and optional task data, and the owner's policy supplies the choice. The
 contract is the
 [area specification](../../docs/specs/harness-selection-and-execution.md).
 
-This release delivers **inspection and running of a static `routes`
-policy**. `inspect` reports the choice, the harness's expanded arguments and
-the program that would run. `run` makes the same choice, commits a durable
+This release delivers **inspection and running of a static `routes` policy
+or a computed `select`**. `inspect` reports the choice, the harness's expanded
+arguments and the program that would run. `run` makes the same choice, commits a durable
 record of the handoff with a fresh run ID, and then replaces itself with the
 harness. `record show` exports what a run recorded. A caller can name one
-configured candidate with `--choice` instead of the kind's route. Selection is
-bounded in time, so a policy that never finishes loading is stopped and nothing
-runs. Every refusal says what to fix, and a refused `run` gives the `inspect`
-command that reproduces it. Two static starter policies ship inside the worker.
-Signal handling at the handoff, computed selection, task context and later
+configured candidate with `--choice`, which a routes policy takes instead of
+the kind's route and a `select` policy accepts or refuses. Selection is bounded
+in time, so a policy that never finishes is stopped and nothing runs. Every
+refusal says what to fix, and a refused `run` gives the `inspect` command that
+reproduces it. Three starter policies ship inside the worker, two static and
+one computed. Signal handling at the handoff, task context and later
 observations come in later releases. Until each arrives, its input is refused
 by name. It is never accepted and ignored.
 
@@ -143,6 +144,96 @@ The module exports one plain object named `policy`:
 Every candidate in the catalog is checked, including those no route names, so a
 mistake anywhere refuses rather than waiting for the kind that would reach it.
 
+## A select policy
+
+```ts
+import { definePolicy } from "harness-dispatch/sdk";
+
+const claude = { provider: "anthropic", program: "claude", args: ["--model", { slot: "model" }, { slot: "prompt" }] } as const;
+
+export const policy = definePolicy({
+  schemaVersion: 1,
+  version: "2026-09-30",
+  catalog: [
+    { id: "deep", model: "claude-opus-5-5", effort: "high", ...claude },
+    { id: "quick", model: "claude-haiku-4-5", effort: "low", ...claude },
+  ],
+  async select(request) {
+    if (request.explicitChoice !== undefined) {
+      return { status: "selected", candidateId: request.explicitChoice, reason: "the caller chose it" };
+    }
+    if (request.kind.startsWith("review")) {
+      return { status: "selected", candidateId: "deep", reason: `kind ${request.kind} is a review` };
+    }
+    return {
+      status: "refused",
+      code: "unrouted",
+      message: `no candidate is configured for kind ${request.kind}`,
+      remedy: "add the kind to select, or name a candidate with --choice",
+    };
+  },
+});
+```
+
+Instead of `routes`, a policy may export `select`, a function that computes the
+choice on each invocation. A policy has exactly one of the two, and both or
+neither refuses as `policy_invalid`. `select` may be synchronous or `async`,
+and may do whatever trusted TypeScript can, within
+[the selection bound](#the-selection-bound). It is called as a method of the
+policy, and only once harness-dispatch has accepted the policy, catalog
+included, so an invalid catalog refuses without running it. Its one argument is
+the request:
+
+| Field | Value |
+|---|---|
+| `schemaVersion` | `1` |
+| `kind` | `--kind` |
+| `cwd` | The caller's current directory, as data. The worker does not run there. |
+| `taskFile`, `taskId` | `--task-file`, as an absolute path, and `--task-id`. Each is absent when not given. |
+| `explicitChoice` | The `--choice` ID, absent when not given. It is always an ID the catalog has. |
+| `limits` | `{ selectionMs }`, the effective whole-selection bound in milliseconds |
+
+The prompt is never part of it. Loaded context, `loadContext` and `--context`
+come in a later release, and are refused until then.
+
+`select` returns, or resolves to, one of two results:
+
+- `{ status: "selected", candidateId, reason }` names a candidate in the
+  catalog, with a nonblank reason. Inspection and the run record report the
+  reason exactly as given.
+- `{ status: "refused", code, message, remedy }`, each nonblank, refuses for
+  the policy's own reason. It is reported as `policy_refused`, exit 3, with
+  your code as `policyCode` and your message and remedy.
+
+Nothing else is a result. Each other outcome refuses with exit 3 and a code of
+its own, and launches nothing:
+
+| Outcome | Code |
+|---|---|
+| `select` throws, or its promise rejects | `selection_threw` |
+| Its promise is still pending when nothing is left running that could settle it | `selection_unsettled` |
+| It returns `undefined` or `null` | `selection_abstained` |
+| The result is neither shape: a missing or blank field, an unknown `status`, or any field beyond its status's own | `selection_malformed`, with a `location` such as `result.reason` |
+| It names an ID the catalog does not have | `unknown_candidate` |
+
+A result names a candidate and nothing more. It cannot supply a program or
+arguments, and it cannot add a candidate: the catalog it is checked against was
+taken when the policy loaded, before `select` ran. A promise that live work
+keeps pending, such as one waiting on a timer that never resolves it, and a
+synchronous loop, are stopped instead by the selection bound, with exit 124.
+
+With `--choice`, `select` must decide on the caller's choice: select that same
+ID to accept it, or return a refusal. Any other ID refuses as
+`explicit_choice_mismatch`, even one the policy's reason calls a fallback. An
+ID the catalog does not have refuses as `unknown_choice` before `select` is
+called.
+
+A policy that wants exact routes for most kinds and computation for a few
+exports `select` and consults its own table. Its reason should name the entry
+it applied, as the dynamic example's does. The types for all of this,
+`SelectPolicy`, `SelectionRequest` and `SelectionResult`, are in
+`harness-dispatch/sdk`, and `definePolicy` types `request` for you.
+
 `harness-dispatch/sdk` is built into the worker, so there is nothing to install.
 For editor type checking, map the specifiers to the declarations beside the
 worker:
@@ -163,15 +254,17 @@ declarations.
 
 ## Starter examples
 
-Two static policies ship inside the worker as editable starting points. Neither
-is active until your own policy imports it.
+Three policies ship inside the worker as editable starting points. None is
+active until your own policy imports it.
 
 | Specifier | Kinds it routes |
 |---|---|
 | `harness-dispatch/examples/static` | A caller's own kinds, without Grove: `question`, `bugfix`, `feature`, `migration` and `architecture`, over one harness at four efforts |
 | `harness-dispatch/examples/grove-static` | All 23 of Grove's session kinds, exactly, over a lead harness and a reviewer from another provider |
+| `harness-dispatch/examples/dynamic` | The static example's kinds, through a `select` that applies their routes and polices explicit choices |
 
-Each maps its kinds exactly: a kind it does not list refuses. Each explains, kind
+The two static examples map their kinds exactly: a kind one does not list
+refuses. Each explains, kind
 by kind, why the work gets the effort it does, in terms of abstraction,
 uncertainty, consequences, downstream repair, reversibility and available
 checks. None ranks models. These are priors, not calibrated estimates. Their
@@ -203,16 +296,30 @@ Better still, copy `examples/grove-static.ts` or `examples/static.ts` from
 beside the worker into your configuration directory and edit it. It imports
 `harness-dispatch/sdk` as your own policy does.
 
+The dynamic example builds on the static one, importing its catalog and routes
+by their specifier. Its `select` shows what a table cannot say: without a
+choice, it applies the kind's route and names that entry in its reason; with
+one, it accepts a candidate whose effort is at least the route's and refuses
+one below it as `effort_below_route`. A kind with no route sets no floor, so
+any configured choice is accepted for it, and without a choice it refuses as
+`incomplete_mapping`, in the policy's own words. It is deterministic, with no
+clock, file, network or model involved. Use it whole, or call its exported
+`select` from a policy of your own over the same catalog:
+
+```ts
+export { policy } from "harness-dispatch/examples/dynamic";
+```
+
 ## Inputs
 
 | Input | Meaning |
 |---|---|
-| `--kind TEXT` | Required. Any nonempty token, matched exactly against the routes. Nothing else supplies the kind. |
+| `--kind TEXT` | Required. Any nonempty token, matched exactly against the routes, or given to `select`. Nothing else supplies the kind. |
 | `--prompt TEXT` or `--prompt-file PATH` | The harness prompt. `run` needs exactly one; `inspect` shows a placeholder without either. |
 | `--task-file PATH` | Optional. Resolved against the current directory and passed on as data. It is not read, need not exist, and supplies no kind or identity. |
 | `--task-id ID` | Optional. The task's stable identity, such as a Grove handle: opaque UTF-8 of at most 1024 bytes. |
 | `--config PATH` | Optional. The policy entry to use instead of the personal default. |
-| `--choice ID` | Optional. Select this configured candidate instead of the kind's route. See [explicit choice](#explicit-choice). |
+| `--choice ID` | Optional. Select this configured candidate: a routes policy takes it instead of the kind's route, and `select` accepts or refuses it. See [explicit choice](#explicit-choice). |
 | `--timeout-ms MS` | Optional. The whole-selection bound in milliseconds, from 1000 to 120000. The default is 30000. See [the selection bound](#the-selection-bound). |
 | `--state-dir PATH` | Optional. The directory holding run records, instead of `~/.local/state/harness-dispatch`, resolved against the current directory. See [run records](#run-records). |
 
@@ -230,10 +337,13 @@ cannot change the selection.
 selects it for any kind, including a kind its table does not route, and does
 not consult the table. Inspection reports `selectedBy` as `explicit_choice`
 rather than `route`, and the choice itself as `explicitChoice`. The run record
-keeps both. An ID the catalog does not have refuses with `unknown_choice`, exit
-3, and its remedy lists the configured IDs. Nothing else is selected in its
-place. The ID is matched exactly, and an empty one refuses with exit 2 before
-any policy runs.
+keeps both. A `select` policy sees the choice and must accept or refuse it, as
+[a select policy](#a-select-policy) describes; it reports `selectedBy` as
+`select`, beside the `explicitChoice` it accepted. An ID the catalog does not
+have refuses with `unknown_choice`, exit 3, under either form and before any
+`select` runs, and its remedy lists the configured IDs. Nothing else is
+selected in its place. The ID is matched exactly, and an empty one refuses with
+exit 2 before any policy runs.
 
 ```sh
 harness-dispatch inspect --kind design --choice deep
@@ -249,7 +359,8 @@ afresh.
 Your policy is trusted TypeScript, and it can hang: a loop at import, or an
 `await` on work that never settles. So the whole selection has a wall-clock
 bound. It runs from the worker's start to its result, and it covers the
-policy's import and everything the policy does while it loads. The default is
+policy's import, everything the policy does while it loads, and its `select`.
+The default is
 30 seconds. `--timeout-ms` sets it for one invocation, anywhere from 1000
 (1 second) to 120000 (2 minutes). A value outside that range, or anything but
 plain digits, refuses with exit 2 before any policy runs.
@@ -368,7 +479,12 @@ version-1 object:
 }
 ```
 
-An explicit entry adds `"argument"`, the `--config` value as given. A prompt
+`selection.form` is `routes` or `select`. `selectedBy` is `route`,
+`explicit_choice` (a routes policy took the caller's choice without its table)
+or `select` (the policy's `select` chose it; beside an `explicitChoice`, it
+accepted that choice). `reason` is the policy's own under `select`. Human text
+shows the same as a `selected` row. An explicit entry adds `"argument"`, the
+`--config` value as given. A prompt
 read from a file reports `"from": "--prompt-file"` and its `"path"`. Without a
 prompt, `"prompt"` is `{ "supplied": false }` and its argument in `argv` is
 `{ "placeholder": "prompt" }`, and a `runId` argument is
@@ -499,7 +615,9 @@ any output the policy printed, each line of it prefixed `policy stdout:` or
 `policy stderr:`. `--json` prints one object on stderr,
 `{"schemaVersion":1,"error":{…},"diagnostics":{…}}`, and nothing on stdout. The
 error names `input`, such as `--kind design`, or `source`, usually the policy
-entry, or both, and `location` where the problem is inside a policy. A refusal
+entry, or both, and `location` where the problem is inside a policy or a
+`select` result. A policy's own refusal adds `policyCode`, and a
+`policy code:` line in text. A refusal
 caused by running out of a bound also names that bound, as `bound` in JSON and
 a `bound:` line in text. A command line that cannot be parsed is refused the
 same way, with clap's tip and usage line in the remedy.
@@ -544,9 +662,9 @@ never opens the store.
 |---|---|---|
 | 2 | `cli` | `malformed_input` (including a command line that cannot be parsed, and an empty `--choice`), `unsupported_input` (an input or command a later release delivers), `prompt_invalid`, `prompt_unreadable` |
 | 3 | `authority` | `policy_missing`, `policy_unreadable`, `home_unset`, `cwd_unavailable` |
-| 3 | `load` | `policy_import_failed` (a missing import, or the entry threw while loading) |
-| 3 | `validation` | `policy_invalid` and `unsupported_version`, each with its `location`; `unsupported_form` (`select`, `loadContext`) |
-| 3 | `selection` | `incomplete_mapping`; `unknown_choice` (a `--choice` the catalog does not have) |
+| 3 | `load` | `policy_import_failed` (a missing import, the entry threw while loading, or an await in it never settled) |
+| 3 | `validation` | `policy_invalid` and `unsupported_version`, each with its `location`; `unsupported_form` (`loadContext`) |
+| 3 | `selection` | `incomplete_mapping`; `unknown_choice` (a `--choice` the catalog does not have); `policy_refused` (the policy's own refusal, with `policyCode`); `selection_threw`, `selection_unsettled`, `selection_abstained`, `selection_malformed`, `unknown_candidate` and `explicit_choice_mismatch` (see [a select policy](#a-select-policy)) |
 | 3 | `expansion` | `missing_input` (a slot whose input was not supplied) |
 | 3 | `record` | `run_not_found` (`record show` of a run the store does not hold), `cwd_unavailable` |
 | 4 | `record` | `record_store_unwritable`, `record_store_locked` (held past the 2-second wait), `record_store_full`, `record_store_invalid` (another application's file, another version, or corrupt), `record_commit_failed`, `run_id_unavailable`, `home_unset` (HOME cannot place the default state directory) |

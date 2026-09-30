@@ -26,12 +26,12 @@
 #
 # ADDING A CASE. Write `case_<name> FRONT DIR` and add <name> to CASES. A case
 # works only inside DIR, a fresh directory of its own, and stops the smoke test
-# through `fail`. The computed `select` case joins with computed-selection-k21.
+# through `fail`.
 
 set -euo pipefail
 IFS=$'\n\t'
 
-CASES=(static_typescript)
+CASES=(static_typescript computed_typescript)
 
 fail() {
   echo "installed-smoke: FAIL: $*" >&2
@@ -211,6 +211,86 @@ case_static_typescript() {
   expect_json "$dir/record.json" '"id":"smoke-static"'
   expect_json "$dir/record.json" '"taskId":"smoke-task"'
   expect_json "$dir/record.json" "$(argv_json "$harness" "$dir/cwd/task.md" "$prompt_json" "\"$run_id\"")"
+}
+
+# A computed policy in TypeScript: an asynchronous `select`, annotated with the
+# SDK's types, that waits on a timer, reads the versioned request and imports
+# the embedded dynamic example by its specifier. Its reason carries what it
+# read, so the reports show the request reached it, and it refuses an explicit
+# choice, so a refused run is seen to start nothing.
+case_computed_typescript() {
+  local front="$1" dir="$2"
+  local harness="$dir/harness/fake-harness" state="$dir/state"
+  local prompt=$'computed smoke; $HOME stays literal\n'
+  mkdir -p "$dir/policy" "$dir/cwd"
+  write_fake_harness "$harness"
+  # shellcheck disable=SC2016 # TypeScript template literals, not shell expansions
+  write_lines "$dir/policy/policy.ts" \
+    'import { definePolicy, type SelectionRequest, type SelectionResult } from "harness-dispatch/sdk";' \
+    'import { policy as dynamic } from "harness-dispatch/examples/dynamic";' \
+    '' \
+    'async function select(request: SelectionRequest): Promise<SelectionResult> {' \
+    '  await new Promise((resolve) => setTimeout(resolve, 10));' \
+    '  if (request.explicitChoice !== undefined) {' \
+    '    return { status: "refused", code: "smoke_no_choice", message: "the smoke policy takes no choice", remedy: "omit --choice" };' \
+    '  }' \
+    '  return {' \
+    '    status: "selected",' \
+    '    candidateId: "smoke-computed",' \
+    '    reason: `computed for ${request.kind}/${request.taskId} beside ${dynamic.version}`,' \
+    '  };' \
+    '}' \
+    '' \
+    'export const policy = definePolicy({' \
+    '  schemaVersion: 1,' \
+    '  version: "installed-smoke-computed",' \
+    '  catalog: [{' \
+    '    id: "smoke-computed",' \
+    '    provider: "smoke-provider",' \
+    '    model: "smoke-model",' \
+    '    effort: "high",' \
+    "    program: \"$harness\"," \
+    '    args: ["--run-id", { slot: "runId" }, { slot: "prompt" }],' \
+    '  }],' \
+    '  select,' \
+    '});'
+  local selection=(--kind smoke --config "$dir/policy/policy.ts" --task-id smoke-task
+    --state-dir "$state")
+  local reason='"reason":"computed for smoke/smoke-task beside harness-dispatch/examples/dynamic 1"'
+
+  (cd "$dir/cwd" && "$front" inspect "${selection[@]}" --json) >"$dir/inspect.json" ||
+    fail "inspect exited $?"
+  expect_json "$dir/inspect.json" '"version":"installed-smoke-computed"'
+  expect_json "$dir/inspect.json" '"selection":{"candidateId":"smoke-computed"'
+  expect_json "$dir/inspect.json" '"form":"select"'
+  expect_json "$dir/inspect.json" '"selectedBy":"select"'
+  expect_json "$dir/inspect.json" "$reason"
+
+  local status=0 received="$dir/harness/received"
+  (cd "$dir/cwd" && "$front" run "${selection[@]}" --choice smoke-computed --prompt "$prompt" --json) \
+    >"$dir/refused.stdout" 2>"$dir/refused.stderr" || status=$?
+  [[ "$status" == 3 ]] ||
+    fail "a run whose choice the policy refuses exited $status, not 3; its stderr: $(cat "$dir/refused.stderr")"
+  expect_json "$dir/refused.stderr" '"code":"policy_refused"'
+  expect_json "$dir/refused.stderr" '"policyCode":"smoke_no_choice"'
+  [[ ! -e "$received/argc" ]] || fail "a refused run started the fake harness"
+
+  status=0
+  (cd "$dir/cwd" && "$front" run "${selection[@]}" --prompt "$prompt" --json) \
+    >"$dir/run.stdout" 2>"$dir/run.stderr" || status=$?
+  [[ "$status" == 42 ]] ||
+    fail "run exited $status, not the fake harness's 42; its stderr: $(cat "$dir/run.stderr")"
+  local run_id
+  run_id="$(json_id "$dir/run.stderr" runId)"
+  [[ -n "$run_id" ]] || fail "run reported no run ID: $(cat "$dir/run.stderr")"
+  expect_json "$dir/run.stderr" '"handoff":{"candidateId":"smoke-computed"'
+  expect_json "$dir/run.stderr" '"selectedBy":"select"'
+  expect_received "$received" "$harness" --run-id "$run_id" "$prompt"
+
+  "$front" record show --run "$run_id" --state-dir "$state" --json >"$dir/record.json" ||
+    fail "record show of run $run_id exited $?"
+  expect_json "$dir/record.json" '"form":"select"'
+  expect_json "$dir/record.json" "$reason"
 }
 
 main() {

@@ -2,26 +2,29 @@
 
 This is the first-release design of **harness-dispatch**. Most of it specifies
 behavior that is not implemented yet. Of the command itself, `inspect` and
-`run` of a static `routes` policy are delivered: policy authority, the compiled
-worker with its identity check, embedded SDK and the two static starter
-examples, policy validation, the prompt, task file, task identity, explicit
-choice and state directory inputs, argument-slot expansion including `runId`,
-program resolution, the whole-selection deadline with its exit 124, the human
-and version-1 JSON reports, and structured refusals with their exit results. A
-refused `run` names its equivalent `inspect` invocation. `run` commits its
-required handoff record before a plain exec, exports the run's identity to the
-harness, and appends an exec failure to its attempt. `record show` exports a
-recorded run. Handled signals and a signal-transparent handoff are not yet
-delivered. Every release archive and the Homebrew formula carry the front and
-its worker in the [delivered layout](#delivery), each target's worker compiled
-from a digest-pinned Bun runtime. The installed smoke test runs the static
-TypeScript case from the extracted archive on macOS arm64 natively, and on each
-Linux target in a glibc-2.17 userland under a pinned user-mode QEMU emulating
-its CPU floor, Nehalem or the Cortex-A53; Linux arm64 also runs as a native
-container. Positive controls show that the userland enforces the glibc floor
-and that each CPU model refuses an instruction beyond it. The release task runs
-the archive-content assertions and this smoke test before it publishes
-anything.
+`run` of a static `routes` policy and of a computed `select` are delivered:
+policy authority, the compiled worker with its identity check, embedded SDK,
+the two static starter examples and the dynamic one, policy validation, the
+`select` result contract with its distinct refusals and the policy's own,
+explicit-choice policing under `select`, the request without context, the
+prompt, task file, task identity, explicit choice and state directory inputs,
+argument-slot expansion including `runId`, program resolution, the
+whole-selection deadline with its exit 124, the human and version-1 JSON
+reports, and structured refusals with their exit results. A refused `run` names
+its equivalent `inspect` invocation. `run` commits its required handoff record
+before a plain exec, exports the run's identity to the harness, and appends an
+exec failure to its attempt. `record show` exports a recorded run. Handled
+signals and a signal-transparent handoff are not yet delivered. Every release
+archive and the Homebrew formula carry the front and its worker in the
+[delivered layout](#delivery), each target's worker compiled from a
+digest-pinned Bun runtime. The installed smoke test runs the static and
+computed TypeScript cases from the extracted archive on macOS arm64 natively,
+and on each Linux target in a glibc-2.17 userland under a pinned user-mode QEMU
+emulating its CPU floor, Nehalem or the Cortex-A53; Linux arm64 also runs as a
+native container. Positive controls show that the userland enforces the glibc
+floor and that each CPU model refuses an instruction beyond it. The release
+task runs the archive-content assertions and this smoke test before it
+publishes anything.
 Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
 symbolic inspection are delivered.
@@ -173,18 +176,24 @@ an owner assertion, not verified backend identity.
 
 The selection result has `status: selected`, `candidateId` and a nonblank
 `reason`, or `status: refused`, `code`, `message` and `remedy`. The worker
-returns the catalog snapshot with the result; Rust validates both before use.
-A result cannot supply new executable words. Invalid exports, unknown candidate
-IDs, malformed arguments, exceptions, an unresolved promise or abstention refuse.
+returns the catalog snapshot taken at import, and Rust validates it before any
+`select` runs; the result follows, and Rust validates it against that snapshot
+before use. A result cannot supply new executable words, and a field beyond
+its status's own is refused. Invalid exports, unknown candidate IDs, malformed
+arguments, exceptions, an unresolved promise or abstention refuse, each with
+its own code. A policy's own refusal is reported under the stable
+code `policy_refused`, with the policy's code beside it, its message and its
+remedy, so an owner's codes never collide with the command's.
 All catalog shapes and static references are checked, but only the selected
 executable is checked for availability. An unavailable alternative cannot cause
 selection to silently switch to it or away from it.
 
 With `--choice`, a static `routes` policy accepts any configured candidate the
 choice names, including for a kind its table does not route, and cannot refuse
-it. Inspection reports that the explicit choice, not a route, selected it. An
-ID the catalog lacks refuses as `unknown_choice` and selects nothing else. An
-owner who wants to constrain explicit choices uses `select`, which must
+it. Inspection reports that the explicit choice, not a route, selected it. Under
+either form, an ID the catalog lacks refuses as `unknown_choice`, before any
+`select` runs, and selects nothing else. An owner who wants to constrain
+explicit choices uses `select`, which must
 explicitly accept or refuse the choice. Returning any other ID is
 `explicit_choice_mismatch`, even if the policy describes it as a fallback.
 Policy constraints apply to explicit choices as to normal selections. Each retry

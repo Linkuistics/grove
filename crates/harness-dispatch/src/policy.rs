@@ -1,18 +1,22 @@
 //! Validate a policy snapshot, then select through its static routes or the
-//! caller's explicit choice
+//! caller's explicit choice, or judge what its computed `select` produced
 //! (`docs/specs/harness-selection-and-execution.md`, *Policy and joint choice*).
 //!
 //! The worker hands over the entry's `policy` export as JSON, with any value
-//! JSON cannot carry replaced by a `{"$harnessDispatch": "<type>"}` marker. This
-//! module is the one validator: every refusal names the location it found, in
-//! the form `policy.catalog[1].provider`, and nothing invalid is ever repaired
-//! into something that passes.
+//! JSON cannot carry replaced by a `{"$harnessDispatch": "<type>"}` marker, and
+//! later, for a `select` policy, the value `select` produced, marked the same
+//! way. This module is the one validator for both: every refusal names the
+//! location it found, in the form `policy.catalog[1].provider` or
+//! `result.candidateId`, and nothing invalid is ever repaired into something
+//! that passes. A result names a candidate of the snapshot already validated;
+//! it cannot supply one of its own, or any word of argv.
 
 use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
 
 use crate::refusal::{Refusal, Stage, EXIT_REFUSED};
+use crate::worker::Produced;
 
 const TOP_LEVEL: [&str; 6] = [
     "schemaVersion",
@@ -31,7 +35,16 @@ const SLOTS: [&str; 7] = [
 pub struct Policy {
     pub version: String,
     pub catalog: Vec<Candidate>,
-    pub routes: BTreeMap<String, String>,
+    pub form: Form,
+}
+
+/// How a valid policy selects: exactly one of the two.
+#[derive(Debug)]
+pub enum Form {
+    /// The static table from kind to candidate ID, every target checked.
+    Routes(BTreeMap<String, String>),
+    /// A `select` callback, which only the worker can call.
+    Select,
 }
 
 #[derive(Debug)]
@@ -122,12 +135,14 @@ pub struct Selection {
     pub by: SelectedBy,
 }
 
-/// What made the selection: the routes table, or the caller's explicit
-/// choice, which a routes policy accepts without consulting its table.
+/// What made the selection: the routes table, the caller's explicit choice,
+/// which a routes policy accepts without consulting its table, or the policy's
+/// `select`, which also decides on any explicit choice.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SelectedBy {
     Route,
     ExplicitChoice,
+    Select,
 }
 
 impl SelectedBy {
@@ -136,6 +151,15 @@ impl SelectedBy {
         match self {
             SelectedBy::Route => "route",
             SelectedBy::ExplicitChoice => "explicit_choice",
+            SelectedBy::Select => "select",
+        }
+    }
+
+    /// The policy form that made it: `routes` or `select`.
+    pub fn form(self) -> &'static str {
+        match self {
+            SelectedBy::Route | SelectedBy::ExplicitChoice => "routes",
+            SelectedBy::Select => "select",
         }
     }
 }
@@ -173,7 +197,8 @@ impl<'a> Validator<'a> {
             EXIT_REFUSED,
             format!("`{field}` is not supported by this release of harness-dispatch"),
             format!(
-                "use the static `routes` form in {}: an exact table from kind to candidate ID",
+                "remove `{field}` from {}: this release evaluates `routes` or `select` without \
+                 loaded context",
                 self.source
             ),
         )
@@ -219,20 +244,19 @@ impl<'a> Validator<'a> {
         }
 
         let present = |field: &str| policy.get(field).is_some_and(|value| !value.is_null());
-        match (present("routes"), present("select")) {
-            (true, false) => {}
-            (false, true) => return Err(self.unsupported("select")),
-            (both, _) => {
-                return Err(self.invalid(
+        let computed =
+            match (present("routes"), present("select")) {
+                (true, false) => false,
+                (false, true) => true,
+                (both, _) => return Err(self.invalid(
                     "policy",
                     if both {
                         "a policy has exactly one of `routes` or `select`, and this one has both"
                     } else {
                         "a policy has exactly one of `routes` or `select`, and this one has neither"
                     },
-                ))
-            }
-        }
+                )),
+            };
         if present("loadContext") {
             return Err(self.unsupported("loadContext"));
         }
@@ -242,11 +266,22 @@ impl<'a> Validator<'a> {
             return Err(self.invalid("policy.version", "`version` must not be blank"));
         }
         let catalog = self.catalog(policy.get("catalog"))?;
-        let routes = self.routes(&policy["routes"], &catalog)?;
+        let form = if computed {
+            let select = &policy["select"];
+            if !is_function(select) {
+                return Err(self.invalid(
+                    "policy.select",
+                    format!("`select` must be a function, found {}", describe(select)),
+                ));
+            }
+            Form::Select
+        } else {
+            Form::Routes(self.routes(&policy["routes"], &catalog)?)
+        };
         Ok(Policy {
             version,
             catalog,
-            routes,
+            form,
         })
     }
 
@@ -455,33 +490,28 @@ impl<'a> Validator<'a> {
 /// Select from a valid routes policy: the caller's explicit choice when there
 /// is one, and otherwise the route for `kind`. Either way, nothing the caller
 /// or the table did not name is ever substituted.
-pub fn select(
+pub fn by_routes(
     policy: &Policy,
+    routes: &BTreeMap<String, String>,
     kind: &str,
     choice: Option<&str>,
     source: &str,
 ) -> Result<Selection, Refusal> {
     match choice {
         Some(choice) => chosen(policy, choice, source),
-        None => route(policy, kind, source),
+        None => route(policy, routes, kind, source),
     }
 }
 
-/// An explicit choice under routes names any configured candidate, including
-/// one for a kind the table does not route, and the table cannot refuse it
-/// (spec, *Policy and joint choice*). An ID the catalog lacks refuses; it is
-/// never read as a request for some other candidate.
-fn chosen(policy: &Policy, choice: &str, source: &str) -> Result<Selection, Refusal> {
-    let index = policy
+/// The catalog index of the candidate an explicit choice names. Under either
+/// form, an ID the catalog lacks refuses, before any `select` runs; it is never
+/// read as a request for some other candidate.
+pub fn configured(policy: &Policy, choice: &str, source: &str) -> Result<usize, Refusal> {
+    policy
         .catalog
         .iter()
         .position(|candidate| candidate.id == choice)
         .ok_or_else(|| {
-            let configured: Vec<String> = policy
-                .catalog
-                .iter()
-                .map(|candidate| format!("{:?}", candidate.id))
-                .collect();
             Refusal::new(
                 "unknown_choice",
                 Stage::Selection,
@@ -489,14 +519,31 @@ fn chosen(policy: &Policy, choice: &str, source: &str) -> Result<Selection, Refu
                 format!("--choice {choice:?} names no candidate in the catalog of {source}"),
                 format!(
                     "pass --choice with one of the configured candidate IDs ({}), or omit it to \
-                     select by the routes; harness-dispatch never substitutes another candidate",
-                    configured.join(", ")
+                     select without one; harness-dispatch never substitutes another candidate",
+                    ids(policy)
                 ),
             )
             .input(format!("--choice {choice}"))
             .source(source)
             .location("policy.catalog")
-        })?;
+        })
+}
+
+/// The configured candidate IDs, quoted, for a remedy to list.
+fn ids(policy: &Policy) -> String {
+    let ids: Vec<String> = policy
+        .catalog
+        .iter()
+        .map(|candidate| format!("{:?}", candidate.id))
+        .collect();
+    ids.join(", ")
+}
+
+/// An explicit choice under routes names any configured candidate, including
+/// one for a kind the table does not route, and the table cannot refuse it
+/// (spec, *Policy and joint choice*).
+fn chosen(policy: &Policy, choice: &str, source: &str) -> Result<Selection, Refusal> {
+    let index = configured(policy, choice, source)?;
     Ok(Selection {
         index,
         reason: format!(
@@ -509,8 +556,13 @@ fn chosen(policy: &Policy, choice: &str, source: &str) -> Result<Selection, Refu
 
 /// Resolve `kind` through a valid policy's routes. A kind the table does not
 /// name refuses; no default candidate is ever substituted.
-fn route(policy: &Policy, kind: &str, source: &str) -> Result<Selection, Refusal> {
-    let id = policy.routes.get(kind).ok_or_else(|| {
+fn route(
+    policy: &Policy,
+    routes: &BTreeMap<String, String>,
+    kind: &str,
+    source: &str,
+) -> Result<Selection, Refusal> {
+    let id = routes.get(kind).ok_or_else(|| {
         Refusal::new(
             "incomplete_mapping",
             Stage::Selection,
@@ -539,6 +591,206 @@ fn route(policy: &Policy, kind: &str, source: &str) -> Result<Selection, Refusal
         ),
         by: SelectedBy::Route,
     })
+}
+
+const SELECTED_FIELDS: [&str; 3] = ["status", "candidateId", "reason"];
+const REFUSED_FIELDS: [&str; 4] = ["status", "code", "message", "remedy"];
+
+/// Judge what a valid `select` policy's callback produced, against the catalog
+/// validated before it ran. A candidate it selects must be in that catalog and
+/// come with a nonblank reason; with an explicit choice it must be that choice.
+/// A refusal it returns must say what and why. Every other value refuses, each
+/// kind with its own code, and nothing is ever substituted for it.
+pub fn computed(
+    policy: &Policy,
+    produced: Produced,
+    kind: &str,
+    choice: Option<&str>,
+    source: &str,
+) -> Result<Selection, Refusal> {
+    let shape = format!(
+        "return {{ status: \"selected\", candidateId, reason }} or {{ status: \"refused\", code, \
+         message, remedy }} from select in {source}; the types in harness-dispatch/sdk describe \
+         both"
+    );
+    let refuse = |code: &'static str, message: String, remedy: String, location: &str| {
+        Refusal::new(code, Stage::Selection, EXIT_REFUSED, message, remedy)
+            .source(source)
+            .location(location)
+    };
+    let malformed = |location: &str, message: String| {
+        refuse("selection_malformed", message, shape.clone(), location)
+    };
+
+    let result = match produced {
+        Produced::Result(result) => result,
+        Produced::Threw { name, message } => {
+            return Err(refuse(
+                "selection_threw",
+                format!("select in {source} threw, or its promise rejected: {name}: {message}"),
+                format!(
+                    "fix select in {source} so that it returns a result on every path; to \
+                     decline, return {{ status: \"refused\", code, message, remedy }} rather \
+                     than throwing"
+                ),
+                "policy.select",
+            ))
+        }
+        Produced::Unsettled => {
+            return Err(refuse(
+                "selection_unsettled",
+                format!(
+                    "select in {source} returned a promise that never settled: it was still \
+                     pending when nothing was left running that could settle it"
+                ),
+                "make every path through select resolve or reject its promise; an await on \
+                 something that will never complete leaves it pending"
+                    .to_owned(),
+                "policy.select",
+            ))
+        }
+        Produced::Unserializable { name, message } => {
+            return Err(malformed(
+                "result",
+                format!("the result of select cannot be serialized: {name}: {message}"),
+            ))
+        }
+    };
+
+    if result.is_null() {
+        return Err(refuse(
+            "selection_abstained",
+            format!(
+                "select in {source} returned no result (undefined or null), so it selected \
+                 nothing"
+            ),
+            format!("{shape}; harness-dispatch never picks a candidate for a policy that abstains"),
+            "result",
+        ));
+    }
+    let fields = match result.as_object() {
+        Some(fields) if !is_marker(&result) => fields,
+        _ => {
+            return Err(malformed(
+                "result",
+                format!(
+                    "a selection result must be an object, found {}",
+                    describe(&result)
+                ),
+            ))
+        }
+    };
+    let status = fields
+        .get("status")
+        .ok_or_else(|| malformed("result.status", "`status` is missing".to_owned()))?;
+    let allowed: &[&str] = match status.as_str() {
+        Some("selected") => &SELECTED_FIELDS,
+        Some("refused") => &REFUSED_FIELDS,
+        _ => {
+            return Err(malformed(
+                "result.status",
+                format!(
+                    "`status` must be \"selected\" or \"refused\", found {}",
+                    describe_value(status)
+                ),
+            ))
+        }
+    };
+    if let Some(unknown) = fields.keys().find(|key| !allowed.contains(&key.as_str())) {
+        return Err(malformed(
+            &format!("result.{unknown}"),
+            format!(
+                "unknown field `{unknown}`: a {} result has only {}, and a result cannot supply a \
+                 program or arguments",
+                status.as_str().unwrap_or_default(),
+                allowed.join(", ")
+            ),
+        ));
+    }
+    let text = |field: &str| {
+        let location = format!("result.{field}");
+        let value = fields
+            .get(field)
+            .ok_or_else(|| malformed(&location, format!("`{field}` is missing")))?;
+        let text = value.as_str().ok_or_else(|| {
+            malformed(
+                &location,
+                format!("`{field}` must be a string, found {}", describe(value)),
+            )
+        })?;
+        Ok::<_, Refusal>((text.to_owned(), location))
+    };
+    let nonblank = |field: &str| {
+        let (text, location) = text(field)?;
+        if text.trim().is_empty() {
+            return Err(malformed(&location, format!("`{field}` must not be blank")));
+        }
+        Ok(text)
+    };
+
+    if status == "refused" {
+        let (code, message, remedy) =
+            (nonblank("code")?, nonblank("message")?, nonblank("remedy")?);
+        let input = match choice {
+            Some(choice) => format!("--choice {choice}"),
+            None => format!("--kind {kind}"),
+        };
+        return Err(Refusal::new(
+            "policy_refused",
+            Stage::Selection,
+            EXIT_REFUSED,
+            format!("the policy {source} refused the selection: {message}"),
+            remedy,
+        )
+        .policy_code(code)
+        .input(input)
+        .source(source));
+    }
+
+    let (id, _) = text("candidateId")?;
+    let reason = nonblank("reason")?;
+    if let Some(choice) = choice.filter(|choice| *choice != id) {
+        return Err(refuse(
+            "explicit_choice_mismatch",
+            format!(
+                "--choice {choice:?} was given, and select in {source} selected {id:?} instead \
+                 (its reason: {reason})"
+            ),
+            format!(
+                "a policy accepts an explicit choice by selecting that same ID, or refuses it with \
+                 {{ status: \"refused\", code, message, remedy }}; harness-dispatch never runs \
+                 another candidate in its place. Omit --choice to let {source} choose"
+            ),
+            "result.candidateId",
+        )
+        .input(format!("--choice {choice}")));
+    }
+    let index = policy
+        .catalog
+        .iter()
+        .position(|candidate| candidate.id == id)
+        .ok_or_else(|| {
+            refuse(
+                "unknown_candidate",
+                format!("select in {source} selected {id:?}, which is not in its catalog"),
+                format!(
+                    "select a configured candidate ID ({}), or add {id:?} to the catalog; a \
+                     result names a candidate and cannot supply one",
+                    ids(policy)
+                ),
+                "result.candidateId",
+            )
+        })?;
+    Ok(Selection {
+        index,
+        reason,
+        by: SelectedBy::Select,
+    })
+}
+
+/// Whether a snapshot value is the marker for a JavaScript function.
+fn is_function(value: &Value) -> bool {
+    is_marker(value) && value["$harnessDispatch"] == "function"
 }
 
 fn is_marker(value: &Value) -> bool {
@@ -585,6 +837,257 @@ mod tests {
             ],
             "routes": {"impl": "a"},
         })
+    }
+
+    /// Select through a valid routes policy's own table.
+    fn select(
+        policy: &Policy,
+        kind: &str,
+        choice: Option<&str>,
+        source: &str,
+    ) -> Result<Selection, Refusal> {
+        let Form::Routes(routes) = &policy.form else {
+            panic!("a routes policy");
+        };
+        by_routes(policy, routes, kind, choice, source)
+    }
+
+    /// `valid()` with `select` in place of its routes, and a second candidate.
+    fn computing() -> Policy {
+        let mut policy = valid();
+        policy.as_object_mut().unwrap().remove("routes");
+        policy["select"] = json!({"$harnessDispatch": "function"});
+        policy["catalog"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"id": "b", "provider": "q", "model": "m", "effort": "e", "program": "x", "args": [{"slot": "prompt"}]}));
+        Validator::new("/p.ts").validate(&policy).unwrap()
+    }
+
+    fn judged(result: Value, choice: Option<&str>) -> Result<Selection, Refusal> {
+        computed(
+            &computing(),
+            Produced::Result(result),
+            "impl",
+            choice,
+            "/p.ts",
+        )
+    }
+
+    #[test]
+    fn a_select_policy_is_valid_only_with_a_function() {
+        assert!(matches!(computing().form, Form::Select));
+        let mut policy = valid();
+        policy.as_object_mut().unwrap().remove("routes");
+        for (select, found) in [
+            (json!("choose"), "found a string"),
+            (json!({"$harnessDispatch": "symbol"}), "found a symbol"),
+            (json!({}), "found an object"),
+        ] {
+            policy["select"] = select;
+            let refusal = Validator::new("/p.ts").validate(&policy).unwrap_err();
+            assert_eq!(refusal.code, "policy_invalid");
+            assert_eq!(refusal.location.as_deref(), Some("policy.select"));
+            assert!(refusal.message.contains(found), "{}", refusal.message);
+        }
+    }
+
+    #[test]
+    fn a_selected_result_names_a_catalog_candidate_with_a_reason() {
+        let selection = judged(
+            json!({"status": "selected", "candidateId": "b", "reason": "b fits"}),
+            None,
+        )
+        .unwrap();
+        assert_eq!(selection.index, 1);
+        assert_eq!(selection.reason, "b fits");
+        assert_eq!(selection.by, SelectedBy::Select);
+        // The same ID accepts an explicit choice.
+        let accepted = judged(
+            json!({"status": "selected", "candidateId": "b", "reason": "b fits"}),
+            Some("b"),
+        )
+        .unwrap();
+        assert_eq!(accepted.index, 1);
+    }
+
+    #[test]
+    fn every_malformed_result_names_where_it_is_wrong() {
+        let selected = |extra: Value| {
+            let mut result = json!({"status": "selected", "candidateId": "a", "reason": "r"});
+            for (key, value) in extra.as_object().unwrap() {
+                if value.is_null() {
+                    result.as_object_mut().unwrap().remove(key);
+                } else {
+                    result[key] = value.clone();
+                }
+            }
+            result
+        };
+        let cases = [
+            (json!("a"), "result", "found a string"),
+            (json!(["a"]), "result", "found an array"),
+            (
+                json!({"$harnessDispatch": "function"}),
+                "result",
+                "found a function",
+            ),
+            (
+                json!({"candidateId": "a", "reason": "r"}),
+                "result.status",
+                "missing",
+            ),
+            (
+                selected(json!({"status": "chosen"})),
+                "result.status",
+                "found \"chosen\"",
+            ),
+            (
+                selected(json!({"status": 1})),
+                "result.status",
+                "found a number",
+            ),
+            (
+                selected(json!({"reason": null})),
+                "result.reason",
+                "missing",
+            ),
+            (selected(json!({"reason": " \n"})), "result.reason", "blank"),
+            (
+                selected(json!({"reason": 7})),
+                "result.reason",
+                "found a number",
+            ),
+            (
+                selected(json!({"candidateId": null})),
+                "result.candidateId",
+                "missing",
+            ),
+            (
+                selected(json!({"candidateId": {"$harnessDispatch": "function"}})),
+                "result.candidateId",
+                "found a function",
+            ),
+            (
+                selected(json!({"args": ["--yolo"]})),
+                "result.args",
+                "cannot supply a program or arguments",
+            ),
+            (
+                selected(json!({"program": "/bin/sh"})),
+                "result.program",
+                "cannot supply",
+            ),
+            (
+                selected(json!({"code": "c"})),
+                "result.code",
+                "unknown field",
+            ),
+            (
+                json!({"status": "refused", "code": "c", "message": "m"}),
+                "result.remedy",
+                "missing",
+            ),
+            (
+                json!({"status": "refused", "code": "", "message": "m", "remedy": "r"}),
+                "result.code",
+                "blank",
+            ),
+            (
+                json!({"status": "refused", "code": "c", "message": "m", "remedy": "r", "candidateId": "a"}),
+                "result.candidateId",
+                "unknown field",
+            ),
+        ];
+        for (result, location, found) in cases {
+            let refusal = judged(result.clone(), None).unwrap_err();
+            assert_eq!(refusal.code, "selection_malformed", "{result}");
+            assert_eq!(refusal.location.as_deref(), Some(location), "{result}");
+            assert!(
+                refusal.message.contains(found),
+                "{result}: {}",
+                refusal.message
+            );
+            assert_eq!(refusal.source.as_deref(), Some("/p.ts"));
+        }
+    }
+
+    #[test]
+    fn each_other_failure_of_select_has_its_own_code() {
+        let policy = computing();
+        let refused = |produced| computed(&policy, produced, "impl", None, "/p.ts").unwrap_err();
+        let threw = refused(Produced::Threw {
+            name: "TypeError".into(),
+            message: "x is undefined".into(),
+        });
+        assert_eq!(threw.code, "selection_threw");
+        assert!(threw.message.contains("TypeError: x is undefined"));
+        assert_eq!(refused(Produced::Unsettled).code, "selection_unsettled");
+        let unserializable = refused(Produced::Unserializable {
+            name: "TypeError".into(),
+            message: "cyclic".into(),
+        });
+        assert_eq!(unserializable.code, "selection_malformed");
+        assert_eq!(
+            refused(Produced::Result(Value::Null)).code,
+            "selection_abstained"
+        );
+
+        let unknown = judged(
+            json!({"status": "selected", "candidateId": "z", "reason": "r"}),
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(unknown.code, "unknown_candidate");
+        assert_eq!(unknown.location.as_deref(), Some("result.candidateId"));
+        assert!(
+            unknown.remedy.contains(r#"("a", "b")"#),
+            "{}",
+            unknown.remedy
+        );
+    }
+
+    #[test]
+    fn with_a_choice_any_other_id_is_a_mismatch_known_or_not() {
+        for other in ["a", "z"] {
+            let refusal = judged(
+                json!({"status": "selected", "candidateId": other, "reason": "a safe fallback"}),
+                Some("b"),
+            )
+            .unwrap_err();
+            assert_eq!(refusal.code, "explicit_choice_mismatch", "{other}");
+            assert_eq!(refusal.input.as_deref(), Some("--choice b"));
+            assert!(
+                refusal.message.contains("a safe fallback"),
+                "{}",
+                refusal.message
+            );
+        }
+    }
+
+    #[test]
+    fn a_policys_refusal_keeps_its_code_beside_the_stable_one() {
+        let refusal = judged(
+            json!({"status": "refused", "code": "no_reviewer", "message": "nobody fits", "remedy": "declare one"}),
+            Some("b"),
+        )
+        .unwrap_err();
+        assert_eq!(refusal.code, "policy_refused");
+        assert_eq!(refusal.policy_code.as_deref(), Some("no_reviewer"));
+        assert_eq!(refusal.stage, Stage::Selection);
+        assert!(
+            refusal.message.ends_with("nobody fits"),
+            "{}",
+            refusal.message
+        );
+        assert_eq!(refusal.remedy, "declare one");
+        assert_eq!(refusal.input.as_deref(), Some("--choice b"));
+        let unchosen = judged(
+            json!({"status": "refused", "code": "c", "message": "m", "remedy": "r"}),
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(unchosen.input.as_deref(), Some("--kind impl"));
     }
 
     #[test]

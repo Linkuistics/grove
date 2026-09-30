@@ -81,7 +81,7 @@ pub fn launch(choice: &Choice) -> Value {
         "cwd": inputs.cwd.to_string_lossy(),
         "policy": policy,
         "selection": {
-            "form": "routes",
+            "form": choice.selected_by.form(),
             "selectedBy": choice.selected_by.as_str(),
             "explicitChoice": inputs.choice,
             "reason": choice.reason,
@@ -249,6 +249,7 @@ impl Export {
                 ),
             ),
             ("choice", field(&launch["selection"]["explicitChoice"])),
+            ("selected", field(&launch["selection"]["selectedBy"])),
             ("candidate", field(&candidate["id"])),
             ("provider", field(&candidate["provider"])),
             ("model", field(&candidate["model"])),

@@ -1,8 +1,9 @@
 //! The whole-selection deadline, through the command seam.
 //!
-//! A policy that holds evaluation, by spinning at import or by awaiting a
-//! promise that live work keeps pending, is stopped when the caller's bound
-//! runs out: the front exits 124, launches nothing and leaves no worker behind.
+//! A policy that holds evaluation, by spinning or by awaiting a promise that
+//! live work keeps pending, at import or inside its `select`, is stopped when
+//! the caller's bound runs out: the front exits 124, launches nothing and
+//! leaves no worker behind.
 //! Each hold records the worker's PID before it starts, so a test can show
 //! that evaluation began and that the process it began in is gone. Variants
 //! whose hold ends within the bound reach the fake harness, so no timeout case
@@ -32,10 +33,42 @@ enum Hold {
     Pending,
 }
 
-/// The routed policy, preceded by an import-time hold. `ends_after` ends the
+/// Where a policy holds evaluation.
+#[derive(Clone, Copy, Debug)]
+enum Place {
+    /// While its module loads, before the routed policy is exported.
+    Import,
+    /// Inside the `select` of a computed policy, which the front calls only
+    /// once it has accepted the policy the worker loaded.
+    Select,
+}
+
+/// A computed policy whose `select` runs `$HOLD`, then selects `deep`.
+const SELECTING: &str = r#"export const policy = {
+  schemaVersion: 1,
+  version: "seam-1",
+  catalog: [
+    { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
+  ],
+  async select() {
+    $HOLD
+    return { status: "selected", candidateId: "deep", reason: "the hold ended" };
+  },
+};
+"#;
+
+/// A policy that holds at `place`: the routed policy preceded by an
+/// import-time hold, or a computed one holding in `select`. Either way, the
+/// worker's PID is recorded just before the hold starts. `ends_after` ends the
 /// hold after that many milliseconds; without it, the hold never ends.
-/// `prelude` runs first, before the worker's PID is recorded.
-fn holding(pid_file: &Path, hold: Hold, ends_after: Option<u64>, prelude: &str) -> String {
+/// `prelude` runs first, at import.
+fn holding(
+    pid_file: &Path,
+    place: Place,
+    hold: Hold,
+    ends_after: Option<u64>,
+    prelude: &str,
+) -> String {
     let until = ends_after.map_or("Infinity".to_owned(), |ms| ms.to_string());
     let hold = match hold {
         Hold::Spin => format!("const until = Date.now() + {until};\nwhile (Date.now() < until) {{}}\n"),
@@ -47,10 +80,15 @@ fn holding(pid_file: &Path, hold: Hold, ends_after: Option<u64>, prelude: &str) 
              }});\n"
         ),
     };
-    format!(
-        "import {{ writeFileSync }} from \"node:fs\";\n{prelude}\nwriteFileSync({:?}, String(process.pid));\n{hold}{ROUTED}",
+    let hold = format!(
+        "writeFileSync({:?}, String(process.pid));\n{hold}",
         text(pid_file)
-    )
+    );
+    let policy = match place {
+        Place::Import => format!("{hold}{ROUTED}"),
+        Place::Select => SELECTING.replace("$HOLD", &hold),
+    };
+    format!("import {{ writeFileSync }} from \"node:fs\";\n{prelude}\n{policy}")
 }
 
 /// What a guarded invocation did, and how long it took.
@@ -134,12 +172,12 @@ const WATCHDOG: Duration = Duration::from_secs(20);
 /// its first line within one second.
 const BOUND_MS: u64 = 3000;
 
-/// A policy that holds forever, run as `command` under `BOUND_MS`.
-fn assert_stopped_at_the_deadline(command: &str, hold: Hold, prelude: &str) -> Value {
+/// A policy that holds forever at `place`, run as `command` under `BOUND_MS`.
+fn assert_stopped_at_the_deadline(command: &str, place: Place, hold: Hold, prelude: &str) -> Value {
     let bound = BOUND_MS.to_string();
     let sandbox = Sandbox::new();
     let pid_file = sandbox.root.join("worker-pid");
-    sandbox.personal_policy(&holding(&pid_file, hold, None, prelude));
+    sandbox.personal_policy(&holding(&pid_file, place, hold, None, prelude));
 
     let mut invocation = sandbox.command();
     invocation.args([
@@ -155,7 +193,7 @@ fn assert_stopped_at_the_deadline(command: &str, hold: Hold, prelude: &str) -> V
     let timed = guarded(&mut invocation, &pid_file, WATCHDOG);
     let refusal = timed.run.refusal(124);
 
-    let context = format!("{command} {hold:?}: {refusal}");
+    let context = format!("{command} {place:?} {hold:?}: {refusal}");
     assert_eq!(refusal["error"]["code"], "selection_timeout", "{context}");
     assert_eq!(refusal["error"]["stage"], "evaluation", "{context}");
     assert_eq!(
@@ -196,28 +234,49 @@ fn assert_stopped_at_the_deadline(command: &str, hold: Hold, prelude: &str) -> V
 #[test]
 fn a_policy_that_spins_at_import_is_stopped_at_the_deadline() {
     for command in ["inspect", "run"] {
-        assert_stopped_at_the_deadline(command, Hold::Spin, "");
+        assert_stopped_at_the_deadline(command, Place::Import, Hold::Spin, "");
     }
 }
 
 #[test]
 fn a_policy_awaiting_a_promise_that_live_work_keeps_pending_is_stopped_at_the_deadline() {
     for command in ["inspect", "run"] {
-        assert_stopped_at_the_deadline(command, Hold::Pending, "");
+        assert_stopped_at_the_deadline(command, Place::Import, Hold::Pending, "");
+    }
+}
+
+#[test]
+fn a_select_that_spins_is_stopped_at_the_deadline() {
+    for command in ["inspect", "run"] {
+        assert_stopped_at_the_deadline(command, Place::Select, Hold::Spin, "");
+    }
+}
+
+#[test]
+fn a_select_awaiting_a_promise_that_live_work_keeps_pending_is_stopped_at_the_deadline() {
+    for command in ["inspect", "run"] {
+        assert_stopped_at_the_deadline(command, Place::Select, Hold::Pending, "");
     }
 }
 
 #[test]
 fn a_hold_that_ends_within_the_bound_reaches_the_harness() {
-    // The positive control for both timeout fixtures: the same holds, ended
-    // after longer than the timeout cases' bound and well within this one.
-    // Each reaches the fake harness, so the fixtures do evaluate, and the
-    // bound is the caller's rather than a fixed one.
+    // The positive control for every timeout fixture: the same holds, at
+    // import and in select, ended after longer than the timeout cases' bound
+    // and well within this one. Each selects and reaches the fake harness, so
+    // the fixtures do evaluate, and the bound is the caller's rather than a
+    // fixed one.
     let held = BOUND_MS + 500;
-    for hold in [Hold::Spin, Hold::Pending] {
+    for (place, hold) in [
+        (Place::Import, Hold::Spin),
+        (Place::Import, Hold::Pending),
+        (Place::Select, Hold::Spin),
+        (Place::Select, Hold::Pending),
+    ] {
+        let hold_name = format!("{place:?} {hold:?}");
         let sandbox = Sandbox::new();
         let pid_file = sandbox.root.join("worker-pid");
-        sandbox.personal_policy(&holding(&pid_file, hold, Some(held), ""));
+        sandbox.personal_policy(&holding(&pid_file, place, hold, Some(held), ""));
 
         let mut invocation = sandbox.command();
         invocation.args([
@@ -228,21 +287,28 @@ fn a_hold_that_ends_within_the_bound_reaches_the_harness() {
             "the prompt",
             "--timeout-ms",
             "15000",
+            "--json",
         ]);
         let timed = guarded(&mut invocation, &pid_file, WATCHDOG);
 
         assert_eq!(
             timed.run.code,
             Some(0),
-            "{hold:?}\nstdout: {}\nstderr: {}",
+            "{hold_name}\nstdout: {}\nstderr: {}",
             timed.run.stdout,
             timed.run.stderr
         );
-        assert!(sandbox.harness_ran(), "{hold:?}: the harness never ran");
+        let notice: Value = serde_json::from_str(&timed.run.stderr).unwrap();
+        let selected_by = match place {
+            Place::Import => "route",
+            Place::Select => "select",
+        };
+        assert_eq!(notice["handoff"]["selectedBy"], selected_by, "{hold_name}");
+        assert!(sandbox.harness_ran(), "{hold_name}: the harness never ran");
         assert_eq!(sandbox.harness_args(), ["the prompt"]);
         assert!(
             timed.elapsed >= Duration::from_millis(held),
-            "{hold:?}: the hold ended early, after {:?}",
+            "{hold_name}: the hold ended early, after {:?}",
             timed.elapsed
         );
     }
@@ -256,6 +322,7 @@ fn a_worker_that_ignores_term_is_killed_after_at_most_a_second_of_grace() {
     for command in ["inspect", "run"] {
         let refusal = assert_stopped_at_the_deadline(
             command,
+            Place::Import,
             Hold::Spin,
             "process.on(\"SIGTERM\", () => {});",
         );
@@ -275,7 +342,13 @@ fn the_worker_is_offered_its_cleanup_grace_before_kill() {
         text(&marker)
     );
     let pid_file = sandbox.root.join("worker-pid");
-    sandbox.personal_policy(&holding(&pid_file, Hold::Pending, None, &prelude));
+    sandbox.personal_policy(&holding(
+        &pid_file,
+        Place::Import,
+        Hold::Pending,
+        None,
+        &prelude,
+    ));
 
     let mut invocation = sandbox.command();
     let bound = BOUND_MS.to_string();
@@ -300,12 +373,19 @@ fn a_worker_that_will_not_exit_after_its_result_is_killed_after_the_grace() {
     // The result arrives, and then an exit handler spins. The selection
     // stands, since it arrived within the bound, and the front does not wait
     // for the worker longer than the cleanup grace. The bound is generous:
-    // here it must not run out.
-    for command in ["inspect", "run"] {
+    // here it must not run out. A routes policy's worker exits once the front
+    // closes the channel, and a computed one's once it has sent its selection.
+    for (command, place) in [
+        ("inspect", Place::Import),
+        ("run", Place::Import),
+        ("inspect", Place::Select),
+        ("run", Place::Select),
+    ] {
         let sandbox = Sandbox::new();
         let pid_file = sandbox.root.join("worker-pid");
         sandbox.personal_policy(&holding(
             &pid_file,
+            place,
             Hold::Spin,
             Some(0),
             "process.on(\"exit\", () => { while (true) {} });",
@@ -326,16 +406,23 @@ fn a_worker_that_will_not_exit_after_its_result_is_killed_after_the_grace() {
         assert_eq!(
             timed.run.code,
             Some(0),
-            "{command}\nstdout: {}\nstderr: {}",
+            "{command} {place:?}\nstdout: {}\nstderr: {}",
             timed.run.stdout,
             timed.run.stderr
         );
-        assert_eq!(sandbox.harness_ran(), command == "run", "{command}");
+        assert_eq!(
+            sandbox.harness_ran(),
+            command == "run",
+            "{command} {place:?}"
+        );
         let pid = recorded_pid(&pid_file).unwrap();
-        assert!(!exists(pid), "{command}: worker {pid} survived the front");
+        assert!(
+            !exists(pid),
+            "{command} {place:?}: worker {pid} survived the front"
+        );
         assert!(
             timed.elapsed < Duration::from_secs(8),
-            "{command}: took {:?}",
+            "{command} {place:?}: took {:?}",
             timed.elapsed
         );
     }
@@ -434,6 +521,7 @@ fn a_timeout_in_text_mode_names_the_bound_and_keeps_the_policy_output() {
     let pid_file = sandbox.root.join("worker-pid");
     sandbox.personal_policy(&holding(
         &pid_file,
+        Place::Import,
         Hold::Pending,
         None,
         "console.log(\"loading the review table\");",

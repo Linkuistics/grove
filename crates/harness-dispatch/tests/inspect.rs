@@ -415,9 +415,9 @@ fn every_invalid_policy_shape_refuses_with_its_location() {
             "policy",
         ),
         (
-            "select is later",
-            policy(r#"schemaVersion: 1, version: "v", catalog: [$C], select: () => ({})"#),
-            "unsupported_form",
+            "select that is not a function",
+            policy(r#"schemaVersion: 1, version: "v", catalog: [$C], select: "deep""#),
+            "policy_invalid",
             "policy.select",
         ),
         (

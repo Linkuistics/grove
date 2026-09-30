@@ -38,6 +38,8 @@ README.md
 bin/grove
 bin/grove-llm
 bin/harness-dispatch
+libexec/harness-dispatch/examples/dynamic.d.ts
+libexec/harness-dispatch/examples/dynamic.ts
 libexec/harness-dispatch/examples/grove-static.d.ts
 libexec/harness-dispatch/examples/grove-static.ts
 libexec/harness-dispatch/examples/static.d.ts

@@ -11,7 +11,10 @@
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": true,
     "types": ["bun"],
-    "paths": { "harness-dispatch/sdk": ["./sdk/index.ts"] }
+    "paths": {
+      "harness-dispatch/sdk": ["./sdk/index.ts"],
+      "harness-dispatch/examples/*": ["./examples/*.ts"]
+    }
   },
   "include": ["src", "sdk", "examples"]
 }

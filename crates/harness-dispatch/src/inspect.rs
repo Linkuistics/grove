@@ -22,6 +22,7 @@ use crate::authority::{Authority, PERSONAL_DEFAULT};
 use crate::choice::{self, Choice};
 use crate::cli::InspectArgs;
 use crate::inputs::{PromptRequirement, PromptSource};
+use crate::policy::SelectedBy;
 use crate::refusal::{Diagnostics, Failure};
 use crate::run_id::RunId;
 use crate::worker::WorkerIdentity;
@@ -83,7 +84,7 @@ impl Report {
             "prompt": prompt,
             "policy": policy,
             "selection": {
-                "form": "routes",
+                "form": choice.selected_by.form(),
                 "selectedBy": choice.selected_by.as_str(),
                 "explicitChoice": choice.inputs.choice,
                 "candidateId": candidate.id,
@@ -141,16 +142,33 @@ impl Report {
             ("prompt", prompt),
             (
                 "choice",
-                inputs.choice.as_deref().map_or_else(
-                    || "none; the routes select by kind".to_owned(),
-                    |id| format!("--choice {}, which selected the candidate", shown(id)),
-                ),
+                match (inputs.choice.as_deref(), choice.selected_by) {
+                    (None, SelectedBy::Select) => "none; the policy's select chooses".to_owned(),
+                    (None, _) => "none; the routes select by kind".to_owned(),
+                    (Some(id), SelectedBy::Select) => {
+                        format!("--choice {}, which the policy's select accepted", shown(id))
+                    }
+                    (Some(id), _) => {
+                        format!("--choice {}, which selected the candidate", shown(id))
+                    }
+                },
             ),
             ("candidate", candidate.id.clone()),
             ("provider", candidate.provider.clone()),
             ("model", candidate.model.clone()),
             ("effort", candidate.effort.clone()),
-            ("reason", choice.reason.clone()),
+            (
+                "selected",
+                match choice.selected_by {
+                    SelectedBy::Route => "by the routes table (static)",
+                    SelectedBy::ExplicitChoice => {
+                        "by the explicit choice (static; the routes were not consulted)"
+                    }
+                    SelectedBy::Select => "by the policy's select (computed)",
+                }
+                .to_owned(),
+            ),
+            ("reason", shown(&choice.reason)),
             ("executable", choice.executable.to_text()),
             (
                 "bounds",

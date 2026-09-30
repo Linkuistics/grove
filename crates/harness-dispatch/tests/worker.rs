@@ -276,10 +276,11 @@ fn a_worker_that_breaks_the_protocol_refuses_with_exit_5() {
 }
 
 #[test]
-fn the_request_carries_the_task_inputs_and_explicit_choice_and_never_the_prompt() {
+fn the_request_carries_the_task_inputs_explicit_choice_and_limits_and_never_the_prompt() {
     // A fake worker with the real identity records the evaluate frame it is
     // sent, byte for byte, and exits; the front then refuses for want of a
-    // result. The frame is everything the worker ever learns from the front.
+    // result. The frame is everything the worker ever learns of the caller:
+    // the select frame that may follow it names no input at all.
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);
     let (front, prefix) = copied_front(&sandbox);
@@ -338,6 +339,7 @@ fn the_request_carries_the_task_inputs_and_explicit_choice_and_never_the_prompt(
                 "taskFile": text(&sandbox.cwd.join("tasks/t.md")),
                 "taskId": "T-7",
                 "explicitChoice": "deep",
+                "limits": { "selectionMs": 30_000 },
             })
         );
         for leak in ["prompt-token", "mandate.md", text(&prompt_file).as_str()] {

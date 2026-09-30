@@ -91,6 +91,9 @@ pub struct Details {
     pub source: Option<String>,
     /// Where inside `source` the problem is (`policy.catalog[1].provider`).
     pub location: Option<String>,
+    /// A policy's own code for a refusal it returned, reported beside the
+    /// stable `policy_refused` rather than in its place.
+    pub policy_code: Option<String>,
     /// The bound whose exhaustion this refusal reports.
     pub bound: Option<Bound>,
     /// The committed run a failure after the handoff commit belongs to.
@@ -159,6 +162,7 @@ impl Refusal {
             input: None,
             source: None,
             location: None,
+            policy_code: None,
             bound: None,
             run: None,
         }))
@@ -176,6 +180,11 @@ impl Refusal {
 
     pub fn location(mut self, location: impl Into<String>) -> Self {
         self.0.location = Some(location.into());
+        self
+    }
+
+    pub fn policy_code(mut self, code: impl Into<String>) -> Self {
+        self.0.policy_code = Some(code.into());
         self
     }
 
@@ -326,6 +335,7 @@ impl Failure {
             ("input", &refusal.input),
             ("source", &refusal.source),
             ("location", &refusal.location),
+            ("policyCode", &refusal.policy_code),
         ] {
             if let Some(value) = value {
                 error.insert(name.into(), value.clone().into());
@@ -370,6 +380,7 @@ impl Failure {
             ("input", &refusal.input),
             ("source", &refusal.source),
             ("location", &refusal.location),
+            ("policy code", &refusal.policy_code),
         ] {
             if let Some(value) = value {
                 let _ = writeln!(text, "  {label}: {value}");

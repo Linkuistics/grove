@@ -9,12 +9,19 @@
 //! before the worker learns which entry to evaluate: a worker from another build
 //! is never handed a policy.
 //!
+//! The conversation has two phases. The worker loads the entry and reports a
+//! snapshot of its policy, which the caller's judge validates while the worker
+//! waits. Only then may the judge ask the worker, once, to call the policy's
+//! `select`, and it judges what that produced against the snapshot it already
+//! holds. A judge that needs nothing more simply ends the conversation, and the
+//! worker exits (*Policy and joint choice*).
+//!
 //! The whole selection is bounded from the worker's start to its result, by the
 //! front's own clock (*Bounded context*, *Execution and authority*). A policy
-//! spinning at import, or awaiting work that never settles, cannot end itself,
-//! so the deadline relies on nothing the worker does: every channel read and
-//! write waits only for the time left, and at expiry the front stops and reaps
-//! the worker and refuses with exit 124.
+//! spinning at import or in `select`, or awaiting work that never settles,
+//! cannot end itself, so the deadline relies on nothing the worker does: every
+//! channel read and write, in either phase, waits only for the time left, and
+//! at expiry the front stops and reaps the worker and refuses with exit 124.
 
 use std::ffi::OsString;
 use std::fs;
@@ -82,17 +89,71 @@ pub enum Outcome {
     Policy(Value),
     /// The entry, or something it imports, failed to load.
     LoadFailed { name: String, message: String },
+    /// Loading awaited a promise that nothing was left to settle.
+    LoadUnsettled,
     /// The export is not a policy-shaped object at all.
     Invalid { location: String, message: String },
 }
 
+/// What the policy's `select` produced, as the worker reported it. Every value
+/// is data for the judge, abstention included.
 #[derive(Debug)]
-pub struct Evaluation {
+pub enum Produced {
+    /// The value it returned or resolved to, with `undefined` as `null`.
+    Result(Value),
+    /// What it threw, or the reason its promise rejected with.
+    Threw { name: String, message: String },
+    /// The value it produced cannot be serialized.
+    Unserializable { name: String, message: String },
+    /// Its promise was still pending when nothing was left to settle it.
+    Unsettled,
+}
+
+#[derive(Debug)]
+pub struct Evaluation<T> {
     pub worker: WorkerIdentity,
-    pub outcome: Outcome,
+    /// What the judge made of the worker's reports.
+    pub decided: T,
     pub diagnostics: Diagnostics,
-    /// From starting the worker to receiving its result.
+    /// From starting the worker to the judge's decision.
     pub elapsed: Duration,
+}
+
+/// The worker after it has reported on the entry, waiting to learn whether the
+/// judge needs a selection from it.
+pub struct Loaded<'a> {
+    channel: Bounded<'a>,
+    worker: &'a Path,
+}
+
+impl Loaded<'_> {
+    /// Ask the worker to call the policy's `select`, and wait, within what is
+    /// left of the deadline, for what it produced. It consumes the conversation,
+    /// so `select` is called at most once.
+    pub fn select(mut self) -> Result<Produced, Halt> {
+        write_frame(
+            &mut self.channel,
+            &json!({ "type": "select", "protocol": PROTOCOL }),
+        )
+        .map_err(|error| Halt(Conversation::failed(error, true)))?;
+        let frame = receive(&mut self.channel, self.worker, true).map_err(Halt)?;
+        produced(&frame).ok_or_else(|| {
+            Halt(broken(
+                self.worker,
+                format!("unexpected selection frame: {frame}"),
+            ))
+        })
+    }
+}
+
+/// Why a conversation stopped before the judge decided: a refusal of the
+/// judge's own, or the worker's failure to answer.
+pub struct Halt(Conversation);
+
+impl From<Refusal> for Halt {
+    fn from(refusal: Refusal) -> Self {
+        Halt(Conversation::Refused(refusal))
+    }
 }
 
 /// The worker beside the real front executable, following any symlinks to it.
@@ -167,14 +228,16 @@ fn normalize(path: &Path) -> PathBuf {
     normal
 }
 
-/// Start the worker, verify it, and have it evaluate `entry`, all within
-/// `bound`, which counts from the worker's start.
-pub fn evaluate(
+/// Start the worker, verify it, have it evaluate `entry`, and let `judge`
+/// decide on what it reports, asking it to select if the judge needs to, all
+/// within `bound`, which counts from the worker's start.
+pub fn evaluate<T>(
     worker: &Path,
     entry: &str,
     request: Value,
     bound: Bound,
-) -> Result<Evaluation, Failure> {
+    judge: impl FnOnce(Outcome, Loaded<'_>) -> Result<T, Halt>,
+) -> Result<Evaluation<T>, Failure> {
     let failed = |message: String| {
         Refusal::new(
             "worker_failed",
@@ -286,14 +349,17 @@ pub fn evaluate(
         channel: &front_end,
         deadline,
     };
-    let result = converse(channel, worker, entry, request, started);
+    let result = converse(channel, worker, entry, request, started, judge);
+    // The closed channel is the worker's signal that nothing more is asked.
     drop(front_end);
     let status = match &result {
-        // Its work is done, and it exits by itself unless the policy keeps it.
-        Ok(_) => stop(&mut child, None),
+        // Its work is done, or the judge refused what it reported: either way
+        // it exits by itself, flushing what the policy printed, unless the
+        // policy keeps it.
+        Ok(_) | Err(Conversation::Refused(_)) => stop(&mut child, None),
         // TERM first, so that a policy awaiting work can clean up.
         Err(Conversation::Expired { .. }) => stop(&mut child, Some(libc::SIGTERM)),
-        Err(_) => {
+        Err(Conversation::Broken(_) | Conversation::Ended(_)) => {
             let _ = child.kill();
             child.wait()
         }
@@ -306,13 +372,15 @@ pub fn evaluate(
     drop(private_dir);
 
     match result {
-        Ok((worker, outcome, elapsed)) => Ok(Evaluation {
+        Ok((worker, decided, elapsed)) => Ok(Evaluation {
             worker,
-            outcome,
+            decided,
             diagnostics,
             elapsed,
         }),
-        Err(Conversation::Refused(refusal)) => Err(Failure::with_diagnostics(refusal, diagnostics)),
+        Err(Conversation::Refused(refusal) | Conversation::Broken(refusal)) => {
+            Err(Failure::with_diagnostics(refusal, diagnostics))
+        }
         Err(Conversation::Expired { handed_over }) => Err(Failure::with_diagnostics(
             expired(worker, entry, bound, handed_over),
             diagnostics,
@@ -334,13 +402,14 @@ pub fn evaluate(
 }
 
 enum Conversation {
+    /// The judge refused what the worker reported.
     Refused(Refusal),
+    /// The worker broke the protocol, or is not this front's pair.
+    Broken(Refusal),
     /// The channel failed or closed: the worker died, or exited on its own.
     Ended(FrameError),
     /// The deadline passed first, after the entry was handed over or before.
-    Expired {
-        handed_over: bool,
-    },
+    Expired { handed_over: bool },
 }
 
 impl Conversation {
@@ -354,34 +423,16 @@ impl Conversation {
     }
 }
 
-fn converse(
+fn converse<T>(
     mut channel: Bounded<'_>,
     worker: &Path,
     entry: &str,
     request: Value,
     started: Instant,
-) -> Result<(WorkerIdentity, Outcome, Duration), Conversation> {
-    let protocol_error = |message: String| {
-        Conversation::Refused(
-            Refusal::new(
-                "protocol_error",
-                Stage::Worker,
-                EXIT_WORKER,
-                message,
-                REBUILD,
-            )
-            .source(worker.to_string_lossy()),
-        )
-    };
-    let receive = |channel: &mut Bounded<'_>, handed_over| match read_frame(channel) {
-        Err(error @ (FrameError::TooLarge(_) | FrameError::NotJson(_))) => Err(protocol_error(
-            format!("the policy worker sent a malformed frame: {error}"),
-        )),
-        other => other.map_err(|error| Conversation::failed(error, handed_over)),
-    };
-
-    let hello = receive(&mut channel, false)?;
-    let identity = verify_hello(&hello, worker).map_err(Conversation::Refused)?;
+    judge: impl FnOnce(Outcome, Loaded<'_>) -> Result<T, Halt>,
+) -> Result<(WorkerIdentity, T, Duration), Conversation> {
+    let hello = receive(&mut channel, worker, false)?;
+    let identity = verify_hello(&hello, worker).map_err(Conversation::Broken)?;
 
     write_frame(
         &mut channel,
@@ -396,24 +447,91 @@ fn converse(
     )
     .map_err(|error| Conversation::failed(error, false))?;
 
-    let result = receive(&mut channel, true)?;
-    let elapsed = started.elapsed();
-    let text = |field: &str| result.get(field).and_then(Value::as_str).map(str::to_owned);
-    let outcome = match (text("type").as_deref(), text("stage").as_deref()) {
-        (Some("policy"), _) => result.get("policy").cloned().map(Outcome::Policy),
-        (Some("failure"), Some("load")) => text("message").map(|message| Outcome::LoadFailed {
-            name: text("name").unwrap_or_else(|| "Error".to_owned()),
+    let reported = receive(&mut channel, worker, true)?;
+    let outcome = outcome(&reported)
+        .ok_or_else(|| broken(worker, format!("unexpected result frame: {reported}")))?;
+    let decided = judge(outcome, Loaded { channel, worker }).map_err(|Halt(halted)| halted)?;
+    Ok((identity, decided, started.elapsed()))
+}
+
+/// The next frame, or why there is none: a malformed frame is the worker
+/// breaking the protocol, and anything else ends the conversation or its time.
+fn receive(
+    channel: &mut Bounded<'_>,
+    worker: &Path,
+    handed_over: bool,
+) -> Result<Value, Conversation> {
+    match read_frame(channel) {
+        Err(error @ (FrameError::TooLarge(_) | FrameError::NotJson(_))) => Err(broken(
+            worker,
+            format!("the policy worker sent a malformed frame: {error}"),
+        )),
+        other => other.map_err(|error| Conversation::failed(error, handed_over)),
+    }
+}
+
+fn broken(worker: &Path, message: String) -> Conversation {
+    Conversation::Broken(
+        Refusal::new(
+            "protocol_error",
+            Stage::Worker,
+            EXIT_WORKER,
             message,
-        }),
-        (Some("failure"), Some("validation")) => text("message").map(|message| Outcome::Invalid {
-            location: text("location").unwrap_or_else(|| "policy".to_owned()),
-            message,
+            REBUILD,
+        )
+        .source(worker.to_string_lossy()),
+    )
+}
+
+/// A frame's string field.
+fn text(frame: &Value, field: &str) -> Option<String> {
+    frame.get(field).and_then(Value::as_str).map(str::to_owned)
+}
+
+/// The worker's report on the entry, if the frame is one.
+fn outcome(frame: &Value) -> Option<Outcome> {
+    let unsettled = frame.get("unsettled") == Some(&Value::Bool(true));
+    match (
+        text(frame, "type").as_deref(),
+        text(frame, "stage").as_deref(),
+    ) {
+        (Some("policy"), _) => frame.get("policy").cloned().map(Outcome::Policy),
+        (Some("failure"), Some("load")) if unsettled => Some(Outcome::LoadUnsettled),
+        (Some("failure"), Some("load")) => {
+            text(frame, "message").map(|message| Outcome::LoadFailed {
+                name: text(frame, "name").unwrap_or_else(|| "Error".to_owned()),
+                message,
+            })
+        }
+        (Some("failure"), Some("validation")) => {
+            text(frame, "message").map(|message| Outcome::Invalid {
+                location: text(frame, "location").unwrap_or_else(|| "policy".to_owned()),
+                message,
+            })
+        }
+        _ => None,
+    }
+}
+
+/// The worker's report on `select`, if the frame is one.
+fn produced(frame: &Value) -> Option<Produced> {
+    let flag = |field: &str| frame.get(field) == Some(&Value::Bool(true));
+    match (
+        text(frame, "type").as_deref(),
+        text(frame, "stage").as_deref(),
+    ) {
+        (Some("selection"), _) => frame.get("result").cloned().map(Produced::Result),
+        (Some("failure"), Some("select")) if flag("unsettled") => Some(Produced::Unsettled),
+        (Some("failure"), Some("select")) => text(frame, "message").map(|message| {
+            let name = text(frame, "name").unwrap_or_else(|| "Error".to_owned());
+            if flag("unserializable") {
+                Produced::Unserializable { name, message }
+            } else {
+                Produced::Threw { name, message }
+            }
         }),
         _ => None,
-    };
-    let outcome =
-        outcome.ok_or_else(|| protocol_error(format!("unexpected result frame: {result}")))?;
-    Ok((identity, outcome, elapsed))
+    }
 }
 
 /// The refusal when the deadline passes: after the entry was handed over, the
@@ -486,6 +604,7 @@ fn stop(child: &mut Child, signal: Option<libc::c_int>) -> io::Result<ExitStatus
 
 /// The protocol channel with the deadline applied: each read or write waits
 /// only for the time left, and once none is left it fails with `TimedOut`.
+#[derive(Clone, Copy)]
 struct Bounded<'a> {
     channel: &'a UnixStream,
     deadline: Instant,

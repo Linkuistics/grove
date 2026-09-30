@@ -1,7 +1,6 @@
-//! The static starter examples, through the command seam: each is imported
-//! from a temporary personal policy by its embedded
-//! `harness-dispatch/examples/…` specifier and selects through the compiled
-//! worker (`docs/specs/harness-selection-and-execution.md`, *Policy and joint
+//! The starter examples, through the command seam: each is imported from a
+//! temporary personal policy by its embedded `harness-dispatch/examples/…`
+//! specifier and selects through the compiled worker (`docs/specs/harness-selection-and-execution.md`, *Policy and joint
 //! choice*, *Policy authority and runtime discovery*). No node_modules exists
 //! near any sandbox, so only the worker's registered modules can satisfy these
 //! imports.
@@ -120,6 +119,111 @@ fn the_generic_example_routes_its_own_kinds_without_grove() {
             "fix the parser"
         ]
     );
+}
+
+#[test]
+fn the_dynamic_example_consults_the_static_routes_and_polices_explicit_choices() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy("export { policy } from \"harness-dispatch/examples/dynamic\";\n");
+    wrappers(&sandbox, &["my-agent-wrapper"]);
+    let inspect = |kind: &str, choice: Option<&str>| {
+        let mut args = vec!["--kind", kind, "--json"];
+        if let Some(choice) = choice {
+            args.extend(["--choice", choice]);
+        }
+        sandbox.inspect(&args)
+    };
+
+    // Without a choice, the route applies, and the reason names its entry.
+    let report = inspect("bugfix", None).report();
+    assert_eq!(
+        report["policy"]["version"],
+        "harness-dispatch/examples/dynamic 1"
+    );
+    let selection = &report["selection"];
+    assert_eq!(selection["form"], "select");
+    assert_eq!(selection["selectedBy"], "select");
+    assert_eq!(selection["candidateId"], "standard");
+    assert_eq!(selection["effort"], "medium");
+    assert_eq!(
+        selection["reason"],
+        r#"routes["bugfix"] names candidate "standard""#
+    );
+
+    // A choice at or above the route's effort is accepted, and one below it
+    // is refused in the policy's own words.
+    for accepted in ["standard", "careful", "deliberate"] {
+        let report = inspect("bugfix", Some(accepted)).report();
+        assert_eq!(report["selection"]["candidateId"], accepted);
+        assert_eq!(report["selection"]["explicitChoice"], accepted);
+        let reason = report["selection"]["reason"].as_str().unwrap();
+        assert!(reason.contains("is accepted"), "{accepted}: {reason}");
+    }
+    let refusal = inspect("bugfix", Some("quick")).refusal(3);
+    assert_eq!(refusal["error"]["code"], "policy_refused");
+    assert_eq!(refusal["error"]["policyCode"], "effort_below_route");
+    assert_eq!(refusal["error"]["input"], "--choice quick");
+    assert!(
+        refusal["error"]["remedy"]
+            .as_str()
+            .unwrap()
+            .contains("\"standard\""),
+        "{refusal}"
+    );
+
+    // A kind with no route refuses without a choice, and sets no floor with one.
+    let refusal = inspect("release-notes", None).refusal(3);
+    assert_eq!(refusal["error"]["code"], "policy_refused");
+    assert_eq!(refusal["error"]["policyCode"], "incomplete_mapping");
+    let report = inspect("release-notes", Some("quick")).report();
+    assert_eq!(report["selection"]["candidateId"], "quick");
+
+    // It is deterministic: the same request, the same result.
+    assert_eq!(
+        inspect("migration", None).report()["selection"],
+        inspect("migration", None).report()["selection"]
+    );
+
+    // And it runs: the wrapper receives the chosen candidate's model and effort.
+    executable(&sandbox.bin.join("my-agent-wrapper"), support::FAKE_HARNESS);
+    let run = sandbox.run(&[
+        "--kind",
+        "feature",
+        "--choice",
+        "deliberate",
+        "--prompt",
+        "p",
+    ]);
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert_eq!(
+        sandbox.harness_args(),
+        ["--model", "your-model", "--effort", "xhigh", "p"]
+    );
+}
+
+#[test]
+fn the_dynamic_example_ships_its_declarations_and_readable_source() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(support::ROUTED);
+    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    let worker = PathBuf::from(report["worker"]["path"].as_str().unwrap());
+    let examples = worker.parent().unwrap().join("examples");
+
+    let shipped = fs::read_to_string(examples.join("dynamic.ts")).unwrap();
+    assert_eq!(shipped, include_str!("../worker/examples/dynamic.ts"));
+    let declarations = fs::read_to_string(examples.join("dynamic.d.ts")).unwrap();
+    for export in [
+        "export declare function select(request: SelectionRequest): SelectionResult;",
+        "export declare const policy:",
+    ] {
+        assert!(
+            declarations.contains(export),
+            "dynamic.d.ts lacks {export:?}"
+        );
+    }
+    // It builds on the static example's routes by that example's specifier,
+    // as an owner's copy of it would.
+    assert!(shipped.contains(r#"from "harness-dispatch/examples/static""#));
 }
 
 #[test]

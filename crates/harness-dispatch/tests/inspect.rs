@@ -1,6 +1,6 @@
 //! `inspect` of a static routes policy through the command seam: selection,
-//! both report forms, policy validation and load failures, and the explicit
-//! refusal of forms later increments own.
+//! argv expansion, both report forms, policy validation and load failures, and
+//! the explicit refusal of forms later increments own.
 
 mod support;
 
@@ -37,8 +37,69 @@ fn inspection_reports_the_routed_candidate_and_its_evidence_in_json() {
         env!("CARGO_PKG_VERSION")
     );
     assert_eq!(report["worker"]["bunVersion"], "1.4.2");
-    // Expansion arrives with `run`; until then no argv, not a placeholder.
-    assert!(report.get("argv").is_none() && selection.get("argv").is_none());
+    assert_eq!(report["taskFile"], Value::Null);
+    assert_eq!(report["taskId"], Value::Null);
+    assert_eq!(report["prompt"], serde_json::json!({ "supplied": false }));
+    let executable = &report["executable"];
+    assert_eq!(executable["program"], "fake-harness");
+    assert_eq!(executable["resolvedBy"], "PATH");
+    assert_eq!(executable["pathEntry"], text(&sandbox.bin));
+    assert_eq!(executable["path"], text(&sandbox.bin.join("fake-harness")));
+    // Without a prompt the prompt's argument is a marked placeholder, never a
+    // string that could pass for one.
+    assert_eq!(
+        report["argv"],
+        serde_json::json!(["fake-harness", { "placeholder": "prompt" }])
+    );
+}
+
+#[test]
+fn inspection_shows_the_unchanged_prompt_and_every_expanded_slot() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(
+        r#"export const policy = { schemaVersion: 1, version: "v", catalog: [
+  { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness",
+    args: ["--kind", { slot: "kind" }, { slot: "taskFile" }, { slot: "taskId" }, { slot: "model" }, { slot: "effort" }, "{prompt}", { slot: "prompt" }] },
+], routes: { impl: "deep" } };
+"#,
+    );
+    let prompt = "Say \"hi\";\nthen stop.\n\n";
+
+    let report = sandbox
+        .inspect(&[
+            "--kind",
+            "impl",
+            "--prompt",
+            prompt,
+            "--task-file",
+            "leaf.md",
+            "--task-id",
+            "T 1",
+            "--json",
+        ])
+        .report();
+
+    let task_file = text(&sandbox.cwd.join("leaf.md"));
+    assert_eq!(report["taskFile"], task_file.as_str());
+    assert_eq!(report["taskId"], "T 1");
+    assert_eq!(
+        report["prompt"],
+        serde_json::json!({ "supplied": true, "from": "--prompt", "bytes": prompt.len() })
+    );
+    assert_eq!(
+        report["argv"],
+        serde_json::json!([
+            "fake-harness",
+            "--kind",
+            "impl",
+            task_file,
+            "T 1",
+            "model-large",
+            "high",
+            "{prompt}",
+            prompt,
+        ])
+    );
 }
 
 #[test]
@@ -68,7 +129,42 @@ fn inspection_reports_the_same_facts_as_human_text() {
             run.stdout
         );
     }
-    assert!(!run.stdout.contains("argv"), "{}", run.stdout);
+    assert!(
+        run.stdout.contains(&format!(
+            "executable {} (found on PATH in {})",
+            text(&sandbox.bin.join("fake-harness")),
+            text(&sandbox.bin)
+        )),
+        "{}",
+        run.stdout
+    );
+    assert!(
+        run.stdout.contains("prompt     not supplied"),
+        "{}",
+        run.stdout
+    );
+    assert!(
+        run.stdout.contains("  argv       [0] \"fake-harness\"\n")
+            && run.stdout.contains(
+                "             [1] <prompt placeholder: no --prompt or --prompt-file given>\n"
+            ),
+        "{}",
+        run.stdout
+    );
+
+    // A supplied prompt appears quoted and escaped, whole.
+    let run = sandbox.inspect(&["--kind", "impl", "--prompt", "two\nlines \"quoted\""]);
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert!(
+        run.stdout.contains(r#"[1] "two\nlines \"quoted\"""#),
+        "{}",
+        run.stdout
+    );
+    assert!(
+        run.stdout.contains("prompt     18 bytes from --prompt"),
+        "{}",
+        run.stdout
+    );
 }
 
 #[test]
@@ -114,7 +210,7 @@ fn an_unrouted_kind_refuses_as_an_incomplete_mapping_without_a_default() {
     assert!(run.stderr.contains("  remedy: "), "{}", run.stderr);
 }
 
-const CANDIDATE: &str = r#"{ id: "deep", provider: "origin-a", model: "m", effort: "high", program: "fake", args: [{ slot: "prompt" }] }"#;
+const CANDIDATE: &str = r#"{ id: "deep", provider: "origin-a", model: "m", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] }"#;
 
 fn policy(fields: &str) -> String {
     format!(
@@ -216,6 +312,30 @@ fn every_invalid_policy_shape_refuses_with_its_location() {
             ),
             "policy_invalid",
             "policy.catalog[0].args[0].slot",
+        ),
+        (
+            "no prompt slot",
+            with(
+                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: ["x"] }"#,
+            ),
+            "policy_invalid",
+            "policy.catalog[0].args",
+        ),
+        (
+            "two prompt slots",
+            with(
+                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: [{ slot: "prompt" }, { slot: "prompt" }] }"#,
+            ),
+            "policy_invalid",
+            "policy.catalog[0].args",
+        ),
+        (
+            "runId is later",
+            with(
+                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: [{ slot: "prompt" }, { slot: "runId" }] }"#,
+            ),
+            "unsupported_form",
+            "policy.catalog[0].args[1].slot",
         ),
         (
             "numeric argument",
@@ -450,10 +570,6 @@ fn forms_later_increments_own_are_refused_by_name() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);
     for flag in [
-        "--prompt",
-        "--prompt-file",
-        "--task-file",
-        "--task-id",
         "--context",
         "--choice",
         "--policy-env",
@@ -467,13 +583,18 @@ fn forms_later_increments_own_are_refused_by_name() {
         assert_eq!(refusal["error"]["code"], "unsupported_input", "{flag}");
         assert_eq!(refusal["error"]["input"], flag, "{flag}");
     }
-    for command in ["run", "record"] {
-        let mut invocation = sandbox.command();
-        invocation.args([command, "--kind", "impl", "--json"]);
-        let refusal = support::run(&mut invocation).refusal(2);
-        assert_eq!(refusal["error"]["code"], "unsupported_input", "{command}");
-        assert_eq!(refusal["error"]["input"], command);
-    }
+    let refusal = sandbox
+        .run(&[
+            "--kind", "impl", "--prompt", "p", "--choice", "deep", "--json",
+        ])
+        .refusal(2);
+    assert_eq!(refusal["error"]["input"], "--choice");
+    assert!(!sandbox.harness_ran());
+    let mut invocation = sandbox.command();
+    invocation.args(["record", "--kind", "impl", "--json"]);
+    let refusal = support::run(&mut invocation).refusal(2);
+    assert_eq!(refusal["error"]["code"], "unsupported_input");
+    assert_eq!(refusal["error"]["input"], "record");
 }
 
 #[test]
@@ -502,12 +623,21 @@ fn help_lists_only_the_forms_this_release_delivers() {
     let sandbox = Sandbox::new();
     let run = sandbox.inspect(&["--help"]);
     assert_eq!(run.code, Some(0));
-    assert!(
-        run.stdout.contains("--kind") && run.stdout.contains("--config"),
-        "{}",
-        run.stdout
-    );
-    for later in ["--prompt", "--choice", "--context", "--state-dir"] {
+    for delivered in [
+        "--kind",
+        "--config",
+        "--prompt",
+        "--prompt-file",
+        "--task-file",
+        "--task-id",
+    ] {
+        assert!(
+            run.stdout.contains(delivered),
+            "help omits {delivered}:\n{}",
+            run.stdout
+        );
+    }
+    for later in ["--choice", "--context", "--state-dir", "--policy-env"] {
         assert!(
             !run.stdout.contains(later),
             "help advertises {later}:\n{}",

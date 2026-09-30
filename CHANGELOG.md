@@ -68,8 +68,13 @@ stood at the graft — a closed record, not part of the versioned sequence above
   by a private Bun-compiled worker that is verified before it sees any policy,
   and it imports its types from the embedded `harness-dispatch/sdk`. Invalid
   policies, unrouted kinds and failed imports refuse with a stable code, a
-  location and a remedy. Build and install it from a checkout with
-  `task dispatch:install`; release archives do not carry it yet.
+  location and a remedy. Inspection also takes the prompt (`--prompt` or
+  `--prompt-file`), `--task-file` and `--task-id`, fills the chosen candidate's
+  whole-argument slots without a shell, resolves its program as the shell
+  would, and shows the exact argv the harness would receive. A slot with no
+  input, a missing program (exit 127) or an unexecutable one (exit 126) refuses
+  instead. Build and install it from a checkout with `task dispatch:install`;
+  release archives do not carry it yet.
 - Repository checks: `scripts/check.sh` now builds and type-checks the
   harness-dispatch worker, so it and `scripts/release-doctor.sh` require
   Bun 1.4.2.

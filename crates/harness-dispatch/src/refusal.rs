@@ -11,10 +11,12 @@ use std::fmt::Write as _;
 
 use serde_json::{json, Map, Value};
 
-/// Exit results before exec. Later increments add 4, 124, 126 and 127.
+/// Exit results before exec. Later increments add 4 and 124.
 pub const EXIT_MALFORMED: u8 = 2;
 pub const EXIT_REFUSED: u8 = 3;
 pub const EXIT_WORKER: u8 = 5;
+pub const EXIT_UNEXECUTABLE: u8 = 126;
+pub const EXIT_NOT_FOUND: u8 = 127;
 
 /// Where in the invocation a refusal arose. The names are part of the JSON
 /// contract, so they are stable strings rather than `Debug` output.
@@ -32,6 +34,12 @@ pub enum Stage {
     Validation,
     /// Choosing a candidate from a valid policy.
     Selection,
+    /// Filling the selected candidate's argument slots.
+    Expansion,
+    /// Finding the selected candidate's program.
+    Resolution,
+    /// Replacing this process with the harness.
+    Exec,
 }
 
 impl Stage {
@@ -43,6 +51,9 @@ impl Stage {
             Stage::Load => "load",
             Stage::Validation => "validation",
             Stage::Selection => "selection",
+            Stage::Expansion => "expansion",
+            Stage::Resolution => "resolution",
+            Stage::Exec => "exec",
         }
     }
 }

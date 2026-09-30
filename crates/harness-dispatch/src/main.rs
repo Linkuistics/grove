@@ -1,23 +1,28 @@
-//! `harness-dispatch` — evaluate an owner's harness-selection policy and report,
-//! and later dispatch, the joint harness/model/effort choice it makes.
+//! `harness-dispatch` — evaluate an owner's harness-selection policy, then report
+//! or run the joint harness/model/effort choice it makes.
 //!
 //! The contract is `docs/specs/harness-selection-and-execution.md`. This entry
 //! point parses the command line, runs the command, and renders its result or
 //! refusal; the modules own everything else.
 
+mod argv;
 mod authority;
+mod choice;
 mod cli;
 mod frame;
+mod inputs;
 mod inspect;
 mod policy;
+mod program;
 mod refusal;
+mod run;
 mod worker;
 
 use std::ffi::OsString;
 use std::io::Write as _;
 use std::process::ExitCode;
 
-use clap::error::ErrorKind;
+use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::Parser as _;
 
 use crate::cli::{Cli, Command};
@@ -45,7 +50,7 @@ fn main() -> ExitCode {
                 print!("{}", report.to_text());
             }
         }),
-        Command::Run(_) => Err(cli::unsupported("`run`", "run").into()),
+        Command::Run(args) => Err(run::run(args)),
         Command::Record(_) => Err(cli::unsupported("`record`", "record").into()),
     };
     match result {
@@ -74,13 +79,23 @@ fn parse_failure(error: &clap::Error, json: bool) -> ExitCode {
         .map(str::trim)
         .collect::<Vec<_>>()
         .join(" ");
-    let refusal = Refusal::new(
+    let mut refusal = Refusal::new(
         "malformed_input",
         Stage::Cli,
         EXIT_MALFORMED,
         message.trim_start_matches("error: "),
-        "run harness-dispatch inspect --help for the accepted inputs",
+        "run harness-dispatch inspect --help or harness-dispatch run --help for the accepted inputs",
     );
+    // Clap names the argument as it renders it in usage (`--task-file <PATH>`);
+    // the refusal's input is the flag alone.
+    let argument = match error.get(ContextKind::InvalidArg) {
+        Some(ContextValue::String(argument)) => Some(argument),
+        Some(ContextValue::Strings(arguments)) => arguments.first(),
+        _ => None,
+    };
+    if let Some(flag) = argument.and_then(|argument| argument.split(' ').next()) {
+        refusal = refusal.input(flag);
+    }
     report_failure(&refusal.into(), true)
 }
 

@@ -8,11 +8,10 @@
 mod support;
 
 use std::fs;
-use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 
 use serde_json::json;
-use support::{run, text, Sandbox, FRONT, ROUTED};
+use support::{executable, run, text, Sandbox, FRONT, ROUTED};
 
 const LAYOUT: &str = "libexec/harness-dispatch/harness-dispatch-policy";
 
@@ -23,11 +22,6 @@ fn copied_front(sandbox: &Sandbox) -> (PathBuf, PathBuf) {
     fs::create_dir_all(front.parent().unwrap()).unwrap();
     fs::copy(FRONT, &front).unwrap();
     (front, prefix)
-}
-
-fn executable(path: &Path, script: &str) {
-    support::write(path, script);
-    fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
 }
 
 /// A shell script that records it ran; it speaks no protocol.
@@ -211,4 +205,67 @@ fn a_worker_that_breaks_the_protocol_refuses_with_exit_5() {
             .contains("worker crashed"),
         "{refusal}"
     );
+}
+
+#[test]
+fn the_request_carries_the_task_inputs_and_never_the_prompt() {
+    // A fake worker with the real identity records the evaluate frame it is
+    // sent, byte for byte, and exits; the front then refuses for want of a
+    // result. The frame is everything the worker ever learns from the front.
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(ROUTED);
+    let (front, prefix) = copied_front(&sandbox);
+    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    let hello = json!({
+        "type": "hello", "protocol": 1, "packageVersion": env!("CARGO_PKG_VERSION"),
+        "buildId": report["worker"]["buildId"], "bunVersion": "1.4.2",
+    });
+    let body = serde_json::to_vec(&hello).unwrap();
+    let mut frame = u32::try_from(body.len()).unwrap().to_be_bytes().to_vec();
+    frame.extend(body);
+    let hello_file = sandbox.root.join("hello-frame");
+    fs::write(&hello_file, frame).unwrap();
+    let request_file = sandbox.root.join("request.json");
+    executable(
+        &prefix.join(LAYOUT),
+        &format!(
+            "#!/bin/sh\n/bin/cat '{hello}' >&3\n\
+             set -- $(dd bs=1 count=4 <&3 2>/dev/null | od -An -tu1)\n\
+             dd bs=1 count=$(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 )) <&3 2>/dev/null > '{request}'\n",
+            hello = text(&hello_file),
+            request = text(&request_file),
+        ),
+    );
+    let prompt_file = sandbox.file("mandate.md", "file-prompt-token\n");
+
+    for prompt in [
+        ["--prompt", "argument-prompt-token"],
+        ["--prompt-file", "mandate.md"],
+    ] {
+        let _ = fs::remove_file(&request_file);
+        let mut command = sandbox.command_for(&front);
+        command
+            .args(["inspect", "--kind", "impl", "--json"])
+            .args(["--task-file", "tasks/t.md", "--task-id", "T-7"])
+            .args(prompt);
+        let refusal = run(&mut command).refusal(5);
+        assert_eq!(refusal["error"]["code"], "worker_failed", "{refusal}");
+
+        let raw = fs::read_to_string(&request_file).expect("the fake worker saw a request");
+        let message: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(message["type"], "evaluate");
+        assert_eq!(
+            message["request"],
+            json!({
+                "schemaVersion": 1,
+                "kind": "impl",
+                "cwd": text(&sandbox.cwd),
+                "taskFile": text(&sandbox.cwd.join("tasks/t.md")),
+                "taskId": "T-7",
+            })
+        );
+        for leak in ["prompt-token", "mandate.md", text(&prompt_file).as_str()] {
+            assert!(!raw.contains(leak), "{leak} reached the worker: {raw}");
+        }
+    }
 }

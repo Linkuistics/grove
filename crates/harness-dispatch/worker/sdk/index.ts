@@ -15,6 +15,11 @@
 /**
  * The caller inputs one argument of a candidate's argument array can name.
  * A slot fills one whole argument; nothing is interpolated into a literal.
+ *
+ * Every candidate uses `prompt` exactly once. A slot whose optional input the
+ * caller did not supply (`taskFile`, `taskId`) refuses the invocation rather
+ * than filling the argument with nothing. This release refuses `runId`, which
+ * arrives with the run record.
  */
 export type Slot = "prompt" | "kind" | "taskFile" | "taskId" | "model" | "effort" | "runId";
 
@@ -42,9 +47,13 @@ export interface Candidate {
   readonly model: string;
   /** Nonempty reasoning-effort string, as the owner's harness understands it. */
   readonly effort: string;
-  /** An absolute path, a PATH name, or a relative path containing a separator. */
+  /**
+   * An absolute path, a name looked up in the caller's PATH, or a relative
+   * path containing a separator, resolved against the caller's cwd. It is also
+   * the harness's argv[0].
+   */
   readonly program: string;
-  /** The command's arguments after `program`. */
+  /** The command's arguments after `program`, with `prompt` exactly once. */
   readonly args: readonly Argument[];
 }
 

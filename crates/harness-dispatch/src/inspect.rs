@@ -2,10 +2,10 @@
 //! nothing (`docs/specs/harness-selection-and-execution.md`, *Command interface*).
 //!
 //! Inspection is a proposal. It is not a launch reservation, and evaluating
-//! trusted TypeScript is not promised to be free of side effects. The report
-//! states the facts in both forms: human text, and one version-1 JSON object on
-//! stdout. Argument expansion arrives with `run`; until then the report shows
-//! no argv at all rather than a placeholder that would imply expansion ran.
+//! trusted TypeScript is not promised to be free of side effects. It makes the
+//! same choice `run` would, including argv expansion and program resolution,
+//! and reports it in both forms: human text, and one version-1 JSON object on
+//! stdout. Without a prompt, the prompt's argument is a marked placeholder.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -13,115 +13,29 @@ use std::time::Duration;
 
 use serde_json::{json, Map, Value};
 
-use crate::authority::{self, Authority, PolicyEntry, PERSONAL_DEFAULT};
+use crate::authority::{Authority, PERSONAL_DEFAULT};
+use crate::choice::{self, Choice};
 use crate::cli::InspectArgs;
-use crate::policy::{self, Candidate, Validator};
-use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED};
-use crate::worker::{self, Outcome, WorkerIdentity};
+use crate::inputs::{PromptRequirement, PromptSource};
+use crate::refusal::{Diagnostics, Failure};
+use crate::worker::WorkerIdentity;
 
-pub struct Report {
-    kind: String,
-    entry: PolicyEntry,
-    version: String,
-    candidate: Candidate,
-    reason: String,
-    elapsed: Duration,
-    worker: WorkerIdentity,
-    diagnostics: Diagnostics,
-}
+pub struct Report(Choice);
 
 pub fn inspect(args: &InspectArgs) -> Result<Report, Failure> {
-    args.refuse_unsupported()?;
-    let cwd = std::env::current_dir().map_err(|error| {
-        Refusal::new(
-            "cwd_unavailable",
-            Stage::Authority,
-            EXIT_REFUSED,
-            format!("the current directory cannot be read: {error}"),
-            "run harness-dispatch from an existing, readable directory",
-        )
-    })?;
-    let home = std::env::var_os("HOME");
-    let entry = authority::resolve(args.config.as_deref(), &cwd, home.as_deref())?;
-    let source = entry.display();
-
-    let worker_path = worker::locate()?;
-    let request = json!({
-        "schemaVersion": 1,
-        "kind": args.kind,
-        "cwd": cwd.to_string_lossy(),
-    });
-    let evaluation = worker::evaluate(&worker_path, &entry.path, request)?;
-    let diagnostics = evaluation.diagnostics;
-    let refuse = |refusal: Refusal| Failure::with_diagnostics(refusal, diagnostics.clone());
-
-    let snapshot = match evaluation.outcome {
-        Outcome::Policy(snapshot) => snapshot,
-        Outcome::LoadFailed { name, message } => {
-            return Err(refuse(
-                Refusal::new(
-                    "policy_import_failed",
-                    Stage::Load,
-                    EXIT_REFUSED,
-                    format!("the policy entry {source} failed to load: {name}: {message}"),
-                    format!(
-                        "fix {source} or the module it imports; relative imports resolve from \
-                         the importing file, bare ones through node_modules beside it, and \
-                         nothing is installed automatically"
-                    ),
-                )
-                .source(source.clone()),
-            ));
-        }
-        Outcome::Invalid { location, message } => {
-            return Err(refuse(
-                Refusal::new(
-                    "policy_invalid",
-                    Stage::Validation,
-                    EXIT_REFUSED,
-                    message,
-                    format!(
-                        "export a plain object as `export const policy = {{ ... }}` from {source}"
-                    ),
-                )
-                .source(source.clone())
-                .location(location),
-            ));
-        }
-    };
-    let mut policy = Validator::new(&source)
-        .validate(&snapshot)
-        .map_err(refuse)?;
-    let selection = policy::route(&policy, &args.kind, &source).map_err(refuse)?;
-    let reason = selection.reason;
-    let index = policy
-        .catalog
-        .iter()
-        .position(|candidate| candidate.id == selection.candidate.id)
-        .expect("the selection came from this catalog");
-    let candidate = policy.catalog.swap_remove(index);
-
-    Ok(Report {
-        kind: args.kind.clone(),
-        entry,
-        version: policy.version,
-        candidate,
-        reason,
-        elapsed: evaluation.elapsed,
-        worker: evaluation.worker,
-        diagnostics,
-    })
+    choice::choose(&args.selection, PromptRequirement::Optional).map(Report)
 }
 
 impl Report {
     pub fn diagnostics(&self) -> &Diagnostics {
-        &self.diagnostics
+        &self.0.diagnostics
     }
 
     pub fn to_json(&self) -> Value {
+        let choice = &self.0;
         let mut policy = Map::new();
-        policy.insert("path".into(), self.entry.display().into());
-        match &self.entry.authority {
+        policy.insert("path".into(), choice.entry.display().into());
+        match &choice.entry.authority {
             Authority::Personal => {
                 policy.insert("authority".into(), "personal".into());
             }
@@ -130,12 +44,33 @@ impl Report {
                 policy.insert("argument".into(), argument.to_string_lossy().into());
             }
         }
-        policy.insert("version".into(), self.version.clone().into());
-        let candidate = &self.candidate;
+        policy.insert("version".into(), choice.version.clone().into());
+        let prompt = match &choice.inputs.prompt {
+            None => json!({ "supplied": false }),
+            Some(prompt) => {
+                let mut report = Map::new();
+                report.insert("supplied".into(), true.into());
+                match &prompt.source {
+                    PromptSource::Argument => {
+                        report.insert("from".into(), "--prompt".into());
+                    }
+                    PromptSource::File(path) => {
+                        report.insert("from".into(), "--prompt-file".into());
+                        report.insert("path".into(), path.to_string_lossy().into());
+                    }
+                }
+                report.insert("bytes".into(), prompt.text.len().into());
+                Value::Object(report)
+            }
+        };
+        let candidate = &choice.candidate;
         json!({
             "schemaVersion": 1,
             "evidence": "proposal",
-            "kind": self.kind,
+            "kind": choice.inputs.kind,
+            "taskFile": choice.inputs.task_file,
+            "taskId": choice.inputs.task_id,
+            "prompt": prompt,
             "policy": policy,
             "selection": {
                 "form": "routes",
@@ -144,37 +79,62 @@ impl Report {
                 "provider": candidate.provider,
                 "model": candidate.model,
                 "effort": candidate.effort,
-                "reason": self.reason,
+                "reason": choice.reason,
             },
-            "timing": { "selectionMs": millis(self.elapsed) },
-            "worker": worker_json(&self.worker),
-            "diagnostics": self.diagnostics.to_json(),
+            "executable": choice.executable.to_json(),
+            "argv": choice.argv.iter().map(crate::argv::Word::to_json).collect::<Vec<_>>(),
+            "timing": { "selectionMs": millis(choice.elapsed) },
+            "worker": worker_json(&choice.worker),
+            "diagnostics": choice.diagnostics.to_json(),
         })
     }
 
     pub fn to_text(&self) -> String {
-        let authority = match &self.entry.authority {
+        let choice = &self.0;
+        let authority = match &choice.entry.authority {
             Authority::Personal => format!("personal (the default ~/{PERSONAL_DEFAULT})"),
             Authority::Explicit { argument } => format!(
                 "explicit (--config {}, resolved against the current directory)",
                 Path::new(argument).display()
             ),
         };
-        let candidate = &self.candidate;
-        let worker = &self.worker;
+        let inputs = &choice.inputs;
+        let prompt = match &inputs.prompt {
+            None => "not supplied; argv shows a placeholder where it goes".to_owned(),
+            Some(prompt) => match &prompt.source {
+                PromptSource::Argument => format!("{} bytes from --prompt", prompt.text.len()),
+                PromptSource::File(path) => format!(
+                    "{} bytes from --prompt-file {}",
+                    prompt.text.len(),
+                    shown(&path.to_string_lossy())
+                ),
+            },
+        };
+        let candidate = &choice.candidate;
+        let worker = &choice.worker;
         let rows = [
-            ("policy", self.entry.display()),
+            ("policy", choice.entry.display()),
             ("authority", authority),
-            ("version", self.version.clone()),
-            ("kind", self.kind.clone()),
+            ("version", choice.version.clone()),
+            ("kind", shown(&inputs.kind)),
+            (
+                "task file",
+                inputs.task_file.as_deref().map_or("none".to_owned(), shown),
+            ),
+            (
+                "task id",
+                inputs.task_id.as_deref().map_or("none".to_owned(), shown),
+            ),
+            ("prompt", prompt),
             ("candidate", candidate.id.clone()),
             ("provider", candidate.provider.clone()),
             ("model", candidate.model.clone()),
             ("effort", candidate.effort.clone()),
-            ("reason", self.reason.clone()),
+            ("reason", choice.reason.clone()),
+            ("executable", choice.executable.to_text()),
             (
                 "timing",
-                format!("selection took {} ms", millis(self.elapsed)),
+                format!("selection took {} ms", millis(choice.elapsed)),
             ),
             (
                 "worker",
@@ -192,7 +152,21 @@ impl Report {
         for (label, value) in rows {
             let _ = writeln!(text, "  {label:<10} {value}");
         }
+        for (index, word) in choice.argv.iter().enumerate() {
+            let label = if index == 0 { "argv" } else { "" };
+            let _ = writeln!(text, "  {label:<10} [{index}] {}", word.to_text());
+        }
         text
+    }
+}
+
+/// A caller value as it is, unless a control character would break the row,
+/// in which case it is shown escaped and quoted.
+fn shown(value: &str) -> String {
+    if value.chars().any(char::is_control) {
+        format!("{value:?}")
+    } else {
+        value.to_owned()
     }
 }
 

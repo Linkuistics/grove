@@ -3,9 +3,11 @@
 This is the first-release design of **harness-dispatch**. Most of it specifies
 behavior that is not implemented yet. Of the command itself, `inspect` of a
 static `routes` policy is delivered: policy authority, the compiled worker with
-its identity check and embedded SDK, policy validation, and the human and
-version-1 JSON reports without argv. Every other input and command is refused
-by name. Of the [Grove integration](#grove-integration), only the lifecycle
+its identity check and embedded SDK, policy validation, the prompt, task file
+and task identity inputs, argument-slot expansion without `runId`, program
+resolution, and the human and version-1 JSON reports. `run` performs the same
+selection and a plain exec, but it is not delivered until it commits the
+required handoff record. Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
 symbolic inspection are delivered.
 The [visual document](../design/harness-selection-and-execution/README.md) has
@@ -69,7 +71,7 @@ side-effect-free evaluation of trusted TypeScript. A later `run` evaluates afres
 | Input | Contract |
 |---|---|
 | `--kind TEXT` | Required nonempty UTF-8 caller token; no enumeration or Grove filename grammar |
-| `--prompt TEXT` or `--prompt-file PATH` | Exactly one for `run`; optional for `inspect`, which otherwise renders the prompt argument as a marked placeholder; read once; valid UTF-8 with no NUL; preserve bytes, including trailing newlines; never read terminal stdin |
+| `--prompt TEXT` or `--prompt-file PATH` | Exactly one for `run`; optional for `inspect`, which otherwise renders the prompt argument as a marked placeholder; read once; valid UTF-8 with no NUL; preserve bytes, including trailing newlines; never read terminal stdin, and refuse a prompt file that is a terminal |
 | `--task-file PATH` | Optional source, resolved against the original cwd; does not supply kind or identity |
 | `--task-id ID` | Optional task identity, independent of paths: an opaque nonempty UTF-8 string of at most 1024 bytes |
 | `--context PATH` | Optional version-1 JSON document, read as data; explicit generic context can replace a task file |
@@ -91,7 +93,8 @@ effort, explicit-choice input, reason, context sources and hashes, measured UTF-
 byte totals, effective bounds, timing, the creator provenance used, executable
 resolution and expanded argv. Human output contains the same facts without
 requiring a parser. `run` reserves stdout and stdin for the final harness; its
-short choice/run-ID diagnostics go to stderr. Inspection includes the unchanged
+short choice/run-ID diagnostics go to stderr, each as one JSON line under
+`--json`. Inspection includes the unchanged
 prompt in argv when one is supplied. The prompt is never delivered to the policy
 worker, so omitting it does not change the selection.
 
@@ -133,7 +136,12 @@ Each candidate has a unique ID, a nonempty provider-origin label, nonempty model
 and effort strings, a program and an argument array. Provider/model/effort are catalog
 values, never inferred from the executable or its arguments. The program is a
 literal absolute path or PATH name; relative path programs containing a separator
-resolve against the caller's cwd and inspection reports that resolution.
+resolve against the caller's cwd and inspection reports that resolution. A PATH
+name is looked up as `execvp` does, in the caller's PATH: an empty or relative
+entry is relative to the cwd, and the first executable regular file wins.
+Resolution happens once, and `run` executes the resolved file with the program
+as configured for `argv[0]`. Inspection resolves the selected program as `run`
+does and refuses with the same exit when it cannot.
 Arguments are literal strings or slot objects of the form `{ slot: "<name>" }`.
 Slots are `prompt`, `kind`,
 `taskFile`, `taskId`, `model`, `effort` and `runId`; `prompt` occurs
@@ -566,7 +574,9 @@ reproduce the selection without reconstructing its inputs.
 Exit codes before exec are 2 for malformed CLI input, 3 for policy/context/
 selection refusal, 4 for required-record failure, 5 for worker/protocol/internal
 failure, 124 for timeout, 126 for an unexecutable selected program, and 127 for
-one not found. INT/TERM/HUP cleanup ends by restoring and re-raising that signal.
+one not found. An exec error after resolution exits 127 for `ENOENT`, including a
+missing `#!` interpreter, and 126 otherwise. INT/TERM/HUP cleanup ends by
+restoring and re-raising that signal.
 After exec, the harness's native exit or signal is unmodified; its code may
 numerically coincide with a preflight code. Structured diagnostics and recorded
 stage distinguish these cases, not a globally reserved harness exit range.

@@ -25,6 +25,9 @@ const CANDIDATE_FIELDS: [&str; 6] = ["id", "provider", "model", "effort", "progr
 const SLOTS: [&str; 7] = [
     "prompt", "kind", "taskFile", "taskId", "model", "effort", "runId",
 ];
+/// Named by the spec, and refused until the handoff record that allocates the
+/// run ID lands (`handoff-records-k24`).
+const LATER_SLOTS: [&str; 1] = ["runId"];
 
 #[derive(Debug)]
 pub struct Policy {
@@ -39,25 +42,47 @@ pub struct Candidate {
     pub provider: String,
     pub model: String,
     pub effort: String,
-    // Validated whole now, so a bad catalog refuses at inspection; argv
-    // expansion (`harness-exec-k14`) is their first reader.
-    #[expect(dead_code, reason = "read by argv expansion in harness-exec-k14")]
     pub program: String,
-    #[expect(dead_code, reason = "read by argv expansion in harness-exec-k14")]
+    /// Every entry checked, with `prompt` exactly once.
     pub args: Vec<Argument>,
 }
 
 #[derive(Debug)]
-#[expect(dead_code, reason = "read by argv expansion in harness-exec-k14")]
 pub enum Argument {
     Literal(String),
-    Slot(String),
+    Slot(Slot),
 }
 
-/// A candidate a valid policy chose, and why.
+/// A caller input or catalog value that fills one whole argument. `runId` is
+/// refused at validation, so it has no variant yet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Slot {
+    Prompt,
+    Kind,
+    TaskFile,
+    TaskId,
+    Model,
+    Effort,
+}
+
+impl Slot {
+    fn named(name: &str) -> Option<Slot> {
+        Some(match name {
+            "prompt" => Slot::Prompt,
+            "kind" => Slot::Kind,
+            "taskFile" => Slot::TaskFile,
+            "taskId" => Slot::TaskId,
+            "model" => Slot::Model,
+            "effort" => Slot::Effort,
+            _ => return None,
+        })
+    }
+}
+
+/// The catalog index of the candidate a valid policy chose, and why.
 #[derive(Debug)]
-pub struct Selection<'a> {
-    pub candidate: &'a Candidate,
+pub struct Selection {
+    pub index: usize,
     pub reason: String,
 }
 
@@ -238,11 +263,24 @@ impl<'a> Validator<'a> {
                 format!("`args` must be an array, found {}", describe(args)),
             )
         })?;
-        let args = args
+        let args: Vec<Argument> = args
             .iter()
             .enumerate()
             .map(|(index, arg)| self.argument(arg, &format!("{args_at}[{index}]")))
             .collect::<Result<_, _>>()?;
+        let prompts = args
+            .iter()
+            .filter(|arg| matches!(arg, Argument::Slot(Slot::Prompt)))
+            .count();
+        if prompts != 1 {
+            return Err(self.invalid(
+                &args_at,
+                format!(
+                    "the `prompt` slot must fill exactly one argument, and `args` has it {prompts} \
+                     times"
+                ),
+            ));
+        }
         Ok(Candidate { args, ..candidate })
     }
 
@@ -271,8 +309,21 @@ impl<'a> Validator<'a> {
                 return Err(self.invalid(at, format!("{expected}, found {}", describe(arg))));
             }
         };
-        match slot.as_str() {
-            Some(name) if SLOTS.contains(&name) => Ok(Argument::Slot(name.to_owned())),
+        match slot.as_str().map(|name| (name, Slot::named(name))) {
+            Some((_, Some(slot))) => Ok(Argument::Slot(slot)),
+            Some((name, None)) if LATER_SLOTS.contains(&name) => Err(Refusal::new(
+                "unsupported_form",
+                Stage::Validation,
+                EXIT_REFUSED,
+                format!("the `{name}` slot is not supported by this release of harness-dispatch"),
+                format!(
+                    "remove the `{name}` slot from {at} in {}; the run ID arrives with the \
+                     required handoff record",
+                    self.source
+                ),
+            )
+            .source(self.source)
+            .location(format!("{at}.slot"))),
             _ => Err(self.invalid(
                 &format!("{at}.slot"),
                 format!(
@@ -339,7 +390,7 @@ impl<'a> Validator<'a> {
 
 /// Resolve `kind` through a valid policy's routes. A kind the table does not
 /// name refuses; no default candidate is ever substituted.
-pub fn route<'p>(policy: &'p Policy, kind: &str, source: &str) -> Result<Selection<'p>, Refusal> {
+pub fn route(policy: &Policy, kind: &str, source: &str) -> Result<Selection, Refusal> {
     let id = policy.routes.get(kind).ok_or_else(|| {
         Refusal::new(
             "incomplete_mapping",
@@ -356,13 +407,13 @@ pub fn route<'p>(policy: &'p Policy, kind: &str, source: &str) -> Result<Selecti
         .source(source)
         .location("policy.routes")
     })?;
-    let candidate = policy
+    let index = policy
         .catalog
         .iter()
-        .find(|candidate| &candidate.id == id)
+        .position(|candidate| &candidate.id == id)
         .expect("validation checked every route names a catalog candidate");
     Ok(Selection {
-        candidate,
+        index,
         reason: format!(
             "routes[{}] names candidate {id:?}",
             Value::String(kind.to_owned())
@@ -420,7 +471,7 @@ mod tests {
     fn a_valid_policy_routes_its_kind_and_refuses_another() {
         let policy = Validator::new("/p.ts").validate(&valid()).unwrap();
         let selection = route(&policy, "impl", "/p.ts").unwrap();
-        assert_eq!(selection.candidate.id, "a");
+        assert_eq!(policy.catalog[selection.index].id, "a");
         assert_eq!(selection.reason, r#"routes["impl"] names candidate "a""#);
         let refusal = route(&policy, "design", "/p.ts").unwrap_err();
         assert_eq!(refusal.code, "incomplete_mapping");

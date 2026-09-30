@@ -144,7 +144,12 @@ values, never inferred from the executable or its arguments. The program is a
 literal absolute path or PATH name; relative path programs containing a separator
 resolve against the caller's cwd and inspection reports that resolution. A PATH
 name is looked up as `execvp` does, in the caller's PATH: an empty or relative
-entry is relative to the cwd, and the first executable regular file wins.
+entry is relative to the cwd, and the first executable regular file wins. A PATH
+that is set but empty is one empty entry. An unset PATH leaves nothing to search,
+so the name is not found. Catalog strings that can become argv words cannot
+contain NUL, since exec cannot carry one: the program, `model`, `effort` and
+every literal argument. A NUL there is invalid policy in any candidate,
+refused at validation before anything is proposed or recorded.
 Resolution happens once, and `run` executes the resolved file with the program
 as configured for `argv[0]`. Inspection resolves the selected program as `run`
 does and refuses with the same exit when it cannot.
@@ -190,7 +195,11 @@ or invalid selected policy stops the invocation and names the selected path.
 There is no cwd search, repository override, environment-selected policy entry
 or installation of policy into the user's configuration. A `--config` path is
 resolved against the caller's original cwd; inspection identifies that explicit
-authority. Personal policy can explicitly import a repository entry, in which
+authority. The worker imports the entry's resolved path as a string, so that
+path must name exactly the admitted file. A path that is not UTF-8 has only a
+lossy string, and the runtime reads a `?` as the start of a query, so
+`policy.ts?x` would load `policy.ts`. Either refuses at the authority stage
+before any worker starts. Personal policy can explicitly import a repository entry, in which
 case that import is the owner's choice. Imported trusted code inherits that
 authority; this is not a sandbox against its owner.
 
@@ -199,7 +208,11 @@ and verifies the worker protocol/build identity before evaluating policy. It
 starts the worker in a private empty directory, using null stdin, captured
 diagnostic streams and a private framed protocol channel. The channel is
 descriptor 3, named by no variable, path or argument, and the worker inherits
-no other descriptor beyond its standard streams. The request passes the caller's
+no other descriptor beyond its standard streams. Every descriptor the front
+holds is closed at the worker's exec, however high it is numbered, including
+one above the soft descriptor limit. They are listed from the process's
+descriptor directory, and if that listing is unavailable the invocation
+refuses rather than bounding the sweep. The request passes the caller's
 cwd as data; it does not make it the worker's runtime cwd.
 
 The worker is compiled with dotenv, bunfig, tsconfig and package-json autoloading
@@ -495,7 +508,10 @@ a later increment supplies is present in it, as `null` until then. A release
 that records something new therefore writes it into new runs only, and a new
 table arrives by a migration that only creates. The commit is one exclusive
 transaction in a rollback journal at `synchronous = EXTRA`, the setting SQLite
-documents as durable in that mode, with `fullfsync` on for macOS. The store is
+documents as durable in that mode, with `fullfsync` on for macOS. That sync
+reaches only the store's own directory. So on first use, the parent of every
+record directory the invocation creates is synced before the commit, and a
+failed sync refuses with exit 4 like the commit. The store is
 opened only after the worker has been reaped.
 
 | Evidence | Meaning |
@@ -593,8 +609,13 @@ diagnostics on stderr. A failure never launches another candidate. A refused
 mode and an argv array in JSON, each with the directory it was run from: the
 same selection inputs, `--policy-env` names but no values, and no prompt. An
 owner diagnosing an unattended refusal can then reproduce the selection without
-reconstructing its inputs. A command line that cannot be parsed has no
-equivalent.
+reconstructing its inputs. When an input, the program path or the directory is
+not UTF-8, no JSON string or text command line holds it exactly. A lossy copy
+would name other inputs, so the invocation is reported as unavailable, naming
+what cannot be written. A command line that cannot be parsed has no
+equivalent. Once a command line parses, its own `--json` flag chooses the
+format. A `--json` word that is the value of another flag, such as the
+prompt, is data.
 
 Exit codes before exec are 2 for malformed CLI input, 3 for policy/context/
 selection refusal, 4 for required-record failure, 5 for worker/protocol/internal

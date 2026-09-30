@@ -223,6 +223,58 @@ fn a_refused_run_names_the_equivalent_inspect_invocation_which_reproduces_the_se
 }
 
 #[test]
+fn an_input_no_string_can_hold_makes_the_reproduction_unavailable_not_lossy() {
+    let sandbox = Sandbox::new();
+    // A candidate whose ID is the lossy form of `deep\xff`.
+    sandbox.personal_policy(&ROUTED.replace(
+        "  ],",
+        "    { id: \"deep\\uFFFD\", provider: \"origin-b\", model: \"m\", effort: \"e\", program: \"fake-harness\", args: [{ slot: \"prompt\" }] },\n  ],",
+    ));
+    // The firing configuration: the lossy form of the refused choice is a
+    // different, valid input, whose inspection selects.
+    let lossy = sandbox
+        .inspect(&["--kind", "impl", "--choice", "deep\u{FFFD}", "--json"])
+        .report();
+    assert_eq!(lossy["selection"]["candidateId"], "deep\u{FFFD}");
+
+    for (flag, value, kind, exit) in [
+        ("--choice", &b"deep\xff"[..], "impl", 2),
+        ("--task-id", &b"k\xff"[..], "impl", 2),
+        // Not refused itself: the unrouted kind refuses, and a lossy state
+        // directory would name another place.
+        ("--state-dir", &b"records-\xff"[..], "design", 3),
+    ] {
+        let invocation = |json: bool| {
+            let mut command = sandbox.command();
+            command
+                .args(["run", "--kind", kind, "--prompt", "p", flag])
+                .arg(OsString::from_vec(value.to_vec()));
+            if json {
+                command.arg("--json");
+            }
+            support::run(&mut command)
+        };
+        let reason = format!("{flag} is not valid UTF-8, so no command line reproduces it exactly");
+        let refusal = invocation(true).refusal(exit);
+        assert_eq!(
+            refusal["error"]["inspect"],
+            serde_json::json!({ "unavailable": reason }),
+            "{flag}: {refusal}"
+        );
+        let human = invocation(false);
+        assert_eq!(human.code, Some(exit), "{}", human.stderr);
+        assert!(
+            human
+                .stderr
+                .contains(&format!("\n  inspect: unavailable: {reason}\n")),
+            "{flag}: {}",
+            human.stderr
+        );
+    }
+    assert!(!sandbox.harness_ran());
+}
+
+#[test]
 fn only_a_refused_run_names_an_inspect_invocation() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);

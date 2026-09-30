@@ -245,3 +245,99 @@ writeFileSync({report:?}, JSON.stringify({{
     assert_eq!(view["channelOpen"], true);
     assert_eq!(view["callerDescriptorOpen"], false);
 }
+
+#[test]
+fn a_caller_descriptor_above_the_soft_descriptor_limit_never_reaches_the_worker() {
+    let sandbox = Sandbox::new();
+    let report_path = sandbox.root.join("worker-view.json");
+    sandbox.personal_policy(&format!(
+        r#"import {{ fstatSync, writeFileSync }} from "node:fs";
+const open = (fd: number) => {{ try {{ fstatSync(fd); return true; }} catch {{ return false; }} }};
+writeFileSync({report:?}, JSON.stringify({{ channelOpen: open(3), callerDescriptorOpen: open(100) }}));
+{ROUTED}"#,
+        report = text(&report_path)
+    ));
+    let inherited = fs::File::open(sandbox.personal_path()).unwrap();
+    let inherited_fd = inherited.as_raw_fd();
+
+    let mut command = sandbox.command();
+    command.args(["inspect", "--kind", "impl", "--json"]);
+    // SAFETY: dup2, getrlimit and setrlimit are async-signal-safe. The front
+    // starts holding descriptor 100 under a soft limit of 64, which lowering
+    // the limit does not close: a sweep bounded by the limit never reaches it.
+    unsafe {
+        command.pre_exec(move || {
+            if libc::dup2(inherited_fd, 100) == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            let mut limit: libc::rlimit = std::mem::zeroed();
+            if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            limit.rlim_cur = 64;
+            if libc::setrlimit(libc::RLIMIT_NOFILE, &limit) == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    let report = run(&mut command).report();
+    assert_eq!(report["selection"]["candidateId"], "deep");
+
+    let view: Value = serde_json::from_str(&fs::read_to_string(&report_path).unwrap()).unwrap();
+    // The probe sees an open descriptor (the channel), and not the caller's.
+    assert_eq!(view["channelOpen"], true);
+    assert_eq!(view["callerDescriptorOpen"], false);
+}
+
+#[test]
+fn an_entry_path_the_worker_cannot_import_exactly_refuses_before_any_code_runs() {
+    let sandbox = Sandbox::new();
+    // Each admitted name has a sibling that Bun would import in its place,
+    // reading `?` as the start of a query.
+    for (admitted, substitute) in [("policy.ts?x", "policy.ts"), ("d?q/policy.ts", "d.ts")] {
+        let sentinel = sandbox.root.join(format!("{substitute}-ran"));
+        sandbox.file(admitted, ROUTED);
+        sandbox.file(substitute, &sentinel_policy(&sentinel));
+
+        let refusal = sandbox
+            .inspect(&["--kind", "impl", "--config", admitted, "--json"])
+            .refusal(3);
+        let error = &refusal["error"];
+        assert_eq!(error["code"], "policy_unreadable", "{admitted}: {refusal}");
+        assert_eq!(error["stage"], "authority", "{admitted}");
+        assert_eq!(
+            error["source"],
+            text(&sandbox.cwd.join(admitted)),
+            "{admitted}"
+        );
+        assert!(
+            error["message"].as_str().unwrap().contains("`?`"),
+            "{refusal}"
+        );
+        assert!(
+            !sentinel.exists(),
+            "{substitute} ran in place of {admitted}"
+        );
+
+        // The firing configuration: the substitute, admitted by its own name,
+        // runs and leaves its sentinel.
+        let report = sandbox
+            .inspect(&["--kind", "impl", "--config", substitute, "--json"])
+            .report();
+        assert_eq!(report["selection"]["candidateId"], "deep");
+        assert!(sentinel.exists(), "{substitute} never fired");
+    }
+
+    // A name that only looks special to a URL still imports exactly itself.
+    let sentinel = sandbox.root.join("exact-ran");
+    sandbox.file("a b#c%41.ts", &sentinel_policy(&sentinel));
+    let report = sandbox
+        .inspect(&["--kind", "impl", "--config", "a b#c%41.ts", "--json"])
+        .report();
+    assert_eq!(
+        report["policy"]["path"],
+        text(&sandbox.cwd.join("a b#c%41.ts"))
+    );
+    assert!(sentinel.exists());
+}

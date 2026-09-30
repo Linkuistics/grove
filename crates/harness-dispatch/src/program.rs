@@ -144,9 +144,11 @@ pub fn resolve(
         };
     }
 
-    let Some(path) = path.filter(|path| !path.is_empty()) else {
+    // An unset PATH leaves no caller's PATH to search. An empty one is not
+    // unset: it is a single empty entry, the cwd, as below.
+    let Some(path) = path else {
         return Err(not_found(
-            "cannot be found because PATH is unset or empty".to_owned(),
+            "cannot be found because PATH is unset".to_owned(),
         ));
     };
     let mut first_unexecutable = None;

@@ -33,16 +33,26 @@ use crate::refusal::{Failure, Refusal, Stage, EXIT_MALFORMED};
 
 fn main() -> ExitCode {
     let arguments: Vec<OsString> = std::env::args_os().collect();
-    // Decided before parsing, so a malformed command line still honours the
-    // one-JSON-error contract when the caller asked for JSON.
-    let json = arguments
+    // Only a command line that did not parse, or whose words are never parsed,
+    // is scanned for `--json`, so that it still honours the one-JSON-error
+    // contract. Once a command parses, its own flag decides: a `--json` that
+    // clap took as the value of `--prompt` or `--task-id` is caller data.
+    let scanned = arguments
         .iter()
         .skip(1)
         .any(|argument| argument == "--json");
 
     let cli = match Cli::try_parse_from(&arguments) {
         Ok(cli) => cli,
-        Err(error) => return parse_failure(&error, &arguments, json),
+        Err(error) => return parse_failure(&error, &arguments, scanned),
+    };
+    let json = match &cli.command {
+        Command::Inspect(args) => args.json,
+        Command::Run(args) => args.json,
+        Command::Record(record) => match &record.command {
+            RecordCommand::Show(args) => args.json,
+            RecordCommand::Observe(_) => scanned,
+        },
     };
     let result = match &cli.command {
         Command::Inspect(args) => inspect::inspect(args).map(|report| {

@@ -47,6 +47,12 @@ const WORKER_FROM_BIN: &str = "../libexec/harness-dispatch/harness-dispatch-poli
 /// The descriptor the worker's channel occupies, fixed on both sides.
 const CHANNEL_FD: RawFd = 3;
 
+/// The directory listing this process's open descriptors.
+#[cfg(target_os = "linux")]
+const DESCRIPTORS: &str = "/proc/self/fd";
+#[cfg(not(target_os = "linux"))]
+const DESCRIPTORS: &str = "/dev/fd";
+
 /// How long to keep collecting diagnostics after the worker is reaped. A
 /// descendant the policy left holding its stdout could otherwise keep a drain
 /// open forever; detached policy children are outside the contract, so their
@@ -165,7 +171,7 @@ fn normalize(path: &Path) -> PathBuf {
 /// `bound`, which counts from the worker's start.
 pub fn evaluate(
     worker: &Path,
-    entry: &Path,
+    entry: &str,
     request: Value,
     bound: Bound,
 ) -> Result<Evaluation, Failure> {
@@ -206,7 +212,19 @@ pub fn evaluate(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let channel = worker_end.as_raw_fd();
-    let descriptor_limit = descriptor_limit();
+    let inherited = held_descriptors().map_err(|error| {
+        Refusal::new(
+            "worker_failed",
+            Stage::Worker,
+            EXIT_WORKER,
+            format!(
+                "cannot list this process's open descriptors in {DESCRIPTORS}, so the policy \
+                 worker could inherit one it must not: {error}"
+            ),
+            format!("run harness-dispatch where {DESCRIPTORS} lists the process's descriptors"),
+        )
+        .source(DESCRIPTORS)
+    })?;
     // SAFETY: the closure runs between fork and exec, so it calls only
     // async-signal-safe functions (`dup2`, `fcntl`) on descriptors computed
     // before the fork, and touches no Rust runtime state or allocator.
@@ -226,7 +244,7 @@ pub fn evaluate(
             }
             // Everything above the channel closes at exec, so the worker holds
             // descriptors 0-3 and nothing a caller happened to leave open.
-            for fd in CHANNEL_FD + 1..descriptor_limit {
+            for &fd in inherited.iter().filter(|&&fd| fd > CHANNEL_FD) {
                 if libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) == -1
                     && std::io::Error::last_os_error().raw_os_error() != Some(libc::EBADF)
                 {
@@ -339,7 +357,7 @@ impl Conversation {
 fn converse(
     mut channel: Bounded<'_>,
     worker: &Path,
-    entry: &Path,
+    entry: &str,
     request: Value,
     started: Instant,
 ) -> Result<(WorkerIdentity, Outcome, Duration), Conversation> {
@@ -370,7 +388,9 @@ fn converse(
         &json!({
             "type": "evaluate",
             "protocol": PROTOCOL,
-            "entry": entry.to_string_lossy(),
+            // Exactly the admitted file: `authority` refuses any path that
+            // no string names exactly.
+            "entry": entry,
             "request": request,
         }),
     )
@@ -398,7 +418,7 @@ fn converse(
 
 /// The refusal when the deadline passes: after the entry was handed over, the
 /// policy held evaluation; before, the worker never became ready for it.
-fn expired(worker: &Path, entry: &Path, bound: Bound, handed_over: bool) -> Refusal {
+fn expired(worker: &Path, entry: &str, bound: Bound, handed_over: bool) -> Refusal {
     let limit = bound.to_text();
     let raise = format!("or allow more time with --timeout-ms, up to {SELECTION_MAX_MS}");
     let refusal = if handed_over {
@@ -407,16 +427,15 @@ fn expired(worker: &Path, entry: &Path, bound: Bound, handed_over: bool) -> Refu
             Stage::Evaluation,
             EXIT_TIMEOUT,
             format!(
-                "the policy entry {} did not return a result within the selection bound of \
-                 {limit}, so its worker was stopped and nothing was launched",
-                entry.display()
+                "the policy entry {entry} did not return a result within the selection bound \
+                 of {limit}, so its worker was stopped and nothing was launched"
             ),
             format!(
                 "make the policy return sooner: a loop, or an await on work that never \
                  settles, holds its evaluation; {raise}"
             ),
         )
-        .source(entry.to_string_lossy())
+        .source(entry)
     } else {
         Refusal::new(
             "selection_timeout",
@@ -580,15 +599,28 @@ fn above_stdio(stream: &UnixStream) -> std::io::Result<OwnedFd> {
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
-/// The soft descriptor limit, bounded so an unlimited one cannot make the
-/// close-on-exec sweep effectively endless.
-fn descriptor_limit() -> RawFd {
-    // SAFETY: getrlimit writes only the rlimit structure it is given.
-    let mut limit: libc::rlimit = unsafe { std::mem::zeroed() };
-    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) } == -1 {
-        return 1024;
+/// Every descriptor this process holds, as its descriptor directory lists
+/// them. The descriptor limit is no bound: a caller can leave one open above
+/// 65,536, or lower its soft limit below one it already holds. Every
+/// descriptor this process opens itself is close-on-exec, so the ones the
+/// sweep must mark were all inherited, and all are listed here before the
+/// worker's fork. The listing includes its own directory's descriptor, closed
+/// again by then, which the sweep passes over as `EBADF`.
+fn held_descriptors() -> io::Result<Vec<RawFd>> {
+    let mut held = Vec::new();
+    for entry in fs::read_dir(DESCRIPTORS)? {
+        let name = entry?.file_name();
+        let fd = name
+            .to_str()
+            .and_then(|name| name.parse().ok())
+            .ok_or_else(|| {
+                io::Error::other(format!(
+                    "{DESCRIPTORS} lists {name:?}, which is not a descriptor"
+                ))
+            })?;
+        held.push(fd);
     }
-    RawFd::try_from(limit.rlim_cur.min(65_536)).unwrap_or(1024)
+    Ok(held)
 }
 
 /// A diagnostic stream being read to its end on another thread.

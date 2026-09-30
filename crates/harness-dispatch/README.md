@@ -53,7 +53,10 @@ so entering a repository runs none of its code. Naming a file there with
 authority. Your personal policy may itself import a repository entry. That
 import is also your choice, and the imported code runs with the same trust.
 
-A missing, unreadable or invalid entry refuses and names the path. Nothing is
+A missing, unreadable or invalid entry refuses and names the path. So does an
+entry whose resolved path is not UTF-8 or contains `?`. The worker imports the
+path as a string, which would then name another file: its runtime reads
+`policy.ts?x` as `policy.ts` with a query. Nothing is
 installed on the policy's behalf. Relative imports resolve from the importing
 file, bare imports resolve through `node_modules` beside it, and a missing
 import refuses.
@@ -87,7 +90,9 @@ The module exports one plain object named `policy`:
 - `catalog` lists joint candidates. Each has a unique `id`, a `provider` naming
   the model's origin, and nonempty `model`, `effort` and `program` strings.
   Each `args` entry is a literal string or a slot object such as
-  `{ slot: "prompt" }`.
+  `{ slot: "prompt" }`. None of the strings that can become an argument
+  (`program`, `model`, `effort` and the literals) may contain a NUL character,
+  which no argument can carry.
 - `routes` maps each kind to a candidate ID, exactly. There is no catch-all, no
   inheritance and no fallback. A kind the table does not name refuses as an
   incomplete mapping.
@@ -261,7 +266,8 @@ harness-dispatch verifies.
   the caller's current directory.
 - A plain name, looked up in the caller's `PATH` as the shell does: entries in
   order, an empty or relative entry meaning the current directory, and the
-  first executable regular file wins.
+  first executable regular file wins. A `PATH` that is set but empty is one
+  empty entry, the current directory. With `PATH` unset, no name is found.
 
 Only the selected candidate's program is checked. A program that cannot be
 found refuses with exit 127, and one that exists but cannot be executed with
@@ -329,7 +335,8 @@ the entry as it is spelled in PATH.
 
 The worker runs in a private empty directory with null stdin. Its environment
 contains only HOME, PATH, TMPDIR, LANG and `LC_*`. It talks to the front over a
-private channel on descriptor 3 and inherits no other descriptors. Whatever the
+private channel on descriptor 3 and inherits no other descriptors, however high
+a descriptor you started harness-dispatch with is numbered. Whatever the
 policy prints is captured and kept apart from the report. `--json` carries it in
 `diagnostics`, and text mode prints it on stderr, each line prefixed with
 `policy stdout:` or `policy stderr:`.
@@ -387,7 +394,10 @@ names another directory. `XDG_STATE_HOME` is not consulted. Both the directory
 and the file are created on first use, readable by you alone. SQLite is built
 into harness-dispatch, so nothing else needs installing. The commit is one
 short transaction, synced as SQLite's `synchronous = EXTRA` setting does (with
-`F_FULLFSYNC` on macOS). It is taken only after the policy has finished, so no
+`F_FULLFSYNC` on macOS). On first use, each directory that gains a new record
+directory is synced as well, before the commit. The record then survives a
+power loss after the harness starts, and a sync that fails refuses like the
+commit. It is taken only after the policy has finished, so no
 policy ever runs with the store locked. If another process holds the store,
 `run` waits at most 2 seconds, apart from the selection bound, and then
 refuses. The store names itself with a version. A store that another
@@ -474,8 +484,15 @@ In JSON it is `error.inspect`, an argv array and the directory to run it in:
 
 The program is the one the caller ran, as the caller spelled it. `--json`
 carries over when the refusal was JSON. A value that begins with a hyphen is
-written `--flag=value`. A command line that cannot be parsed has no
-equivalent, and `inspect`'s own refusals name none. Run the invocation, correct
+written `--flag=value`. When a value, the program path or the directory is
+not valid UTF-8, no text or JSON string holds it exactly. A lossy copy would
+name other inputs, so the invocation is reported as unavailable instead:
+`inspect: unavailable: --task-id is not valid UTF-8, so no command line
+reproduces it exactly`, or `{"unavailable": "…"}` in JSON. A command line that
+cannot be parsed has no equivalent, and `inspect`'s own refusals name none.
+Once a command line parses, its own `--json` flag chooses the format. A
+`--json` that is the value of another flag, such as `--prompt --json`, is data.
+Run the invocation, correct
 what the remedy names, and inspect again until it reports a choice. A refusal
 at the record commit reproduces as a successful inspection, because inspection
 never opens the store.

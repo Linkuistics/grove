@@ -107,6 +107,20 @@ with the same Bun 1.4.2 on the same macOS arm64 host.
   its working directory, whatever the output path. The build script therefore
   compiles from a throwaway directory.
 
+Integrating the static-dispatch review on the same date, with the same Bun and
+host, observed how `import()` treats an absolute path string:
+
+- **A `?` in the entry path is a query.** `import("/d/policy.ts?x")` loaded
+  `/d/policy.ts`, and `import("/d/d?q/policy.ts")` loaded `/d/d.ts`. The same
+  happened through `pathToFileURL`'s `%3F`. `Bun.resolveSync` returned the
+  path with its `?` suffix intact, so it could not detect the substitution.
+  `#`, `%`, spaces and newlines imported exactly. A `\` failed to load, and
+  nothing was substituted. The front therefore refuses an entry whose resolved
+  path contains `?` or is not UTF-8. The command-seam test
+  `an_entry_path_the_worker_cannot_import_exactly_refuses_before_any_code_runs`
+  shows each substitute firing when it is named directly. Recheck this on a
+  Bun upgrade.
+
 <a id="primary-runtime-references"></a>
 ## Primary runtime references
 

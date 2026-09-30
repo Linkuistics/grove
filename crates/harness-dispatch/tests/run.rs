@@ -270,6 +270,82 @@ fn a_prompt_that_starts_with_hyphens_is_still_the_prompt() {
 }
 
 #[test]
+fn a_json_prompt_or_task_id_is_data_and_never_chooses_the_output_format() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(&policy(&[
+        ("impl", r#""fake-harness""#, r#"[{ slot: "prompt" }]"#),
+        ("broken", r#""./broken-harness""#, r#"[{ slot: "prompt" }]"#),
+    ]));
+    // Its `#!` interpreter does not exist, so exec fails after the commit.
+    executable(
+        &sandbox.cwd.join("broken-harness"),
+        "#!/nonexistent/interpreter\n",
+    );
+    let text_refusal = |run: &support::Run, exit: i32, code: &str| {
+        assert_eq!(run.code, Some(exit), "{}", run.stderr);
+        assert!(
+            run.stderr
+                .starts_with(&format!("harness-dispatch: refused ({code}, ")),
+            "not a text refusal: {}",
+            run.stderr
+        );
+    };
+
+    for command in ["run", "inspect"] {
+        let unrouted = |data: &[&str]| {
+            let mut invocation = sandbox.command();
+            invocation.args([command, "--kind", "unrouted"]).args(data);
+            run(&mut invocation)
+        };
+        text_refusal(&unrouted(&["--prompt", "--json"]), 3, "incomplete_mapping");
+        text_refusal(
+            &unrouted(&["--prompt", "p", "--task-id", "--json"]),
+            3,
+            "incomplete_mapping",
+        );
+        // The control: the same refusal, asked for as JSON, is JSON.
+        let json = unrouted(&["--prompt", "p", "--json"]).refusal(3);
+        assert_eq!(json["error"]["code"], "incomplete_mapping");
+    }
+
+    // A routed run announces its handoff as text, and the harness receives
+    // the prompt.
+    let routed = sandbox.run(&["--kind", "impl", "--prompt", "--json"]);
+    assert_eq!(routed.code, Some(0), "{}", routed.stderr);
+    assert!(
+        routed
+            .stderr
+            .starts_with("harness-dispatch: running candidate"),
+        "{}",
+        routed.stderr
+    );
+    assert_eq!(sandbox.harness_args(), ["--json"]);
+    // An inspection reports as text.
+    let inspected = sandbox.inspect(&["--kind", "impl", "--prompt", "--json"]);
+    assert_eq!(inspected.code, Some(0), "{}", inspected.stderr);
+    assert!(
+        inspected.stdout.contains("candidate  impl"),
+        "{}",
+        inspected.stdout
+    );
+    // And an exec that fails after the commit refuses as text, after its
+    // text handoff notice.
+    let broken = sandbox.run(&["--kind", "broken", "--prompt", "--json"]);
+    assert_eq!(broken.code, Some(127), "{}", broken.stderr);
+    let (notice, refusal) = broken.stderr.split_once('\n').unwrap();
+    assert!(
+        notice.starts_with("harness-dispatch: running candidate"),
+        "{}",
+        broken.stderr
+    );
+    assert!(
+        refusal.starts_with("harness-dispatch: refused (exec_failed, "),
+        "not a text refusal: {}",
+        broken.stderr
+    );
+}
+
+#[test]
 fn an_invalid_or_unreadable_prompt_is_refused_before_policy_runs() {
     let sandbox = Sandbox::new();
     let sentinel = sandbox.root.join("policy-ran");
@@ -629,6 +705,88 @@ fn a_path_search_passes_over_a_non_executable_match_as_execvp_does() {
         .args(["run", "--kind", "impl", "--prompt", "p", "--json"]);
     let refusal = run(&mut command).refusal(126);
     assert_eq!(refusal["error"]["code"], "program_unexecutable");
+    assert!(!sandbox.harness_ran());
+}
+
+#[test]
+fn an_empty_path_entry_is_the_cwd_even_when_it_is_the_whole_path() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(&policy(&[(
+        "impl",
+        r#""agent""#,
+        r#"[{ slot: "prompt" }]"#,
+    )]));
+    // The harness in the cwd gives the fake harness a PATH of its own, since
+    // it inherits the caller's.
+    executable(
+        &sandbox.cwd.join("agent"),
+        &format!(
+            "#!/bin/sh\nPATH=/usr/bin:/bin\nexport PATH\nexec {:?} \"$@\"\n",
+            text(&sandbox.bin.join("fake-harness"))
+        ),
+    );
+    let with_path = |path: &str, command: &str| {
+        let mut invocation = sandbox.command();
+        invocation
+            .env("PATH", path)
+            .args([command, "--kind", "impl", "--prompt", "p", "--json"]);
+        run(&mut invocation)
+    };
+    // A wholly empty PATH is one empty entry, as `:` is two.
+    for path in ["", ":", "/nonexistent:"] {
+        let report = with_path(path, "inspect").report();
+        let executable = &report["executable"];
+        assert_eq!(executable["resolvedBy"], "PATH", "{path:?}: {report}");
+        assert_eq!(executable["pathEntry"], "", "{path:?}");
+        assert_eq!(
+            executable["path"],
+            text(&sandbox.cwd.join("agent")),
+            "{path:?}"
+        );
+
+        fs::remove_dir_all(&sandbox.record).ok();
+        let launched = with_path(path, "run");
+        assert_eq!(launched.code, Some(0), "{path:?}: {}", launched.stderr);
+        assert_eq!(sandbox.harness_args(), ["p"], "{path:?}");
+    }
+
+    // An unset PATH is not empty: there is no caller's PATH to search.
+    fs::remove_dir_all(&sandbox.record).ok();
+    for command in ["run", "inspect"] {
+        let mut invocation = sandbox.command();
+        invocation
+            .env_remove("PATH")
+            .args([command, "--kind", "impl", "--prompt", "p", "--json"]);
+        let refusal = run(&mut invocation).refusal(127);
+        assert_eq!(refusal["error"]["code"], "program_not_found", "{command}");
+        assert!(
+            refusal["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("PATH is unset"),
+            "{refusal}"
+        );
+    }
+    assert!(!sandbox.harness_ran());
+}
+
+#[test]
+fn a_nul_in_a_catalog_argument_refuses_before_anything_is_recorded() {
+    let sandbox = Sandbox::new();
+    let entry = sandbox.personal_policy(&policy(&[(
+        "impl",
+        r#""fake-harness""#,
+        r#"["before\0after", { slot: "prompt" }]"#,
+    )]));
+    let refusal = sandbox
+        .run(&["--kind", "impl", "--prompt", "p", "--json"])
+        .refusal(3);
+    let error = &refusal["error"];
+    assert_eq!(error["code"], "policy_invalid", "{refusal}");
+    assert_eq!(error["stage"], "validation");
+    assert_eq!(error["source"], text(&entry));
+    assert_eq!(error["location"], "policy.catalog[0].args[0]");
+    assert!(!sandbox.default_store().exists(), "a run was recorded");
     assert!(!sandbox.harness_ran());
 }
 

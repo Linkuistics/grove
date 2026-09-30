@@ -299,12 +299,19 @@ impl<'a> Validator<'a> {
             }
             Ok(value)
         };
+        // The program is argv[0], and the `model` and `effort` slots copy
+        // their values into argv, which no NUL can cross.
+        let argv_word = |field: &str| {
+            let value = nonempty(field)?;
+            self.no_nul(&value, &format!("{at}.{field}"), &format!("`{field}`"))?;
+            Ok::<_, Refusal>(value)
+        };
         let candidate = Candidate {
             id: nonempty("id")?,
             provider: nonempty("provider")?,
-            model: nonempty("model")?,
-            effort: nonempty("effort")?,
-            program: nonempty("program")?,
+            model: argv_word("model")?,
+            effort: argv_word("effort")?,
+            program: argv_word("program")?,
             args: Vec::new(),
         };
         let args_at = format!("{at}.args");
@@ -340,6 +347,7 @@ impl<'a> Validator<'a> {
 
     fn argument(&self, arg: &Value, at: &str) -> Result<Argument, Refusal> {
         if let Some(literal) = arg.as_str() {
+            self.no_nul(literal, at, "a literal argument")?;
             return Ok(Argument::Literal(literal.to_owned()));
         }
         let expected =
@@ -402,6 +410,21 @@ impl<'a> Validator<'a> {
             table.insert(kind.clone(), id.to_owned());
         }
         Ok(table)
+    }
+
+    /// Refuse a NUL in a string that can become a word of argv. Exec cannot
+    /// carry it, so it is invalid policy in every candidate, selected or not,
+    /// and is refused here rather than after a handoff has been recorded.
+    fn no_nul(&self, value: &str, at: &str, what: &str) -> Result<(), Refusal> {
+        match value.find('\0') {
+            Some(offset) => Err(self.invalid(
+                at,
+                format!(
+                    "{what} contains a NUL character at byte {offset}, which no argument can carry"
+                ),
+            )),
+            None => Ok(()),
+        }
     }
 
     fn object<'v>(&self, value: &'v Value, at: &str) -> Result<&'v Map<String, Value>, Refusal> {

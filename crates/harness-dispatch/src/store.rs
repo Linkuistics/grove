@@ -11,6 +11,8 @@
 //! power loss in rollback mode, so if durability is desired, it is best to set
 //! the synchronous mode to EXTRA" (https://www.sqlite.org/pragma.html#pragma_synchronous),
 //! and `fullfsync`, off by default, is what reaches `F_FULLFSYNC` on macOS.
+//! Neither reaches above the store's own directory, so a first use also syncs
+//! the parent of each directory it creates, before the commit ([`create`]).
 //! WAL is not used: it needs shared memory that network filesystems, where home
 //! directories often live, do not provide. The journal mode is never set, so a
 //! store this command creates keeps SQLite's default.
@@ -37,7 +39,7 @@
 //! committed launch field is ever rewritten.
 
 use std::ffi::OsStr;
-use std::fs::{DirBuilder, OpenOptions};
+use std::fs::{DirBuilder, File, OpenOptions};
 use std::io;
 use std::os::unix::fs::{DirBuilderExt as _, OpenOptionsExt as _};
 use std::path::{Path, PathBuf};
@@ -283,7 +285,20 @@ pub fn load(dir: &StateDir, run_id: &RunId) -> Result<Lookup, Refusal> {
 /// Create the directory and file privately if absent, then open the file.
 /// Pre-creating the file with mode 0600 gives SQLite's journal the same mode,
 /// which SQLite copies from the database file.
+///
+/// SQLite's EXTRA sync reaches the store's own directory, never the entries
+/// that lead to it. So the parent of every directory found missing here is
+/// synced before the commit, and a directory that cannot be synced refuses
+/// the run like the commit itself: otherwise a power loss after exec could
+/// leave a committed attempt with no path to it. A concurrent first use may
+/// create one first; it is synced all the same, since its creator may not have
+/// finished doing so.
 fn create(dir: &StateDir, file: &Path) -> Result<Connection, StoreFailure> {
+    let missing: Vec<&Path> = dir
+        .path
+        .ancestors()
+        .take_while(|ancestor| !ancestor.exists())
+        .collect();
     DirBuilder::new()
         .recursive(true)
         .mode(0o700)
@@ -295,6 +310,18 @@ fn create(dir: &StateDir, file: &Path) -> Result<Connection, StoreFailure> {
             ),
             error,
         })?;
+    for parent in missing.iter().filter_map(|created| created.parent()) {
+        File::open(parent)
+            .and_then(|parent| parent.sync_all())
+            .map_err(|error| StoreFailure::Io {
+                what: format!(
+                    "the directory {} cannot be synced after the record directory was created \
+                     in it",
+                    parent.display()
+                ),
+                error,
+            })?;
+    }
     // Never truncate: an existing store is opened as it is, and one this
     // command cannot use refuses rather than being replaced.
     OpenOptions::new()

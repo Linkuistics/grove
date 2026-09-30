@@ -461,6 +461,47 @@ fn an_unwritable_record_directory_launches_nothing() {
 }
 
 #[test]
+fn the_directories_a_first_run_creates_are_synced_before_it_launches() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(ROUTED);
+    // Writable and searchable, so the record directories can be created in
+    // it, but unreadable, so it cannot be opened to sync its new entry.
+    let parent = sandbox.cwd.join("parent");
+    fs::create_dir(&parent).unwrap();
+    fs::set_permissions(&parent, fs::Permissions::from_mode(0o300)).unwrap();
+    let run = |state_dir: &str| {
+        sandbox.run(&[
+            "--kind",
+            "impl",
+            "--state-dir",
+            state_dir,
+            "--prompt",
+            "p",
+            "--json",
+        ])
+    };
+
+    let refusal = run("parent/first/records").refusal(4);
+    let error = &refusal["error"];
+    assert_eq!(error["code"], "record_store_unwritable");
+    assert_eq!(error["stage"], "record");
+    let message = error["message"].as_str().unwrap();
+    assert!(
+        message.contains(&format!("{} cannot be synced", text(&parent))),
+        "{refusal}"
+    );
+    assert!(!sandbox.harness_ran());
+
+    // Positive control: a new hierarchy under the same parent, once the parent
+    // can be opened, is created, synced and committed before the launch.
+    fs::set_permissions(&parent, fs::Permissions::from_mode(0o700)).unwrap();
+    let result = run("parent/second/records");
+    assert_eq!(result.code, Some(0), "{}", result.stderr);
+    assert!(sandbox.harness_ran());
+    assert_eq!(runs(&parent.join("second/records/records.sqlite3")), 1);
+}
+
+#[test]
 fn a_lock_held_past_the_wait_launches_nothing_and_spends_no_selection_time() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);

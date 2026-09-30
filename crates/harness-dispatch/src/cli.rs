@@ -241,17 +241,20 @@ impl SelectionArgs {
     /// selection inputs, `--policy-env` names (which carry no values), and no
     /// prompt, run from the same directory. The program is this process's own
     /// argv[0], as the caller spelled it, so the reproduction reaches the same
-    /// installation. It follows `--json` when the refusal did.
+    /// installation. It follows `--json` when the refusal did. When a word or
+    /// the directory is not UTF-8 it is unavailable, never approximated.
     pub fn inspect_invocation(&self, json: bool) -> Invocation {
-        let program = std::env::args_os()
-            .next()
-            .filter(|program| !program.is_empty())
-            .map_or_else(
-                || "harness-dispatch".to_owned(),
-                |program| program.to_string_lossy().into_owned(),
-            );
+        self.exact_inspect_invocation(json)
+            .unwrap_or_else(|what| Invocation::Unavailable { what })
+    }
+
+    fn exact_inspect_invocation(&self, json: bool) -> Result<Invocation, String> {
+        let program = match std::env::args_os().next().filter(|p| !p.is_empty()) {
+            Some(program) => exact(&program, "the program path harness-dispatch was run as")?,
+            None => "harness-dispatch".to_owned(),
+        };
         let mut argv = vec![program, "inspect".to_owned()];
-        option(&mut argv, "--kind", OsStr::new(&self.kind));
+        option(&mut argv, "--kind", OsStr::new(&self.kind))?;
         let given = [
             ("--choice", self.choice.as_deref()),
             (
@@ -273,32 +276,43 @@ impl SelectionArgs {
         ];
         for (flag, value) in given {
             if let Some(value) = value {
-                option(&mut argv, flag, value);
+                option(&mut argv, flag, value)?;
             }
         }
         for name in &self.policy_env {
-            option(&mut argv, "--policy-env", name);
+            option(&mut argv, "--policy-env", name)?;
         }
         if json {
             argv.push("--json".to_owned());
         }
-        Invocation {
-            cwd: std::env::current_dir().ok(),
-            argv,
-        }
+        let cwd = match std::env::current_dir() {
+            Ok(cwd) => Some(exact(cwd.as_os_str(), "the current directory")?),
+            Err(_) => None,
+        };
+        Ok(Invocation::Exact { cwd, argv })
     }
 }
 
+/// `value` as a string, or `what` when it is not UTF-8.
+fn exact(value: &OsStr, what: &str) -> Result<String, String> {
+    value
+        .to_str()
+        .map(str::to_owned)
+        .ok_or_else(|| what.to_owned())
+}
+
 /// `flag value` as two words, or one `flag=value` word when the value starts
-/// with a hyphen and would otherwise read as a flag of its own.
-fn option(argv: &mut Vec<String>, flag: &str, value: &OsStr) {
-    let value = value.to_string_lossy();
+/// with a hyphen and would otherwise read as a flag of its own. A value that
+/// is not UTF-8 names its flag instead.
+fn option(argv: &mut Vec<String>, flag: &str, value: &OsStr) -> Result<(), String> {
+    let value = exact(value, flag)?;
     if value.starts_with('-') {
         argv.push(format!("{flag}={value}"));
     } else {
         argv.push(flag.to_owned());
-        argv.push(value.into_owned());
+        argv.push(value);
     }
+    Ok(())
 }
 
 /// The refusal for an input or command a later release delivers.

@@ -10,7 +10,6 @@
 //! reconstructing its inputs.
 
 use std::fmt::Write as _;
-use std::path::PathBuf;
 
 use serde_json::{json, Map, Value};
 
@@ -228,28 +227,46 @@ impl Diagnostics {
 /// inputs without the prompt, and the directory they were given in, which
 /// relative paths and the policy's view of the caller depend on.
 #[derive(Debug)]
-pub struct Invocation {
-    /// `None` when the current directory could not be read.
-    pub cwd: Option<PathBuf>,
-    /// Converted lossily where an input was not UTF-8.
-    pub argv: Vec<String>,
+pub enum Invocation {
+    Exact {
+        /// `None` when the current directory could not be read.
+        cwd: Option<String>,
+        argv: Vec<String>,
+    },
+    /// A word or the directory is not UTF-8, so no JSON string or text
+    /// command line can hold it exactly. A lossy copy would name different
+    /// inputs, whose inspection could even succeed, so none is offered.
+    Unavailable {
+        /// The input, program or directory that cannot be written.
+        what: String,
+    },
 }
 
 impl Invocation {
+    fn unavailable(what: &str) -> String {
+        format!("{what} is not valid UTF-8, so no command line reproduces it exactly")
+    }
+
     fn to_json(&self) -> Value {
-        json!({
-            "cwd": self.cwd.as_ref().map(|cwd| cwd.to_string_lossy()),
-            "argv": self.argv,
-        })
+        match self {
+            Invocation::Exact { cwd, argv } => json!({ "cwd": cwd, "argv": argv }),
+            Invocation::Unavailable { what } => json!({ "unavailable": Self::unavailable(what) }),
+        }
     }
 
     /// One line a POSIX shell runs as the same invocation, in a subshell so
     /// that pasting it leaves the reader's own directory alone.
     fn to_text(&self) -> String {
-        let command: Vec<String> = self.argv.iter().map(|word| shell_word(word)).collect();
+        let (cwd, argv) = match self {
+            Invocation::Exact { cwd, argv } => (cwd, argv),
+            Invocation::Unavailable { what } => {
+                return format!("unavailable: {}", Self::unavailable(what))
+            }
+        };
+        let command: Vec<String> = argv.iter().map(|word| shell_word(word)).collect();
         let command = command.join(" ");
-        match &self.cwd {
-            Some(cwd) => format!("(cd {} && {command})", shell_word(&cwd.to_string_lossy())),
+        match cwd {
+            Some(cwd) => format!("(cd {} && {command})", shell_word(cwd)),
             None => command,
         }
     }
@@ -387,9 +404,19 @@ mod tests {
     }
 
     #[test]
+    fn an_unwritable_invocation_says_so_rather_than_approximating() {
+        let invocation = Invocation::Unavailable {
+            what: "--task-id".to_owned(),
+        };
+        let reason = "--task-id is not valid UTF-8, so no command line reproduces it exactly";
+        assert_eq!(invocation.to_text(), format!("unavailable: {reason}"));
+        assert_eq!(invocation.to_json(), json!({ "unavailable": reason }));
+    }
+
+    #[test]
     fn the_invocation_runs_in_its_directory_in_a_subshell() {
-        let invocation = Invocation {
-            cwd: Some(PathBuf::from("/work/my repo")),
+        let invocation = Invocation::Exact {
+            cwd: Some("/work/my repo".to_owned()),
             argv: vec![
                 "harness-dispatch".into(),
                 "inspect".into(),

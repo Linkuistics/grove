@@ -34,9 +34,10 @@ pub enum Authority {
 
 #[derive(Debug)]
 pub struct PolicyEntry {
-    /// The canonical path the worker imports; symlinks are resolved, so this is
-    /// the file whose directory relative imports start from.
-    pub path: PathBuf,
+    /// The canonical path, exactly the string the worker imports; symlinks are
+    /// resolved, so this is the file whose directory relative imports start
+    /// from. [`import_specifier`] has proven that it names this file.
+    pub path: String,
     pub authority: Authority,
     /// SHA-256 of the entry's bytes, read just before the worker starts, in
     /// lowercase hex. It describes this file only, not what it imports.
@@ -45,7 +46,7 @@ pub struct PolicyEntry {
 
 impl PolicyEntry {
     pub fn display(&self) -> String {
-        self.path.to_string_lossy().into_owned()
+        self.path.clone()
     }
 }
 
@@ -110,6 +111,23 @@ pub fn resolve(
         )
         .source(shown.clone())
     })?;
+    let path = import_specifier(&path)
+        .map_err(|why| {
+            Refusal::new(
+                "policy_unreadable",
+                Stage::Authority,
+                EXIT_REFUSED,
+                format!(
+                    "the selected policy entry {shown} resolves to {}, which {why}, so the policy \
+                     worker cannot import that exact file",
+                    path.display()
+                ),
+                "rename the entry, or the directories above it, so that its resolved path is \
+                 UTF-8 with no `?`, or name another entry with --config PATH",
+            )
+            .source(shown.clone())
+        })?
+        .to_owned();
     // Reading proves read permission and gives the digest the run records.
     // The worker imports the file itself.
     let bytes = fs::read(&path).map_err(|error| {
@@ -131,6 +149,22 @@ pub fn resolve(
         authority,
         sha256,
     })
+}
+
+/// The canonical `path` as the exact string the worker imports, or why no
+/// string names it. The worker's runtime takes a string, and reads a `?` in it
+/// as the start of a query even through a `file:` URL: under Bun 1.4.2,
+/// `policy.ts?x` loads `policy.ts`, and `d?q/policy.ts` loads `d.ts`. A path
+/// that is not UTF-8 has no exact string, only a lossy one naming another
+/// file. Either would evaluate code other than the file admitted and hashed
+/// here, so both refuse before a worker starts. (`#`, `%`, spaces and newlines
+/// import exactly; a `\` fails to load rather than loading another file.)
+fn import_specifier(path: &Path) -> Result<&str, &'static str> {
+    let path = path.to_str().ok_or("is not valid UTF-8")?;
+    if path.contains('?') {
+        return Err("contains `?`, read by the worker's runtime as a query");
+    }
+    Ok(path)
 }
 
 fn personal_default(home: Option<&OsStr>) -> Result<PathBuf, Refusal> {
@@ -162,4 +196,24 @@ fn personal_default(home: Option<&OsStr>) -> Result<PathBuf, Refusal> {
         .input("HOME"));
     }
     Ok(home.join(PERSONAL_DEFAULT))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::ffi::OsStrExt as _;
+
+    #[test]
+    fn only_a_path_the_worker_imports_exactly_is_a_specifier() {
+        for exact in ["/p/policy.ts", "/p/a b#c%41\n.ts", "/p/é/policy.ts"] {
+            assert_eq!(import_specifier(Path::new(exact)), Ok(exact));
+        }
+        for queried in ["/p/policy.ts?x", "/p/d?q/policy.ts"] {
+            let why = import_specifier(Path::new(queried)).unwrap_err();
+            assert!(why.contains('?'), "{queried}: {why}");
+        }
+        // The lossy form of this path is a different, UTF-8 file name.
+        let native = Path::new(OsStr::from_bytes(b"/p/policy-\xff.ts"));
+        assert_eq!(import_specifier(native), Err("is not valid UTF-8"));
+    }
 }

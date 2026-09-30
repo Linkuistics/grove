@@ -347,6 +347,46 @@ fn every_invalid_policy_shape_refuses_with_its_location() {
             "policy.catalog[0].args[0]",
         ),
         (
+            "a NUL in a literal argument",
+            with(
+                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: ["before\0after", { slot: "prompt" }] }"#,
+            ),
+            "policy_invalid",
+            "policy.catalog[0].args[0]",
+        ),
+        (
+            "a NUL in a model a slot would pass",
+            with(
+                r#"{ id: "deep", provider: "o", model: "m\0", effort: "e", program: "p", args: [{ slot: "prompt" }] }"#,
+            ),
+            "policy_invalid",
+            "policy.catalog[0].model",
+        ),
+        (
+            "a NUL in an effort a slot would pass",
+            with(
+                r#"{ id: "deep", provider: "o", model: "m", effort: "\0e", program: "p", args: [{ slot: "prompt" }] }"#,
+            ),
+            "policy_invalid",
+            "policy.catalog[0].effort",
+        ),
+        (
+            "a NUL in the program",
+            with(
+                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "fake\0harness", args: [{ slot: "prompt" }] }"#,
+            ),
+            "policy_invalid",
+            "policy.catalog[0].program",
+        ),
+        (
+            "a NUL in a candidate no route selects",
+            policy(
+                r#"schemaVersion: 1, version: "v", catalog: [$C, { id: "idle", provider: "o", model: "m", effort: "e", program: "p", args: ["a\0b", { slot: "prompt" }] }], routes: { impl: "deep" }"#,
+            ),
+            "policy_invalid",
+            "policy.catalog[1].args[0]",
+        ),
+        (
             "route to an unknown candidate",
             policy(r#"schemaVersion: 1, version: "v", catalog: [$C], routes: { impl: "missing" }"#),
             "policy_invalid",

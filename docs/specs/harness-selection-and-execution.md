@@ -20,9 +20,11 @@ plain exec, exports the run's identity to the harness, and appends an exec
 failure to its attempt. `record observe` validates and appends a version-1
 observation against a recorded run, with idempotent repeats, refused conflicts
 and retained corrections, and `record show` exports the run with its
-observations, derived evidence and measurements. Run lookup (`host.run`) is
-refused by name. Handled signals and a signal-transparent
-handoff are not yet delivered. Every release
+observations, derived evidence and measurements. `loadContext` looks runs up
+with `host.run`, which the front answers from the record store under `inspect`
+and `run` alike. The delivered context carries each answer as a measured
+source, and a run records the creator provenance its context carried. Handled
+signals and a signal-transparent handoff are not yet delivered. Every release
 archive and the Homebrew formula carry the front and its worker in the
 [delivered layout](#delivery), each target's worker compiled from a
 digest-pinned Bun runtime. The installed smoke test runs the static and
@@ -162,8 +164,8 @@ of `run` (a canonical run ID) or `declared` (a provider-origin label). Empty
 optional collections remain distinct from unknown facts, and nothing absent is
 defaulted. Loaded context uses the same
 shape. The delivered context additionally carries measured source metadata,
-which harness-dispatch attaches as `measured` and a loader cannot supply, and,
-once run lookup is delivered, the creator run snapshot it resolved. No
+which harness-dispatch attaches as `measured`, and the answer to every run
+lookup, attached as `runs`; a loader can supply neither. No
 executable fields are admitted in a caller context document: an unknown field
 refuses with its location, and one named like an executable field (`program`,
 `args`, `catalog`, `select`, `loadContext` and the like) says why. `facts` and
@@ -322,22 +324,47 @@ module-relative resolution. A read is synchronous, opens a regular file without
 blocking, decodes strict UTF-8 and, for `readJson`, parses it. Its `maxBytes`
 defaults to the per-read bound and may be set up to the context budget. A
 failed read throws, and a loader that fails because of it refuses naming that
-source. Reads are open only while `loadContext` runs: `select`'s host has
-`diagnostic` and `signal` alone, since the context it receives is the measured
-one. `diagnostic` writes one line to the worker's captured stderr. `signal`
-aborts when the front stops the worker at its deadline; a worker whose policy
-installs no TERM listener of its own then exits once the abort listeners have
-run. Run lookup is a read-only protocol request to the
-Rust store. It returns the run's immutable launch fields, including task
-identity and catalog snapshot, plus any launch-failure detail, or missing. An
-unreadable store refuses rather than reading as missing. The worker never opens
-or writes the database. The loader returns context,
-and the selection callback receives that measured value. The supplied adapter
-uses these operations so its complete delivered context is inspectable.
+source. Reads and run lookups are open only while `loadContext` runs: `select`'s host
+has `diagnostic` and `signal` alone, since the context it receives is the
+measured one. `diagnostic` writes one line to the worker's captured stderr.
+`signal` aborts when the front stops the worker at its deadline; a worker whose
+policy installs no TERM listener of its own then exits once the abort listeners
+have run. The loader returns context, and the selection callback receives that
+measured value. The supplied adapter uses these operations so its complete
+delivered context is inspectable.
+
+**Run lookup** is a read-only protocol request that the front answers from the
+invocation's record store, under `inspect` as under `run`. The worker never
+opens or writes the database, and is not told where it is. `run(runId)` takes a
+run ID in its canonical form, and anything else throws a `TypeError` before
+anything is asked. There is no lookup by task or artifact identity. The answer
+is frozen: `{ runId, status: "found", recordedAt, kind, taskId, candidate: {
+id, provider, model, effort }, launchFailure }`, with `taskId` `null` when the
+run had none and `launchFailure` `null` or the appended detail as `record show`
+exports it. Otherwise it is `{ runId, status: "missing" }`. It projects the
+run's immutable launch fields and is never the whole launch document, whose
+argv holds the prompt and whose program and arguments no context carries. A
+store file that does not exist, an empty one and a store without the run all
+answer missing. A store that exists but cannot be read, one that is corrupt, of
+another application or of another version, a launch document this release
+cannot read, and a lock held past the wait each refuse the selection with the
+store's exit-4 refusal. The front then ends the conversation and stops the
+worker, so no policy code runs after it, and it never reads as missing. The
+lookup waits for a writer's lock at most the fixed lock wait and never past the
+selection's deadline. A wait that reaches the deadline is the selection timing
+out.
 
 The **delivered context** is the loader's result, or the caller's document when
 there is no loader, with `measured` attached: the `--context` document first,
-then each SDK read in call order, each `{ name, via, bytes, sha256 }`. A routes
+then each SDK read and run lookup in call order, each `{ name, via, bytes,
+sha256 }`. A read's name is its canonical path. A lookup's name is its run ID,
+its `via` is `run`, and its bytes and digest are those of its answer's compact
+encoding with sorted keys. So a lookup counts against the source bound like a
+read. When `loadContext` looked a run up, `runs` is attached too: every answer,
+in call order, a repeated lookup included. Without a lookup there is no
+`runs`, and a context is delivered exactly as a policy without run lookup would
+have it. The front keeps its own answers and refuses a worker whose context
+reports others. A routes
 policy with a loader or a caller context has its context assembled, measured
 and inspected too. The worker checks the delivered size before it sends it, and
 the front, which validates it by the caller-context rules, measures it again
@@ -357,7 +384,7 @@ the `request.limits` the policy sees.
 | Policy result/catalog protocol message | 1 MiB | Fixed; excess refuses |
 | Worker diagnostics, both streams together | 256 KiB | Drain within the bound; excess terminates evaluation with an output-limit error, keeping the first 256 KiB |
 | Prompt | 1 MiB | Fixed; platform argv/environment limits can refuse smaller payloads at exec |
-| Record-store lock wait | 2 seconds | Fixed; separate from the selection bound, which it neither extends nor consumes |
+| Record-store lock wait | 2 seconds | Fixed. The commit's wait follows selection, and neither extends nor consumes its bound. A run lookup's wait is inside selection, cut to the time left |
 
 Time before handoff is therefore bounded by the selection bound, the worker's
 cleanup grace and the lock wait, plus executable resolution and the record
@@ -543,14 +570,25 @@ private user permissions and durable transactions. No database service or Bun
 database client is required. Its default directory is
 `~/.local/state/harness-dispatch`; an explicit state directory replaces it.
 Concurrent invocations use short transactions, never a lock held across policy
-evaluation. Disk-full, permission, schema or lock failures before handoff refuse.
+evaluation. During evaluation the store is only read, by run lookups, each a
+short read transaction. Disk-full, permission, schema or lock failures before
+handoff refuse.
 
 Before exec, one committed transaction persists a collision-resistant run ID,
 timestamp, task identity and reviewed-artifact association, kind, selected
 catalog values, explicit-choice input, resolved executable and argv, original
 cwd, policy entry authority/digest/version, worker and adapter versions, context
 source digests and sizes, effective limits, decision reason, selection timing and
-the creator provenance used. Raw environment values are not stored. Argv
+the creator provenance used. Raw environment values are not stored. The
+creator provenance is what the delivered context carried, since dispatch cannot
+tell which facts a policy used. It is `null` without a reviewed-artifact
+creator, and otherwise `{ reference, evidence, provider, lookup }`. The
+reference is the `run` or `declared` form as given, and the evidence class is
+`execution_recorded` or `declared`. The provider is the declared label, or the
+found run's recorded provider, else `null`. The lookup is the first answer in
+`runs` for the referenced run, or `null` when none was looked up. Inspection
+reports the same object, and both text forms show it with the run's task
+identity. Argv
 contains the prompt, so records are private local execution data. The run ID is
 available to the final harness via its environment and the optional argument
 slot. Inspection uses a visibly marked proposed ID, creates no run, and does not
@@ -577,8 +615,8 @@ transaction in a rollback journal at `synchronous = EXTRA`, the setting SQLite
 documents as durable in that mode, with `fullfsync` on for macOS. That sync
 reaches only the store's own directory. So on first use, the parent of every
 record directory the invocation creates is synced before the commit, and a
-failed sync refuses with exit 4 like the commit. The store is
-opened only after the worker has been reaped.
+failed sync refuses with exit 4 like the commit. The commit opens the store
+only after the worker has been reaped.
 
 | Evidence | Meaning |
 |---|---|

@@ -13,8 +13,11 @@
 //! reports a snapshot of its policy, which the caller's judge validates while
 //! the worker waits. Only then may the judge ask the worker, once, to assemble
 //! the context, running the policy's `loadContext` if it has one, and it
-//! validates and measures what comes back (*Bounded context*). Then it may ask
-//! the worker, once, to call the policy's `select`, and it judges what that
+//! validates and measures what comes back (*Bounded context*). While the loader
+//! runs, each `host.run` is a request the front answers through the judge's
+//! lookup, from the record store the worker never opens; the front keeps its
+//! own answers, and the context must carry exactly those. Then the judge may
+//! ask the worker, once, to call the policy's `select`, and it judges what that
 //! produced against the snapshot it already holds. A judge that needs nothing
 //! more simply ends the conversation, and the worker exits (*Policy and joint
 //! choice*).
@@ -49,12 +52,13 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 
-use crate::context::Measured;
+use crate::context::{self, Measured, VIA_RUN};
 use crate::frame::{read_frame, write_frame, FrameError};
 use crate::limits::{Bound, Limits, SELECTION_MAX_MS};
 use crate::refusal::{
     Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED, EXIT_TIMEOUT, EXIT_WORKER,
 };
+use crate::run_id::RunId;
 
 pub const PROTOCOL: u64 = 1;
 pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -134,18 +138,18 @@ pub enum Produced {
     Unsettled,
     /// Its result would have exceeded the protocol message bound.
     Breach(Breach),
-    /// It called a host operation this release refuses.
-    Unsupported { operation: String },
 }
 
 /// What the worker assembled as the context, or why it could not.
 #[derive(Debug)]
 pub enum Assembled {
     /// The loader's result, or the caller's context when there is no loader,
-    /// as the worker encoded it, and every source it measured, in order.
+    /// as the worker encoded it, every source it measured, in order, and the
+    /// front's answers to its run lookups, in order.
     Context {
         context: Value,
         measured: Vec<Measured>,
+        runs: Vec<Value>,
     },
     /// `loadContext` threw, or its promise rejected.
     Threw { name: String, message: String },
@@ -157,8 +161,6 @@ pub enum Assembled {
     Unserializable { name: String, message: String },
     /// A bound was exceeded, whether or not the policy caught the error.
     Breach(Breach),
-    /// It called a host operation this release refuses.
-    Unsupported { operation: String },
 }
 
 /// A bound the worker saw exceeded, as it reported it. Only the facts the
@@ -200,10 +202,18 @@ pub struct Loaded<'a> {
 
 impl Loaded<'_> {
     /// Ask the worker, once, to assemble the context, and wait, within what is
-    /// left of the deadline, for it. Its measured sources must begin with the
-    /// caller's document exactly as the front measured it, when there is one,
-    /// and name no other.
-    pub fn context(&mut self) -> Result<Assembled, Halt> {
+    /// left of the deadline, for it, answering each `host.run` the loader
+    /// makes meanwhile with `lookup`. `lookup` is given the run and the
+    /// selection's deadline, which no wait of its own may pass; a lookup still
+    /// running at the deadline is the selection timing out, and a refusal from
+    /// it ends the conversation at once, with no more policy code run. The
+    /// measured sources must begin with the caller's document exactly as the
+    /// front measured it, when there is one, and name no other; their run
+    /// lookups, and the context's `runs`, must be the front's answers in order.
+    pub fn context(
+        &mut self,
+        lookup: &mut dyn FnMut(&RunId, Instant) -> Result<Value, Refusal>,
+    ) -> Result<Assembled, Halt> {
         assert!(!self.assembled, "the context is assembled at most once");
         self.assembled = true;
         write_frame(
@@ -213,14 +223,48 @@ impl Loaded<'_> {
         .map_err(|error| Halt(Conversation::failed(error, true)))?;
         let max =
             usize::try_from(self.limits.context.value).unwrap_or(usize::MAX) + CONTEXT_ENVELOPE;
-        let frame = receive(&mut self.channel, self.worker, true, max).map_err(Halt)?;
+        let mut answered: Vec<(Measured, Value)> = Vec::new();
+        let frame = loop {
+            let frame = receive(&mut self.channel, self.worker, true, max).map_err(Halt)?;
+            if text(&frame, "type").as_deref() != Some("run") {
+                break frame;
+            }
+            // The worker refuses a malformed ID to the policy, so one here is
+            // the worker breaking the protocol.
+            let run_id = text(&frame, "runId")
+                .and_then(|given| RunId::canonical(&given))
+                .ok_or_else(|| {
+                    Halt(broken(
+                        self.worker,
+                        format!("unexpected run lookup: {}", shown(&frame)),
+                    ))
+                })?;
+            let deadline = self.channel.deadline;
+            let looked_up = lookup(&run_id, deadline);
+            if Instant::now() >= deadline {
+                return Err(Halt(Conversation::Expired { handed_over: true }));
+            }
+            let answer = looked_up?;
+            let source = context::run_source(&answer);
+            write_frame(
+                &mut self.channel,
+                &json!({
+                    "type": "run",
+                    "protocol": PROTOCOL,
+                    "lookup": answer,
+                    "measured": source.to_json(),
+                }),
+            )
+            .map_err(|error| Halt(Conversation::failed(error, true)))?;
+            answered.push((source, answer));
+        };
         let assembled = assembled(&frame).ok_or_else(|| {
             Halt(broken(
                 self.worker,
                 format!("unexpected context frame: {}", shown(&frame)),
             ))
         })?;
-        if let Assembled::Context { measured, .. } = &assembled {
+        if let Assembled::Context { measured, runs, .. } = &assembled {
             let from_caller = measured
                 .iter()
                 .filter(|source| source.via == crate::context::VIA_CALLER)
@@ -234,6 +278,22 @@ impl Loaded<'_> {
                     self.worker,
                     "the worker's measured sources do not begin with the --context document \
                      exactly as the front measured it"
+                        .to_owned(),
+                )));
+            }
+            let lookups: Vec<&Measured> = measured
+                .iter()
+                .filter(|source| source.via == VIA_RUN)
+                .collect();
+            let (sources, answers): (Vec<&Measured>, Vec<&Value>) = answered
+                .iter()
+                .map(|(source, answer)| (source, answer))
+                .unzip();
+            if lookups != sources || runs.iter().collect::<Vec<_>>() != answers {
+                return Err(Halt(broken(
+                    self.worker,
+                    "the worker's run lookups are not the answers the front gave, in the order \
+                     it gave them"
                         .to_owned(),
                 )));
             }
@@ -682,7 +742,6 @@ fn shown(frame: &Value) -> String {
 /// phase admits its own subset.
 enum Fault {
     Breach(Breach),
-    Unsupported(String),
     Unsettled,
     Unserializable { name: String, message: String },
     SourceUnreadable { source: String, message: String },
@@ -705,9 +764,6 @@ fn fault(frame: &Value, stage: &str) -> Option<Fault> {
             source: text(bound, "source"),
             max_bytes: number("maxBytes"),
         }));
-    }
-    if let Some(operation) = text(frame, "unsupported") {
-        return Some(Fault::Unsupported(operation));
     }
     if flag("unsettled") {
         return Some(Fault::Unsettled);
@@ -754,11 +810,11 @@ fn assembled(frame: &Value) -> Option<Assembled> {
         return Some(Assembled::Context {
             context: frame.get("context")?.clone(),
             measured: measured(frame.get("measured")?)?,
+            runs: frame.get("runs")?.as_array()?.clone(),
         });
     }
     Some(match fault(frame, "context")? {
         Fault::Breach(breach) => Assembled::Breach(breach),
-        Fault::Unsupported(operation) => Assembled::Unsupported { operation },
         Fault::Unsettled => Assembled::Unsettled,
         Fault::Unserializable { name, message } => Assembled::Unserializable { name, message },
         Fault::SourceUnreadable { source, message } => {
@@ -779,10 +835,9 @@ fn measured(list: &Value) -> Option<Vec<Measured>> {
                 .get("name")?
                 .as_str()
                 .filter(|name| !name.is_empty())?;
-            let via = fields
-                .get("via")?
-                .as_str()
-                .filter(|via| [crate::context::VIA_CALLER, "readText", "readJson"].contains(via))?;
+            let via = fields.get("via")?.as_str().filter(|via| {
+                [crate::context::VIA_CALLER, "readText", "readJson", VIA_RUN].contains(via)
+            })?;
             let sha256 = fields.get("sha256")?.as_str().filter(|digest| {
                 digest.len() == 64
                     && digest
@@ -807,7 +862,6 @@ fn produced(frame: &Value) -> Option<Produced> {
     }
     Some(match fault(frame, "select")? {
         Fault::Breach(breach) => Produced::Breach(breach),
-        Fault::Unsupported(operation) => Produced::Unsupported { operation },
         Fault::Unsettled => Produced::Unsettled,
         Fault::Unserializable { name, message } => Produced::Unserializable { name, message },
         Fault::Threw { name, message } => Produced::Threw { name, message },

@@ -8,6 +8,16 @@
 // runs: the context it returns is the measured value `select` receives, so
 // `select` reads nothing more through the host.
 //
+// A run lookup is a request on the protocol channel, which the front answers
+// from its record store: the worker never opens the database, and does not
+// know where it is. The answer is the run's immutable launch fields, or that
+// it is missing, with the measured source the front made of it. Both go into
+// the context the front receives, which checks them against the answers it
+// gave. Lookups are open when reads are, for the same reason. When the store
+// cannot answer, the front refuses the selection and closes the channel, and
+// the worker exits: no policy code runs after it, so the refusal cannot be
+// caught.
+//
 // A bound exceeded here is recorded once, the first time, and the policy is
 // thrown an error as well. Catching that error changes nothing, because the
 // phase reports the recorded breach instead of whatever the policy went on to
@@ -19,6 +29,7 @@
 import { closeSync, constants, fstatSync, openSync, readSync, realpathSync, writeSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
+import { PROTOCOL, receive, send } from "./channel.ts";
 
 /** The bounds the front sent, in the units their names say. */
 export interface Bounds {
@@ -31,15 +42,15 @@ export interface Bounds {
 /** One measured source, as the front receives it. */
 export interface Measured {
   readonly name: string;
-  readonly via: "--context" | "readText" | "readJson";
+  readonly via: "--context" | "readText" | "readJson" | "run";
   readonly bytes: number;
   readonly sha256: string;
 }
 
-/** A bound exceeded or an operation refused, as the failure frame reports it. */
-export type Breach =
-  | { readonly bound: { readonly name: string; readonly actual?: number; readonly source?: string; readonly maxBytes?: number } }
-  | { readonly unsupported: string };
+/** A bound exceeded, as the failure frame reports it. */
+export interface Breach {
+  readonly bound: { readonly name: string; readonly actual?: number; readonly source?: string; readonly maxBytes?: number };
+}
 
 /** A read that failed: the source is missing, unreadable, not UTF-8 or not JSON. */
 export class SourceUnreadable extends Error {
@@ -57,16 +68,25 @@ export class BoundExceeded extends Error {
   override readonly name = "BoundExceeded";
 }
 
-/** A host operation this release refuses, however the policy handles the error. */
-export class Unsupported extends Error {
-  override readonly name = "Unsupported";
-}
-
 const utf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+
+/** A run ID as `HARNESS_DISPATCH_RUN_ID` gives it; nothing else is looked up. */
+const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** `value`, with every object and array in it frozen. */
+export function deepFreeze<T>(value: T): T {
+  if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Object.keys(value)) deepFreeze((value as Record<string, unknown>)[key]);
+  }
+  return value;
+}
 
 /** The state of one evaluation: its bounds, what it measured, and any breach. */
 export class Session {
   readonly ledger: Measured[];
+  /** Every answer the front gave to `host.run`, in call order. */
+  readonly runs: object[] = [];
   breach: Breach | undefined;
   /** Whether `loadContext` is running, the only time reads are open. */
   reading = false;
@@ -139,15 +159,44 @@ export class Session {
         session.listen();
         return session.stop.signal;
       },
-      // Not in the SDK's declarations: run lookup arrives in a later release,
-      // and until then calling it refuses the selection.
-      run(): never {
-        return session.breached(
-          { unsupported: "host.run" },
-          new Unsupported("host.run is not supported by this release of harness-dispatch"),
-        );
-      },
+      run: reads ? (runId: unknown) => session.lookup(runId) : closed("run"),
     });
+  }
+
+  /**
+   * Ask the front for the run `runId` names, and return its answer, frozen:
+   * the same object the delivered context carries in `runs`. A malformed ID
+   * is the policy's error, thrown before anything is asked, and no source.
+   */
+  private lookup(runId: unknown): object {
+    if (!this.reading) {
+      throw new Error("host.run was called after loadContext returned its context");
+    }
+    if (typeof runId !== "string" || !RUN_ID.test(runId)) {
+      const given = typeof runId === "string" ? JSON.stringify(runId) : `a ${typeof runId}`;
+      throw new TypeError(
+        "host.run takes a run ID, 36 lowercase hexadecimal digits and hyphens as " +
+          `HARNESS_DISPATCH_RUN_ID gives it, not ${given}`,
+      );
+    }
+    if (this.ledger.length >= this.bounds.sources) {
+      this.breached(
+        { bound: { name: "sources", source: runId, actual: this.ledger.length + 1 } },
+        new BoundExceeded(`host.run of ${runId} would be source ${this.ledger.length + 1}, over ${this.bounds.sources}`),
+      );
+    }
+    send({ type: "run", runId });
+    const answer = receive();
+    // The front closes the channel instead of answering when its store cannot
+    // be read: it has refused the selection, and nothing is left to evaluate.
+    if (answer === null) process.exit(0);
+    if (!isAnswer(answer, runId)) {
+      throw new Error(`unexpected protocol answer to host.run: ${JSON.stringify(answer).slice(0, 400)}`);
+    }
+    const lookup = deepFreeze(answer.lookup);
+    this.ledger.push(answer.measured);
+    this.runs.push(lookup);
+    return lookup;
   }
 
   /**
@@ -258,4 +307,28 @@ export class Session {
       throw new SourceUnreadable(name, "is not valid UTF-8");
     }
   }
+}
+
+/** The front's answer to a lookup of `runId`. */
+interface Answer {
+  readonly lookup: { readonly runId: string };
+  readonly measured: Measured;
+}
+
+function isAnswer(value: unknown, runId: string): value is Answer {
+  if (typeof value !== "object" || value === null) return false;
+  const message = value as Record<string, unknown>;
+  const lookup = message.lookup as Record<string, unknown> | null | undefined;
+  const measured = message.measured as Record<string, unknown> | null | undefined;
+  return (
+    message.type === "run" &&
+    message.protocol === PROTOCOL &&
+    typeof lookup === "object" &&
+    lookup !== null &&
+    lookup.runId === runId &&
+    typeof measured === "object" &&
+    measured !== null &&
+    measured.name === runId &&
+    measured.via === "run"
+  );
 }

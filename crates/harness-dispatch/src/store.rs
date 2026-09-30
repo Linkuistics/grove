@@ -23,9 +23,12 @@
 //! `BEGIN EXCLUSIVE`, which in rollback mode takes the only lock its commit
 //! needs. The bundled build defines `HAVE_USLEEP` (libsqlite3-sys 0.38.2,
 //! `build.rs`), so SQLite's busy handler sleeps in milliseconds, not whole
-//! seconds. The store is opened only after the worker has been reaped, so no
-//! lock is held across policy evaluation, and the wait neither extends nor
-//! consumes the selection bound.
+//! seconds. The commit opens the store only after the worker has been reaped,
+//! so its wait neither extends nor consumes the selection bound. The one
+//! thing that reads the store during evaluation is a policy's run lookup: a
+//! short read transaction, holding a shared lock only while it reads, whose
+//! wait is cut to what is left of the selection bound ([`load`]). No lock is
+//! held across policy evaluation.
 //!
 //! **Versions and immutability.** The file names itself with an application ID
 //! and a schema version, checked inside the transaction; a pristine file is
@@ -193,8 +196,9 @@ pub struct Committed {
 /// on first use, privately. Nothing here is retried; a failure refuses.
 pub fn commit(dir: &StateDir, run_id: &RunId, launch: &Value) -> Result<Committed, Refusal> {
     let file = dir.store();
-    let fail =
-        |failure: StoreFailure| failure.refusal(dir, &file, "commit the run's handoff record");
+    let fail = |failure: StoreFailure| {
+        failure.refusal(dir, &file, "commit the run's handoff record", LOCK_WAIT)
+    };
     let mut connection = create(dir, &file).map_err(fail)?;
     let transaction = exclusive(&mut connection).map_err(fail)?;
     let recorded_at = (|| {
@@ -222,9 +226,10 @@ pub fn append_launch_failure(
     detail: &Value,
 ) -> Result<(), Refusal> {
     let file = dir.store();
-    let fail =
-        |failure: StoreFailure| failure.refusal(dir, &file, "append the run's launch failure");
-    let mut connection = open(&file).map_err(fail)?;
+    let fail = |failure: StoreFailure| {
+        failure.refusal(dir, &file, "append the run's launch failure", LOCK_WAIT)
+    };
+    let mut connection = open(&file, LOCK_WAIT).map_err(fail)?;
     let transaction = exclusive(&mut connection).map_err(fail)?;
     (|| {
         prepare(&transaction, Prepare::AsItIs)?;
@@ -297,8 +302,9 @@ pub fn append_observation(dir: &StateDir, new: &NewObservation<'_>) -> Result<Ap
             store_exists: false,
         });
     }
-    let fail = |failure: StoreFailure| failure.refusal(dir, &file, "record the observation");
-    let mut connection = open(&file).map_err(fail)?;
+    let fail =
+        |failure: StoreFailure| failure.refusal(dir, &file, "record the observation", LOCK_WAIT);
+    let mut connection = open(&file, LOCK_WAIT).map_err(fail)?;
     let transaction = exclusive(&mut connection).map_err(fail)?;
     (|| {
         if prepare(&transaction, Prepare::Migrate)? == Contents::Pristine {
@@ -419,17 +425,25 @@ pub enum Lookup {
     },
 }
 
-/// Read one run. A store that cannot be read, or is not a version this
-/// release reads, refuses; it never reads as a store without the run.
-pub fn load(dir: &StateDir, run_id: &RunId) -> Result<Lookup, Refusal> {
+/// Read one run, waiting at most `wait` for a writer's lock. A store that
+/// cannot be read, or is not a version this release reads, refuses, naming
+/// the `attempt`; it never reads as a store without the run. Only a store file
+/// known to be absent is one: a directory that cannot be searched says
+/// nothing either way, and refuses.
+pub fn load(
+    dir: &StateDir,
+    run_id: &RunId,
+    wait: Duration,
+    attempt: &str,
+) -> Result<Lookup, Refusal> {
     let file = dir.store();
     if !file.try_exists().unwrap_or(true) {
         return Ok(Lookup::Missing {
             store_exists: false,
         });
     }
-    let fail = |failure: StoreFailure| failure.refusal(dir, &file, "read the run record");
-    let mut connection = open(&file).map_err(fail)?;
+    let fail = |failure: StoreFailure| failure.refusal(dir, &file, attempt, wait);
+    let mut connection = open(&file, wait).map_err(fail)?;
     let transaction = connection
         .transaction_with_behavior(TransactionBehavior::Deferred)
         .map_err(|error| fail(error.into()))?;
@@ -551,19 +565,19 @@ fn create(dir: &StateDir, file: &Path) -> Result<Connection, StoreFailure> {
             ),
             error,
         })?;
-    open(file)
+    open(file, LOCK_WAIT)
 }
 
-/// Open an existing store file. `SQLITE_OPEN_READ_WRITE` without `CREATE`
-/// never makes a file, and opens a write-protected one read-only, which is
-/// enough to read and to roll back nothing. No URI interpretation: the path is
-/// a path.
-fn open(file: &Path) -> Result<Connection, StoreFailure> {
+/// Open an existing store file, to wait at most `wait` for a lock.
+/// `SQLITE_OPEN_READ_WRITE` without `CREATE` never makes a file, and opens a
+/// write-protected one read-only, which is enough to read and to roll back
+/// nothing. No URI interpretation: the path is a path.
+fn open(file: &Path, wait: Duration) -> Result<Connection, StoreFailure> {
     let connection = Connection::open_with_flags(
         file,
         OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )?;
-    connection.busy_timeout(LOCK_WAIT)?;
+    connection.busy_timeout(wait)?;
     // Connection settings, which take no lock and read nothing. `foreign_keys`
     // is a no-op inside a transaction, so it is set before one begins.
     connection.execute_batch(
@@ -635,6 +649,12 @@ fn prepare(transaction: &Transaction<'_>, prepare: Prepare) -> Result<Contents, 
     }
 }
 
+/// The refusal for a record the store holds but this release cannot read as
+/// one: a launch document of an unknown version, or missing a field.
+pub fn unreadable_record(dir: &StateDir, attempt: &str, why: String) -> Refusal {
+    StoreFailure::Invalid(why).refusal(dir, &dir.store(), attempt, LOCK_WAIT)
+}
+
 fn document(text: &str, column: &str) -> Result<Value, StoreFailure> {
     serde_json::from_str(text).map_err(|error| {
         StoreFailure::Invalid(format!("its {column} value is not valid JSON ({error})"))
@@ -657,7 +677,8 @@ impl From<rusqlite::Error> for StoreFailure {
 }
 
 impl StoreFailure {
-    fn refusal(self, dir: &StateDir, file: &Path, attempt: &str) -> Refusal {
+    /// `wait` is the lock wait the attempt had, which a lock refusal reports.
+    fn refusal(self, dir: &StateDir, file: &Path, attempt: &str, wait: Duration) -> Refusal {
         let store = file.display();
         let elsewhere = match dir.flag {
             Some(_) => "or name another record directory with --state-dir",
@@ -703,7 +724,7 @@ impl StoreFailure {
                         format!(
                             "{shown}; another process held the store for longer than the {} ms \
                              lock wait",
-                            LOCK_WAIT.as_millis()
+                            wait.as_millis()
                         ),
                         format!(
                             "run again once the other harness-dispatch or reader has finished; \

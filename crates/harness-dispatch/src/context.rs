@@ -4,11 +4,14 @@
 //! A caller may supply a version-1 context document with `--context`. It is read
 //! once, as data, within the context budget, then measured, hashed and
 //! validated field by field before any policy runs. A policy's `loadContext`
-//! may then assemble the final context through the SDK's measured reads. The
-//! worker returns that context with a record of every source it measured. This
+//! may then assemble the final context through the SDK's measured reads and
+//! run lookups. The worker returns that context with a record of every source
+//! it measured, and the front holds its own answers to the lookups. This
 //! module validates the context by the same rules, attaches those records as
-//! `measured`, and measures the whole. The **delivered** value is what `select`
-//! receives and inspection shows. The run record names it by digest and size.
+//! `measured` and the answers as `runs`, and measures the whole. The
+//! **delivered** value is what `select` receives and inspection shows. The run
+//! record names it by digest and size, and records the creator provenance it
+//! carries ([`Delivered::creator`]).
 //!
 //! A context is data. Nothing in it can become a program or an argument: a
 //! selection names a catalog candidate and nothing more. So `facts` and
@@ -67,6 +70,8 @@ const ARTIFACT_FIELDS: [&str; 2] = ["id", "creator"];
 
 /// How the `--context` document is named as a measured source.
 pub const VIA_CALLER: &str = "--context";
+/// How a run lookup is named as a measured source, under its run ID.
+pub const VIA_RUN: &str = "run";
 
 /// One source harness-dispatch measured: the `--context` document, or one SDK
 /// read, with the bytes actually read and their SHA-256.
@@ -88,6 +93,19 @@ impl Measured {
             "bytes": self.bytes,
             "sha256": self.sha256,
         })
+    }
+}
+
+/// The measured source a run lookup's answer is: named by its run ID, with the
+/// length and SHA-256 of the answer's compact encoding with sorted keys, the
+/// encoding the context digest uses.
+pub fn run_source(answer: &Value) -> Measured {
+    let encoded = serde_json::to_vec(answer).expect("a JSON value always encodes");
+    Measured {
+        name: answer["runId"].as_str().unwrap_or_default().to_owned(),
+        via: VIA_RUN.to_owned(),
+        bytes: encoded.len() as u64,
+        sha256: hex(&Sha256::digest(&encoded)),
     }
 }
 
@@ -175,12 +193,15 @@ pub fn read_caller(given: &Path, cwd: &Path, limits: &Limits) -> Result<CallerCo
 }
 
 /// The context `select` receives: the loader's result, or the caller's
-/// document, with every measured source attached as `measured`, and the
-/// measurements that inspection and the run record report.
+/// document, with every measured source attached as `measured` and any run
+/// lookups as `runs`, and the measurements that inspection and the run record
+/// report.
 #[derive(Debug)]
 pub struct Delivered {
     pub value: Value,
     pub sources: Vec<Measured>,
+    /// The front's answers to the loader's `host.run` calls, in call order.
+    pub runs: Vec<Value>,
     /// Whether the policy's `loadContext` produced it.
     pub loader: bool,
     /// The bytes actually read from every measured source.
@@ -196,6 +217,39 @@ impl Delivered {
     /// The reviewed artifact the context associates, if it names one.
     pub fn reviewed_artifact(&self) -> Option<&Value> {
         self.value.get("reviewedArtifact")
+    }
+
+    /// The creator provenance the selection had, if the reviewed artifact
+    /// names a creator: the reference, its evidence class, the provider it
+    /// gives, and for a run reference the first answer `loadContext` received
+    /// for that run, `null` if it looked nothing up. The provider is the
+    /// declared label, or the found run's recorded one, else `null`. Dispatch
+    /// cannot tell which facts a policy used, so this is what it offered.
+    pub fn creator(&self) -> Option<Value> {
+        let creator = self.reviewed_artifact()?.get("creator")?;
+        Some(match (creator.get("declared"), creator.get("run")) {
+            (Some(declared), _) => json!({
+                "reference": { "declared": declared },
+                "evidence": "declared",
+                "provider": declared,
+                "lookup": null,
+            }),
+            (None, run) => {
+                let run = run.unwrap_or(&Value::Null);
+                let lookup = self.runs.iter().find(|answer| answer["runId"] == *run);
+                let provider = lookup
+                    .filter(|answer| answer["status"] == "found")
+                    .map_or(Value::Null, |answer| {
+                        answer["candidate"]["provider"].clone()
+                    });
+                json!({
+                    "reference": { "run": run },
+                    "evidence": "execution_recorded",
+                    "provider": provider,
+                    "lookup": lookup,
+                })
+            }
+        })
     }
 
     /// The measurements, and with `value` the delivered context itself:
@@ -251,14 +305,17 @@ enum Author {
     Loader,
 }
 
-/// Validate, attach the measured sources to, and measure the context the
-/// worker assembled. `context` is the loader's result, or the caller's
-/// document when the policy has no loader, as the worker encoded it. `source`
-/// names the file a refusal is about: the policy entry for a loader's result,
-/// the `--context` document otherwise.
+/// Validate, attach the measured sources and run lookups to, and measure the
+/// context the worker assembled. `context` is the loader's result, or the
+/// caller's document when the policy has no loader, as the worker encoded it.
+/// `runs` is the front's own answers to the loader's lookups, attached only if
+/// there are any, so that a context that looks nothing up is delivered as it
+/// always was. `source` names the file a refusal is about: the policy entry
+/// for a loader's result, the `--context` document otherwise.
 pub fn deliver(
     context: Value,
     sources: Vec<Measured>,
+    runs: Vec<Value>,
     loader: bool,
     limits: &Limits,
     source: &str,
@@ -286,6 +343,9 @@ pub fn deliver(
         "measured".into(),
         sources.iter().map(Measured::to_json).collect(),
     );
+    if !runs.is_empty() {
+        value.insert("runs".into(), Value::Array(runs.clone()));
+    }
     let value = Value::Object(value);
     let encoded = serde_json::to_vec(&value).expect("a JSON value always encodes");
     let encoded_bytes = encoded.len() as u64;
@@ -298,6 +358,7 @@ pub fn deliver(
         encoded_bytes,
         loader,
         sources,
+        runs,
         value,
     })
 }
@@ -514,6 +575,10 @@ impl<'a> Shape<'a> {
             } else if unknown == "measured" && matches!(self.author, Author::Loader) {
                 "`measured` is what harness-dispatch measured, and it attaches that itself; \
                  loadContext cannot supply it"
+                    .to_owned()
+            } else if unknown == "runs" && matches!(self.author, Author::Loader) {
+                "`runs` holds the answers harness-dispatch gave to host.run, and it attaches them \
+                 itself; loadContext cannot supply them"
                     .to_owned()
             } else {
                 format!("unknown field `{unknown}`")
@@ -1056,6 +1121,7 @@ mod tests {
         let delivered = deliver(
             json!({ "summary": "s", "schemaVersion": 1 }),
             vec![source],
+            Vec::new(),
             false,
             &limits(),
             "/work/context.json",
@@ -1073,6 +1139,7 @@ mod tests {
         let at_bound = deliver(
             context.clone(),
             delivered.sources.clone(),
+            Vec::new(),
             false,
             &budget,
             "c",
@@ -1083,8 +1150,109 @@ mod tests {
             Some(std::ffi::OsStr::new(&(encoded.len() - 1).to_string())),
         )
         .unwrap();
-        let refusal = deliver(context, delivered.sources, false, &over, "c").unwrap_err();
+        let refusal =
+            deliver(context, delivered.sources, Vec::new(), false, &over, "c").unwrap_err();
         assert_eq!(refusal.code, "context_too_large");
         assert_eq!(refusal.input.as_deref(), Some("--context-bytes"));
+    }
+
+    fn found(provider: &str) -> Value {
+        json!({
+            "runId": RUN, "status": "found", "recordedAt": "2026-10-01T00:00:00.000Z",
+            "kind": "impl", "taskId": null, "launchFailure": null,
+            "candidate": { "id": "c", "provider": provider, "model": "m", "effort": "e" },
+        })
+    }
+
+    #[test]
+    fn runs_are_attached_only_after_a_lookup_and_count_against_the_budget() {
+        let answer = found("origin-a");
+        let source = run_source(&answer);
+        let encoded = serde_json::to_vec(&answer).unwrap();
+        assert_eq!(source.name, RUN);
+        assert_eq!(source.via, VIA_RUN);
+        assert_eq!(source.bytes, encoded.len() as u64);
+        assert_eq!(source.sha256, hex(&Sha256::digest(&encoded)));
+
+        let context = json!({ "schemaVersion": 1 });
+        let delivered = deliver(
+            context.clone(),
+            vec![source.clone()],
+            vec![answer.clone()],
+            true,
+            &limits(),
+            "p",
+        )
+        .unwrap();
+        assert_eq!(delivered.value["runs"], json!([answer]));
+        let bytes = serde_json::to_vec(&delivered.value).unwrap();
+        assert_eq!(delivered.encoded_bytes, bytes.len() as u64);
+        assert_eq!(delivered.source_bytes, source.bytes);
+
+        let without = deliver(
+            context.clone(),
+            Vec::new(),
+            Vec::new(),
+            true,
+            &limits(),
+            "p",
+        );
+        assert!(without.unwrap().value.get("runs").is_none());
+
+        let short = (bytes.len() - 1).to_string();
+        let over = Limits::read(None, Some(std::ffi::OsStr::new(&short))).unwrap();
+        let refusal = deliver(context, vec![source], vec![answer], true, &over, "p").unwrap_err();
+        assert_eq!(refusal.code, "context_too_large");
+    }
+
+    #[test]
+    fn the_creator_is_its_reference_with_its_evidence_and_its_first_lookup() {
+        let delivered = |creator: Value, runs: Vec<Value>| Delivered {
+            value: json!({ "schemaVersion": 1, "reviewedArtifact": { "id": "a", "creator": creator } }),
+            sources: Vec::new(),
+            runs,
+            loader: true,
+            source_bytes: 0,
+            encoded_bytes: 0,
+            sha256: String::new(),
+        };
+        let declared = delivered(json!({ "declared": "origin-q" }), vec![found("origin-a")]);
+        assert_eq!(
+            declared.creator(),
+            Some(json!({
+                "reference": { "declared": "origin-q" }, "evidence": "declared",
+                "provider": "origin-q", "lookup": null,
+            }))
+        );
+        // The first answer for the referenced run, never another run's.
+        let other = json!({ "runId": "0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d9e", "status": "missing" });
+        let looked_up = delivered(
+            json!({ "run": RUN }),
+            vec![other, found("origin-a"), found("origin-b")],
+        );
+        assert_eq!(
+            looked_up.creator(),
+            Some(json!({
+                "reference": { "run": RUN }, "evidence": "execution_recorded",
+                "provider": "origin-a", "lookup": found("origin-a"),
+            }))
+        );
+        let missing = json!({ "runId": RUN, "status": "missing" });
+        let absent = delivered(json!({ "run": RUN }), vec![missing.clone()])
+            .creator()
+            .unwrap();
+        assert_eq!(absent["provider"], Value::Null);
+        assert_eq!(absent["lookup"], missing);
+        let unresolved = delivered(json!({ "run": RUN }), Vec::new())
+            .creator()
+            .unwrap();
+        assert_eq!(unresolved["lookup"], Value::Null);
+        assert_eq!(unresolved["provider"], Value::Null);
+
+        let no_creator = Delivered {
+            value: json!({ "schemaVersion": 1, "reviewedArtifact": { "id": "a" } }),
+            ..delivered(Value::Null, Vec::new())
+        };
+        assert_eq!(no_creator.creator(), None);
     }
 }

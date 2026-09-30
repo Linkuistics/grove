@@ -11,10 +11,11 @@
 //!
 //! The record's state directory is placed here too, before the worker starts,
 //! so a HOME that cannot place it refuses in `inspect` as it would in `run`,
-//! and before anything is evaluated. The store itself is `run`'s alone, and is
-//! opened only after this selection has finished.
+//! and before anything is evaluated. During selection the store is only ever
+//! read, to answer a policy's run lookups, so both commands give the same
+//! answers; only `run` writes to it, once this selection has finished.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value};
 
@@ -26,8 +27,10 @@ use crate::inputs::{Inputs, PromptRequirement};
 use crate::limits::{Limits, Origin};
 use crate::policy::{self, Candidate, Form, Policy, SelectedBy, Selection, Validator};
 use crate::program::{self, Executable};
+use crate::record;
 use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED};
-use crate::store::StateDir;
+use crate::run_id::RunId;
+use crate::store::{self, StateDir};
 use crate::worker::{self, Assembled, Breach, Halt, Loaded, Outcome, WorkerIdentity};
 
 #[derive(Debug)]
@@ -72,7 +75,7 @@ pub fn choose(
         request(&inputs),
         &inputs.limits,
         inputs.context.as_ref().map(|caller| &caller.measured),
-        |outcome, loaded| judge(outcome, loaded, &inputs, &source),
+        |outcome, loaded| judge(outcome, loaded, &inputs, &source, &state_dir),
     )?;
     let diagnostics = evaluation.diagnostics;
     let refuse = |refusal: Refusal| Failure::with_diagnostics(refusal, diagnostics.clone());
@@ -118,15 +121,16 @@ struct Judged {
 /// Decide on what the worker reported. Validate the policy, then run the
 /// checks that need no more of its code: an explicit choice the catalog lacks,
 /// and for a routes policy its whole selection. Only then ask the worker for
-/// the context, when the policy has a loader or the caller gave one, and
-/// validate and measure it. A `select` policy is then asked to select, with
-/// that context, and what it produced is judged. Nothing is asked of the
-/// worker once a refusal is known.
+/// the context, when the policy has a loader or the caller gave one, answering
+/// its run lookups from the store in `state_dir`, and validate and measure it.
+/// A `select` policy is then asked to select, with that context, and what it
+/// produced is judged. Nothing is asked of the worker once a refusal is known.
 fn judge(
     outcome: Outcome,
     mut loaded: Loaded<'_>,
     inputs: &Inputs,
     source: &str,
+    state_dir: &StateDir,
 ) -> Result<Judged, Halt> {
     let import_failed = |detail: String| {
         Refusal::new(
@@ -191,7 +195,14 @@ fn judge(
         }
     };
     let context = if policy.loader || inputs.context.is_some() {
-        let assembled = loaded.context()?;
+        // A lookup waits for a writer's lock at most the fixed lock wait, and
+        // never past the selection's deadline: its wait is part of the
+        // selection bound, unlike the commit's, which follows it.
+        let mut lookup = |run_id: &RunId, deadline: Instant| {
+            let left = deadline.saturating_duration_since(Instant::now());
+            record::lookup(state_dir, run_id, left.min(store::LOCK_WAIT))
+        };
+        let assembled = loaded.context(&mut lookup)?;
         Some(deliver(assembled, &policy, inputs, source)?)
     } else {
         None
@@ -233,12 +244,16 @@ fn deliver(
             .location("policy.loadContext")
     };
     match assembled {
-        Assembled::Context { context, measured } => {
+        Assembled::Context {
+            context,
+            measured,
+            runs,
+        } => {
             let about = match (&inputs.context, policy.loader) {
                 (Some(caller), false) => caller.measured.name.as_str(),
                 _ => source,
             };
-            context::deliver(context, measured, policy.loader, limits, about)
+            context::deliver(context, measured, runs, policy.loader, limits, about)
         }
         Assembled::Threw { name, message } => Err(refuse(
             "context_loader_failed",
@@ -283,12 +298,6 @@ fn deliver(
         )
         .location("context")),
         Assembled::Breach(breach) => Err(context_breach(&breach, policy, inputs, source)),
-        Assembled::Unsupported { operation } => Err(policy::unsupported_operation(
-            Stage::Context,
-            &operation,
-            "loadContext",
-            source,
-        )),
     }
 }
 

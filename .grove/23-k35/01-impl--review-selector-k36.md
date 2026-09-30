@@ -20,9 +20,11 @@ Rust.
   routes other kinds through the owner's static table. A custom review label
   applies the rule only when the owner lists it.
 - Run reference: the selector resolves the run's recorded provider through
-  `host.run`. A missing run, a launch-failure or not-executed run, and an
-  unreadable store each refuse with the declaration remedy. An existing run of
-  another task identity is admitted, with that identity shown.
+  `host.run`. A missing run and a launch-failure or not-executed run each
+  refuse with the declaration remedy. An unreadable store never reaches the
+  selector: dispatch refuses it first, exit 4, with the store's own remedy
+  (`run-lookup-k26`). An existing run of another task identity is admitted,
+  with that identity shown.
 - Declared reference: the declared provider is used and is labelled declared in
   inspection and the run record.
 - Membership is exact and case-sensitive against the current catalog's origins,

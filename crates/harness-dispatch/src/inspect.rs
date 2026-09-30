@@ -7,9 +7,11 @@
 //! and reports it in both forms: human text, and one version-1 JSON object on
 //! stdout. Without a prompt, the prompt's argument is a marked placeholder.
 //!
-//! It records nothing and never opens the record store. It reports where `run`
-//! would record, and a proposed run ID, visibly marked, which no run holds and
-//! no later `run` reuses.
+//! It records nothing. It reads the record store only to answer the policy's
+//! run lookups, as `run` does, so that both make the same choice; it never
+//! creates a store or writes a run. It reports where `run` would record, and a
+//! proposed run ID, visibly marked, which no run holds and no later `run`
+//! reuses.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -21,8 +23,10 @@ use crate::argv::RunSlot;
 use crate::authority::{Authority, PERSONAL_DEFAULT};
 use crate::choice::{self, Choice};
 use crate::cli::InspectArgs;
+use crate::context::Delivered;
 use crate::inputs::{PromptRequirement, PromptSource};
 use crate::policy::SelectedBy;
+use crate::record;
 use crate::refusal::{Diagnostics, Failure};
 use crate::run_id::RunId;
 use crate::worker::WorkerIdentity;
@@ -84,6 +88,7 @@ impl Report {
             "taskId": choice.inputs.task_id,
             "prompt": prompt,
             "reviewedArtifact": context.and_then(|context| context.reviewed_artifact()),
+            "creator": context.and_then(Delivered::creator),
             "context": context.map(|context| context.to_json(true)),
             "policy": policy,
             "selection": {
@@ -150,6 +155,16 @@ impl Report {
                     .as_ref()
                     .and_then(|context| context.reviewed_artifact())
                     .map_or("none".to_owned(), |artifact| shown(&artifact.to_string())),
+            ),
+            (
+                "creator",
+                record::creator_text(
+                    &choice
+                        .context
+                        .as_ref()
+                        .and_then(Delivered::creator)
+                        .unwrap_or_default(),
+                ),
             ),
             (
                 "choice",

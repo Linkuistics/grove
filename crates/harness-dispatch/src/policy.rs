@@ -654,14 +654,6 @@ pub fn computed(
         Produced::Breach(breach) => {
             return Err(message_too_large(Stage::Selection, &breach, source, limits))
         }
-        Produced::Unsupported { operation } => {
-            return Err(unsupported_operation(
-                Stage::Selection,
-                &operation,
-                "select",
-                source,
-            ))
-        }
     };
 
     if result.is_null() {
@@ -833,30 +825,6 @@ pub fn message_too_large(stage: Stage, breach: &Breach, source: &str, limits: &L
     .bound(limits.message)
 }
 
-/// A host operation this release refuses, even when the policy caught the
-/// error it threw: a later release delivers it.
-pub fn unsupported_operation(
-    stage: Stage,
-    operation: &str,
-    callback: &str,
-    source: &str,
-) -> Refusal {
-    Refusal::new(
-        "unsupported_operation",
-        stage,
-        EXIT_REFUSED,
-        format!(
-            "{callback} in {source} called {operation}, which this release of harness-dispatch \
-             does not support"
-        ),
-        format!(
-            "remove the call to {operation} from {source}; run lookup arrives in a later release"
-        ),
-    )
-    .source(source)
-    .location(operation)
-}
-
 /// Whether a snapshot value is the marker for a JavaScript function.
 fn is_function(value: &Value) -> bool {
     is_marker(value) && value["$harnessDispatch"] == "function"
@@ -939,7 +907,7 @@ mod tests {
     }
 
     #[test]
-    fn a_result_over_the_message_bound_and_an_unsupported_operation_refuse_by_name() {
+    fn a_result_over_the_message_bound_refuses_by_name() {
         let policy = computing();
         let breach = Breach {
             bound: "message".into(),
@@ -958,19 +926,6 @@ mod tests {
         .unwrap_err();
         assert_eq!(refusal.code, "message_too_large");
         assert_eq!(refusal.bound.map(|bound| bound.value), Some(1_048_576));
-        let refusal = computed(
-            &policy,
-            Produced::Unsupported {
-                operation: "host.run".into(),
-            },
-            "impl",
-            None,
-            "/p.ts",
-            &limits(),
-        )
-        .unwrap_err();
-        assert_eq!(refusal.code, "unsupported_operation");
-        assert_eq!(refusal.location.as_deref(), Some("host.run"));
     }
 
     /// `valid()` with `select` in place of its routes, and a second candidate.

@@ -21,10 +21,12 @@ through reads that are measured and hashed. Selection is bounded in time, and
 its context, reads, messages and output in size, so a policy that never
 finishes, or delivers or prints too much, is stopped and nothing runs. Every
 refusal says what to fix, and a refused `run` gives the `inspect` command that
-reproduces it. Three starter policies ship inside the worker, two static and
-one computed. Signal handling at the handoff and run lookup come in later
-releases. Until each arrives, its input is refused by name. It is never
-accepted and ignored.
+reproduces it. A loader can look up an earlier run's recorded launch fields,
+so a review can learn which provider its creator ran under from the record,
+never from today's catalog. Three starter policies ship inside the worker, two
+static and one computed. Signal handling at the handoff comes in a later
+release. Until then, its input is refused by name. It is never accepted and
+ignored.
 
 ## Install
 
@@ -359,6 +361,7 @@ The `host` a loader receives reads files for it:
 |---|---|
 | `host.readText(path, maxBytes?)` | Reads a UTF-8 text file once and returns `{ text, source }` |
 | `host.readJson(path, maxBytes?)` | Reads a JSON file the same way and returns `{ value, source }` |
+| `host.run(runId)` | Looks up a recorded run: see [looking up a run](#looking-up-a-run) |
 | `host.diagnostic(text)` | Writes one line to the policy's stderr, which inspection shows and the run notice carries |
 | `host.signal` | An `AbortSignal`, aborted when harness-dispatch stops the selection at its deadline, so that a `fetch` in flight can stop too |
 
@@ -373,30 +376,117 @@ fails because of that, even as the `cause` of its own error, the refusal is
 `context_source_unreadable` and names the file. A source the policy can do
 without is simply one it catches.
 
-`select`'s host has `diagnostic` and `signal`, and no reads: it receives the
-context the loader returned, as it was measured, and reads nothing more
-through the host. A read the loader leaves for later fails once its context
-is delivered. Trusted policy can still read anything through Bun's own APIs,
-or fetch over HTTP. Those reads are not measured, so put the versions or
-digests of anything you use that way into `sources` yourself. Run lookup,
-`host.run`, arrives in a later release; calling it now refuses the selection
-as `unsupported_operation`.
+`select`'s host has `diagnostic` and `signal`, and no reads or lookups: it
+receives the context the loader returned, as it was measured, and reads
+nothing more through the host. A read or lookup the loader leaves for later
+fails once its context is delivered. Trusted policy can still read anything
+through Bun's own APIs, or fetch over HTTP. Those reads are not measured, so
+put the versions or digests of anything you use that way into `sources`
+yourself.
+
+### Looking up a run
+
+`host.run(runId)` looks a run up in the record store this invocation uses, the
+one `--state-dir` names or the default. It returns the run's immutable launch
+fields, as `run` committed them before it handed off. It is how a review
+policy learns the provider its artifact's creator ran under: the creator's
+session names its own `HARNESS_DISPATCH_RUN_ID`, and the record says what that
+run was launched as, whatever the catalog says today.
+
+```ts
+loadContext(request, host) {
+  const context = request.context ?? { schemaVersion: 1 };
+  const run = context.reviewedArtifact?.creator?.run;
+  if (run !== undefined) host.run(run);
+  return context;
+},
+select(request, context) {
+  const run = context?.reviewedArtifact?.creator?.run;
+  const creator = context?.runs?.find((lookup) => lookup.runId === run);
+  // ...
+},
+```
+
+A run the store holds answers with its launch fields:
+
+```json
+{
+  "runId": "5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34",
+  "status": "found",
+  "recordedAt": "2026-09-30T08:15:42.117Z",
+  "kind": "impl",
+  "taskId": "T-12",
+  "candidate": { "id": "deep", "provider": "anthropic", "model": "model-large", "effort": "high" },
+  "launchFailure": null
+}
+```
+
+`taskId` is `null` for a run given none. `launchFailure` is `null`, or
+harness-dispatch's own record that the harness never started, as
+[`record show`](#run-records) exports it, with its `cause`. `null` does not
+mean the harness ran: whether it did is not known from the record alone. The
+candidate is the choice as it was configured then, without its program or
+arguments. The answer never includes the argv, which holds the prompt. There
+is no lookup by task identity, artifact or handle. A run is found only by its
+ID, written exactly as harness-dispatch reported it. Anything else throws a
+`TypeError`, and nothing is looked up.
+
+A run the store does not hold answers `{ "runId": "…", "status": "missing" }`.
+So does a store that does not exist yet, or holds nothing: your policy decides
+what a missing run means. A store that exists but cannot be read is different.
+So is one that is corrupt, another application's, another version, or a
+record this release cannot read. Each refuses the whole selection with exit 4,
+as the [refusals](#refusals) list them, naming the store. The policy never sees
+it as a missing run and cannot catch it: harness-dispatch stops the worker at
+once. A lookup waits for another process's lock as a commit does, at most 2
+seconds. Its wait is part of the selection bound, though, and never passes it:
+a wait that reaches the deadline is `selection_timeout`, exit 124.
+
+Every answer is also delivered to `select`, in the context's `runs`, in the
+order the loader asked. A loader cannot supply `runs` itself, so a provider
+`select` finds there is always the record's. Each lookup is a measured source
+too, counted against the 256-source bound: named by its run ID, with `via`
+`run`, and sized and hashed over its answer's encoding. `inspect` answers
+lookups from the same store as `run`, so the two make the same choice. It reads
+the store to do so, and never creates or writes one.
 
 ### What select receives, and what inspection shows
 
 harness-dispatch attaches every source it measured to the context, as
-`measured`: the `--context` document first, then each read in order, each
-`{ name, via, bytes, sha256 }` with `via` naming `--context`, `readText` or
-`readJson`. A loader cannot supply `measured` itself. The context with
-`measured` attached is the **delivered context**. `select` receives it frozen,
-and its whole encoding, `measured` included, must fit the context budget.
+`measured`: the `--context` document first, then each read and run lookup in
+order, each `{ name, via, bytes, sha256 }` with `via` naming `--context`,
+`readText`, `readJson` or `run`. When the loader looked a run up, it attaches
+the answers as `runs` as well. A loader can supply neither itself. The context
+with them attached is the **delivered context**. `select` receives it frozen,
+and its whole encoding, `measured` and `runs` included, must fit the context
+budget.
 
 Inspection reports it as `context`: whether a loader assembled it, every
 measured source, their total bytes (`sourceBytes`), the delivered context's
 encoded size (`encodedBytes`) and its SHA-256, and in `--json` the delivered
 value itself. Sizes are bytes of UTF-8 JSON, measured as harness-dispatch
 encodes the context: compactly, with object keys in sorted order. The digest is
-of that same encoding. A context's `reviewedArtifact` is reported beside it.
+of that same encoding. A context's `reviewedArtifact` is reported beside it,
+and so is its `creator`, when the artifact names one. The creator is the
+reference, its evidence class (`execution_recorded` for a run, `declared` for
+an owner's declaration), the provider it gives, and for a run the first answer
+the loader got for it:
+
+```json
+"creator": {
+  "reference": { "run": "5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34" },
+  "evidence": "execution_recorded",
+  "provider": "anthropic",
+  "lookup": { "runId": "5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34", "status": "found", "…": "…" }
+}
+```
+
+The provider is `null` when the run is missing or was never looked up, and
+`lookup` is `null` when it was never looked up. A declared creator gives its
+declared provider. Text output shows the same as a `creator` row, with the
+run's task identity and kind beside its recorded choice. harness-dispatch
+cannot tell what a policy made of the creator: this is what its context
+carried.
 
 ## Starter examples
 
@@ -621,13 +711,15 @@ with the same exit. It
 reports the policy's path, its authority (personal or explicit), its SHA-256
 and version, the task file, task identity and prompt it was given, the
 [context](#context) selection saw with its measured sources, any reviewed
-artifact, any explicit choice, the chosen candidate with its provider, model
+artifact and its creator provenance, any explicit choice, the chosen candidate with its provider, model
 and effort, what selected it and why, the resolved program,
 the expanded argv, every effective [bound](#bounds), the selection time, the
 worker's identity, and where `run` would record. It also shows a proposed run
 ID. That ID is marked as proposed, no run holds it, and a later `run`
-allocates its own. Inspection never opens the record store, so it cannot tell
-you in advance that `run` would find the store unusable. Without a
+allocates its own. Inspection never writes the record store, so it cannot tell
+you in advance that `run` would find the store unusable for its commit. It
+reads the store only to answer the policy's [run lookups](#looking-up-a-run),
+as `run` does. Without a
 prompt, the prompt's argument is a marked placeholder. Human text shows each
 argument quoted and escaped. `--json` prints the same facts on stdout as one
 version-1 object:
@@ -643,6 +735,7 @@ version-1 object:
   "taskId": "T-12",
   "prompt": { "supplied": true, "from": "--prompt", "bytes": 20 },
   "reviewedArtifact": null,
+  "creator": null,
   "context": null,
   "policy": { "path": "/home/me/.config/harness-dispatch/policy.ts", "authority": "personal",
               "sha256": "9c1f…", "version": "2026-09-30" },
@@ -674,7 +767,7 @@ prompt, `"prompt"` is `{ "supplied": false }` and its argument in `argv` is
 the entry as it is spelled in PATH. With a context, `context` is
 `{ "loader", "sources", "sourceBytes", "encodedBytes", "sha256", "value" }`,
 as [context](#what-select-receives-and-what-inspection-shows) describes, and
-`reviewedArtifact` is the context's, when it names one. Text shows the context's
+`reviewedArtifact` is the context's, when it names one, with its `creator`. Text shows the context's
 size, digest and each measured source, and leaves the value to `--json`.
 
 The worker runs in a private empty directory with null stdin. Its environment
@@ -742,8 +835,9 @@ short transaction, synced as SQLite's `synchronous = EXTRA` setting does (with
 directory is synced as well, before the commit. The record then survives a
 power loss after the harness starts, and a sync that fails refuses like the
 commit. It is taken only after the policy has finished, so no
-policy ever runs with the store locked. If another process holds the store,
-`run` waits at most 2 seconds, apart from the selection bound, and then
+policy ever runs with the store locked. A policy's run lookups only read it,
+each in a short transaction of its own. If another process holds the store,
+the commit waits at most 2 seconds, apart from the selection bound, and then
 refuses. The store names itself with a version. A store that another
 application wrote, that a newer harness-dispatch wrote, or that SQLite finds
 corrupt refuses with exit 4. It is left exactly as it was: harness-dispatch
@@ -757,8 +851,10 @@ choice, the resolved program and the full argv. It keeps the worker's identity,
 the effective bounds
 and the selection time. With a context, it keeps the reviewed artifact the
 context names, and the context's measured sources, sizes and digest, but not
-the context itself. Fields that later releases supply, an adapter version and
-creator provenance, are `null`. No environment value is recorded. The argv includes the prompt, so the
+the context itself, and as `creator` the creator provenance its context
+carried, as [inspection shows it](#what-select-receives-and-what-inspection-shows),
+or `null` without one. An adapter version, which a later release supplies, is
+`null`. No environment value is recorded. The argv includes the prompt, so the
 records are private execution data. A committed run's launch fields never
 change.
 
@@ -933,7 +1029,8 @@ Once a command line parses, its own `--json` flag chooses the format. A
 Run the invocation, correct
 what the remedy names, and inspect again until it reports a choice. A refusal
 at the record commit reproduces as a successful inspection, because inspection
-never opens the store.
+never writes the store. A refusal at a run lookup reproduces, because
+inspection reads the store as `run` does.
 
 | Exit | Stage | Codes |
 |---|---|---|
@@ -942,15 +1039,15 @@ never opens the store.
 | 3 | `load` | `policy_import_failed` (a missing import, the entry threw while loading, or an await in it never settled) |
 | 3 | `load` | `message_too_large` (the policy's snapshot is over 1 MiB) |
 | 3 | `validation` | `policy_invalid` and `unsupported_version`, each with its `location` |
-| 3 | `context` | `context_unreadable` (the `--context` file); `context_invalid` and `unsupported_version`, each with its `location`; `context_loader_failed`, `context_loader_unsettled` and `context_source_unreadable` (see [loading context](#loading-context)); `context_too_large`, `source_too_large` and `too_many_sources` (see [bounds](#bounds)); `unsupported_operation` (`host.run`) |
-| 3 | `selection` | `incomplete_mapping`; `unknown_choice` (a `--choice` the catalog does not have); `policy_refused` (the policy's own refusal, with `policyCode`); `selection_threw`, `selection_unsettled`, `selection_abstained`, `selection_malformed`, `unknown_candidate` and `explicit_choice_mismatch` (see [a select policy](#a-select-policy)); `message_too_large` (a result over 1 MiB); `unsupported_operation` |
+| 3 | `context` | `context_unreadable` (the `--context` file); `context_invalid` and `unsupported_version`, each with its `location`; `context_loader_failed`, `context_loader_unsettled` and `context_source_unreadable` (see [loading context](#loading-context)); `context_too_large`, `source_too_large` and `too_many_sources` (see [bounds](#bounds)) |
+| 3 | `selection` | `incomplete_mapping`; `unknown_choice` (a `--choice` the catalog does not have); `policy_refused` (the policy's own refusal, with `policyCode`); `selection_threw`, `selection_unsettled`, `selection_abstained`, `selection_malformed`, `unknown_candidate` and `explicit_choice_mismatch` (see [a select policy](#a-select-policy)); `message_too_large` (a result over 1 MiB) |
 | 3 | `evaluation` | `output_limit` (the policy printed more than 256 KiB) |
 | 3 | `expansion` | `missing_input` (a slot whose input was not supplied) |
 | 3 | `record` | `run_not_found` (`record show` or `record observe` of a run the store does not hold), `cwd_unavailable`; for `record observe`, `observation_conflict`, `supersedes_unknown`, `already_superseded` and `observation_contradicts_record` (see [observations](#observations)) |
 | 3 | `observation` | `observation_unreadable` (the `--file`); `observation_too_large` (over the fixed 1 MiB bound); `observation_invalid` and `unsupported_version`, each with its `location` |
-| 4 | `record` | `record_store_unwritable`, `record_store_locked` (held past the 2-second wait), `record_store_full`, `record_store_invalid` (another application's file, another version, or corrupt), `record_commit_failed`, `run_id_unavailable`, `home_unset` (HOME cannot place the default state directory) |
+| 4 | `record` | `record_store_unwritable`, `record_store_locked` (held past the 2-second wait), `record_store_full`, `record_store_invalid` (another application's file, another version, or corrupt), `record_commit_failed`, `run_id_unavailable`, `home_unset` (HOME cannot place the default state directory); the same store codes when a [run lookup](#looking-up-a-run) cannot read the store, `record_store_invalid` also for a run record this release cannot read |
 | 5 | `worker` | `worker_missing`, `worker_identity_mismatch`, `worker_failed`, `protocol_error` |
-| 124 | `evaluation` | `selection_timeout` (the selection bound ran out) |
+| 124 | `evaluation` | `selection_timeout` (the selection bound ran out, a run lookup's lock wait included) |
 | 126 | `resolution`, `exec` | `program_unexecutable`; `exec_failed` for any exec error but `ENOENT` |
 | 127 | `resolution`, `exec` | `program_not_found`; `exec_failed` for `ENOENT` |
 

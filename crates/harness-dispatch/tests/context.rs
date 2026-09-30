@@ -304,6 +304,12 @@ fn each_invalid_caller_context_refuses_at_its_location_before_any_policy_runs() 
             "context.reviewedArtifact.id",
         ),
         (
+            "the run lookups harness-dispatch attaches",
+            r#"{"schemaVersion":1,"runs":[]}"#,
+            "context_invalid",
+            "context.runs",
+        ),
+        (
             "the worker's reserved marker",
             r#"{"schemaVersion":1,"facts":{"f":{"$harnessDispatch":"function"}}}"#,
             "context_invalid",
@@ -625,6 +631,12 @@ fn a_failing_loader_refuses_and_launches_nothing() {
             "context.measured",
         ),
         (
+            "supplies its own run lookups",
+            r#"loadContext() { return { schemaVersion: 1, runs: [] }; },"#,
+            "context_invalid",
+            "context.runs",
+        ),
+        (
             "delivers a function",
             r#"loadContext() { return { schemaVersion: 1, facts: { check: () => true } }; },"#,
             "context_invalid",
@@ -679,6 +691,10 @@ fn a_failing_loader_refuses_and_launches_nothing() {
         message(r#"loadContext() { throw new TypeError("no ticket system"); },"#)
             .contains("TypeError: no ticket system")
     );
+    assert!(
+        message(r#"loadContext() { return { schemaVersion: 1, runs: [] }; },"#)
+            .contains("`runs` holds the answers harness-dispatch gave to host.run")
+    );
 
     // The control: the same policy, its loader returning a valid context.
     sandbox.personal_policy(&policy(&format!(
@@ -687,39 +703,6 @@ fn a_failing_loader_refuses_and_launches_nothing() {
     let control = sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"]);
     assert_eq!(control.code, Some(0), "{}", control.stderr);
     assert!(sandbox.harness_ran());
-}
-
-#[test]
-fn host_run_refuses_even_when_the_policy_catches_the_error() {
-    let sandbox = Sandbox::new();
-    let caught = r#"try { host.run("5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34"); } catch {}"#;
-    for (members, stage) in [
-        (
-            format!("  loadContext(request, host) {{ {caught} return {{ schemaVersion: 1 }}; }},\n{SELECT}"),
-            "context",
-        ),
-        (
-            format!(
-                "  select(request, context, host) {{ {caught} return {{ status: \"selected\", candidateId: \"quick\", reason: \"r\" }}; }},"
-            ),
-            "selection",
-        ),
-    ] {
-        sandbox.personal_policy(&policy(&members));
-        let refusal = sandbox
-            .run(&["--kind", "impl", "--prompt", "p", "--json"])
-            .refusal(3);
-        assert_eq!(refusal["error"]["code"], "unsupported_operation", "{refusal}");
-        assert_eq!(refusal["error"]["stage"], stage, "{refusal}");
-        assert_eq!(refusal["error"]["location"], "host.run", "{refusal}");
-        assert!(!sandbox.harness_ran());
-    }
-    // The control: the same policy without the call selects.
-    sandbox.personal_policy(&policy(&format!(
-        "  loadContext(request, host) {{ return {{ schemaVersion: 1 }}; }},\n{SELECT}"
-    )));
-    let control = sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"]);
-    assert_eq!(control.code, Some(0), "{}", control.stderr);
 }
 
 #[test]

@@ -14,6 +14,11 @@
 //! once a detail is appended; or, once a current observation confirms it, an
 //! attempt whose execution an observer confirmed. There is no success: how the
 //! work went is what observations measure, and the export never infers it.
+//!
+//! A policy's `host.run` reads a recorded run too, as a projection of its
+//! launch fields ([`lookup`]): what the run was launched as, never its argv,
+//! which holds the prompt, and never its program or arguments, which no
+//! context carries.
 
 use std::ffi::OsStr;
 use std::fmt::Write as _;
@@ -83,7 +88,7 @@ pub fn launch(choice: &Choice) -> Value {
         "argv": choice.argv.iter().map(crate::argv::Word::to_json).collect::<Vec<_>>(),
         // Digests and sizes only: the delivered value can hold whole sources.
         "context": context.map(|context| context.to_json(false)),
-        "creator": null,
+        "creator": context.and_then(crate::context::Delivered::creator),
         "worker": {
             "path": worker.path.to_string_lossy(),
             "packageVersion": worker.package_version,
@@ -140,10 +145,116 @@ pub fn locate(run: &OsStr, state_dir: Option<&Path>) -> Result<Located, Refusal>
 
 pub fn show(args: &ShowArgs) -> Result<Export, Refusal> {
     let Located { run_id, dir, .. } = locate(&args.run, args.state_dir.as_deref())?;
-    match store::load(&dir, &run_id)? {
+    match store::load(&dir, &run_id, store::LOCK_WAIT, "read the run record")? {
         Lookup::Found(stored) => Ok(Export { run_id, stored }),
         Lookup::Missing { store_exists } => Err(run_not_found(&dir, &run_id, store_exists)),
     }
+}
+
+/// Answer a policy's `host.run(runId)` from the store in `dir`, waiting at
+/// most `wait` for a writer's lock: the run's immutable launch fields and any
+/// launch failure, or that the store does not hold it. A missing or empty
+/// store holds no run. A store that cannot be read refuses, and so does a
+/// launch document this release cannot read, rather than answer with less.
+pub fn lookup(dir: &StateDir, run_id: &RunId, wait: Duration) -> Result<Value, Refusal> {
+    let attempt = format!("look up run {run_id} for the policy's host.run");
+    let stored = match store::load(dir, run_id, wait, &attempt)? {
+        Lookup::Missing { .. } => {
+            return Ok(json!({ "runId": run_id.as_str(), "status": "missing" }));
+        }
+        Lookup::Found(stored) => stored,
+    };
+    let launch = &stored.launch;
+    let unreadable = |why: &str| {
+        store::unreadable_record(dir, &attempt, format!("run {run_id}'s launch record {why}"))
+    };
+    if launch["schemaVersion"] != LAUNCH_VERSION {
+        return Err(unreadable(&format!(
+            "is version {}, and this release of harness-dispatch reads version {LAUNCH_VERSION}",
+            launch["schemaVersion"]
+        )));
+    }
+    let text = |value: &Value, field: &str| {
+        value
+            .as_str()
+            .map(|_| value.clone())
+            .ok_or_else(|| unreadable(&format!("has no string {field}")))
+    };
+    let candidate = &launch["candidate"];
+    let task_id = match &launch["taskId"] {
+        Value::Null => Value::Null,
+        other => text(other, "taskId")?,
+    };
+    let failure = launch_failure(stored.launch_failure.as_ref());
+    if !failure.is_null() && !failure["cause"].is_string() {
+        return Err(unreadable("has a launch failure with no cause"));
+    }
+    Ok(json!({
+        "runId": run_id.as_str(),
+        "status": "found",
+        "recordedAt": stored.recorded_at,
+        "kind": text(&launch["kind"], "kind")?,
+        "taskId": task_id,
+        "candidate": {
+            "id": text(&candidate["id"], "candidate.id")?,
+            "provider": text(&candidate["provider"], "candidate.provider")?,
+            "model": text(&candidate["model"], "candidate.model")?,
+            "effort": text(&candidate["effort"], "candidate.effort")?,
+        },
+        "launchFailure": failure,
+    }))
+}
+
+/// A run's launch-failure detail as it is exported and looked up: when it was
+/// appended, beside the detail's own fields; `null` when there is none.
+fn launch_failure(failure: Option<&(String, Value)>) -> Value {
+    let Some((recorded_at, detail)) = failure else {
+        return Value::Null;
+    };
+    let mut exported = Map::new();
+    exported.insert("recordedAt".into(), recorded_at.clone().into());
+    if let Some(detail) = detail.as_object() {
+        exported.extend(detail.clone());
+    }
+    Value::Object(exported)
+}
+
+/// The creator provenance a run or a proposal records, for a person: the
+/// reference, its evidence class, and what a lookup found, with the run's
+/// task identity beside its recorded choice. `creator` is the JSON that
+/// [`crate::context::Delivered::creator`] makes, or `null`.
+pub fn creator_text(creator: &Value) -> String {
+    if creator.is_null() {
+        return "none".to_owned();
+    }
+    let reference = &creator["reference"];
+    if let Some(declared) = reference["declared"].as_str() {
+        return format!("declared {} (declared by the owner)", shown(declared));
+    }
+    let run = reference["run"].as_str().unwrap_or_default();
+    let lookup = &creator["lookup"];
+    let found = match lookup["status"].as_str() {
+        None => "not looked up by loadContext".to_owned(),
+        Some("missing") => "missing from the record store".to_owned(),
+        Some(_) => {
+            let candidate = &lookup["candidate"];
+            let field = |value: &Value| value.as_str().map_or_else(|| "none".to_owned(), shown);
+            let mut found = format!(
+                "provider {}, model {}, effort {}; task {}, kind {}, recorded {}",
+                field(&candidate["provider"]),
+                field(&candidate["model"]),
+                field(&candidate["effort"]),
+                field(&lookup["taskId"]),
+                field(&lookup["kind"]),
+                field(&lookup["recordedAt"]),
+            );
+            if let Some(cause) = lookup["launchFailure"]["cause"].as_str() {
+                let _ = write!(found, "; launch failure: {}", shown(cause));
+            }
+            found
+        }
+    };
+    format!("run {run} (execution-recorded): {found}")
 }
 
 /// The refusal for a run the store in `dir` does not hold.
@@ -206,17 +317,7 @@ impl Export {
 
     pub fn to_json(&self) -> Value {
         let (evidence, execution) = self.evidence();
-        let launch_failure = match &self.stored.launch_failure {
-            None => Value::Null,
-            Some((recorded_at, detail)) => {
-                let mut failure = Map::new();
-                failure.insert("recordedAt".into(), recorded_at.clone().into());
-                if let Some(detail) = detail.as_object() {
-                    failure.extend(detail.clone());
-                }
-                Value::Object(failure)
-            }
-        };
+        let launch_failure = launch_failure(self.stored.launch_failure.as_ref());
         let observations: Vec<Value> = self.stored.observations.iter().map(exported).collect();
         json!({
             "schemaVersion": 1,
@@ -263,6 +364,7 @@ impl Export {
             ("task id", field(&launch["taskId"])),
             ("task file", field(&launch["taskFile"])),
             ("reviewed", field(&launch["reviewedArtifact"])),
+            ("creator", creator_text(&launch["creator"])),
             (
                 "context",
                 match &launch["context"] {
@@ -420,4 +522,72 @@ fn shown(value: &str) -> String {
 
 fn millis(duration: Duration) -> u64 {
     u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A store holding one run whose launch document is `launch`.
+    fn committed(launch: &Value) -> (tempfile::TempDir, StateDir, RunId) {
+        let dir = tempfile::tempdir().unwrap();
+        let state = StateDir {
+            path: dir.path().join("state"),
+            flag: Some("--state-dir"),
+        };
+        let run_id = RunId::allocate().unwrap();
+        store::commit(&state, &run_id, launch).unwrap();
+        (dir, state, run_id)
+    }
+
+    fn launch() -> Value {
+        json!({
+            "schemaVersion": 1, "kind": "impl", "taskId": null,
+            "candidate": {
+                "id": "c", "provider": "origin-a", "model": "m", "effort": "e",
+                "program": "harness", "args": [{ "slot": "prompt" }],
+            },
+            "argv": ["harness", "the prompt"],
+        })
+    }
+
+    #[test]
+    fn a_later_launch_version_or_a_missing_field_is_refused_never_answered_with_less() {
+        let (_dir, state, run) = committed(&launch());
+        let answer = lookup(&state, &run, store::LOCK_WAIT).unwrap();
+        assert_eq!(
+            answer["candidate"],
+            json!({ "id": "c", "provider": "origin-a", "model": "m", "effort": "e" })
+        );
+        assert_eq!(answer["taskId"], Value::Null);
+        assert!(
+            answer.get("argv").is_none(),
+            "the prompt is never looked up"
+        );
+
+        let mut later = launch();
+        later["schemaVersion"] = 2.into();
+        let mut no_provider = launch();
+        no_provider["candidate"]
+            .as_object_mut()
+            .unwrap()
+            .remove("provider");
+        let mut numeric_kind = launch();
+        numeric_kind["kind"] = 3.into();
+        let mut numeric_task = launch();
+        numeric_task["taskId"] = 3.into();
+        for (launch, why) in [
+            (later, "is version 2"),
+            (no_provider, "has no string candidate.provider"),
+            (numeric_kind, "has no string kind"),
+            (numeric_task, "has no string taskId"),
+        ] {
+            let (_dir, state, run) = committed(&launch);
+            let refusal = lookup(&state, &run, store::LOCK_WAIT).unwrap_err();
+            assert_eq!(refusal.code, "record_store_invalid", "{why}");
+            assert_eq!(refusal.exit, crate::refusal::EXIT_RECORD, "{why}");
+            assert!(refusal.message.contains(why), "{why}: {}", refusal.message);
+            assert!(refusal.message.contains("host.run"), "{}", refusal.message);
+        }
+    }
 }

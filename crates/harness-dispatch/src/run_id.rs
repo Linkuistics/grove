@@ -70,6 +70,12 @@ impl RunId {
         .input(input))
     }
 
+    /// `given`, if it is already in the canonical form, as a policy's
+    /// `host.run` passes it once the worker has checked it.
+    pub fn canonical(given: &str) -> Option<RunId> {
+        is_canonical(given).then(|| RunId(given.to_owned()))
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }

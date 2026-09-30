@@ -14,7 +14,9 @@
 //   4. The front judges the snapshot. If the policy has a `loadContext`, or the
 //      caller gave a context, it asks the worker for the context, and the
 //      worker returns the loader's result, or the caller's context, with every
-//      source it measured, or a failure.
+//      source it measured and every run it looked up, or a failure. While the
+//      loader runs, each `host.run` is a request the front answers from its
+//      record store (see `host.ts`).
 //   5. For a `routes` policy, or one it refuses, the front closes the channel
 //      and the worker exits. For a valid `select` policy it asks the worker to
 //      select, and the worker calls `select` with the request and the measured
@@ -30,14 +32,12 @@
 // bounds, because only it sees a read or an encoding before it is sent: each
 // is checked here and again by the front.
 
-import { encode, receive, send, sendEncoded } from "./channel.ts";
-import { type Bounds, type Measured, Session, SourceUnreadable } from "./host.ts";
+import { encode, PROTOCOL, receive, send, sendEncoded } from "./channel.ts";
+import { type Bounds, deepFreeze, type Measured, Session, SourceUnreadable } from "./host.ts";
 import * as sdk from "../sdk/index.ts";
 import * as dynamicExample from "../examples/dynamic.ts";
 import * as groveStaticExample from "../examples/grove-static.ts";
 import * as staticExample from "../examples/static.ts";
-
-const PROTOCOL = 1;
 
 // Build identity, replaced by `bun build --define` in `scripts/worker.sh`. The
 // `typeof` guard keeps an undefined name from throwing when the source is run
@@ -234,10 +234,11 @@ type Assembled = { body: Buffer; delivered: unknown } | { frame: Frame };
 
 /**
  * Run the policy's `loadContext`, if it has one, with the request and a host
- * whose reads are measured; without one, the context is the caller's. Encode
- * the result as JSON, and check that it, with the measured sources attached,
- * fits the context budget. `select` will receive exactly the value this
- * encoding parses to, which is the value the front measures.
+ * whose reads are measured and whose run lookups the front answers; without
+ * one, the context is the caller's. Encode the result as JSON, and check that
+ * it, with the measured sources and any run lookups attached, fits the context
+ * budget. `select` will receive exactly the value this encoding parses to,
+ * which is the value the front measures.
  */
 async function assemble(policy: Record<string, unknown>, request: Request, session: Session): Promise<Assembled> {
   let context: unknown;
@@ -271,6 +272,7 @@ async function assemble(policy: Record<string, unknown>, request: Request, sessi
   if (session.breach !== undefined) return { frame: breachFrame("context", session) };
 
   const measured = [...session.ledger];
+  const runs = [...session.runs];
   let encoded: string;
   try {
     // `undefined` abstains; JSON has no such value, so it travels as `null`.
@@ -279,12 +281,15 @@ async function assemble(policy: Record<string, unknown>, request: Request, sessi
     return { frame: { type: "failure", stage: "context", unserializable: true, ...describe(error) } };
   }
   const value: unknown = JSON.parse(encoded);
-  const delivered = isPlainObject(value) ? { ...value, measured } : value;
+  // `runs` is attached only when there was a lookup, so a context that looks
+  // nothing up is delivered exactly as before run lookup existed.
+  const delivered = isPlainObject(value) ? { ...value, measured, ...(runs.length > 0 ? { runs } : {}) } : value;
   const budget = session.bounds.contextBytes;
   const size = Buffer.byteLength(JSON.stringify(delivered), "utf8");
   // The frame also carries what a loader supplied that the front will refuse,
-  // such as a `measured` of its own, so it is bounded as well.
-  const body = encode({ type: "context", context: value, measured });
+  // such as a `measured` of its own, so it is bounded as well. The front
+  // checks the lookups it carries against the answers it gave.
+  const body = encode({ type: "context", context: value, measured, runs });
   if (size > budget || body.length > budget + CONTEXT_ENVELOPE) {
     session.breach = { bound: { name: "context", actual: Math.max(size, body.length - CONTEXT_ENVELOPE) } };
     return { frame: breachFrame("context", session) };
@@ -345,15 +350,6 @@ function sourceUnreadable(error: unknown): SourceUnreadable | undefined {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** `value`, with every object and array in it frozen. */
-function deepFreeze<T>(value: T): T {
-  if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    for (const key of Object.keys(value)) deepFreeze((value as Record<string, unknown>)[key]);
-  }
-  return value;
 }
 
 function invalid(message: string): Loaded {

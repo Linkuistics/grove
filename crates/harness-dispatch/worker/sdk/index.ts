@@ -9,9 +9,8 @@
 // refusal names the location it found.
 //
 // This release reads the static `routes` form and the computed `select` form,
-// either with a `loadContext`, and hosts the measured reads, diagnostics and
-// abort signal. Run lookup arrives in a later release, and nothing here stands
-// in for it.
+// either with a `loadContext`, and hosts the measured reads, run lookup,
+// diagnostics and abort signal.
 
 /**
  * The caller inputs one argument of a candidate's argument array can name.
@@ -119,25 +118,89 @@ export interface Context {
 
 /** One source harness-dispatch measured for the context. */
 export interface MeasuredSource {
-  /** The canonical path. */
+  /** The canonical path, or for a run lookup the run ID. */
   readonly name: string;
-  /** The `--context` document, or the host read that delivered it. */
-  readonly via: "--context" | "readText" | "readJson";
-  /** The bytes actually read. */
+  /** The `--context` document, or the host operation that delivered it. */
+  readonly via: "--context" | "readText" | "readJson" | "run";
+  /**
+   * The bytes actually read; for a run lookup, the length of its answer's
+   * compact JSON encoding with sorted keys.
+   */
   readonly bytes: number;
   /** The SHA-256 of those bytes, in lowercase hexadecimal. */
   readonly sha256: string;
 }
 
 /**
+ * A catalog candidate as a run recorded it: the configured launched choice,
+ * which a later change to the catalog does not alter. Its program and
+ * arguments are not part of a lookup.
+ */
+export interface RecordedCandidate {
+  readonly id: string;
+  /** The provider-origin label the run was launched under. */
+  readonly provider: string;
+  readonly model: string;
+  readonly effort: string;
+}
+
+/**
+ * harness-dispatch's own record that a run's harness never started, as
+ * `record show` exports it: when it was appended, its `cause`, and the rest
+ * of its detail.
+ */
+export interface LaunchFailure {
+  readonly recordedAt: string;
+  /**
+   * `exec_error` when exec returned an error; `not_executed` when the
+   * selection was cancelled after the handoff was committed.
+   */
+  readonly cause: string;
+  readonly [field: string]: Json;
+}
+
+/**
+ * A run the record store holds: its immutable launch fields. `taskId` is
+ * `null` when the run was given none. A run whose `launchFailure` is `null`
+ * was handed off, but whether its harness ran is not known from this.
+ */
+export interface FoundRun {
+  readonly runId: string;
+  readonly status: "found";
+  /** When its handoff was committed, as an RFC 3339 UTC timestamp. */
+  readonly recordedAt: string;
+  readonly kind: string;
+  readonly taskId: string | null;
+  readonly candidate: RecordedCandidate;
+  readonly launchFailure: LaunchFailure | null;
+}
+
+/** A run the record store does not hold, or no store at all. */
+export interface MissingRun {
+  readonly runId: string;
+  readonly status: "missing";
+}
+
+/** What `host.run` returns, and what the delivered context carries in `runs`. */
+export type RunLookup = FoundRun | MissingRun;
+
+/**
  * The context `select` receives: the context `loadContext` returned, or the
  * caller's without a loader, and every source harness-dispatch measured for
- * it, the `--context` document first and then each read in order. Its whole
- * JSON encoding, `measured` included, is within `limits.contextBytes`, and it
- * is exactly what inspection shows. It is frozen.
+ * it, the `--context` document first and then each read and run lookup in
+ * order. Its whole JSON encoding, `measured` and `runs` included, is within
+ * `limits.contextBytes`, and it is exactly what inspection shows. It is
+ * frozen.
  */
 export interface DeliveredContext extends Context {
   readonly measured: readonly MeasuredSource[];
+  /**
+   * Every answer `loadContext` received from `host.run`, in call order,
+   * attached by harness-dispatch: a loader cannot supply it, so a provider
+   * found here is the record store's, never a transcription. Absent when
+   * nothing was looked up.
+   */
+  readonly runs?: readonly RunLookup[];
 }
 
 /** What a host read returns beside the content: a source record to attribute it. */
@@ -159,13 +222,13 @@ export interface SelectHost {
 }
 
 /**
- * The host `loadContext` receives. Its reads are the only measured ones: each
- * resolves a relative path against `request.cwd`, reads a regular file once,
- * and returns its content with the canonical name, byte count and SHA-256 of
- * the bytes read. A read over its limit, or past the 256th source, refuses the
- * selection, even if the error it throws is caught. A missing or unreadable
- * source throws an error that, if `loadContext` fails because of it, names
- * that source in the refusal.
+ * The host `loadContext` receives. Its reads and run lookups are the only
+ * measured sources: each read resolves a relative path against `request.cwd`,
+ * reads a regular file once, and returns its content with the canonical name,
+ * byte count and SHA-256 of the bytes read. A read over its limit, or a read
+ * or lookup past the 256th source, refuses the selection, even if the error
+ * it throws is caught. A missing or unreadable source throws an error that, if
+ * `loadContext` fails because of it, names that source in the refusal.
  */
 export interface ContextHost extends SelectHost {
   /**
@@ -175,6 +238,17 @@ export interface ContextHost extends SelectHost {
   readText(path: string, maxBytes?: number): { readonly text: string; readonly source: ReadSource };
   /** Read a JSON file, as `readText` does, and parse it. */
   readJson(path: string, maxBytes?: number): { readonly value: Json; readonly source: ReadSource };
+  /**
+   * Look a run up by its run ID in this invocation's record store: its
+   * immutable launch fields and any launch failure, or that the store does not
+   * hold it. There is no lookup by task or artifact identity. The answer is
+   * frozen, and is also delivered to `select` in the context's `runs`, as a
+   * measured source. An ID that is not in the canonical run-ID form throws a
+   * `TypeError`. A store that exists but cannot be read, or is not a version
+   * this release reads, refuses the selection at once; it never reads as a
+   * missing run.
+   */
+  run(runId: string): RunLookup;
 }
 
 /**

@@ -342,19 +342,32 @@ breaks a floor also blocks the release. The smoke needs an arm64 Docker and Zig
 Computed policy closed with `bounded-context-k22`. A caller's `--context`
 document and a `loadContext` result are checked by one version-1 shape in
 `src/context.rs`. `select` receives the delivered context, which is that value
-with its measured sources attached as `measured`. Later leaves build on four
-facts. First, `host.run` is refused by a sticky `unsupported` breach in
-`worker/src/host.ts` and is absent from the SDK declarations.
-`run-lookup-k26` replaces that refusal with a protocol request the front
-answers. It declares the operation on both hosts and decides where the
-delivered context carries the creator run snapshot. Second, a bound or refusal
-the worker records is reported even if the policy catches its error, and a new
-host operation follows the same rule. Third, the Grove adapter
-(`grove-review-adapter-k37`) reads its task file through `host.readText`, so
-the file becomes a measured source whose digest inspection and the run record
-show; the SDK already exports `ReviewedArtifact` and `Creator`. Fourth, the run
-record's launch document fills `reviewedArtifact` and `context`, and it carries
-all six bounds within version 1. `adapter` and `creator` stay `null`.
+with its measured sources attached as `measured`. Later leaves build on three
+facts. First, a bound or refusal the worker records is reported even if the
+policy catches its error, and a new host operation follows the same rule.
+Second, the Grove adapter (`grove-review-adapter-k37`) reads its task file
+through `host.readText`, so the file becomes a measured source whose digest
+inspection and the run record show; the SDK already exports `ReviewedArtifact`
+and `Creator`. Third, the run record's launch document fills
+`reviewedArtifact` and `context`, and it carries all six bounds within
+version 1. `adapter` stays `null` until k37 supplies it.
+
+Dispatch records closed with `run-lookup-k26`. `record observe` and `record
+show` carry later evidence against a run (`run-observations-k25`). Run lookup
+is open to `loadContext` alone, under `inspect` and `run` alike, and the front
+answers it from the record store. `host.run(runId)` returns `{ runId, status:
+"found", recordedAt, kind, taskId, candidate: { id, provider, model, effort },
+launchFailure }` or `{ runId, status: "missing" }`. A missing or empty store
+answers missing. The delivered context carries every answer, in call order, as
+`runs`, which a loader cannot supply. So the review selector
+(`review-selector-k36`) has its loader call `host.run`, and its `select` reads
+the creator's recorded provider from `context.runs`. A store that exists but
+cannot be read, is corrupt or of another version, or holds a launch record this
+release cannot read, refuses with exit 4 before any more policy code runs. The
+selector never sees that case, and needs no remedy of its own for it. The front
+fills the run record's `creator`, and inspection's, from the delivered context:
+`{ reference, evidence, provider, lookup }`, with evidence `execution_recorded`
+or `declared`. Neither the selector nor the adapter records it itself.
 
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and

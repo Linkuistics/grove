@@ -82,13 +82,25 @@ export const selectReadsNothing: SelectPolicy = {
   },
 };
 
-export const noRunLookupYet: SelectPolicy = {
+export const selectLooksUpNothing: SelectPolicy = {
+  schemaVersion: 1,
+  version: "v",
+  catalog: [candidate],
+  select: (_request, _context, host) => {
+    // @ts-expect-error select's host has no run lookup: its context carries the runs looked up
+    host.run("5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34");
+    return { status: "selected", candidateId: "c", reason: "r" };
+  },
+};
+
+export const lookupNeedsItsStatus: SelectPolicy = {
   schemaVersion: 1,
   version: "v",
   catalog: [candidate],
   loadContext: (_request, host) => {
-    // @ts-expect-error run lookup is not in this release
-    host.run("5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34");
+    const lookup = host.run("5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34");
+    // @ts-expect-error a missing run has no candidate: check its status first
+    host.diagnostic(lookup.candidate.provider);
     return { schemaVersion: 1 };
   },
   select: () => ({ status: "selected", candidateId: "c", reason: "r" }),

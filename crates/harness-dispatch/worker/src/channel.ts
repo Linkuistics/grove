@@ -20,6 +20,9 @@ import { readSync, writeSync } from "node:fs";
 
 const CHANNEL = 3;
 
+/** The protocol version both halves speak; the hello announces it. */
+export const PROTOCOL = 1;
+
 /**
  * The largest frame the front sends: its evaluate message carries the caller's
  * context, up to the 8 MiB ceiling as the front re-encodes it, beside the

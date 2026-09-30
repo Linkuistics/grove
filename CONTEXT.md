@@ -959,9 +959,11 @@ source and evidence.
 The context a harness-dispatch `select` receives: the policy's `loadContext`
 result, or without a loader the caller's `--context` document, with every
 source harness-dispatch measured for it attached as `measured`, each read's
-canonical name, bytes and SHA-256. Its encoded size is what the context budget
-bounds, and it is what inspection shows and what the run record names by digest
-and size.
+canonical name or each run lookup's run ID, with its bytes and SHA-256. When
+the loader looked a run up, the answers are attached too, as `runs`, so a
+creator's provider there is the record store's. Its encoded size is what the
+context budget bounds, and it is what inspection shows and what the run record
+names by digest and size.
 _Avoid_: *loaded context* for it, which is the loader's result before the
 measured sources are attached; *sources* for the measured list, which is the
 name of the evidence records a context attributes itself.

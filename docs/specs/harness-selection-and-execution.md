@@ -23,10 +23,14 @@ and retained corrections, and `record show` exports the run with its
 observations, derived evidence and measurements. `loadContext` looks runs up
 with `host.run`, which the front answers from the record store under `inspect`
 and `run` alike. The delivered context carries each answer as a measured
-source, and a run records the creator provenance its context carried. Handled
-signals and a signal-transparent handoff are not yet delivered. Every release
-archive and the Homebrew formula carry the front and its worker in the
-[delivered layout](#delivery), each target's worker compiled from a
+source, and a run records the creator provenance its context carried. INT,
+TERM and HUP not ignored at entry cancel a selection until its program is
+resolved: the worker is stopped and reaped, nothing is recorded or launched,
+and the `selection_cancelled` refusal is followed by the re-raised signal. The
+handled signals across the record commit, the final check with its
+not-executed detail, and a signal-transparent handoff are not yet delivered.
+Every release archive and the Homebrew formula carry the front and its worker
+in the [delivered layout](#delivery), each target's worker compiled from a
 digest-pinned Bun runtime. The installed smoke test runs the static and
 computed TypeScript cases from the extracted archive on macOS arm64 natively,
 and on each Linux target in a glibc-2.17 userland under a pinned user-mode QEMU
@@ -327,7 +331,8 @@ failed read throws, and a loader that fails because of it refuses naming that
 source. Reads and run lookups are open only while `loadContext` runs: `select`'s host
 has `diagnostic` and `signal` alone, since the context it receives is the
 measured one. `diagnostic` writes one line to the worker's captured stderr.
-`signal` aborts when the front stops the worker at its deadline; a worker whose
+`signal` aborts when the front stops the worker at its deadline or on
+cancellation; a worker whose
 policy installs no TERM listener of its own then exits once the abort listeners
 have run. The loader returns context, and the selection callback receives that
 measured value. The supplied adapter uses these operations so its complete
@@ -772,7 +777,10 @@ required-record or record-store failure, 5 for worker/protocol/internal
 failure, 124 for timeout, 126 for an unexecutable selected program, and 127 for
 one not found. An exec error after resolution exits 127 for `ENOENT`, including a
 missing `#!` interpreter, and 126 otherwise. INT/TERM/HUP cleanup ends by
-restoring and re-raising that signal.
+restoring and re-raising that signal. Its refusal, `selection_cancelled`, names
+the signal, and its `exit` is the `128 + N` a shell reports for that death. A
+signal received during evaluation decides the outcome, whatever else the
+selection came to; a timeout is exit 124 only when no signal was received.
 After exec, the harness's native exit or signal is unmodified; its code may
 numerically coincide with a preflight code. Structured diagnostics and recorded
 stage distinguish these cases, not a globally reserved harness exit range.

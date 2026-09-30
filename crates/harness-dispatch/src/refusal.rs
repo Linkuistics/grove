@@ -13,6 +13,7 @@ use std::fmt::Write as _;
 
 use serde_json::{json, Map, Value};
 
+use crate::cancellation::Signal;
 use crate::limits::Bound;
 
 /// Exit results before exec.
@@ -106,6 +107,10 @@ pub struct Details {
     pub bound: Option<Bound>,
     /// The committed run a failure after the handoff commit belongs to.
     pub run: Option<RunNote>,
+    /// The signal that cancelled selection. Once this refusal is reported the
+    /// process ends by re-raising it, and `exit` is the `128 + N` a shell
+    /// reports for that.
+    pub signal: Option<Signal>,
 }
 
 /// A failure after the handoff commit: the run it belongs to, and whether its
@@ -173,6 +178,7 @@ impl Refusal {
             policy_code: None,
             bound: None,
             run: None,
+            signal: None,
         }))
     }
 
@@ -203,6 +209,11 @@ impl Refusal {
 
     pub fn run(mut self, run: RunNote) -> Self {
         self.0.run = Some(run);
+        self
+    }
+
+    pub fn signal(mut self, signal: Signal) -> Self {
+        self.0.signal = Some(signal);
         self
     }
 }
@@ -357,6 +368,9 @@ impl Failure {
         if let Some(run) = &refusal.run {
             error.insert("run".into(), run.to_json());
         }
+        if let Some(signal) = refusal.signal {
+            error.insert("signal".into(), signal.name().into());
+        }
         error.insert("remedy".into(), refusal.remedy.clone().into());
         if let Some(inspect) = &self.inspect {
             error.insert("inspect".into(), inspect.to_json());
@@ -399,6 +413,13 @@ impl Failure {
         }
         if let Some(run) = &refusal.run {
             let _ = writeln!(text, "  run: {}", run.to_text());
+        }
+        if let Some(signal) = refusal.signal {
+            let _ = writeln!(
+                text,
+                "  signal: {}, re-raised once this is reported",
+                signal.name()
+            );
         }
         let _ = writeln!(text, "  remedy: {}", refusal.remedy);
         if let Some(inspect) = &self.inspect {

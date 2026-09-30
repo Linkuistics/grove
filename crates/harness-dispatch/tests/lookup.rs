@@ -21,6 +21,7 @@ use std::time::{Duration, Instant};
 use rusqlite::Connection;
 use serde_json::{json, Value};
 use sha2::{Digest as _, Sha256};
+use support::hold::{interrupted, Interrupt};
 use support::{executable, run, text, Sandbox, ROUTED};
 
 /// A run ID no store in these tests holds.
@@ -536,6 +537,53 @@ fn a_lookup_waits_for_a_locked_store_only_within_the_selection_bound() {
     holder.execute_batch("COMMIT").unwrap();
     let (result, _) = waited(&["--timeout-ms", "1000"]);
     assert_eq!(seen(&result.report())[0]["status"], "found");
+}
+
+#[test]
+fn a_signal_during_a_lookups_lock_wait_is_the_cancellation_not_the_lock_refusal() {
+    // The loader marks, then looks a run up in a store a writer holds, so the
+    // front is waiting for the lock rather than polling the channel when it is
+    // signalled. The wait's own exit-4 refusal comes after the signal, and the
+    // signal decides the outcome. The control is the unsignalled wait above,
+    // which refuses on the lock.
+    let sandbox = Sandbox::new();
+    let creator = producer(&sandbox);
+    review_context(&sandbox, &json!({ "run": creator }));
+    let marker = sandbox.root.join("looking-up");
+    sandbox.personal_policy(&format!(
+        "import {{ writeFileSync }} from \"node:fs\";\n{}",
+        lookup_policy(
+            DEEP,
+            &format!(
+                "writeFileSync({:?}, \"looking up\"); host.run(run)",
+                text(&marker)
+            )
+        )
+    ));
+    let holder = Connection::open(sandbox.default_store()).unwrap();
+    holder.execute_batch("BEGIN EXCLUSIVE").unwrap();
+
+    let mut command = sandbox.command();
+    command
+        .arg("run")
+        .args(REVIEW)
+        .args(["--prompt", "p", "--json"]);
+    let interrupt = Interrupt {
+        when: marker.clone(),
+        signal: libc::SIGINT,
+        group: false,
+    };
+    let no_pid = sandbox.root.join("no-pid");
+    let timed = interrupted(&mut command, &no_pid, &interrupt, Duration::from_secs(20));
+
+    timed.run.cancelled(libc::SIGINT, "SIGINT");
+    assert!(!sandbox.harness_ran());
+    let after = timed.after_signal.expect("the front was signalled");
+    assert!(
+        after < Duration::from_millis(4500),
+        "the cancellation outlived the lock wait: {after:?}"
+    );
+    holder.execute_batch("COMMIT").unwrap();
 }
 
 /// Import `document` against `run_id` with `record observe`, as `--json`.

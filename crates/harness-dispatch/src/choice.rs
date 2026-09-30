@@ -14,13 +14,19 @@
 //! and before anything is evaluated. During selection the store is only ever
 //! read, to answer a policy's run lookups, so both commands give the same
 //! answers; only `run` writes to it, once this selection has finished.
+//!
+//! INT, TERM and HUP cancel selection from just before the worker starts to
+//! its end, once the program is resolved (`cancellation`). A signal received
+//! in that time decides the outcome, whatever else selection came to.
 
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value};
 
 use crate::argv::{self, RunSlot, Word};
 use crate::authority::{self, PolicyEntry};
+use crate::cancellation::{self, Handlers};
 use crate::cli::SelectionArgs;
 use crate::context::{self, Delivered, SourceBreach};
 use crate::inputs::{Inputs, PromptRequirement};
@@ -28,7 +34,7 @@ use crate::limits::{Limits, Origin};
 use crate::policy::{self, Candidate, Form, Policy, SelectedBy, Selection, Validator};
 use crate::program::{self, Executable};
 use crate::record;
-use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED};
+use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED, EXIT_WORKER};
 use crate::run_id::RunId;
 use crate::store::{self, StateDir};
 use crate::worker::{self, Assembled, Breach, Halt, Loaded, Outcome, WorkerIdentity};
@@ -67,10 +73,51 @@ pub fn choose(
     let entry = authority::resolve(args.config.as_deref(), &inputs.cwd, home.as_deref())?;
     let state_dir = StateDir::resolve(args.state_dir.as_deref(), &inputs.cwd, home.as_deref())?;
     let source = entry.display();
-
     let worker_path = worker::locate()?;
+
+    let handlers = Handlers::install().map_err(|error| {
+        Refusal::new(
+            "cancellation_unavailable",
+            Stage::Evaluation,
+            EXIT_WORKER,
+            format!("cannot catch INT, TERM and HUP, which cancel selection: {error}"),
+            "run harness-dispatch where it can install signal handlers; nothing was evaluated",
+        )
+        .source(&source)
+    })?;
+    let chosen = evaluate_and_resolve(inputs, entry, state_dir, run, &worker_path);
+    // The entry dispositions come back before the last look, which leaves no
+    // gap: a signal from now on takes its entry course, which ends the process
+    // before `run` can exec, and one received before is seen by the look after
+    // the program is resolved.
+    drop(handlers);
+    cancelled(chosen, &source)
+}
+
+/// A handled signal received while selecting decides its outcome: a choice
+/// or a refusal, it is reported as the cancellation, with whatever the policy
+/// printed.
+fn cancelled(chosen: Result<Choice, Failure>, source: &str) -> Result<Choice, Failure> {
+    let Some(signal) = cancellation::received() else {
+        return chosen;
+    };
+    let refusal = cancellation::refusal(signal, source);
+    Err(match chosen {
+        Ok(choice) => Failure::with_diagnostics(refusal, choice.diagnostics),
+        Err(failure) => Failure { refusal, ..failure },
+    })
+}
+
+fn evaluate_and_resolve(
+    inputs: Inputs,
+    entry: PolicyEntry,
+    state_dir: StateDir,
+    run: RunSlot,
+    worker_path: &Path,
+) -> Result<Choice, Failure> {
+    let source = entry.display();
     let evaluation = worker::evaluate(
-        &worker_path,
+        worker_path,
         &entry.path,
         request(&inputs),
         &inputs.limits,
@@ -87,6 +134,8 @@ pub fn choose(
     } = evaluation.decided;
     let candidate = policy.catalog.swap_remove(index);
     let argv = argv::expand(&candidate, index, &inputs, &run, &source).map_err(refuse)?;
+    // The choice is validated and its argv expanded.
+    cancellation::check(&source).map_err(refuse)?;
     let path = std::env::var_os("PATH");
     let executable = program::resolve(&candidate, index, &source, &inputs.cwd, path.as_deref())
         .map_err(refuse)?;

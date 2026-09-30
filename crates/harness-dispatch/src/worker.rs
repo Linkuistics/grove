@@ -35,6 +35,12 @@
 //! cannot end itself, so the deadline relies on nothing the worker does: every
 //! channel read and write, in either phase, waits only for the time left, and
 //! at expiry the front stops and reaps the worker and refuses with exit 124.
+//!
+//! A handled signal cancels the conversation the same way (`cancellation`):
+//! each poll of the channel looks for one, and the front looks again once the
+//! worker has answered and once it is reaped. The worker is stopped as at the
+//! deadline, with TERM and the cleanup grace, and the cancellation is reported
+//! whatever else the conversation came to.
 
 use std::ffi::OsString;
 use std::fs;
@@ -52,6 +58,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 
+use crate::cancellation::{self, Signal};
 use crate::context::{self, Measured, VIA_RUN};
 use crate::frame::{read_frame, write_frame, FrameError};
 use crate::limits::{Bound, Limits, SELECTION_MAX_MS};
@@ -544,10 +551,14 @@ pub fn evaluate<T>(
         limits,
         caller,
     };
-    let result = converse(channel, asked, started, judge);
+    // A signal received while the worker was asked, or before its answer was
+    // judged, cancels whatever the conversation came to.
+    let result = cancelled(converse(channel, asked, started, judge));
     // The closed channel is the worker's signal that nothing more is asked.
     drop(front_end);
     let status = match &result {
+        // TERM first, so that a policy awaiting work can clean up.
+        Err(Conversation::Cancelled(_)) => stop(&mut child, Some(libc::SIGTERM)),
         // Output past its bound ends evaluation at once.
         _ if capture.overflowed() => {
             let _ = child.kill();
@@ -566,10 +577,14 @@ pub fn evaluate<T>(
     };
     let (diagnostics, overflowed) = capture.collect(Instant::now() + DRAIN_GRACE);
     drop(private_dir);
+    // The channel is closed and the worker reaped: a signal received while
+    // that happened cancels too.
+    let result = cancelled(result);
 
     // The bound holds for as long as the worker lives, so output past it
-    // refuses whatever else happened, a completed selection included.
-    if overflowed {
+    // refuses whatever else happened, a completed selection included, unless
+    // a signal cancelled it.
+    if overflowed && !matches!(result, Err(Conversation::Cancelled(_))) {
         return Err(Failure::with_diagnostics(
             output_limit(entry, limits),
             diagnostics,
@@ -587,6 +602,10 @@ pub fn evaluate<T>(
         }
         Err(Conversation::Expired { handed_over }) => Err(Failure::with_diagnostics(
             expired(worker, entry, bound, handed_over),
+            diagnostics,
+        )),
+        Err(Conversation::Cancelled(signal)) => Err(Failure::with_diagnostics(
+            cancellation::refusal(signal, entry),
             diagnostics,
         )),
         Err(Conversation::Ended(error)) => {
@@ -614,6 +633,16 @@ enum Conversation {
     Ended(FrameError),
     /// The deadline passed first, after the entry was handed over or before.
     Expired { handed_over: bool },
+    /// A handled signal was received.
+    Cancelled(Signal),
+}
+
+/// `result`, unless a handled signal has been received, which cancels it.
+fn cancelled<T>(result: Result<T, Conversation>) -> Result<T, Conversation> {
+    match cancellation::received() {
+        Some(signal) => Err(Conversation::Cancelled(signal)),
+        None => result,
+    }
 }
 
 impl Conversation {
@@ -960,7 +989,7 @@ fn stop(child: &mut Child, signal: Option<libc::c_int>) -> io::Result<ExitStatus
 /// The protocol channel with the deadline applied: each read or write waits
 /// only for the time left, and once none is left it fails with `TimedOut`. It
 /// waits in slices of at most `POLL`, and between slices it fails at once if
-/// the policy's output has passed its bound.
+/// the policy's output has passed its bound or a handled signal was received.
 #[derive(Clone, Copy)]
 struct Bounded<'a> {
     channel: &'a UnixStream,
@@ -974,6 +1003,9 @@ impl Bounded<'_> {
     fn slice(&self) -> io::Result<Duration> {
         if self.overflow.load(Ordering::SeqCst) {
             return Err(io::Error::other("the policy's output passed its bound"));
+        }
+        if cancellation::received().is_some() {
+            return Err(io::Error::other("a signal cancelled the selection"));
         }
         let left = self.deadline.saturating_duration_since(Instant::now());
         if left.is_zero() {
@@ -1113,7 +1145,8 @@ fn held_descriptors() -> io::Result<Vec<RawFd>> {
 /// Both diagnostic streams, each read to its end on a thread of its own and
 /// kept within one shared bound. Past the bound the threads go on reading,
 /// so that the worker never blocks on a full pipe, but keep nothing more, and
-/// set the flag the channel watches.
+/// set the flag the channel watches. The threads never take a handled signal,
+/// which is left to the thread that converses.
 struct Capture {
     captured: Arc<Mutex<Diagnostics>>,
     overflow: Arc<AtomicBool>,
@@ -1166,14 +1199,16 @@ impl Capture {
                 let _ = sender.send(());
             });
         };
-        spawn(
-            stdout.map(|stream| Box::new(stream) as Box<dyn Read + Send>),
-            true,
-        );
-        spawn(
-            stderr.map(|stream| Box::new(stream) as Box<dyn Read + Send>),
-            false,
-        );
+        cancellation::shielded(|| {
+            spawn(
+                stdout.map(|stream| Box::new(stream) as Box<dyn Read + Send>),
+                true,
+            );
+            spawn(
+                stderr.map(|stream| Box::new(stream) as Box<dyn Read + Send>),
+                false,
+            );
+        });
         Capture {
             captured,
             overflow,

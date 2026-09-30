@@ -7,6 +7,7 @@
 
 mod argv;
 mod authority;
+mod cancellation;
 mod choice;
 mod cli;
 mod context;
@@ -218,6 +219,11 @@ fn report_failure(failure: &Failure, json: bool) -> ExitCode {
         eprintln!("{}", failure.to_json());
     } else {
         eprint!("{}", failure.to_text());
+    }
+    // A cancelled selection ends as its signal would have ended it, under the
+    // entry disposition that selection restored.
+    if let Some(signal) = failure.refusal.signal {
+        cancellation::reraise(signal);
     }
     ExitCode::from(failure.refusal.exit)
 }

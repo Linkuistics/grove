@@ -24,9 +24,10 @@ refusal says what to fix, and a refused `run` gives the `inspect` command that
 reproduces it. A loader can look up an earlier run's recorded launch fields,
 so a review can learn which provider its creator ran under from the record,
 never from today's catalog. Three starter policies ship inside the worker, two
-static and one computed. Signal handling at the handoff comes in a later
-release. Until then, its input is refused by name. It is never accepted and
-ignored.
+static and one computed. An interrupt while selecting cancels it, and nothing
+runs. Signal handling across the handoff itself, and `--policy-env` grants,
+come in a later release. Until then, `--policy-env` is refused by name. It is
+never accepted and ignored.
 
 ## Install
 
@@ -363,7 +364,7 @@ The `host` a loader receives reads files for it:
 | `host.readJson(path, maxBytes?)` | Reads a JSON file the same way and returns `{ value, source }` |
 | `host.run(runId)` | Looks up a recorded run: see [looking up a run](#looking-up-a-run) |
 | `host.diagnostic(text)` | Writes one line to the policy's stderr, which inspection shows and the run notice carries |
-| `host.signal` | An `AbortSignal`, aborted when harness-dispatch stops the selection at its deadline, so that a `fetch` in flight can stop too |
+| `host.signal` | An `AbortSignal`, aborted when harness-dispatch stops the selection at its deadline or on an [interrupt](#interrupting-a-selection), so that a `fetch` in flight can stop too |
 
 A relative `path` resolves against the caller's directory, `request.cwd`, and
 never against the worker's own. Your policy's `import`s still resolve from its
@@ -653,6 +654,38 @@ in time but then does not exit, because an exit handler holds it, also gets one
 second before it is killed. Its selection stands. A policy that starts
 processes of its own must end them before it returns; the front stops only the
 worker.
+
+### Interrupting a selection
+
+An INT, TERM or HUP that reaches harness-dispatch while it selects cancels the
+selection: a Ctrl-C at the terminal, a `kill`, or a terminal that closes. The
+front stops the worker as it does at the deadline, with TERM and at most one
+second before KILL, and reaps it. Nothing is recorded or launched. It prints
+one refusal, as JSON with `--json`, and then ends by that same signal, so a
+shell reports 130, 143 or 129:
+
+```json
+{"schemaVersion":1,"error":{"code":"selection_cancelled","stage":"evaluation",
+ "message":"selection with the policy /home/me/.config/harness-dispatch/policy.ts was cancelled by SIGINT: its worker was stopped and reaped, and nothing was recorded or launched",
+ "source":"/home/me/.config/harness-dispatch/policy.ts","signal":"SIGINT",
+ "remedy":"…","exit":130},"diagnostics":{"stdout":"","stderr":""}}
+```
+
+`exit` is the status a shell shows for that death, since a process that dies
+of a signal has no exit code. A signal received while selecting decides the
+outcome, whatever else happened meanwhile: a refusal the policy or the record
+store would have caused is reported as the cancellation instead, and so is a
+selection that ran out of time. `host.signal` aborts as it does at the
+deadline, and what the policy printed is kept in `diagnostics`. A terminal
+delivers its interrupt to the worker, and to any process your policy started,
+as well as to the front, since they all stay in the caller's job.
+
+A signal that was ignored when harness-dispatch started, as `nohup` ignores
+HUP, stays ignored and cannot cancel a selection. Once the selected program is
+resolved, every signal takes its usual course again. It still ends `run`
+before the harness starts, though one during the record commit can leave a
+recorded attempt whose harness never ran. Handling signals up to the harness's
+start comes in a later release.
 
 ## Arguments and slots
 
@@ -1053,7 +1086,9 @@ inspection reads the store as `run` does.
 | 3 | `observation` | `observation_unreadable` (the `--file`); `observation_too_large` (over the fixed 1 MiB bound); `observation_invalid` and `unsupported_version`, each with its `location` |
 | 4 | `record` | `record_store_unwritable`, `record_store_locked` (held past the 2-second wait), `record_store_full`, `record_store_invalid` (another application's file, another version, or corrupt), `record_commit_failed`, `run_id_unavailable`, `home_unset` (HOME cannot place the default state directory); the same store codes when a [run lookup](#looking-up-a-run) cannot read the store, `record_store_invalid` also for a launch record this release cannot read, in `record show`, `record observe` or a run lookup, and for an observation `record show` cannot read |
 | 5 | `worker` | `worker_missing`, `worker_identity_mismatch`, `worker_failed`, `protocol_error` |
+| 5 | `evaluation` | `cancellation_unavailable` (the handlers that let a signal cancel selection cannot be installed) |
 | 124 | `evaluation` | `selection_timeout` (the selection bound ran out, a run lookup's lock wait included) |
+| 128 + N | `evaluation` | `selection_cancelled` (INT, TERM or HUP while selecting; the process then dies of that signal, which a shell reports as 130, 143 or 129: see [interrupting a selection](#interrupting-a-selection)) |
 | 126 | `resolution`, `exec` | `program_unexecutable`; `exec_failed` for any exec error but `ENOENT` |
 | 127 | `resolution`, `exec` | `program_not_found`; `exec_failed` for `ENOENT` |
 

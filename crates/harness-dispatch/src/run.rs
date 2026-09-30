@@ -18,9 +18,12 @@
 //! reproduced without reconstructing its inputs. A command line that does not
 //! parse has no such equivalent.
 //!
-//! Not yet here: handled signals, the post-commit cancellation check with its
-//! not-executed detail, and a signal-transparent handoff
-//! (`evaluation-boundary-k27`).
+//! INT, TERM and HUP cancel the selection until its program is resolved
+//! (`choice`), and then take their entry course again, so a signal during the
+//! commit ends this process before anything is launched. Not yet here: the
+//! handled signals across the commit, the post-commit cancellation check with
+//! its not-executed detail, and a signal-transparent handoff
+//! (`signal-transparent-handoff-k29`).
 
 use std::io;
 use std::os::unix::process::CommandExt as _;

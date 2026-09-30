@@ -11,8 +11,11 @@
 
 #![allow(dead_code)] // each test binary uses its own subset
 
+pub mod hold;
+
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;
+use std::os::unix::process::ExitStatusExt as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
@@ -213,6 +216,8 @@ pub fn executable(path: &Path, script: &str) {
 
 pub struct Run {
     pub code: Option<i32>,
+    /// The signal the front died of, if it did not exit.
+    pub signal: Option<i32>,
     pub stdout: String,
     pub stderr: String,
 }
@@ -225,6 +230,7 @@ impl From<Output> for Run {
     fn from(output: Output) -> Self {
         Run {
             code: output.status.code(),
+            signal: output.status.signal(),
             stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         }
@@ -280,6 +286,36 @@ impl Run {
             named("input") || named("source"),
             "refusal names neither its input nor its source: {document}"
         );
+        document
+    }
+
+    /// The JSON cancellation on stderr, after asserting that the front died of
+    /// `signal`, named `name`, and printed nothing on stdout: the refusal
+    /// contract, with the signal named and the `128 + N` a shell reports.
+    pub fn cancelled(&self, signal: i32, name: &str) -> Value {
+        assert_eq!(
+            (self.code, self.signal),
+            (None, Some(signal)),
+            "expected death by {name}\nstdout: {}\nstderr: {}",
+            self.stdout,
+            self.stderr
+        );
+        assert_eq!(self.stdout, "", "a cancellation prints nothing on stdout");
+        let document: Value = serde_json::from_str(&self.stderr).unwrap_or_else(|error| {
+            panic!("stderr is not one JSON document ({error}): {}", self.stderr)
+        });
+        assert_eq!(document["schemaVersion"], 1);
+        let error = &document["error"];
+        assert_eq!(error["code"], "selection_cancelled", "{document}");
+        assert_eq!(error["stage"], "evaluation", "{document}");
+        assert_eq!(error["signal"], name, "{document}");
+        assert_eq!(error["exit"], 128 + signal, "{document}");
+        for field in ["message", "remedy", "source"] {
+            assert!(
+                error[field].as_str().is_some_and(|text| !text.is_empty()),
+                "cancellation lacks {field}: {document}"
+            );
+        }
         document
     }
 }

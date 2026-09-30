@@ -65,7 +65,16 @@ Its exit code and signal death reach Grove as a direct harness's do, and its
 worker has null stdin and no control variable. A typed interrupt during
 selection launches nothing, records nothing and leaves no worker. Grove
 answers it, an interrupt during execution and its escalation as it does for a
-direct harness.
+direct harness. Grove's configuration reference and usage guide, and the
+configure-grove skill, explain activation. That means a personal command
+definition, a personal policy that no install writes, and an optional literal
+`--choice`. They explain that Grove's configuration owns the wrapper and the
+policy owns selection, with `grove config show` and `harness-dispatch inspect`
+as the two inspection surfaces. They also state that Grove's pre-authoring
+check stops at the configured command, give the remedy for an incomplete
+mapping, and warn never to grant `GROVE_SIGNAL_FILE` to the policy.
+`harness-dispatch --help` carries the Grove command definition they quote,
+which is the one the launch-boundary suite runs.
 The [visual document](../design/harness-selection-and-execution/README.md) has
 matching package, execution and provenance views.
 

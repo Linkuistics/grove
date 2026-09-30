@@ -2293,6 +2293,105 @@ export const policy = {{
     assert_eq!(dispatch.launch(1).args[..2], ["--model", "small"]);
 }
 
+/// Every Grove command definition for dispatch that `text` quotes: from each
+/// `harness-dispatch run --kind ${kind}` to the end of its KDL string, its
+/// code span or its line, whichever comes first.
+fn quoted_dispatch_commands(text: &str) -> Vec<&str> {
+    text.match_indices("harness-dispatch run --kind ${kind}")
+        .map(|(at, _)| {
+            let rest = &text[at..];
+            &rest[..rest.find(['"', '`', '\n']).unwrap_or(rest.len())]
+        })
+        .collect()
+}
+
+// The command definition an owner is told to write is the one these cases
+// launch. `harness-dispatch --help` and `run --help` carry a Grove example.
+// Every Grove command definition for dispatch that the help, Grove's
+// configuration reference and usage guide, the configure-grove skill and
+// dispatch's own README quote is `dispatch_template`'s, word for word, or that
+// with a literal `--choice` before the prompt, the form the choice case
+// launches. Each surface but the usage guide, which links the reference rather
+// than restating it, must quote it at least once, on one line. So a surface
+// that drops the example, wraps it, or quotes another form fails here instead
+// of drifting from what was tested.
+#[test]
+fn the_documented_command_definition_for_dispatch_is_the_one_launched_here() {
+    let template = dispatch_template("");
+    let tested: Vec<&str> = template
+        .strip_prefix(&shell_quote(&harness_dispatch()))
+        .expect("the template starts with its program")
+        .split_whitespace()
+        .collect();
+    let at = tested.len() - 2;
+    assert_eq!(tested[at..], ["--prompt", "${prompt}"]);
+    let conforms = |words: &[&str]| {
+        words == tested
+            || (words.len() == tested.len() + 2
+                && words[..at] == tested[..at]
+                && words[at] == "--choice"
+                && words[at + 2..] == tested[at..])
+    };
+
+    let help = |args: &[&str]| {
+        let output = Command::new(harness_dispatch())
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{args:?}");
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let root = support::repo_root();
+    let document = |relative: &str| fs::read_to_string(root.join(relative)).unwrap();
+    let mut skill = String::new();
+    let mut directories = vec![root.join("plugins/grove/skills/configure-grove")];
+    while let Some(directory) = directories.pop() {
+        for entry in fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                directories.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "md") {
+                skill += &fs::read_to_string(&path).unwrap();
+            }
+        }
+    }
+    let surfaces = [
+        ("harness-dispatch --help", help(&["--help"]), true),
+        (
+            "harness-dispatch run --help",
+            help(&["run", "--help"]),
+            true,
+        ),
+        (
+            "docs/CONFIGURATION.md",
+            document("docs/CONFIGURATION.md"),
+            true,
+        ),
+        ("the configure-grove skill", skill, true),
+        (
+            "crates/harness-dispatch/README.md",
+            document("crates/harness-dispatch/README.md"),
+            true,
+        ),
+        ("docs/USAGE.md", document("docs/USAGE.md"), false),
+    ];
+
+    for (surface, text, required) in &surfaces {
+        let quoted = quoted_dispatch_commands(text);
+        assert!(
+            !required || !quoted.is_empty(),
+            "{surface} quotes no Grove command definition for dispatch"
+        );
+        for command in quoted {
+            let words: Vec<&str> = command.split_whitespace().collect();
+            assert!(
+                words[0] == "harness-dispatch" && conforms(&words[1..]),
+                "{surface} quotes {command:?}, which is not the tested {template:?}"
+            );
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Dispatched sessions under a controlling terminal
 //

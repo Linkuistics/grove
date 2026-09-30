@@ -91,9 +91,10 @@ the executable hosting it. Missing provenance requires resolution, not an
 assumption based on the current producer default.
 
 Automatic pre-launch selection is a separate mechanism, not a capability of a
-static `.grove.kdl`. If one exists, inspect its contract and configure only its
-supported interface. Otherwise propose it separately; do not invent a Grove
-hook, runtime slot or task-file override.
+static `.grove.kdl`. Grove ships one, `harness-dispatch`, whose TypeScript
+policy selects per launch; configure it through its supported interface as
+[dispatch.md](dispatch.md) directs. Inspect any other mechanism's contract the
+same way. Do not invent a Grove hook, runtime slot or task-file override.
 
 A learned selector needs outcomes from comparable tasks and an approved menu
 of model/effort pairs. Treat its option probability as a classification signal

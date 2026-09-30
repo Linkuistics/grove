@@ -430,8 +430,13 @@ fn a_refusal_is_evaluated_once_and_never_retried() {
     assert!(!sandbox.harness_ran());
 }
 
+/// The Grove command definition the help quotes. Grove's launch-boundary
+/// suite runs this command, and checks that the help and Grove's documentation
+/// quote it word for word; here it is only required to be present.
+const EXAMPLE_FOR_GROVE: &str = "  command \"dispatch\" \"harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}\"\n";
+
 #[test]
-fn help_carries_independent_use_and_refusal_recovery_examples() {
+fn help_carries_independent_use_grove_and_refusal_recovery_examples() {
     let sandbox = Sandbox::new();
     let help = |args: &[&str]| {
         let mut command = sandbox.command();
@@ -450,6 +455,8 @@ fn help_carries_independent_use_and_refusal_recovery_examples() {
         "124 selection timeout; 126 program not executable; 127 program not found",
         "Nothing is retried, paged or confirmed interactively",
         "A refused run prints the equivalent inspect invocation",
+        EXAMPLE_FOR_GROVE,
+        "evaluated only at launch",
     ] {
         assert!(top.contains(fact), "top-level help lacks {fact:?}:\n{top}");
     }
@@ -474,6 +481,7 @@ fn help_carries_independent_use_and_refusal_recovery_examples() {
         "Recovering from a refusal:",
         "(cd /work && harness-dispatch inspect --kind design)",
         "Nothing is retried for you.",
+        EXAMPLE_FOR_GROVE,
     ] {
         assert!(run.contains(fact), "run help lacks {fact:?}:\n{run}");
     }

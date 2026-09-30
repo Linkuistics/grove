@@ -943,6 +943,36 @@ the append itself failed. An unrecorded failure leaves the run a handoff
 attempt whose execution is unknown, never a success. With `--json`, the error
 is a second JSON line after the handoff notice.
 
+## Called from Grove
+
+Grove launches a lifecycle session through harness-dispatch when a personal
+command definition in `~/.config/grove/config.kdl` runs `run` with Grove's task
+slots and the prompt:
+
+```kdl
+config {
+    command "dispatch" "harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}"
+    bind "dispatched" "dispatch"
+    route "impl" "dispatched"
+}
+```
+
+Grove fills the slots from the leaf it selected: its kind, the absolute path of
+its task file and its stable handle, each as one argument. The prompt arrives
+unchanged. To harness-dispatch these are ordinary inputs, and it reads no Grove
+file or filename. Grove's configuration admits the kind and runs this command,
+and your policy selects the harness. Grove checks its own command before it
+writes a leaf, but not your policy, which is evaluated only at launch.
+[`harness-dispatch/examples/grove-static`](#starter-examples) routes every
+kind Grove ships.
+
+The harness receives Grove's completion channel, `GROVE_SIGNAL_FILE`, in the
+environment it inherits. The policy does not, and must not be granted it with
+`--policy-env` ([the policy's environment](#the-policys-environment)).
+[Routing sessions through harness-dispatch](../../docs/CONFIGURATION.md#harness-dispatch),
+in Grove's configuration reference, covers activation, a literal `--choice`,
+both inspection surfaces and the remedy when a launch refuses.
+
 ## Run records
 
 Every `run` records one **handoff attempt** before it execs. The record is

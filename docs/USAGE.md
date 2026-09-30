@@ -169,6 +169,26 @@ for its existing trackedness check. Output has no pager or truncation. A report
 covers one load, while launches reload configuration: equal argv requires
 unchanged source inputs and runtime context.
 
+A kind whose command runs `harness-dispatch run` hands the choice of harness,
+model and effort to your dispatch policy, and this report stops at that
+command. It shows the wrapper, `harness-dispatch` with `slot <kind>`,
+`slot <task_file>`, `slot <task_id>` and `slot <prompt>` among its words, and
+evaluates no policy. The selection has its own inspection, which launches
+nothing:
+
+```sh
+harness-dispatch inspect --kind impl
+```
+
+It reports the policy it evaluated, the candidate with its provider, model and
+effort, why that candidate was chosen, and the harness's arguments. Grove's
+configuration owns the wrapper and the policy owns the selection, and a policy
+that cannot choose for a kind refuses only when a leaf of that kind launches.
+See [routing sessions through harness-dispatch](CONFIGURATION.md#harness-dispatch)
+for activation, and the
+[harness-dispatch documentation](../crates/harness-dispatch/README.md) for
+its policies.
+
 <a id="usage-viewing-tree"></a>
 ## Viewing a tree
 
@@ -428,6 +448,39 @@ Nothing was created or changed.
 leaves `git` itself working; `jj git init` is for a directory with no repository
 at all. Run one and rerun `grove`. Jujutsu's own binary must be on `PATH` —
 Grove asks jj for facts it will not guess, and says so if it cannot run it.
+
+### If a dispatched launch refuses
+
+A kind routed through `harness-dispatch run` has its harness chosen at launch,
+by your dispatch policy
+([routing sessions through harness-dispatch](CONFIGURATION.md#harness-dispatch)).
+Grove checked only the command when the leaf was written, so a policy that
+cannot choose for the kind refuses now. It launches nothing, and Grove stops
+the loop with harness-dispatch's exit status and leaves the leaf live:
+
+```console
+$ grove
+grove: launching design with configured "harness-dispatch" — api-k1
+harness-dispatch: refused (incomplete_mapping, stage selection): the routes in /home/you/.config/harness-dispatch/policy.ts name no candidate for kind "design"
+  input: --kind design
+  source: /home/you/.config/harness-dispatch/policy.ts
+  location: policy.routes
+  remedy: add a route "design" to a candidate ID in /home/you/.config/harness-dispatch/policy.ts, or name one configured candidate with --choice ID; harness-dispatch never substitutes a default candidate
+  inspect: (cd /home/you/app && harness-dispatch inspect --kind design --task-file /home/you/app/.grove/01-design--api-k1.md --task-id api-k1)
+grove: session ended without a completion signal — status exit status: 3, elapsed 1.517s; loop stopped.
+       configured session kind `design` failed via "harness-dispatch" from /home/you/.config/grove/config.kdl.
+```
+
+Run the `inspect:` line: it reproduces the refusal and launches nothing. Do
+what the remedy says, here adding `design` to the policy's routes, and run the
+line again until it reports a candidate. Then rerun `grove`, and the same leaf
+launches:
+
+```console
+$ grove
+grove: launching design with configured "harness-dispatch" — api-k1
+harness-dispatch: running candidate "lead" (provider openai, model your-model, effort high) for kind "design" as run 1e8cf6c2-1dd5-4e38-bb6a-2e550bdc98d1: /home/you/bin/my-agent
+```
 
 ### Stopping the loop
 

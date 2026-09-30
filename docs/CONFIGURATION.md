@@ -32,7 +32,9 @@ the terminal; standalone invocations capture their command's output.
 
 Grove neither knows nor infers which agent harness a template runs. Executable,
 model, reasoning effort, approval, permission, and sandbox policy all live in the
-template. A named binding can share that template across several routes.
+template, or behind a wrapper it runs, such as
+[harness-dispatch](#harness-dispatch). A named binding can share that template
+across several routes.
 Standalone invocations additionally enforce an outer filesystem boundary which
 the configured command cannot disable.
 
@@ -550,6 +552,170 @@ such policy with literal `env` arguments or in a wrapper. Grove's own internal
 VCS commands are separate and do scrub repository selectors, so your
 personal launch context cannot redirect a teardown commit.
 
+<a id="harness-dispatch"></a>
+## Routing sessions through harness-dispatch
+
+[`harness-dispatch`](../crates/harness-dispatch/README.md) installs with Grove.
+It chooses a harness, model and reasoning effort for each launch from a
+TypeScript policy you own, then runs that harness. Grove launches it like any
+other command: a personal command definition runs `harness-dispatch run` with
+the task slots and the prompt. Two personal files then divide the work, and
+neither reads the other:
+
+| File | Owns | Inspect with |
+|---|---|---|
+| `~/.config/grove/config.kdl` | Which kinds Grove admits, and the wrapper each one launches: `harness-dispatch run` and its arguments | `grove config show --kind KIND` |
+| `~/.config/harness-dispatch/policy.ts` | Selection: the catalog of joint harness, model and effort candidates, and which one each kind gets | `harness-dispatch inspect --kind KIND` |
+
+A [configuration delta](#the-configuration-delta) can re-point a route at a
+dispatch binding your personal file defines, as it can any other. The policy
+has no local counterpart: harness-dispatch runs your personal policy, or the
+entry a `--config` argument in your command definition names, and never one it
+finds in a repository.
+
+### Activating it
+
+First, point a command definition at `harness-dispatch run`, and route the
+kinds you want dispatched to it:
+
+```kdl
+config {
+    command "dispatch" "harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}"
+    bind "dispatched" "dispatch"
+    route "design" "dispatched"
+    route "impl" "dispatched"
+    route "review-impl" "dispatched"
+}
+```
+
+Grove fills `${kind}`, `${task_file}` and `${task_id}` from the leaf it
+selected, each as one argument, and passes the prompt unchanged
+([substitutions](#substitutions)). Grove still admits the kinds: each kind you
+run needs its route here, and the policy chooses only among candidates for
+kinds Grove launches.
+
+Second, write your policy, `~/.config/harness-dispatch/policy.ts`. The Grove
+starter routes every kind this methodology ships:
+
+```ts
+export { policy } from "harness-dispatch/examples/grove-static";
+```
+
+Its programs and models are placeholders for your own, so copy
+`libexec/harness-dispatch/examples/grove-static.ts` from the installation
+prefix beside your policy and edit it
+([starter examples](../crates/harness-dispatch/README.md#starter-examples)).
+Neither file exists until you write it, and installing or upgrading Grove
+writes neither. An example you import is part of the installation and changes
+with it, whereas a copy stays yours.
+
+Optionally, name one candidate for some kinds with a literal `--choice` in a
+command definition of its own:
+
+```kdl
+config {
+    command "dispatch-deep" "harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --choice lead-max --prompt ${prompt}"
+    bind "deep" "dispatch-deep"
+    route "design" "deep"
+}
+```
+
+The choice applies to every kind routed to that command. A routes policy takes
+the named candidate instead of the kind's route; a `select` policy sees it and
+accepts or refuses it. An ID the catalog lacks refuses
+([explicit choice](../crates/harness-dispatch/README.md#explicit-choice)).
+Nothing overrides a candidate's model or effort alone.
+
+Direct-harness routes keep working beside dispatched ones: a kind routed to
+`my-agent ${prompt}` launches as before, in the same file and the same loop.
+
+### What the harness and the policy receive
+
+harness-dispatch replaces its own process with the harness, so the harness is
+the foreground job Grove launched. It keeps Grove's PID, process group,
+terminal and working directory, and Grove reports its exit code or signal
+death as a direct harness's. A candidate's program that is itself a wrapper
+must `exec` its harness in turn. The harness inherits the environment Grove
+gave harness-dispatch, including this launch's `GROVE_SIGNAL_FILE`, plus the
+run's `HARNESS_DISPATCH_RUN_ID` and `HARNESS_DISPATCH_STATE_DIR`.
+harness-dispatch commits a
+[run record](../crates/harness-dispatch/README.md#run-records) under that
+identity before the harness starts.
+
+The policy runs in a separate worker, with null stdin and only `HOME`, `PATH`,
+`TMPDIR`, `LANG` and `LC_*` from that environment, so it holds no Grove
+variable. **Never grant `GROVE_SIGNAL_FILE` with `--policy-env`.** It names
+the file whose appearance ends the session, so a policy holding it could end
+the session it is choosing a harness for. harness-dispatch cannot tell a caller's
+completion variables from any other name, so it does not refuse the grant
+([the policy's environment](../crates/harness-dispatch/README.md#the-policys-environment)).
+An interrupt while the policy runs launches nothing and records nothing, and
+Grove answers it as it answers an interrupted harness.
+
+### Inspecting both halves
+
+```sh
+grove config show --kind design
+harness-dispatch inspect --kind design
+```
+
+`grove config show` explains the wrapper. It shows that `design` runs
+`harness-dispatch` with `slot <kind>`, `slot <task_file>`, `slot <task_id>`
+and `slot <prompt>` among its words, and where each word came from. It
+evaluates no policy, so it cannot say which harness will run.
+`harness-dispatch inspect` explains the selection: the policy's path and
+authority, the candidate with its provider, model and effort, what selected it
+and why, and the harness's expanded arguments. It launches nothing and reads
+no Grove configuration. A policy that reads the task needs it: add
+`--task-file` and `--task-id`, as the `inspect:` line of a refused launch does.
+
+### Delegated policy is checked at launch
+
+Grove checks a kind before it writes a leaf of that kind
+([when a missing kind is reported](#when-a-missing-kind-is-reported)), and the
+check stops at the configured command. It proves that the `design` route
+resolves to a complete `harness-dispatch run` command, not that the policy
+behind it routes `design`. Static routes and a computed `select` alike are
+evaluated only when the leaf launches. So `grove-llm leaf-add . api --kind
+design` can succeed, and the launch of that leaf then refuse.
+
+### When a dispatched launch refuses
+
+A refusal launches nothing, and harness-dispatch never runs another candidate
+in its place. It prints the refusal with its remedy, and an `inspect:` line
+that reproduces the selection. Grove then reports a session that ended without
+a completion signal, with harness-dispatch's exit status, and stops the loop.
+The leaf stays live, and [the usage guide](USAGE.md#if-a-dispatched-launch-refuses)
+shows the whole transcript. An incomplete mapping reads:
+
+```text
+harness-dispatch: refused (incomplete_mapping, stage selection): the routes in /home/you/.config/harness-dispatch/policy.ts name no candidate for kind "design"
+  input: --kind design
+  source: /home/you/.config/harness-dispatch/policy.ts
+  location: policy.routes
+  remedy: add a route "design" to a candidate ID in /home/you/.config/harness-dispatch/policy.ts, or name one configured candidate with --choice ID; harness-dispatch never substitutes a default candidate
+  inspect: (cd /home/you/app && harness-dispatch inspect --kind design --task-file /home/you/app/.grove/01-design--api-k1.md --task-id api-k1)
+```
+
+The remedy:
+
+1. Run the `inspect:` line. It refuses as the launch did, and launches nothing.
+2. Add the kind to your policy's `routes`, mapped to a catalog ID, such as
+   `design: "lead-xhigh"`. Alternatively, route the kind in Grove to a command
+   definition carrying `--choice ID`, as above.
+3. Run the `inspect:` line again until it reports a candidate.
+4. Run `grove`. The same leaf launches; the tree needs no repair.
+
+A `select` policy that refuses a kind itself reports `policy_refused` with its
+own code. The dynamic starter uses `incomplete_mapping` there, and the remedy
+is the policy's own. Other refusals take the same path, each with its own exit
+status and remedy
+([refusals](../crates/harness-dispatch/README.md#refusals)).
+
+The task slots are lifecycle-only, so `grove run` refuses a
+[standalone](#standalone-commands) kind routed to this command. Keep
+standalone kinds on commands of their own.
+
 ## Making the methodology available
 
 `${prompt}` names one `grove-<kind>` skill and carries Grove's signalling
@@ -730,6 +896,11 @@ Adding a kind to the methodology is therefore no longer a breaking schema change
 for everyone at once: your configuration keeps working until the first task of
 that kind, and only then asks you for a template.
 
+The check covers the configured command and nothing behind it. When that
+command delegates the choice of harness, as `harness-dispatch run` does, the
+delegated policy is checked only at launch
+([routing sessions through harness-dispatch](#harness-dispatch)).
+
 Validation does not try to identify the configured program or understand its
 arguments. If the literal executable cannot be resolved or spawned, that is a
 launch error naming the selected kind, the executable, and **the personal file
@@ -794,7 +965,9 @@ profiles receive structural checks. Presence is about the kind in hand.
   writing out. Verified on codex-cli 0.147.0; re-derive if that has moved. The
   same gap applies to Codex started any other way, where no template supplies the
   store at all.
-- **Model and reasoning effort.** These are arguments in your template, or
-  settings inside a profile your template selects.
+- **Model and reasoning effort.** These are arguments in your template,
+  settings inside a profile your template selects, or the choice of a policy
+  your template delegates to, such as
+  [harness-dispatch's](#harness-dispatch).
 - **Branches, worktrees, and integration.** Yours entirely; see
   [USAGE.md](USAGE.md).

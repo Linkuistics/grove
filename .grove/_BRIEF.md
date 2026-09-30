@@ -387,6 +387,26 @@ shipped worker reads no `package.json` at run time, so a package whose entry
 `main` or `exports` declares does not load. `package-entry-resolution-k52`
 decides whether that stays, before the documentation consolidates.
 
+Grove dispatch closed with `grove-dispatch-guidance-k34`. Later leaves build on
+three facts. First, the Grove-side guidance lives in four places, and later
+guidance joins them rather than starting a fifth.
+`docs/CONFIGURATION.md#harness-dispatch` holds the whole account.
+`docs/USAGE.md#if-a-dispatched-launch-refuses` holds the refused-launch
+workflow. `plugins/grove/skills/configure-grove/references/dispatch.md` holds
+the operator procedure. The dispatch README's "Called from Grove" section
+points back to Grove. The review policy's activation (`review-policy-k35`) and
+the missing-creator remedy (`creator-reference-k38`) belong beside the
+incomplete-mapping remedy there. Second,
+`the_documented_command_definition_for_dispatch_is_the_one_launched_here`, in
+`crates/grove/tests/loop_driver.rs`, pins every `harness-dispatch run --kind
+${kind}` command those surfaces and both help texts quote to
+`dispatch_template`'s words. It allows only a literal `--choice ID` before the
+prompt. A leaf that documents another form, such as `--config` or
+`--policy-env` in the command, extends the test with a launched case for it.
+Third, the documents activate `harness-dispatch/examples/grove-static`, which
+enforces no provider rule. They advise copying it rather than importing it,
+since an imported example changes with the installation.
+
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and
 `creator-reference-k38`. The leaf whose retirement closes a node cuts its review

@@ -1,6 +1,6 @@
 ---
 name: configure-grove
-description: Grove launch-policy configuration for global defaults and project overrides by task kind. Use when inspecting, recommending, updating or creating Grove model/effort mappings, profiles or .grove.kdl files.
+description: Grove launch-policy configuration for global defaults and project overrides by task kind. Use when inspecting, recommending, updating or creating Grove model/effort mappings, profiles or .grove.kdl files, or routing Grove sessions through harness-dispatch.
 harnesses: [any]
 ---
 
@@ -37,6 +37,9 @@ If a wrapper, harness profile/configuration or dispatcher supplies the model or
 effort, inspect that source and its supported inspection interface too. Grove's
 resolved argv proves the invocation, not settings hidden behind it. Identify
 the actual owner of each value and any flag that would override a profile.
+When a route runs `harness-dispatch run`, or should, use
+[dispatch.md](references/dispatch.md): Grove's configuration owns that wrapper,
+and the dispatch policy owns the harness, model and effort it selects.
 
 ## Choose model and effort together
 

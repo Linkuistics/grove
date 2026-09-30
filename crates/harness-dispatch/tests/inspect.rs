@@ -573,7 +573,6 @@ fn forms_later_increments_own_are_refused_by_name() {
         "--context",
         "--choice",
         "--policy-env",
-        "--timeout-ms",
         "--context-bytes",
         "--state-dir",
     ] {
@@ -630,6 +629,7 @@ fn help_lists_only_the_forms_this_release_delivers() {
         "--prompt-file",
         "--task-file",
         "--task-id",
+        "--timeout-ms",
     ] {
         assert!(
             run.stdout.contains(delivered),

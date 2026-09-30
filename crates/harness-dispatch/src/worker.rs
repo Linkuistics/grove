@@ -8,16 +8,23 @@
 //! first frame states its protocol and build identity, and the front checks both
 //! before the worker learns which entry to evaluate: a worker from another build
 //! is never handed a policy.
+//!
+//! The whole selection is bounded from the worker's start to its result, by the
+//! front's own clock (*Bounded context*, *Execution and authority*). A policy
+//! spinning at import, or awaiting work that never settles, cannot end itself,
+//! so the deadline relies on nothing the worker does: every channel read and
+//! write waits only for the time left, and at expiry the front stops and reaps
+//! the worker and refuses with exit 124.
 
 use std::ffi::OsString;
 use std::fs;
-use std::io::{ErrorKind, Read};
+use std::io::{self, ErrorKind, Read, Write};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::net::UnixStream;
 use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -25,7 +32,8 @@ use std::time::{Duration, Instant};
 use serde_json::{json, Value};
 
 use crate::frame::{read_frame, write_frame, FrameError};
-use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_WORKER};
+use crate::inputs::{Bound, SELECTION_MAX_MS};
+use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_TIMEOUT, EXIT_WORKER};
 
 pub const PROTOCOL: u64 = 1;
 pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -42,8 +50,12 @@ const CHANNEL_FD: RawFd = 3;
 /// How long to keep collecting diagnostics after the worker is reaped. A
 /// descendant the policy left holding its stdout could otherwise keep a drain
 /// open forever; detached policy children are outside the contract, so their
-/// late output is not waited for.
+/// late output is not waited for. Both streams share the one grace.
 const DRAIN_GRACE: Duration = Duration::from_secs(1);
+
+/// How long a worker has to exit, after TERM at the deadline or by itself
+/// after its result, before it is killed.
+const CLEANUP_GRACE: Duration = Duration::from_secs(1);
 
 const REBUILD: &str =
     "reinstall harness-dispatch so that its front and worker come from one build; \
@@ -140,8 +152,14 @@ fn normalize(path: &Path) -> PathBuf {
     normal
 }
 
-/// Start the worker, verify it, and have it evaluate `entry`.
-pub fn evaluate(worker: &Path, entry: &Path, request: Value) -> Result<Evaluation, Failure> {
+/// Start the worker, verify it, and have it evaluate `entry`, all within
+/// `bound`, which counts from the worker's start.
+pub fn evaluate(
+    worker: &Path,
+    entry: &Path,
+    request: Value,
+    bound: Bound,
+) -> Result<Evaluation, Failure> {
     let failed = |message: String| {
         Refusal::new(
             "worker_failed",
@@ -211,6 +229,7 @@ pub fn evaluate(worker: &Path, entry: &Path, request: Value) -> Result<Evaluatio
     }
 
     let started = Instant::now();
+    let deadline = started + bound.duration();
     let mut child = command.spawn().map_err(|error| {
         if error.kind() == ErrorKind::NotFound {
             Refusal::new(
@@ -236,15 +255,26 @@ pub fn evaluate(worker: &Path, entry: &Path, request: Value) -> Result<Evaluatio
     let stdout = drain(child.stdout.take());
     let stderr = drain(child.stderr.take());
 
-    let result = converse(&front_end, worker, entry, request, started);
+    let channel = Bounded {
+        channel: &front_end,
+        deadline,
+    };
+    let result = converse(channel, worker, entry, request, started);
     drop(front_end);
-    if result.is_err() {
-        let _ = child.kill();
-    }
-    let status = child.wait();
+    let status = match &result {
+        // Its work is done, and it exits by itself unless the policy keeps it.
+        Ok(_) => stop(&mut child, None),
+        // TERM first, so that a policy awaiting work can clean up.
+        Err(Conversation::Expired { .. }) => stop(&mut child, Some(libc::SIGTERM)),
+        Err(_) => {
+            let _ = child.kill();
+            child.wait()
+        }
+    };
+    let drained_by = Instant::now() + DRAIN_GRACE;
     let diagnostics = Diagnostics {
-        stdout: stdout.collect(),
-        stderr: stderr.collect(),
+        stdout: stdout.collect(drained_by),
+        stderr: stderr.collect(drained_by),
     };
     drop(private_dir);
 
@@ -256,6 +286,10 @@ pub fn evaluate(worker: &Path, entry: &Path, request: Value) -> Result<Evaluatio
             elapsed,
         }),
         Err(Conversation::Refused(refusal)) => Err(Failure::with_diagnostics(refusal, diagnostics)),
+        Err(Conversation::Expired { handed_over }) => Err(Failure::with_diagnostics(
+            expired(worker, entry, bound, handed_over),
+            diagnostics,
+        )),
         Err(Conversation::Ended(error)) => {
             let status = match status {
                 Ok(status) => status.to_string(),
@@ -276,10 +310,25 @@ enum Conversation {
     Refused(Refusal),
     /// The channel failed or closed: the worker died, or exited on its own.
     Ended(FrameError),
+    /// The deadline passed first, after the entry was handed over or before.
+    Expired {
+        handed_over: bool,
+    },
+}
+
+impl Conversation {
+    fn failed(error: FrameError, handed_over: bool) -> Self {
+        match error {
+            FrameError::Io(error) if error.kind() == ErrorKind::TimedOut => {
+                Conversation::Expired { handed_over }
+            }
+            other => Conversation::Ended(other),
+        }
+    }
 }
 
 fn converse(
-    channel: &UnixStream,
+    mut channel: Bounded<'_>,
     worker: &Path,
     entry: &Path,
     request: Value,
@@ -297,18 +346,18 @@ fn converse(
             .source(worker.to_string_lossy()),
         )
     };
-    let receive = || match read_frame(channel) {
+    let receive = |channel: &mut Bounded<'_>, handed_over| match read_frame(channel) {
         Err(error @ (FrameError::TooLarge(_) | FrameError::NotJson(_))) => Err(protocol_error(
             format!("the policy worker sent a malformed frame: {error}"),
         )),
-        other => other.map_err(Conversation::Ended),
+        other => other.map_err(|error| Conversation::failed(error, handed_over)),
     };
 
-    let hello = receive()?;
+    let hello = receive(&mut channel, false)?;
     let identity = verify_hello(&hello, worker).map_err(Conversation::Refused)?;
 
     write_frame(
-        channel,
+        &mut channel,
         &json!({
             "type": "evaluate",
             "protocol": PROTOCOL,
@@ -316,9 +365,9 @@ fn converse(
             "request": request,
         }),
     )
-    .map_err(Conversation::Ended)?;
+    .map_err(|error| Conversation::failed(error, false))?;
 
-    let result = receive()?;
+    let result = receive(&mut channel, true)?;
     let elapsed = started.elapsed();
     let text = |field: &str| result.get(field).and_then(Value::as_str).map(str::to_owned);
     let outcome = match (text("type").as_deref(), text("stage").as_deref()) {
@@ -336,6 +385,124 @@ fn converse(
     let outcome =
         outcome.ok_or_else(|| protocol_error(format!("unexpected result frame: {result}")))?;
     Ok((identity, outcome, elapsed))
+}
+
+/// The refusal when the deadline passes: after the entry was handed over, the
+/// policy held evaluation; before, the worker never became ready for it.
+fn expired(worker: &Path, entry: &Path, bound: Bound, handed_over: bool) -> Refusal {
+    let limit = bound.to_text();
+    let raise = format!("or allow more time with --timeout-ms, up to {SELECTION_MAX_MS}");
+    let refusal = if handed_over {
+        Refusal::new(
+            "selection_timeout",
+            Stage::Evaluation,
+            EXIT_TIMEOUT,
+            format!(
+                "the policy entry {} did not return a result within the selection bound of \
+                 {limit}, so its worker was stopped and nothing was launched",
+                entry.display()
+            ),
+            format!(
+                "make the policy return sooner: a loop, or an await on work that never \
+                 settles, holds its evaluation; {raise}"
+            ),
+        )
+        .source(entry.to_string_lossy())
+    } else {
+        Refusal::new(
+            "selection_timeout",
+            Stage::Evaluation,
+            EXIT_TIMEOUT,
+            format!(
+                "the policy worker {} was not ready for the policy within the selection bound \
+                 of {limit}, so it was stopped and nothing was launched",
+                worker.display()
+            ),
+            format!("{REBUILD}; on a heavily loaded machine, {raise}"),
+        )
+        .source(worker.to_string_lossy())
+    };
+    let refusal = refusal.bound(bound);
+    match bound.flag {
+        Some(flag) => refusal.input(flag),
+        None => refusal,
+    }
+}
+
+/// Reap the worker. It has `CLEANUP_GRACE` to exit, after `signal` when one is
+/// given, and is then killed. Only the worker is signalled: it shares the
+/// caller's process group, so a group signal would reach this process and its
+/// caller too.
+fn stop(child: &mut Child, signal: Option<libc::c_int>) -> io::Result<ExitStatus> {
+    if let (Some(signal), Ok(pid)) = (signal, libc::pid_t::try_from(child.id())) {
+        // SAFETY: kill only sends a signal. The worker is an unreaped child of
+        // this process, so its PID cannot yet name any other process.
+        unsafe { libc::kill(pid, signal) };
+    }
+    let grace = Instant::now() + CLEANUP_GRACE;
+    let mut poll = Duration::from_millis(1);
+    while Instant::now() < grace {
+        // `try_wait` reaps only an exited worker, so the PID stays this
+        // worker's until the kill below. If it cannot tell, the kill decides.
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(status),
+            Ok(None) => {}
+            Err(_) => break,
+        }
+        thread::sleep(poll);
+        poll = (poll * 2).min(Duration::from_millis(16));
+    }
+    let _ = child.kill();
+    child.wait()
+}
+
+/// The protocol channel with the deadline applied: each read or write waits
+/// only for the time left, and once none is left it fails with `TimedOut`.
+struct Bounded<'a> {
+    channel: &'a UnixStream,
+    deadline: Instant,
+}
+
+impl Bounded<'_> {
+    /// The time left, which is never zero: std refuses a zero socket timeout,
+    /// and rounds a sub-microsecond one up to a microsecond.
+    fn left(&self) -> io::Result<Duration> {
+        let left = self.deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            Err(ErrorKind::TimedOut.into())
+        } else {
+            Ok(left)
+        }
+    }
+}
+
+/// An expired socket timeout reads as `WouldBlock` (`EAGAIN`) on Unix; std
+/// documents either kind, and both mean the deadline passed.
+fn timed_out(error: io::Error) -> io::Error {
+    match error.kind() {
+        ErrorKind::WouldBlock | ErrorKind::TimedOut => ErrorKind::TimedOut.into(),
+        _ => error,
+    }
+}
+
+impl Read for Bounded<'_> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        self.channel.set_read_timeout(Some(self.left()?))?;
+        let mut channel = self.channel;
+        channel.read(buffer).map_err(timed_out)
+    }
+}
+
+impl Write for Bounded<'_> {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        self.channel.set_write_timeout(Some(self.left()?))?;
+        let mut channel = self.channel;
+        channel.write(buffer).map_err(timed_out)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 fn verify_hello(hello: &Value, worker: &Path) -> Result<WorkerIdentity, Refusal> {
@@ -446,9 +613,11 @@ fn drain(stream: Option<impl Read + Send + 'static>) -> Drain {
 }
 
 impl Drain {
-    /// Everything read so far, once the stream ends or the grace runs out.
-    fn collect(self) -> Vec<u8> {
-        let _ = self.done.recv_timeout(DRAIN_GRACE);
+    /// Everything read so far, once the stream ends or `by` passes.
+    fn collect(self, by: Instant) -> Vec<u8> {
+        let _ = self
+            .done
+            .recv_timeout(by.saturating_duration_since(Instant::now()));
         let captured = self
             .captured
             .lock()

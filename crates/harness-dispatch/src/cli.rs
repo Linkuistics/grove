@@ -2,7 +2,8 @@
 //! interface*).
 //!
 //! `inspect` and `run` accept the same selection inputs. This release reads the
-//! kind, the policy entry, the prompt and the optional task file and identity.
+//! kind, the policy entry, the prompt, the optional task file and identity, and
+//! the whole-selection bound.
 //! The spec's other inputs and commands belong to later increments, and until
 //! each lands it is refused explicitly, by name, rather than accepted and
 //! ignored. They are hidden from help so that help lists only what works.
@@ -97,6 +98,9 @@ pub struct SelectionArgs {
     /// Evaluate this policy entry instead of the personal default; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub config: Option<PathBuf>,
+    /// Stop the policy and launch nothing (exit 124) if selection takes longer; 1000 to 120000 [default: 30000]
+    #[arg(long, value_name = "MS")]
+    pub timeout_ms: Option<OsString>,
 
     // The spec's remaining selection inputs, owned by later increments.
     #[arg(long, hide = true)]
@@ -105,8 +109,6 @@ pub struct SelectionArgs {
     pub choice: Option<OsString>,
     #[arg(long, hide = true)]
     pub policy_env: Vec<OsString>,
-    #[arg(long, hide = true)]
-    pub timeout_ms: Option<OsString>,
     #[arg(long, hide = true)]
     pub context_bytes: Option<OsString>,
     #[arg(long, hide = true)]
@@ -130,7 +132,6 @@ impl SelectionArgs {
             ("--context", self.context.is_some()),
             ("--choice", self.choice.is_some()),
             ("--policy-env", !self.policy_env.is_empty()),
-            ("--timeout-ms", self.timeout_ms.is_some()),
             ("--context-bytes", self.context_bytes.is_some()),
             ("--state-dir", self.state_dir.is_some()),
         ];
@@ -173,7 +174,7 @@ pub fn unsupported(what: &str, input: &str) -> Refusal {
         EXIT_MALFORMED,
         format!("{what} is not supported by this release of harness-dispatch"),
         "omit it; this release selects through a static routes policy with --kind, --config, \
-         --prompt or --prompt-file, --task-file, --task-id and --json",
+         --prompt or --prompt-file, --task-file, --task-id, --timeout-ms and --json",
     )
     .input(input)
 }

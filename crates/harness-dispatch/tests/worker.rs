@@ -29,9 +29,9 @@ fn decoy(sentinel: &Path) -> String {
     format!("#!/bin/sh\necho ran >> '{}'\n", text(sentinel))
 }
 
-/// A fake worker that sends `hello` as its first frame and exits. Nothing ends
-/// a worker that waits forever until the selection deadline arrives, so this
-/// one never waits: a front that accepts it then finds the channel closed.
+/// A fake worker that sends `hello` as its first frame and exits, so a front
+/// that accepts it finds the channel closed at once rather than waiting out
+/// the selection deadline.
 fn fake_worker(sandbox: &Sandbox, path: &Path, hello: &serde_json::Value) {
     let body = serde_json::to_vec(hello).unwrap();
     let mut frame = u32::try_from(body.len()).unwrap().to_be_bytes().to_vec();
@@ -109,6 +109,59 @@ fn a_front_without_its_worker_refuses_and_no_ambient_decoy_substitutes() {
         "the decoy at the layout path did not run"
     );
     assert_eq!(refusal["error"]["code"], "worker_failed", "{refusal}");
+}
+
+#[test]
+fn a_worker_that_never_identifies_itself_is_stopped_at_the_deadline() {
+    // The bound counts from the worker's start, not from handing it the
+    // entry. This worker never says hello; if the deadline did not hold, its
+    // sleep would end first and the front would refuse with exit 5 instead.
+    // So exit 124 is the evidence here. How promptly the bound acts is
+    // asserted in `deadline.rs`, with the built front: a fresh copy like this
+    // one pays a first-exec cost, which under parallel load has taken seconds.
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(ROUTED);
+    let (front, prefix) = copied_front(&sandbox);
+    let pid_file = sandbox.root.join("worker-pid");
+    executable(
+        &prefix.join(LAYOUT),
+        &format!(
+            "#!/bin/sh\necho $$ > '{}'\nexec /bin/sleep 30\n",
+            text(&pid_file)
+        ),
+    );
+
+    let mut command = sandbox.command_for(&front);
+    // Three seconds, so that even a loaded machine starts the worker and
+    // runs its first line, which records the PID read below.
+    command.args([
+        "inspect",
+        "--kind",
+        "impl",
+        "--timeout-ms",
+        "3000",
+        "--json",
+    ]);
+    let refusal = run(&mut command).refusal(124);
+
+    assert_eq!(refusal["error"]["code"], "selection_timeout", "{refusal}");
+    assert_eq!(refusal["error"]["stage"], "evaluation");
+    assert_eq!(refusal["error"]["source"], text(&prefix.join(LAYOUT)));
+    assert!(
+        refusal["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("was not ready for the policy"),
+        "{refusal}"
+    );
+    let pid: libc::pid_t = fs::read_to_string(&pid_file)
+        .unwrap()
+        .trim()
+        .parse()
+        .unwrap();
+    // SAFETY: signal 0 only checks that the process exists.
+    let alive = unsafe { libc::kill(pid, 0) } == 0;
+    assert!(!alive, "the worker {pid} survived the front");
 }
 
 #[test]

@@ -83,6 +83,7 @@ impl Report {
             },
             "executable": choice.executable.to_json(),
             "argv": choice.argv.iter().map(crate::argv::Word::to_json).collect::<Vec<_>>(),
+            "bounds": { "selection": choice.inputs.selection.to_json() },
             "timing": { "selectionMs": millis(choice.elapsed) },
             "worker": worker_json(&choice.worker),
             "diagnostics": choice.diagnostics.to_json(),
@@ -132,6 +133,10 @@ impl Report {
             ("effort", candidate.effort.clone()),
             ("reason", choice.reason.clone()),
             ("executable", choice.executable.to_text()),
+            (
+                "bounds",
+                format!("selection within {}", inputs.selection.to_text()),
+            ),
             (
                 "timing",
                 format!("selection took {} ms", millis(choice.elapsed)),

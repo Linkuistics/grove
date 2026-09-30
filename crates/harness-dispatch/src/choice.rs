@@ -43,7 +43,12 @@ pub fn choose(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Ch
     let source = entry.display();
 
     let worker_path = worker::locate()?;
-    let evaluation = worker::evaluate(&worker_path, &entry.path, request(&inputs))?;
+    let evaluation = worker::evaluate(
+        &worker_path,
+        &entry.path,
+        request(&inputs),
+        inputs.selection,
+    )?;
     let diagnostics = evaluation.diagnostics;
     let refuse = |refusal: Refusal| Failure::with_diagnostics(refusal, diagnostics.clone());
 
@@ -130,7 +135,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::inputs::{Prompt, PromptSource};
+    use crate::inputs::{Bound, Prompt, PromptSource};
 
     #[test]
     fn the_request_carries_caller_data_and_never_the_prompt() {
@@ -143,6 +148,12 @@ mod tests {
                 text: "the prompt text".to_owned(),
                 source: PromptSource::File(PathBuf::from("/work/prompt.md")),
             }),
+            selection: Bound {
+                name: "selection",
+                unit: "ms",
+                value: 30_000,
+                flag: None,
+            },
         };
         let request = request(&inputs);
         assert_eq!(

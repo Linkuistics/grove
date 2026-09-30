@@ -5,7 +5,8 @@ behavior that is not implemented yet. Of the command itself, `inspect` of a
 static `routes` policy is delivered: policy authority, the compiled worker with
 its identity check and embedded SDK, policy validation, the prompt, task file
 and task identity inputs, argument-slot expansion without `runId`, program
-resolution, and the human and version-1 JSON reports. `run` performs the same
+resolution, the whole-selection deadline with its exit 124, and the human and
+version-1 JSON reports. `run` performs the same
 selection and a plain exec, but it is not delivered until it commits the
 required handoff record. Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
@@ -308,7 +309,8 @@ no terminal record; this is not a promise of cleanup against deliberately
 detached owner code.
 
 After a result arrives, Rust closes protocol descriptors, removes temporary
-material, reaps the worker, validates the explicit choice, resolves the selected
+material, reaps the worker (which has the same cleanup grace to exit before
+KILL), validates the explicit choice, resolves the selected
 executable, and commits the required handoff record. It checks cancellation at
 each boundary. It then blocks the handled signals and checks for pending
 cancellation once more. Cancellation observed after the commit launches nothing.

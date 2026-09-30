@@ -11,10 +11,13 @@ use std::fmt::Write as _;
 
 use serde_json::{json, Map, Value};
 
-/// Exit results before exec. Later increments add 4 and 124.
+use crate::inputs::Bound;
+
+/// Exit results before exec. `handoff-records-k24` adds 4.
 pub const EXIT_MALFORMED: u8 = 2;
 pub const EXIT_REFUSED: u8 = 3;
 pub const EXIT_WORKER: u8 = 5;
+pub const EXIT_TIMEOUT: u8 = 124;
 pub const EXIT_UNEXECUTABLE: u8 = 126;
 pub const EXIT_NOT_FOUND: u8 = 127;
 
@@ -28,6 +31,10 @@ pub enum Stage {
     Authority,
     /// Finding, starting and verifying the compiled worker, and its protocol.
     Worker,
+    /// The worker's evaluation as a whole, from its start to its result. A
+    /// timeout names this stage, because the front cannot see which part of
+    /// the evaluation was running when the bound ran out.
+    Evaluation,
     /// Importing the policy entry.
     Load,
     /// The policy's exported shape.
@@ -48,6 +55,7 @@ impl Stage {
             Stage::Cli => "cli",
             Stage::Authority => "authority",
             Stage::Worker => "worker",
+            Stage::Evaluation => "evaluation",
             Stage::Load => "load",
             Stage::Validation => "validation",
             Stage::Selection => "selection",
@@ -76,6 +84,8 @@ pub struct Details {
     pub source: Option<String>,
     /// Where inside `source` the problem is (`policy.catalog[1].provider`).
     pub location: Option<String>,
+    /// The bound whose exhaustion this refusal reports.
+    pub bound: Option<Bound>,
 }
 
 impl std::ops::Deref for Refusal {
@@ -103,6 +113,7 @@ impl Refusal {
             input: None,
             source: None,
             location: None,
+            bound: None,
         }))
     }
 
@@ -118,6 +129,11 @@ impl Refusal {
 
     pub fn location(mut self, location: impl Into<String>) -> Self {
         self.0.location = Some(location.into());
+        self
+    }
+
+    pub fn bound(mut self, bound: Bound) -> Self {
+        self.0.bound = Some(bound);
         self
     }
 }
@@ -194,6 +210,11 @@ impl Failure {
                 error.insert(name.into(), value.clone().into());
             }
         }
+        if let Some(bound) = &refusal.bound {
+            let mut named = bound.to_json();
+            named["name"] = bound.name.into();
+            error.insert("bound".into(), named);
+        }
         error.insert("remedy".into(), refusal.remedy.clone().into());
         error.insert("exit".into(), refusal.exit.into());
         let mut document = Map::new();
@@ -226,6 +247,9 @@ impl Failure {
             if let Some(value) = value {
                 let _ = writeln!(text, "  {label}: {value}");
             }
+        }
+        if let Some(bound) = &refusal.bound {
+            let _ = writeln!(text, "  bound: {} {}", bound.name, bound.to_text());
         }
         let _ = writeln!(text, "  remedy: {}", refusal.remedy);
         text

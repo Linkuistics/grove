@@ -8,12 +8,13 @@ contract is the
 [area specification](../../docs/specs/harness-selection-and-execution.md).
 
 This release delivers **inspection of a static `routes` policy**: the choice,
-the harness's expanded arguments and the program that would run. `run` makes
-the same choice and replaces itself with the harness, but it is **not yet
-delivered**: it does not yet commit the required handoff record, export a run
-ID or handle signals, and it is released only with them. Explicit choices,
-computed selection, task context, records and the selection deadline come in
-later releases. Until each arrives, its input is refused by name. It is never
+the harness's expanded arguments and the program that would run. Selection is
+bounded in time, so a policy that never finishes loading is stopped and
+nothing runs. `run` makes the same choice and replaces itself with the harness,
+but it is **not yet delivered**: it does not yet commit the required handoff
+record, export a run ID or handle signals, and it is released only with them.
+Explicit choices, computed selection, task context and records come in later
+releases. Until each arrives, its input is refused by name. It is never
 accepted and ignored.
 
 ## Install from a checkout
@@ -114,6 +115,7 @@ The readable source, `sdk/index.ts`, sits beside the declarations.
 | `--task-file PATH` | Optional. Resolved against the current directory and passed on as data. It is not read, need not exist, and supplies no kind or identity. |
 | `--task-id ID` | Optional. The task's stable identity, such as a Grove handle: opaque UTF-8 of at most 1024 bytes. |
 | `--config PATH` | Optional. The policy entry to use instead of the personal default. |
+| `--timeout-ms MS` | Optional. The whole-selection bound in milliseconds, from 1000 to 120000. The default is 30000. See [the selection bound](#the-selection-bound). |
 
 The prompt is read once and kept byte for byte, trailing newlines included. It
 must be valid UTF-8 with no NUL, and at most 1 MiB. A prompt file is resolved
@@ -122,6 +124,37 @@ cannot be read and a file that is a terminal all refuse with exit 2 before any
 policy runs. harness-dispatch never reads its own stdin, which stays the
 harness's. The prompt never reaches the policy worker, so supplying it or not
 cannot change the selection.
+
+## The selection bound
+
+Your policy is trusted TypeScript, and it can hang: a loop at import, or an
+`await` on work that never settles. So the whole selection has a wall-clock
+bound. It runs from the worker's start to its result, and it covers the
+policy's import and everything the policy does while it loads. The default is
+30 seconds. `--timeout-ms` sets it for one invocation, anywhere from 1000
+(1 second) to 120000 (2 minutes). A value outside that range, or anything but
+plain digits, refuses with exit 2 before any policy runs.
+
+The front process keeps the time itself, so the bound holds whatever the policy
+does, including a synchronous loop that no timer inside the worker could
+interrupt. When it runs out, the front sends the worker TERM and gives it at
+most one second to exit, then kills it, and reaps it before returning. Nothing
+is launched, and the command exits **124**:
+
+```json
+{"schemaVersion":1,"error":{"code":"selection_timeout","stage":"evaluation",
+ "message":"the policy entry /home/me/.config/harness-dispatch/policy.ts did not return a result within the selection bound of 1000 ms (--timeout-ms), so its worker was stopped and nothing was launched",
+ "input":"--timeout-ms","source":"/home/me/.config/harness-dispatch/policy.ts",
+ "bound":{"name":"selection","ms":1000,"from":"--timeout-ms"},
+ "remedy":"…","exit":124},"diagnostics":{"stdout":"","stderr":""}}
+```
+
+`bound.from` is `--timeout-ms` or `default`, and whatever the policy printed
+before it was stopped is kept in `diagnostics`. A worker that returns its result
+in time but then does not exit, because an exit handler holds it, also gets one
+second before it is killed. Its selection stands. A policy that starts
+processes of its own must end them before it returns; the front stops only the
+worker.
 
 ## Arguments and slots
 
@@ -177,7 +210,8 @@ choice `run` would, and refuses where `run` would, with the same exit. It
 reports the policy's path, its authority (personal or explicit), the policy
 version, the task file, task identity and prompt it was given, the chosen
 candidate with its provider, model and effort, the reason, the resolved program,
-the expanded argv, the selection time, and the worker's identity. Without a
+the expanded argv, the effective selection bound, the selection time, and the
+worker's identity. Without a
 prompt, the prompt's argument is a marked placeholder. Human text shows each
 argument quoted and escaped. `--json` prints the same facts on stdout as one
 version-1 object:
@@ -195,6 +229,7 @@ version-1 object:
                  "model": "claude-opus-5-5", "effort": "high", "reason": "routes[\"impl\"] names candidate \"deep\"" },
   "executable": { "program": "claude", "resolvedBy": "PATH", "pathEntry": "/opt/homebrew/bin", "path": "/opt/homebrew/bin/claude" },
   "argv": ["claude", "--model", "claude-opus-5-5", "Implement the parser"],
+  "bounds": { "selection": { "ms": 30000, "from": "default" } },
   "timing": { "selectionMs": 15 },
   "worker": { "path": "…/libexec/harness-dispatch/harness-dispatch-policy", "packageVersion": "…", "buildId": "…", "bunVersion": "1.4.2" },
   "diagnostics": { "stdout": "", "stderr": "" }
@@ -243,7 +278,9 @@ after the handoff notice.
 A refusal launches nothing and never substitutes another candidate. Text mode
 prints the code, stage, message, relevant input, source and location, and a
 remedy on stderr. `--json` prints one object on stderr,
-`{"schemaVersion":1,"error":{…},"diagnostics":{…}}`, and nothing on stdout.
+`{"schemaVersion":1,"error":{…},"diagnostics":{…}}`, and nothing on stdout. A
+refusal caused by running out of a bound also names that bound, as `bound` in
+JSON and a `bound:` line in text.
 
 | Exit | Stage | Codes |
 |---|---|---|
@@ -254,5 +291,6 @@ remedy on stderr. `--json` prints one object on stderr,
 | 3 | `selection` | `incomplete_mapping` |
 | 3 | `expansion` | `missing_input` (a slot whose input was not supplied) |
 | 5 | `worker` | `worker_missing`, `worker_identity_mismatch`, `worker_failed`, `protocol_error` |
+| 124 | `evaluation` | `selection_timeout` (the selection bound ran out) |
 | 126 | `resolution`, `exec` | `program_unexecutable`; `exec_failed` for any exec error but `ENOENT` |
 | 127 | `resolution`, `exec` | `program_not_found`; `exec_failed` for `ENOENT` |

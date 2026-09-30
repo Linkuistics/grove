@@ -17,6 +17,7 @@
 
 mod support;
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::fs;
 use std::os::unix::ffi::OsStringExt;
@@ -24,7 +25,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Output, Stdio};
-use std::sync::mpsc;
+use std::sync::{mpsc, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
@@ -144,13 +145,19 @@ fn plant_tree(worktree: &Path, leaf: &str) {
 /// out of the child. A `Command` inherits this process's ambient environment,
 /// and this repo dogfoods Grove, so scrubbing is what makes the fixture the
 /// only input.
-fn grove_driver(worktree: &Path, home: &Path) -> Command {
+fn driver_command(worktree: &Path, home: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_grove"));
     command.current_dir(worktree);
     for name in support::grove_env_names() {
         command.env_remove(name);
     }
     command.env("HOME", home);
+    command
+}
+
+/// [`driver_command`], detached from every terminal.
+fn grove_driver(worktree: &Path, home: &Path) -> Command {
+    let mut command = driver_command(worktree, home);
     // Captured output does not detach /dev/tty. A driver sharing cargo's
     // session can hand the developer's terminal to its fake child, leaving
     // the release job in the background and vulnerable to SIGTTOU. Keep both
@@ -336,10 +343,14 @@ struct DriverProcess {
 
 impl DriverProcess {
     fn spawn(worktree: &Path, home: &Path) -> Self {
+        Self::capture(grove_driver(worktree, home))
+    }
+
+    fn capture(mut command: Command) -> Self {
         let capture = TempDir::new().unwrap();
         let stdout = capture.path().join("stdout");
         let stderr = capture.path().join("stderr");
-        let child = grove_driver(worktree, home)
+        let child = command
             .stdout(Stdio::from(fs::File::create(&stdout).unwrap()))
             .stderr(Stdio::from(fs::File::create(&stderr).unwrap()))
             .spawn()
@@ -406,6 +417,24 @@ impl DriverProcess {
             stdout: fs::read(&self.stdout).unwrap_or_default(),
             stderr: fs::read(&self.stderr).unwrap_or_default(),
         }
+    }
+
+    /// [`DriverProcess::finish`], failing the test rather than hanging if the
+    /// driver is still running after `limit`. The driver and every session it
+    /// launched are killed first, and the failure carries what it said.
+    fn finish_within(&mut self, limit: Duration) -> Output {
+        let deadline = Instant::now() + limit;
+        while self.try_wait().is_none() {
+            if Instant::now() >= deadline {
+                self.kill();
+                panic!(
+                    "the driver was still running after {limit:?}: {}",
+                    diagnostics_of(&self.stderr)
+                );
+            }
+            thread::sleep(Duration::from_millis(20));
+        }
+        self.finish()
     }
 }
 
@@ -1742,10 +1771,7 @@ impl Dispatch {
                  n=$((n + 1)); [ $n -lt 10 ] || exit 90\n\
                  done\n\
                  record={launches}/$n\n\
-                 for argument in \"$@\"; do printf '%s\\0' \"$argument\"; done > \"$record/args\"\n\
-                 printf '%s' \"${{HARNESS_DISPATCH_RUN_ID-<unset>}}\" > \"$record/run-id\"\n\
-                 printf '%s' \"${{GROVE_SIGNAL_FILE-<unset>}}\" > \"$record/channel\"\n\
-                 cp .jj/grove/session.epoch \"$record/epoch\"\n\
+                 {RECORD_START}\
                  {then}\n",
                 launches = shell_quote(&self.launches),
             ),
@@ -1843,6 +1869,15 @@ impl Dispatch {
             .join(leaf)
     }
 }
+
+/// How a fake harness records its start in `$record`: its arguments, its run
+/// identity, its channel, and the session epoch as it stood, which is read
+/// from the working tree.
+const RECORD_START: &str = "\
+    for argument in \"$@\"; do printf '%s\\0' \"$argument\"; done > \"$record/args\"\n\
+    printf '%s' \"${HARNESS_DISPATCH_RUN_ID-<unset>}\" > \"$record/run-id\"\n\
+    printf '%s' \"${GROVE_SIGNAL_FILE-<unset>}\" > \"$record/channel\"\n\
+    cp .jj/grove/session.epoch \"$record/epoch\"\n";
 
 /// `grove-llm complete --done`, the fake harness's usual last act. It passes
 /// the session-epoch admission against the channel it was handed before it
@@ -2256,4 +2291,787 @@ export const policy = {{
     dispatch.drive_to_completion();
     assert_eq!(dispatch.view()["explicitChoice"], serde_json::Value::Null);
     assert_eq!(dispatch.launch(1).args[..2], ["--model", "small"]);
+}
+
+// ---------------------------------------------------------------------------
+// Dispatched sessions under a controlling terminal
+//
+// A human starts Grove from a shell, so the driver owns a terminal and leads
+// its foreground group, and keyed-launch hands that terminal to each session
+// it launches (`docs/adr/the-launched-child-is-a-job.md`). Every case above
+// detaches its driver instead. These start it on a pseudo-terminal of their
+// own, as the leader of a session whose controlling terminal it is, and the
+// master side stands for the human: writing the interrupt character to it is
+// a typed Ctrl-C. The driver's streams still go to files, which the harness
+// inherits, so the terminal is its stdin and its controlling terminal.
+//
+// The harness is `session-probe` (`tests/support/session-probe.c`), which
+// reports the process exec made it and then execs a shell step that records
+// the rest and does the case's action. Each case launches it straight from
+// Grove as well as through dispatch, and what dispatch hands on is measured
+// against that direct launch, as the prompt is above. Grove's own contribution
+// is then in both: std keeps the mask and resets SIGPIPE at the spawn, and
+// keyed-launch resets seven terminal signals. Dispatch must add nothing to it.
+
+/// The longest a case's loop may run before the case fails rather than hangs.
+const SESSION_LIMIT: Duration = Duration::from_secs(60);
+
+/// Ctrl-C.
+const INTERRUPT: u8 = 0x03;
+
+/// Every signal number either platform uses.
+const LAST_SIGNAL: libc::c_int = 64;
+
+/// A pseudo-terminal for one driver to take as its controlling terminal.
+///
+/// One per driver run: on macOS a session leader's exit revokes its
+/// controlling terminal, so a terminal outlives the first driver that owned it
+/// only as a dead descriptor. The master is held for as long as the terminal
+/// is, since closing it hangs the terminal up, and is read throughout.
+struct Pty {
+    master: fs::File,
+    slave: fs::File,
+    /// The device a process with this terminal on stdin names.
+    name: String,
+}
+
+impl Pty {
+    fn open() -> Self {
+        use std::os::fd::{AsRawFd, FromRawFd};
+
+        let (mut master, mut slave) = (-1, -1);
+        // SAFETY: valid out pointers; default terminal settings and size.
+        assert_eq!(
+            unsafe {
+                libc::openpty(
+                    &mut master,
+                    &mut slave,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                )
+            },
+            0
+        );
+        // SAFETY: openpty returned two fresh owned descriptors.
+        let (master, slave) =
+            unsafe { (fs::File::from_raw_fd(master), fs::File::from_raw_fd(slave)) };
+        for fd in [master.as_raw_fd(), slave.as_raw_fd()] {
+            // SAFETY: live descriptors; neither endpoint should leak on exec.
+            assert_ne!(
+                unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) },
+                -1
+            );
+        }
+        // The cases type the interrupt character, so the line discipline must
+        // turn it into SIGINT whatever this platform's defaults are.
+        // SAFETY: a termios read from, and written back to, a live terminal.
+        unsafe {
+            let mut settings: libc::termios = std::mem::zeroed();
+            assert_eq!(libc::tcgetattr(slave.as_raw_fd(), &mut settings), 0);
+            settings.c_lflag |= libc::ISIG;
+            settings.c_cc[libc::VINTR] = INTERRUPT;
+            assert_eq!(
+                libc::tcsetattr(slave.as_raw_fd(), libc::TCSANOW, &settings),
+                0
+            );
+        }
+        let mut name = [0 as libc::c_char; 128];
+        // SAFETY: ttyname_r writes a NUL-terminated name within the buffer.
+        assert_eq!(
+            unsafe { libc::ttyname_r(slave.as_raw_fd(), name.as_mut_ptr(), name.len()) },
+            0
+        );
+        // SAFETY: NUL-terminated by the successful call above.
+        let name = unsafe { std::ffi::CStr::from_ptr(name.as_ptr()) }
+            .to_str()
+            .unwrap()
+            .to_owned();
+        // A terminal's reader, as an emulator is. On macOS a session leader's
+        // exit first drains its controlling terminal's output, and the echo of
+        // a typed Ctrl-C is output: unread, it leaves the driver exiting
+        // forever. The thread ends once no slave descriptor is left open.
+        let mut reader = master.try_clone().unwrap();
+        thread::spawn(move || {
+            use std::io::Read as _;
+            let mut buffer = [0; 1024];
+            while matches!(reader.read(&mut buffer), Ok(read) if read > 0) {}
+        });
+        Pty {
+            master,
+            slave,
+            name,
+        }
+    }
+
+    /// Type Ctrl-C.
+    fn interrupt(&self) {
+        use std::io::Write as _;
+        (&self.master).write_all(&[INTERRUPT]).unwrap();
+    }
+}
+
+/// The signal state a driver starts with: these ignored, these blocked, and
+/// every other signal at its default, whatever this test process inherited.
+#[derive(Clone, Copy)]
+struct Entry {
+    ignored: &'static [libc::c_int],
+    blocked: &'static [libc::c_int],
+}
+
+/// Nothing ignored and nothing blocked.
+const PLAIN: Entry = Entry {
+    ignored: &[],
+    blocked: &[],
+};
+
+/// SIGUSR1 ignored and SIGUSR2 blocked, neither of which Grove resets, so
+/// both reach every session it launches. A reference that shows them is not a
+/// constant.
+const MARKED: Entry = Entry {
+    ignored: &[libc::SIGUSR1],
+    blocked: &[libc::SIGUSR2],
+};
+
+impl DriverProcess {
+    /// A driver started as a shell starts a foreground job: leading a session
+    /// whose controlling terminal is `terminal`, so its group is the
+    /// terminal's foreground group, with `entry` as its signal state. The
+    /// session is the driver's own, never the developer's terminal.
+    fn spawn_on(worktree: &Path, home: &Path, terminal: &Pty, entry: Entry) -> Self {
+        let mut command = driver_command(worktree, home);
+        command.stdin(Stdio::from(terminal.slave.try_clone().unwrap()));
+        let Entry { ignored, blocked } = entry;
+        // SAFETY: between fork and exec the closure makes only setsid, ioctl,
+        // signal, sigemptyset, sigaddset and sigprocmask calls, over static
+        // slices.
+        unsafe {
+            command.pre_exec(move || {
+                if libc::setsid() == -1
+                    || libc::ioctl(libc::STDIN_FILENO, libc::TIOCSCTTY as _, 0) == -1
+                {
+                    return Err(std::io::Error::last_os_error());
+                }
+                for signal in 1..=LAST_SIGNAL {
+                    if signal != libc::SIGKILL && signal != libc::SIGSTOP {
+                        libc::signal(signal, libc::SIG_DFL);
+                    }
+                }
+                for &signal in ignored {
+                    libc::signal(signal, libc::SIG_IGN);
+                }
+                let mut mask: libc::sigset_t = std::mem::zeroed();
+                libc::sigemptyset(&mut mask);
+                for &signal in blocked {
+                    libc::sigaddset(&mut mask, signal);
+                }
+                if libc::sigprocmask(libc::SIG_SETMASK, &mask, std::ptr::null_mut()) != 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+        Self::capture(command)
+    }
+}
+
+/// The session probe, compiled once per test binary with the host's C
+/// compiler (`$CC`, else `cc`, which the bundled SQLite build already needs)
+/// into Cargo's scratch directory. A compiler that is missing or fails fails
+/// the case; nothing is skipped.
+fn session_probe() -> &'static Path {
+    static BUILT: OnceLock<PathBuf> = OnceLock::new();
+    BUILT.get_or_init(|| {
+        let source = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/support/session-probe.c");
+        let dir = Path::new(env!("CARGO_TARGET_TMPDIR"));
+        fs::create_dir_all(dir).unwrap();
+        let built = dir.join("session-probe");
+        // A private name first, so a concurrent run never executes a
+        // half-written file.
+        let partial = dir.join(format!("session-probe.{}", std::process::id()));
+        let compiler = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
+        let output = Command::new(&compiler)
+            .args(["-Wall", "-Wextra", "-Werror", "-o"])
+            .arg(&partial)
+            .arg(source)
+            .output()
+            .unwrap_or_else(|error| panic!("cannot run the C compiler {compiler:?}: {error}"));
+        assert!(
+            output.status.success(),
+            "compiling {source} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        fs::rename(&partial, &built).unwrap();
+        built
+    })
+}
+
+/// What the session probe reported about the process exec made it.
+#[derive(Debug)]
+struct Probed {
+    pid: libc::pid_t,
+    group: libc::pid_t,
+    /// The controlling terminal's foreground group, or -1 without one.
+    foreground: libc::pid_t,
+    /// The terminal on stdin, or `-`.
+    stdin: String,
+    cwd: PathBuf,
+    signals: Signals,
+}
+
+/// Signal state as sets of signal numbers.
+#[derive(Debug, PartialEq, Eq)]
+struct Signals {
+    ignored: BTreeSet<libc::c_int>,
+    blocked: BTreeSet<libc::c_int>,
+    pending: BTreeSet<libc::c_int>,
+    caught: BTreeSet<libc::c_int>,
+}
+
+impl Probed {
+    fn read(path: &Path) -> Self {
+        let report = fs::read_to_string(path)
+            .unwrap_or_else(|error| panic!("no probe report at {}: {error}", path.display()));
+        let fields: BTreeMap<&str, &str> = report
+            .lines()
+            .map(|line| line.split_once(' ').unwrap_or((line, "")))
+            .collect();
+        let field = |name: &str| {
+            *fields
+                .get(name)
+                .unwrap_or_else(|| panic!("no {name} in the probe report: {report}"))
+        };
+        let number = |name: &str| field(name).parse().unwrap();
+        let set = |name: &str| {
+            field(name)
+                .split_whitespace()
+                .map(|number| number.parse().unwrap())
+                .collect()
+        };
+        Probed {
+            pid: number("pid"),
+            group: number("pgid"),
+            foreground: number("foreground"),
+            stdin: field("stdin").to_owned(),
+            cwd: PathBuf::from(field("cwd")),
+            signals: Signals {
+                ignored: set("ignored"),
+                blocked: set("blocked"),
+                pending: set("pending"),
+                caught: set("caught"),
+            },
+        }
+    }
+}
+
+/// The process Grove launched for a session, read from the process table as
+/// the driver's only child while the session held, and the terminal it ran on.
+struct Held {
+    pid: libc::pid_t,
+    group: libc::pid_t,
+    terminal: String,
+}
+
+impl Dispatch {
+    /// The step the session probe execs once it has reported.
+    fn after_probe(&self) -> PathBuf {
+        self.root.join("after-probe")
+    }
+
+    /// Write that step. It records the harness's start as the fake harness
+    /// does, in the record the probe made, and then runs `then`. The probe has
+    /// already reported the cwd, so the step first moves to the working tree,
+    /// whose epoch it reads and which an altered probe left.
+    fn probe_then(&self, then: &str) {
+        write_exec(
+            &self.after_probe(),
+            &format!(
+                "#!/bin/sh\n\
+                 record=$SESSION_RECORD\n\
+                 cd {worktree} || exit 89\n\
+                 {RECORD_START}\
+                 {then}\n",
+                worktree = shell_quote(&self.worktree),
+            ),
+        );
+    }
+
+    /// The directory launch `n` records in.
+    fn record(&self, n: usize) -> PathBuf {
+        self.launches.join(n.to_string())
+    }
+
+    fn probed(&self, n: usize) -> Probed {
+        Probed::read(&self.record(n).join("process"))
+    }
+
+    /// The default record store under this fixture's HOME.
+    fn store(&self) -> PathBuf {
+        self.home
+            .join(".local/state/harness-dispatch/records.sqlite3")
+    }
+
+    /// A direct route to the probe, the prompt after its own arguments.
+    fn probe_template(&self) -> String {
+        format!(
+            "{} {} {} ${{prompt}}",
+            shell_quote(session_probe()),
+            shell_quote(&self.launches),
+            shell_quote(&self.after_probe())
+        )
+    }
+
+    /// A static policy routing `impl` to the probe, altering what it was
+    /// handed if `alter` says so. At import it writes the view: its stdin and
+    /// a descriptor on the controlling terminal as one measurement reads them,
+    /// `/dev/null`'s device, the names in its environment, and the channel's
+    /// value if it has one. `prelude` runs next.
+    fn terminal_policy(&self, alter: bool, prelude: &str) -> String {
+        let args: String = [alter.then_some("--alter")]
+            .into_iter()
+            .flatten()
+            .chain([
+                self.launches.to_str().unwrap(),
+                self.after_probe().to_str().unwrap(),
+            ])
+            .map(|arg| format!("{arg:?}, "))
+            .collect();
+        format!(
+            r#"import {{ closeSync, fstatSync, openSync, statSync, writeFileSync }} from "node:fs";
+import {{ isatty }} from "node:tty";
+const device = (fd: number) => ({{ terminal: isatty(fd), rdev: fstatSync(fd).rdev }});
+const controlling = openSync("/dev/tty", "r");
+writeFileSync({view:?}, JSON.stringify({{
+  stdin: device(0),
+  controlling: device(controlling),
+  null: statSync("/dev/null").rdev,
+  env: Object.keys(process.env).sort(),
+  channel: process.env.GROVE_SIGNAL_FILE ?? null,
+}}));
+closeSync(controlling);
+{prelude}
+export const policy = {{
+  schemaVersion: 1,
+  version: "grove-terminal-1",
+  catalog: [
+    {{ id: "probe", provider: "origin-a", model: "model-a", effort: "high", program: {probe:?},
+      args: [{args}{{ slot: "prompt" }}] }},
+  ],
+  routes: {{ impl: "probe" }},
+}};
+"#,
+            view = self.view.to_str().unwrap(),
+            probe = session_probe().to_str().unwrap(),
+        )
+    }
+
+    /// Run the loop on a terminal of its own until launch `n`'s session
+    /// completes, holding that session until the process Grove launched for
+    /// it has been read from the process table.
+    fn drive_held(&self, entry: Entry, n: usize) -> Held {
+        let terminal = Pty::open();
+        let mut driver = DriverProcess::spawn_on(&self.worktree, &self.home, &terminal, entry);
+        driver.wait_for_ready(&self.record(n).join("ready"));
+        let children = children_of(driver.id());
+        fs::write(self.record(n).join("go"), "").unwrap();
+        let output = driver.finish_within(SESSION_LIMIT);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success() && stderr.contains("grove finished — loop complete"),
+            "the held session did not complete the loop: {stderr}"
+        );
+        let [(pid, group)] = children.as_slice() else {
+            panic!("the driver had other than one child while its session held: {children:?}");
+        };
+        Held {
+            pid: *pid,
+            group: *group,
+            terminal: terminal.name,
+        }
+    }
+
+    /// Run the loop on a terminal of its own until it stops on a session that
+    /// ended without a completion signal, doing `meanwhile` to the running
+    /// driver and its terminal first. Returns the status Grove reported for
+    /// that session, and all it said.
+    fn drive_to_stop(&self, meanwhile: impl FnOnce(&mut DriverProcess, &Pty)) -> (String, String) {
+        let terminal = Pty::open();
+        let mut driver = DriverProcess::spawn_on(&self.worktree, &self.home, &terminal, PLAIN);
+        meanwhile(&mut driver, &terminal);
+        let output = driver.finish_within(SESSION_LIMIT);
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        assert!(output.status.success(), "{stderr}");
+        assert!(
+            !stderr.contains("interrupted by signal"),
+            "the driver itself was interrupted: {stderr}"
+        );
+        let status = stderr
+            .split_once("session ended without a completion signal — status ")
+            .and_then(|(_, rest)| rest.split_once(", elapsed "))
+            .unwrap_or_else(|| panic!("no ended session reported: {stderr}"))
+            .0
+            .to_owned();
+        (status, stderr)
+    }
+
+    /// Wait until launch `n`'s harness has become the `sleep` its step execs,
+    /// and type Ctrl-C at `terminal`.
+    fn interrupt_running(&self, driver: &mut DriverProcess, terminal: &Pty, n: usize) {
+        // The step writes `args` after the probe's report is closed.
+        driver.wait_for_ready(&self.record(n).join("args"));
+        let pid = self.probed(n).pid.to_string();
+        let deadline = Instant::now() + SESSION_LIMIT;
+        loop {
+            let command = Command::new("ps")
+                .args(["-o", "comm=", "-p", &pid])
+                .output()
+                .unwrap();
+            let command = String::from_utf8_lossy(&command.stdout);
+            if command.trim().rsplit('/').next() == Some("sleep") {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "launch {n}'s harness never became sleep: {command:?}"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+        terminal.interrupt();
+    }
+}
+
+/// A step that says it is ready, holds until told to go, and then completes
+/// the loop.
+fn held_then_done() -> String {
+    format!(
+        ": > \"$record/ready\"\n\
+         until [ -e \"$record/go\" ]; do sleep 0.01; done\n\
+         {}",
+        complete_done()
+    )
+}
+
+/// A policy prelude that records the worker's PID in `pid_file` and then
+/// holds selection, for `ms` milliseconds or, without them, until the worker
+/// is stopped. A live timer keeps the worker's event loop busy, so the await
+/// is never reported as stuck.
+fn holding(pid_file: &Path, ms: Option<u64>) -> String {
+    let settle = match ms {
+        Some(ms) => format!("setTimeout(resolve, {ms})"),
+        None => "setInterval(() => {}, 1000)".to_owned(),
+    };
+    format!(
+        "writeFileSync({:?}, String(process.pid));\n\
+         await new Promise((resolve) => {{ {settle}; }});",
+        pid_file.to_str().unwrap()
+    )
+}
+
+/// Whether `pid` names any process at all, a zombie included.
+fn exists(pid: libc::pid_t) -> bool {
+    // SAFETY: signal 0 only checks that the process exists.
+    let result = unsafe { libc::kill(pid, 0) };
+    result == 0 || std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
+}
+
+/// Whether `pid` is gone within `limit`, since an orphan is reaped by whatever
+/// adopts it rather than by this test.
+fn gone_within(pid: libc::pid_t, limit: Duration) -> bool {
+    let deadline = Instant::now() + limit;
+    while exists(pid) {
+        if Instant::now() >= deadline {
+            return false;
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+    true
+}
+
+// A dispatched harness is the job Grove launched, as a direct one is. Grove
+// spawned one process into a group of its own and handed it the terminal; the
+// front and its worker ran as that process and its group, and the harness is
+// what the front became. So the harness reports the PID and group the process
+// table gave Grove's only child, the terminal as its stdin with its own group
+// in the foreground, and the working tree as its cwd. Its signal state is the
+// direct harness's exactly, SIGPIPE's included. The driver starts with SIGUSR1
+// ignored and SIGUSR2 blocked, so that state is Grove's to hand on and not a
+// constant. The policy worker has `/dev/null` for stdin and no Grove or
+// dispatch control variable, and the harness has the fresh channel the live
+// epoch names, which it completes through.
+//
+// The controls are one altered run. The probe forks, and its child leaves the
+// group, swaps its stdin for `/dev/null`, moves to `/`, flips SIGPIPE and
+// blocks SIGALRM before it reports; the driver starts plain; and the worker is
+// granted the channel. Every observation then changes, and each change has
+// one cause, since the entry and the alteration touch different signals. The
+// worker's stdin cannot be altered from outside the front, so the same
+// measurement is also taken of a descriptor on the controlling terminal, and
+// reads it as a terminal.
+#[test]
+fn a_dispatched_harness_is_the_foreground_job_grove_launched() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    dispatch.probe_then(&held_then_done());
+    let worktree = dispatch.worktree.canonicalize().unwrap();
+    let assert_the_job = |route: &str, held: &Held, probed: &Probed| {
+        assert_eq!(
+            held.pid, held.group,
+            "Grove's {route} child leads its own group"
+        );
+        assert_eq!(
+            (probed.pid, probed.group),
+            (held.pid, held.group),
+            "the {route} harness is the process Grove launched: {probed:?}"
+        );
+        assert_eq!(
+            probed.foreground, probed.group,
+            "the {route} harness's group holds the terminal: {probed:?}"
+        );
+        assert_eq!(probed.stdin, held.terminal, "{route}: {probed:?}");
+        assert_eq!(probed.cwd, worktree, "{route}: {probed:?}");
+    };
+
+    // The reference: the same leaf, launched straight to the probe.
+    let direct = dispatch.probe_template();
+    dispatch.config(&[("direct", &direct)], &[("impl", "direct")]);
+    let held = dispatch.drive_held(MARKED, 0);
+    let reference = dispatch.probed(0);
+    assert_the_job("direct", &held, &reference);
+    let signals = &reference.signals;
+    assert!(
+        signals.ignored.contains(&libc::SIGUSR1) && signals.blocked.contains(&libc::SIGUSR2),
+        "Grove hands its session the ignore and the mask it started with: {reference:?}"
+    );
+    assert!(
+        !signals.ignored.contains(&libc::SIGPIPE),
+        "Grove's spawn resets SIGPIPE: {reference:?}"
+    );
+
+    let routed = dispatch_template("");
+    dispatch.policy(&dispatch.terminal_policy(false, ""));
+    dispatch.config(&[("routed", &routed)], &[("impl", "routed")]);
+    let dispatched = dispatch.drive_held(MARKED, 1);
+    let probed = dispatch.probed(1);
+    assert_the_job("dispatched", &dispatched, &probed);
+    assert_eq!(
+        probed.signals, reference.signals,
+        "dispatch must hand on the signal state Grove handed it"
+    );
+
+    let launch = dispatch.launch(1);
+    assert_ne!(launch.run_id, "<unset>");
+    assert!(
+        epoch_names(&launch.epoch, &launch.channel),
+        "the harness's channel {:?} is not the one the live epoch names: {:?}",
+        launch.channel,
+        launch.epoch
+    );
+    assert_ne!(launch.channel, dispatch.launch(0).channel);
+
+    let view = dispatch.view();
+    assert!(
+        view["null"].as_u64().is_some_and(|rdev| rdev != 0),
+        "{view}"
+    );
+    assert_eq!(
+        view["stdin"]["rdev"], view["null"],
+        "the worker's stdin is /dev/null: {view}"
+    );
+    assert_eq!(view["stdin"]["terminal"], false, "{view}");
+    assert_eq!(
+        view["controlling"]["terminal"], true,
+        "the same measurement reads the controlling terminal as one: {view}"
+    );
+    let names: Vec<&str> = view["env"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|name| name.as_str().unwrap())
+        .collect();
+    assert!(names.contains(&"HOME"), "the probe read nothing: {view}");
+    assert!(
+        !names
+            .iter()
+            .any(|name| name.starts_with("GROVE_") || name.starts_with("HARNESS_DISPATCH_")),
+        "the worker holds a control variable: {view}"
+    );
+    assert_eq!(view["channel"], serde_json::Value::Null, "{view}");
+
+    // The controls.
+    let granting = dispatch_template("--policy-env GROVE_SIGNAL_FILE");
+    dispatch.policy(&dispatch.terminal_policy(true, ""));
+    dispatch.config(&[("routed", &granting)], &[("impl", "routed")]);
+    let held = dispatch.drive_held(PLAIN, 2);
+    let altered = dispatch.probed(2);
+    assert_ne!(altered.pid, held.pid, "{altered:?}");
+    assert_ne!(altered.group, held.group, "{altered:?}");
+    assert_ne!(altered.foreground, altered.group, "{altered:?}");
+    assert_eq!(altered.stdin, "-", "{altered:?}");
+    assert_eq!(altered.cwd, Path::new("/"), "{altered:?}");
+    let signals = &altered.signals;
+    assert!(!signals.ignored.contains(&libc::SIGUSR1), "{altered:?}");
+    assert!(!signals.blocked.contains(&libc::SIGUSR2), "{altered:?}");
+    assert!(signals.ignored.contains(&libc::SIGPIPE), "{altered:?}");
+    assert!(signals.blocked.contains(&libc::SIGALRM), "{altered:?}");
+    assert_eq!(
+        dispatch.view()["channel"],
+        dispatch.launch(2).channel.as_str()
+    );
+}
+
+// A dispatched harness's own ending reaches Grove as a direct harness's does:
+// an exit code, here one dispatch itself exits with when it refuses, and a
+// death by a signal the harness sends itself. The harness ran each time, and
+// dispatch refused nothing, so the code is the harness's. Each ending is also
+// the other's control: Grove reports them differently, so a report that did
+// not follow the harness's ending could not match both.
+#[test]
+fn a_dispatched_harness_s_exit_and_signal_death_reach_grove_as_a_direct_one_s() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    dispatch.policy(&dispatch.terminal_policy(false, ""));
+    let direct = dispatch.probe_template();
+    let routed = dispatch_template("");
+    let mut n = 0;
+    for (ending, reported) in [
+        ("exit 3", "exit status: 3".to_owned()),
+        (
+            "kill -USR1 $$",
+            format!("signal: {} (SIGUSR1)", libc::SIGUSR1),
+        ),
+    ] {
+        dispatch.probe_then(ending);
+        for (route, template) in [("direct", &direct), ("dispatched", &routed)] {
+            dispatch.config(&[(route, template)], &[("impl", route)]);
+            let (status, stderr) = dispatch.drive_to_stop(|_, _| {});
+            assert_eq!(status, reported, "{route} `{ending}`: {stderr}");
+            assert!(!stderr.contains("refused ("), "{route}: {stderr}");
+            assert_eq!(
+                dispatch.launch(n).run_id == "<unset>",
+                route == "direct",
+                "launch {n} did not run through the {route} route"
+            );
+            n += 1;
+        }
+    }
+}
+
+// Ctrl-C typed at the terminal reaches the foreground job, and Grove answers
+// the job's end as it answers a direct harness's. The reference interrupts a
+// direct harness as it runs. Interrupted while the policy holds selection, the
+// front and its worker are that job: the front reports the cancellation and
+// dies of the signal, having launched nothing, recorded nothing and left no
+// worker, and Grove reports the same status as for the reference and stops as
+// it did. The control is the same hold ended after a moment, which launches,
+// and whose harness is then interrupted as it runs. The driver is never
+// interrupted itself: the terminal was the job's.
+#[test]
+fn an_interrupt_typed_at_the_terminal_ends_a_dispatched_job_as_it_ends_a_direct_one() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    dispatch.probe_then("exec sleep 60");
+    let interrupted = format!("signal: {} (SIGINT)", libc::SIGINT);
+
+    let direct = dispatch.probe_template();
+    dispatch.config(&[("direct", &direct)], &[("impl", "direct")]);
+    let (status, stderr) =
+        dispatch.drive_to_stop(|driver, terminal| dispatch.interrupt_running(driver, terminal, 0));
+    assert_eq!(status, interrupted, "{stderr}");
+
+    let worker = dispatch.root.join("worker-pid");
+    dispatch.policy(&dispatch.terminal_policy(false, &holding(&worker, None)));
+    // A selection bound far past the case, so the refusal cannot be a timeout.
+    let routed = dispatch_template("--timeout-ms 60000");
+    dispatch.config(&[("routed", &routed)], &[("impl", "routed")]);
+    let (status, stderr) = dispatch.drive_to_stop(|driver, terminal| {
+        driver.wait_for_ready(&worker);
+        terminal.interrupt();
+    });
+    assert_eq!(
+        status, interrupted,
+        "Grove must see the job end as the direct one did: {stderr}"
+    );
+    for said in [
+        "refused (selection_cancelled, stage evaluation)",
+        "signal: SIGINT",
+        "configured session kind `impl` failed",
+    ] {
+        assert!(stderr.contains(said), "no {said:?} in: {stderr}");
+    }
+    assert_eq!(dispatch.launch_count(), 1, "a harness launched: {stderr}");
+    let pid: libc::pid_t = fs::read_to_string(&worker).unwrap().trim().parse().unwrap();
+    assert!(!exists(pid), "worker {pid} outlived its selection");
+    assert!(!dispatch.store().exists(), "a run was recorded: {stderr}");
+
+    dispatch.policy(&dispatch.terminal_policy(false, &holding(&worker, Some(300))));
+    let (status, stderr) =
+        dispatch.drive_to_stop(|driver, terminal| dispatch.interrupt_running(driver, terminal, 1));
+    assert_eq!(status, interrupted, "{stderr}");
+    assert_ne!(dispatch.launch(1).run_id, "<unset>");
+}
+
+// Grove's escalation reaps a dispatched session's descendants as it reaps a
+// direct one's: the harness leads the group Grove signals, because the front
+// became it, so a command it spawned dies with it. Each harness spawns a
+// descendant, completes through the channel, and declines to end, so the
+// escalation runs. The bystander, the same shape of process in this test's
+// own group, is the control: a probe that read every process gone would read
+// it gone too.
+#[test]
+fn the_escalation_reaps_a_dispatched_session_s_descendants_as_a_direct_one_s() {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    dispatch.probe_then(&format!(
+        "sh -c 'while : ; do sleep 0.05 ; done' &\n\
+         printf '%s\\n' \"$!\" > \"$record/descendant\"\n\
+         {grove_llm} complete --done || exit 91\n\
+         while : ; do sleep 0.05 ; done",
+        grove_llm = shell_quote(&own_grove_llm()),
+    ));
+    dispatch.policy(&dispatch.terminal_policy(false, ""));
+    let mut bystander = Reaped(
+        Command::new("sh")
+            .arg("-c")
+            .arg("while : ; do sleep 0.05 ; done")
+            .spawn()
+            .unwrap(),
+    );
+
+    let direct = dispatch.probe_template();
+    let routed = dispatch_template("");
+    for (n, (route, template)) in [("direct", &direct), ("dispatched", &routed)]
+        .into_iter()
+        .enumerate()
+    {
+        dispatch.config(&[(route, template)], &[("impl", route)]);
+        let terminal = Pty::open();
+        let mut driver =
+            DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+        let output = driver.finish_within(SESSION_LIMIT);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success() && stderr.contains("grove finished — loop complete"),
+            "{route}: {stderr}"
+        );
+        assert_eq!(dispatch.launch(n).run_id == "<unset>", route == "direct");
+        let descendant: libc::pid_t = fs::read_to_string(dispatch.record(n).join("descendant"))
+            .expect("the session never reported its descendant")
+            .trim()
+            .parse()
+            .unwrap();
+        let reaped = gone_within(descendant, Duration::from_secs(5));
+        if !reaped {
+            // SAFETY: `kill(2)` on a pid the fixture reported, so a failing
+            // assertion does not leave it running.
+            unsafe { libc::kill(descendant, libc::SIGKILL) };
+        }
+        assert!(
+            reaped,
+            "the {route} session's descendant outlived the escalation"
+        );
+    }
+    assert!(
+        bystander.0.try_wait().unwrap().is_none(),
+        "the escalation reached a process outside the session's own group"
+    );
 }

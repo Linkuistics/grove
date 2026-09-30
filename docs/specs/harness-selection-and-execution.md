@@ -58,7 +58,14 @@ launch-boundary suite shows the harness receiving the unchanged prompt, the
 task as native arguments, its run identity and Grove's completion channel,
 which the policy worker does not receive. A literal `--choice` there reaches
 policy. A leaf authored under that wrapper, whose policy lacks its kind,
-refuses at launch and stays live.
+refuses at launch and stays live. Under a controlling terminal, the same suite
+shows a dispatched harness as the foreground job Grove launched, with its PID,
+group, terminal and cwd, and with the signal state a direct harness receives.
+Its exit code and signal death reach Grove as a direct harness's do, and its
+worker has null stdin and no control variable. A typed interrupt during
+selection launches nothing, records nothing and leaves no worker. Grove
+answers it, an interrupt during execution and its escalation as it does for a
+direct harness.
 The [visual document](../design/harness-selection-and-execution/README.md) has
 matching package, execution and provenance views.
 

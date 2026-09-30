@@ -11,8 +11,7 @@
 # installation is meant to run, with no Bun or Node on PATH. It refuses to
 # start otherwise, because a host runtime could then stand in for the one
 # inside the worker. Grove's scripts/release-smoke.sh runs it for each release
-# target: natively on macOS arm64, and in a glibc-2.17 userland container on
-# Linux.
+# target: natively on macOS arm64, and in a glibc-2.17 userland on Linux.
 #
 # It needs only bash 3.2, coreutils, grep and cmp, so one file runs under
 # macOS's /bin/bash and under CentOS 7's. Its policies, fake harnesses and run

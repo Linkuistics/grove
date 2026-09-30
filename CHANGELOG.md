@@ -100,9 +100,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
   one's installed layout on its target, with no Bun or Node on `PATH`:
   `harness-dispatch` inspects and runs a static TypeScript policy through its
   front and through a symlink to it, and reads the run's record back. macOS arm64
-  runs natively and Linux arm64 in a CentOS 7 (glibc 2.17) container, where a
-  binary built against a newer glibc must be refused. Linux x64 cannot run yet
-  under Docker Desktop on Apple silicon, whose emulator crashes that userland.
+  runs natively, and each Linux target in the CentOS 7 (glibc 2.17) userland,
+  where a binary built against a newer glibc must be refused: Linux arm64 as a
+  container, and Linux x64 on Apple silicon under a pinned QEMU 10.2.3 in a
+  private binfmt_misc registration, because Docker Desktop's own emulator
+  crashes that userland. The pinned QEMU needs a 2^47 guest base, or it maps
+  the guest where no x86-64 kernel would and the worker cannot allocate.
 
 ## v21.12.0
 

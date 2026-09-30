@@ -108,7 +108,7 @@ run_check "shellcheck" shellcheck \
   scripts/release-notes.sh \
   scripts/release-notes/codex-headless.sh scripts/release-notes/codex-headless.test.sh \
   scripts/release-doctor.sh scripts/release-common.sh scripts/release-build.sh \
-  scripts/release-smoke.sh scripts/release-smoke-target.sh \
+  scripts/release-smoke.sh scripts/release-smoke-target.sh scripts/release-smoke-qemu.sh \
   crates/harness-dispatch/scripts/dispatch.sh crates/harness-dispatch/scripts/installed-smoke.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "plugin install" bash plugins/install.test.sh

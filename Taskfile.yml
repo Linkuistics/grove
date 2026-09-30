@@ -86,7 +86,9 @@ tasks:
   # The installed-layout smoke test, rebuilding the archives first so it never
   # reads a stale one. `task release:smoke TARGETS=x86_64-unknown-linux-gnu`
   # tests one target; the default is every target. macOS arm64 runs natively,
-  # and each Linux target in a glibc-2.17 container, which needs Docker and Zig.
+  # and each Linux target in a glibc-2.17 userland, which needs Docker and Zig:
+  # a container where Docker runs the architecture natively, and x86_64 on an
+  # arm64 Docker under a pinned user-mode QEMU (scripts/release-smoke.sh).
   # Rerun it after any change to the worker, the layout or native dependencies.
   release:smoke:
     desc: Build archives of the working copy and smoke-test each one's installed layout on its target

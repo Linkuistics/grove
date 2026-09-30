@@ -233,17 +233,27 @@ harness and reads the run's record back, with no Bun or Node on `PATH`.
 archives that are already built, such as `target/dist/`.
 
 - **macOS arm64** runs natively, so it needs a macOS arm64 host.
-- **Each Linux target** runs in a CentOS 7 container of its architecture, the
+- **Each Linux target** runs in the CentOS 7 userland of its architecture, the
   glibc 2.17 floor, pinned by digest. That needs Docker, and Zig to build the
   control's probes: a binary built against glibc 2.25 must be refused there, or
-  the container is not enforcing the floor.
+  the userland is not enforcing the floor. A target native to Docker's
+  architecture runs as a container of that image.
+- **Linux x64 on Apple silicon** does not use Docker's own emulation, whose
+  QEMU crashes CentOS 7's x86-64 userland. The same image's filesystem runs in
+  a chroot under a pinned QEMU 10.2.3 instead, inside an ordinary arm64
+  container. The emulator is registered in a binfmt_misc instance private to
+  that container's user namespace, so Docker's settings and global
+  registrations are untouched. The run pulls the pinned `tonistiigi/binfmt` and
+  `ubuntu:24.04` images, and Zig also builds the emulator's small interpreter.
+  Docker's kernel must be 6.7 or later, with arm64 addresses at least 48 bits
+  wide, as Docker Desktop's are. Any other pairing of a Linux target with a
+  foreign Docker is refused.
 
-Docker Desktop on Apple silicon cannot yet run the x64 case. Its emulator
-crashes CentOS 7's x86-64 userland, so `x86_64-unknown-linux-gnu` fails. The
+The
 [runtime evidence](design/harness-selection-and-execution/runtime-evidence.md#installed-smoke)
-records what was observed. The release task does not run the smoke test yet.
-Rerun it after any change to harness-dispatch's worker, the archive layout or
-native dependencies.
+records what executed where, and why x64 needs its own emulator. The release
+task does not run the smoke test yet. Rerun it after any change to
+harness-dispatch's worker, the archive layout or native dependencies.
 
 ## One release, eight packages, one tag
 

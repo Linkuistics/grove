@@ -163,12 +163,15 @@ cwd. `record show` must read that run back, so the bundled SQLite executes.
 
 The C library instrument runs in `docker.io/library/centos:7@sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4`,
 CentOS Linux 7.9.2009, with `getconf GNU_LIBC_VERSION` required to be
-`glibc 2.17`. The container has no network and runs as uid 1000. Its positive
-control is two probes built by Zig 0.16.0 from one C source. The first, built
-against glibc 2.17, must run. The second, which calls `getrandom` and is built
-against glibc 2.25, must be refused for its symbol version. The first shows the
-container runs that architecture's binaries at all; only then does the refusal
-of the second show the floor is enforced.
+`glibc 2.17`. Where Docker runs the target's architecture natively, that
+userland runs as a container. The x64 target on an arm64 Docker runs the same
+image's filesystem under a pinned user-mode QEMU instead, as the next
+paragraphs explain. Either way it has no network and runs as uid 1000. Its
+positive control is two probes built by Zig 0.16.0 from one C source. The
+first, built against glibc 2.17, must run. The second, which calls `getrandom`
+and is built against glibc 2.25, must be refused for its symbol version. The
+first shows the userland runs that architecture's binaries at all; only then
+does the refusal of the second show the floor is enforced.
 
 Observed on 2026-09-30 with archives of version 21.12.0, whose workers Bun
 1.4.2 compiled from its digest-pinned runtimes, and Docker Desktop 28.1.1 on an
@@ -178,7 +181,7 @@ arm64 macOS host:
 |---|---|---|
 | aarch64-apple-darwin | Natively, macOS 26.6.2 (Darwin 25.6.0), bsdtar 3.5.3 | Passed through both fronts |
 | aarch64-unknown-linux-gnu | CentOS 7.9 aarch64, native to Docker's linux/arm64, GNU tar 1.26 | Passed through both fronts; control refused: ``/lib64/libc.so.6: version `GLIBC_2.25' not found`` |
-| x86_64-unknown-linux-gnu | CentOS 7.9 x86_64 under Docker's emulation | Not executed at the floor; control refused as on arm64 |
+| x86_64-unknown-linux-gnu | CentOS 7.9 x86_64 under QEMU 10.2.3 user-mode emulation with a 2^47 guest base, in a chroot inside an arm64 ubuntu:24.04 container, GNU tar 1.26 | Passed through both fronts; control refused as on arm64 |
 
 **Docker Desktop cannot run the x64 userland.** With Rosetta off, its VM runs
 amd64 containers through a binfmt handler, `/usr/bin/qemu-x86_64` 8.1.5, which
@@ -195,14 +198,42 @@ reported against Docker Desktop on Apple silicon
 `time()` and `gettimeofday()`, and `time()` in a forked child, did work, so the
 exact trigger is not established.
 
-A newer QEMU, 10.2.3 from `tonistiigi/binfmt`, does supply a vDSO. It was
-registered in a private binfmt_misc instance inside a user namespace of a
-privileged arm64 container, leaving Docker's own handler untouched, and run on
-a chroot of the same image's amd64 root filesystem. It ran CentOS 7's bash
-heredoc and reported glibc 2.17. There, though, the worker aborted with
-JavaScriptCore `MemoryExhaustion` at 33 MB RSS, with no resource limit set. So
-no x86-64 environment on this host has yet executed the x64 archive at the
-floor.
+**Newer QEMU maps an x86-64 guest where no x86-64 kernel would.** QEMU 10.2.3
+from `tonistiigi/binfmt` does supply a vDSO, and runs CentOS 7's bash heredoc.
+There, though, the worker aborted with JavaScriptCore `MemoryExhaustion` in
+`LocalAllocator::allocateSlowCase` at 33 MB RSS, with no resource limit set,
+and QEMU's `-strace` showed no failing system call before it. The guest's own
+`/proc/self/maps` showed the cause: libc, the stack and the vDSO at `0xffff…`,
+with bit 47 set. An x86-64 kernel ends user space at `0x7fffffffffff`. Without
+`-R`, QEMU 10.2.3 sets no address limit for a 64-bit guest
+([`linux-user/main.c`](https://gitlab.com/qemu-project/qemu/-/blob/v10.2.3/linux-user/main.c)
+sets `guest_addr_max` to `~0ul`), so on this 48-bit-address arm64 kernel it
+maps the guest wherever the host does. QEMU 9.2.2, 10.0.4 and 10.1.3, and
+Docker Desktop's own 10.2.3 build, do the same. Only 8.1.5 keeps the guest
+below 2^47, and it has no vDSO. Reserving the guest's space with `-R` fails at
+every size, with "Cannot allocate vsyscall page", because QEMU maps that page
+at `0xffffffffff600000`. A guest base of 2^47 (`-B 0x800000000000`) maps the
+host's upper half onto guest addresses `[0, 2^47)`, and with it the worker runs.
+
+**So x64 runs under that QEMU, with that guest base, in a private binfmt_misc
+instance.** `scripts/release-smoke.sh` copies `/usr/bin/qemu-x86_64` out of
+`docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0`
+(qemu-v10.2.3-68), and exports the floor image's amd64 filesystem.
+The front gives the worker a scrubbed environment, so no `QEMU_*` variable
+reaches the worker's emulator. The options instead come from a static arm64
+interpreter, built by Zig, that runs QEMU with `-B 0x800000000000` before the
+arguments binfmt_misc passes it. `scripts/release-smoke-qemu.sh` runs in
+`docker.io/library/ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3`
+with Docker's default security profile and no network. It unpacks the
+filesystem and enters a new user and mount namespace whose uids and gids
+0-65535 map to themselves. There it mounts a private binfmt_misc instance,
+which a user namespace gets on kernel 6.7 and later (Docker's VM runs
+6.10.14), and registers the interpreter for x86-64 ELF files. Docker's own
+handler is left untouched. It then chroots into the userland as uid 1000. Before
+the smoke test, the guest's own `/proc/self/maps` must show a vDSO and no
+mapping at or above 2^47 but the vsyscall page. This QEMU build takes the
+argument after the executable's path as its `argv[0]`, which is the layout
+binfmt_misc's `P` flag passes.
 
 Each assertion was seen to fail against a subject that violates it. For the
 cases, on macOS: Bun on PATH, a wrong version, a front copied rather than
@@ -210,7 +241,13 @@ linked out of the prefix, the worker moved away, a harness exiting 0, and a
 wrong argv or record expectation. For the floor instrument, in arm64
 containers: ubuntu:24.04's glibc 2.39 was refused; with that check removed, the
 2.25 probe ran and the control failed; an x64 target in an arm64 container was
-refused for its machine.
+refused for its machine. For the emulated x64 route: with no guest base, the
+address check refused libc at `0xffff7f200000`, and with that check removed the
+worker aborted with `MemoryExhaustion`. Docker Desktop's QEMU 8.1.5
+(`tonistiigi/binfmt@sha256:a870fb6484bee975214c2987b135771bdb727c3e2b99552902b80a65bee72fe1`)
+was refused for its missing vDSO. ubuntu:24.04's amd64 filesystem was refused
+for glibc 2.39, and with that check removed the control failed because the
+2.25 probe ran.
 
 <a id="primary-runtime-references"></a>
 ## Primary runtime references

@@ -15,10 +15,10 @@ recorded run. Handled signals and a signal-transparent handoff are not yet
 delivered. Every release archive and the Homebrew formula carry the front and
 its worker in the [delivered layout](#delivery), each target's worker compiled
 from a digest-pinned Bun runtime. The installed smoke test runs the static
-TypeScript case from the extracted archive on macOS arm64 natively and on Linux
-arm64 in a glibc-2.17 container, whose floor its positive control shows is
-enforced. Linux x64 has not executed at that floor, and the CPU floor
-instrument is not yet delivered.
+TypeScript case from the extracted archive on macOS arm64 natively, and on each
+Linux target in a glibc-2.17 userland whose floor its positive control shows is
+enforced: Linux arm64 as a container, and Linux x64 under a pinned user-mode
+QEMU on an arm64 host. The CPU floor instrument is not yet delivered.
 Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
 symbolic inspection are delivered.
@@ -679,7 +679,7 @@ instrument observes it:
 
 | Dimension | Floor | Instrument |
 |---|---|---|
-| C library | glibc 2.17, Grove's existing floor | Installed smoke tests run in a glibc-2.17 userland container on each Linux target |
+| C library | glibc 2.17, Grove's existing floor | Installed smoke tests run in a glibc-2.17 userland on each Linux target: a container where Docker runs that architecture natively, otherwise the same image under a pinned user-mode QEMU |
 | CPU | x64 Nehalem; arm64 at the Cortex-A53 level | The same tests under user-mode emulation with that CPU model |
 | Kernel | Bun's documented support | None: a container or user-mode emulation runs on the host's kernel |
 

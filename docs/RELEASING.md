@@ -39,9 +39,11 @@ For a Git-only tap, the current branch must be attached, have an upstream, and
 agree with it after fetching.
 
 Each task runs the checks below, dry-runs and executes the version cut, builds
-all three archives, pushes `main` and the tag, publishes the release and tap,
-then upgrades or installs Grove and verifies it. Invoking it authorizes that
-whole sequence. `task --dry release:patch` checks the preconditions and previews
+all three archives, smoke-tests each one on its target, pushes `main` and the
+tag, publishes the release and tap, then upgrades or installs Grove and
+verifies it. Nothing is pushed or published until every archive has passed its
+[installed smoke test](#installed-smoke-test). Invoking the task authorizes
+that whole sequence. `task --dry release:patch` checks the preconditions and previews
 the commands without running them. Install Task with `brew install go-task` if
 needed; preparation also uses `jq`. A lock under `.jj/release-lock` prevents
 concurrent release tasks. If a killed process leaves it behind, confirm that
@@ -205,7 +207,10 @@ The doctor checks the pinned Rust toolchain, all release targets, Zig,
 `cargo-zigbuild`, GitHub authentication, and Bun at the version harness-dispatch
 pins: the release's `scripts/check.sh` compiles that package's policy worker,
 and its first run fetches the worker's pinned type checker with `bun install
---frozen-lockfile`. The doctor installs nothing.
+--frozen-lockfile`. It also checks the hosts the installed smoke test needs: an
+Apple silicon Mac, and a running arm64 Docker whose kernel is 6.7 or later. So a
+missing Docker stops the release before its version is cut, not after. The
+doctor installs nothing.
 
 The archive build needs two things more, which the doctor cannot check.
 
@@ -223,37 +228,54 @@ The archive build needs two things more, which the doctor cannot check.
   runs. A digest mismatch is not something to re-pin past: the published
   runtime has changed, so find out why before building a release from it.
 
-A matching archive is not evidence until it has executed on its target.
-`task release:smoke` rebuilds the archives from the working copy, then
-extracts each into a fresh prefix where that target runs. There,
+### Installed smoke test
+
+A matching archive is not evidence until it has executed on its target. The
+release task runs `scripts/release-smoke.sh --archives target/dist` after the
+build and before anything is pushed or published. `task release:smoke` runs the
+same test on archives it rebuilds from the working copy, as a rehearsal or a
+regression check. `TARGETS=aarch64-unknown-linux-gnu` limits it to one target,
+as for `task release:archives`.
+
+Each archive must first match the archive manifest, as the build checked it.
+Then it is extracted into a fresh prefix where its target runs. There,
 harness-dispatch inspects and runs a static TypeScript policy against a fake
 harness and reads the run's record back, with no Bun or Node on `PATH`.
-`TARGETS=aarch64-unknown-linux-gnu` limits it to one target, as for
-`task release:archives`. `scripts/release-smoke.sh --archives DIR` tests
-archives that are already built, such as `target/dist/`.
 
-- **macOS arm64** runs natively, so it needs a macOS arm64 host.
+- **macOS arm64** runs natively, so it needs an Apple silicon Mac.
 - **Each Linux target** runs in the CentOS 7 userland of its architecture, the
-  glibc 2.17 floor, pinned by digest. That needs Docker, and Zig to build the
-  control's probes: a binary built against glibc 2.25 must be refused there, or
-  the userland is not enforcing the floor. A target native to Docker's
-  architecture runs as a container of that image.
-- **Linux x64 on Apple silicon** does not use Docker's own emulation, whose
-  QEMU crashes CentOS 7's x86-64 userland. The same image's filesystem runs in
-  a chroot under a pinned QEMU 10.2.3 instead, inside an ordinary arm64
+  glibc 2.17 floor, pinned by digest. It runs there under a pinned user-mode
+  QEMU that emulates the target's CPU floor: Nehalem for x64, the Cortex-A53
+  for arm64. Linux arm64 first runs natively too, as an ordinary container of
+  that image. Two controls must fire on every run. A binary built against
+  glibc 2.25 must be refused, or the userland is not enforcing its floor. A
+  probe that executes one instruction beyond the CPU model, AVX2 on x64 or an
+  Armv8.1 atomic on arm64, must be killed by SIGILL under that model, and must
+  run under the same QEMU with `-cpu max`. Every ELF file in the archive must
+  also match the emulator's registration, so that none runs on the host's own
+  CPU instead.
+- **The emulated runs** chroot into the userland inside an ordinary arm64
   container. The emulator is registered in a binfmt_misc instance private to
   that container's user namespace, so Docker's settings and global
-  registrations are untouched. The run pulls the pinned `tonistiigi/binfmt` and
-  `ubuntu:24.04` images, and Zig also builds the emulator's small interpreter.
-  Docker's kernel must be 6.7 or later, with arm64 addresses at least 48 bits
-  wide, as Docker Desktop's are. Any other pairing of a Linux target with a
-  foreign Docker is refused.
+  registrations are untouched. x64 uses a pinned QEMU 10.2.3 from
+  `tonistiigi/binfmt`, because Docker Desktop's own QEMU crashes CentOS 7's
+  x86-64 userland. arm64 uses the `qemu-aarch64` of Debian's `qemu-user`
+  10.2.2, because that image leaves out its own architecture's emulator. The
+  run pulls the pinned `centos:7`, `tonistiigi/binfmt` and `ubuntu:24.04`
+  images. It downloads the Debian package from snapshot.debian.org once, into
+  `target/qemu-user/`, and refuses it unless its SHA-256 is the pinned one.
+  Zig builds the probes and the emulators' small interpreters. Docker must be
+  arm64, as Docker Desktop is on Apple silicon, with a kernel of 6.7 or later
+  and addresses at least 48 bits wide. Any other Docker is refused.
 
-The
+Neither a container nor user-mode emulation observes the kernel floor, since
+both run on Docker's own kernel. That floor is Bun 1.4.2's documented range,
+stated as documented rather than executed: 5.1 in Bun's README, 3.10 (RHEL 7)
+on its installation page. The
 [runtime evidence](design/harness-selection-and-execution/runtime-evidence.md#installed-smoke)
-records what executed where, and why x64 needs its own emulator. The release
-task does not run the smoke test yet. Rerun it after any change to
-harness-dispatch's worker, the archive layout or native dependencies.
+records what executed where, and why each emulator is the one it is. Rerun
+`task release:smoke` after any change to harness-dispatch's worker, the archive
+layout or native dependencies.
 
 ## One release, eight packages, one tag
 
@@ -505,6 +527,42 @@ harness-dispatch's build emits or with the formula. So a failure at this step is
 a build fault, not a stale list. Correct it and rerun `scripts/release-build.sh`;
 the tagged version is not cut again. The build also refuses a tag that differs
 from the workspace version.
+
+Then smoke-test exactly the archives about to be published, as the release task
+does:
+
+```sh
+scripts/release-smoke.sh --archives target/dist
+```
+
+### If the installed smoke test fails
+
+At this step the version is cut on this machine only. The release commit, with
+`main` moved to it, and the `v<version>` tag exist locally; nothing has been
+pushed or published. Each failure names its target and the check that failed,
+so read it before choosing a path.
+
+- **The environment failed**: Docker stopped, an image or the Debian package
+  could not be fetched, or the host slept. The archives are not in question.
+  Correct the cause and rerun `scripts/release-smoke.sh --archives target/dist`
+  until it passes. Then resume at the release task's next step: `jj git push -b
+  main`, `git push origin v<version>`, `scripts/release-publish.sh`, and §4.
+  Do not rerun the release task, which refuses a tagged `main`.
+- **An archive failed a floor or a case.** Do not publish it. Nothing has left
+  this machine, so undo the cut rather than resuming it. `main` must still name
+  the release commit; abandoning it moves `main` back to its parent:
+
+  ```sh
+  jj log -r main                      # must be "chore: release v<version>"
+  git tag -d v<version>
+  jj abandon --retain-bookmarks main
+  ```
+
+  Fix the defect on `main`, then run the release task again; it cuts the same
+  version. If the failure shows that the compiled worker cannot meet a floor,
+  that is the reopen condition of the
+  [worker decision](adr/policy-evaluation-precedes-process-replacement.md):
+  stop and escalate with the evidence. Do not weaken the floor or the test.
 
 Inspect `target/dist/`, which should contain three `.tar.xz` archives and
 `grove.rb`. Then publish both repositories:

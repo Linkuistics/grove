@@ -101,11 +101,29 @@ stood at the graft — a closed record, not part of the versioned sequence above
   `harness-dispatch` inspects and runs a static TypeScript policy through its
   front and through a symlink to it, and reads the run's record back. macOS arm64
   runs natively, and each Linux target in the CentOS 7 (glibc 2.17) userland,
-  where a binary built against a newer glibc must be refused: Linux arm64 as a
-  container, and Linux x64 on Apple silicon under a pinned QEMU 10.2.3 in a
-  private binfmt_misc registration, because Docker Desktop's own emulator
-  crashes that userland. The pinned QEMU needs a 2^47 guest base, or it maps
-  the guest where no x86-64 kernel would and the worker cannot allocate.
+  where a binary built against a newer glibc must be refused. There each Linux
+  target runs under a pinned user-mode QEMU emulating its CPU floor, Nehalem
+  for x64 and the Cortex-A53 for arm64, in a private binfmt_misc registration.
+  A probe that uses AVX2 or an Armv8.1 atomic must be killed by SIGILL under
+  that model and run under `-cpu max`, and every executable in the archive must
+  be one the emulator runs. Linux arm64 also runs natively as a container
+  first. x64 uses QEMU 10.2.3 from `tonistiigi/binfmt`, because Docker
+  Desktop's own emulator crashes that userland; it needs a 2^47 guest base, or
+  it maps the guest where no x86-64 kernel would and the worker cannot
+  allocate. arm64 uses Debian's `qemu-user` 10.2.2, fetched once from
+  snapshot.debian.org and checked against a pinned SHA-256.
+- Releases: `task release:patch`, `release:minor` and `release:major` now run
+  that smoke test over `target/dist`, after checking each archive against the
+  manifest again, before they push or publish anything. A failure leaves the
+  version cut only locally; `docs/RELEASING.md` gives the recovery for an
+  environment fault and for a defective archive. `scripts/release-doctor.sh`
+  now also requires an Apple silicon Mac and a running arm64 Docker whose
+  kernel is 6.7 or later, so a missing Docker stops a release before its cut.
+- `harness-dispatch` supported platforms: glibc 2.17 and a Nehalem (x64) or
+  Cortex-A53 (arm64) CPU on Linux, each executed before every release. The
+  Linux kernel floor is Bun 1.4.2's documented range, documented rather than
+  executed: 5.1 in Bun's README, and 3.10 (RHEL 7) on its installation page.
+  macOS needs 13.0 or later, Bun 1.4.2's documented minimum.
 
 ## v21.12.0
 

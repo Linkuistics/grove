@@ -86,10 +86,12 @@ tasks:
   # The installed-layout smoke test, rebuilding the archives first so it never
   # reads a stale one. `task release:smoke TARGETS=x86_64-unknown-linux-gnu`
   # tests one target; the default is every target. macOS arm64 runs natively,
-  # and each Linux target in a glibc-2.17 userland, which needs Docker and Zig:
-  # a container where Docker runs the architecture natively, and x86_64 on an
-  # arm64 Docker under a pinned user-mode QEMU (scripts/release-smoke.sh).
-  # Rerun it after any change to the worker, the layout or native dependencies.
+  # and each Linux target in a glibc-2.17 userland under a pinned user-mode
+  # QEMU emulating its CPU floor, Nehalem or Cortex-A53, after a native
+  # container where Docker runs the architecture; that needs an arm64 Docker
+  # and Zig (scripts/release-smoke.sh). The release runs the same script over
+  # target/dist before publishing. Rerun it after any change to the worker, the
+  # layout or native dependencies.
   release:smoke:
     desc: Build archives of the working copy and smoke-test each one's installed layout on its target
     cmds:
@@ -130,6 +132,11 @@ tasks:
       - cargo release {{.LEVEL}} --execute --no-confirm
       - jj bookmark set main -r "$(git rev-parse HEAD)"
       - scripts/release-build.sh
+      # Nothing is published before this passes: each archive in target/dist
+      # matches the manifest and runs its installed layout on its target at
+      # the floors. A failure leaves the cut local; docs/RELEASING.md,
+      # "If the installed smoke test fails", gives the recovery.
+      - scripts/release-smoke.sh --archives target/dist
       - jj git push -b main
       - git push origin "$(git describe --tags --exact-match HEAD)"
       - scripts/release-publish.sh

@@ -333,6 +333,11 @@ largest untested risk, and the worker ADR's reopen condition names it. Its first
 cross-build already carries bundled SQLite. After delivery lands, the per-target
 installed smoke task is a regression instrument. Any later leaf that changes the
 worker, the installed layout or the native dependencies reruns it.
+Delivery closed with `cpu-floor-k19`: the compiled worker met both Linux floors,
+the C library and the CPU, so the ADR was not reopened. `task release` now
+publishes nothing unless every archive passes that smoke test, so a leaf that
+breaks a floor also blocks the release. The smoke needs an arm64 Docker and Zig
+(`docs/RELEASING.md`).
 
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and

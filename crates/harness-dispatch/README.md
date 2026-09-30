@@ -35,6 +35,26 @@ A release archive unpacks to an installation prefix holding `bin/` and
 the Bun runtime inside the worker and the SQLite inside the front are in
 `libexec/harness-dispatch/notices/`.
 
+## Supported platforms
+
+Releases carry harness-dispatch for macOS on Apple silicon, Linux arm64 and
+Linux x64. Each floor is claimed only as far as something observes it. Before
+every release, the installed pair runs from each archive at the Linux floors
+([Releasing](../../docs/RELEASING.md#installed-smoke-test)).
+
+| Floor | Minimum | Basis |
+|---|---|---|
+| Linux C library | glibc 2.17 | Executed, in a CentOS 7 userland |
+| Linux CPU | x64: Nehalem (SSE4.2); arm64: Cortex-A53 (Armv8.0) | Executed, under QEMU emulating that CPU |
+| Linux kernel | Bun 1.4.2's documented range: 5.1 in its README, 3.10 (RHEL 7) on its installation page | Documented, not executed |
+| macOS | 13.0 | Documented by Bun 1.4.2, not executed |
+
+The kernel is Bun's claim, not this project's: containers and user-mode
+emulation both run on the host's kernel, so neither can observe an older one.
+Bun's two documents disagree. Its README gives 5.1 as the minimum, while its
+installation page says Bun runs on kernels as old as 3.10, degrading newer
+system calls gracefully. Each Bun upgrade rechecks both.
+
 ## Install from a checkout
 
 ```sh

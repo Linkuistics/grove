@@ -244,9 +244,28 @@ jj -R "$scratch/task" new main >/dev/null
 before="$("$real_git" -C "$scratch/task" rev-parse HEAD)"
 
 # Task's dry run checks preconditions but must never execute a release command.
+# The installed smoke test runs over the built archives after the build and
+# before each of the three steps that publish: the pushes of main and the tag,
+# and the GitHub Release and tap.
+dry_line() {
+  { grep -Fxn -- "task: [release] $1" "$scratch/dry" || true; } | head -n 1 | cut -d: -f1
+}
 for level in patch minor major; do
   task --dir "$scratch/task" --dry "release:$level" >"$scratch/dry" 2>&1
   grep -Fq "cargo release $level --execute --no-confirm" "$scratch/dry"
+  build="$(dry_line scripts/release-build.sh)"
+  smoke="$(dry_line 'scripts/release-smoke.sh --archives target/dist')"
+  if [[ -z "$build" || -z "$smoke" ]] || ((build > smoke)); then
+    fail "release:$level does not smoke-test target/dist after scripts/release-build.sh"
+  fi
+  # shellcheck disable=SC2016 # the Taskfile's own text, unexpanded
+  for publishing in 'jj git push -b main' 'git push origin "$(git describe --tags --exact-match HEAD)"' \
+    scripts/release-publish.sh; do
+    line="$(dry_line "$publishing")"
+    if [[ -z "$line" ]] || ((line < smoke)); then
+      fail "release:$level runs '$publishing' before the installed smoke test, or not at all"
+    fi
+  done
 done
 [[ "$(cat "$RELEASE_TEST_LOG")" == 'published' ]]
 

@@ -162,6 +162,44 @@ check_bun() {
   fi
 }
 
+# The release smoke-tests every archive before it publishes anything
+# (release-smoke.sh): macOS arm64 natively, and the Linux targets in Docker,
+# whose QEMU and interpreters are pinned for arm64 and whose private
+# binfmt_misc instance needs kernel 6.7 or later. Checked here, before the cut,
+# so that a missing Docker does not stop a release whose version is already
+# cut.
+check_smoke_hosts() {
+  local host platform kernel major minor
+  host="$(uname -sm)"
+  if [[ "$host" == "Darwin arm64" ]]; then
+    mark_pass "host: $host, where the macOS arm64 archive runs natively"
+  else
+    mark_fail "host: $host, but the macOS arm64 archive's smoke test runs natively on Darwin arm64"
+    remediation "run the release on an Apple silicon Mac"
+  fi
+  if ! command -v docker >/dev/null 2>&1; then
+    mark_fail "docker: not on PATH"
+    remediation "install Docker Desktop (https://docs.docker.com/desktop/)"
+    return
+  fi
+  if ! platform="$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}' 2>/dev/null)"; then
+    mark_fail "docker: the daemon is not running"
+    remediation "start Docker"
+    return
+  fi
+  kernel="$(docker info --format '{{.KernelVersion}}' 2>/dev/null || echo unknown)"
+  IFS=. read -r major minor _ <<<"$kernel"
+  if [[ "$platform" != linux/arm64 ]]; then
+    mark_fail "docker: $platform, but the Linux smoke tests' QEMU is pinned for linux/arm64"
+    remediation "use an arm64 Docker, such as Docker Desktop on Apple silicon"
+  elif ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ ]] || ((major < 6 || (major == 6 && minor < 7))); then
+    mark_fail "docker: kernel $kernel, but a private binfmt_misc instance needs 6.7 or later"
+    remediation "update Docker Desktop"
+  else
+    mark_pass "docker: $platform, kernel $kernel"
+  fi
+}
+
 check_release_commands() {
   local program
   for program in jj jq brew task; do
@@ -190,6 +228,7 @@ main() {
   check_cargo_zigbuild
   check_gh_auth
   check_bun
+  check_smoke_hosts
   check_release_commands
 
   echo

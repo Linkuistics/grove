@@ -16,9 +16,12 @@ delivered. Every release archive and the Homebrew formula carry the front and
 its worker in the [delivered layout](#delivery), each target's worker compiled
 from a digest-pinned Bun runtime. The installed smoke test runs the static
 TypeScript case from the extracted archive on macOS arm64 natively, and on each
-Linux target in a glibc-2.17 userland whose floor its positive control shows is
-enforced: Linux arm64 as a container, and Linux x64 under a pinned user-mode
-QEMU on an arm64 host. The CPU floor instrument is not yet delivered.
+Linux target in a glibc-2.17 userland under a pinned user-mode QEMU emulating
+its CPU floor, Nehalem or the Cortex-A53; Linux arm64 also runs as a native
+container. Positive controls show that the userland enforces the glibc floor
+and that each CPU model refuses an instruction beyond it. The release task runs
+the archive-content assertions and this smoke test before it publishes
+anything.
 Every other input and command is refused by name. Of the [Grove integration](#grove-integration), only the lifecycle
 `kind`, `task_file` and `task_id` slots, their standalone refusal and their
 symbolic inspection are delivered.
@@ -679,9 +682,13 @@ instrument observes it:
 
 | Dimension | Floor | Instrument |
 |---|---|---|
-| C library | glibc 2.17, Grove's existing floor | Installed smoke tests run in a glibc-2.17 userland on each Linux target: a container where Docker runs that architecture natively, otherwise the same image under a pinned user-mode QEMU |
-| CPU | x64 Nehalem; arm64 at the Cortex-A53 level | The same tests under user-mode emulation with that CPU model |
+| C library | glibc 2.17, Grove's existing floor | Installed smoke tests run in a glibc-2.17 userland on each Linux target: under the CPU instrument's user-mode QEMU, and first as a container where Docker runs that architecture natively |
+| CPU | x64 Nehalem; arm64 at the Cortex-A53 level | The same tests under user-mode QEMU with that CPU model. A probe executing one instruction beyond it (AVX2; an Armv8.1 atomic) must be killed there and run under `-cpu max`, and every ELF file in the archive must match the emulator's registration |
 | Kernel | Bun's documented support | None: a container or user-mode emulation runs on the host's kernel |
+
+The release task runs the archive-content assertions and these instruments over
+the archives it is about to publish, and publishes nothing unless every one
+passes.
 
 Bun 1.4.2's documents disagree about the kernel. Its README gives a 5.1 minimum,
 while its installation page says Bun runs on 3.10 (RHEL 7) with degraded newer

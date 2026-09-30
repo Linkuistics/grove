@@ -164,9 +164,10 @@ cwd. `record show` must read that run back, so the bundled SQLite executes.
 The C library instrument runs in `docker.io/library/centos:7@sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4`,
 CentOS Linux 7.9.2009, with `getconf GNU_LIBC_VERSION` required to be
 `glibc 2.17`. Where Docker runs the target's architecture natively, that
-userland runs as a container. The x64 target on an arm64 Docker runs the same
-image's filesystem under a pinned user-mode QEMU instead, as the next
-paragraphs explain. Either way it has no network and runs as uid 1000. Its
+userland runs as a container. Every Linux target also runs the same image's
+filesystem under a pinned user-mode QEMU at its [CPU floor](#cpu-floor); on an
+arm64 Docker that is x64's only route, as the next paragraphs explain. Either
+way it has no network and runs as uid 1000. Its
 positive control is two probes built by Zig 0.16.0 from one C source. The
 first, built against glibc 2.17, must run. The second, which calls `getrandom`
 and is built against glibc 2.25, must be refused for its symbol version. The
@@ -181,7 +182,8 @@ arm64 macOS host:
 |---|---|---|
 | aarch64-apple-darwin | Natively, macOS 26.6.2 (Darwin 25.6.0), bsdtar 3.5.3 | Passed through both fronts |
 | aarch64-unknown-linux-gnu | CentOS 7.9 aarch64, native to Docker's linux/arm64, GNU tar 1.26 | Passed through both fronts; control refused: ``/lib64/libc.so.6: version `GLIBC_2.25' not found`` |
-| x86_64-unknown-linux-gnu | CentOS 7.9 x86_64 under QEMU 10.2.3 user-mode emulation with a 2^47 guest base, in a chroot inside an arm64 ubuntu:24.04 container, GNU tar 1.26 | Passed through both fronts; control refused as on arm64 |
+| aarch64-unknown-linux-gnu | The same userland under QEMU 10.2.2 with `-cpu cortex-a53` ([CPU floor](#cpu-floor)), in a chroot inside an arm64 ubuntu:24.04 container | Passed through both fronts; glibc control refused as above; CPU control fired |
+| x86_64-unknown-linux-gnu | CentOS 7.9 x86_64 under QEMU 10.2.3 user-mode emulation with `-cpu Nehalem` and a 2^47 guest base, in the same kind of chroot, GNU tar 1.26 | Passed through both fronts; glibc control refused as on arm64; CPU control fired |
 
 **Docker Desktop cannot run the x64 userland.** With Rosetta off, its VM runs
 amd64 containers through a binfmt handler, `/usr/bin/qemu-x86_64` 8.1.5, which
@@ -248,6 +250,97 @@ worker aborted with `MemoryExhaustion`. Docker Desktop's QEMU 8.1.5
 was refused for its missing vDSO. ubuntu:24.04's amd64 filesystem was refused
 for glibc 2.39, and with that check removed the control failed because the
 2.25 probe ran.
+
+<a id="cpu-floor"></a>
+### CPU floor
+
+Bun 1.4.2's single x64 build targets Nehalem and "selects AVX2/AVX-512 code
+paths at runtime when the CPU supports them"
+([installation](https://github.com/oven-sh/bun/blob/bun-v1.4.2/docs/installation.mdx)).
+A newer CPU therefore runs code that a floor CPU never reaches. So each Linux
+target's installed smoke test also runs under user-mode QEMU with the floor's
+model, in the glibc-2.17 userland above: `-cpu Nehalem` for x64 and `-cpu
+cortex-a53` for arm64, the models Bun's own baseline verification emulates.
+The x64 target already ran under QEMU, so its interpreter gains `-cpu Nehalem`
+beside the guest base, and its one emulated run covers both floors. Linux arm64
+runs natively in its container, then again emulated. That second route needed
+two things the x64 route did not.
+
+**An arm64-host `qemu-aarch64`.** The pinned `tonistiigi/binfmt` arm64 image
+carries only foreign architectures' emulators, such as `qemu-x86_64` and
+`qemu-arm`. Debian's `qemu-user` `1:10.2.2+ds-1` for arm64 has a static-pie
+`qemu-aarch64`. snapshot.debian.org serves it permanently at
+[its SHA-1](https://snapshot.debian.org/file/4b7f47627ad6e57745d33d1108b893970e19ebf2),
+and it is checked against SHA-256
+`f8bf89dacd04e66a1e34526bf6eb9b4eb1b4da6205d0d820381f0c87cb0db8bb`. Unlike
+tonistiigi's build, upstream QEMU takes a guest's `argv[0]` from after the
+executable's path only when its own auxiliary vector carries
+`AT_FLAGS_PRESERVE_ARGV0`
+([`linux-user/main.c`](https://gitlab.com/qemu-project/qemu/-/blob/v10.2.2/linux-user/main.c)).
+The kernel sets that for the interpreter it starts, not for a QEMU that the
+interpreter executes. So the arm64 interpreter passes `-0 argv0` instead.
+
+**A registration that does not match its own tools.** An aarch64 registration
+on an aarch64 host also matches the interpreter and QEMU themselves. Without an
+exemption, the helper's `chroot` failed with "Too many levels of symbolic
+links": each interpretation invoked the interpreter again until `exec` returned
+`ELOOP`. QEMU's aarch64 mask requires ELF ident bytes 8 to 15 to be zero
+([`qemu-binfmt-conf.sh`](https://gitlab.com/qemu-project/qemu/-/blob/v10.2.3/scripts/qemu-binfmt-conf.sh)),
+and Linux's ELF loader never reads them. So the copies in the userland get
+`EI_ABIVERSION` 1. The helper's own executables still match, so after
+registration its `chroot` runs emulated too, and a `/qemu` link in the helper's
+root lets the interpreter find QEMU from there.
+
+The CPU control is a probe built by Zig from one C source. It prints a line,
+executes one instruction beyond the model, and prints again: `vpaddd` on `ymm`
+registers (AVX2) on x64, and `ldadd` (the Armv8.1 LSE atomics) on arm64. Under
+the registered interpreter it must be killed by SIGILL between the two lines.
+Under a twin interpreter, identical but for `-cpu max`, it must run to the end.
+That shows the instruction is valid and that this QEMU executes it, so the
+refusal is the model's. A model that silently accepted newer instructions would
+otherwise pass everything.
+
+The control shows only that a matching executable runs under the model. An
+archive executable whose ident bytes 8 to 15 were not zero would instead run on
+the helper's own CPU and pass untested; on arm64 that CPU is the host's, which
+has LSE. So the host lists every ELF file in the archive, and the helper holds
+each one's first 20 bytes against the registration's magic and mask. The front
+and the worker must be among them. All four ELF files in each Linux archive
+match.
+
+Observed on 2026-09-30, on the finished source of `cpu-floor-k19`. `task
+release:smoke` rebuilt all three archives of version 21.12.0 (SHA-256
+`b451bf73…` macOS arm64, `381bde71…` Linux arm64, `5ca21891…` Linux x64;
+worker build `bdd58ee3…`, Bun 1.4.2) and passed every target through both
+fronts. macOS arm64 ran natively, and Linux arm64 in its native container, then
+under QEMU at the Cortex-A53. Linux x64 ran under QEMU at Nehalem. In each
+emulated run, all four ELF files in the archive matched the registration, the
+guest's address space passed its check, and the glibc control refused the 2.25
+probe. Under each model the CPU probe printed `cpu probe started`, then died
+with `qemu: uncaught target signal 4 (Illegal instruction)` and exit 132; under
+`-cpu max` it ran to the end. The task exited 0, and its nine subjects,
+including the pinned Debian package, had identical digests before and after.
+After a comment-only edit to `scripts/release-smoke-qemu.sh`,
+`scripts/release-smoke.sh` passed the same archives again with the committed
+scripts.
+
+Each CPU-floor assertion was seen to fail against a subject that violates it,
+on a scratch copy of the scripts; the repository's scripts, archives and cached
+package had identical digests afterwards. With `-cpu max` as the model, x64 and
+arm64 each refused, because the probe was not killed. With the probe's
+instruction replaced by one no CPU executes (`ud2`, `udf #0`), each refused,
+because `-cpu max` could not run it either. An arm64 archive whose worker
+carries `EI_ABIVERSION` 1 was refused by name. With the match check removed,
+that same archive passed every other check, so the escape it guards against is
+real. An enumeration that matched no ELF file was refused. A mutated package
+digest was refused with the digest found. An arm64 address limit of 2^40
+refused a guest mapping at `0xffffac600000`. An archive with a stray file
+failed the manifest before extraction.
+
+The kernel is not observed. A container and user-mode emulation both run on
+Docker's 6.10.14 kernel. The kernel floor is Bun's documented range, as the
+[specification](../../specs/harness-selection-and-execution.md#delivery)
+records.
 
 <a id="primary-runtime-references"></a>
 ## Primary runtime references

@@ -661,6 +661,108 @@ fn a_confirmation_contradicting_a_recorded_launch_failure_refuses() {
     assert_eq!(export["observations"].as_array().unwrap().len(), 1);
 }
 
+#[test]
+fn a_stored_observation_this_release_cannot_read_refuses_the_export() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(ROUTED);
+    let run_id = impl_run(&sandbox);
+    let other_run = impl_run(&sandbox);
+    recorded(&observe(
+        &sandbox,
+        &run_id,
+        "o-1.json",
+        &observation(&run_id, "o-1", json!({})),
+    ));
+    let store = sandbox.default_store();
+    let good = fs::read(&store).unwrap();
+    let restore = || fs::write(&store, &good).unwrap();
+
+    let stored = |id: &str, measurements: Value| {
+        serde_json::to_string(&observation(&run_id, id, measurements)).unwrap()
+    };
+    let confirmed = json!({ "executionConfirmation": { "state": "observed", "value": true } });
+    let mut later = observation(&run_id, "o-2", json!({}));
+    later["schemaVersion"] = json!(2);
+    let mut corrects = observation(&run_id, "o-2", json!({}));
+    corrects["supersedes"] = json!("o-1");
+    // (row supersedes, stored document, what the refusal says); the row's ID
+    // is always o-2, of `run_id`.
+    let cases = [
+        (None, "{".to_owned(), "is not valid JSON"),
+        (None, "{}".to_owned(), "`schemaVersion` is missing"),
+        (
+            None,
+            stored(
+                "o-2",
+                json!({ "executionConfirmation": { "state": "observed", "value": false } }),
+            ),
+            "an execution confirmation's value is true",
+        ),
+        (None, later.to_string(), "schemaVersion 2 is not supported"),
+        (None, stored("o-9", json!({})), "names observation \"o-9\""),
+        (
+            None,
+            serde_json::to_string(&observation(&other_run, "o-2", json!({}))).unwrap(),
+            "is about run",
+        ),
+        (None, corrects.to_string(), "supersedes"),
+        // The controls: the same row, written with a document the import
+        // would have written, is exported.
+        (None, stored("o-2", confirmed.clone()), ""),
+        (Some("o-1"), corrects.to_string(), ""),
+    ];
+    for (supersedes, document, why) in cases {
+        restore();
+        Connection::open(&store)
+            .unwrap()
+            .execute(
+                "INSERT INTO observations (observation_id, run_id, recorded_at, supersedes, \
+                 document) VALUES ('o-2', ?1, '2026-10-01T09:31:00.000Z', ?2, ?3)",
+                rusqlite::params![run_id, supersedes, document],
+            )
+            .unwrap();
+        let mut command = sandbox.command();
+        command.args(["record", "show", "--run", &run_id, "--json"]);
+        let result = run(&mut command);
+        if why.is_empty() {
+            let export = result.report();
+            assert_eq!(
+                export["observations"][1]["observationId"], "o-2",
+                "{document}"
+            );
+            continue;
+        }
+        let refusal = result.refusal(4);
+        let error = &refusal["error"];
+        assert_eq!(
+            error["code"], "record_store_invalid",
+            "{document}: {refusal}"
+        );
+        assert_eq!(error["stage"], "record", "{document}: {refusal}");
+        assert_eq!(
+            error["source"],
+            support::text(&store),
+            "{document}: {refusal}"
+        );
+        let message = error["message"].as_str().unwrap();
+        for part in [run_id.as_str(), "\"o-2\"", why] {
+            assert!(message.contains(part), "{document}: {part:?}: {refusal}");
+        }
+    }
+    // The last control confirmed execution through a well-formed document; a
+    // value of false, above, never did.
+    restore();
+    Connection::open(&store)
+        .unwrap()
+        .execute(
+            "INSERT INTO observations (observation_id, run_id, recorded_at, document) \
+             VALUES ('o-2', ?1, '2026-10-01T09:31:00.000Z', ?2)",
+            rusqlite::params![run_id, stored("o-2", confirmed)],
+        )
+        .unwrap();
+    assert_eq!(show(&sandbox, &run_id)["evidence"], "execution_confirmed");
+}
+
 /// Schema 1's tables, as `handoff-records-k24` created them, with one run.
 const VERSION_1_STORE: &str = "
 CREATE TABLE runs (run_id TEXT PRIMARY KEY NOT NULL, recorded_at TEXT NOT NULL, launch TEXT NOT NULL);
@@ -697,6 +799,24 @@ fn a_version_1_store_is_migrated_by_its_first_observation_and_read_as_it_is_othe
     refused["supersedes"] = json!("o-missing");
     let refusal = observe(&sandbox, old_run, "o-1.json", &refused).refusal(3);
     assert_eq!(refusal["error"]["code"], "supersedes_unknown");
+    assert_eq!(user_version(&store), 1);
+
+    // So does one refused because the run's launch record is of a later
+    // version, which the import reads inside that transaction.
+    let later_run = "5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e35";
+    Connection::open(&store)
+        .unwrap()
+        .execute(
+            "INSERT INTO runs VALUES (?1, '2026-09-30T08:15:43.000Z', '{\"schemaVersion\":2}')",
+            [later_run],
+        )
+        .unwrap();
+    let later = observation(later_run, "o-later", json!({}));
+    let refusal = observe(&sandbox, later_run, "o-later.json", &later).refusal(4);
+    assert_eq!(
+        refusal["error"]["code"], "record_store_invalid",
+        "{refusal}"
+    );
     assert_eq!(user_version(&store), 1);
 
     let document = observation(

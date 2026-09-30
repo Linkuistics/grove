@@ -440,7 +440,9 @@ as the [refusals](#refusals) list them, naming the store. The policy never sees
 it as a missing run and cannot catch it: harness-dispatch stops the worker at
 once. A lookup waits for another process's lock as a commit does, at most 2
 seconds. Its wait is part of the selection bound, though, and never passes it:
-a wait that reaches the deadline is `selection_timeout`, exit 124.
+a wait that reaches the deadline is `selection_timeout`, exit 124. It reads
+the run's launch fields and any launch failure, never its observations, so a
+run's long history of observations does not slow a lookup of it.
 
 Every answer is also delivered to `select`, in the context's `runs`, in the
 order the loader asked. A loader cannot supply `runs` itself, so a provider
@@ -841,7 +843,11 @@ the commit waits at most 2 seconds, apart from the selection bound, and then
 refuses. The store names itself with a version. A store that another
 application wrote, that a newer harness-dispatch wrote, or that SQLite finds
 corrupt refuses with exit 4. It is left exactly as it was: harness-dispatch
-never resets or replaces a store.
+never resets or replaces a store. A launch record or launch-failure detail
+this release cannot read, such as one a newer harness-dispatch wrote, refuses
+the same way wherever it is read: by `record show`, `record observe` and a run
+lookup. So does an observation `record show` cannot read. None of them reads
+such a record as a run with less in it.
 
 A run records its ID and the time it was committed. It also records the kind,
 the task identity and task file, the current directory, and the policy's path,
@@ -1045,7 +1051,7 @@ inspection reads the store as `run` does.
 | 3 | `expansion` | `missing_input` (a slot whose input was not supplied) |
 | 3 | `record` | `run_not_found` (`record show` or `record observe` of a run the store does not hold), `cwd_unavailable`; for `record observe`, `observation_conflict`, `supersedes_unknown`, `already_superseded` and `observation_contradicts_record` (see [observations](#observations)) |
 | 3 | `observation` | `observation_unreadable` (the `--file`); `observation_too_large` (over the fixed 1 MiB bound); `observation_invalid` and `unsupported_version`, each with its `location` |
-| 4 | `record` | `record_store_unwritable`, `record_store_locked` (held past the 2-second wait), `record_store_full`, `record_store_invalid` (another application's file, another version, or corrupt), `record_commit_failed`, `run_id_unavailable`, `home_unset` (HOME cannot place the default state directory); the same store codes when a [run lookup](#looking-up-a-run) cannot read the store, `record_store_invalid` also for a run record this release cannot read |
+| 4 | `record` | `record_store_unwritable`, `record_store_locked` (held past the 2-second wait), `record_store_full`, `record_store_invalid` (another application's file, another version, or corrupt), `record_commit_failed`, `run_id_unavailable`, `home_unset` (HOME cannot place the default state directory); the same store codes when a [run lookup](#looking-up-a-run) cannot read the store, `record_store_invalid` also for a launch record this release cannot read, in `record show`, `record observe` or a run lookup, and for an observation `record show` cannot read |
 | 5 | `worker` | `worker_missing`, `worker_identity_mismatch`, `worker_failed`, `protocol_error` |
 | 124 | `evaluation` | `selection_timeout` (the selection bound ran out, a run lookup's lock wait included) |
 | 126 | `resolution`, `exec` | `program_unexecutable`; `exec_failed` for any exec error but `ENOENT` |

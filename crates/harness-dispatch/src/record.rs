@@ -34,7 +34,7 @@ use crate::observation;
 use crate::program::ResolvedBy;
 use crate::refusal::{Refusal, Stage, EXIT_MALFORMED, EXIT_REFUSED};
 use crate::run_id::RunId;
-use crate::store::{self, Lookup, StateDir, StoredObservation, StoredRun};
+use crate::store::{self, Lookup, Observations, StateDir, StoredObservation, StoredRun};
 
 /// The launch document's own version, separate from the store's schema.
 pub const LAUNCH_VERSION: u64 = 1;
@@ -145,10 +145,34 @@ pub fn locate(run: &OsStr, state_dir: Option<&Path>) -> Result<Located, Refusal>
 
 pub fn show(args: &ShowArgs) -> Result<Export, Refusal> {
     let Located { run_id, dir, .. } = locate(&args.run, args.state_dir.as_deref())?;
-    match store::load(&dir, &run_id, store::LOCK_WAIT, "read the run record")? {
+    let attempt = "read the run record";
+    match store::load(&dir, &run_id, store::LOCK_WAIT, attempt, Observations::Read)? {
         Lookup::Found(stored) => Ok(Export { run_id, stored }),
         Lookup::Missing { store_exists } => Err(run_not_found(&dir, &run_id, store_exists)),
     }
+}
+
+/// Why a stored run's launch document, or its launch-failure detail, is not
+/// one this release reads, beginning with what it is about. Every read of a
+/// run checks this ([`store::load`], and `record observe` before it appends),
+/// so `record show`, `record observe` and `host.run` never disagree about
+/// which runs they can read. A run lookup, which types the kind, task
+/// identity and candidate into its answer, also requires those fields.
+pub fn readable(launch: &Value, failure: Option<&Value>) -> Result<(), String> {
+    if !launch.is_object() {
+        return Err("launch record is not a JSON object".to_owned());
+    }
+    if launch["schemaVersion"] != LAUNCH_VERSION {
+        return Err(format!(
+            "launch record is version {}, and this release of harness-dispatch reads version \
+             {LAUNCH_VERSION}",
+            launch["schemaVersion"]
+        ));
+    }
+    if failure.is_some_and(|detail| !detail["cause"].is_string()) {
+        return Err("launch failure has no cause".to_owned());
+    }
+    Ok(())
 }
 
 /// Answer a policy's `host.run(runId)` from the store in `dir`, waiting at
@@ -156,9 +180,11 @@ pub fn show(args: &ShowArgs) -> Result<Export, Refusal> {
 /// launch failure, or that the store does not hold it. A missing or empty
 /// store holds no run. A store that cannot be read refuses, and so does a
 /// launch document this release cannot read, rather than answer with less.
+/// The run's observations are never read, so the lookup's work does not grow
+/// with its history.
 pub fn lookup(dir: &StateDir, run_id: &RunId, wait: Duration) -> Result<Value, Refusal> {
     let attempt = format!("look up run {run_id} for the policy's host.run");
-    let stored = match store::load(dir, run_id, wait, &attempt)? {
+    let stored = match store::load(dir, run_id, wait, &attempt, Observations::Skip)? {
         Lookup::Missing { .. } => {
             return Ok(json!({ "runId": run_id.as_str(), "status": "missing" }));
         }
@@ -168,12 +194,6 @@ pub fn lookup(dir: &StateDir, run_id: &RunId, wait: Duration) -> Result<Value, R
     let unreadable = |why: &str| {
         store::unreadable_record(dir, &attempt, format!("run {run_id}'s launch record {why}"))
     };
-    if launch["schemaVersion"] != LAUNCH_VERSION {
-        return Err(unreadable(&format!(
-            "is version {}, and this release of harness-dispatch reads version {LAUNCH_VERSION}",
-            launch["schemaVersion"]
-        )));
-    }
     let text = |value: &Value, field: &str| {
         value
             .as_str()
@@ -186,9 +206,6 @@ pub fn lookup(dir: &StateDir, run_id: &RunId, wait: Duration) -> Result<Value, R
         other => text(other, "taskId")?,
     };
     let failure = launch_failure(stored.launch_failure.as_ref());
-    if !failure.is_null() && !failure["cause"].is_string() {
-        return Err(unreadable("has a launch failure with no cause"));
-    }
     Ok(json!({
         "runId": run_id.as_str(),
         "status": "found",
@@ -290,12 +307,7 @@ impl Export {
             .observations
             .iter()
             .filter(|observation| observation.superseded_by.is_none())
-            .map(|observation| {
-                let id = observation.document["observationId"]
-                    .as_str()
-                    .unwrap_or_default();
-                (id, &observation.document)
-            })
+            .map(|observation| (observation.observation_id.as_str(), &observation.document))
     }
 
     /// The run's evidence class and what it says of execution. harness-dispatch's

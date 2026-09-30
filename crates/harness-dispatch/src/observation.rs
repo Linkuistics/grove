@@ -343,16 +343,64 @@ pub fn read(given: &Path, cwd: &Path, run_id: &RunId) -> Result<Observation, Ref
             origin: Origin::Fixed,
         }));
     }
-    let check = Check { source: &shown };
+    let check = Check {
+        source: &shown,
+        expected: "--run names",
+    };
     let value: Value = serde_json::from_slice(&bytes).map_err(|error| {
         check.invalid("observation", format!("the document is not JSON: {error}"))
     })?;
     check.envelope(value, run_id)
 }
 
+/// Check a document the store holds as observation `id` of `run_id`, which
+/// supersedes `supersedes`: the validation its import passed, and that it is
+/// the observation its row says it is. Why it is not one this release reads,
+/// if it is not, to follow the observation's name. The store does not vouch
+/// for what it holds: a later release, another writer or a damaged file can
+/// put there what no import of this one would have written.
+pub fn stored(
+    document: &Value,
+    id: &str,
+    run_id: &RunId,
+    supersedes: Option<&str>,
+) -> Result<(), String> {
+    let check = Check {
+        source: "the record store",
+        expected: "the store holds it for",
+    };
+    let unreadable = |refusal: Refusal| {
+        let at = refusal.location.as_deref().unwrap_or("observation");
+        let why = &refusal.message;
+        format!(
+            "is not a version-{OBSERVATION_VERSION} observation this release reads, at {at}: {why}"
+        )
+    };
+    let observation = check
+        .envelope(document.clone(), run_id)
+        .map_err(unreadable)?;
+    if observation.id != id {
+        let other = observation.id;
+        return Err(format!(
+            "is stored with a document that names observation {other:?}"
+        ));
+    }
+    let named = |target: Option<&str>| target.map_or("nothing".to_owned(), |t| format!("{t:?}"));
+    if observation.supersedes.as_deref() != supersedes {
+        return Err(format!(
+            "is stored superseding {}, but its document supersedes {}",
+            named(supersedes),
+            named(observation.supersedes.as_deref())
+        ));
+    }
+    Ok(())
+}
+
 /// Validates one observation document, naming the file a refusal is about.
 struct Check<'a> {
     source: &'a str,
+    /// What says which run the document must name, completing "but … run R".
+    expected: &'a str,
 }
 
 impl Check<'_> {
@@ -443,7 +491,10 @@ impl Check<'_> {
         if named != run_id.as_str() {
             return Err(self.invalid(
                 "observation.runId",
-                format!("the observation is about run {named}, but --run names run {run_id}"),
+                format!(
+                    "the observation is about run {named}, but {} run {run_id}",
+                    self.expected
+                ),
             ));
         }
         self.string(
@@ -500,9 +551,7 @@ impl Check<'_> {
             };
             self.measurement(name, *kind, measurement, &location)?;
         }
-        let confirms_execution = measurements
-            .get("executionConfirmation")
-            .is_some_and(|measurement| measurement["state"] == "observed");
+        let confirms_execution = confirms_execution(&value);
         let id = id.to_owned();
         Ok(Observation {
             id,
@@ -1010,9 +1059,11 @@ pub fn expanded(document: &Value) -> Map<String, Value> {
         .collect()
 }
 
-/// Whether an observation observes that the harness executed.
+/// Whether an observation observes that the harness executed: an observed
+/// confirmation, whose value is `true`.
 pub fn confirms_execution(document: &Value) -> bool {
-    document["measurements"]["executionConfirmation"]["state"] == "observed"
+    let confirmation = &document["measurements"]["executionConfirmation"];
+    confirmation["state"] == "observed" && confirmation["value"] == true
 }
 
 /// Every supported measurement of a run, from its current observations
@@ -1081,6 +1132,7 @@ mod tests {
     fn check(value: Value) -> Result<Observation, Refusal> {
         Check {
             source: "/work/observation.json",
+            expected: "--run names",
         }
         .envelope(value, &run())
     }
@@ -1125,6 +1177,13 @@ mod tests {
                 .collect();
             let observation = check(envelope(Value::Object(all))).unwrap();
             assert!(!observation.confirms_execution, "{state}");
+        }
+        // Only the value `true` confirms, even in a document no import accepts.
+        for value in [json!(false), Value::Null, json!("true")] {
+            let document = envelope(
+                json!({ "executionConfirmation": { "state": "observed", "value": value } }),
+            );
+            assert!(!confirms_execution(&document), "{value}");
         }
         check(envelope(json!({}))).unwrap();
         check(envelope(json!({

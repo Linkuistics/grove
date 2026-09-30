@@ -46,6 +46,14 @@
 //! store is migrated only by `record observe`, which creates that table inside
 //! its own exclusive transaction, so a refused import leaves the store at
 //! version 1. Every other operation reads and writes both versions as they are.
+//!
+//! **Readable documents.** The schema version says which tables there are, not
+//! what the documents in them say. So every read of a run checks what it reads
+//! before anything is derived from it: the launch document and any
+//! launch-failure detail ([`crate::record::readable`]), and each observation it
+//! reads, by the import's own validation against its row
+//! ([`crate::observation::stored`]). One this release cannot read refuses like a
+//! store of another version, and never reads as a run with less in it.
 
 use std::ffi::OsStr;
 use std::fs::{DirBuilder, File, OpenOptions};
@@ -311,15 +319,9 @@ pub fn append_observation(dir: &StateDir, new: &NewObservation<'_>) -> Result<Ap
             return Ok(Appended::RunMissing { store_exists: true });
         }
         let run = new.run_id.as_str();
-        let exists = transaction
-            .query_row("SELECT 1 FROM runs WHERE run_id = ?1", params![run], |_| {
-                Ok(())
-            })
-            .optional()?
-            .is_some();
-        if !exists {
+        let Some(stored) = run_fields(&transaction, new.run_id)? else {
             return Ok(Appended::RunMissing { store_exists: true });
-        }
+        };
         // A repeat first, so that a correction repeated after it took effect
         // is still the same import rather than a second correction.
         let recorded = transaction
@@ -368,15 +370,7 @@ pub fn append_observation(dir: &StateDir, new: &NewObservation<'_>) -> Result<Ap
             }
         }
         if new.confirms_execution {
-            let failure: Option<String> = transaction
-                .query_row(
-                    "SELECT detail FROM launch_failures WHERE run_id = ?1",
-                    params![run],
-                    |row| row.get(0),
-                )
-                .optional()?;
-            if let Some(detail) = failure {
-                let detail = document(&detail, "launch_failures.detail")?;
+            if let Some((_, detail)) = &stored.launch_failure {
                 let cause = detail["cause"].as_str().map(str::to_owned);
                 return Ok(Appended::ContradictsLaunchFailure { cause });
             }
@@ -395,25 +389,36 @@ pub fn append_observation(dir: &StateDir, new: &NewObservation<'_>) -> Result<Ap
     .map_err(fail)
 }
 
-/// A run as the store holds it.
+/// A run as the store holds it, checked readable.
 #[derive(Debug)]
 pub struct StoredRun {
     pub recorded_at: String,
     pub launch: Value,
     /// When the detail was appended, and the detail.
     pub launch_failure: Option<(String, Value)>,
-    /// In the order they were recorded.
+    /// In the order they were recorded; empty unless [`load`] was asked to
+    /// read them.
     pub observations: Vec<StoredObservation>,
 }
 
 /// One recorded observation of a run.
 #[derive(Debug)]
 pub struct StoredObservation {
+    pub observation_id: String,
     pub recorded_at: String,
     /// The validated envelope as it was imported.
     pub document: Value,
     /// The observation that corrects this one, if any.
     pub superseded_by: Option<String>,
+}
+
+/// Whether [`load`] reads a run's observations. A run lookup does not: its
+/// read is the run's launch fields and any launch failure, bounded by what
+/// the commit wrote, however long the run's later history grows.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Observations {
+    Read,
+    Skip,
 }
 
 #[derive(Debug)]
@@ -425,16 +430,18 @@ pub enum Lookup {
     },
 }
 
-/// Read one run, waiting at most `wait` for a writer's lock. A store that
-/// cannot be read, or is not a version this release reads, refuses, naming
-/// the `attempt`; it never reads as a store without the run. Only a store file
-/// known to be absent is one: a directory that cannot be searched says
-/// nothing either way, and refuses.
+/// Read one run, and its `observations` if asked, waiting at most `wait` for a
+/// writer's lock. A store that cannot be read, is not a version this release
+/// reads, or holds a document of the run this release cannot read, refuses,
+/// naming the `attempt`; it never reads as a store without the run. Only a
+/// store file known to be absent is one: a directory that cannot be searched
+/// says nothing either way, and refuses.
 pub fn load(
     dir: &StateDir,
     run_id: &RunId,
     wait: Duration,
     attempt: &str,
+    observations: Observations,
 ) -> Result<Lookup, Refusal> {
     let file = dir.store();
     if !file.try_exists().unwrap_or(true) {
@@ -452,61 +459,88 @@ pub fn load(
         if contents == Contents::Pristine {
             return Ok(Lookup::Missing { store_exists: true });
         }
-        let run = transaction
-            .query_row(
-                "SELECT recorded_at, launch FROM runs WHERE run_id = ?1",
-                params![run_id.as_str()],
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-            )
-            .optional()?;
-        let Some((recorded_at, launch)) = run else {
+        let Some(mut stored) = run_fields(&transaction, run_id)? else {
             return Ok(Lookup::Missing { store_exists: true });
         };
-        let failure = transaction
-            .query_row(
-                "SELECT recorded_at, detail FROM launch_failures WHERE run_id = ?1",
-                params![run_id.as_str()],
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-            )
-            .optional()?;
-        let launch = document(&launch, "runs.launch")?;
-        let launch_failure = failure
-            .map(|(at, detail)| {
-                Ok::<_, StoreFailure>((at, document(&detail, "launch_failures.detail")?))
-            })
-            .transpose()?;
-        let mut observations = Vec::new();
-        if contents == Contents::Version(2) {
+        if observations == Observations::Read && contents == Contents::Version(2) {
             let mut statement = transaction.prepare(
-                "SELECT observed.recorded_at, observed.document, (SELECT correction.observation_id \
-                 FROM observations AS correction WHERE correction.supersedes = \
-                 observed.observation_id) FROM observations AS observed WHERE observed.run_id = \
-                 ?1 ORDER BY observed.rowid",
+                "SELECT observed.observation_id, observed.recorded_at, observed.supersedes, \
+                 observed.document, (SELECT correction.observation_id FROM observations AS \
+                 correction WHERE correction.supersedes = observed.observation_id) FROM \
+                 observations AS observed WHERE observed.run_id = ?1 ORDER BY observed.rowid",
             )?;
             let rows = statement.query_map(params![run_id.as_str()], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<String>>(4)?,
                 ))
             })?;
             for row in rows {
-                let (recorded_at, text, superseded_by) = row?;
-                observations.push(StoredObservation {
+                let (observation_id, recorded_at, supersedes, text, superseded_by) = row?;
+                let what = format!("run {run_id}'s observation {observation_id:?}");
+                let document = document(&text, &what)?;
+                crate::observation::stored(
+                    &document,
+                    &observation_id,
+                    run_id,
+                    supersedes.as_deref(),
+                )
+                .map_err(|why| StoreFailure::Invalid(format!("{what} {why}")))?;
+                stored.observations.push(StoredObservation {
+                    observation_id,
                     recorded_at,
-                    document: document(&text, "observations.document")?,
+                    document,
                     superseded_by,
                 });
             }
         }
-        Ok(Lookup::Found(StoredRun {
-            recorded_at,
-            launch,
-            launch_failure,
-            observations,
-        }))
+        Ok(Lookup::Found(stored))
     })()
     .map_err(fail)
+}
+
+/// Read a run's launch fields and any launch failure inside `transaction`,
+/// and check that this release can read them; `None` if the store does not
+/// hold the run.
+fn run_fields(
+    transaction: &Transaction<'_>,
+    run_id: &RunId,
+) -> Result<Option<StoredRun>, StoreFailure> {
+    let run = transaction
+        .query_row(
+            "SELECT recorded_at, launch FROM runs WHERE run_id = ?1",
+            params![run_id.as_str()],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()?;
+    let Some((recorded_at, launch)) = run else {
+        return Ok(None);
+    };
+    let failure = transaction
+        .query_row(
+            "SELECT recorded_at, detail FROM launch_failures WHERE run_id = ?1",
+            params![run_id.as_str()],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()?;
+    let launch = document(&launch, &format!("run {run_id}'s launch record"))?;
+    let launch_failure = failure
+        .map(|(at, detail)| {
+            let detail = document(&detail, &format!("run {run_id}'s launch failure"))?;
+            Ok::<_, StoreFailure>((at, detail))
+        })
+        .transpose()?;
+    crate::record::readable(&launch, launch_failure.as_ref().map(|(_, detail)| detail))
+        .map_err(|why| StoreFailure::Invalid(format!("run {run_id}'s {why}")))?;
+    Ok(Some(StoredRun {
+        recorded_at,
+        launch,
+        launch_failure,
+        observations: Vec::new(),
+    }))
 }
 
 /// Create the directory and file privately if absent, then open the file.
@@ -655,10 +689,10 @@ pub fn unreadable_record(dir: &StateDir, attempt: &str, why: String) -> Refusal 
     StoreFailure::Invalid(why).refusal(dir, &dir.store(), attempt, LOCK_WAIT)
 }
 
-fn document(text: &str, column: &str) -> Result<Value, StoreFailure> {
-    serde_json::from_str(text).map_err(|error| {
-        StoreFailure::Invalid(format!("its {column} value is not valid JSON ({error})"))
-    })
+/// Parse the stored document `what` names.
+fn document(text: &str, what: &str) -> Result<Value, StoreFailure> {
+    serde_json::from_str(text)
+        .map_err(|error| StoreFailure::Invalid(format!("{what} is not valid JSON ({error})")))
 }
 
 /// Why the store could not be used, before it becomes a refusal naming the

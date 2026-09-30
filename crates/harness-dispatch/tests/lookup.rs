@@ -538,6 +538,208 @@ fn a_lookup_waits_for_a_locked_store_only_within_the_selection_bound() {
     assert_eq!(seen(&result.report())[0]["status"], "found");
 }
 
+/// Import `document` against `run_id` with `record observe`, as `--json`.
+fn observe(sandbox: &Sandbox, run_id: &str, document: &Value) -> support::Run {
+    sandbox.file("observation.json", &document.to_string());
+    let mut command = sandbox.command();
+    command.args([
+        "record",
+        "observe",
+        "--run",
+        run_id,
+        "--file",
+        "observation.json",
+        "--json",
+    ]);
+    run(&mut command)
+}
+
+/// A version-1 observation of `run_id`, with one measurement.
+fn observation(run_id: &str, id: &str) -> Value {
+    json!({
+        "schemaVersion": 1,
+        "observationId": id,
+        "runId": run_id,
+        "source": "a test observer",
+        "observedAt": "2026-10-01T09:30:00Z",
+        "evidence": "what the test saw",
+        "measurements": { "acceptance": { "state": "observed", "value": "accepted" } },
+    })
+}
+
+#[test]
+fn a_lookup_reads_the_runs_launch_fields_never_its_observation_history() {
+    let sandbox = Sandbox::new();
+    let creator = producer(&sandbox);
+    let answer = found(&sandbox, &creator);
+    review_context(&sandbox, &json!({ "run": creator }));
+    sandbox.personal_policy(&looks_up());
+
+    // A history, a correction and the observation it supersedes among it.
+    for id in ["o-1", "o-2", "o-3"] {
+        let mut document = observation(&creator, id);
+        if id == "o-3" {
+            document["supersedes"] = json!("o-2");
+        }
+        let result = observe(&sandbox, &creator, &document);
+        assert_eq!(result.code, Some(0), "{}", result.stderr);
+    }
+    assert_eq!(seen(&inspect_review(&sandbox).report()), json!([answer]));
+
+    // One more stored observation, which is not JSON at all.
+    let store = sandbox.default_store();
+    Connection::open(&store)
+        .unwrap()
+        .execute(
+            "INSERT INTO observations (observation_id, run_id, recorded_at, document) \
+             VALUES ('o-4', ?1, '2026-10-01T09:31:00.000Z', '{')",
+            [&creator],
+        )
+        .unwrap();
+    // The control: whatever reads the run's history finds it unreadable.
+    let refusal = show(&sandbox, &creator).refusal(4);
+    assert_eq!(
+        refusal["error"]["code"], "record_store_invalid",
+        "{refusal}"
+    );
+    assert!(
+        refusal["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("\"o-4\""),
+        "{refusal}"
+    );
+
+    // The lookup never reads it: the answer is the launch fields, as before,
+    // under inspection and in the run the review records.
+    let before = fs::read(&store).unwrap();
+    let report = inspect_review(&sandbox).report();
+    assert_eq!(seen(&report), json!([answer]));
+    assert_eq!(report["creator"]["lookup"], answer);
+    assert_eq!(
+        fs::read(&store).unwrap(),
+        before,
+        "inspection changed the store"
+    );
+    let result = run_review(&sandbox);
+    assert_eq!(result.code, Some(0), "{}", result.stderr);
+    let review = sandbox.harness_run_id();
+    assert_eq!(
+        show(&sandbox, &review).report()["launch"]["creator"]["lookup"],
+        answer
+    );
+}
+
+#[test]
+fn a_launch_record_this_release_cannot_read_refuses_every_read_of_the_run() {
+    let sandbox = Sandbox::new();
+    let creator = producer(&sandbox);
+    let launch = show(&sandbox, &creator).report()["launch"].clone();
+    // The policy swallows any error from its lookup, and would select.
+    sandbox.personal_policy(&lookup_policy(DEEP, "try { host.run(run); } catch {}"));
+    let store = sandbox.default_store();
+
+    // Runs committed beside the producer by some other writer, each read by
+    // `record show`, `record observe` and `host.run` alike.
+    let mut later = launch.clone();
+    later["schemaVersion"] = json!(2);
+    let cases = [
+        (
+            "0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d01",
+            later.to_string(),
+            None,
+            "is version 2",
+        ),
+        (
+            "0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d02",
+            "{".to_owned(),
+            None,
+            "is not valid JSON",
+        ),
+        (
+            "0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d03",
+            "[1]".to_owned(),
+            None,
+            "is not a JSON object",
+        ),
+        (
+            "0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d04",
+            launch.to_string(),
+            Some(r#"{"message":"exec failed"}"#),
+            "launch failure has no cause",
+        ),
+        // The control: the producer's own launch record, written again.
+        (
+            "0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d05",
+            launch.to_string(),
+            None,
+            "",
+        ),
+    ];
+    {
+        let connection = Connection::open(&store).unwrap();
+        for (run_id, launch, failure, _) in &cases {
+            connection
+                .execute(
+                    "INSERT INTO runs (run_id, recorded_at, launch) \
+                     VALUES (?1, '2026-10-01T09:30:00.000Z', ?2)",
+                    rusqlite::params![run_id, launch],
+                )
+                .unwrap();
+            if let Some(detail) = failure {
+                connection
+                    .execute(
+                        "INSERT INTO launch_failures (run_id, recorded_at, detail) \
+                         VALUES (?1, '2026-10-01T09:30:01.000Z', ?2)",
+                        rusqlite::params![run_id, detail],
+                    )
+                    .unwrap();
+            }
+        }
+    }
+
+    for (run_id, _, _, why) in cases {
+        review_context(&sandbox, &json!({ "run": run_id }));
+        let before = fs::read(&store).unwrap();
+        let reads = [
+            ("record show", show(&sandbox, run_id)),
+            (
+                "record observe",
+                observe(&sandbox, run_id, &observation(run_id, "o-1")),
+            ),
+            ("host.run", inspect_review(&sandbox)),
+        ];
+        for (read, result) in reads {
+            let context = format!("{read} of {run_id}");
+            if why.is_empty() {
+                assert_eq!(result.code, Some(0), "{context}: {}", result.stderr);
+                continue;
+            }
+            let refusal = result.refusal(4);
+            let error = &refusal["error"];
+            assert_eq!(
+                error["code"], "record_store_invalid",
+                "{context}: {refusal}"
+            );
+            assert_eq!(error["stage"], "record", "{context}: {refusal}");
+            assert_eq!(error["source"], text(&store), "{context}: {refusal}");
+            let message = error["message"].as_str().unwrap();
+            for part in [run_id, why] {
+                assert!(message.contains(part), "{context}: {part:?}: {refusal}");
+            }
+            assert_eq!(
+                fs::read(&store).unwrap(),
+                before,
+                "{context}: the store changed"
+            );
+        }
+    }
+    assert!(
+        !sandbox.harness_ran(),
+        "a refused lookup launched a harness"
+    );
+}
+
 #[test]
 fn each_lookup_is_a_measured_source_within_the_source_bound() {
     let sandbox = Sandbox::new();

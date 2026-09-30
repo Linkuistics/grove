@@ -343,8 +343,10 @@ id, provider, model, effort }, launchFailure }`, with `taskId` `null` when the
 run had none and `launchFailure` `null` or the appended detail as `record show`
 exports it. Otherwise it is `{ runId, status: "missing" }`. It projects the
 run's immutable launch fields and is never the whole launch document, whose
-argv holds the prompt and whose program and arguments no context carries. A
-store file that does not exist, an empty one and a store without the run all
+argv holds the prompt and whose program and arguments no context carries. It
+reads those fields and any launch failure, never the run's observations, so
+its work is bounded by one launch record however long the run's history grows.
+A store file that does not exist, an empty one and a store without the run all
 answer missing. A store that exists but cannot be read, one that is corrupt, of
 another application or of another version, a launch document this release
 cannot read, and a lock held past the wait each refuse the selection with the
@@ -352,7 +354,8 @@ store's exit-4 refusal. The front then ends the conversation and stops the
 worker, so no policy code runs after it, and it never reads as missing. The
 lookup waits for a writer's lock at most the fixed lock wait and never past the
 selection's deadline. A wait that reaches the deadline is the selection timing
-out.
+out. The bounded read after the wait is not interrupted, but the front checks
+the deadline when it returns, so an answer that arrives late is a timeout too.
 
 The **delivered context** is the loader's result, or the caller's document when
 there is no loader, with `measured` attached: the `--context` document first,
@@ -610,7 +613,17 @@ table arrives by a migration that only creates. Schema 2 adds the observations
 table. A new store is created at version 2. Only `record observe` migrates a
 version-1 store, by creating that table inside its own import transaction, so a
 refused import leaves the store at version 1; every other command reads and
-writes either version as it is. The commit is one exclusive
+writes either version as it is. The schema version does not vouch for the
+documents a store holds. So every read of a run checks two things before
+anything is derived from it: that its launch document is a version-1 object,
+and that any launch-failure detail names a cause. The reads are `record show`,
+`record observe` and a run lookup. `record show` also checks each observation it
+reads, by the import's own validation, against its row's run, ID and
+`supersedes`. A document this release cannot read refuses with exit 4. That
+happens before any evidence is exported, or any import or migration commits.
+Such a document never reads as a missing run, an unobserved measurement or a
+confirmation. Only a run lookup, which types the kind, task identity and
+candidate into its answer, requires those fields too. The commit is one exclusive
 transaction in a rollback journal at `synchronous = EXTRA`, the setting SQLite
 documents as durable in that mode, with `fullfsync` on for macOS. That sync
 reaches only the store's own directory. So on first use, the parent of every
@@ -837,7 +850,7 @@ acceptance instruments; internal tests may support them without replacing them.
 | New command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; a caller-ignored HUP or SIGPIPE and the entry signal mask reach the fake harness unchanged; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
 | Same command, actual shipped examples | Different-origin reviewer on every invocation, retry and explicit choice; same-origin/gateway disguise refuses; a fake producer launched through dispatch writes its `Creator` line from `HARNESS_DISPATCH_RUN_ID`, and the dispatched review of that task file uses the named run's recorded provider, which a changed current mapping cannot rewrite; a store holding an earlier run of the same task identity does not satisfy a review task with no `Creator` line; an unknown run and a run marked not executed refuse; declaration adoption; missing, duplicate or malformed `Reviews`/`Creator` lines refuse; `Reviews` under a kind that is not a configured review entry refuses; a relabelled origin and a misspelt declaration refuse as non-members; the generic reviewed-artifact form selects without a task file |
 | Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow and BUN_OPTIONS stay inert through the public launcher, each beside its firing configuration below; explicit relative config and personal import are admitted; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
-| Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields and an unreadable store refuses; the review's run records the creator provenance used; later observations after tree teardown |
+| Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields, reads no observation history, and an unreadable store refuses; a stored launch record or observation this release cannot read refuses every read of it; the review's run records the creator provenance used; later observations after tree teardown |
 | Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a dispatched producer attempt followed by a direct-harness finish leaves the pre-existing review with no `Creator` line, and that review refuses with the declaration remedy; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
 | Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
 

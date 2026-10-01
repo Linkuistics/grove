@@ -377,7 +377,7 @@ setting `BUN_RUNTIME_TRANSPILER_CACHE_PATH=0`, and the excluded classes
 `BUN_*`, `NODE_OPTIONS`, `NODE_PATH`, `NODE_PRESERVE_SYMLINKS`,
 `NODE_CHANNEL_*`, `LD_*`, `DYLD_*` and `HARNESS_DISPATCH_*`. Inspection
 reports `policyEnv`, names only, and runs record no grant. Grove's documented configurations grant nothing. Second,
-`task dispatch:probes` builds three probe builds, each the shipped source with
+`task dispatch:probes` builds the probe builds, each the shipped source with
 one control removed, and `task check` builds them before `cargo test`. A probe
 reports `probe-<name>-<source digest>`, which no front accepts. Tests drive a
 probe directly through `tests/support/direct.rs`. Third, the fake harness now
@@ -403,6 +403,28 @@ the shipped worker by its one control; the `tsconfig` probe now turns on
 tsconfig autoloading alone. And the README's paragraph beginning "One
 exception is known" is k61's to remove, so `dispatch-documentation-k41`
 consolidates around whatever k61 and k62 leave.
+
+`worker-directory-chain-k61` closed that chain, with a repair the plan had not
+listed. The worker still starts in the front's private empty directory, now
+created owner-only, and moves to `/` before it registers or loads anything.
+Bun resolves a module with no file location from the directory the process is
+in, and reads dotenv and bunfig from the one it started in, so no stated
+control was given up and the human was not asked. `worker-directory-chain-k63`
+reviews that before `package-json-autoloading-k62` runs; k61's running log has
+the reasoning and what was seen. Later leaves build on four facts. First,
+`task dispatch:probes` also builds `unmoved`, the shipped source without the
+move, and `Probe::ALL` in `tests/support/direct.rs` lists every probe. It is
+the firing configuration for anything above the worker's start directory, so
+k62's `package.json` case drives it. Second, with the switch on in an
+experimental build, the move left a TMPDIR `package.json` unread: an `imports`
+map answered nothing, and one of 4 GiB did not stall. No test holds that yet;
+k62's case is where it lands. Third, a policy's `process.cwd()` is `/`. The
+README's *One exception* paragraph is gone, and the paragraph after its
+`adapter` field says where a policy runs. Fourth, the comment above
+`SHIPPED_SWITCHES` now says the reach is closed and why the switch is still
+off, and k62 rewrites it with the switch. k62's parked patch carries a comment
+in `tests/hostile.rs`, "Nor is it the front's private directory that keeps it
+out", which is still true and no longer the whole reason.
 
 Grove dispatch closed with `grove-dispatch-guidance-k34`. Later leaves build on
 three facts. First, the Grove-side guidance lives in four places, and later

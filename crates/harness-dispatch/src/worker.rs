@@ -5,7 +5,9 @@
 //! The worker is found only relative to the real front executable. It starts in
 //! a private empty directory with null stdin, a fresh environment
 //! (`environment`), captured
-//! stdout and stderr, and one socket at descriptor 3 as its private channel. Its
+//! stdout and stderr, and one socket at descriptor 3 as its private channel. It
+//! leaves that directory for `/` before it loads anything, so that no ancestor
+//! of the directory takes part in resolving a policy's imports. Its
 //! first frame states its protocol and build identity, and the front checks both
 //! before the worker learns which entry to evaluate: a worker from another build
 //! is never handed a policy.
@@ -47,6 +49,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::io::{self, ErrorKind, Read, Write};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
+use std::os::unix::fs::PermissionsExt as _;
 use std::os::unix::net::UnixStream;
 use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
@@ -494,8 +497,15 @@ pub fn evaluate<T>(
         .source(worker.to_string_lossy())
     };
 
+    // dotenv and bunfig autoloading read the directory a process starts in,
+    // so the worker starts in one that is the front's own and empty, though
+    // it moves to `/` before it loads anything (`worker/src/main.ts`). The
+    // mode is stated because `tempfile` otherwise makes a directory
+    // `0o777 & !umask`, which a permissive umask leaves open to other users:
+    // https://docs.rs/tempfile/3.27.0/tempfile/struct.Builder.html#method.permissions
     let private_dir = tempfile::Builder::new()
         .prefix("harness-dispatch-worker.")
+        .permissions(fs::Permissions::from_mode(0o700))
         .tempdir()
         .map_err(|error| {
             failed(format!(

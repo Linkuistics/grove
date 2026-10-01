@@ -192,7 +192,7 @@ On 2026-10-01, `ambient-authority-k30` proved each hostile class against the
 shipped launcher. The host was macOS 26.6.2 (Darwin 25.6.0) on arm64, with Bun
 1.4.2 and worker build `ad1b0271bbc3…`. Each class stayed inert through the
 checkout's front and its shipped worker. In the same test, the class's firing
-configuration was seen to fire. `task dispatch:probes` builds the three probe
+configuration was seen to fire. `task dispatch:probes` builds the probe
 builds from the same source, and each reports `probe-<name>-<source digest>`,
 which no front accepts. So a probe is driven directly, by a test that plays
 the front's side of the protocol, and a probe placed at an installation's
@@ -236,11 +236,13 @@ alike either way. With `NODE_CHANNEL_FD=3`, the policy ended in
 selecting. Each fixture is inert without its variable, which is the control's
 other corner.
 
-Two classes have no known firing configuration, and neither is counted. A
+Some classes have no known firing configuration, and none is counted. A
 `~/.bunfig.toml` preload did not fire under the `autoload` probe with that HOME.
 tsconfig `paths` in the caller's cwd did not apply under the `tsconfig` probe
 run there. `hostile::classes_with_no_known_firing_configuration_are_reported_not_counted`
-keeps checking both, and fails if either begins to fire.
+keeps checking each, and fails if one begins to fire.
+[The worker's directory](#worker-directory) added another and changed how the
+cwd tsconfig one is checked.
 
 The environment has its own instrument, `tests/environment.rs`. A policy
 records the environment it was given and that of a child it spawns. Grove's
@@ -356,12 +358,13 @@ Consequences for the design:
   takes part in every evaluation: any at or above the worker's directory. It
   can stall a selection, which then refuses and launches nothing, and it can
   answer imports from a module with no file location.
-- One reach predates the switch and is open with it off. A `node_modules` at
-  or above the worker's directory answers a bare import from a module with no
+- One reach predates the switch and was open with it off. A `node_modules` at
+  or above the worker's directory answered a bare import from a module with no
   file location. The worker's directory is private and empty, and its
   ancestors are neither. A module in a file is not affected, because its
-  imports resolve from its own directory. `worker-directory-chain-k61` owns
-  the repair, and `package-json-autoloading-k62` turns the switch on after it.
+  imports resolve from its own directory. [The worker's directory](#worker-directory)
+  records the repair, and `package-json-autoloading-k62` turns the switch on
+  after it.
 - The two tsconfig switches are independent. The
   [integration probe](#integration-probe) saw `paths` fire with tsconfig and
   package.json autoloading both on, and never tried either alone. The
@@ -383,6 +386,112 @@ probe's from them.
 
 This is one host and one Bun version. A Bun upgrade rereads the three resolver
 functions named above and reruns the cases.
+
+<a id="worker-directory"></a>
+## The worker's directory
+
+On 2026-10-01, `worker-directory-chain-k61` closed the reach that
+[package entry resolution](#package-entry-resolution) found open. The worker
+still starts in the front's private empty directory, and now moves to `/`
+before it registers or loads anything. The host was macOS 26.6.2 (Darwin
+25.6.0) on arm64, with Bun 1.4.2. The command-seam tests below ran against
+worker build `3261c425f866…`.
+
+**What decides the directory, from the `bun-v1.4.2` source.** The leaf that
+found the reach left open whether the runtime fixes the directory at start. It
+does not. `process.chdir` reaches `set_process_cwd` in
+[`VirtualMachine.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/jsc/VirtualMachine.rs)
+(through `set_cwd` in
+[`node_process.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/runtime/node/node_process.rs)),
+which changes the process's directory and rewrites the filesystem singleton's
+`top_level_dir`. That is the value `resolve_and_auto_install` in
+[`resolver.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolver/resolver.rs)
+takes, at each resolution, for an importer inside the executable, one with no
+source directory, and one whose source directory is not absolute. So such a
+module resolves from the directory the process is in, not the one it started
+in.
+
+The other half is seen and not read. `run_env_loader` in
+[`transpiler.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/bundler/transpiler.rs)
+loads `.env` files from `top_level_dir` when it is called, and skips that
+directory entirely when dotenv loading is disabled, as it is in the shipped
+build. Its caller on a compiled executable's start path was not traced. What
+the `autoload` probe showed is below: the files of the directory it starts in
+load, and those of a directory it is later moved into do not.
+
+**What was seen through the checkout's front.** Each fixture sat in the
+caller's TMPDIR, one level above the worker's private directory. The first
+column is the shipped worker. The second is the same source with the move
+replaced by a no-op, built for the experiment. The third and fourth had
+package.json autoloading turned on as well, for the experiment only; the
+switch went back to off afterwards.
+
+| Case in TMPDIR | Moves, as shipped | Does not move | Moves, package.json on | Does not move, package.json on |
+|---|---|---|---|---|
+| A `node_modules` package, for a `data:` module, a `blob:` module and a virtual module the policy registers | "Cannot find package" for each, exit 3 | Each loaded | "Cannot find package" for each | Each loaded |
+| The same, after the policy itself moved back with `process.chdir` | Each loaded | Each loaded | Each loaded | Each loaded |
+| A `package.json` with an `imports` map and a name its `exports` answer, for a `data:` module | | | Neither the `#` name nor the own name resolved | Both ran the planted module |
+| A sparse `package.json` of 4,298,113,024 bytes, for a plain routed policy | | | Selected at once | `selection_timeout`, exit 124, at a five-second bound |
+| What a policy reads as `process.cwd()` | `/` | The private directory under TMPDIR | `/` | The private directory |
+
+The second row is the policy's own act. It shows the fixture stayed loadable
+throughout, and that the worker's directory is the one thing that differs
+between the columns.
+
+**The command-seam tests.** `task dispatch:probes` now also builds an
+`unmoved` probe: the shipped source and switches without the move.
+
+| What | Through the shipped front | Firing configuration, seen to fire | Command-seam test |
+|---|---|---|---|
+| `node_modules` package above the worker's start directory, for a `data:` module, a `blob:` module and a policy-registered virtual module | `policy_import_failed` under `inspect`, exit 3 under `run`, and the package never loaded | The `unmoved` probe, started in a directory under the same TMPDIR, loaded it for the same entry. The shipped worker started in that same directory did not | `hostile::a_package_above_the_workers_start_directory_stays_inert_and_fires_under_the_unmoved_probe` |
+| Where the front starts its worker | An owner-only empty directory under TMPDIR, not the caller's cwd, removed afterwards | | `worker::the_front_starts_its_worker_in_a_private_empty_directory_and_removes_it` |
+| Where policy code runs | `/`, and nothing left under TMPDIR | | `authority::the_worker_evaluates_policy_in_the_root_directory_with_null_stdin_and_a_fresh_environment` |
+
+With the move replaced by a no-op in the shipped source, the first test failed
+at its front arm: `inspect` exited 0 where a missing package is exit 3.
+
+The second test uses a stand-in worker at the layout path, a shell script that
+records its directory, since the real worker has left by the time a policy
+could look. It found the directory was not private. `tempfile` 3.27.0 creates a
+directory with mode `0o777 & !umask` unless a mode is given
+([`Builder::permissions`](https://docs.rs/tempfile/3.27.0/tempfile/struct.Builder.html#method.permissions)),
+so the stand-in reported `drwxr-xr-x`, and a permissive umask would have left
+the directory writable by others. The front now asks for `0o700` at creation,
+and the test asserts it.
+
+**The dotenv and bunfig controls.** The square in
+[ambient authority](#ambient-authority) is unchanged and still passes: the
+`autoload` probe loads both files and runs the preload when started in the
+hostile directory, although it then moves to `/`; the shipped worker started
+there, and the `autoload` probe started in an empty directory, are each inert.
+So each control still holds alone, and the private directory is still where
+the front starts the worker.
+
+`/` is not empty and no fixture can be planted in it, so what a move could add
+was checked another way. A policy moved the worker into a directory holding a
+`.env`, a `.env.local` and a bunfig preload, under the `autoload` probe
+started in an empty directory. Nothing loaded and no preload ran. That is a
+class with no known firing configuration, and
+`hostile::classes_with_no_known_firing_configuration_are_reported_not_counted`
+now reports it with the others. The same test's cwd tsconfig case changed for
+the same reason. Every worker but `unmoved` leaves the directory it starts in,
+so the entry now moves the worker back into the caller's cwd before it imports
+the alias. It still did not fire under the `tsconfig` probe.
+
+Limits of these observations:
+
+- One host and one Bun version. A Bun upgrade rereads `set_process_cwd` and
+  `resolve_and_auto_install`, and reruns the cases.
+- The Linux targets are unmeasured for this control, as for the others: the
+  installed smoke test runs no hostile fixture. The control there is the same
+  JavaScript statement. The smoke test did pass on all three targets with this
+  worker build, at the glibc and CPU floors, so the move itself succeeds there.
+- `/node_modules`, and with the switch on `/package.json`, still take part for
+  such a module. Both are already above every module in a file, so the move
+  gives them no new say.
+- Not examined: whether tsconfig `paths` above the start directory would answer
+  such a module in a build with tsconfig autoloading on and no move. The
+  shipped build has neither.
 
 <a id="installed-smoke"></a>
 ## Installed smoke

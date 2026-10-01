@@ -36,8 +36,13 @@ worker read each `package.json` at or above its own directory, which the front
 creates under the caller's TMPDIR. One there stalled a plain policy to its
 deadline, and another answered an import from a module with no file location.
 That probe also found what the private directory does not control. Its ancestors
-are not private, and with every switch off a `node_modules` above it answers a
-bare import from such a module (`worker-directory-chain-k61`). Other classes were
+are not private, and with every switch off a `node_modules` above it answered a
+bare import from such a module. So the worker starts in the private directory
+and then moves to `/` before it loads anything. The runtime reads its startup
+files from where a process starts and resolves such a module from where the
+process is, and `/` has no ancestors. With the move, a `node_modules` above
+the directory the worker started in answered nothing, and nor did a
+`package.json` there with the switch on for an experiment. Other classes were
 not seen to fire at
 all. The
 [runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md)

@@ -157,6 +157,13 @@ stood at the graft — a closed record, not part of the versioned sequence above
   a close cascade that settles every live review of each node it closes and no
   other file, and a direct-harness finish that removes a stale line an
   unfinished dispatched attempt planted.
+- `harness-dispatch`: policy code runs with `/` as its current directory. The
+  worker starts in a private empty directory, now created owner-only whatever
+  the caller's umask, and moves to `/` before it loads a policy. So a
+  `node_modules` in `TMPDIR`, or anywhere above where the worker started, does
+  not answer a bare import from a module with no file of its own: one imported
+  from a `data:` or `blob:` URL, or registered by the policy. The caller's
+  directory is `request.cwd`.
 
 ## v21.12.0
 

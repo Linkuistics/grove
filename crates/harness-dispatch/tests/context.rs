@@ -370,7 +370,7 @@ fn a_loader_reads_measured_sources_against_the_callers_directory() {
     // The policy lives outside the caller's directory and imports a helper
     // beside itself, which resolves from the policy. Its reads name paths
     // relative to the caller's directory, which resolve there, although the
-    // worker runs in a private one of its own. Each read is measured under
+    // worker runs in `/`. Each read is measured under
     // its canonical name, so a symlink is named by its target.
     let sandbox = Sandbox::new();
     let loaded = sandbox.root.join("loaded.json");

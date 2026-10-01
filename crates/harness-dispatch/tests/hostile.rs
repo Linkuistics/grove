@@ -605,6 +605,14 @@ fn aliased_entry() -> String {
     format!("import {{ shadowed }} from \"hostile-alias\";\nvoid shadowed;\n{ROUTED}")
 }
 
+/// The same import, made once the policy has moved the worker into `dir`.
+fn aliased_entry_moved_into(dir: &Path) -> String {
+    format!(
+        "process.chdir({:?});\nconst {{ shadowed }} = await import(\"hostile-alias\");\nvoid shadowed;\n{ROUTED}",
+        text(dir)
+    )
+}
+
 #[test]
 fn tsconfig_paths_beside_an_admitted_entry_stay_inert_and_fire_under_the_tsconfig_probe() {
     let sandbox = Sandbox::new();
@@ -654,6 +662,113 @@ fn tsconfig_paths_beside_an_admitted_entry_stay_inert_and_fire_under_the_tsconfi
     );
 }
 
+/// A package `chain-planted`, in `dir/node_modules`, whose module writes
+/// `sentinel` when it loads.
+fn planted_package(dir: &Path, sentinel: &Path) {
+    support::write(
+        &dir.join("node_modules/chain-planted/index.js"),
+        &sentinel_module(sentinel),
+    );
+}
+
+/// One routes policy per kind of module with no file location, each of which
+/// imports `chain-planted` from such a module: one imported from a `data:`
+/// URL, one from a `blob:` URL, and a virtual module the policy registers.
+fn policies_importing_from_no_file() -> [(&'static str, String); 3] {
+    let module = r#"import "chain-planted";"#;
+    [
+        (
+            "data:",
+            format!("await import(\"data:text/javascript,\" + encodeURIComponent({module:?}));\n{ROUTED}"),
+        ),
+        (
+            "blob:",
+            format!(
+                "await import(URL.createObjectURL(new Blob([{module:?}], {{ type: \"text/javascript\" }})));\n{ROUTED}"
+            ),
+        ),
+        (
+            "registered virtual module",
+            format!(
+                r#"Bun.plugin({{
+  name: "policy virtual module",
+  setup(build) {{
+    build.module("policy-virtual", () => ({{ contents: {module:?}, loader: "js" }}));
+  }},
+}});
+await import("policy-virtual");
+{ROUTED}"#
+            ),
+        ),
+    ]
+}
+
+#[test]
+fn a_package_above_the_workers_start_directory_stays_inert_and_fires_under_the_unmoved_probe() {
+    let sandbox = Sandbox::new();
+    let shipped = shipped_build();
+    let loaded = sandbox.root.join("chain-planted-loaded");
+    // The front creates the worker's directory in the caller's TMPDIR, so
+    // this package sits one level above where the worker starts.
+    planted_package(&sandbox.tmp, &loaded);
+    // The firing configuration starts its worker beside where the front
+    // would: in a directory of its own under the same TMPDIR.
+    let started = sandbox.tmp.join("started-here");
+    fs::create_dir(&started).unwrap();
+
+    for (kind, policy) in policies_importing_from_no_file() {
+        let entry = sandbox.personal_policy(&policy);
+
+        // Through the public launcher the name is missing, under both
+        // commands, and nothing above the worker answers it.
+        let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
+        assert_eq!(
+            refusal["error"]["code"], "policy_import_failed",
+            "{kind}: {refusal}"
+        );
+        assert!(
+            refusal["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("chain-planted"),
+            "{kind}: {refusal}"
+        );
+        let ran = sandbox.run(&["--kind", "impl", "--prompt", "p"]);
+        assert_eq!(ran.code, Some(3), "{kind}: {}", ran.stderr);
+        assert!(
+            !loaded.exists(),
+            "a package above the worker's directory answered a {kind} import through the front"
+        );
+
+        // The firing configuration: the unmoved probe, started under the
+        // same TMPDIR, loads the package for the same entry.
+        let driven = direct::drive(
+            &probe_build(Probe::Unmoved),
+            &started,
+            &base_env(&sandbox),
+            &entry,
+        );
+        assert_probe_identity(&driven, Probe::Unmoved, &shipped);
+        driven.loaded();
+        assert!(
+            loaded.exists(),
+            "the unmoved probe never loaded the package for a {kind} import"
+        );
+        fs::remove_file(&loaded).unwrap();
+
+        // The move alone is the difference: the shipped worker, started in
+        // that same directory, finds nothing.
+        let driven = direct::drive(&shipped_worker(), &started, &base_env(&sandbox), &entry);
+        let report = driven.report.as_ref().expect("a report on the entry");
+        assert_eq!(report["type"], "failure", "{kind}: {report}");
+        assert_eq!(report["stage"], "load", "{kind}: {report}");
+        assert!(
+            !loaded.exists(),
+            "the shipped worker loaded the package for a {kind} import"
+        );
+    }
+}
+
 /// Fail loudly if a class reported as having no firing configuration has
 /// gained one: it would then be a class to prove and count, not to report.
 fn still_unfired(class: &str, fired: bool) {
@@ -667,7 +782,7 @@ fn still_unfired(class: &str, fired: bool) {
 
 #[test]
 fn classes_with_no_known_firing_configuration_are_reported_not_counted() {
-    // These are tripwires, not controls. Neither class has been seen to fire
+    // These are tripwires, not controls. No class here has been seen to fire
     // in any build, so an inert result here proves nothing about the front.
     // What the test does show is that the pinned Bun still gives them no
     // firing configuration; if one appears, it fails and says so.
@@ -705,10 +820,57 @@ fn classes_with_no_known_firing_configuration_are_reported_not_counted() {
     driven.loaded();
     still_unfired("HOME bunfig", preloaded.exists());
 
-    // A tsconfig alias in the caller's cwd, for an entry elsewhere.
+    // A `.env`, a `.env.local` and a bunfig preload in a directory the worker
+    // moves into after it has started. The shipped worker moves to `/`, where
+    // no fixture can be planted, so the policy makes the move, into a hostile
+    // directory, under the probe that autoloads.
+    let moved_into = sandbox.root.join("moved-into");
+    let view = sandbox.root.join("view.json");
+    support::write(&moved_into.join(".env"), "HOSTILE_DOTENV=from-dotenv\n");
+    support::write(
+        &moved_into.join(".env.local"),
+        "HOSTILE_DOTENV_LOCAL=from-dotenv-local\n",
+    );
+    support::write(
+        &moved_into.join("bunfig.toml"),
+        "preload = [\"./hostile-preload.ts\"]\n",
+    );
+    let moved_preloaded = sandbox.root.join("moved-into-preload-ran");
+    support::write(
+        &moved_into.join("hostile-preload.ts"),
+        &sentinel_module(&moved_preloaded),
+    );
+    let entry = sandbox.personal_policy(&format!(
+        "process.chdir({:?});\n{}",
+        text(&moved_into),
+        dotenv_view_policy(&view)
+    ));
+    let inert = json!({ "dotenv": null, "dotenvLocal": null });
+    sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    assert_eq!(read_json(&view), inert);
+    assert!(
+        !moved_preloaded.exists(),
+        "a bunfig preload in a directory the worker moved into ran through the front"
+    );
+    direct::drive(
+        &probe_build(Probe::Autoload),
+        &empty,
+        &base_env(&sandbox),
+        &entry,
+    )
+    .loaded();
+    still_unfired(
+        "dotenv in a directory moved into",
+        read_json(&view) != inert,
+    );
+    still_unfired("bunfig in a directory moved into", moved_preloaded.exists());
+
+    // A tsconfig alias in the caller's cwd, for an entry elsewhere. Every
+    // worker but the unmoved probe leaves the directory it starts in, so the
+    // entry moves the worker back there before it imports the alias.
     let aliased = sandbox.root.join("cwd-alias-ran");
     tsconfig_alias(&sandbox.cwd, &aliased);
-    let entry = sandbox.personal_policy(&aliased_entry());
+    let entry = sandbox.personal_policy(&aliased_entry_moved_into(&sandbox.cwd));
     let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
     assert_eq!(
         refusal["error"]["code"], "policy_import_failed",
@@ -741,7 +903,7 @@ fn a_probe_build_is_never_accepted_as_an_installations_worker() {
     let layout: PathBuf = prefix.join("libexec/harness-dispatch/harness-dispatch-policy");
     fs::create_dir_all(layout.parent().unwrap()).unwrap();
 
-    for probe in [Probe::Autoload, Probe::Tsconfig, Probe::Unregistered] {
+    for probe in Probe::ALL {
         let _ = fs::remove_file(&layout);
         std::os::unix::fs::symlink(probe_build(probe), &layout).unwrap();
         let mut command = sandbox.command_for(&front);

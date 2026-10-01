@@ -225,16 +225,15 @@ fn a_missing_unreadable_or_unlocatable_entry_refuses_naming_the_path() {
 }
 
 #[test]
-fn the_worker_runs_in_a_private_empty_directory_with_null_stdin_and_a_fresh_environment() {
+fn the_worker_evaluates_policy_in_the_root_directory_with_null_stdin_and_a_fresh_environment() {
     let sandbox = Sandbox::new();
     let report_path = sandbox.root.join("worker-view.json");
     sandbox.personal_policy(&format!(
-        r#"import {{ fstatSync, readdirSync, readSync, writeFileSync }} from "node:fs";
+        r#"import {{ fstatSync, readSync, writeFileSync }} from "node:fs";
 const open = (fd: number) => {{ try {{ fstatSync(fd); return true; }} catch {{ return false; }} }};
 const stdin = Buffer.alloc(64);
 writeFileSync({report:?}, JSON.stringify({{
   cwd: process.cwd(),
-  cwdEntries: readdirSync(process.cwd()),
   env: Object.keys(process.env).sort(),
   stdinBytes: readSync(0, stdin, 0, 64, null),
   channelOpen: open(3),
@@ -278,15 +277,13 @@ writeFileSync({report:?}, JSON.stringify({{
     assert_eq!(report["selection"]["candidateId"], "deep");
 
     let view: Value = serde_json::from_str(&fs::read_to_string(&report_path).unwrap()).unwrap();
-    let cwd = view["cwd"].as_str().unwrap();
-    assert_ne!(cwd, text(&sandbox.cwd));
-    assert!(
-        Path::new(cwd).starts_with(fs::canonicalize(&sandbox.tmp).unwrap()),
-        "{cwd}"
-    );
-    assert_eq!(view["cwdEntries"], serde_json::json!([]));
-    assert!(
-        !Path::new(cwd).exists(),
+    // The worker has left the private directory it started in
+    // (`worker::the_front_starts_its_worker_in_a_private_empty_directory_and_removes_it`)
+    // by the time any policy code runs, and the front has removed it since.
+    assert_eq!(view["cwd"], "/");
+    assert_eq!(
+        fs::read_dir(&sandbox.tmp).unwrap().count(),
+        0,
         "the private directory outlived the worker"
     );
     assert_eq!(

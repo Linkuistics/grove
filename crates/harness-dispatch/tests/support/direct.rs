@@ -3,7 +3,7 @@
 //! firing-configuration table under *Agreed test seams and acceptance*).
 //!
 //! A class the public launcher keeps inert is proved only beside a
-//! configuration in which the same fixture is seen to fire. For three classes
+//! configuration in which the same fixture is seen to fire. For some classes
 //! that configuration is a probe build, the shipped worker's source with one
 //! control removed, which `task dispatch:probes` compiles for tests only. A
 //! probe reports an identity no front accepts, so it cannot be run through the
@@ -34,14 +34,25 @@ pub enum Probe {
     Tsconfig,
     /// No embedded-module registration.
     Unregistered,
+    /// No move out of the directory the worker starts in.
+    Unmoved,
 }
 
 impl Probe {
+    /// Every probe build `task dispatch:probes` compiles.
+    pub const ALL: [Probe; 4] = [
+        Probe::Autoload,
+        Probe::Tsconfig,
+        Probe::Unregistered,
+        Probe::Unmoved,
+    ];
+
     pub fn name(self) -> &'static str {
         match self {
             Probe::Autoload => "autoload",
             Probe::Tsconfig => "tsconfig",
             Probe::Unregistered => "unregistered",
+            Probe::Unmoved => "unmoved",
         }
     }
 }

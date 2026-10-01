@@ -4,8 +4,9 @@
 // with null stdin, a fresh environment and descriptor 3 as its protocol channel
 // (see `channel.ts`). The conversation is fixed:
 //
-//   1. Before touching any policy code, the worker registers the embedded
-//      package specifiers and announces its protocol and build identity.
+//   1. Before touching any policy code, the worker moves to `/`, registers the
+//      embedded package specifiers and announces its protocol and build
+//      identity.
 //   2. The front verifies that identity and only then sends the entry to
 //      evaluate, with the caller's request. A mismatched worker is never given
 //      a policy.
@@ -65,6 +66,25 @@ const packageVersion =
 // the firing-configuration table under *Agreed test seams and acceptance*).
 declare const HARNESS_DISPATCH_PROBE: string;
 const probe = typeof HARNESS_DISPATCH_PROBE === "string" ? HARNESS_DISPATCH_PROBE : "";
+
+// The worker leaves the directory it started in before it registers or loads
+// anything. Bun resolves a module with no file location, such as one imported
+// from a `data:` or `blob:` URL or registered as a virtual module, as though
+// it sat in the process's current directory, and walks up from there. So the
+// ancestors of the front's private directory, the caller's TMPDIR and
+// everything above it, would answer such a module's bare imports. From `/`
+// the walk is `/` alone, which is already above every module in a file.
+// `process.chdir` moves the resolver's directory with the process's
+// (`set_process_cwd` rewrites the `top_level_dir` that
+// `resolve_and_auto_install` substitutes for such an importer):
+// https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/jsc/VirtualMachine.rs
+// https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolver/resolver.rs
+// The front still starts the worker in the private directory, because dotenv
+// and bunfig autoloading read the directory a process starts in. A failed move
+// throws here, before the hello, so the front never hands such a worker a
+// policy. The `unmoved` probe skips this, so that a test can see a package
+// above its start directory load.
+if (probe !== "unmoved") process.chdir("/");
 
 // Every documented specifier resolves to the worker's own embedded copy, even
 // when a `node_modules/harness-dispatch` package sits beside the importing

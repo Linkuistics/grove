@@ -2,9 +2,9 @@
 // (docs/specs/harness-selection-and-execution.md, "Bounded context").
 //
 // A read resolves its path against the caller's cwd, which is data, never the
-// worker's private directory. It reads the bytes once, within its limit,
-// hashes exactly those bytes, and records the source in the ledger that the
-// front receives with the context. Reads are open only while `loadContext`
+// worker's own directory, which is `/`. It reads the bytes once, within its
+// limit, hashes exactly those bytes, and records the source in the ledger that
+// the front receives with the context. Reads are open only while `loadContext`
 // runs: the context it returns is the measured value `select` receives, so
 // `select` reads nothing more through the host.
 //

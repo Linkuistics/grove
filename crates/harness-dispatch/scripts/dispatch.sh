@@ -190,11 +190,14 @@ digest_of() {
 # ancestor's (`resolve_without_symlinks`):
 # https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolver/resolver.rs
 # The front starts the worker in a private directory under the caller's
-# TMPDIR, so every package.json at or above TMPDIR would be read whole on each
-# evaluation. Seen on 2026-10-01: one of 4 GiB there stalled a plain policy to
-# its deadline, and one with an `imports` map answered a `#` import from a
-# `data:` module. So the switch stays off until that directory's ancestors are
-# closed; see "Package entry resolution" in
+# TMPDIR, so a worker that stayed there would read every package.json at or
+# above TMPDIR whole on each evaluation. Seen on 2026-10-01: one of 4 GiB there
+# stalled a plain policy to its deadline, and one with an `imports` map
+# answered a `#` import from a `data:` module. The worker now moves to `/`
+# before it loads anything (main.ts), and with the switch on neither was seen
+# again. The switch is still off: turning it on also changes what an entry's
+# own package.json does, and that change lands with its own cases. See
+# "Package entry resolution" and "The worker's directory" in
 # docs/design/harness-selection-and-execution/runtime-evidence.md.
 readonly SHIPPED_SWITCHES=(
   --no-compile-autoload-dotenv
@@ -326,13 +329,16 @@ EOF
 # test proves inert has a firing configuration, which must be seen to fire so
 # that a clean result cannot come from a fixture that never could have
 # (docs/specs/harness-selection-and-execution.md, the firing-configuration
-# table under *Agreed test seams and acceptance*). Three of them need the same
+# table under *Agreed test seams and acceptance*). Some of them need the same
 # worker source with one control removed:
 #
 #   autoload      dotenv and bunfig autoloading on, as in Bun's defaults
 #   tsconfig      tsconfig autoloading on
 #   unregistered  the shipped switches, and no embedded-module registration
-#                 (main.ts reads HARNESS_DISPATCH_PROBE)
+#   unmoved       the shipped switches, and no move out of the directory the
+#                 worker starts in
+#
+# main.ts reads HARNESS_DISPATCH_PROBE for the last two.
 #
 # Each takes its switches from the shipped set, so a probe differs from the
 # shipped worker by its one control and by nothing else.
@@ -349,7 +355,7 @@ probes() {
   local id version name switches
   id="$(build_id)"
   version="$(metadata_field version)"
-  for name in autoload tsconfig unregistered; do
+  for name in autoload tsconfig unregistered unmoved; do
     mkdir -p "$out_dir/$name"
   done
   out_dir="$(cd "$out_dir" && pwd)"
@@ -357,8 +363,9 @@ probes() {
   compile_worker "$out_dir/autoload/$WORKER_NAME" "probe-autoload-$id" "$version" autoload "" "${switches[@]}"
   switches_enabling tsconfig
   compile_worker "$out_dir/tsconfig/$WORKER_NAME" "probe-tsconfig-$id" "$version" tsconfig "" "${switches[@]}"
-  compile_worker "$out_dir/unregistered/$WORKER_NAME" "probe-unregistered-$id" "$version" unregistered "" \
-    "${SHIPPED_SWITCHES[@]}"
+  for name in unregistered unmoved; do
+    compile_worker "$out_dir/$name/$WORKER_NAME" "probe-$name-$id" "$version" "$name" "" "${SHIPPED_SWITCHES[@]}"
+  done
   echo "dispatch: probe builds of worker $version ($id) in $out_dir; test instruments, never shipped"
 }
 

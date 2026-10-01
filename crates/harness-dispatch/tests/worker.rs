@@ -138,6 +138,46 @@ fn a_front_without_its_worker_refuses_and_no_ambient_decoy_substitutes() {
 }
 
 #[test]
+fn the_front_starts_its_worker_in_a_private_empty_directory_and_removes_it() {
+    // The real worker leaves its start directory before any policy runs, so a
+    // stand-in at the layout path says where the front started it.
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(ROUTED);
+    let (front, prefix) = copied_front(&sandbox);
+    let seen = sandbox.root.join("start-directory");
+    executable(
+        &prefix.join(LAYOUT),
+        &format!(
+            "#!/bin/sh\n{{ pwd -P; ls -ld . | cut -c1-10; ls -A; }} > '{}'\n",
+            text(&seen)
+        ),
+    );
+
+    let mut command = sandbox.command_for(&front);
+    command.args(["inspect", "--kind", "impl", "--json"]);
+    let refusal = run(&mut command).refusal(5);
+    assert_eq!(refusal["error"]["code"], "worker_failed", "{refusal}");
+
+    let seen = fs::read_to_string(&seen).expect("the stand-in worker ran");
+    let lines: Vec<&str> = seen.lines().collect();
+    // Its path and its mode, and no line for an entry: it is empty.
+    let [started, mode] = lines[..] else {
+        panic!("the start directory is not empty: {seen}");
+    };
+    let started = Path::new(started);
+    assert!(
+        started.starts_with(fs::canonicalize(&sandbox.tmp).unwrap()),
+        "{seen}"
+    );
+    assert_ne!(started, fs::canonicalize(&sandbox.cwd).unwrap());
+    assert_eq!(mode, "drwx------", "{seen}");
+    assert!(
+        !started.exists(),
+        "the private directory outlived the worker"
+    );
+}
+
+#[test]
 fn an_argv0_naming_another_prefix_never_relocates_the_worker() {
     // argv[0] is whatever the caller passes to exec; the front's own path
     // comes from the operating system (`std::env::current_exe`).

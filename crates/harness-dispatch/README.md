@@ -1157,8 +1157,12 @@ in `loadContext` or in `select`. Otherwise it is `null`. Text shows an
 `adapter` row. The version is the adapter's own, which changes when what it
 reads or how it reads it changes. The worker's version identifies its bytes.
 
-The worker runs in a private empty directory with null stdin, and with the
-environment [below](#the-policys-environment). It talks to the front over a
+The worker starts in a private empty directory, which only you can read or
+write and which is removed afterwards, and moves to `/` before it loads your
+policy. So your policy's current directory is `/`, not the directory you ran
+harness-dispatch in: that one is `request.cwd`, and a relative path you open
+yourself resolves against `/`. The worker has null stdin and the environment
+[below](#the-policys-environment). It talks to the front over a
 private channel on descriptor 3 and inherits no other descriptors, however high
 a descriptor you started harness-dispatch with is numbered. Whatever the
 policy prints is captured and kept apart from the report, so no output of its
@@ -1209,18 +1213,18 @@ itself uses.
 Nothing ambient takes part otherwise. A `.env` file, a `bunfig.toml` preload,
 a `tsconfig.json` path alias, or a `node_modules/harness-dispatch` package
 beside your entry changes nothing: the worker is compiled with Bun's dotenv,
-bunfig, tsconfig and package.json autoloading off, it runs in its own empty
+bunfig, tsconfig and package.json autoloading off, it starts in its own empty
 directory, and the documented `harness-dispatch/…` specifiers always resolve
 to its embedded modules. The worker is found only beside the front's real
 path, so neither PATH, the current directory, `argv[0]` nor a variable can
 substitute another.
 
-One exception is known in this release. The worker's own directory is created
-under your `TMPDIR`, and a module with no file of its own resolves its bare
-imports from that directory upward. Such a module is one your policy imports
-from a `data:` or `blob:` URL, or registers itself. A `node_modules` in
-`TMPDIR` or above it would answer those imports. Imports written in a file are
-not affected: they resolve from the file.
+Nor does a `node_modules` in your `TMPDIR`, or anywhere above the directory
+the worker started in. A module with no file of its own, one your policy
+imports from a `data:` or `blob:` URL or registers itself, resolves its bare
+imports from the worker's current directory upward, and that is `/`. Imports
+written in a file resolve from the file. If your policy changes directory
+itself, such a module resolves from wherever it moved to.
 
 ## Run
 

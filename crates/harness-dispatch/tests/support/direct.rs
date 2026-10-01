@@ -30,7 +30,7 @@ use super::FRONT;
 pub enum Probe {
     /// dotenv and bunfig autoloading on, as in Bun's defaults.
     Autoload,
-    /// tsconfig and package.json autoloading on.
+    /// tsconfig autoloading on.
     Tsconfig,
     /// No embedded-module registration.
     Unregistered,

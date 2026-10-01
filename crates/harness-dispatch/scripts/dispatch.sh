@@ -174,6 +174,54 @@ digest_of() {
   sha256 "$1" | cut -d' ' -f1
 }
 
+# The shipped worker's autoload switches. All four are stated, even where
+# 1.4.2's default already agrees, so that a Bun upgrade changing a default
+# cannot change the build.
+#
+# WHY PACKAGE.JSON AUTOLOADING IS OFF, AT A COST. Without it the resolver finds
+# a package only by its file layout, so one whose entry `main` or `exports`
+# declares, which is most published packages, does not load. With it, the
+# resolver records the package.json of every directory it builds a record for
+# (`dir_info_uncached`, the one reader of `load_package_json`), and it builds
+# one for more than the directories an import names. A module compiled into
+# the worker, and any module with no file location, is resolved as though it
+# sat in the directory the worker started in (`resolve_and_auto_install`), and
+# even an import of an absolute path builds that directory's record and each
+# ancestor's (`resolve_without_symlinks`):
+# https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolver/resolver.rs
+# The front starts the worker in a private directory under the caller's
+# TMPDIR, so every package.json at or above TMPDIR would be read whole on each
+# evaluation. Seen on 2026-10-01: one of 4 GiB there stalled a plain policy to
+# its deadline, and one with an `imports` map answered a `#` import from a
+# `data:` module. So the switch stays off until that directory's ancestors are
+# closed; see "Package entry resolution" in
+# docs/design/harness-selection-and-execution/runtime-evidence.md.
+readonly SHIPPED_SWITCHES=(
+  --no-compile-autoload-dotenv
+  --no-compile-autoload-bunfig
+  --no-compile-autoload-tsconfig
+  --no-compile-autoload-package-json
+)
+
+# Set `switches` to the shipped ones with autoloading of each class named in
+# the arguments turned on: the control a probe build removes. A class the
+# shipped build does not turn off is a mistake in the caller, since the probe
+# would then be the shipped build under another name.
+switches_enabling() {
+  local class index found
+  switches=("${SHIPPED_SWITCHES[@]}")
+  for class in "$@"; do
+    found=""
+    for index in "${!switches[@]}"; do
+      if [[ "${switches[index]}" == "--no-compile-autoload-$class" ]]; then
+        switches[index]="--compile-autoload-$class"
+        found=yes
+      fi
+    done
+    [[ -n "$found" ]] || die "the shipped worker does not turn $class autoloading off, so no probe can turn it on"
+  done
+}
+
 # Compile the worker to OUT_FILE, reporting build identity ID and package
 # VERSION, with PROBE naming the control a probe build removes ("" for the
 # shipped build) and TARGET a Bun cross-compile target or "". The remaining
@@ -222,13 +270,7 @@ build() {
   # somewhere inside that directory.
   out_dir="$(cd "$out_dir" && pwd)"
 
-  # All four no-autoload switches, stated even where 1.4.2's default already
-  # agrees, so that a Bun upgrade changing a default cannot change the build.
-  compile_worker "$out_dir/$WORKER_NAME" "$id" "$version" "" "$target" \
-    --no-compile-autoload-dotenv \
-    --no-compile-autoload-bunfig \
-    --no-compile-autoload-tsconfig \
-    --no-compile-autoload-package-json
+  compile_worker "$out_dir/$WORKER_NAME" "$id" "$version" "" "$target" "${SHIPPED_SWITCHES[@]}"
 
   # The declarations and readable sources an owner's editor reads, as sdk/,
   # grove/ and examples/ beside the worker; the worker carries its own
@@ -288,9 +330,12 @@ EOF
 # worker source with one control removed:
 #
 #   autoload      dotenv and bunfig autoloading on, as in Bun's defaults
-#   tsconfig      tsconfig and package.json autoloading on
-#   unregistered  every autoload switch off, and no embedded-module
-#                 registration (main.ts reads HARNESS_DISPATCH_PROBE)
+#   tsconfig      tsconfig autoloading on
+#   unregistered  the shipped switches, and no embedded-module registration
+#                 (main.ts reads HARNESS_DISPATCH_PROBE)
+#
+# Each takes its switches from the shipped set, so a probe differs from the
+# shipped worker by its one control and by nothing else.
 #
 # Each reports the identity probe-<name>-<source digest>, which no front
 # accepts, so a probe is refused with exit 5 wherever an installation's worker
@@ -301,28 +346,19 @@ probes() {
   local out_dir
   out_dir="${1:-$(metadata_field target)/probes/harness-dispatch}"
   require_bun
-  local id version name
+  local id version name switches
   id="$(build_id)"
   version="$(metadata_field version)"
   for name in autoload tsconfig unregistered; do
     mkdir -p "$out_dir/$name"
   done
   out_dir="$(cd "$out_dir" && pwd)"
-  compile_worker "$out_dir/autoload/$WORKER_NAME" "probe-autoload-$id" "$version" autoload "" \
-    --compile-autoload-dotenv \
-    --compile-autoload-bunfig \
-    --no-compile-autoload-tsconfig \
-    --no-compile-autoload-package-json
-  compile_worker "$out_dir/tsconfig/$WORKER_NAME" "probe-tsconfig-$id" "$version" tsconfig "" \
-    --no-compile-autoload-dotenv \
-    --no-compile-autoload-bunfig \
-    --compile-autoload-tsconfig \
-    --compile-autoload-package-json
+  switches_enabling dotenv bunfig
+  compile_worker "$out_dir/autoload/$WORKER_NAME" "probe-autoload-$id" "$version" autoload "" "${switches[@]}"
+  switches_enabling tsconfig
+  compile_worker "$out_dir/tsconfig/$WORKER_NAME" "probe-tsconfig-$id" "$version" tsconfig "" "${switches[@]}"
   compile_worker "$out_dir/unregistered/$WORKER_NAME" "probe-unregistered-$id" "$version" unregistered "" \
-    --no-compile-autoload-dotenv \
-    --no-compile-autoload-bunfig \
-    --no-compile-autoload-tsconfig \
-    --no-compile-autoload-package-json
+    "${SHIPPED_SWITCHES[@]}"
   echo "dispatch: probe builds of worker $version ($id) in $out_dir; test instruments, never shipped"
 }
 

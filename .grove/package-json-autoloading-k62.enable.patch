@@ -1,0 +1,508 @@
+--- a/crates/harness-dispatch/tests/authority.rs	2026-10-01 12:15:22.159099245 +1000
++++ b/crates/harness-dispatch/tests/authority.rs	2026-10-01 12:15:22.275448668 +1000
+@@ -118,58 +118,148 @@
+     assert_eq!(report["selection"]["candidateId"], "deep");
+ }
+ 
++/// `ROUTED`, with its version made of `parts`, a TypeScript expression list:
++/// what the policy's imports gave it, as inspection reports it.
++fn versioned_by(imports: &str, parts: &str) -> String {
++    format!(
++        "{imports}{}",
++        ROUTED.replace("\"seam-1\"", &format!("[{parts}].join(\" \")"))
++    )
++}
++
+ #[test]
+-fn a_package_resolves_by_its_file_layout_and_never_through_its_package_json() {
+-    // Packages beside the personal policy, as `npm install` there leaves
+-    // them. The worker reads no `package.json`, so one with an `index.js`
+-    // loads and one whose entry only `main` or `exports` declares refuses.
++fn a_package_loads_by_the_entry_point_its_package_json_declares() {
++    // Packages beside the personal policy, as an owner's `npm install` there
++    // leaves them: one with only an `index.js`, one whose `main` names its
++    // entry, one with an `exports` map and a subpath, one whose `exports`
++    // chooses by condition, and one that reaches its own file through its
++    // `imports` map.
+     let sandbox = Sandbox::new();
+     let packages = sandbox.home.join(".config/harness-dispatch/node_modules");
+-    support::write(
+-        &packages.join("by-layout/index.js"),
+-        "export const which = \"layout\";\n",
++    let package = |name: &str, manifest: Option<&str>, files: &[(&str, &str)]| {
++        if let Some(manifest) = manifest {
++            support::write(&packages.join(name).join("package.json"), manifest);
++        }
++        for (file, which) in files {
++            support::write(
++                &packages.join(name).join(file),
++                &format!("export const which = {which:?};\n"),
++            );
++        }
++    };
++    package("by-layout", None, &[("index.js", "layout")]);
++    package(
++        "by-main",
++        Some(r#"{ "name": "by-main", "main": "./lib/entry.js" }"#),
++        &[("lib/entry.js", "main")],
+     );
+-    support::write(
+-        &packages.join("by-main/package.json"),
+-        r#"{ "name": "by-main", "main": "./lib/entry.js" }"#,
++    package(
++        "by-exports",
++        Some(
++            r#"{ "name": "by-exports", "type": "module", "exports": { ".": "./dist/entry.js", "./sub": "./dist/sub.js" } }"#,
++        ),
++        &[("dist/entry.js", "exports"), ("dist/sub.js", "subpath")],
+     );
+-    support::write(
+-        &packages.join("by-main/lib/entry.js"),
+-        "export const which = \"main\";\n",
++    package(
++        "by-condition",
++        Some(
++            r#"{ "name": "by-condition", "exports": { ".": { "production": "./production.js", "development": "./development.js", "bun": "./bun.js", "default": "./default.js" } } }"#,
++        ),
++        &[
++            ("production.js", "production"),
++            ("development.js", "development"),
++            ("bun.js", "bun"),
++            ("default.js", "default"),
++        ],
+     );
+-    support::write(
+-        &packages.join("by-exports/package.json"),
+-        r#"{ "name": "by-exports", "type": "module", "exports": { ".": "./dist/entry.js" } }"#,
++    package(
++        "by-imports",
++        Some(
++            r##"{ "name": "by-imports", "exports": "./index.js", "imports": { "#internal": "./internal.js" } }"##,
++        ),
++        &[("internal.js", "imports")],
+     );
+     support::write(
+-        &packages.join("by-exports/dist/entry.js"),
+-        "export const which = \"exports\";\n",
++        &packages.join("by-imports/index.js"),
++        "export { which } from \"#internal\";\n",
+     );
+-    let importing = |package: &str| {
+-        format!(
+-            "import {{ which }} from {package:?};\n{}",
+-            ROUTED.replace("\"seam-1\"", "which")
+-        )
+-    };
++    sandbox.personal_policy(&versioned_by(
++        r#"import { which as layout } from "by-layout";
++import { which as main } from "by-main";
++import { which as exported } from "by-exports";
++import { which as subpath } from "by-exports/sub";
++import { which as condition } from "by-condition";
++import { which as imports } from "by-imports";
++"#,
++        "layout, main, exported, subpath, condition, imports",
++    ));
++    let loaded = "layout main exports subpath bun imports";
+ 
+-    sandbox.personal_policy(&importing("by-layout"));
+     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+-    assert_eq!(report["policy"]["version"], "layout");
++    assert_eq!(report["policy"]["version"], loaded);
+ 
+-    for package in ["by-main", "by-exports"] {
+-        let entry = sandbox.personal_policy(&importing(package));
+-        let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
+-        let error = &refusal["error"];
+-        assert_eq!(error["code"], "policy_import_failed", "{package}: {refusal}");
+-        assert_eq!(error["source"], text(&entry), "{package}: {refusal}");
+-        assert!(
+-            error["message"].as_str().unwrap().contains(package),
+-            "{refusal}"
+-        );
++    // The condition is the runtime's own. Even a granted NODE_ENV selects no
++    // `production` or `development` entry, so no variable chooses the code.
++    for node_env in ["production", "development"] {
++        let mut command = sandbox.command();
++        command.env("NODE_ENV", node_env).args([
++            "inspect",
++            "--kind",
++            "impl",
++            "--policy-env",
++            "NODE_ENV",
++            "--json",
++        ]);
++        let report = run(&mut command).report();
++        assert_eq!(report["policy"]["version"], loaded, "NODE_ENV={node_env}");
+     }
+ }
+ 
+ #[test]
++fn an_entrys_own_package_json_applies_its_imports_map_and_answers_its_own_name() {
++    // The nearest `package.json` at or above an importing module is that
++    // module's package. Its `imports` map resolves `#` names, and a bare
++    // import of its own name resolves through its `exports`, ahead of a
++    // `node_modules` package of that name, as Node's package resolution has
++    // it. The file sits where `node_modules` is already trusted.
++    let sandbox = Sandbox::new();
++    sandbox.file(
++        "policies/package.json",
++        r##"{ "name": "owner-policies", "type": "module", "imports": { "#routes": "./routes.ts" }, "exports": { "./shared": "./shared.ts" } }"##,
++    );
++    sandbox.file(
++        "policies/routes.ts",
++        "export const which = \"imports\";\n",
++    );
++    sandbox.file("policies/shared.ts", "export const which = \"own-name\";\n");
++    sandbox.file(
++        "policies/nested/node_modules/owner-policies/shared.js",
++        "export const which = \"node_modules\";\n",
++    );
++    sandbox.file(
++        "policies/nested/policy.ts",
++        &versioned_by(
++            r##"import { which as mapped } from "#routes";
++import { which as named } from "owner-policies/shared";
++"##,
++            "mapped, named",
++        ),
++    );
++
++    let report = sandbox
++        .inspect(&[
++            "--kind",
++            "impl",
++            "--config",
++            "policies/nested/policy.ts",
++            "--json",
++        ])
++        .report();
++
++    assert_eq!(report["policy"]["version"], "imports own-name");
++}
++
++#[test]
+ fn a_symlinked_entry_is_reported_and_imported_at_its_real_path() {
+     let sandbox = Sandbox::new();
+     let real = sandbox.root.join("owner/policy.ts");
+--- a/crates/harness-dispatch/tests/hostile.rs	2026-10-01 12:15:22.190037075 +1000
++++ b/crates/harness-dispatch/tests/hostile.rs	2026-10-01 12:15:22.275493002 +1000
+@@ -9,7 +9,8 @@
+ //! configurations that need a probe build, or the shipped worker without the
+ //! front's scrubbing, drive the worker directly (`support::direct`). The cwd
+ //! policy entry class is `authority::no_cwd_search_or_environment_variable_selects_an_entry`,
+-//! whose firing configuration is the same file named by `--config`.
++//! whose firing configuration is the same file named by `--config`. A cwd
++//! `package.json` fires the same way, for an entry in that directory.
+ 
+ mod support;
+ 
+@@ -479,20 +480,49 @@
+     specifier.replace('/', "_")
+ }
+ 
+-/// A `node_modules/harness-dispatch` shadow in `dir`, answering each of
+-/// `specifiers` with a module that writes its sentinel under `fired` and
+-/// exports only `shadowed`. It is laid out as files, with no `package.json`:
+-/// the shipped worker reads no `package.json` at run time, so a package's
+-/// `exports` or `main` never applies, and an `exports`-only shadow would not
+-/// load under any build (runtime evidence, *Ambient authority*).
+-fn shadow_package(dir: &Path, specifiers: &[String], fired: &Path) {
+-    let package = dir.join("node_modules/harness-dispatch");
++/// How a package shadowing `harness-dispatch` beside an entry declares its
++/// modules. The worker reads `package.json`, so each way a package can answer
++/// a specifier is a way to shadow one.
++#[derive(Clone, Copy, Debug)]
++enum Shadow {
++    /// `node_modules/harness-dispatch`, one file per subpath and no
++    /// `package.json`.
++    Files,
++    /// `node_modules/harness-dispatch`, whose `exports` maps each subpath.
++    Exports,
++    /// The entry's own package: a `package.json` beside it named
++    /// `harness-dispatch`, whose `exports` maps each subpath. A module's
++    /// import of its own package's name resolves ahead of any `node_modules`.
++    OwnName,
++}
++
++/// A `harness-dispatch` shadow in `dir`, laid out as `shadow` says, answering
++/// each of `specifiers` with a module that writes its sentinel under `fired`
++/// and exports only `shadowed`.
++fn shadow_package(dir: &Path, shadow: Shadow, specifiers: &[String], fired: &Path) {
++    let package = match shadow {
++        Shadow::Files | Shadow::Exports => dir.join("node_modules/harness-dispatch"),
++        Shadow::OwnName => dir.to_owned(),
++    };
++    let mut exports = serde_json::Map::new();
+     for specifier in specifiers {
+         let subpath = specifier.strip_prefix("harness-dispatch/").unwrap();
++        let file = match shadow {
++            Shadow::Files => format!("{subpath}.js"),
++            Shadow::Exports | Shadow::OwnName => format!("shadow/{}.js", slug(specifier)),
++        };
+         support::write(
+-            &package.join(format!("{subpath}.js")),
++            &package.join(&file),
+             &sentinel_module(&fired.join(slug(specifier))),
+         );
++        exports.insert(format!("./{subpath}"), json!(format!("./{file}")));
++    }
++    if !matches!(shadow, Shadow::Files) {
++        support::write(
++            &package.join("package.json"),
++            &json!({ "name": "harness-dispatch", "type": "module", "exports": exports })
++                .to_string(),
++        );
+     }
+ }
+ 
+@@ -518,7 +548,6 @@
+ 
+ #[test]
+ fn every_documented_specifier_resolves_to_its_embedded_module_beside_a_package_shadow() {
+-    let sandbox = Sandbox::new();
+     let shipped = shipped_build();
+     let documented = documented_specifiers();
+     // The registered list is the worker's own, and it is the documented one.
+@@ -542,48 +571,133 @@
+     let unregistered = "harness-dispatch/unregistered-name".to_owned();
+     let mut imported = documented.clone();
+     imported.push(unregistered.clone());
+-    let fired = sandbox.root.join("shadow-fired");
+-    fs::create_dir(&fired).unwrap();
+-    let view = sandbox.root.join("view.json");
+-    shadow_package(&sandbox.cwd.join("policies"), &imported, &fired);
+-    let entry = sandbox.file("policies/policy.ts", &importing_entry(&imported, &view));
+ 
+-    let report = sandbox
+-        .inspect(&["--kind", "impl", "--config", "policies/policy.ts", "--json"])
+-        .report();
+-    assert_eq!(report["policy"]["authority"], "explicit");
+-    let seen = read_json(&view);
+-    for specifier in &documented {
+-        let keys = seen[specifier].as_array().unwrap();
++    for shadow in [Shadow::Files, Shadow::Exports, Shadow::OwnName] {
++        let sandbox = Sandbox::new();
++        let fired = sandbox.root.join("shadow-fired");
++        fs::create_dir(&fired).unwrap();
++        let view = sandbox.root.join("view.json");
++        shadow_package(&sandbox.cwd.join("policies"), shadow, &imported, &fired);
++        let entry = sandbox.file("policies/policy.ts", &importing_entry(&imported, &view));
++
++        let report = sandbox
++            .inspect(&["--kind", "impl", "--config", "policies/policy.ts", "--json"])
++            .report();
++        assert_eq!(report["policy"]["authority"], "explicit");
++        let seen = read_json(&view);
++        for specifier in &documented {
++            let keys = seen[specifier].as_array().unwrap();
++            assert!(
++                !keys.is_empty() && !keys.contains(&json!("shadowed")),
++                "{shadow:?}: {specifier} did not resolve to its embedded module: {seen}"
++            );
++            assert!(
++                !fired.join(slug(specifier)).exists(),
++                "{shadow:?}: the shadow of {specifier} loaded through the front"
++            );
++        }
++        assert_eq!(seen[&unregistered], json!(["shadowed"]), "{shadow:?}");
++        assert!(fired.join(slug(&unregistered)).exists(), "{shadow:?}");
++        fs::remove_file(fired.join(slug(&unregistered))).unwrap();
++
++        // The firing configuration: the unregistered probe, with the same
++        // entry.
++        let driven = direct::drive(
++            &probe_build(Probe::Unregistered),
++            &sandbox.root,
++            &base_env(&sandbox),
++            &entry,
++        );
++        assert_probe_identity(&driven, Probe::Unregistered, &shipped);
++        driven.loaded();
++        let seen = read_json(&view);
++        for specifier in &imported {
++            assert_eq!(
++                seen[specifier],
++                json!(["shadowed"]),
++                "{shadow:?}: {specifier}: {seen}"
++            );
++            assert!(
++                fired.join(slug(specifier)).exists(),
++                "{shadow:?}: the shadow of {specifier} never fired"
++            );
++        }
++    }
++}
++
++/// A package in `dir` that an entry there could reach three ways, each to a
++/// module that writes `sentinel`: `#hostile-alias` through its `imports` map,
++/// its own name `hostile-self` through its `exports`, and `hostile-dep` in a
++/// `node_modules` beside it.
++fn hostile_package(dir: &Path, sentinel: &Path) -> [&'static str; 3] {
++    support::write(
++        &dir.join("package.json"),
++        r##"{ "name": "hostile-self", "type": "module", "main": "./hostile.js", "imports": { "#hostile-alias": "./hostile.js" }, "exports": { ".": "./hostile.js" }, "dependencies": { "hostile-dep": "1.0.0" } }"##,
++    );
++    support::write(&dir.join("hostile.js"), &sentinel_module(sentinel));
++    support::write(
++        &dir.join("node_modules/hostile-dep/package.json"),
++        r#"{ "name": "hostile-dep", "main": "./lib/entry.js" }"#,
++    );
++    support::write(
++        &dir.join("node_modules/hostile-dep/lib/entry.js"),
++        &sentinel_module(sentinel),
++    );
++    ["#hostile-alias", "hostile-self", "hostile-dep"]
++}
++
++#[test]
++fn a_cwd_package_json_stays_inert_and_fires_for_an_entry_admitted_there() {
++    let sandbox = Sandbox::new();
++    let fired = sandbox.root.join("cwd-package-ran");
++    // The caller's cwd is the hostile directory.
++    for specifier in hostile_package(&sandbox.cwd, &fired) {
++        let source =
++            format!("import {{ shadowed }} from {specifier:?};\nvoid shadowed;\n{ROUTED}");
++
++        // Through the public launcher, personal policy finds nothing there.
++        let entry = sandbox.personal_policy(&source);
++        let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
++        assert_eq!(
++            refusal["error"]["code"], "policy_import_failed",
++            "{specifier}: {refusal}"
++        );
+         assert!(
+-            !keys.is_empty() && !keys.contains(&json!("shadowed")),
+-            "{specifier} did not resolve to its embedded module: {seen}"
++            refusal["error"]["message"]
++                .as_str()
++                .unwrap()
++                .contains(specifier),
++            "{refusal}"
+         );
+         assert!(
+-            !fired.join(slug(specifier)).exists(),
+-            "the shadow of {specifier} loaded through the front"
++            !fired.exists(),
++            "the cwd package answered {specifier} through the front"
+         );
+-    }
+-    assert_eq!(seen[&unregistered], json!(["shadowed"]));
+-    assert!(fired.join(slug(&unregistered)).exists());
+-    fs::remove_file(fired.join(slug(&unregistered))).unwrap();
+ 
+-    // The firing configuration: the unregistered probe, with the same entry.
+-    let driven = direct::drive(
+-        &probe_build(Probe::Unregistered),
+-        &sandbox.root,
+-        &base_env(&sandbox),
+-        &entry,
+-    );
+-    assert_probe_identity(&driven, Probe::Unregistered, &shipped);
+-    driven.loaded();
+-    let seen = read_json(&view);
+-    for specifier in &imported {
+-        assert_eq!(seen[specifier], json!(["shadowed"]), "{specifier}: {seen}");
++        // Nor is it the front's private directory that keeps it out: the
++        // shipped worker started in the hostile directory finds nothing
++        // either, because a package is found from the importing module.
++        let driven = direct::drive(&shipped_worker(), &sandbox.cwd, &base_env(&sandbox), &entry);
++        let report = driven.report.as_ref().expect("a report on the entry");
++        assert_eq!(report["type"], "failure", "{specifier}: {report}");
++        assert_eq!(report["stage"], "load", "{specifier}: {report}");
++        assert!(
++            !fired.exists(),
++            "the cwd package answered {specifier} for the worker started there"
++        );
++
++        // The firing configuration: the same import from an entry in that
++        // directory, named explicitly.
++        sandbox.file("admitted.ts", &source);
++        let report = sandbox
++            .inspect(&["--kind", "impl", "--config", "admitted.ts", "--json"])
++            .report();
++        assert_eq!(report["policy"]["authority"], "explicit");
+         assert!(
+-            fired.join(slug(specifier)).exists(),
+-            "the shadow of {specifier} never fired"
++            fired.exists(),
++            "the package never answered {specifier} for an entry beside it"
+         );
++        fs::remove_file(&fired).unwrap();
+     }
+ }
+ 
+--- a/crates/harness-dispatch/tests/inspect.rs	2026-10-01 12:15:22.208545406 +1000
++++ b/crates/harness-dispatch/tests/inspect.rs	2026-10-01 12:15:22.275536128 +1000
+@@ -508,10 +508,16 @@
+ fn a_missing_package_is_never_installed_automatically() {
+     // `is-odd` exists on npm, and plain `bun` fetches it when no node_modules
+     // is present. The compiled worker must refuse instead, leaving no cache.
++    // The `package.json` beside the entry names it as a dependency, which is
++    // the record an installation would start from, and the worker reads it.
+     let sandbox = Sandbox::new();
+-    sandbox.personal_policy(
++    let entry = sandbox.personal_policy(
+         "import isOdd from \"is-odd\";\nexport const policy = { odd: isOdd(1) };\n",
+     );
++    support::write(
++        &entry.with_file_name("package.json"),
++        r#"{ "name": "owner-policies", "type": "module", "dependencies": { "is-odd": "3.0.1" } }"#,
++    );
+ 
+     let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
+ 
+--- a/crates/harness-dispatch/scripts/installed-smoke.sh	2026-10-01 12:15:22.227405202 +1000
++++ b/crates/harness-dispatch/scripts/installed-smoke.sh	2026-10-01 12:15:22.275393625 +1000
+@@ -31,7 +31,7 @@
+ set -euo pipefail
+ IFS=$'\n\t'
+ 
+-CASES=(static_typescript computed_typescript signal_state)
++CASES=(static_typescript computed_typescript declared_package signal_state)
+ 
+ fail() {
+   echo "installed-smoke: FAIL: $*" >&2
+@@ -293,6 +293,42 @@
+   expect_json "$dir/record.json" "$reason"
+ }
+ 
++# Two packages in a node_modules beside the policy, each found only through
++# its package.json: one names its entry with `main`, the other with `exports`.
++# Neither has an index.js, so a worker that read no package.json would refuse
++# the import. What they export becomes the policy's version, which inspection
++# reports.
++case_declared_package() {
++  local front="$1" dir="$2"
++  local packages="$dir/policy/node_modules"
++  mkdir -p "$packages/smoke-main/lib" "$packages/smoke-exports/dist" "$dir/cwd"
++  write_lines "$packages/smoke-main/package.json" \
++    '{ "name": "smoke-main", "main": "./lib/entry.js" }'
++  write_lines "$packages/smoke-main/lib/entry.js" \
++    'export const which = "main";'
++  write_lines "$packages/smoke-exports/package.json" \
++    '{ "name": "smoke-exports", "type": "module", "exports": { ".": "./dist/entry.js" } }'
++  write_lines "$packages/smoke-exports/dist/entry.js" \
++    'export const which = "exports";'
++  # shellcheck disable=SC2016 # a TypeScript template literal, not a shell expansion
++  write_lines "$dir/policy/policy.ts" \
++    'import { which as main } from "smoke-main";' \
++    'import { which as exported } from "smoke-exports";' \
++    '' \
++    'export const policy = {' \
++    '  schemaVersion: 1,' \
++    '  version: `installed-smoke-${main}-${exported}`,' \
++    '  catalog: [{ id: "smoke-package", provider: "smoke-provider", model: "smoke-model", effort: "low", program: "true", args: [{ slot: "prompt" }] }],' \
++    '  routes: { smoke: "smoke-package" },' \
++    '};'
++
++  (cd "$dir/cwd" && "$front" inspect --kind smoke --config "$dir/policy/policy.ts" \
++    --state-dir "$dir/state" --json) >"$dir/inspect.json" ||
++    fail "inspect of a policy importing packages declared by main and exports exited $?"
++  expect_json "$dir/inspect.json" '"version":"installed-smoke-main-exports"'
++  expect_json "$dir/inspect.json" '"selection":{"candidateId":"smoke-package"'
++}
++
+ # The caller's SIGPIPE and HUP reach the harness as they were: the front's
+ # initializer records them before the Rust runtime ignores SIGPIPE, and its
+ # pre-exec hook reinstates them after std resets it. The harness sends itself

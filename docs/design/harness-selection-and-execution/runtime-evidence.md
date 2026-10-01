@@ -258,13 +258,131 @@ selection its own, and `run --json` one notice line. That is
 `node_modules` package with an `index.js` loaded. One whose `package.json` has
 `"main": "./lib/entry.js"`, or only an `exports` map, refused with "Cannot find
 package". Plain `bun` loaded all three. That is why the shadow fixture is laid
-out as files. Whether the limitation stays is `package-entry-resolution-k52`'s
-question.
+out as files. `package-entry-resolution-k52` asked whether the limitation could
+go, and [package entry resolution](#package-entry-resolution) records why it
+stays.
 
 The classes were observed on this one host. The installed smoke test runs no
 hostile fixture, so the Linux targets are unmeasured for these controls. Each
 control there is the same compile switch, Rust scrubbing or JavaScript
 registration.
+
+<a id="package-entry-resolution"></a>
+## Package entry resolution
+
+On 2026-10-01, `package-entry-resolution-k52` asked whether the worker could be
+compiled with `--compile-autoload-package-json`, the other three switches still
+off, without any hostile class firing. It could not, so the switch stays off and
+the limitation is the contract. The host was macOS 26.6.2 (Darwin 25.6.0) on
+arm64, with Bun 1.4.2.
+
+**What the switch reads, from the `bun-v1.4.2` source.** The compile switch
+decides one graph flag, `DISABLE_AUTOLOAD_PACKAGE_JSON`
+([`build_command.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/runtime/cli/build_command.rs)).
+At start the worker turns that flag into the resolver option
+`load_package_json` ([`bun.js.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/bun.js.rs),
+`apply_standalone_runtime_flags`). The option has one reader,
+`dir_info_uncached` in
+[`resolver.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolver/resolver.rs),
+which decides whether a directory's own `package.json` is read, whole, and
+parsed into the record the resolver keeps for that directory. Everything a
+`package.json` does at run time hangs off that record: a package's `main` and
+`exports`, the nearest enclosing `imports` map, a module's import of its own
+package's `name`, and the module `type` (`load_node_modules` in the same file,
+and the module-type reads in
+[`jsc_hooks.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/runtime/jsc_hooks.rs)).
+
+The resolver builds a record for more directories than an import names. For an
+importer inside the compiled executable, and for any module with no file
+location, it takes the directory the process started in as the importing
+directory (`resolve_and_auto_install`: "module resolution is never relative to
+our special /$bunfs/ directory"). Even for an import of an absolute path it
+then builds that directory's record, and with it each ancestor's
+(`resolve_without_symlinks`). So the worker's own import of the policy entry
+records every directory from the worker's to the root.
+
+Four neighbouring facts come from the same files. tsconfig has its own gate,
+`load_tsconfig_json`, in `dir_info_uncached`. A standalone executable never
+uses the package manager, whatever a `package.json` lists
+(`use_package_manager`). The conditions an `exports` or `imports` map is read
+under are the target's `bun` and `node`, `import` or `require`, `node-addons`
+and `default`, plus any `--conditions` argument
+([`options.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/bundler/options.rs),
+`default_conditions_map` and `ESMConditions::init`); nothing derives one from
+`NODE_ENV`. A `browser` map applies only to the browser target.
+
+**What a probe saw.** Scratch builds of the shipped worker source, one per
+switch combination, were each driven directly, as a
+[probe build](#ambient-authority) is. Each ran under the front's base
+environment, in a private empty directory unless the case says otherwise.
+
+| Case | All four off, as shipped | package.json on, the other three off | Other builds |
+|---|---|---|---|
+| A package with only an `index.js` | Loaded | Loaded | |
+| A package declared by `main`, by `exports`, by an `exports` subpath or by `exports` conditions, and one reaching its own file through its `imports` map | "Cannot find package" | Loaded. The condition chosen was `bun`, also with `NODE_ENV` set to `production` or to `development` | |
+| A `package.json` in the worker's cwd with an `imports` map, a name its `exports` answer and a `node_modules` beside it, for a policy file elsewhere | Did not fire | Did not fire | Did not fire with tsconfig on as well, nor with dotenv and bunfig on as well |
+| The same `package.json`, for an entry in that directory | Did not fire | Fired: the `#` name and the package's own name both resolved | |
+| A `harness-dispatch` shadow declared by `exports`, in `node_modules` and as the entry's own package | "Cannot find package" | Each registered specifier resolved to its embedded module, and the unregistered name loaded the shadow | Without the registration, every specifier loaded the shadow |
+| tsconfig `paths` beside the entry, with and without a `package.json` there | Did not fire | Did not fire | Fired with tsconfig autoloading on, alone and with package.json |
+| tsconfig `paths` in the cwd only | Did not fire | Did not fire | Did not fire with tsconfig on |
+| cwd `.env` and bunfig preload, the worker run there beside a `package.json` | | Inert | Fired with dotenv and bunfig on as well |
+| A `package.json` beside the entry naming `is-odd` as a dependency, and no `node_modules` | Refused, no cache | Refused, no cache | Plain `bun` fetched it into the private HOME |
+| The entry's own `package.json`: an `imports` map, and a name its `exports` answer where a `node_modules` package of that name sits beside the entry or nearer | The `#` name refused, and the `node_modules` package loaded | The `#` name resolved, and the own name resolved through `exports`, ahead of `node_modules` | |
+| The entry's own `package.json` aliasing `#sdk` to `harness-dispatch/sdk`, beside a `node_modules/harness-dispatch` shadow | The alias refused, and the registered name resolved to the embedded module | The alias loaded the shadow, and the registered name still resolved to the embedded module | |
+
+**What the worker's own directory lets in.** The leaf's one in-session review,
+a fresh context given the builds and the source, attacked the claim that no
+file outside an entry's own directories takes part. It found the directory
+substitution above, and each finding was reproduced before it was recorded
+here. The front creates the worker's private directory under the caller's
+TMPDIR, so the fixtures below sit in TMPDIR, one level above the worker.
+
+| Case in TMPDIR | All four off, as shipped | package.json on |
+|---|---|---|
+| A `package.json` with an `imports` map and a name its `exports` answer, for a policy file's own imports | Did not fire | Did not fire |
+| The same, for a module with no file location that the policy imports: a `data:` URL, a `blob:` URL, or a virtual module the policy registers | Did not fire | Fired: the `#` name and the own name both ran the planted module |
+| A `node_modules` package there, for the same three kinds of module | Fired | Fired |
+| A `node_modules/harness-dispatch` there, for a `data:` module | | The registered `sdk` resolved to the embedded module, and an unregistered name loaded the shadow |
+| A sparse `package.json` of 4097 MiB, for a plain routed policy | Selected at once | No answer. Through the front, `selection_timeout`, exit 124, at a five-second deadline |
+
+The second, third and fifth rows were seen through the checkout's front as
+well as by driving a build, with TMPDIR naming the planted directory. A
+`node:vm` script and `createRequire` with a relative name did not resolve
+anything in either build.
+
+Consequences for the design:
+
+- The switch stays off. With it on, a `package.json` that no entry admits
+  takes part in every evaluation: any at or above the worker's directory. It
+  can stall a selection, which then refuses and launches nothing, and it can
+  answer imports from a module with no file location.
+- One reach predates the switch and is open with it off. A `node_modules` at
+  or above the worker's directory answers a bare import from a module with no
+  file location. The worker's directory is private and empty, and its
+  ancestors are neither. A module in a file is not affected, because its
+  imports resolve from its own directory. `worker-directory-chain-k61` owns
+  the repair, and `package-json-autoloading-k62` turns the switch on after it.
+- The two tsconfig switches are independent. The
+  [integration probe](#integration-probe) saw `paths` fire with tsconfig and
+  package.json autoloading both on, and never tried either alone. The
+  `tsconfig` probe build now turns on tsconfig autoloading only, so it differs
+  from the shipped worker by one switch.
+- Three things would change inside what an entry admits once the switch is on,
+  and `package-json-autoloading-k62` must state each. The nearest
+  `package.json` at or above an importing module supplies that module's
+  `imports` map. A bare import of that package's own `name` resolves through
+  its `exports`, ahead of any `node_modules` package of the name, a nearer one
+  included. An `imports` alias whose target is a registered specifier does not
+  reach the embedded module: it loaded a `node_modules/harness-dispatch`
+  shadow.
+
+The command-seam test of the contract is
+`authority::a_package_resolves_by_its_file_layout_and_never_through_its_package_json`.
+`scripts/dispatch.sh` now states the shipped switches once and derives each
+probe's from them.
+
+This is one host and one Bun version. A Bun upgrade rereads the three resolver
+functions named above and reruns the cases.
 
 <a id="installed-smoke"></a>
 ## Installed smoke

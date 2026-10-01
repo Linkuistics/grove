@@ -22,14 +22,23 @@ separately installed runtime out of the launch contract. Its costs are a larger
 installation, a second build tool, runtime notices, and per-target execution
 checks. Native probes on one macOS arm64 host saw several ambient classes fire and
 the chosen controls hold. cwd dotenv and bunfig preloads fired in a default build
-and stayed inert under both the no-autoload build and the private worker cwd. A
+and stayed inert under both a build without dotenv and bunfig autoloading and the
+private worker cwd. A
 `BUN_OPTIONS` preload fired even in the guarded build, which is why Rust scrubs
 the environment before start. A later control found a second input of that
 kind. Bun's runtime transpiler cache, under HOME, ran an altered cached output
 of an imported file in place of the file, and only a variable set before start
 turns the cache off, so Rust sets it. A `node_modules` shadow beside the entry lost to a
 registered embedded module. tsconfig `paths` fired only in a build that enables
-tsconfig and package.json autoloading. Other classes were not seen to fire at
+tsconfig autoloading. package.json autoloading stays off as well, at a cost: a
+package whose entry `main` or `exports` declares does not load. With it on, the
+worker read each `package.json` at or above its own directory, which the front
+creates under the caller's TMPDIR. One there stalled a plain policy to its
+deadline, and another answered an import from a module with no file location.
+That probe also found what the private directory does not control. Its ancestors
+are not private, and with every switch off a `node_modules` above it answers a
+bare import from such a module (`worker-directory-chain-k61`). Other classes were
+not seen to fire at
 all. The
 [runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md)
 records exactly which, the limits of each observation and the primary runtime

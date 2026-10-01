@@ -119,6 +119,60 @@ fn personal_policy_may_import_a_repository_entry_explicitly() {
 }
 
 #[test]
+fn a_package_resolves_by_its_file_layout_and_never_through_its_package_json() {
+    // Packages beside the personal policy, as `npm install` there leaves
+    // them. The worker reads no `package.json`, so one with an `index.js`
+    // loads and one whose entry only `main` or `exports` declares refuses.
+    let sandbox = Sandbox::new();
+    let packages = sandbox.home.join(".config/harness-dispatch/node_modules");
+    support::write(
+        &packages.join("by-layout/index.js"),
+        "export const which = \"layout\";\n",
+    );
+    support::write(
+        &packages.join("by-main/package.json"),
+        r#"{ "name": "by-main", "main": "./lib/entry.js" }"#,
+    );
+    support::write(
+        &packages.join("by-main/lib/entry.js"),
+        "export const which = \"main\";\n",
+    );
+    support::write(
+        &packages.join("by-exports/package.json"),
+        r#"{ "name": "by-exports", "type": "module", "exports": { ".": "./dist/entry.js" } }"#,
+    );
+    support::write(
+        &packages.join("by-exports/dist/entry.js"),
+        "export const which = \"exports\";\n",
+    );
+    let importing = |package: &str| {
+        format!(
+            "import {{ which }} from {package:?};\n{}",
+            ROUTED.replace("\"seam-1\"", "which")
+        )
+    };
+
+    sandbox.personal_policy(&importing("by-layout"));
+    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    assert_eq!(report["policy"]["version"], "layout");
+
+    for package in ["by-main", "by-exports"] {
+        let entry = sandbox.personal_policy(&importing(package));
+        let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
+        let error = &refusal["error"];
+        assert_eq!(
+            error["code"], "policy_import_failed",
+            "{package}: {refusal}"
+        );
+        assert_eq!(error["source"], text(&entry), "{package}: {refusal}");
+        assert!(
+            error["message"].as_str().unwrap().contains(package),
+            "{refusal}"
+        );
+    }
+}
+
+#[test]
 fn a_symlinked_entry_is_reported_and_imported_at_its_real_path() {
     let sandbox = Sandbox::new();
     let real = sandbox.root.join("owner/policy.ts");

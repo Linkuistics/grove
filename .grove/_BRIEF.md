@@ -384,8 +384,25 @@ probe directly through `tests/support/direct.rs`. Third, the fake harness now
 records its environment's names (`Sandbox::harness_env`), so a lifecycle test
 can show a completion value reaching only the final harness. Fourth, the
 shipped worker reads no `package.json` at run time, so a package whose entry
-`main` or `exports` declares does not load. `package-entry-resolution-k52`
-decides whether that stays, before the documentation consolidates.
+`main` or `exports` declares does not load.
+
+`package-entry-resolution-k52` decided that limitation stays for now, and the
+spec's `#policy-authority` states it as the contract with its reason. Bun
+resolves the compiled worker's own imports, and those of any module with no
+file location, from the directory the worker started in, and walks up from
+there. The front creates that directory under the caller's TMPDIR. With
+package.json autoloading on, a `package.json` in TMPDIR took part in every
+evaluation. With every switch off, a `node_modules` there already answers a
+bare import from a `data:` or `blob:` module. Two leaves follow, ahead of the
+documentation. `worker-directory-chain-k61` closes that chain, and
+`package-json-autoloading-k62` then turns the switch on from the work k52
+parked beside it. Later leaves build on two facts. `scripts/dispatch.sh`
+states the shipped autoload switches once, as `SHIPPED_SWITCHES`, and
+`switches_enabling` derives each probe's from them, so a probe differs from
+the shipped worker by its one control; the `tsconfig` probe now turns on
+tsconfig autoloading alone. And the README's paragraph beginning "One
+exception is known" is k61's to remove, so `dispatch-documentation-k41`
+consolidates around whatever k61 and k62 leave.
 
 Grove dispatch closed with `grove-dispatch-guidance-k34`. Later leaves build on
 three facts. First, the Grove-side guidance lives in four places, and later

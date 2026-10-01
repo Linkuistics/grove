@@ -1215,6 +1215,13 @@ to its embedded modules. The worker is found only beside the front's real
 path, so neither PATH, the current directory, `argv[0]` nor a variable can
 substitute another.
 
+One exception is known in this release. The worker's own directory is created
+under your `TMPDIR`, and a module with no file of its own resolves its bare
+imports from that directory upward. Such a module is one your policy imports
+from a `data:` or `blob:` URL, or registers itself. A `node_modules` in
+`TMPDIR` or above it would answer those imports. Imports written in a file are
+not affected: they resolve from the file.
+
 ## Run
 
 ```sh

@@ -342,13 +342,34 @@ registered list is part of the worker's versioned protocol, and every documented
 specifier is on it.
 
 Other external imports start at the selected absolute entry. Bare specifiers
-resolve through `node_modules` from the importing module's directory, and
+resolve through `node_modules` from the importing module's directory upward, and
 relative imports from the importing module, never from the invocation directory.
-No automatic package installation runs. Missing imports fail. Because
-package.json autoloading is off as well, the delivered worker reads no
-`package.json` at run time, so a package resolves only by its file layout, such
-as its `index.js`: one whose entry point `main` or `exports` declares does not
-load. Whether that limitation is kept is open (`package-entry-resolution-k52`).
+No automatic package installation runs. Missing imports fail.
+
+The worker reads no `package.json` at run time. That is the contract of this
+release, kept on purpose. A package resolves only by its file layout, such as
+its `index.js`. One whose entry point only `main` or `exports` declares does not
+load, and neither an `imports` map nor a package's own name resolves. The reason
+is where the worker runs. Bun resolves a module compiled into the worker, and
+any module with no file location, as though it sat in the directory the worker
+started in, and it keeps a record of every directory from there to the root.
+With package.json autoloading on, each `package.json` at or above the worker's
+private directory would be read on every evaluation. The front creates that
+directory under the caller's TMPDIR, so those files belong to whoever can write
+there and not to the owner's policy. One of 4 GiB stalled a plain policy to its
+deadline, and one with an `imports` map answered a `#` import from a `data:`
+module ([runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md#package-entry-resolution)).
+`package-json-autoloading-k62` turns the switch on once
+`worker-directory-chain-k61` has closed those directories.
+
+One part of that reach is open in this release, with every switch off. A module
+with no file location resolves its bare imports through `node_modules` from the
+worker's private directory upward, so a `node_modules` in TMPDIR or above it
+answers them. Such a module is one a policy imports from a `data:` or `blob:`
+URL, or registers as a virtual module of its own. A module in a file is not
+affected, and nor is a registered specifier. `worker-directory-chain-k61` owns
+this.
+
 Because tsconfig
 autoloading is off, `paths` aliases in a tsconfig beside owner policy do not
 apply at run time. The shipped declarations serve editor and package type
@@ -1008,7 +1029,7 @@ acceptance instruments; internal tests may support them without replacing them.
 |---|---|
 | New command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; a caller-ignored HUP or SIGPIPE and the entry signal mask reach the fake harness unchanged; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
 | Same command, actual shipped examples | Different-origin reviewer on every invocation, retry and explicit choice; same-origin/gateway disguise refuses; a fake producer launched through dispatch writes its `Creator` line from `HARNESS_DISPATCH_RUN_ID`, and the dispatched review of that task file uses the named run's recorded provider, which a changed current mapping cannot rewrite; a store holding an earlier run of the same task identity does not satisfy a review task with no `Creator` line; an unknown run and a run marked not executed refuse; declaration adoption; missing, duplicate or malformed `Reviews`/`Creator` lines refuse; `Reviews` under a kind that is not a configured review entry refuses; a relabelled origin and a misspelt declaration refuse as non-members; the generic reviewed-artifact form selects without a task file |
-| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; explicit relative config and personal import are admitted; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
+| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; explicit relative config and personal import are admitted; a package beside an entry loads by its file layout and never through its `package.json`; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
 | Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields, reads no observation history, and an unreadable store refuses; a stored launch record or observation this release cannot read refuses every read of it; the review's run records the creator provenance used; later observations after tree teardown |
 | Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a close cascade names its run on every live review of each node it closes, one nested in another node and one the closing session cut included, and on no terminal review and no review of another producer; a direct-harness finish removes a stale `Creator` line from the pre-existing review, planted by a dispatched attempt that named its run without finishing, and that review refuses with the declaration remedy, which then admits a different-origin reviewer; a review attaches an observation to the run its line names after `.grove/` is removed; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
 | Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
@@ -1031,7 +1052,7 @@ must be seen to fire, so a test cannot pass merely because its fixture never ran
 | cwd `.env` and bunfig preload | A default-autoload probe build of the same worker, run in the hostile directory |
 | `BUN_OPTIONS` preload, and `BUN_BE_BUN` | The shipped worker launched directly with the variable set, bypassing the front process's scrubbing |
 | `node_modules/harness-dispatch` shadow | The fixture beside an admitted entry, under a probe build that does not register the virtual modules |
-| tsconfig `paths` | The fixture beside an admitted entry, under a probe build with tsconfig and package.json autoloading enabled |
+| tsconfig `paths` | The fixture beside an admitted entry, under a probe build with tsconfig autoloading enabled |
 | Runtime transpiler cache under HOME or `XDG_CACHE_HOME` | The shipped worker launched directly without the front's cache setting, after its own cache entry for the policy has had its output altered |
 | `NODE_PRESERVE_SYMLINKS`, and `NODE_CHANNEL_FD` | The shipped worker launched directly with the variable set: a helper reached through a directory symlink resolves its bare import beside the link, and a module's `process.send` writes Bun's IPC message where the policy frame belongs |
 

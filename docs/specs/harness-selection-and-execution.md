@@ -98,8 +98,10 @@ example. A review's creator survives its producer's retirement and a
 reordering, under a mapping changed since. A review cut before its producer
 decomposed selects from the run whose retirement closed the node, through two
 levels, and inspection shows that run's task beside the reviewed handle. A
-direct-harness finish removes a dispatched attempt's line, and the review
-refuses until the owner declares. A review's findings attach to the producer's
+close cascade names its run on every live review of each node it closes,
+wherever the review sits, and on nothing else. A direct-harness finish removes
+the stale line an unfinished dispatched attempt left, and the review refuses
+until the owner declares. A review's findings attach to the producer's
 run after `.grove/` is removed. Grove's configuration reference and usage
 guide, the configure-grove skill and the dispatch README explain the two
 `**Creator:**` forms, who writes or removes the line, the declaration remedy,
@@ -613,7 +615,10 @@ its `**Reviews:**` line. A session **finishes** a producer when it retires the
 producer's leaf, and when its close cascade closes the producer's node, so one
 session can finish several. For each producer it finishes, in its task's commit,
 it owns the line on the review leaf it cuts and on every live review leaf that
-already names that producer's handle. Under dispatch it writes
+already names that producer's handle. A review it cuts, it cuts before it
+retires its leaf, with the `**Reviews:**` line written: the creator line goes
+under that one, and a leaf cut inside a node afterwards would reopen a node the
+cascade had closed. Under dispatch it writes
 `**Creator:** run <run-id>`, replacing any line already there. Without
 `HARNESS_DISPATCH_RUN_ID` it has no run to name, so it removes any `**Creator:**`
 line, run or declared. Those reviews refuse until the owner writes
@@ -1005,16 +1010,18 @@ acceptance instruments; internal tests may support them without replacing them.
 | Same command, actual shipped examples | Different-origin reviewer on every invocation, retry and explicit choice; same-origin/gateway disguise refuses; a fake producer launched through dispatch writes its `Creator` line from `HARNESS_DISPATCH_RUN_ID`, and the dispatched review of that task file uses the named run's recorded provider, which a changed current mapping cannot rewrite; a store holding an earlier run of the same task identity does not satisfy a review task with no `Creator` line; an unknown run and a run marked not executed refuse; declaration adoption; missing, duplicate or malformed `Reviews`/`Creator` lines refuse; `Reviews` under a kind that is not a configured review entry refuses; a relabelled origin and a misspelt declaration refuse as non-members; the generic reviewed-artifact form selects without a task file |
 | Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; explicit relative config and personal import are admitted; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
 | Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields, reads no observation history, and an unreadable store refuses; a stored launch record or observation this release cannot read refuses every read of it; the review's run records the creator provenance used; later observations after tree teardown |
-| Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a dispatched producer attempt followed by a direct-harness finish leaves the pre-existing review with no `Creator` line, and that review refuses with the declaration remedy, which then admits a different-origin reviewer; a review attaches an observation to the run its line names after `.grove/` is removed; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
+| Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a close cascade names its run on every live review of each node it closes, one nested in another node and one the closing session cut included, and on no terminal review and no review of another producer; a direct-harness finish removes a stale `Creator` line from the pre-existing review, planted by a dispatched attempt that named its run without finishing, and that review refuses with the declaration remedy, which then admits a different-origin reviewer; a review attaches an observation to the run its line names after `.grove/` is removed; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
 | Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
 
 Per-target release delivery adds the archive/install tests above. Documentation
 review verifies activation, both inspection surfaces, the `Creator` line
 conventions and their remedies, later outcome entry and launch-time validation
 guidance. Fake producers in the lifecycle cases follow the documented
-convention, including removal without a run and the node-close step. A real
-session's compliance is the methodology's to check, through the conformance
-rows that ship with the amendment, not these seams'.
+convention, including removal without a run, the node-close step and cutting a
+review before retiring. One does not, by design: the attempt that plants the
+stale line names its run while its leaf is live, which the convention forbids.
+A real session's compliance is the methodology's to check, through the
+conformance rows that ship with the amendment, not these seams'.
 Each hostile class has a named firing configuration, a positive control that
 must be seen to fire, so a test cannot pass merely because its fixture never ran:
 

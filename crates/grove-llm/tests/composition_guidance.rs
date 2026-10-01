@@ -866,6 +866,26 @@ fn the_creator_reference_amendment_is_stated_where_each_rule_lives() {
             RETIRE_REFERENCE,
             "remove any `**Creator:**` line",
         ),
+        // The step settles a line under `**Reviews:**`, and a leaf cut inside a
+        // node keeps it open, so a review the session cuts comes before the
+        // retirement. Without the order stated, a session that cuts its review
+        // as its last act leaves it with no creator.
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "**If you cut a review this session, cut it before you retire.**",
+        ),
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "one placed inside a node you closed has reopened that node",
+        ),
+        // A handle's key is a numeric suffix, so one handle begins another.
+        (
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
+            "Search `.grove/` for the whole handle",
+        ),
         // The node-close steps carry the same step: a cascade finishes every
         // node it closes, under that node's own handle.
         (

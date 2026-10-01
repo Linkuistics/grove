@@ -431,8 +431,10 @@ The creator reference closed with `creator-lifecycle-k40`. Later leaves build
 on four facts. First, the finishing session's step is the Grove plugin's
 `references/retire.md`, *Naming your run on what you finish*, and node-close
 step 4 carries it. Its conformance row is `finishing-session-names-its-run`,
-so no other shipped skill file may restate its lead sentence;
-configure-grove's *The creator line* points to it instead. Second, the owner's
+so no file of the spine or of a kind skill may restate its lead sentence. The
+runner sweeps those skills and not `configure-grove`, whose *The creator line*
+points to the step and says what a session leaves behind, as the spec asks of
+it. Second, the owner's
 account of the line is `docs/CONFIGURATION.md#a-reviews-creator-line`: the two
 forms and their writers, the declaration, why a wrong but existing run passes
 launch, and attaching findings as an observation. The usage guide's
@@ -448,8 +450,26 @@ the shipped review example, whose two wrapper programs are on the driver's
 that suite's `driver_command` scrubs `HARNESS_DISPATCH_RUN_ID` and
 `HARNESS_DISPATCH_STATE_DIR`, so a direct fake harness has no run when the
 suite itself runs under dispatch. A new fixture that launches a driver goes
-through it. `creator-reference-k59` reviews the node, ahead of
-`package-entry-resolution-k52`.
+through it.
+
+`creator-reference-k59` reviewed the node and `creator-reference-k60`
+integrated the review; k60's running log holds each finding's disposition.
+Later leaves build on three more facts. First, a session that cuts a review
+cuts it, and writes its `**Reviews:**` line, before it retires its leaf. The
+step's last paragraph says so, and says why: the creator line goes under that
+one, and a leaf cut inside a closed node reopens it. k60 rewrote that
+paragraph after its one in-session review, and nothing has reviewed the
+rewrite. The documentation-acceptance review that
+`dispatch-documentation-k41` cuts reads it for a leaf that cuts its own
+review, a node close and a multi-level close. Second, one fake session in the
+`Lifecycle` cases breaks the step on purpose: the direct-finish case's first
+attempt names its run while its leaf is live, to plant the stale line. Every
+other fake follows it. Third,
+`a_close_cascade_settles_every_live_review_of_each_producer_it_finishes_and_no_other`
+is where the step's set is observed: a nested review, a review the closing
+session cut for an inner node, two terminal reviews and a review of a producer
+whose handle the finished one begins. A change to `name_run` or `finish` is
+checked there.
 
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and

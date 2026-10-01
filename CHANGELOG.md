@@ -130,8 +130,10 @@ stood at the graft — a closed record, not part of the versioned sequence above
   whose `**Reviews:**` line names that handle, it writes `**Creator:** run
   <run-id>` from its own `HARNESS_DISPATCH_RUN_ID`, in the task's commit. With
   no run, it removes any `**Creator:**` line instead, and the owner declares
-  `**Creator:** declared <provider>`. `references/retire.md` owns the step, at
-  retirement and in the node-close steps. `TASK-FORMAT.md` now says a body
+  `**Creator:** declared <provider>`. A session that cuts a review cuts it, and
+  writes its `**Reviews:**` line, before it retires its leaf.
+  `references/retire.md` owns the step, at retirement and in the node-close
+  steps. `TASK-FORMAT.md` now says a body
   carries nothing that routes its own session, and admits that one line as the
   only record of a past session a body carries. `leaf-retire` still touches one
   filename, and Grove still records and compares nothing about how a producer
@@ -152,7 +154,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
   the declaration. Grove's launch-boundary tests run sessions that follow the
   methodology under the shipped Grove review example: across a producer's
   retirement and a reordering, a decomposed producer closed through two levels,
-  and a direct-harness finish after a dispatched attempt.
+  a close cascade that settles every live review of each node it closes and no
+  other file, and a direct-harness finish that removes a stale line an
+  unfinished dispatched attempt planted.
 
 ## v21.12.0
 

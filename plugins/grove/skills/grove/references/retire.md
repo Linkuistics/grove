@@ -20,16 +20,17 @@ how its producer ran is a line you write by hand, next.
 
 **The session that finishes a producer names its run on that producer's
 reviews.** You finish your own leaf by retiring it, and you finish each node your
-close cascade closes (below), so one session can finish several producers. For
-each one, before the task's commit, take the review leaf you cut for it and every
-live review leaf whose `**Reviews:**` line already names its handle. Search
-`.grove/` for the handle, because a review cut earlier can sit anywhere in the
-tree. On each, settle the line directly under `**Reviews:**`:
+close cascade closes, at the last of its four steps (below), so one session can
+finish several producers. For each one, before the task's commit, take the
+review leaf you cut for it and every live review leaf whose `**Reviews:**` line
+already names its handle. Search `.grove/` for the whole handle, because a
+review cut earlier can sit anywhere in the tree, and `-k1` also begins `-k13`.
+On each, settle the line directly under `**Reviews:**`:
 
-- **With `HARNESS_DISPATCH_RUN_ID` set in your environment**, write
+- **With `HARNESS_DISPATCH_RUN_ID` set to a run ID in your environment**, write
   `**Creator:** run <run-id>` with that value, replacing any `**Creator:**` line
   already there.
-- **Without it you have no run to name**, so remove any `**Creator:**` line, in
+- **Without one you have no run to name**, so remove any `**Creator:**` line, in
   either form, and write nothing in its place. A line already there describes an
   earlier attempt at the producer, not the session that finished it.
 
@@ -41,6 +42,14 @@ finished without a run. Where a dispatch policy reads the line, a review without
 one refuses at launch until the owner declares. A leaf left live and a node left
 open finish nothing, and write nothing. What the line is, and who reads it, is
 `TASK-FORMAT.md`'s.
+
+**If you cut a review this session, cut it before you retire.** That holds for a
+review of your own leaf and for a review of a node your retirement will close.
+Write its `**Reviews:**` line then too, because `**Creator:**` goes under that
+line. `references/decompose.md` calls the cut the session's last act: it is the
+last act of the work, and the retirement, the naming and the commit all follow
+it. Cut afterwards, a review has no creator, and one placed inside a node you
+closed has reopened that node.
 
 ## Retiring the last live leaf is still an ordinary retirement
 

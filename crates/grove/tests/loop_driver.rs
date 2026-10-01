@@ -2418,6 +2418,11 @@ fn the_documented_command_definition_for_dispatch_is_the_one_launched_here() {
 // session does. Whether a real session complies is the conformance rows'
 // concern, not this seam's. What these pin is what a review's launch selects
 // from once the tree has moved under its line.
+//
+// One session here does not follow the procedure, and is there because it
+// does not: the first attempt of the direct-harness case names its run while
+// its leaf is live, which the procedure forbids, to leave the stale line a
+// finishing session must remove.
 
 /// A fake session's own procedure, after [`RECORD_START`]: which leaf it was
 /// launched for, and the methodology's steps as functions for its step to
@@ -2490,8 +2495,14 @@ export const policy = {
 /// with none. A fake session's `name_run` writes and removes exactly that
 /// line, so each state of the leaf is one of these, byte for byte.
 fn review_body(creator: Option<&str>) -> String {
+    review_leaf("parser-k2", "parser-k1", creator)
+}
+
+/// The body of the review leaf `own`, which reviews `reviewed`, in the shape
+/// of [`review_body`].
+fn review_leaf(own: &str, reviewed: &str, creator: Option<&str>) -> String {
     let creator = creator.map(|line| format!("{line}\n")).unwrap_or_default();
-    format!("# parser-k2\n\n**Reviews:** parser-k1\n{creator}\n## Goal\n\nReview the parser.\n")
+    format!("# {own}\n\n**Reviews:** {reviewed}\n{creator}\n## Goal\n\nReview the parser.\n")
 }
 
 /// A `**Creator:**` line naming `run_id`, as a dispatched session writes it.
@@ -2829,11 +2840,154 @@ fn a_decomposed_producer_s_review_carries_the_run_whose_retirement_closed_its_no
     }
 }
 
-// A producer's earlier attempt is not its creator. The dispatched attempt gets
-// as far as naming its run on the review and dies before it retires, so its
-// leaf stays live under a line that describes it. The owner routes the kind
-// straight to a harness, and that session finishes the producer with no run
-// to name, so it removes the line. The review that follows in the same loop
+// The step's set is every live review of every producer the session finished,
+// wherever the review sits, and no other file. Each case above holds one
+// review, at the grove root, of one producer, so none of them can tell that
+// set from a part of it or from more than it. This tree holds the rest. A
+// second live review of `parser-k1` sits inside another node. The session
+// whose retirement closes `grammar-k19` and, through it, `parser-k1` cuts the
+// inner node's review itself, and writes its body, before it finishes. Two
+// reviews of `parser-k1` are terminal, one done and one abandoned, each
+// holding the line it had. A live review of another producer, `parser-k17`,
+// names a handle that `parser-k1` begins, and ends a line of its prose with
+// `parser-k1`'s own line.
+//
+// The closing session's run goes on the three live reviews of the two nodes
+// it closed, and nowhere else. Both reviews of `parser-k1` then launch and
+// select from that run, the nested one included.
+#[test]
+fn a_close_cascade_settles_every_live_review_of_each_producer_it_finishes_and_no_other() {
+    const NESTED: &str = "03-k3/01-review-impl--parser-k4.md";
+    const DONE: &str = "04-DONE-review-impl--parser-k5.md";
+    const ABANDONED: &str = "05-ABANDONED-review-impl--parser-k6.md";
+    const UNRELATED: &str = "07-review-impl--parser-k8.md";
+    const INNER: &str = "08-review-impl--grammar-k21.md";
+    const EARLIER: &str = "**Creator:** run 00000000-0000-4000-8000-000000000001";
+    const DECLARED: &str = "**Creator:** declared anthropic";
+
+    let lifecycle = Lifecycle::new(&format!(
+        "parser-k1)\n\
+         \"$grove_llm\" leaf-decompose \"$leaf\" lexer > /dev/null || exit 95\n\
+         \"$grove_llm\" leaf-add parser-k1 grammar --kind impl > /dev/null || exit 95\n\
+         signal ;;\n\
+         lexer-k18) finish; signal ;;\n\
+         grammar-k19)\n\
+         \"$grove_llm\" leaf-decompose \"$leaf\" tokens > /dev/null || exit 95\n\
+         signal ;;\n\
+         tokens-k20)\n\
+         cut=$(\"$grove_llm\" leaf-add . grammar --kind review-impl) || exit 95\n\
+         printf '{inner}' > \"$cut\"\n\
+         finish; signal ;;\n\
+         parser-k2) finish; signal ;;\n\
+         parser-k4) signal --done ;;",
+        inner = review_leaf("grammar-k21", "grammar-k19", None).replace('\n', "\\n"),
+    ));
+    let dispatch = &lifecycle.dispatch;
+    let nested = |creator| review_leaf("parser-k4", "parser-k1", creator);
+    let done = review_leaf("parser-k5", "parser-k1", Some(EARLIER));
+    let abandoned = review_leaf("parser-k6", "parser-k1", Some(DECLARED));
+    let unrelated = format!(
+        "{}\nIts line is not **Reviews:** parser-k1\n",
+        review_leaf("parser-k8", "parser-k17", Some(DECLARED))
+    );
+    fs::create_dir(dispatch.task_file("03-k3")).unwrap();
+    for (leaf, body) in [
+        ("03-k3/_audit.md", "# audit-k3 — brief\n"),
+        (NESTED, nested(None).as_str()),
+        (DONE, done.as_str()),
+        (ABANDONED, abandoned.as_str()),
+        ("06-DONE-impl--parser-k17.md", "# parser-k17\n"),
+        (UNRELATED, unrelated.as_str()),
+    ] {
+        fs::write(dispatch.task_file(leaf), body).unwrap();
+    }
+    let sorted = |lines: &[&str]| {
+        let mut lines: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
+        lines.sort();
+        lines
+    };
+    let creators = |n| {
+        let recorded = lifecycle.creators(n);
+        sorted(&recorded.lines().collect::<Vec<_>>())
+    };
+
+    lifecycle.drive_to_done();
+    let handles: Vec<String> = (0..dispatch.launch_count())
+        .map(|n| lifecycle.handle(n))
+        .collect();
+    assert_eq!(
+        handles,
+        [
+            "parser-k1",
+            "lexer-k18",
+            "grammar-k19",
+            "tokens-k20",
+            "parser-k2",
+            "parser-k4"
+        ]
+    );
+
+    // Until the cascade closed a node, the tree held the planted lines only.
+    for (n, handle) in handles.iter().enumerate().take(3) {
+        assert_eq!(
+            creators(n),
+            sorted(&[EARLIER, DECLARED, DECLARED]),
+            "after {handle}"
+        );
+    }
+    let closer = dispatch.launch(3);
+    let named = creator_run(&closer.run_id);
+    assert_eq!(
+        creators(3),
+        sorted(&[EARLIER, DECLARED, DECLARED, &named, &named, &named]),
+        "the closing session names its run on three reviews and no more"
+    );
+
+    // Every live review of the outer node, wherever it sits.
+    assert_eq!(
+        lifecycle.review("02-DONE-review-impl--parser-k2.md"),
+        review_body(Some(&named))
+    );
+    assert_eq!(lifecycle.review(NESTED), nested(Some(&named)));
+    // The inner node is a producer the cascade finished too, and its review is
+    // the one this session cut.
+    assert_eq!(
+        lifecycle.review(INNER),
+        review_leaf("grammar-k21", "grammar-k19", Some(&named))
+    );
+    // No terminal review, and no review of another producer.
+    assert_eq!(lifecycle.review(DONE), done);
+    assert_eq!(lifecycle.review(ABANDONED), abandoned);
+    assert_eq!(lifecycle.review(UNRELATED), unrelated);
+
+    // Both reviews of `parser-k1` launched from the closing session's run.
+    for (n, task) in [(4, "parser-k2"), (5, "parser-k4")] {
+        let reviewer = dispatch.launch(n);
+        assert_eq!(reviewer.args[..4], selected("your-claude-model"), "{task}");
+        let recorded = dispatch.recorded(&reviewer.run_id);
+        let launch = &recorded["launch"];
+        assert_eq!(launch["taskId"], task, "{recorded}");
+        assert_eq!(
+            launch["reviewedArtifact"],
+            serde_json::json!({ "id": "parser-k1", "creator": { "run": closer.run_id } }),
+            "{recorded}"
+        );
+        assert_eq!(
+            launch["creator"]["lookup"]["taskId"], "tokens-k20",
+            "{recorded}"
+        );
+    }
+}
+
+// A producer's earlier attempt is not its creator, whatever line it left. The
+// stale line is planted by a fault: the dispatched attempt names its run on
+// the review while its leaf is live, then dies. No session that follows the
+// procedure does that, because it retires first and a leaf left live writes
+// nothing. An attempt that wrote nothing would give the finish nothing to
+// remove, and this case would pass with a fake that never removes. The owner
+// routes the kind straight to a harness, and that session, which does follow
+// the procedure, finishes the producer with no run to name, so it removes the
+// line it found. The review that follows in the same loop
 // refuses, though the attempt's run of the producer's task is in the store,
 // and its remedy is the declaration. The owner declares the provider of the
 // harness that finished the artifact, and the review launches on the other

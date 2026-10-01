@@ -67,23 +67,34 @@ const packageVersion =
 declare const HARNESS_DISPATCH_PROBE: string;
 const probe = typeof HARNESS_DISPATCH_PROBE === "string" ? HARNESS_DISPATCH_PROBE : "";
 
-// The worker leaves the directory it started in before it registers or loads
-// anything. Bun resolves a module with no file location, such as one imported
-// from a `data:` or `blob:` URL or registered as a virtual module, as though
-// it sat in the process's current directory, and walks up from there. So the
-// ancestors of the front's private directory, the caller's TMPDIR and
-// everything above it, would answer such a module's bare imports. From `/`
-// the walk is `/` alone, which is already above every module in a file.
+// The worker leaves the directory it started in before it registers a module
+// or loads any policy code. Bun resolves a module with no file location, such
+// as one imported from a `data:` or `blob:` URL or registered as a virtual
+// module, as though it sat in the process's current directory, and walks up
+// from there. So the ancestors of the front's private directory, the caller's
+// TMPDIR and everything above it, would answer such a module's bare imports.
+// From `/` the walk is `/` alone, which is already above every module in a
+// file, so `/node_modules` still answers one, as it does a file's import.
 // `process.chdir` moves the resolver's directory with the process's
 // (`set_process_cwd` rewrites the `top_level_dir` that
 // `resolve_and_auto_install` substitutes for such an importer):
 // https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/jsc/VirtualMachine.rs
 // https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolver/resolver.rs
-// The front still starts the worker in the private directory, because dotenv
-// and bunfig autoloading read the directory a process starts in. A failed move
-// throws here, before the hello, so the front never hands such a worker a
-// policy. The `unmoved` probe skips this, so that a test can see a package
-// above its start directory load.
+// The front still starts the worker in the private directory, because bunfig,
+// and this VM's dotenv files, are read from the directory a process starts in.
+// The move does cost one control. Bun loads dotenv files again for each VM it
+// starts, from the directory the process is then in: `start_vm` gives a native
+// `Worker` a loader with no file marked loaded (`clone_for_worker`) and calls
+// `configure_defines`, whose `run_env_loader` lists `top_level_dir`:
+// https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/jsc/web_worker.rs
+// https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/dotenv/env_loader.rs
+// https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/bundler/transpiler.rs
+// So a `Worker` a policy starts would read `/.env`, where one started by a
+// worker that had stayed put read an empty directory. The dotenv switch in
+// `scripts/dispatch.sh` alone keeps that out. A failed move throws here,
+// before the hello, so the front never hands such a worker a policy. The
+// `unmoved` probe skips this, so that a test can see a package above its
+// start directory load.
 if (probe !== "unmoved") process.chdir("/");
 
 // Every documented specifier resolves to the worker's own embedded copy, even

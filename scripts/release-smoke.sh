@@ -369,6 +369,17 @@ archive_elf_headers() {
 # The floor image's userland for PLATFORM under the pinned QEMU emulating the
 # target's CPU floor, in a helper container of Docker's own architecture (WHY
 # OUR OWN QEMU, WHY A CPU MODEL).
+#
+# WHY THE HELPER HAS NO SECCOMP FILTER. release-smoke-qemu.sh registers the
+# emulator in a binfmt_misc instance of its own, which takes a user namespace.
+# Docker 29.8.1's built-in seccomp profile refuses unshare(2) to a container
+# without CAP_SYS_ADMIN, so the helper's root got EPERM and no emulated route
+# ran. Under Docker Desktop 28.1.1 the same script passed with the profile in
+# place. Lifting the filter adds no capability: the helper keeps Docker's
+# default set, no network and a read-only mount, and runs only this script's
+# digest-pinned inputs. --cap-add SYS_ADMIN works too and keeps the filter,
+# but it hands the container the capability most container escapes begin
+# with. The floor container, which needs no namespace, keeps the profile.
 smoke_under_qemu() {
   local target="$1" archive="$2" platform="$3" mount="$4" arch="${1%%-*}" cpu
   cpu="$(cpu_floor "$arch")" || return 1
@@ -379,6 +390,7 @@ smoke_under_qemu() {
   cp "$QEMU_SCRIPT" "$mount/" || return 1
   echo "release-smoke: $target: $platform userland under the pinned QEMU with -cpu $cpu, in a $DOCKER_PLATFORM $HELPER_IMAGE container"
   docker run --rm --network none \
+    --security-opt seccomp=unconfined \
     --platform "$DOCKER_PLATFORM" \
     --volume "$mount:/smoke:ro" \
     "$HELPER_IMAGE" \

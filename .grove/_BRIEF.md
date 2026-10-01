@@ -408,10 +408,11 @@ consolidates around whatever k61 and k62 leave.
 listed. The worker still starts in the front's private empty directory, now
 created owner-only, and moves to `/` before it registers or loads anything.
 Bun resolves a module with no file location from the directory the process is
-in, and reads dotenv and bunfig from the one it started in, so no stated
-control was given up and the human was not asked. `worker-directory-chain-k63`
-reviews that before `package-json-autoloading-k62` runs; k61's running log has
-the reasoning and what was seen. Later leaves build on four facts. First,
+in, and reads bunfig, and its first VM's dotenv files, from the one it started
+in. k61 concluded that no stated control was given up and did not ask the
+human. That was wrong for one path, which the next paragraph states. k61's
+running log has the reasoning and what was seen. Later leaves build on four
+facts. First,
 `task dispatch:probes` also builds `unmoved`, the shipped source without the
 move, and `Probe::ALL` in `tests/support/direct.rs` lists every probe. It is
 the firing configuration for anything above the worker's start directory, so
@@ -425,6 +426,37 @@ README's *One exception* paragraph is gone, and the paragraph after its
 off, and k62 rewrites it with the switch. k62's parked patch carries a comment
 in `tests/hostile.rs`, "Nor is it the front's private directory that keeps it
 out", which is still true and no longer the whole reason.
+
+`worker-directory-chain-k63` reviewed k61 and `worker-directory-chain-k64`
+integrated the review. k64's running log holds each finding's disposition, and
+*A VM started later* and *The root directory* in the runtime evidence hold
+what was seen. Later leaves build on five more facts. First, the guarantee
+stops short of `/`. `/node_modules` answers a module with no file location
+through the shipped pair, and with package.json autoloading on `/package.json`
+answers one too. Both were seen as root in a container, since the suite cannot
+plant a file in `/`. So k62 says "no directory between where the worker
+started and `/`" and never "above", and its TMPDIR `package.json` case proves
+that much and no more. Second, Bun loads dotenv files again for each VM it
+starts, from the directory the process is then in, and never rereads bunfig.
+A native `Worker` a policy starts would read `/.env`, and the dotenv switch
+alone keeps it out. The private start directory is a second control only for
+what Bun reads as the process starts. The human accepted that single control
+on 2026-10-01, so it is settled and not k62's to reopen. Third,
+`hostile::a_dotenv_where_a_policy_starts_a_worker_stays_inert_and_fires_under_the_autoload_probe`
+holds that, and was seen to fail with the shipped switch turned on. Its
+helpers, `DOTENV_REPORTING_WORKER` and `dotenv_view_policy_moved_into`, serve
+any later case that needs a VM started after a move. The tripwire test now
+watches the VM that moved for dotenv, and that VM and a `Worker` for bunfig.
+Fourth, `scripts/dispatch.sh` has a comment above `SHIPPED_SWITCHES` saying
+why the dotenv switch is sometimes the only control. k62 rewrites the
+package.json comment below it and keeps that one. k62's parked patch dry-runs
+as it did before k64: `tests/authority.rs` fails its one hunk, and the other
+three files apply. Fifth, Docker Desktop on the development host moved from
+28.1.1 to 29.8.1 during k64, and its seccomp profile refuses the smoke test's
+helper container a user namespace. The human chose to run that one container
+with `--security-opt seccomp=unconfined`; `scripts/release-smoke.sh` gives the
+reason at its `docker run`. `task release:smoke` passes on all three targets
+that way, and a leaf that sees it fail there again looks at Docker first.
 
 Grove dispatch closed with `grove-dispatch-guidance-k34`. Later leaves build on
 three facts. First, the Grove-side guidance lives in four places, and later

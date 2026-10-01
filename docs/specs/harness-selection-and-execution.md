@@ -331,12 +331,22 @@ cwd as data; it does not make it the worker's runtime cwd.
 The worker does not stay in the directory it starts in. Before it registers a
 module or announces itself, it moves to `/`, and a worker that cannot move
 never says hello, so it is never given a policy. The two directories do
-different work. The runtime reads its startup files, dotenv and bunfig, from
-the directory a process starts in, which is why that one is private and empty.
-It resolves some imports from the directory the process is in, which is why
-the worker leaves: `/` has no ancestors. So policy code runs with `/` as its
-current directory, and a relative path the policy opens itself resolves there.
-The caller's directory is `request.cwd`.
+different work. As a process starts, the runtime reads bunfig, and the dotenv
+files of its first VM, from the directory it starts in, which is why that one
+is private and empty. It resolves some imports from the directory the process
+is in, which is why the worker leaves: `/` has no ancestors. So policy code
+runs with `/` as its current directory, and a relative path the policy opens
+itself resolves there. The caller's directory is `request.cwd`.
+
+The empty start directory is a second control, beside the switches below, only
+for what the runtime reads as the process starts. The runtime loads dotenv
+files again for each VM it starts later, from the directory the process is
+then in. A native `Worker` a policy starts is such a VM, and it starts in `/`
+unless the policy has moved. The dotenv switch alone keeps `/.env` out of it,
+where a worker that stayed in its start directory would have had both
+controls. The move gave that one up to close a reach that was open as shipped.
+The file it leaves to the switch belongs to whoever owns `/`. bunfig is not
+read again.
 
 The worker is compiled with dotenv, bunfig, tsconfig and package-json autoloading
 all explicitly disabled. Its own entry imports embedded modules and prefixed
@@ -375,17 +385,21 @@ import from a `data:` module
 The worker's move to `/` closes that: with the switch on for an experiment,
 neither was seen again
 ([runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md#worker-directory)).
+`/package.json` is what remains. With the switch on it answered such a module,
+as `/node_modules` does with it off.
 `package-json-autoloading-k62` turns the switch on, with the cases for what it
 changes inside an entry's own packages.
 
 A module with no file location resolves its bare imports through `node_modules`
 from the worker's current directory upward. Such a module is one a policy
 imports from a `data:` or `blob:` URL, or registers as a virtual module of its
-own. The worker is in `/` when any policy code runs, so that walk is `/` alone,
-which is already above every module in a file. Neither the caller's TMPDIR nor
-any other directory above where the worker started takes part, and a
-`node_modules` package there is a missing package to such a module. A policy
-that changes directory itself moves that walk with it. That is a policy effect,
+own. The worker is in `/` when any policy code runs, so that walk is `/` alone.
+No directory between where the worker started and `/` takes part, the caller's
+TMPDIR included, and a `node_modules` package in one is a missing package to
+such a module. `/` itself does take part: `/node_modules` answers such a
+module, as it answers a module in a file, which it is already above. So the
+guarantee stops short of `/`, and a TMPDIR that is `/` has none. A policy that
+changes directory itself moves that walk with it. That is a policy effect,
 like any other use of a native API.
 
 Because tsconfig
@@ -1047,7 +1061,7 @@ acceptance instruments; internal tests may support them without replacing them.
 |---|---|
 | New command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; a caller-ignored HUP or SIGPIPE and the entry signal mask reach the fake harness unchanged; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
 | Same command, actual shipped examples | Different-origin reviewer on every invocation, retry and explicit choice; same-origin/gateway disguise refuses; a fake producer launched through dispatch writes its `Creator` line from `HARNESS_DISPATCH_RUN_ID`, and the dispatched review of that task file uses the named run's recorded provider, which a changed current mapping cannot rewrite; a store holding an earlier run of the same task identity does not satisfy a review task with no `Creator` line; an unknown run and a run marked not executed refuse; declaration adoption; missing, duplicate or malformed `Reviews`/`Creator` lines refuse; `Reviews` under a kind that is not a configured review entry refuses; a relabelled origin and a misspelt declaration refuse as non-members; the generic reviewed-artifact form selects without a task file |
-| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, tsconfig, package shadow, a package above the worker's start directory, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; the front starts its worker in an owner-only empty directory and removes it, and policy code runs in `/`; explicit relative config and personal import are admitted; a package beside an entry loads by its file layout and never through its `package.json`; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
+| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, a dotenv file where a policy starts a `Worker`, tsconfig, package shadow, a package between the worker's start directory and `/`, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; the front starts its worker in an owner-only empty directory and removes it, and policy code runs in `/`; explicit relative config and personal import are admitted; a package beside an entry loads by its file layout and never through its `package.json`; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
 | Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields, reads no observation history, and an unreadable store refuses; a stored launch record or observation this release cannot read refuses every read of it; the review's run records the creator provenance used; later observations after tree teardown |
 | Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a close cascade names its run on every live review of each node it closes, one nested in another node and one the closing session cut included, and on no terminal review and no review of another producer; a direct-harness finish removes a stale `Creator` line from the pre-existing review, planted by a dispatched attempt that named its run without finishing, and that review refuses with the declaration remedy, which then admits a different-origin reviewer; a review attaches an observation to the run its line names after `.grove/` is removed; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
 | Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
@@ -1071,7 +1085,8 @@ must be seen to fire, so a test cannot pass merely because its fixture never ran
 | `BUN_OPTIONS` preload, and `BUN_BE_BUN` | The shipped worker launched directly with the variable set, bypassing the front process's scrubbing |
 | `node_modules/harness-dispatch` shadow | The fixture beside an admitted entry, under a probe build that does not register the virtual modules |
 | tsconfig `paths` | The fixture beside an admitted entry, under a probe build with tsconfig autoloading enabled |
-| `node_modules` package above the worker's start directory, for a module with no file location | The fixture in the caller's TMPDIR, under a probe build that does not move to `/`, started in a directory under that TMPDIR |
+| `.env` in the directory the process is in when a policy starts a native `Worker` | A default-autoload probe build of the same worker, started in an empty directory, whose policy moves into the hostile directory before it starts the `Worker` |
+| `node_modules` package between the worker's start directory and `/`, for a module with no file location | The fixture in the caller's TMPDIR, under a probe build that does not move to `/`, started in a directory under that TMPDIR |
 | Runtime transpiler cache under HOME or `XDG_CACHE_HOME` | The shipped worker launched directly without the front's cache setting, after its own cache entry for the policy has had its output altered |
 | `NODE_PRESERVE_SYMLINKS`, and `NODE_CHANNEL_FD` | The shipped worker launched directly with the variable set: a helper reached through a directory symlink resolves its bare import beside the link, and a module's `process.send` writes Bun's IPC message where the policy frame belongs |
 
@@ -1085,14 +1100,15 @@ Probe builds are never built by a release and never ship.
 
 A class with no known firing configuration is reported as such, not counted as a
 passing control. On Bun 1.4.2 these are a `~/.bunfig.toml` preload, tsconfig
-`paths` in the caller's cwd, and a `.env` or bunfig preload in a directory the
-worker moves into after it has started, which is what `/` would need to hold.
+`paths` in the caller's cwd, and two in a directory the worker moves into after
+it has started, which is what `/` would need to hold: a `.env` for the VM that
+made the move, and a bunfig preload for that VM or a `Worker` started there.
 None fired under any build. A test keeps checking that each still fails to fire
 under its most permissive probe, and fails if one gains a firing configuration.
-For the last two the test's policy makes the move: every worker but one probe
-leaves the caller's cwd, and `/` can hold no fixture. Missing-source fixtures
-carry the
-same obligation. The runtime
+For the moved-into and tsconfig classes the test's policy makes the move: every
+worker but one probe leaves the caller's cwd, and `/` can hold no fixture. The
+`Worker` class in the table above was reported here until it was seen to fire.
+Missing-source fixtures carry the same obligation. The runtime
 evidence records which of these have been seen to fire. Do not infer backend
 identity, policy quality or task acceptance from these mechanics tests.
 

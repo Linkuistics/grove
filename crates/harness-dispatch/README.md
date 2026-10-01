@@ -1219,12 +1219,14 @@ to its embedded modules. The worker is found only beside the front's real
 path, so neither PATH, the current directory, `argv[0]` nor a variable can
 substitute another.
 
-Nor does a `node_modules` in your `TMPDIR`, or anywhere above the directory
-the worker started in. A module with no file of its own, one your policy
-imports from a `data:` or `blob:` URL or registers itself, resolves its bare
-imports from the worker's current directory upward, and that is `/`. Imports
-written in a file resolve from the file. If your policy changes directory
-itself, such a module resolves from wherever it moved to.
+Nor does a `node_modules` in your `TMPDIR`, or in any directory between the
+one the worker started in and `/`. A module with no file of its own, one your
+policy imports from a `data:` or `blob:` URL or registers itself, resolves its
+bare imports from the worker's current directory upward, and that is `/`. So
+`/node_modules` itself can still answer one, as it can answer an import
+written in any file. Imports written in a file resolve from the file. If your
+policy changes directory itself, such a module resolves from wherever it moved
+to.
 
 ## Run
 

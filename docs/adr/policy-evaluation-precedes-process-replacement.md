@@ -38,12 +38,20 @@ deadline, and another answered an import from a module with no file location.
 That probe also found what the private directory does not control. Its ancestors
 are not private, and with every switch off a `node_modules` above it answered a
 bare import from such a module. So the worker starts in the private directory
-and then moves to `/` before it loads anything. The runtime reads its startup
-files from where a process starts and resolves such a module from where the
-process is, and `/` has no ancestors. With the move, a `node_modules` above
+and then moves to `/` before it loads any policy code. The runtime reads its
+startup files from where a process starts and resolves such a module from where
+the process is, and `/` has no ancestors. With the move, a `node_modules` above
 the directory the worker started in answered nothing, and nor did a
-`package.json` there with the switch on for an experiment. Other classes were
-not seen to fire at
+`package.json` there with the switch on for an experiment. `/` itself still
+answers, as it does for a module in a file. The move costs one control. The
+runtime loads dotenv files again for each VM it starts, from where the process
+then is, so a native `Worker` a policy starts would read `/.env`, where one
+started by a worker that stayed put read the empty directory. Only the dotenv
+switch keeps that out, and it was seen to. That was accepted: the reach the
+move closes was open in the shipped build to anyone who could write TMPDIR,
+and what the move leaves to one control is a file only the owner of `/` can
+write, behind a switch a command-seam test holds. Other classes were not seen
+to fire at
 all. The
 [runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md)
 records exactly which, the limits of each observation and the primary runtime

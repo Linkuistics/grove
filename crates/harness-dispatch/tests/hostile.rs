@@ -144,6 +144,111 @@ fn a_cwd_dotenv_and_bunfig_preload_stay_inert_and_fire_under_the_autoload_probe(
     }
 }
 
+/// A module for a native `Worker`, which reports to the thread that started
+/// it what the dotenv fixtures set in its own environment.
+const DOTENV_REPORTING_WORKER: &str = r#"postMessage({
+  dotenv: process.env.HOSTILE_DOTENV ?? null,
+  dotenvLocal: process.env.HOSTILE_DOTENV_LOCAL ?? null,
+});
+"#;
+
+/// A routes policy that moves the worker into `dir`, starts a native `Worker`
+/// there from `module`, and records what the dotenv fixtures set in each VM:
+/// `started` is the `Worker`'s report, and `moved` is read afterwards in the
+/// VM that made the move.
+fn dotenv_view_policy_moved_into(dir: &Path, module: &Path, view: &Path) -> String {
+    format!(
+        r#"import {{ writeFileSync }} from "node:fs";
+process.chdir({dir:?});
+const started = await new Promise((resolve, reject) => {{
+  const worker = new Worker({module:?});
+  worker.onmessage = (event) => {{ resolve(event.data); worker.terminate(); }};
+  worker.onerror = (event) => reject(new Error(event.message));
+}});
+writeFileSync({view:?}, JSON.stringify({{
+  moved: {{
+    dotenv: process.env.HOSTILE_DOTENV ?? null,
+    dotenvLocal: process.env.HOSTILE_DOTENV_LOCAL ?? null,
+  }},
+  started,
+}}));
+{ROUTED}"#,
+        dir = text(dir),
+        module = text(module),
+        view = text(view)
+    )
+}
+
+#[test]
+fn a_dotenv_where_a_policy_starts_a_worker_stays_inert_and_fires_under_the_autoload_probe() {
+    // Bun loads dotenv files again for each VM it starts, from the directory
+    // the process is then in. The shipped worker has moved to `/` by the time
+    // a policy can start a native `Worker`, and `/` can hold no fixture, so
+    // the policy moves into the hostile directory first. The front's private
+    // start directory is no control here: the dotenv switch alone is.
+    let sandbox = Sandbox::new();
+    let shipped = shipped_build();
+    let view = sandbox.root.join("view.json");
+    let hostile = sandbox.root.join("moved-into");
+    support::write(&hostile.join(".env"), "HOSTILE_DOTENV=from-dotenv\n");
+    support::write(
+        &hostile.join(".env.local"),
+        "HOSTILE_DOTENV_LOCAL=from-dotenv-local\n",
+    );
+    let module = sandbox.root.join("reporting-worker.ts");
+    support::write(&module, DOTENV_REPORTING_WORKER);
+    let entry = sandbox.personal_policy(&dotenv_view_policy_moved_into(&hostile, &module, &view));
+    let inert = json!({ "dotenv": null, "dotenvLocal": null });
+    let fired = json!({ "dotenv": "from-dotenv", "dotenvLocal": "from-dotenv-local" });
+
+    // Through the public launcher, both commands.
+    sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    assert_eq!(read_json(&view)["started"], inert);
+    let ran = sandbox.run(&["--kind", "impl", "--prompt", "p"]);
+    assert_eq!(ran.code, Some(0), "{}", ran.stderr);
+    assert_eq!(read_json(&view)["started"], inert);
+
+    // The firing configuration: the autoload probe, started in an empty
+    // directory as the front's private one is, loads both files in the
+    // `Worker` the policy starts.
+    let empty = sandbox.root.join("empty");
+    fs::create_dir(&empty).unwrap();
+    let driven = direct::drive(
+        &probe_build(Probe::Autoload),
+        &empty,
+        &base_env(&sandbox),
+        &entry,
+    );
+    assert_probe_identity(&driven, Probe::Autoload, &shipped);
+    driven.loaded();
+    assert_eq!(
+        read_json(&view)["started"],
+        fired,
+        "the autoload probe's `Worker` never loaded the dotenv files"
+    );
+
+    // The switch alone is the difference: the shipped worker, started in that
+    // same directory with the same entry, loads nothing.
+    direct::drive(&shipped_worker(), &empty, &base_env(&sandbox), &entry).loaded();
+    assert_eq!(read_json(&view)["started"], inert);
+
+    // And where the process is when the `Worker` starts is what the runtime
+    // reads: the autoload probe, moved into an empty directory instead, loads
+    // nothing. A worker that stayed in its empty start directory had that
+    // second control, and one that moves to `/` does not.
+    let elsewhere = sandbox.root.join("moved-into-empty");
+    fs::create_dir(&elsewhere).unwrap();
+    let entry = sandbox.personal_policy(&dotenv_view_policy_moved_into(&elsewhere, &module, &view));
+    direct::drive(
+        &probe_build(Probe::Autoload),
+        &empty,
+        &base_env(&sandbox),
+        &entry,
+    )
+    .loaded();
+    assert_eq!(read_json(&view)["started"], inert);
+}
+
 #[test]
 fn bun_runtime_variables_stay_inert_through_the_front_and_fire_in_the_worker_started_directly() {
     let sandbox = Sandbox::new();
@@ -720,7 +825,8 @@ fn a_package_above_the_workers_start_directory_stays_inert_and_fires_under_the_u
         let entry = sandbox.personal_policy(&policy);
 
         // Through the public launcher the name is missing, under both
-        // commands, and nothing above the worker answers it.
+        // commands: no directory between where the worker started and `/`
+        // answers it. `/` itself still would, and can hold no fixture.
         let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
         assert_eq!(
             refusal["error"]["code"], "policy_import_failed",
@@ -823,7 +929,12 @@ fn classes_with_no_known_firing_configuration_are_reported_not_counted() {
     // A `.env`, a `.env.local` and a bunfig preload in a directory the worker
     // moves into after it has started. The shipped worker moves to `/`, where
     // no fixture can be planted, so the policy makes the move, into a hostile
-    // directory, under the probe that autoloads.
+    // directory, under the probe that autoloads. Two things are watched. The
+    // VM that makes the move loaded its environment when the process started,
+    // and must not load it again. A bunfig is read once, at process start, so
+    // its preload must run neither in that VM nor in a native `Worker` the
+    // policy then starts there. The dotenv files do load in that `Worker`,
+    // which is a class with a firing configuration, counted above.
     let moved_into = sandbox.root.join("moved-into");
     let view = sandbox.root.join("view.json");
     support::write(&moved_into.join(".env"), "HOSTILE_DOTENV=from-dotenv\n");
@@ -840,14 +951,13 @@ fn classes_with_no_known_firing_configuration_are_reported_not_counted() {
         &moved_into.join("hostile-preload.ts"),
         &sentinel_module(&moved_preloaded),
     );
-    let entry = sandbox.personal_policy(&format!(
-        "process.chdir({:?});\n{}",
-        text(&moved_into),
-        dotenv_view_policy(&view)
-    ));
+    let module = sandbox.root.join("reporting-worker.ts");
+    support::write(&module, DOTENV_REPORTING_WORKER);
+    let entry =
+        sandbox.personal_policy(&dotenv_view_policy_moved_into(&moved_into, &module, &view));
     let inert = json!({ "dotenv": null, "dotenvLocal": null });
     sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    assert_eq!(read_json(&view), inert);
+    assert_eq!(read_json(&view)["moved"], inert);
     assert!(
         !moved_preloaded.exists(),
         "a bunfig preload in a directory the worker moved into ran through the front"
@@ -860,10 +970,14 @@ fn classes_with_no_known_firing_configuration_are_reported_not_counted() {
     )
     .loaded();
     still_unfired(
-        "dotenv in a directory moved into",
-        read_json(&view) != inert,
+        "dotenv in a directory moved into, for the VM that made the move",
+        read_json(&view)["moved"] != inert,
     );
-    still_unfired("bunfig in a directory moved into", moved_preloaded.exists());
+    still_unfired(
+        "bunfig in a directory moved into, for the VM that made the move and a `Worker` \
+         started there",
+        moved_preloaded.exists(),
+    );
 
     // A tsconfig alias in the caller's cwd, for an entry elsewhere. Every
     // worker but the unmoved probe leaves the directory it starts in, so the

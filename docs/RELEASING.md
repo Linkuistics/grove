@@ -258,7 +258,10 @@ against a fake harness and reads each run's record back, with no Bun or Node on
 - **The emulated runs** chroot into the userland inside an ordinary arm64
   container. The emulator is registered in a binfmt_misc instance private to
   that container's user namespace, so Docker's settings and global
-  registrations are untouched. x64 uses a pinned QEMU 10.2.3 from
+  registrations are untouched. That one container runs without Docker's
+  seccomp filter, because the built-in profile of Docker 29 refuses a
+  container the user namespace. It gains no capability by that, and has no
+  network and a read-only mount. x64 uses a pinned QEMU 10.2.3 from
   `tonistiigi/binfmt`, because Docker Desktop's own QEMU crashes CentOS 7's
   x86-64 userland. arm64 uses the `qemu-aarch64` of Debian's `qemu-user`
   10.2.2, because that image leaves out its own architecture's emulator. The

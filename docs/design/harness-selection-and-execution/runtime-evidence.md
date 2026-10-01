@@ -80,7 +80,9 @@ Consequences for the design:
   beside an admitted entry. The prefix reserves nothing, so every documented
   specifier must be registered.
 - The private worker cwd and the no-autoload switches are independent controls
-  for cwd dotenv and bunfig; either alone kept them inert here.
+  for cwd dotenv and bunfig; either alone kept them inert here. That is for
+  what the runtime reads as a process starts.
+  [A VM started later](#later-vm) has the switch alone.
 - The firing configurations named in the acceptance table come from these rows.
   A HOME bunfig and a cwd tsconfig have no observed firing configuration, so no
   control is claimed for them.
@@ -214,7 +216,7 @@ The dotenv case also ran the other two corners of its square. The shipped
 worker, started directly in the hostile directory, and the `autoload` probe in
 an empty directory, like the front's private one, were each inert. So each of
 the two controls holds on its own, as the [integration probe](#integration-probe)
-saw. A mutated front showed the same from the other side. With the worker
+saw, for the files read as the process starts. A mutated front showed the same from the other side. With the worker
 started in the caller's cwd, the case stayed green. With the shipped build's
 dotenv and bunfig autoloading on, the front stayed inert, and only the
 direct-start corner failed. With both, the front arm failed.
@@ -411,13 +413,19 @@ source directory, and one whose source directory is not absolute. So such a
 module resolves from the directory the process is in, not the one it started
 in.
 
-The other half is seen and not read. `run_env_loader` in
+The other half was first seen and not read, and
+`worker-directory-chain-k63` then read it. `run_env_loader` in
 [`transpiler.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/bundler/transpiler.rs)
 loads `.env` files from `top_level_dir` when it is called, and skips that
 directory entirely when dotenv loading is disabled, as it is in the shipped
-build. Its caller on a compiled executable's start path was not traced. What
-the `autoload` probe showed is below: the files of the directory it starts in
-load, and those of a directory it is later moved into do not.
+build. Its one caller is `configure_defines`, which does nothing once a VM's
+defines are loaded. On a compiled executable's start path that call comes
+before the main module runs (`boot_standalone` in
+[`run_command.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/runtime/cli/run_command.rs)),
+so the VM that runs the move has read its files already, from the directory
+the process started in. That is half of what k61 assumed. The other half,
+that nothing reads them later, is false: [a VM started later](#later-vm)
+reads them again.
 
 **What was seen through the checkout's front.** Each fixture sat in the
 caller's TMPDIR, one level above the worker's private directory. The first
@@ -464,31 +472,114 @@ and the test asserts it.
 `autoload` probe loads both files and runs the preload when started in the
 hostile directory, although it then moves to `/`; the shipped worker started
 there, and the `autoload` probe started in an empty directory, are each inert.
-So each control still holds alone, and the private directory is still where
-the front starts the worker.
+So each control still holds alone for what is read as the process starts, and
+the private directory is still where the front starts the worker.
 
 `/` is not empty and no fixture can be planted in it, so what a move could add
 was checked another way. A policy moved the worker into a directory holding a
 `.env`, a `.env.local` and a bunfig preload, under the `autoload` probe
-started in an empty directory. Nothing loaded and no preload ran. That is a
-class with no known firing configuration, and
+started in an empty directory. Nothing loaded in the VM that made the move, and
+no preload ran. Those are classes with no known firing configuration, and
 `hostile::classes_with_no_known_firing_configuration_are_reported_not_counted`
-now reports it with the others. The same test's cwd tsconfig case changed for
-the same reason. Every worker but `unmoved` leaves the directory it starts in,
-so the entry now moves the worker back into the caller's cwd before it imports
-the alias. It still did not fire under the `tsconfig` probe.
+reports them with the others. k61 took that as the whole answer. It was not:
+the policy read only the VM that had already loaded its environment. The same
+test's cwd tsconfig case changed for the same reason as the move. Every worker
+but `unmoved` leaves the directory it starts in, so the entry now moves the
+worker back into the caller's cwd before it imports the alias. It still did not
+fire under the `tsconfig` probe.
+
+<a id="later-vm"></a>
+**A VM started later.** `worker-directory-chain-k63` read the source and
+predicted that a native `Worker` loads dotenv files again, and
+`worker-directory-chain-k64` saw it on 2026-10-01. In `bun-v1.4.2`,
+`WebWorker::create` in
+[`web_worker.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/jsc/web_worker.rs)
+gives the new VM the parent's loader through `clone_for_worker` in
+[`env_loader.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/dotenv/env_loader.rs),
+which copies the variables and marks no default file loaded. `start_vm` then
+applies the compiled executable's flags and calls `configure_defines`, so
+`run_env_loader` lists `top_level_dir` as it is at that moment.
+
+Each build below was driven directly on the macOS host above, at worker build
+`3261c425f866…`. The policy moved into a directory holding a `.env`, a
+`.env.local` and a bunfig preload, then started a `Worker` from a file named
+by its absolute path. The `Worker` reported its own environment, and the
+policy read its own afterwards.
+
+| Build, where it started, where the policy moved | The VM that moved | The `Worker` started there | bunfig preload |
+|---|---|---|---|
+| `autoload` probe, an empty directory, the hostile one | Neither variable | Both variables | Did not run |
+| `autoload` probe, an empty directory, another empty one | Neither | Neither | Did not run |
+| `autoload` probe, an empty directory, no move, so `/` | Neither | Neither | Did not run |
+| Shipped, an empty directory, the hostile one | Neither | Neither | Did not run |
+| Shipped, the hostile directory, the hostile one | Neither | Neither | Did not run |
+| `autoload` probe, the hostile directory, no move | Both | Both, copied from its parent | Ran, at start |
+
+A `Worker` from `node:worker_threads` gave the first and fourth rows' results
+as well. So dotenv files load once for each VM, from the directory the process
+is in when that VM starts, and a bunfig is read once, as the process starts.
+
+What this means for the two controls. For the files read as the process
+starts, both still hold. For a `Worker` a policy starts, the front's private
+directory controls nothing, because the worker has left it: the dotenv switch
+is the one control, and with it on such a `Worker` reads `/.env`. Before the
+move a worker stayed in its empty directory, and a `Worker` it started read
+that. So the move did weaken a stated control on this path, which k61's
+running log says it did not.
+
+| What | Through the shipped front | Firing configuration, seen to fire | Command-seam test |
+|---|---|---|---|
+| `.env` and `.env.local` in the directory the process is in when a policy starts a native `Worker` | Neither variable in the `Worker`, under `inspect` and `run` | The `autoload` probe, started in an empty directory, loaded both in the `Worker`. The shipped worker started there did not, and the probe moved into an empty directory instead did not | `hostile::a_dotenv_where_a_policy_starts_a_worker_stays_inert_and_fires_under_the_autoload_probe` |
+
+**The root directory, in a container.** `/` can hold no fixture on the
+development host, so k64 ran the cases as root in a `rust:1.85` container:
+Linux 6.10.14 on arm64, the linux-arm64 release archive of the working copy,
+whose worker reported build `3261c425f866…`, through its installed front. Two
+further linux-arm64 builds of the same source were made for the experiment
+with the pinned runtime and never shipped: one with dotenv and bunfig
+autoloading on, driven directly, and one with package.json autoloading on,
+reporting the shipped identity and put in a copy of the prefix.
+
+| Planted | Build | Result |
+|---|---|---|
+| `/tmp/node_modules`, TMPDIR `/tmp`, for a `data:` module | Shipped pair | Exit 3, the package never loaded |
+| `/node_modules` as well | Shipped pair | Selected, and the `/` package loaded |
+| `/node_modules`, TMPDIR `/` | Shipped pair | Selected, and the `/` package loaded |
+| Nothing | Shipped pair | Exit 3 |
+| `/tmp/package.json` with an `imports` map, for a `data:` module's `#` import | package.json on | Exit 3 |
+| `/package.json` as well | package.json on | Selected, and the planted module ran |
+| `/package.json` as well | Shipped pair | Exit 3 |
+| `/.env`, `/.env.local` and a `/bunfig.toml` preload, for a policy that starts a `Worker` without moving | Shipped pair, and the shipped worker driven directly | Neither variable in either VM, no preload |
+| The same | `autoload`, started in an empty directory | Both variables in the `Worker`, neither in the main VM, no preload |
+| The same | `autoload`, started in `/` | Both in both, and the preload ran |
+
+So `/` does take part, as the last limit below already said from the source.
+`/node_modules` answers a module with no file location through the shipped
+pair, and so does a TMPDIR that is `/`. With package.json autoloading on,
+`/package.json` answers one too. And `/.env` is what the dotenv switch alone
+keeps out of a `Worker`. The first two rows are also the first reading of the
+move on Linux with a hostile fixture, beside one seen to fire.
 
 Limits of these observations:
 
 - One host and one Bun version. A Bun upgrade rereads `set_process_cwd` and
   `resolve_and_auto_install`, and reruns the cases.
-- The Linux targets are unmeasured for this control, as for the others: the
-  installed smoke test runs no hostile fixture. The control there is the same
-  JavaScript statement. The smoke test did pass on all three targets with this
-  worker build, at the glibc and CPU floors, so the move itself succeeds there.
+- The Linux targets are unmeasured for this control by any test, as for the
+  others: the installed smoke test runs no hostile fixture. The control there
+  is the same JavaScript statement. The smoke test did pass on all three
+  targets with this worker build, at the glibc and CPU floors, so the move
+  itself succeeds there. The container cases above are one run, on arm64 with
+  a current glibc, and nothing reruns them.
 - `/node_modules`, and with the switch on `/package.json`, still take part for
-  such a module. Both are already above every module in a file, so the move
-  gives them no new say.
+  such a module, as the container cases show. Both are already above every
+  module in a file, so the move gives them no new say. No test can hold this:
+  the suite cannot plant a file in `/`.
+- `/.env` is kept from a `Worker` a policy starts by the dotenv switch alone.
+  The command-seam test stands a directory the policy moves into in for `/`.
+- Other ways a policy might start a VM were not examined. `Bun.Transpiler`
+  turns environment loading off (`src/runtime/api/JSTranspiler.rs`), by k63's
+  reading. A child process a policy starts is a process of its own, starting
+  in `/`.
 - Not examined: whether tsconfig `paths` above the start directory would answer
   such a module in a build with tsconfig autoloading on and no move. The
   shipped build has neither.
@@ -546,6 +637,30 @@ static and computed cases from archives of version 21.12.0 whose workers
 report build `77b6f49de68c…`, on the same host and Docker. Every row above
 held for both cases: each passed through both fronts on every target, and the
 glibc and CPU controls fired as before.
+
+**Docker 29 refuses the helper its user namespace.** Later on 2026-10-01,
+during `worker-directory-chain-k64`, a restart moved Docker Desktop from
+28.1.1, kernel 6.10.14, to 29.8.1, kernel 7.0.14. The next smoke run passed on
+macOS and in the arm64 floor container, then failed before either emulated
+route ran anything from the archive: `unshare: unshare failed: Operation not
+permitted`. Outside the script, in the pinned ubuntu:24.04 image as root, with
+`user.max_user_namespaces` at 97125:
+
+| Container | `unshare --user --mount true` |
+|---|---|
+| As the script started it, built-in seccomp profile | Operation not permitted |
+| `--security-opt apparmor=unconfined` | Operation not permitted |
+| `--security-opt seccomp=unconfined` | Succeeded |
+| `--cap-add SYS_ADMIN`, built-in profile | Succeeded |
+
+So 29.8.1's built-in profile gates the call on `CAP_SYS_ADMIN`. Why 28.1.1
+allowed it was not established: that engine was gone by then. The helper
+container now runs with `--security-opt seccomp=unconfined`, which adds no
+capability, and the human chose that over the capability. With it, every row
+of the table above held on all three targets at worker build `79a4f60edb07…`:
+each case passed through both fronts, the glibc controls were refused, both
+CPU controls fired, and each guest's address space stayed below its limit with
+a vDSO on the 7.0 kernel.
 
 **Docker Desktop cannot run the x64 userland.** With Rosetta off, its VM runs
 amd64 containers through a binfmt handler, `/usr/bin/qemu-x86_64` 8.1.5, which

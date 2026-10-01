@@ -178,6 +178,18 @@ digest_of() {
 # 1.4.2's default already agrees, so that a Bun upgrade changing a default
 # cannot change the build.
 #
+# WHY THE DOTENV SWITCH IS SOMETIMES THE ONLY CONTROL. For the files Bun reads
+# as a process starts, the switch is one of two controls: the front also
+# starts the worker in an empty directory of its own. Bun loads dotenv files
+# again for each VM it starts, though, from the directory the process is then
+# in (`start_vm`, and `clone_for_worker`, which marks no file loaded):
+# https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/jsc/web_worker.rs
+# https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/dotenv/env_loader.rs
+# The worker has moved to `/` by the time a policy can start a native Worker
+# (main.ts), so with this switch on such a Worker would load `/.env`. Seen on
+# 2026-10-01 in a build with the switch on; see "A VM started later" under
+# "The worker's directory" in the runtime evidence named below.
+#
 # WHY PACKAGE.JSON AUTOLOADING IS OFF, AT A COST. Without it the resolver finds
 # a package only by its file layout, so one whose entry `main` or `exports`
 # declares, which is most published packages, does not load. With it, the

@@ -160,10 +160,14 @@ stood at the graft — a closed record, not part of the versioned sequence above
 - `harness-dispatch`: policy code runs with `/` as its current directory. The
   worker starts in a private empty directory, now created owner-only whatever
   the caller's umask, and moves to `/` before it loads a policy. So a
-  `node_modules` in `TMPDIR`, or anywhere above where the worker started, does
-  not answer a bare import from a module with no file of its own: one imported
-  from a `data:` or `blob:` URL, or registered by the policy. The caller's
-  directory is `request.cwd`.
+  `node_modules` in `TMPDIR`, or in any directory between where the worker
+  started and `/`, does not answer a bare import from a module with no file of
+  its own: one imported from a `data:` or `blob:` URL, or registered by the
+  policy. `/node_modules` itself still can, as it can for a module in a file.
+  The caller's directory is `request.cwd`. A native `Worker` a policy starts
+  loads no dotenv file from the directory the process is then in, which is `/`
+  unless the policy moved; the dotenv switch is the one control there, since
+  the worker has left its empty start directory by then.
 
 ## v21.12.0
 

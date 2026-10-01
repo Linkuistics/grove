@@ -190,32 +190,42 @@ digest_of() {
 # 2026-10-01 in a build with the switch on; see "A VM started later" under
 # "The worker's directory" in the runtime evidence named below.
 #
-# WHY PACKAGE.JSON AUTOLOADING IS OFF, AT A COST. Without it the resolver finds
-# a package only by its file layout, so one whose entry `main` or `exports`
-# declares, which is most published packages, does not load. With it, the
-# resolver records the package.json of every directory it builds a record for
-# (`dir_info_uncached`, the one reader of `load_package_json`), and it builds
-# one for more than the directories an import names. A module compiled into
-# the worker, and any module with no file location, is resolved as though it
-# sat in the directory the worker started in (`resolve_and_auto_install`), and
-# even an import of an absolute path builds that directory's record and each
-# ancestor's (`resolve_without_symlinks`):
+# WHY PACKAGE.JSON AUTOLOADING IS ON, AND WHAT MAKES THAT SAFE. Without it the
+# resolver finds a package only by its file layout, so one whose entry `main`
+# or `exports` declares, which is most published packages, does not load. The
+# switch decides one resolver option, `load_package_json`
+# (`apply_standalone_runtime_flags`), whose one reader records the
+# package.json of each directory the resolver builds a record for
+# (`dir_info_uncached`):
+# https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/bun.js.rs
 # https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolver/resolver.rs
+# It builds one for more than the directories an import names. A module
+# compiled into the worker, and any module with no file location, is resolved
+# as though it sat in the directory the process is in
+# (`resolve_and_auto_install`), and even an import of an absolute path builds
+# that directory's record and each ancestor's (`resolve_without_symlinks`).
 # The front starts the worker in a private directory under the caller's
 # TMPDIR, so a worker that stayed there would read every package.json at or
-# above TMPDIR whole on each evaluation. Seen on 2026-10-01: one of 4 GiB there
-# stalled a plain policy to its deadline, and one with an `imports` map
-# answered a `#` import from a `data:` module. The worker now moves to `/`
-# before it loads anything (main.ts), and with the switch on neither was seen
-# again. The switch is still off: turning it on also changes what an entry's
-# own package.json does, and that change lands with its own cases. See
-# "Package entry resolution" and "The worker's directory" in
+# above TMPDIR whole on each evaluation. Seen on 2026-10-01: one past 4 GiB
+# there stalled a plain policy to its deadline, and one with an `imports` map
+# answered a `#` import from a `data:` module. So the switch is on only
+# because the worker moves to `/` before it loads anything (main.ts). The
+# `unmoved` probe, which does not move, still does both, and tests/hostile.rs
+# holds the shipped worker to neither. `/package.json` is what remains, as
+# `/node_modules` remained with the switch off.
+#
+# The switch also changes what an entry's own package.json does: its `imports`
+# map applies, its own `name` resolves ahead of `node_modules`, and an
+# `imports` alias to a registered specifier is a `node_modules` lookup that
+# never reaches the embedded module (`load_package_imports`). The spec states
+# each under *Policy authority and runtime discovery*. See "Package entry
+# resolution", "The worker's directory" and "Package.json autoloading" in
 # docs/design/harness-selection-and-execution/runtime-evidence.md.
 readonly SHIPPED_SWITCHES=(
   --no-compile-autoload-dotenv
   --no-compile-autoload-bunfig
   --no-compile-autoload-tsconfig
-  --no-compile-autoload-package-json
+  --compile-autoload-package-json
 )
 
 # Set `switches` to the shipped ones with autoloading of each class named in

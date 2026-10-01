@@ -458,6 +458,38 @@ with `--security-opt seccomp=unconfined`; `scripts/release-smoke.sh` gives the
 reason at its `docker run`. `task release:smoke` passes on all three targets
 that way, and a leaf that sees it fail there again looks at Docker first.
 
+`package-json-autoloading-k62` turned the switch on. The shipped worker reads
+`package.json` at run time, so an ordinary npm package loads, and the fourth
+fact under the evaluation boundary above no longer holds. k62's running log
+has the reasoning and what was seen, and *Package.json autoloading* in the
+runtime evidence has the tables. Later leaves build on six facts. First, the
+spec's `#policy-authority` states the contract in four paragraphs, from "Other
+external imports" to the one before "Because tsconfig". The README's *Which
+policy runs* gained three paragraphs, and its "Nothing ambient takes part
+otherwise" passage changed. `dispatch-documentation-k41` consolidates around
+those. Second, one limit was accepted without the human. An `imports` alias to
+a registered specifier is a `node_modules` lookup: it refuses with no package
+of the name, and loads a `node_modules/harness-dispatch` shadow beside one.
+The spec states it at `#imports-alias`, the README says not to alias those
+names, and `hostile::an_imports_alias_to_a_registered_specifier_is_a_package_lookup_and_never_the_embedded_module`
+holds both sides. k62 judged it inside what an entry admits. The review below
+is asked to attack that first, and a finding against it is the human's to
+settle. Third, every probe derives its switches from the shipped set, so the
+`tsconfig` and `autoload` probes now have package.json autoloading on as well.
+Fourth, `direct::drive_within` in `tests/support/direct.rs` bounds the wait
+for a frame and kills a worker that stays silent, and `Driven::stalled` says
+so. A firing configuration that stalls a worker uses it. Fifth, the oversized
+arm of
+`hostile::a_package_json_above_the_workers_start_directory_stays_inert_and_fires_under_the_unmoved_probe`
+holds about 4 GiB resident for five seconds on every run of the suite, which
+is the cost of keeping its firing configuration in the test. Sixth, the
+installed smoke test has a fourth case, `declared_package`, and
+`task release:smoke` passed with it on all three targets.
+
+`package-json-autoloading-k65` reviews k62 before
+`dispatch-documentation-k41` runs. A review with actionable findings inserts
+its integration ahead of k41.
+
 Grove dispatch closed with `grove-dispatch-guidance-k34`. Later leaves build on
 three facts. First, the Grove-side guidance lives in four places, and later
 guidance joins them rather than starting a fifth.

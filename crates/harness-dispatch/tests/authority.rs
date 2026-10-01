@@ -118,58 +118,142 @@ fn personal_policy_may_import_a_repository_entry_explicitly() {
     assert_eq!(report["selection"]["candidateId"], "deep");
 }
 
+/// `ROUTED`, with its version made of `parts`, a TypeScript expression list:
+/// what the policy's imports gave it, as inspection reports it.
+fn versioned_by(imports: &str, parts: &str) -> String {
+    format!(
+        "{imports}{}",
+        ROUTED.replace("\"seam-1\"", &format!("[{parts}].join(\" \")"))
+    )
+}
+
 #[test]
-fn a_package_resolves_by_its_file_layout_and_never_through_its_package_json() {
-    // Packages beside the personal policy, as `npm install` there leaves
-    // them. The worker reads no `package.json`, so one with an `index.js`
-    // loads and one whose entry only `main` or `exports` declares refuses.
+fn a_package_loads_by_the_entry_point_its_package_json_declares() {
+    // Packages beside the personal policy, as an owner's `npm install` there
+    // leaves them: one with only an `index.js`, one whose `main` names its
+    // entry, one with an `exports` map and a subpath, one whose `exports`
+    // chooses by condition, and one that reaches its own file through its
+    // `imports` map.
     let sandbox = Sandbox::new();
     let packages = sandbox.home.join(".config/harness-dispatch/node_modules");
-    support::write(
-        &packages.join("by-layout/index.js"),
-        "export const which = \"layout\";\n",
-    );
-    support::write(
-        &packages.join("by-main/package.json"),
-        r#"{ "name": "by-main", "main": "./lib/entry.js" }"#,
-    );
-    support::write(
-        &packages.join("by-main/lib/entry.js"),
-        "export const which = \"main\";\n",
-    );
-    support::write(
-        &packages.join("by-exports/package.json"),
-        r#"{ "name": "by-exports", "type": "module", "exports": { ".": "./dist/entry.js" } }"#,
-    );
-    support::write(
-        &packages.join("by-exports/dist/entry.js"),
-        "export const which = \"exports\";\n",
-    );
-    let importing = |package: &str| {
-        format!(
-            "import {{ which }} from {package:?};\n{}",
-            ROUTED.replace("\"seam-1\"", "which")
-        )
+    let package = |name: &str, manifest: Option<&str>, files: &[(&str, &str)]| {
+        if let Some(manifest) = manifest {
+            support::write(&packages.join(name).join("package.json"), manifest);
+        }
+        for (file, which) in files {
+            support::write(
+                &packages.join(name).join(file),
+                &format!("export const which = {which:?};\n"),
+            );
+        }
     };
+    package("by-layout", None, &[("index.js", "layout")]);
+    package(
+        "by-main",
+        Some(r#"{ "name": "by-main", "main": "./lib/entry.js" }"#),
+        &[("lib/entry.js", "main")],
+    );
+    package(
+        "by-exports",
+        Some(
+            r#"{ "name": "by-exports", "type": "module", "exports": { ".": "./dist/entry.js", "./sub": "./dist/sub.js" } }"#,
+        ),
+        &[("dist/entry.js", "exports"), ("dist/sub.js", "subpath")],
+    );
+    package(
+        "by-condition",
+        Some(
+            r#"{ "name": "by-condition", "exports": { ".": { "production": "./production.js", "development": "./development.js", "bun": "./bun.js", "default": "./default.js" } } }"#,
+        ),
+        &[
+            ("production.js", "production"),
+            ("development.js", "development"),
+            ("bun.js", "bun"),
+            ("default.js", "default"),
+        ],
+    );
+    package(
+        "by-imports",
+        Some(
+            r##"{ "name": "by-imports", "exports": "./index.js", "imports": { "#internal": "./internal.js" } }"##,
+        ),
+        &[("internal.js", "imports")],
+    );
+    support::write(
+        &packages.join("by-imports/index.js"),
+        "export { which } from \"#internal\";\n",
+    );
+    sandbox.personal_policy(&versioned_by(
+        r#"import { which as layout } from "by-layout";
+import { which as main } from "by-main";
+import { which as exported } from "by-exports";
+import { which as subpath } from "by-exports/sub";
+import { which as condition } from "by-condition";
+import { which as imports } from "by-imports";
+"#,
+        "layout, main, exported, subpath, condition, imports",
+    ));
+    let loaded = "layout main exports subpath bun imports";
 
-    sandbox.personal_policy(&importing("by-layout"));
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    assert_eq!(report["policy"]["version"], "layout");
+    assert_eq!(report["policy"]["version"], loaded);
 
-    for package in ["by-main", "by-exports"] {
-        let entry = sandbox.personal_policy(&importing(package));
-        let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
-        let error = &refusal["error"];
-        assert_eq!(
-            error["code"], "policy_import_failed",
-            "{package}: {refusal}"
-        );
-        assert_eq!(error["source"], text(&entry), "{package}: {refusal}");
-        assert!(
-            error["message"].as_str().unwrap().contains(package),
-            "{refusal}"
-        );
+    // The condition is the runtime's own. Even a granted NODE_ENV selects no
+    // `production` or `development` entry, so no variable chooses the code.
+    for node_env in ["production", "development"] {
+        let mut command = sandbox.command();
+        command.env("NODE_ENV", node_env).args([
+            "inspect",
+            "--kind",
+            "impl",
+            "--policy-env",
+            "NODE_ENV",
+            "--json",
+        ]);
+        let report = run(&mut command).report();
+        assert_eq!(report["policy"]["version"], loaded, "NODE_ENV={node_env}");
     }
+}
+
+#[test]
+fn an_entrys_own_package_json_applies_its_imports_map_and_answers_its_own_name() {
+    // The nearest `package.json` at or above an importing module is that
+    // module's package. Its `imports` map resolves `#` names, and a bare
+    // import of its own name resolves through its `exports`, ahead of a
+    // `node_modules` package of that name, as Node's package resolution has
+    // it. The file sits where `node_modules` is already trusted.
+    let sandbox = Sandbox::new();
+    sandbox.file(
+        "policies/package.json",
+        r##"{ "name": "owner-policies", "type": "module", "imports": { "#routes": "./routes.ts" }, "exports": { "./shared": "./shared.ts" } }"##,
+    );
+    sandbox.file("policies/routes.ts", "export const which = \"imports\";\n");
+    sandbox.file("policies/shared.ts", "export const which = \"own-name\";\n");
+    sandbox.file(
+        "policies/nested/node_modules/owner-policies/shared.js",
+        "export const which = \"node_modules\";\n",
+    );
+    sandbox.file(
+        "policies/nested/policy.ts",
+        &versioned_by(
+            r##"import { which as mapped } from "#routes";
+import { which as named } from "owner-policies/shared";
+"##,
+            "mapped, named",
+        ),
+    );
+
+    let report = sandbox
+        .inspect(&[
+            "--kind",
+            "impl",
+            "--config",
+            "policies/nested/policy.ts",
+            "--json",
+        ])
+        .report();
+
+    assert_eq!(report["policy"]["version"], "imports own-name");
 }
 
 #[test]

@@ -13,7 +13,7 @@
 //! hello, hands it an entry, and reads what it reports.
 
 use std::ffi::OsString;
-use std::io::{Read as _, Write as _};
+use std::io::{ErrorKind, Read as _, Write as _};
 use std::os::fd::AsRawFd as _;
 use std::os::unix::net::UnixStream;
 use std::os::unix::process::CommandExt as _;
@@ -104,6 +104,9 @@ pub struct Driven {
     /// Its report on the entry: a `policy` frame or a `failure`, if it got
     /// that far.
     pub report: Option<Value>,
+    /// Whether it was still running, and had sent no frame, when the wait
+    /// for one ran out. It was killed then.
+    pub stalled: bool,
     pub stdout: String,
     pub stderr: String,
 }
@@ -126,10 +129,26 @@ impl Driven {
     }
 }
 
+/// How long `drive` waits for each frame.
+const PATIENCE: Duration = Duration::from_secs(30);
+
 /// Start `worker` in `cwd` with exactly `env`, as the front would but without
 /// its private directory or its scrubbing, and have it evaluate `entry`.
 /// Returns once the worker has exited.
 pub fn drive(worker: &Path, cwd: &Path, env: &[(&str, OsString)], entry: &Path) -> Driven {
+    drive_within(worker, cwd, env, entry, PATIENCE)
+}
+
+/// As `drive`, waiting no longer than `patience` for each frame. A firing
+/// configuration that stalls the worker names a short one, so the test sees
+/// the stall and the worker is killed rather than waited for.
+pub fn drive_within(
+    worker: &Path,
+    cwd: &Path,
+    env: &[(&str, OsString)],
+    entry: &Path,
+    patience: Duration,
+) -> Driven {
     let (front, worker_end) = UnixStream::pair().expect("a socket pair");
     let channel = worker_end.as_raw_fd();
     let mut command = Command::new(worker);
@@ -157,14 +176,23 @@ pub fn drive(worker: &Path, cwd: &Path, env: &[(&str, OsString)], entry: &Path) 
             Ok(())
         });
     }
-    let child = command.spawn().expect("the worker starts");
+    let mut child = command.spawn().expect("the worker starts");
     drop(worker_end);
     front
-        .set_read_timeout(Some(Duration::from_secs(30)))
+        .set_read_timeout(Some(patience))
         .expect("a read timeout");
 
     let mut front = front;
-    let hello = read_frame(&mut front);
+    let mut stalled = false;
+    let mut next = |front: &mut UnixStream| match read_frame(front) {
+        Read::Frame(frame) => Some(frame),
+        Read::Closed => None,
+        Read::Silent => {
+            stalled = true;
+            None
+        }
+    };
+    let hello = next(&mut front);
     let mut report = None;
     if hello.is_some() {
         let evaluate = json!({
@@ -187,14 +215,19 @@ pub fn drive(worker: &Path, cwd: &Path, env: &[(&str, OsString)], entry: &Path) 
             "measured": [],
         });
         write_frame(&mut front, &evaluate);
-        report = read_frame(&mut front);
+        report = next(&mut front);
     }
-    // The closed channel is the worker's sign that nothing more is asked.
+    // The closed channel is the worker's sign that nothing more is asked. A
+    // stalled worker is not reading it, and would never exit.
     drop(front);
+    if stalled {
+        child.kill().expect("the stalled worker is killed");
+    }
     let output = child.wait_with_output().expect("the worker exits");
     Driven {
         hello,
         report,
+        stalled,
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
     }
@@ -204,20 +237,35 @@ pub fn drive(worker: &Path, cwd: &Path, env: &[(&str, OsString)], entry: &Path) 
 /// hands it.
 const MESSAGE_BYTES: u32 = 1_048_576;
 
+/// What waiting for one frame found.
+enum Read {
+    Frame(Value),
+    /// The worker closed its end.
+    Closed,
+    /// Nothing arrived within the channel's read timeout.
+    Silent,
+}
+
 /// One frame: a four-byte big-endian length and that much JSON, as
-/// `src/frame.rs` reads it. `None` once the worker has closed its end. A
-/// length over the bound is `{ "type": "malformed", "header": <its four
-/// bytes> }`, unread beyond them, as the front refuses it: whatever wrote
-/// those bytes, it was not the worker's framing.
-fn read_frame(channel: &mut UnixStream) -> Option<Value> {
+/// `src/frame.rs` reads it. A length over the bound is `{ "type":
+/// "malformed", "header": <its four bytes> }`, unread beyond them, as the
+/// front refuses it: whatever wrote those bytes, it was not the worker's
+/// framing.
+fn read_frame(channel: &mut UnixStream) -> Read {
     let mut length = [0; 4];
-    channel.read_exact(&mut length).ok()?;
+    if let Err(error) = channel.read_exact(&mut length) {
+        // A socket's read timeout is reported as either kind, by platform.
+        return match error.kind() {
+            ErrorKind::WouldBlock | ErrorKind::TimedOut => Read::Silent,
+            _ => Read::Closed,
+        };
+    }
     if u32::from_be_bytes(length) > MESSAGE_BYTES {
-        return Some(json!({ "type": "malformed", "header": length }));
+        return Read::Frame(json!({ "type": "malformed", "header": length }));
     }
     let mut body = vec![0; u32::from_be_bytes(length) as usize];
     channel.read_exact(&mut body).expect("a whole frame");
-    Some(serde_json::from_slice(&body).expect("a JSON frame"))
+    Read::Frame(serde_json::from_slice(&body).expect("a JSON frame"))
 }
 
 fn write_frame(channel: &mut UnixStream, frame: &Value) {

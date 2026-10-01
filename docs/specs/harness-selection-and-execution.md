@@ -4,6 +4,7 @@ This is the first-release design of **harness-dispatch**. Most of it specifies
 behavior that is not implemented yet. Of the command itself, `inspect` and
 `run` of a static `routes` policy and of a computed `select` are delivered:
 policy authority, the compiled worker with its identity check, embedded SDK,
+package imports resolved through `package.json`,
 the two static starter examples and the dynamic one, policy validation, the
 `select` result contract with its distinct refusals and the policy's own,
 explicit-choice policing under `select`, the request, the prompt, task file,
@@ -52,7 +53,8 @@ configurations need are test instruments that no front accepts.
 Every release archive and the Homebrew formula carry the front and its worker
 in the [delivered layout](#delivery), each target's worker compiled from a
 digest-pinned Bun runtime. The installed smoke test runs the static and
-computed TypeScript cases from the extracted archive on macOS arm64 natively,
+computed TypeScript cases, and a policy importing packages their `package.json`
+declares, from the extracted archive on macOS arm64 natively,
 and on each Linux target in a glibc-2.17 userland under a pinned user-mode QEMU
 emulating its CPU floor, Nehalem or the Cortex-A53; Linux arm64 also runs as a
 native container. Positive controls show that the userland enforces the glibc
@@ -348,8 +350,9 @@ controls. The move gave that one up to close a reach that was open as shipped.
 The file it leaves to the switch belongs to whoever owns `/`. bunfig is not
 read again.
 
-The worker is compiled with dotenv, bunfig, tsconfig and package-json autoloading
-all explicitly disabled. Its own entry imports embedded modules and prefixed
+The worker is compiled with dotenv, bunfig and tsconfig autoloading explicitly
+disabled, and with package.json autoloading explicitly enabled, so that an
+ordinary package loads. Its own entry imports embedded modules and prefixed
 built-ins. Before importing the selected entry, it registers each documented
 package specifier as a runtime virtual module backed by its embedded copy:
 `harness-dispatch/sdk`, `harness-dispatch/grove`, and one
@@ -357,50 +360,76 @@ package specifier as a runtime virtual module backed by its embedded copy:
 imports those names. There is no installed path to name and no `node_modules`
 for the owner to maintain. The SDK and adapter a policy receives are always the
 running worker's own, so an upgrade cannot mix versions. A registered specifier
-resolves to its embedded module even when a `node_modules/harness-dispatch`
-package sits beside the importing entry. The prefix itself reserves nothing: an
+that an import names resolves to its embedded module even when a
+`node_modules/harness-dispatch` package sits beside the importing entry,
+however that package declares its modules, and even when the entry's own
+package is named `harness-dispatch`. The prefix itself reserves nothing: an
 unregistered name under it resolves like any other bare specifier. So the
 registered list is part of the worker's versioned protocol, and every documented
-specifier is on it.
+specifier is on it. The registration answers a specifier as an import writes
+it. A name that an `imports` map produces is not one, which the
+[alias limit](#imports-alias) below states.
 
 Other external imports start at the selected absolute entry. Bare specifiers
 resolve through `node_modules` from the importing module's directory upward, and
 relative imports from the importing module, never from the invocation directory.
-No automatic package installation runs. Missing imports fail.
+A package loads by the entry point its `package.json` declares, with `main` or
+`exports`, and by its file layout when it declares none. An `exports` or
+`imports` map is read under the runtime's own conditions, `bun` among them. No
+variable chooses one, a granted `NODE_ENV` included. No automatic package
+installation runs, whatever a `package.json` lists as a dependency. Missing
+imports fail.
 
-The worker reads no `package.json` at run time. That is the contract of this
-release, kept on purpose. A package resolves only by its file layout, such as
-its `index.js`. One whose entry point only `main` or `exports` declares does not
-load, and neither an `imports` map nor a package's own name resolves. The
-switch was kept off because of where the worker ran. Bun resolves a module
+The worker reads `package.json` at run time, so an importing module's own
+package takes part in its imports. That package is the nearest `package.json`
+at or above the module. Its `imports` map resolves the module's `#` names. A
+bare import of its own `name` resolves through its `exports`, ahead of any
+`node_modules` package of that name, a nearer one included. This is Node's
+package resolution, so a policy directory that is a package behaves as one.
+These files sit at or above the importing module, where `node_modules` is
+already trusted, and an entry admitted with `--config` admits them with it. A
+`package.json` in the caller's cwd takes no part unless an importing module
+sits at or below it.
+
+<a id="imports-alias"></a>
+One consequence is a limit. An `imports` target that names a package is looked
+up in `node_modules` by the runtime's resolver, which knows only files and
+built-ins and never consults the worker's registration. So an alias to a registered
+specifier, such as `"#sdk": "harness-dispatch/sdk"`, does not reach the
+embedded module. With no `node_modules/harness-dispatch` it is a missing
+package, and the import refuses. Beside one, it is that package. The same
+`package.json` could point `#sdk` at any file, so the alias gives its author
+no new reach, but an owner who writes one gets the installed package and not
+the worker's SDK. Import a registered specifier by its name.
+
+The runtime reads a `package.json` in one more place. It resolves a module
 compiled into the worker, and any module with no file location, as though it
-sat in the worker's current directory, and it keeps a record of every directory
-from there to the root. A worker that stayed in its private directory, which
-the front creates under the caller's TMPDIR, read each `package.json` at or
-above TMPDIR on every evaluation with the switch on. Those files belong to
-whoever can write there and not to the owner's policy. One of 4 GiB stalled a
-plain policy to its deadline, and one with an `imports` map answered a `#`
-import from a `data:` module
-([runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md#package-entry-resolution)).
-The worker's move to `/` closes that: with the switch on for an experiment,
-neither was seen again
-([runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md#worker-directory)).
-`/package.json` is what remains. With the switch on it answered such a module,
-as `/node_modules` does with it off.
-`package-json-autoloading-k62` turns the switch on, with the cases for what it
-changes inside an entry's own packages.
+sat in the directory the process is in, and it records that directory and each
+one above it. Importing the policy entry is such a resolution, so it happens
+on every evaluation. The worker is in `/` by then, so that is `/package.json`
+alone. No directory between where the worker started and `/` has its
+`package.json` read on that account, the caller's TMPDIR included. One there
+answers nothing, and one too large to read delays no selection. A worker that
+stayed where it started read each of them whole, on every evaluation: one past
+4 GiB stalled a plain policy to its deadline, and one with an `imports` map
+answered a `#` import from a `data:` module
+([runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md#package-json-autoloading)).
+Those files belong to whoever can write there and not to the owner's policy,
+which is why package.json autoloading stayed off until the worker moved.
 
-A module with no file location resolves its bare imports through `node_modules`
-from the worker's current directory upward. Such a module is one a policy
-imports from a `data:` or `blob:` URL, or registers as a virtual module of its
-own. The worker is in `/` when any policy code runs, so that walk is `/` alone.
-No directory between where the worker started and `/` takes part, the caller's
-TMPDIR included, and a `node_modules` package in one is a missing package to
-such a module. `/` itself does take part: `/node_modules` answers such a
-module, as it answers a module in a file, which it is already above. So the
-guarantee stops short of `/`, and a TMPDIR that is `/` has none. A policy that
-changes directory itself moves that walk with it. That is a policy effect,
-like any other use of a native API.
+A module with no file location resolves from the worker's current directory
+upward: its bare imports through `node_modules` there, and its `#` names and
+its package's own name through the `package.json` there. Such a module is one
+a policy imports from a `data:` or `blob:` URL, or registers as a virtual
+module of its own. The worker is in `/` when any policy code runs, so that walk
+is `/` alone. No directory between where the worker started and `/` takes part,
+the caller's TMPDIR included, and a `node_modules` package or a `package.json`
+in one is nothing to such a module. `/` itself does take part: `/node_modules`
+and `/package.json` answer such a module, as they answer a module in a file,
+which they are already above. `/package.json` is also read on every
+evaluation, whatever the policy imports. So the guarantee stops short of `/`,
+and a TMPDIR that is `/` has none. A policy that changes directory itself moves
+that walk with it. That is a policy effect, like any other use of a native API.
 
 Because tsconfig
 autoloading is off, `paths` aliases in a tsconfig beside owner policy do not
@@ -1024,7 +1053,8 @@ cargo-release cut; the worker embeds that same package version.
 
 Reusable package check/build/install/smoke tasks join the existing Taskfile, and
 the repository check includes package checks. Archive-content assertions and
-installed-layout smoke tests run the static and computed TypeScript cases with
+installed-layout smoke tests run the static and computed TypeScript cases, and
+a policy importing one package declared by `main` and one by `exports`, with
 fake harnesses and no separately installed runtime on **each** supported target,
 natively or under emulation. A matching runtime archive is insufficient evidence
 until that test executes. These are implementation/release acceptance
@@ -1061,7 +1091,7 @@ acceptance instruments; internal tests may support them without replacing them.
 |---|---|
 | New command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; a caller-ignored HUP or SIGPIPE and the entry signal mask reach the fake harness unchanged; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
 | Same command, actual shipped examples | Different-origin reviewer on every invocation, retry and explicit choice; same-origin/gateway disguise refuses; a fake producer launched through dispatch writes its `Creator` line from `HARNESS_DISPATCH_RUN_ID`, and the dispatched review of that task file uses the named run's recorded provider, which a changed current mapping cannot rewrite; a store holding an earlier run of the same task identity does not satisfy a review task with no `Creator` line; an unknown run and a run marked not executed refuse; declaration adoption; missing, duplicate or malformed `Reviews`/`Creator` lines refuse; `Reviews` under a kind that is not a configured review entry refuses; a relabelled origin and a misspelt declaration refuse as non-members; the generic reviewed-artifact form selects without a task file |
-| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, a dotenv file where a policy starts a `Worker`, tsconfig, package shadow, a package between the worker's start directory and `/`, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; the front starts its worker in an owner-only empty directory and removes it, and policy code runs in `/`; explicit relative config and personal import are admitted; a package beside an entry loads by its file layout and never through its `package.json`; a documented package specifier resolves to the embedded module; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
+| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, a dotenv file where a policy starts a `Worker`, tsconfig, a cwd `package.json`, package shadow, a package and a `package.json` between the worker's start directory and `/`, an oversized one included, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; the front starts its worker in an owner-only empty directory and removes it, and policy code runs in `/`; explicit relative config and personal import are admitted; a package beside an entry loads by the entry point its `package.json` declares, with `main`, `exports`, a subpath, a condition or its own `imports` map, and a granted `NODE_ENV` chooses no condition; an entry's own `package.json` supplies its `imports` map and answers its own name ahead of a nearer `node_modules`; a missing package is not installed beside a `package.json` that lists it; a documented package specifier resolves to the embedded module, and an `imports` alias to one is a missing package or the package beside it; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
 | Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields, reads no observation history, and an unreadable store refuses; a stored launch record or observation this release cannot read refuses every read of it; the review's run records the creator provenance used; later observations after tree teardown |
 | Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a close cascade names its run on every live review of each node it closes, one nested in another node and one the closing session cut included, and on no terminal review and no review of another producer; a direct-harness finish removes a stale `Creator` line from the pre-existing review, planted by a dispatched attempt that named its run without finishing, and that review refuses with the declaration remedy, which then admits a different-origin reviewer; a review attaches an observation to the run its line names after `.grove/` is removed; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
 | Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
@@ -1083,10 +1113,12 @@ must be seen to fire, so a test cannot pass merely because its fixture never ran
 | cwd policy entry | The same file named by an explicit relative `--config`, which loads it |
 | cwd `.env` and bunfig preload | A default-autoload probe build of the same worker, run in the hostile directory |
 | `BUN_OPTIONS` preload, and `BUN_BE_BUN` | The shipped worker launched directly with the variable set, bypassing the front process's scrubbing |
-| `node_modules/harness-dispatch` shadow | The fixture beside an admitted entry, under a probe build that does not register the virtual modules |
+| `node_modules/harness-dispatch` shadow, in three layouts: files in `node_modules`, a `node_modules` package whose `exports` declares them, and the entry's own package named `harness-dispatch` | Each fixture beside an admitted entry, under a probe build that does not register the virtual modules |
+| cwd `package.json`: its `imports` map, its own name, and a package in a `node_modules` beside it | The same import from an entry in that directory, named by an explicit relative `--config` |
 | tsconfig `paths` | The fixture beside an admitted entry, under a probe build with tsconfig autoloading enabled |
 | `.env` in the directory the process is in when a policy starts a native `Worker` | A default-autoload probe build of the same worker, started in an empty directory, whose policy moves into the hostile directory before it starts the `Worker` |
 | `node_modules` package between the worker's start directory and `/`, for a module with no file location | The fixture in the caller's TMPDIR, under a probe build that does not move to `/`, started in a directory under that TMPDIR |
+| `package.json` between the worker's start directory and `/`: its `imports` map, its own name and a package its `main` declares, for a module with no file location; and one past 4 GiB, for any policy | The fixture in the caller's TMPDIR, under the same probe build started in a directory under that TMPDIR: it answers such a module, and beside the oversized file it never reports on the entry |
 | Runtime transpiler cache under HOME or `XDG_CACHE_HOME` | The shipped worker launched directly without the front's cache setting, after its own cache entry for the policy has had its output altered |
 | `NODE_PRESERVE_SYMLINKS`, and `NODE_CHANNEL_FD` | The shipped worker launched directly with the variable set: a helper reached through a directory symlink resolves its bare import beside the link, and a module's `process.send` writes Bun's IPC message where the policy frame belongs |
 
@@ -1108,6 +1140,10 @@ under its most permissive probe, and fails if one gains a firing configuration.
 For the moved-into and tsconfig classes the test's policy makes the move: every
 worker but one probe leaves the caller's cwd, and `/` can hold no fixture. The
 `Worker` class in the table above was reported here until it was seen to fire.
+A package or `package.json` above the worker's start directory answers a
+module in a file under no build, since a file's imports resolve from the file.
+Its case asserts that under the probe that does not move, beside the same
+fixture firing for a module with no file location.
 Missing-source fixtures carry the same obligation. The runtime
 evidence records which of these have been seen to fire. Do not infer backend
 identity, policy quality or task acceptance from these mechanics tests.

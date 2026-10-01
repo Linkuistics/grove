@@ -72,9 +72,11 @@ const probe = typeof HARNESS_DISPATCH_PROBE === "string" ? HARNESS_DISPATCH_PROB
 // as one imported from a `data:` or `blob:` URL or registered as a virtual
 // module, as though it sat in the process's current directory, and walks up
 // from there. So the ancestors of the front's private directory, the caller's
-// TMPDIR and everything above it, would answer such a module's bare imports.
+// TMPDIR and everything above it, would answer such a module's bare imports,
+// and the `package.json` of each would be read whole on every evaluation.
 // From `/` the walk is `/` alone, which is already above every module in a
-// file, so `/node_modules` still answers one, as it does a file's import.
+// file, so `/node_modules` and `/package.json` still answer one, as they do a
+// file's import.
 // `process.chdir` moves the resolver's directory with the process's
 // (`set_process_cwd` rewrites the `top_level_dir` that
 // `resolve_and_auto_install` substitutes for such an importer):
@@ -94,7 +96,7 @@ const probe = typeof HARNESS_DISPATCH_PROBE === "string" ? HARNESS_DISPATCH_PROB
 // `scripts/dispatch.sh` alone keeps that out. A failed move throws here,
 // before the hello, so the front never hands such a worker a policy. The
 // `unmoved` probe skips this, so that a test can see a package above its
-// start directory load.
+// start directory load, and a `package.json` there answer and stall.
 if (probe !== "unmoved") process.chdir("/");
 
 // Every documented specifier resolves to the worker's own embedded copy, even

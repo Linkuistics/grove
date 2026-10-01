@@ -9,7 +9,8 @@
 //! configurations that need a probe build, or the shipped worker without the
 //! front's scrubbing, drive the worker directly (`support::direct`). The cwd
 //! policy entry class is `authority::no_cwd_search_or_environment_variable_selects_an_entry`,
-//! whose firing configuration is the same file named by `--config`.
+//! whose firing configuration is the same file named by `--config`. A cwd
+//! `package.json` fires the same way, for an entry in that directory.
 
 mod support;
 
@@ -17,6 +18,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
 use serde_json::{json, Value};
 use support::direct::{self, probe_build, shipped_worker, Probe};
@@ -584,19 +586,48 @@ fn slug(specifier: &str) -> String {
     specifier.replace('/', "_")
 }
 
-/// A `node_modules/harness-dispatch` shadow in `dir`, answering each of
-/// `specifiers` with a module that writes its sentinel under `fired` and
-/// exports only `shadowed`. It is laid out as files, with no `package.json`:
-/// the shipped worker reads no `package.json` at run time, so a package's
-/// `exports` or `main` never applies, and an `exports`-only shadow would not
-/// load under any build (runtime evidence, *Ambient authority*).
-fn shadow_package(dir: &Path, specifiers: &[String], fired: &Path) {
-    let package = dir.join("node_modules/harness-dispatch");
+/// How a package shadowing `harness-dispatch` beside an entry declares its
+/// modules. The worker reads `package.json`, so each way a package can answer
+/// a specifier is a way to shadow one.
+#[derive(Clone, Copy, Debug)]
+enum Shadow {
+    /// `node_modules/harness-dispatch`, one file per subpath and no
+    /// `package.json`.
+    Files,
+    /// `node_modules/harness-dispatch`, whose `exports` maps each subpath.
+    Exports,
+    /// The entry's own package: a `package.json` beside it named
+    /// `harness-dispatch`, whose `exports` maps each subpath. A module's
+    /// import of its own package's name resolves ahead of any `node_modules`.
+    OwnName,
+}
+
+/// A `harness-dispatch` shadow in `dir`, laid out as `shadow` says, answering
+/// each of `specifiers` with a module that writes its sentinel under `fired`
+/// and exports only `shadowed`.
+fn shadow_package(dir: &Path, shadow: Shadow, specifiers: &[String], fired: &Path) {
+    let package = match shadow {
+        Shadow::Files | Shadow::Exports => dir.join("node_modules/harness-dispatch"),
+        Shadow::OwnName => dir.to_owned(),
+    };
+    let mut exports = serde_json::Map::new();
     for specifier in specifiers {
         let subpath = specifier.strip_prefix("harness-dispatch/").unwrap();
+        let file = match shadow {
+            Shadow::Files => format!("{subpath}.js"),
+            Shadow::Exports | Shadow::OwnName => format!("shadow/{}.js", slug(specifier)),
+        };
         support::write(
-            &package.join(format!("{subpath}.js")),
+            &package.join(&file),
             &sentinel_module(&fired.join(slug(specifier))),
+        );
+        exports.insert(format!("./{subpath}"), json!(format!("./{file}")));
+    }
+    if !matches!(shadow, Shadow::Files) {
+        support::write(
+            &package.join("package.json"),
+            &json!({ "name": "harness-dispatch", "type": "module", "exports": exports })
+                .to_string(),
         );
     }
 }
@@ -623,7 +654,6 @@ fn importing_entry(specifiers: &[String], view: &Path) -> String {
 
 #[test]
 fn every_documented_specifier_resolves_to_its_embedded_module_beside_a_package_shadow() {
-    let sandbox = Sandbox::new();
     let shipped = shipped_build();
     let documented = documented_specifiers();
     // The registered list is the worker's own, and it is the documented one.
@@ -647,48 +677,228 @@ fn every_documented_specifier_resolves_to_its_embedded_module_beside_a_package_s
     let unregistered = "harness-dispatch/unregistered-name".to_owned();
     let mut imported = documented.clone();
     imported.push(unregistered.clone());
+
+    for shadow in [Shadow::Files, Shadow::Exports, Shadow::OwnName] {
+        let sandbox = Sandbox::new();
+        let fired = sandbox.root.join("shadow-fired");
+        fs::create_dir(&fired).unwrap();
+        let view = sandbox.root.join("view.json");
+        shadow_package(&sandbox.cwd.join("policies"), shadow, &imported, &fired);
+        let entry = sandbox.file("policies/policy.ts", &importing_entry(&imported, &view));
+
+        let report = sandbox
+            .inspect(&["--kind", "impl", "--config", "policies/policy.ts", "--json"])
+            .report();
+        assert_eq!(report["policy"]["authority"], "explicit");
+        let seen = read_json(&view);
+        for specifier in &documented {
+            let keys = seen[specifier].as_array().unwrap();
+            assert!(
+                !keys.is_empty() && !keys.contains(&json!("shadowed")),
+                "{shadow:?}: {specifier} did not resolve to its embedded module: {seen}"
+            );
+            assert!(
+                !fired.join(slug(specifier)).exists(),
+                "{shadow:?}: the shadow of {specifier} loaded through the front"
+            );
+        }
+        assert_eq!(seen[&unregistered], json!(["shadowed"]), "{shadow:?}");
+        assert!(fired.join(slug(&unregistered)).exists(), "{shadow:?}");
+        fs::remove_file(fired.join(slug(&unregistered))).unwrap();
+
+        // The firing configuration: the unregistered probe, with the same
+        // entry.
+        let driven = direct::drive(
+            &probe_build(Probe::Unregistered),
+            &sandbox.root,
+            &base_env(&sandbox),
+            &entry,
+        );
+        assert_probe_identity(&driven, Probe::Unregistered, &shipped);
+        driven.loaded();
+        let seen = read_json(&view);
+        for specifier in &imported {
+            assert_eq!(
+                seen[specifier],
+                json!(["shadowed"]),
+                "{shadow:?}: {specifier}: {seen}"
+            );
+            assert!(
+                fired.join(slug(specifier)).exists(),
+                "{shadow:?}: the shadow of {specifier} never fired"
+            );
+        }
+    }
+}
+
+#[test]
+fn an_imports_alias_to_a_registered_specifier_is_a_package_lookup_and_never_the_embedded_module() {
+    // The registration answers a specifier as an import writes it. A name an
+    // `imports` map produces never comes back to it: the resolver looks a
+    // package target up in `node_modules` itself (`load_package_imports`):
+    // https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolver/resolver.rs
+    // So an alias to a registered specifier is a limit of the shadow
+    // control, stated in the spec, and this case holds both of its sides.
+    let sandbox = Sandbox::new();
+    let registered = "harness-dispatch/sdk".to_owned();
+    let alias = "#sdk".to_owned();
     let fired = sandbox.root.join("shadow-fired");
     fs::create_dir(&fired).unwrap();
     let view = sandbox.root.join("view.json");
-    shadow_package(&sandbox.cwd.join("policies"), &imported, &fired);
-    let entry = sandbox.file("policies/policy.ts", &importing_entry(&imported, &view));
-
-    let report = sandbox
-        .inspect(&["--kind", "impl", "--config", "policies/policy.ts", "--json"])
-        .report();
-    assert_eq!(report["policy"]["authority"], "explicit");
-    let seen = read_json(&view);
-    for specifier in &documented {
-        let keys = seen[specifier].as_array().unwrap();
-        assert!(
-            !keys.is_empty() && !keys.contains(&json!("shadowed")),
-            "{specifier} did not resolve to its embedded module: {seen}"
-        );
-        assert!(
-            !fired.join(slug(specifier)).exists(),
-            "the shadow of {specifier} loaded through the front"
-        );
-    }
-    assert_eq!(seen[&unregistered], json!(["shadowed"]));
-    assert!(fired.join(slug(&unregistered)).exists());
-    fs::remove_file(fired.join(slug(&unregistered))).unwrap();
-
-    // The firing configuration: the unregistered probe, with the same entry.
-    let driven = direct::drive(
-        &probe_build(Probe::Unregistered),
-        &sandbox.root,
-        &base_env(&sandbox),
-        &entry,
+    sandbox.file(
+        "policies/package.json",
+        &json!({ "name": "owner-policies", "type": "module", "imports": { &alias: &registered } })
+            .to_string(),
     );
-    assert_probe_identity(&driven, Probe::Unregistered, &shipped);
-    driven.loaded();
+    let inspect =
+        || sandbox.inspect(&["--kind", "impl", "--config", "policies/policy.ts", "--json"]);
+
+    // The registered name itself loads beside that `package.json`.
+    sandbox.file(
+        "policies/policy.ts",
+        &importing_entry(std::slice::from_ref(&registered), &view),
+    );
+    inspect().report();
+    let embedded = read_json(&view)[&registered].clone();
+    assert!(
+        !embedded.as_array().unwrap().is_empty() && embedded != json!(["shadowed"]),
+        "{embedded}"
+    );
+
+    // With no package of the name, the alias is a missing package, and the
+    // refusal names it.
+    sandbox.file(
+        "policies/policy.ts",
+        &importing_entry(&[alias.clone(), registered.clone()], &view),
+    );
+    let refusal = inspect().refusal(3);
+    assert_eq!(
+        refusal["error"]["code"], "policy_import_failed",
+        "{refusal}"
+    );
+    assert!(
+        refusal["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains(&alias),
+        "{refusal}"
+    );
+
+    // Beside a shadow, the alias is the shadow. The registered name, in the
+    // same entry, is still the embedded module.
+    shadow_package(
+        &sandbox.cwd.join("policies"),
+        Shadow::Files,
+        std::slice::from_ref(&registered),
+        &fired,
+    );
+    inspect().report();
     let seen = read_json(&view);
-    for specifier in &imported {
-        assert_eq!(seen[specifier], json!(["shadowed"]), "{specifier}: {seen}");
-        assert!(
-            fired.join(slug(specifier)).exists(),
-            "the shadow of {specifier} never fired"
+    assert_eq!(seen[&alias], json!(["shadowed"]), "{seen}");
+    assert_eq!(seen[&registered], embedded, "{seen}");
+    assert!(
+        fired.join(slug(&registered)).exists(),
+        "the shadow never loaded for the alias"
+    );
+}
+
+/// A package in `dir` that a module there could reach three ways, each to a
+/// module that writes `sentinel`: `#hostile-alias` through its `imports` map,
+/// its own name `hostile-self` through its `exports`, and `hostile-dep`, a
+/// package in a `node_modules` beside it whose entry its `main` declares.
+fn hostile_package(dir: &Path, sentinel: &Path) -> [&'static str; 3] {
+    support::write(
+        &dir.join("package.json"),
+        r##"{ "name": "hostile-self", "type": "module", "main": "./hostile.js", "imports": { "#hostile-alias": "./hostile.js" }, "exports": { ".": "./hostile.js" }, "dependencies": { "hostile-dep": "1.0.0" } }"##,
+    );
+    support::write(&dir.join("hostile.js"), &sentinel_module(sentinel));
+    support::write(
+        &dir.join("node_modules/hostile-dep/package.json"),
+        r#"{ "name": "hostile-dep", "main": "./lib/entry.js" }"#,
+    );
+    support::write(
+        &dir.join("node_modules/hostile-dep/lib/entry.js"),
+        &sentinel_module(sentinel),
+    );
+    ["#hostile-alias", "hostile-self", "hostile-dep"]
+}
+
+/// A routes policy whose own file imports `specifier`.
+fn importing_from_its_file(specifier: &str) -> String {
+    format!("import {{ shadowed }} from {specifier:?};\nvoid shadowed;\n{ROUTED}")
+}
+
+/// Assert that a directly driven worker refused the entry at its import.
+fn assert_import_refused(driven: &direct::Driven, context: &str) {
+    let report = driven.report.as_ref().unwrap_or_else(|| {
+        panic!(
+            "{context}: no report on the entry\nstderr: {}",
+            driven.stderr
+        )
+    });
+    assert_eq!(report["type"], "failure", "{context}: {report}");
+    assert_eq!(report["stage"], "load", "{context}: {report}");
+}
+
+#[test]
+fn a_cwd_package_json_stays_inert_and_fires_for_an_entry_admitted_there() {
+    let sandbox = Sandbox::new();
+    let shipped = shipped_build();
+    let fired = sandbox.root.join("cwd-package-ran");
+    // The caller's cwd is the hostile directory.
+    for specifier in hostile_package(&sandbox.cwd, &fired) {
+        let source = importing_from_its_file(specifier);
+
+        // Through the public launcher, personal policy finds nothing there.
+        let entry = sandbox.personal_policy(&source);
+        let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
+        assert_eq!(
+            refusal["error"]["code"], "policy_import_failed",
+            "{specifier}: {refusal}"
         );
+        assert!(
+            refusal["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains(specifier),
+            "{refusal}"
+        );
+        assert!(
+            !fired.exists(),
+            "the cwd package answered {specifier} through the front"
+        );
+
+        // Nor is it where the worker is that keeps it out. A module in a
+        // file is resolved from that file, so the worker started in the
+        // hostile directory finds nothing either: not the shipped one, which
+        // leaves it, and not the unmoved probe, which stays.
+        let driven = direct::drive(&shipped_worker(), &sandbox.cwd, &base_env(&sandbox), &entry);
+        assert_import_refused(&driven, specifier);
+        let driven = direct::drive(
+            &probe_build(Probe::Unmoved),
+            &sandbox.cwd,
+            &base_env(&sandbox),
+            &entry,
+        );
+        assert_probe_identity(&driven, Probe::Unmoved, &shipped);
+        assert_import_refused(&driven, specifier);
+        assert!(
+            !fired.exists(),
+            "the cwd package answered {specifier} for a worker started there"
+        );
+
+        // The firing configuration: the same import from an entry in that
+        // directory, named explicitly.
+        sandbox.file("admitted.ts", &source);
+        let report = sandbox
+            .inspect(&["--kind", "impl", "--config", "admitted.ts", "--json"])
+            .report();
+        assert_eq!(report["policy"]["authority"], "explicit");
+        assert!(
+            fired.exists(),
+            "the package never answered {specifier} for an entry beside it"
+        );
+        fs::remove_file(&fired).unwrap();
     }
 }
 
@@ -777,10 +987,10 @@ fn planted_package(dir: &Path, sentinel: &Path) {
 }
 
 /// One routes policy per kind of module with no file location, each of which
-/// imports `chain-planted` from such a module: one imported from a `data:`
-/// URL, one from a `blob:` URL, and a virtual module the policy registers.
-fn policies_importing_from_no_file() -> [(&'static str, String); 3] {
-    let module = r#"import "chain-planted";"#;
+/// imports `specifier` from such a module: one imported from a `data:` URL,
+/// one from a `blob:` URL, and a virtual module the policy registers.
+fn policies_importing_from_no_file(specifier: &str) -> [(&'static str, String); 3] {
+    let module = format!("import {specifier:?};");
     [
         (
             "data:",
@@ -821,7 +1031,7 @@ fn a_package_above_the_workers_start_directory_stays_inert_and_fires_under_the_u
     let started = sandbox.tmp.join("started-here");
     fs::create_dir(&started).unwrap();
 
-    for (kind, policy) in policies_importing_from_no_file() {
+    for (kind, policy) in policies_importing_from_no_file("chain-planted") {
         let entry = sandbox.personal_policy(&policy);
 
         // Through the public launcher the name is missing, under both
@@ -865,14 +1075,169 @@ fn a_package_above_the_workers_start_directory_stays_inert_and_fires_under_the_u
         // The move alone is the difference: the shipped worker, started in
         // that same directory, finds nothing.
         let driven = direct::drive(&shipped_worker(), &started, &base_env(&sandbox), &entry);
-        let report = driven.report.as_ref().expect("a report on the entry");
-        assert_eq!(report["type"], "failure", "{kind}: {report}");
-        assert_eq!(report["stage"], "load", "{kind}: {report}");
+        assert_import_refused(&driven, kind);
         assert!(
             !loaded.exists(),
             "the shipped worker loaded the package for a {kind} import"
         );
     }
+}
+
+/// One byte more than 4 GiB, rounded up to a page. Bun 1.4.2 reads a
+/// `package.json` whole when it records the directory, and one longer than a
+/// `u32` counts never comes back from that read. At exactly 4 GiB it does.
+const OVERSIZED: u64 = (1 << 32) + 4096;
+
+/// How long a worker gets to report on an entry in the oversized case, in
+/// milliseconds: the bound the front is given, and the patience each directly
+/// driven worker gets. A worker that reads nothing answers in a hundredth of
+/// it.
+const STALL_MS: u64 = 5_000;
+
+#[test]
+fn a_package_json_above_the_workers_start_directory_stays_inert_and_fires_under_the_unmoved_probe()
+{
+    let sandbox = Sandbox::new();
+    let shipped = shipped_build();
+    let fired = sandbox.root.join("chain-package-ran");
+    // The front creates the worker's directory in the caller's TMPDIR, so
+    // this package sits one level above where the worker starts.
+    let specifiers = hostile_package(&sandbox.tmp, &fired);
+    // Each directly driven worker starts beside where the front would start
+    // it: in a directory of its own under the same TMPDIR.
+    let started = sandbox.tmp.join("started-here");
+    fs::create_dir(&started).unwrap();
+    let unmoved = |entry: &Path| {
+        let driven = direct::drive(
+            &probe_build(Probe::Unmoved),
+            &started,
+            &base_env(&sandbox),
+            entry,
+        );
+        assert_probe_identity(&driven, Probe::Unmoved, &shipped);
+        driven
+    };
+
+    for specifier in specifiers {
+        // Each way a policy can import the name: from its own file, and from
+        // each kind of module with no file location.
+        let mut policies = vec![("policy file", importing_from_its_file(specifier), false)];
+        policies.extend(
+            policies_importing_from_no_file(specifier)
+                .into_iter()
+                .map(|(kind, policy)| (kind, policy, true)),
+        );
+        for (kind, policy, has_no_file) in policies {
+            let context = format!("{specifier} from a {kind}");
+            let entry = sandbox.personal_policy(&policy);
+
+            // Through the public launcher the name is missing, under both
+            // commands: no `package.json` between where the worker started
+            // and `/` answers it. `/package.json` still would answer a module
+            // with no file location, and `/` can hold no fixture.
+            let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
+            assert_eq!(
+                refusal["error"]["code"], "policy_import_failed",
+                "{context}: {refusal}"
+            );
+            assert!(
+                refusal["error"]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains(specifier),
+                "{context}: {refusal}"
+            );
+            let ran = sandbox.run(&["--kind", "impl", "--prompt", "p"]);
+            assert_eq!(ran.code, Some(3), "{context}: {}", ran.stderr);
+            assert!(
+                !fired.exists(),
+                "the package above the worker's directory answered {context} through the front"
+            );
+
+            let driven = unmoved(&entry);
+            if has_no_file {
+                // The firing configuration: the unmoved probe, started under
+                // the same TMPDIR, resolves such a module from where it
+                // stayed, and the package answers.
+                driven.loaded();
+                assert!(
+                    fired.exists(),
+                    "the unmoved probe never loaded the package for {context}"
+                );
+                fs::remove_file(&fired).unwrap();
+            } else {
+                // A module in a file is resolved from that file in every
+                // build, so the package has no firing configuration for it.
+                // The same fixture fires above for the other three.
+                assert_import_refused(&driven, &context);
+                assert!(
+                    !fired.exists(),
+                    "the package answered {context} under the unmoved probe"
+                );
+            }
+
+            // The move alone is the difference: the shipped worker, started
+            // in that same directory, finds nothing.
+            let driven = direct::drive(&shipped_worker(), &started, &base_env(&sandbox), &entry);
+            assert_import_refused(&driven, &context);
+            assert!(
+                !fired.exists(),
+                "the shipped worker loaded the package for {context}"
+            );
+        }
+    }
+
+    // An oversized `package.json` in the same place, for a policy that
+    // imports nothing. The file is sparse, so it costs no disk.
+    let manifest = sandbox.tmp.join("package.json");
+    fs::File::create(&manifest)
+        .unwrap()
+        .set_len(OVERSIZED)
+        .unwrap();
+    let entry = sandbox.personal_policy(ROUTED);
+    let bound = STALL_MS.to_string();
+    let patience = Duration::from_millis(STALL_MS);
+
+    // Through the public launcher the selection is made, well inside a
+    // bound the firing configuration below outlasts.
+    let report = sandbox
+        .inspect(&["--kind", "impl", "--timeout-ms", &bound, "--json"])
+        .report();
+    assert_eq!(report["selection"]["candidateId"], "deep");
+    let ran = sandbox.run(&["--kind", "impl", "--prompt", "p", "--timeout-ms", &bound]);
+    assert_eq!(ran.code, Some(0), "{}", ran.stderr);
+
+    // The firing configuration: the unmoved probe, started under the same
+    // TMPDIR, announces itself and then never reports on the entry, because
+    // importing it records every directory from the worker's to the root. It
+    // is killed once its time is up. A probe the host stopped for the memory
+    // that read takes fired just the same.
+    let driven = direct::drive_within(
+        &probe_build(Probe::Unmoved),
+        &started,
+        &base_env(&sandbox),
+        &entry,
+        patience,
+    );
+    assert_probe_identity(&driven, Probe::Unmoved, &shipped);
+    assert!(
+        driven.report.is_none(),
+        "the unmoved probe reported on the entry beside an oversized package.json: {:?}",
+        driven.report
+    );
+
+    // The move alone is the difference, and the bound is not what stopped
+    // the probe: the shipped worker, started in that same directory with
+    // the same patience, loads the policy.
+    let driven = direct::drive_within(
+        &shipped_worker(),
+        &started,
+        &base_env(&sandbox),
+        &entry,
+        patience,
+    );
+    assert!(!driven.stalled, "the shipped worker stalled as well");
+    driven.loaded();
 }
 
 /// Fail loudly if a class reported as having no firing configuration has

@@ -30,11 +30,12 @@ kind. Bun's runtime transpiler cache, under HOME, ran an altered cached output
 of an imported file in place of the file, and only a variable set before start
 turns the cache off, so Rust sets it. A `node_modules` shadow beside the entry lost to a
 registered embedded module. tsconfig `paths` fired only in a build that enables
-tsconfig autoloading. package.json autoloading stays off as well, at a cost: a
-package whose entry `main` or `exports` declares does not load. With it on, the
-worker read each `package.json` at or above its own directory, which the front
-creates under the caller's TMPDIR. One there stalled a plain policy to its
-deadline, and another answered an import from a module with no file location.
+tsconfig autoloading. package.json autoloading is the one switch left on, so
+that a package whose entry `main` or `exports` declares loads. It could not be
+on while the worker stayed where it started. The worker then read each
+`package.json` at or above its own directory, which the front creates under
+the caller's TMPDIR. One there stalled a plain policy to its deadline, and
+another answered an import from a module with no file location.
 That probe also found what the private directory does not control. Its ancestors
 are not private, and with every switch off a `node_modules` above it answered a
 bare import from such a module. So the worker starts in the private directory
@@ -42,7 +43,8 @@ and then moves to `/` before it loads any policy code. The runtime reads its
 startup files from where a process starts and resolves such a module from where
 the process is, and `/` has no ancestors. With the move, a `node_modules` above
 the directory the worker started in answered nothing, and nor did a
-`package.json` there with the switch on for an experiment. `/` itself still
+`package.json` there, whether it mapped an import or was too large to read.
+`/` itself still
 answers, as it does for a module in a file. The move costs one control. The
 runtime loads dotenv files again for each VM it starts, from where the process
 then is, so a native `Worker` a policy starts would read `/.env`, where one
@@ -50,9 +52,12 @@ started by a worker that stayed put read the empty directory. Only the dotenv
 switch keeps that out, and it was seen to. That was accepted: the reach the
 move closes was open in the shipped build to anyone who could write TMPDIR,
 and what the move leaves to one control is a file only the owner of `/` can
-write, behind a switch a command-seam test holds. Other classes were not seen
-to fire at
-all. The
+write, behind a switch a command-seam test holds. Turning package.json
+autoloading on has a limit of its own. An entry's own `package.json` takes
+part as it does in Node, and an `imports` alias there that names a registered
+specifier is looked up in `node_modules`, so beside a shadow it loads the
+shadow. A registered specifier an import names still resolves to its embedded
+module. Other classes were not seen to fire at all. The
 [runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md)
 records exactly which, the limits of each observation and the primary runtime
 documentation.

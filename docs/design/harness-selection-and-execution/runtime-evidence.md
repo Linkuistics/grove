@@ -257,14 +257,15 @@ report naming another candidate, left `inspect --json` one document, the
 selection its own, and `run --json` one notice line. That is
 `hostile::a_policy_flooding_both_streams_leaves_json_output_and_the_protocol_intact`.
 
-**The worker reads no `package.json` at run time.** The worker is compiled with
+**The worker read no `package.json` at run time then.** It was compiled with
 `--no-compile-autoload-package-json`. Through the shipped front, a
 `node_modules` package with an `index.js` loaded. One whose `package.json` has
 `"main": "./lib/entry.js"`, or only an `exports` map, refused with "Cannot find
-package". Plain `bun` loaded all three. That is why the shadow fixture is laid
-out as files. `package-entry-resolution-k52` asked whether the limitation could
-go, and [package entry resolution](#package-entry-resolution) records why it
-stays.
+package". Plain `bun` loaded all three. That is why the shadow fixture was
+laid out as files alone. `package-entry-resolution-k52` asked whether the
+limitation could go, and [package entry resolution](#package-entry-resolution)
+records why it stayed. [Package.json autoloading](#package-json-autoloading)
+records its end.
 
 The classes were observed on this one host. The installed smoke test runs no
 hostile fixture, so the Linux targets are unmeasured for these controls. Each
@@ -276,9 +277,10 @@ registration.
 
 On 2026-10-01, `package-entry-resolution-k52` asked whether the worker could be
 compiled with `--compile-autoload-package-json`, the other three switches still
-off, without any hostile class firing. It could not, so the switch stays off and
-the limitation is the contract. The host was macOS 26.6.2 (Darwin 25.6.0) on
-arm64, with Bun 1.4.2.
+off, without any hostile class firing. It could not as the worker then stood,
+so the switch stayed off and the limitation was the contract until
+[package.json autoloading](#package-json-autoloading) turned it on. The host
+was macOS 26.6.2 (Darwin 25.6.0) on arm64, with Bun 1.4.2.
 
 **What the switch reads, from the `bun-v1.4.2` source.** The compile switch
 decides one graph flag, `DISABLE_AUTOLOAD_PACKAGE_JSON`
@@ -356,10 +358,11 @@ anything in either build.
 
 Consequences for the design:
 
-- The switch stays off. With it on, a `package.json` that no entry admits
-  takes part in every evaluation: any at or above the worker's directory. It
-  can stall a selection, which then refuses and launches nothing, and it can
-  answer imports from a module with no file location.
+- The switch stayed off while the worker stayed in its start directory. With
+  it on there, a `package.json` that no entry admits takes part in every
+  evaluation: any at or above the worker's directory. It can stall a
+  selection, which then refuses and launches nothing, and it can answer
+  imports from a module with no file location.
 - One reach predates the switch and was open with it off. A `node_modules` at
   or above the worker's directory answered a bare import from a module with no
   file location. The worker's directory is private and empty, and its
@@ -379,12 +382,16 @@ Consequences for the design:
   its `exports`, ahead of any `node_modules` package of the name, a nearer one
   included. An `imports` alias whose target is a registered specifier does not
   reach the embedded module: it loaded a `node_modules/harness-dispatch`
-  shadow.
+  shadow. The probe behind the table's last row also saw that alias load
+  with no shadow there, and the review saw it fail.
+  [Package.json autoloading](#package-json-autoloading) settles that: it
+  fails.
 
-The command-seam test of the contract is
-`authority::a_package_resolves_by_its_file_layout_and_never_through_its_package_json`.
-`scripts/dispatch.sh` now states the shipped switches once and derives each
-probe's from them.
+The command-seam test of that contract was
+`authority::a_package_resolves_by_its_file_layout_and_never_through_its_package_json`,
+which the cases under [package.json autoloading](#package-json-autoloading)
+replaced. `scripts/dispatch.sh` states the shipped switches once and derives
+each probe's from them.
 
 This is one host and one Bun version. A Bun upgrade rereads the three resolver
 functions named above and reruns the cases.
@@ -584,6 +591,126 @@ Limits of these observations:
   such a module in a build with tsconfig autoloading on and no move. The
   shipped build has neither.
 
+<a id="package-json-autoloading"></a>
+## Package.json autoloading
+
+On 2026-10-01, `package-json-autoloading-k62` turned
+`--compile-autoload-package-json` on in the shipped build, after
+[the worker's directory](#worker-directory) had closed what
+[package entry resolution](#package-entry-resolution) found. The other three
+switches stay off. The host was macOS 26.6.2 (Darwin 25.6.0) on arm64, with
+Bun 1.4.2 and worker build `721aab0848f6…`.
+
+**What was read again, from the `bun-v1.4.2` source.** Three points decide what
+the spec says, and each is in
+[`resolver.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolver/resolver.rs)
+or [`package_json.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolver/package_json.rs).
+
+- Which `package.json` is a module's own. `load_node_modules` walks up from
+  the importing directory to the first one whose record holds a `package.json`.
+  A `#` name resolves through that file's `imports` map if it has one, and a
+  bare name equal to that file's `name` resolves through its `exports` if it
+  has them. A nameless file still counts: the `enclosing_package_json` field,
+  which skips one, is not what these two use. `dir_info_uncached` records a
+  `package.json` only where the directory entry is a regular file and the file
+  parsed. Seen through the front, for an entry one directory below a named
+  `package.json` whose map answers `#x`: a nameless file beside the entry with
+  its own map answered instead, a nameless one with no `imports` field refused
+  the import, and one that did not parse left the outer map answering.
+- Where an `imports` target that names a package goes. `load_package_imports`
+  tries the target as a built-in alias and then calls `load_node_modules`
+  with it. Nothing returns to the module loader, where the worker's
+  `Bun.plugin` registration answers a specifier an import writes.
+- How much of the file is read. `PackageJSON::parse` reads it whole
+  (`read_file_with_allocator`) before parsing.
+
+**What was seen through the checkout's front.** Each row is a command-seam
+test, and its firing configuration is in the same test.
+
+| What | Through the shipped front | Firing configuration, seen to fire | Command-seam test |
+|---|---|---|---|
+| Packages beside the personal policy, declared by file layout, `main`, `exports`, an `exports` subpath, `exports` conditions and an own `imports` map | All six loaded in one policy. The condition chosen was `bun`, also with `NODE_ENV` granted as `production` and as `development` | | `authority::a_package_loads_by_the_entry_point_its_package_json_declares` |
+| The entry's own `package.json`, one directory above it: an `imports` map, and a name its `exports` answer where a `node_modules` package of that name sits nearer the entry | The `#` name resolved, and the own name resolved through `exports`, ahead of the nearer package | | `authority::an_entrys_own_package_json_applies_its_imports_map_and_answers_its_own_name` |
+| A `harness-dispatch` shadow beside an admitted entry in three layouts: files in `node_modules`, a `node_modules` package declared by `exports`, and the entry's own package of that name | Each registered specifier resolved to its embedded module, and the unregistered name loaded the shadow | The `unregistered` probe loaded the shadow for every specifier, in each layout | `hostile::every_documented_specifier_resolves_to_its_embedded_module_beside_a_package_shadow` |
+| A `package.json` in the caller's cwd with an `imports` map, a name its `exports` answer and a `node_modules` package its `main` declares, for a personal policy elsewhere | `policy_import_failed` for each of the three names | The same import from an entry in that directory, named with `--config`, ran the planted module. The shipped worker and the `unmoved` probe, each started in that directory, refused the personal policy's import | `hostile::a_cwd_package_json_stays_inert_and_fires_for_an_entry_admitted_there` |
+| The same package in the caller's TMPDIR, one level above the worker's start directory, for each of the three names imported from a `data:` module, a `blob:` module and a virtual module the policy registers | `policy_import_failed` under `inspect`, exit 3 under `run`, and the planted module never ran | The `unmoved` probe, started in a directory under the same TMPDIR, ran it for all nine. The shipped worker started there did not | `hostile::a_package_json_above_the_workers_start_directory_stays_inert_and_fires_under_the_unmoved_probe` |
+| The same, for each name imported from the policy's own file | The same refusals | None in any build: the `unmoved` probe refused each too | The same test |
+| A sparse `package.json` of 4,294,971,392 bytes in the caller's TMPDIR, for a plain routed policy | Selected under `inspect` and `run`, at a five-second bound | The `unmoved` probe, started under that TMPDIR, said hello and never reported on the entry in five seconds. The shipped worker started there loaded the policy | The same test |
+| A `package.json` beside the entry naming `is-odd` as a dependency, and no `node_modules` | `policy_import_failed`, and no cache written under HOME | | `inspect::a_missing_package_is_never_installed_automatically` |
+| The entry's own `package.json` aliasing `#sdk` to `harness-dispatch/sdk` | With no package of the name, `policy_import_failed`, "Cannot find package '#sdk'". Beside `node_modules/harness-dispatch/sdk.js`, the alias loaded that file, and `harness-dispatch/sdk` in the same entry was the embedded module | | `hostile::an_imports_alias_to_a_registered_specifier_is_a_package_lookup_and_never_the_embedded_module` |
+
+The tsconfig, dotenv and bunfig cases under
+[ambient authority](#ambient-authority) and
+[the worker's directory](#worker-directory) pass unchanged with the switch on.
+Their probes derive their switches from the shipped set, so the `tsconfig`
+probe is now tsconfig and package.json autoloading together, and the
+`autoload` probe has package.json autoloading as well.
+
+**The alias, settled.** [Package entry resolution](#package-entry-resolution)
+left two readings of an alias with no shadow beside it. It fails, as the
+source says it must. The limit is stated in the spec and not closed in the
+worker: closing it would mean the worker resolving every `#` import itself,
+with its own copy of the runtime's map and condition rules.
+
+**How large is too large.** The `unmoved` probe was driven directly from a
+directory under a TMPDIR holding a sparse `package.json` of each size, with a
+plain routed policy. The shipped worker, started in the same directory,
+loaded the policy in 0.01 s at 17 MiB resident in every row.
+
+| Size of `package.json` | The `unmoved` probe | Peak resident memory |
+|---|---|---|
+| 1 MiB | Loaded | 20 MiB |
+| 1 GiB | Loaded after 1.6 s | 3,092 MiB |
+| 2 GiB | Loaded after 1.4 s | 2,064 MiB |
+| 4 GiB exactly | Loaded after 2.7 s | 4,113 MiB |
+| 4 GiB and 4,096 bytes | No report in ten seconds, then killed | 4,112 MiB |
+| A FIFO of that name | Loaded at once | 17 MiB |
+
+So the file is read whole on each evaluation at any size, and one longer than
+4 GiB never comes back. A file that is not a regular file is not opened. The
+suite's firing configuration therefore holds about 4 GiB resident for its five
+seconds. Through the shipped front the 1 GiB and the oversized file each
+selected at once.
+
+**Each control was seen to fail.** With the switch put back to off in
+`scripts/dispatch.sh`, and the worker and probes rebuilt, six cases failed:
+the two `authority` cases above, and the shadow, cwd, TMPDIR and alias cases
+in `hostile`. The auto-install case passed, as it must either way. With the
+move to `/` removed from the shipped source instead, the TMPDIR case and
+`hostile::a_package_above_the_workers_start_directory_stays_inert_and_fires_under_the_unmoved_probe`
+failed at their front arms, where `inspect` exited 0. That stops the TMPDIR
+case before its oversized arm, so that arm was run by hand through the same
+mutant's front: `selection_timeout`, exit 124, at the five-second bound. Both
+files were then restored to their digests and the worker rebuilt as the build
+above.
+
+**The installed smoke test.** `task release:smoke` passed on all three targets
+at that worker build: four cases through both fronts on macOS arm64, on Linux
+arm64 as a native container and at the Cortex-A53, and on Linux x64 at
+Nehalem. The glibc and CPU controls fired. The `declared_package` case is the
+one `package-entry-resolution-k52` parked, unchanged, and k52 saw it refuse a
+worker built with the switch off, with `policy_import_failed`. `task check`
+passed all twelve checks before it, and the working copy had one snapshot
+before the check, after it and after the smoke test.
+
+Limits of these observations:
+
+- One host and one Bun version. A Bun upgrade rereads `load_node_modules`,
+  `load_package_imports` and `dir_info_uncached`, and reruns the cases. The
+  4 GiB threshold is this version's.
+- `/package.json` was not planted here. From the source it is read whole on
+  every evaluation and answers a module with no file location. The container
+  cases under [the worker's directory](#worker-directory) saw it answer one in
+  a build with the switch on. No test can hold it: the suite cannot plant a
+  file in `/`.
+- The Linux targets run the installed smoke test's `declared_package` case,
+  which imports one package declared by `main` and one by `exports`. They run
+  no hostile fixture, as for every other control.
+- Not examined: a `package.json` reached through a symlinked package
+  directory, whose real location's ancestors the resolver also records, and
+  the `type` field's effect on how a file beside it is loaded. Both belong to
+  code an entry admitted.
+
 <a id="installed-smoke"></a>
 ## Installed smoke
 
@@ -607,6 +734,12 @@ computed selection, with a reason carrying the request's kind and task
 identity. A `run` whose explicit choice the policy refuses must exit 3 with
 the policy's code and start nothing. The plain `run` must reach the fake
 harness with its run ID, and `record show` must report the `select` form.
+The declared-package case, added with
+[package.json autoloading](#package-json-autoloading), imports two packages
+from a `node_modules` beside its policy. One names its entry with `main` and
+the other with `exports`, and neither has an `index.js`, so a worker that read
+no `package.json` would refuse the import. `inspect` must report the version
+the policy builds from what the two export.
 
 The C library instrument runs in `docker.io/library/centos:7@sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4`,
 CentOS Linux 7.9.2009, with `getconf GNU_LIBC_VERSION` required to be

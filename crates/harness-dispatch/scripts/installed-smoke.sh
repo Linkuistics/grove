@@ -31,7 +31,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-CASES=(static_typescript computed_typescript signal_state)
+CASES=(static_typescript computed_typescript declared_package signal_state)
 
 fail() {
   echo "installed-smoke: FAIL: $*" >&2
@@ -291,6 +291,42 @@ case_computed_typescript() {
     fail "record show of run $run_id exited $?"
   expect_json "$dir/record.json" '"form":"select"'
   expect_json "$dir/record.json" "$reason"
+}
+
+# Two packages in a node_modules beside the policy, each found only through
+# its package.json: one names its entry with `main`, the other with `exports`.
+# Neither has an index.js, so a worker that read no package.json would refuse
+# the import. What they export becomes the policy's version, which inspection
+# reports.
+case_declared_package() {
+  local front="$1" dir="$2"
+  local packages="$dir/policy/node_modules"
+  mkdir -p "$packages/smoke-main/lib" "$packages/smoke-exports/dist" "$dir/cwd"
+  write_lines "$packages/smoke-main/package.json" \
+    '{ "name": "smoke-main", "main": "./lib/entry.js" }'
+  write_lines "$packages/smoke-main/lib/entry.js" \
+    'export const which = "main";'
+  write_lines "$packages/smoke-exports/package.json" \
+    '{ "name": "smoke-exports", "type": "module", "exports": { ".": "./dist/entry.js" } }'
+  write_lines "$packages/smoke-exports/dist/entry.js" \
+    'export const which = "exports";'
+  # shellcheck disable=SC2016 # a TypeScript template literal, not a shell expansion
+  write_lines "$dir/policy/policy.ts" \
+    'import { which as main } from "smoke-main";' \
+    'import { which as exported } from "smoke-exports";' \
+    '' \
+    'export const policy = {' \
+    '  schemaVersion: 1,' \
+    '  version: `installed-smoke-${main}-${exported}`,' \
+    '  catalog: [{ id: "smoke-package", provider: "smoke-provider", model: "smoke-model", effort: "low", program: "true", args: [{ slot: "prompt" }] }],' \
+    '  routes: { smoke: "smoke-package" },' \
+    '};'
+
+  (cd "$dir/cwd" && "$front" inspect --kind smoke --config "$dir/policy/policy.ts" \
+    --state-dir "$dir/state" --json) >"$dir/inspect.json" ||
+    fail "inspect of a policy importing packages declared by main and exports exited $?"
+  expect_json "$dir/inspect.json" '"version":"installed-smoke-main-exports"'
+  expect_json "$dir/inspect.json" '"selection":{"candidateId":"smoke-package"'
 }
 
 # The caller's SIGPIPE and HUP reach the harness as they were: the front's

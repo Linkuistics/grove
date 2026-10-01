@@ -111,12 +111,29 @@ A missing, unreadable or invalid entry refuses and names the path. So does an
 entry whose resolved path is not UTF-8 or contains `?`. The worker imports the
 path as a string, which would then name another file: its runtime reads
 `policy.ts?x` as `policy.ts` with a query. Nothing is
-installed on the policy's behalf. Relative imports resolve from the importing
-file, bare imports resolve through `node_modules` beside it, and a missing
-import refuses. In this release the worker reads no `package.json` at run
-time, so a package resolves only through its files, such as its `index.js`:
-one whose entry point its `package.json` declares, with `main` or `exports`,
-fails to load.
+installed on the policy's behalf, even where a `package.json` lists a
+dependency. Relative imports resolve from the importing file, bare imports
+resolve through `node_modules` beside it or above it, and a missing import
+refuses.
+
+An ordinary npm package loads: run `npm install` beside your policy and import
+it. The worker reads `package.json`, so a package's `main` and `exports`
+choose its entry point. An `exports` map is read under the runtime's own
+conditions, `bun` among them, and no variable changes that, a granted
+`NODE_ENV` included.
+
+The nearest `package.json` at or above a policy file is that file's own
+package, as in Node. Two things follow for a policy directory that has one.
+Its `imports` map resolves the file's `#` names. And a bare import of its own
+`name` resolves through its `exports`, ahead of any `node_modules` package of
+that name. A `package.json` in the directory you run from takes no part unless
+the policy file sits in or under that directory.
+
+Do not alias a `harness-dispatch/…` name. An `imports` entry such as `"#sdk":
+"harness-dispatch/sdk"` is looked up as a package in `node_modules`, and never
+reaches the SDK built into the worker. With no such package the import
+refuses, and beside a `node_modules/harness-dispatch` it loads that package.
+Import `harness-dispatch/sdk` by its name.
 
 ## A routes policy
 
@@ -1213,20 +1230,22 @@ itself uses.
 Nothing ambient takes part otherwise. A `.env` file, a `bunfig.toml` preload,
 a `tsconfig.json` path alias, or a `node_modules/harness-dispatch` package
 beside your entry changes nothing: the worker is compiled with Bun's dotenv,
-bunfig, tsconfig and package.json autoloading off, it starts in its own empty
-directory, and the documented `harness-dispatch/…` specifiers always resolve
-to its embedded modules. The worker is found only beside the front's real
-path, so neither PATH, the current directory, `argv[0]` nor a variable can
-substitute another.
+bunfig and tsconfig autoloading off, it starts in its own empty directory, and
+a documented `harness-dispatch/…` specifier that you import by name always
+resolves to its embedded module. That holds however the package beside your
+entry declares its modules, and where your entry's own package is itself named
+`harness-dispatch`. The worker is found only beside the front's real path, so
+neither PATH, the current directory, `argv[0]` nor a variable can substitute
+another.
 
-Nor does a `node_modules` in your `TMPDIR`, or in any directory between the
-one the worker started in and `/`. A module with no file of its own, one your
-policy imports from a `data:` or `blob:` URL or registers itself, resolves its
-bare imports from the worker's current directory upward, and that is `/`. So
-`/node_modules` itself can still answer one, as it can answer an import
-written in any file. Imports written in a file resolve from the file. If your
-policy changes directory itself, such a module resolves from wherever it moved
-to.
+Nor does a `node_modules` or a `package.json` in your `TMPDIR`, or in any
+directory between the one the worker started in and `/`. A module with no file
+of its own, one your policy imports from a `data:` or `blob:` URL or registers
+itself, resolves from the worker's current directory upward, and that is `/`.
+So `/node_modules` and `/package.json` can still answer one, as they can
+answer an import written in any file, and `/package.json` is read on every
+evaluation. Imports written in a file resolve from the file. If your policy
+changes directory itself, such a module resolves from wherever it moved to.
 
 ## Run
 

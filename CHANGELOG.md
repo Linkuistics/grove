@@ -168,6 +168,19 @@ stood at the graft — a closed record, not part of the versioned sequence above
   loads no dotenv file from the directory the process is then in, which is `/`
   unless the policy moved; the dotenv switch is the one control there, since
   the worker has left its empty start directory by then.
+- `harness-dispatch`: owner policy can import an ordinary npm package. The
+  worker reads `package.json` at run time, so a package's `main` and `exports`
+  choose its entry point; before, only a package laid out with an `index.js`
+  loaded. The nearest `package.json` at or above a policy file is that file's
+  own package, as in Node: its `imports` map resolves the file's `#` names,
+  and a bare import of its own `name` resolves through its `exports` ahead of
+  any `node_modules` package of that name. An `imports` alias to a
+  `harness-dispatch/…` specifier is looked up in `node_modules` and never
+  reaches the embedded module, so import those by name. A `package.json` in
+  `TMPDIR`, or in any directory between where the worker started and `/`,
+  takes no part, and one too large to read delays nothing. `/package.json`
+  can still answer a module with no file of its own, as `/node_modules` can.
+  Nothing is installed automatically, whatever a `package.json` lists.
 
 ## v21.12.0
 

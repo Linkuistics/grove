@@ -508,9 +508,15 @@ fn a_missing_relative_import_refuses_and_names_the_entry() {
 fn a_missing_package_is_never_installed_automatically() {
     // `is-odd` exists on npm, and plain `bun` fetches it when no node_modules
     // is present. The compiled worker must refuse instead, leaving no cache.
+    // The `package.json` beside the entry names it as a dependency, which is
+    // the record an installation would start from, and the worker reads it.
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(
+    let entry = sandbox.personal_policy(
         "import isOdd from \"is-odd\";\nexport const policy = { odd: isOdd(1) };\n",
+    );
+    support::write(
+        &entry.with_file_name("package.json"),
+        r#"{ "name": "owner-policies", "type": "module", "dependencies": { "is-odd": "3.0.1" } }"#,
     );
 
     let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);

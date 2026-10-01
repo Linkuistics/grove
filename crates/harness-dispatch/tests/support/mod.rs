@@ -18,9 +18,12 @@ pub mod stall;
 
 use std::ffi::CString;
 use std::fs;
+use std::io;
+use std::ops::RangeInclusive;
+use std::os::fd::{AsRawFd as _, FromRawFd as _, OwnedFd, RawFd};
 use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::fs::PermissionsExt as _;
-use std::os::unix::process::ExitStatusExt as _;
+use std::os::unix::process::{CommandExt as _, ExitStatusExt as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
@@ -225,6 +228,59 @@ pub fn write(path: &Path, contents: &str) {
 pub fn executable(path: &Path, script: &str) {
     write(path, script);
     fs::set_permissions(path, fs::Permissions::from_mode(0o755)).expect("chmod");
+}
+
+/// The descriptors the fake harness probes, and so the ones
+/// `Sandbox::harness_fds` can report.
+pub const PROBED: RangeInclusive<RawFd> = 3..=9;
+
+/// Start `command` as a caller that left `held` open on its number and held
+/// nothing else among the probed descriptors.
+///
+/// Neither half can be left to the numbers this process's descriptors happen
+/// to have, because the other tests' threads decide those. A file opened here
+/// can land on the very number it is to be handed down on, and `dup2` onto
+/// its own number does nothing: the close-on-exec flag Rust opened the file
+/// with stays set, and the descriptor closes as the command starts. So the
+/// file is first duplicated above every probed number, and the `dup2` never
+/// names one descriptor twice. And where there is no `pipe2`, as on macOS,
+/// Rust makes a pipe and marks it close-on-exec in two steps, so a child
+/// forked between them inherits a pipe another thread is still making:
+/// https://github.com/rust-lang/rust/blob/1.98.1/library/std/src/sys/pipe/unix.rs
+/// The forked child has no other thread, so what it marks there stays marked.
+pub fn caller_leaves_open(command: &mut Command, held: Option<(&fs::File, RawFd)>) {
+    let held = held.map(|(file, number)| {
+        assert!(PROBED.contains(&number), "descriptor {number} is probed");
+        // SAFETY: F_DUPFD_CLOEXEC returns a new descriptor this function owns.
+        let above =
+            unsafe { libc::fcntl(file.as_raw_fd(), libc::F_DUPFD_CLOEXEC, *PROBED.end() + 1) };
+        assert_ne!(above, -1, "duplicate: {}", io::Error::last_os_error());
+        // SAFETY: `above` is a fresh descriptor owned by nothing else.
+        (unsafe { OwnedFd::from_raw_fd(above) }, number)
+    });
+    // SAFETY: the closure runs between fork and exec and calls only `dup2`
+    // and `fcntl`, which are async-signal-safe, on descriptors computed
+    // before the fork.
+    unsafe {
+        command.pre_exec(move || {
+            let mut kept = None;
+            if let Some((above, number)) = &held {
+                if libc::dup2(above.as_raw_fd(), *number) == -1 {
+                    return Err(io::Error::last_os_error());
+                }
+                kept = Some(*number);
+            }
+            for fd in PROBED {
+                if Some(fd) != kept
+                    && libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) == -1
+                    && io::Error::last_os_error().raw_os_error() != Some(libc::EBADF)
+                {
+                    return Err(io::Error::last_os_error());
+                }
+            }
+            Ok(())
+        });
+    }
 }
 
 pub fn mkfifo(path: &Path) {

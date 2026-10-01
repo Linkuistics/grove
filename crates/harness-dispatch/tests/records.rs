@@ -85,7 +85,12 @@ fn launched(sandbox: &Sandbox, args: &[&str]) -> String {
 fn a_run_commits_its_handoff_record_before_the_harness_starts() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);
-    let result = sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"]);
+    let mut command = sandbox.command();
+    command.args(["run", "--kind", "impl", "--prompt", "p", "--json"]);
+    // So that the descriptors the harness holds, read below, are the front's
+    // doing and not another test's.
+    support::caller_leaves_open(&mut command, None);
+    let result = run(&mut command);
     assert_eq!(result.code, Some(0), "{}", result.stderr);
 
     let run_id = sandbox.harness_run_id();

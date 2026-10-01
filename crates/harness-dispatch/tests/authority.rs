@@ -420,7 +420,6 @@ writeFileSync({report:?}, JSON.stringify({{
         report = text(&report_path)
     ));
     let inherited = fs::File::open(sandbox.personal_path()).unwrap();
-    let inherited_fd = inherited.as_raw_fd();
 
     let mut command = sandbox.command();
     command
@@ -433,16 +432,9 @@ writeFileSync({report:?}, JSON.stringify({{
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    // SAFETY: dup2 is async-signal-safe; it hands the front a descriptor 7
-    // that a caller might have left open.
-    unsafe {
-        command.pre_exec(move || {
-            if libc::dup2(inherited_fd, 7) == -1 {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
-        });
-    }
+    // The front starts holding a descriptor 7 that a caller might have left
+    // open.
+    support::caller_leaves_open(&mut command, Some((&inherited, 7)));
     let mut child = command.spawn().unwrap();
     {
         use std::io::Write as _;

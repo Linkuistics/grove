@@ -9,15 +9,16 @@
 mod support;
 
 use std::fs;
-use std::io::{Read as _, Write as _};
+use std::io::Read as _;
 use std::os::fd::AsRawFd as _;
 use std::os::unix::ffi::OsStrExt as _;
-use std::os::unix::process::{CommandExt as _, ExitStatusExt as _};
+use std::os::unix::process::ExitStatusExt as _;
+use std::path::Path;
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 
 use serde_json::Value;
-use support::{executable, run, text, Sandbox, FAKE_HARNESS};
+use support::{executable, run, text, Sandbox, FAKE_HARNESS, FRONT};
 
 /// A policy with one candidate per routed kind, each `{ id, program, args }`
 /// given as a TypeScript object literal fragment.
@@ -134,6 +135,46 @@ fn a_prompt_file_is_read_once_with_its_exact_bytes_from_the_callers_cwd() {
     assert_eq!(sandbox.harness_args(), [AWKWARD_PROMPT]);
 }
 
+const CALLER_INPUT: &str = "caller input for the harness\n";
+const THROUGH_SEVEN: &str = "written through descriptor 7\n";
+
+/// What a harness received from a caller that had a line waiting on its stdin
+/// and left descriptor 7 open on a file.
+struct Handed {
+    /// The harness copies its stdin to its stdout.
+    stdout: String,
+    /// The caller's file, which the harness writes to through descriptor 7.
+    through: String,
+    /// The probed descriptors the harness held.
+    fds: Vec<u32>,
+}
+
+/// Start the fake harness through `front` for such a caller.
+fn handed_through(sandbox: &Sandbox, front: &Path) -> Handed {
+    // The input is in place before the front exists. Nothing is written
+    // after the spawn, so a front that dies early is reported by its own
+    // status and stderr, never as a broken pipe.
+    let input = sandbox.root.join("caller-input");
+    fs::write(&input, CALLER_INPUT).unwrap();
+    let through = sandbox.root.join("descriptor-7");
+    let file = fs::File::create(&through).unwrap();
+
+    let mut command = sandbox.command_for(front);
+    command
+        .args(["run", "--kind", "impl", "--prompt", "p"])
+        .env("FAKE_HARNESS_FD7", THROUGH_SEVEN.trim_end())
+        .stdin(fs::File::open(&input).unwrap());
+    support::caller_leaves_open(&mut command, Some((&file, 7)));
+    let run = run(&mut command);
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    Handed {
+        stdout: run.stdout,
+        through: fs::read_to_string(&through).unwrap(),
+        fds: sandbox.harness_fds(),
+    }
+}
+
 #[test]
 fn the_harness_keeps_the_callers_stdin_stdout_and_other_descriptors() {
     let sandbox = Sandbox::new();
@@ -142,50 +183,56 @@ fn the_harness_keeps_the_callers_stdin_stdout_and_other_descriptors() {
         r#""fake-harness""#,
         r#"[{ slot: "prompt" }]"#,
     )]));
-    let through = sandbox.root.join("descriptor-7");
-    let file = fs::File::create(&through).unwrap();
-    let fd = file.as_raw_fd();
 
-    let mut command = sandbox.command();
-    command
-        .args(["run", "--kind", "impl", "--prompt", "p"])
-        .env("FAKE_HARNESS_FD7", "written through descriptor 7")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    // SAFETY: dup2 is async-signal-safe; it hands the front a descriptor 7
-    // that its caller left open for the harness.
-    unsafe {
-        command.pre_exec(move || {
-            if libc::dup2(fd, 7) == -1 {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
-        });
-    }
-    let mut child = command.spawn().unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(b"caller input for the harness\n")
-        .unwrap();
-    let output = child.wait_with_output().unwrap();
+    let handed = handed_through(&sandbox, Path::new(FRONT));
 
-    assert_eq!(output.status.code(), Some(0));
     assert_eq!(
-        String::from_utf8_lossy(&output.stdout),
-        "caller input for the harness\n",
+        handed.stdout, CALLER_INPUT,
         "stdin reached the harness whole, and nothing else reached stdout"
     );
-    assert_eq!(
-        fs::read_to_string(&through).unwrap(),
-        "written through descriptor 7\n"
-    );
+    assert_eq!(handed.through, THROUGH_SEVEN);
     // The caller's descriptor, and nothing of the front's own: the record
     // store was closed before exec. This is also the positive control for the
     // fake harness's descriptor probe, which `records.rs` relies on.
-    assert_eq!(sandbox.harness_fds(), [7]);
+    assert_eq!(handed.fds, [7]);
+}
+
+/// The control for the test above: the same caller and harness, through
+/// stand-in fronts that differ from a faithful one by a line each.
+#[test]
+fn a_stand_in_front_that_closes_replaces_or_adds_a_descriptor_or_reads_stdin_is_told_apart() {
+    let stand_in = |before_exec: &str| {
+        let sandbox = Sandbox::new();
+        let front = sandbox.root.join("stand-in-front");
+        executable(
+            &front,
+            &format!("#!/bin/sh\n{before_exec}\nexec fake-harness p\n"),
+        );
+        handed_through(&sandbox, &front)
+    };
+
+    // The faithful one reads as the front does, so each difference below is
+    // its own line's doing.
+    let faithful = stand_in("");
+    assert_eq!(faithful.stdout, CALLER_INPUT);
+    assert_eq!(faithful.through, THROUGH_SEVEN);
+    assert_eq!(faithful.fds, [7]);
+
+    let closes = stand_in("exec 7>&-");
+    assert_eq!(closes.through, "");
+    assert_eq!(closes.fds, Vec::<u32>::new());
+
+    // Only the caller's file tells a replaced descriptor 7 from the caller's.
+    let replaces = stand_in("exec 7>/dev/null");
+    assert_eq!(replaces.through, "");
+    assert_eq!(replaces.fds, [7]);
+
+    let adds = stand_in("exec 5</dev/null");
+    assert_eq!(adds.through, THROUGH_SEVEN);
+    assert_eq!(adds.fds, [5, 7]);
+
+    let reads = stand_in("read -r line");
+    assert_eq!(reads.stdout, "");
 }
 
 #[test]

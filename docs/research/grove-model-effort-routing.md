@@ -3,21 +3,23 @@
 Evidence checked 29 September 2026. This is a recommendation and design
 exploration, not a benchmark of these models on Grove's own tasks. The initial
 research inspected policy without changing it; personal model/effort defaults
-were subsequently applied before the requirements session. No automatic
-dispatcher is implemented.
+were subsequently applied before the requirements session. Its proposals are
+left as they were written on that date. What was built from them is
+`harness-dispatch`, and the next section says where its contract lives.
 
 ## Adopted boundary
 
 The requirements discussion adopted
 [harness selection owned by policy](../adr/harness-selection-is-owned-by-policy.md):
-an independent package in this repository, initially shipped with Grove, with
-selection rules in personal static or TypeScript configuration. Installation
-includes TypeScript evaluation without a separately installed runtime. The first
-release provides static routing, a programmable selection interface and evaluation
-records with later outcome entry; the local-selector pilot below remains follow-up
-work. The interface examples below are proposals, not implemented APIs.
-The resulting [harness-dispatch design](../specs/harness-selection-and-execution.md)
-now owns the interface and delivery choices; the research examples remain
+an independent package in this repository, shipped with Grove, with selection
+rules in personal static or TypeScript configuration. Installation includes
+TypeScript evaluation without a separately installed runtime. The delivered
+command provides static routing, a programmable selection interface and
+evaluation records with later outcome entry. No local selector ships, so the
+pilot below is still a proposal. The interface examples below are the
+research's proposals, not the delivered API. The
+[harness-dispatch specification](../specs/harness-selection-and-execution.md)
+owns the interface and delivery contracts, and the research examples are
 exploratory evidence rather than an alternate protocol contract.
 
 ## Policy inspected during research

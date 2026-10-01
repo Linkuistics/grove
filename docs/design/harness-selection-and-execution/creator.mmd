@@ -6,14 +6,14 @@ flowchart TB
   Line{"One Reviews and\none Creator line?"}
   Form{"Creator\nform?"}
   Run{"R found, not\nmarked failed?"}
-  Member{"Provider in current\ncatalog? (F4)"}
+  Member{"Provider in current\ncatalog?"}
   Choice{"Candidate has a\ndifferent provider?"}
   Dispatch["Record provenance\nused, then dispatch"]
   Refuse["Refuse, exit 3:\nno launch, no substitute,\nremedy named"]
   Start -->|"1"| Kind
   Kind -->|"2a. No"| Decl
   Decl -->|"No"| Plain
-  Decl -->|"Yes (F3)"| Refuse
+  Decl -->|"Yes"| Refuse
   Kind -->|"2b. Yes"| Line
   Line -->|"3a. No"| Refuse
   Line -->|"3b. Yes"| Form

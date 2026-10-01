@@ -1,116 +1,17 @@
 # Harness selection and execution
 
-This is the first-release design of **harness-dispatch**. Most of it specifies
-behavior that is not implemented yet. Of the command itself, `inspect` and
-`run` of a static `routes` policy and of a computed `select` are delivered:
-policy authority, the compiled worker with its identity check, embedded SDK,
-package imports resolved through `package.json`,
-the two static starter examples and the dynamic one, policy validation, the
-`select` result contract with its distinct refusals and the policy's own,
-explicit-choice policing under `select`, the request, the prompt, task file,
-task identity, explicit choice, `--context` document and state directory
-inputs, `loadContext` with the SDK's measured reads, diagnostics and abort
-signal, the measured delivered context, every [resource bound](#bounded-context)
-with its refusal, argument-slot expansion including `runId`, program
-resolution, the whole-selection deadline with its exit 124, the human and
-version-1 JSON reports with their context sources, digests, sizes and bounds,
-and structured refusals with their exit results. A refused `run` names its
-equivalent `inspect` invocation. `run` commits its required handoff record,
-with any reviewed artifact and the context's source digests and sizes, before a
-plain exec, exports the run's identity to the harness, and appends an exec
-failure to its attempt. `record observe` validates and appends a version-1
-observation against a recorded run, with idempotent repeats, refused conflicts
-and retained corrections, and `record show` exports the run with its
-observations, derived evidence and measurements. `loadContext` looks runs up
-with `host.run`, which the front answers from the record store under `inspect`
-and `run` alike. The delivered context carries each answer as a measured
-source, and a run records the creator provenance its context carried. The
-shipped `harness-dispatch/examples/review` exports the
-[supplied review policy](#review-policy)'s selector over a generic reviewed
-artifact: a looked-up creator run, refused when missing or never executed, or
-a declaration; the creator's origin an exact member of the current catalog's;
-and a reviewer of another origin, from its review kind's entry or the explicit
-choice, never replaced when refused. The Grove adapter, `harness-dispatch/grove`,
-reads the supplied task file's `**Reviews:**` and `**Creator:**` lines through
-the measured read, and `harness-dispatch/examples/grove-review` composes it with
-that selector over Grove's session kinds. A loader may return a refusal in
-`select`'s shape, which refuses as the policy's own. Inspection and the run
-record report the adapter's version whenever the policy imported it.
-INT, TERM and HUP not ignored at entry cancel a selection until its program is
-resolved: the worker is stopped and reaped, nothing is recorded or launched,
-and the `selection_cancelled` refusal is followed by the re-raised signal.
-Their handlers stay installed across the record commit, and the linearization
-point follows it. A signal seen there launches nothing, appends the
-not-executed detail, and is re-raised after the `handoff_cancelled` refusal.
-Otherwise the harness receives the entry signal mask and every disposition
-that survives exec, SIGPIPE's included. The worker's environment is its base
-set plus exact `--policy-env` grants, which refuse the excluded names as
-`excluded_grant` and which inspection lists by name, never by value, and the
-front's own setting that turns Bun's runtime transpiler cache off. Each
-hostile class in the [firing-configuration table](#test-seams) is proved inert
-through the front beside its firing configuration, and the probe builds those
-configurations need are test instruments that no front accepts.
-Every release archive and the Homebrew formula carry the front and its worker
-in the [delivered layout](#delivery), each target's worker compiled from a
-digest-pinned Bun runtime. The installed smoke test runs the static and
-computed TypeScript cases, and a policy importing packages their `package.json`
-declares, from the extracted archive on macOS arm64 natively,
-and on each Linux target in a glibc-2.17 userland under a pinned user-mode QEMU
-emulating its CPU floor, Nehalem or the Cortex-A53; Linux arm64 also runs as a
-native container. Positive controls show that the userland enforces the glibc
-floor and that each CPU model refuses an instruction beyond it. The release
-task runs the archive-content assertions and this smoke test before it
-publishes anything.
-Every selection input in the [command interface](#command-interface) is
-delivered. Of the [Grove integration](#grove-integration), the lifecycle
-`kind`, `task_file` and `task_id` slots, their standalone refusal and their
-symbolic inspection are delivered, and so is launching a session through a
-personal command definition that runs `harness-dispatch run` with those slots
-and the prompt, beside a direct-harness kind in the same configuration. Grove's
-launch-boundary suite shows the harness receiving the unchanged prompt, the
-task as native arguments, its run identity and Grove's completion channel,
-which the policy worker does not receive. A literal `--choice` there reaches
-policy. A leaf authored under that wrapper, whose policy lacks its kind,
-refuses at launch and stays live. Under a controlling terminal, the same suite
-shows a dispatched harness as the foreground job Grove launched, with its PID,
-group, terminal and cwd, and with the signal state a direct harness receives.
-Its exit code and signal death reach Grove as a direct harness's do, and its
-worker has null stdin and no control variable. A typed interrupt during
-selection launches nothing, records nothing and leaves no worker. Grove
-answers it, an interrupt during execution and its escalation as it does for a
-direct harness. Grove's configuration reference and usage guide, and the
-configure-grove skill, explain activation. That means a personal command
-definition, a personal policy that no install writes, and an optional literal
-`--choice`. They explain that Grove's configuration owns the wrapper and the
-policy owns selection, with `grove config show` and `harness-dispatch inspect`
-as the two inspection surfaces. They also state that Grove's pre-authoring
-check stops at the configured command, give the remedy for an incomplete
-mapping, and warn never to grant `GROVE_SIGNAL_FILE` to the policy.
-`harness-dispatch --help` carries the Grove command definition they quote,
-which is the one the launch-boundary suite runs.
-The methodology's [creator step](#identity-and-creator) is delivered. The Grove
-plugin's task format, retirement procedure and composition guidance, and the
-same files as Grove provisions them to Codex, direct the session that finishes
-a producer to write its run on that producer's reviews, or to remove the line
-when it has no run. Conformance rows and composition-guidance pins hold that
-wording. The creator lifecycle cases of the
-[Grove launch boundary](#test-seams) are delivered too. Fake sessions that
-follow that step run under the real driver and the shipped Grove review
-example. A review's creator survives its producer's retirement and a
-reordering, under a mapping changed since. A review cut before its producer
-decomposed selects from the run whose retirement closed the node, through two
-levels, and inspection shows that run's task beside the reviewed handle. A
-close cascade names its run on every live review of each node it closes,
-wherever the review sits, and on nothing else. A direct-harness finish removes
-the stale line an unfinished dispatched attempt left, and the review refuses
-until the owner declares. A review's findings attach to the producer's
-run after `.grove/` is removed. Grove's configuration reference and usage
-guide, the configure-grove skill and the dispatch README explain the two
-`**Creator:**` forms, who writes or removes the line, the declaration remedy,
-why a wrong but existing run is not detected at launch, and how a review
-attaches its findings.
-The [visual document](../design/harness-selection-and-execution/README.md) has
-matching package, execution and provenance views.
+**harness-dispatch** selects one configured harness, model and reasoning effort
+for a caller's work, records the handoff, and becomes that harness. The owner's
+TypeScript policy makes the selection. `inspect` reports a selection without
+launching anything, and `run` launches it. `record observe` and `record show`
+carry later evidence against a recorded run. The command needs no Grove, and
+Grove launches a session through it from a personal command definition.
+
+This specification is the contract of that command as delivered. The
+[visual document](../design/harness-selection-and-execution/README.md) has
+matching package, execution and provenance views, and the
+[runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md)
+records what was observed of the runtime the worker is built on.
 
 <a id="problem"></a>
 ## Problem
@@ -122,11 +23,11 @@ selection experiments to the task-tree driver and prevents independent use.
 The [policy ownership decision](../adr/harness-selection-is-owned-by-policy.md)
 defines that boundary. The [worker and handoff decision](../adr/policy-evaluation-precedes-process-replacement.md)
 chooses its runtime. This specification owns the interface contracts below.
-The existing [complete-command](../adr/complete-session-configuration.md),
+The [complete-command](../adr/complete-session-configuration.md),
 [open-kind](../adr/a-kind-is-an-open-token.md),
 [personal-authority](../adr/untracked-configuration-delta.md) and
-[foreground-job](../adr/the-launched-child-is-a-job.md) decisions continue to
-govern Grove.
+[foreground-job](../adr/the-launched-child-is-a-job.md) decisions govern
+Grove's side of it.
 
 <a id="package-boundary"></a>
 ## Package boundary
@@ -294,11 +195,16 @@ explicitly accept or refuse the choice. Returning any other ID is
 Policy constraints apply to explicit choices as to normal selections. Each retry
 is a separate invocation, reevaluates policy and receives a new run identity.
 
-The supplied static examples give exact mappings and explain effort in terms of
-abstraction, uncertainty, consequences, downstream repair, reversibility and
-available checks. They are editable starting policy, not model rankings or
-calibrated estimates. The dynamic example is a deterministic callback suitable
-for a fake-harness test; no local inference service is required.
+Every shipped example is inactive until an owner's policy imports it.
+`harness-dispatch/examples/static` routes a caller's own kinds without Grove,
+and `harness-dispatch/examples/grove-static` routes Grove's session kinds. Both
+give exact mappings and explain effort in terms of abstraction, uncertainty,
+consequences, downstream repair, reversibility and available checks. They are
+editable starting policy, not model rankings or calibrated estimates.
+`harness-dispatch/examples/dynamic` is a deterministic `select` suitable for a
+fake-harness test, and needs no local inference service.
+`harness-dispatch/examples/review` and `harness-dispatch/examples/grove-review`
+are the [supplied review policy](#review-policy).
 
 <a id="policy-authority"></a>
 ## Policy authority and runtime discovery
@@ -345,10 +251,12 @@ for what the runtime reads as the process starts. The runtime loads dotenv
 files again for each VM it starts later, from the directory the process is
 then in. A native `Worker` a policy starts is such a VM, and it starts in `/`
 unless the policy has moved. The dotenv switch alone keeps `/.env` out of it,
-where a worker that stayed in its start directory would have had both
-controls. The move gave that one up to close a reach that was open as shipped.
-The file it leaves to the switch belongs to whoever owns `/`. bunfig is not
-read again.
+where a worker that stayed in its start directory would have both controls.
+That is the price of the move, which closes a wider reach. Without it, every
+directory between the start directory and `/` would have its `package.json`
+read on each evaluation, and would answer a module with no file location, as
+the paragraphs below state. The file the move leaves to the switch belongs to
+whoever owns `/`. bunfig is not read again.
 
 The worker is compiled with dotenv, bunfig and tsconfig autoloading explicitly
 disabled, and with package.json autoloading explicitly enabled, so that an
@@ -419,13 +327,13 @@ on every evaluation. The worker is in `/` by then, so that is `/package.json`
 alone. No directory between where the worker started and `/` has its
 `package.json` read on that account, the caller's TMPDIR included. One there
 answers nothing. Nor is it opened, so one that never yields its content, a
-link to a FIFO, delays no selection. A worker that stayed where it started
-opened each of them on every evaluation, and read a regular file whole: a link
-to a FIFO stalled a plain policy to its deadline, as a file past 4 GiB had,
-and one with an `imports` map answered a `#` import from a `data:` module
+link to a FIFO, delays no selection. A worker that did not move would open
+each of them on every evaluation, and read a regular file whole: a link to a
+FIFO would stall a plain policy to its deadline, as a file past 4 GiB would,
+and one with an `imports` map would answer a `#` import from a `data:` module
 ([runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md#package-json-autoloading)).
 Those files belong to whoever can write there and not to the owner's policy,
-which is why package.json autoloading stayed off until the worker moved.
+which is why package.json autoloading depends on the move.
 
 A module with no file location resolves from the worker's current directory
 upward: its bare imports through `node_modules` there, and its `#` names and
@@ -592,8 +500,9 @@ commit. The raw prompt has its own budget and is never truncated to satisfy a
 context limit. JSON size means encoded UTF-8 bytes, not characters or token
 estimates.
 Inspection reports actual source bytes and final encoded bytes separately, plus
-limits and errors. Long-lived caches, token estimators and model calls are not
-required. Policy cannot raise its own hard ceilings after evaluation begins.
+limits and errors. Dispatch itself keeps no long-lived cache, estimates no
+tokens and calls no model. Policy cannot raise its own hard ceilings after
+evaluation begins.
 
 <a id="execution-contract"></a>
 ## Execution and authority
@@ -601,8 +510,8 @@ required. Policy cannot raise its own hard ceilings after evaluation begins.
 The front process preserves its caller's cwd, descriptors, process group and
 terminal ownership. Under Grove it is already the foreground job leader. The
 worker joins that existing job; neither process creates a session or detaches.
-The SDK's first release needs no subprocess API: file context and network
-computation run in the worker. Trusted policies that create their own children
+The SDK has no subprocess API: file context and network computation run in
+the worker. Trusted policies that create their own children
 must keep them in the enclosing job, grant no interactive stdin, and reap them
 before returning; detached/background policy services are outside the contract.
 The supplied policy and adapter create no such children.
@@ -634,8 +543,8 @@ That final check is the linearization point. Cancellation observed before it
 launches nothing, and a signal arriving after it is a signal to the admitted
 foreground job, including across exec. A signal delivered between restoring the
 entry mask and exec can end the process with the attempt recorded and its
-execution unknown. No userspace design promises an atomic test-and-exec against
-a later-arriving signal.
+execution unknown. Nothing in userspace makes test-and-exec atomic against a
+later-arriving signal.
 
 The handoff is transparent to signal state. The harness receives the signal mask,
 and every disposition that survives exec, exactly as the front process inherited
@@ -644,10 +553,10 @@ no evaluation handler and stays ignored: a `nohup` caller's ignored HUP reaches
 the harness ignored, and cannot cancel selection. Rust's standard runtime
 ignores SIGPIPE before `main`, and its `exec` path resets SIGPIPE to default
 before running pre-exec hooks while keeping the calling thread's mask. The
-implementation must therefore record the entry SIGPIPE disposition before any
-runtime initialization changes it, and reinstate it after that reset. It
-records the mask and every signal's disposition from the executable's
-initializer section, which the loader runs before `main`. Its pre-exec hook
+front therefore records the entry SIGPIPE disposition before any runtime
+initialization changes it, and reinstates it after that reset. It records the
+mask and every signal's disposition from the executable's initializer section,
+which the loader runs before `main`. Its pre-exec hook
 sets each signal to its entry disposition and then restores the entry mask.
 A build in which that initializer did not run refuses `run` with
 `signal_state_unavailable` before evaluating anything. A signal the caller
@@ -656,12 +565,12 @@ command and controlling-PTY seams observe the result.
 
 Exec preserves the process identity Grove supervises, terminal, cwd and native
 exit/signal behavior. There is no Rust supervisor left to infer an exit code,
-duration, usage or acceptance. If exec returns with an error, record an observable
-launch failure when possible, report the errno with remediation and exit nonzero.
-Failure to append that failure detail does not erase the existing attempted
-handoff or convert it to success. A configured wrapper must in turn exec the
-harness it fronts. Dispatch fixes one joint choice; later model changes inside a
-harness are outside its observation and enforcement.
+duration, usage or acceptance. If exec returns with an error, the front appends
+an observable launch failure when it can, reports the errno with a remedy and
+exits nonzero. Failure to append that failure detail does not erase the
+existing attempted handoff or convert it to success. A configured wrapper must
+in turn exec the harness it fronts. Dispatch fixes one joint choice; later
+model changes inside a harness are outside its observation and enforcement.
 
 <a id="identity-and-creator"></a>
 ## Identity and original creator
@@ -737,16 +646,16 @@ semantics. This is one original creator, not contributor accounting.
 <a id="review-policy"></a>
 ## Supplied review policy
 
-The inactive example uses exact configured review-kind entries, all of which
-apply the provider rule; other kinds use the owner's static table. An entry
-maps each creator provider origin to its reviewer, so the reviewer follows
-whichever origin made the artifact; an origin the entry lacks refuses as an
-incomplete mapping. It exports its rule as a reusable selector over a generic
-reviewed artifact, so non-Grove callers can apply it without a task file.
-Custom review labels require an explicit example-policy entry: a context that
-names a reviewed artifact under a kind with no entry refuses, the generic form
-of the adapter's rule below. The core knows no review list and no `Reviews` or
-`Creator` grammar.
+`harness-dispatch/examples/review` uses exact configured review-kind entries,
+all of which apply the provider rule; other kinds use the owner's static table.
+An entry maps each creator provider origin to its reviewer, so the reviewer
+follows whichever origin made the artifact; an origin the entry lacks refuses
+as an incomplete mapping. It exports its rule as a reusable selector over a
+generic reviewed artifact, so non-Grove callers can apply it without a task
+file. Custom review labels require an explicit example-policy entry: a context
+that names a reviewed artifact under a kind with no entry refuses, the generic
+form of the adapter's rule below. The core knows no review list and no
+`Reviews` or `Creator` grammar.
 
 The Grove adapter reads only the supplied task file, on every invocation. For a
 configured review entry it requires exactly one standalone `**Reviews:**
@@ -838,18 +747,18 @@ slot. Inspection uses a visibly marked proposed ID, creates no run, and does not
 promise that ID will be reused.
 
 A committed run's launch fields never change, so a creator snapshot a review
-used cannot go stale before that review's own handoff. There is no creator
-registration to revise. Readable but corrupt records never become
-missing-provider defaults.
+used cannot go stale before that review's own handoff. Nothing registers a
+creator, so there is no registration to revise. Readable but corrupt records
+never become missing-provider defaults.
 
 The store is `records.sqlite3` in the state directory, created on first use
 with owner-only permissions. It names itself with a SQLite application ID and
 a schema version. A store of another application, of another version, or that
 SQLite reports as corrupt refuses with exit 4, and is never reset or replaced.
-A run's launch fields are one document with its own version. Every field that
-a later increment supplies is present in it, as `null` until then. A release
-that records something new therefore writes it into new runs only, and a new
-table arrives by a migration that only creates. Schema 2 adds the observations
+A run's launch fields are one document with its own version. Every field is
+present in it, `null` where the run has no value for it. A release that
+records something new writes it into new runs only, and a new table arrives by
+a migration that only creates. Schema 2 adds the observations
 table. A new store is created at version 2. Only `record observe` migrates a
 version-1 store, by creating that table inside its own import transaction, so a
 refused import leaves the store at version 1; every other command reads and
@@ -913,8 +822,8 @@ observed/unknown/unobserved distinction; absence does not mean zero or false.
 Findings can have stable IDs and references to later repair observations.
 Optional routing probabilities distinguish `choiceProbability` from
 `successProbability`; a success estimate must name its calibration data/version
-or be labelled uncalibrated. The first shipped policies emit neither.
-Analytics, scoring aggregation and a learned-selector benchmark are follow-up.
+or be labelled uncalibrated. The shipped policies emit neither, and dispatch
+aggregates and scores nothing.
 
 Concretely, an observation envelope has `schemaVersion`, `observationId`, `runId`,
 `source`, `observedAt`, `evidence`, optional `supersedes` and a `measurements`
@@ -955,13 +864,15 @@ fixed 1 MiB bound.
 <a id="grove-integration"></a>
 ## Grove integration
 
-Add optional whole-argument slots `kind`, `task_file` and `task_id` to lifecycle
-configuration. Populate them from the same authoritative selected task used to
-compose the mandate: open kind token, absolute selected task path and stable
-handle. The existing prompt is passed unchanged. Existing slots and
-direct-harness commands keep their current rules; prompt remains exactly once.
-No task-body launch metadata, new Grove invocation override, or prompt/filename
-scraping is introduced. Grove allocates and stores nothing for dispatch.
+Grove's lifecycle configuration has optional whole-argument slots `kind`,
+`task_file` and `task_id`. Grove fills them from the same authoritative selected
+task it composes the mandate from: the open kind token, the absolute selected
+task path and the stable handle. The prompt is passed unchanged. The other
+slots and direct-harness commands keep their rules, `prompt` still occurs
+exactly once, and a dispatched kind and a direct-harness kind coexist in one
+configuration. There is no task-body launch metadata, no Grove invocation
+override, and no scraping of the prompt or a filename. Grove allocates and
+stores nothing for dispatch.
 
 Grove configuration inspection shows these slots symbolically when no task is
 selected. It does not fabricate a task or evaluate policy.
@@ -976,20 +887,28 @@ steps carry the finishing session's step, and its composition guidance leaves
 the comparing to the dispatcher's policy. They ship in the same release as
 dispatch, so the methodology never asks a session to name a run from a tool
 that is not installed.
-Standalone `grove run` continues to offer its existing vocabulary. Lifecycle-only
-slots are rejected in standalone templates that request them; the common
-configuration machinery remains consumer-vocabulary-driven.
+Standalone `grove run` keeps its own vocabulary. A standalone template that
+requests a lifecycle-only slot is refused; the common configuration machinery
+stays consumer-vocabulary-driven.
 
 The owner points a personal command definition at `harness-dispatch run`, supplies
-the new slots and prompt, and explicitly selects the shipped Grove example by
+those slots and the prompt, and explicitly selects a shipped Grove example by
 importing its package specifier from personal policy. A literal `--choice` may
-be added to that command. No install overwrites personal configuration.
-`grove config show` explains the configured wrapper; `harness-dispatch inspect`
-explains its selection. Grove's pre-authoring
-guarantee stops at the complete configured command. Static and computed delegated
-policy are checked only at launch, so task authoring can succeed and delegated
-launch subsequently refuse. Usage and configure-grove must explain both surfaces
-and the exact remedy for incomplete mappings and a missing creator reference.
+be added to that command. No install writes or overwrites personal
+configuration or policy. `grove config show` explains the configured wrapper;
+`harness-dispatch inspect` explains its selection. Grove's pre-authoring
+guarantee stops at the complete configured command. Static and computed
+delegated policy are checked only at launch, so task authoring can succeed and
+the delegated launch then refuse, which leaves the leaf live.
+
+Grove's configuration reference and usage guide and the configure-grove skill
+explain activation, both inspection surfaces, that launch-time boundary and the
+remedy for an incomplete mapping, and warn against granting `GROVE_SIGNAL_FILE`
+to policy. With the dispatch README they also explain the two `**Creator:**`
+forms, who writes or removes the line, the declaration remedy, why a wrong but
+existing run is not detected at launch, and how a review attaches its
+findings. The command definition those documents quote is the one
+`harness-dispatch --help` carries and Grove's launch-boundary suite launches.
 
 <a id="diagnostics"></a>
 ## Diagnostics and exits
@@ -1031,12 +950,13 @@ stage distinguish these cases, not a globally reserved harness exit range.
 <a id="delivery"></a>
 ## Delivery and release
 
-Use Bun 1.4.2 initially, pinned together with worker dependencies and build
-identity; upgrades rerun the discovery probes. Compile workers for macOS arm64,
-Linux arm64 and Linux x64. Bun 1.4.2 ships a single x64 build targeting the
-Nehalem microarchitecture; its `baseline` name is an alias. Rust and bundled
-SQLite build for Grove's corresponding targets with its existing glibc 2.17
-floor. The worker is an
+The worker is compiled with Bun 1.4.2, pinned together with the worker's
+dependencies and build identity; an upgrade reruns the cases the
+[runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md)
+records. Workers are compiled for macOS arm64, Linux arm64 and Linux x64. Bun
+1.4.2 ships a single x64 build targeting the Nehalem microarchitecture; its
+`baseline` name is an alias. Rust and bundled SQLite build for Grove's
+corresponding targets at its glibc 2.17 floor. The worker is an
 installed private companion, not a runtime downloaded on invocation. It is found
 relative to the real installed front executable, including through a Homebrew
 symlink, at `../libexec/harness-dispatch/harness-dispatch-policy`. The SDK's
@@ -1052,30 +972,30 @@ unpinned runtime.
 The Rust package builds independently; running selection additionally needs the
 matching compiled worker, supplied by the package's build/install task.
 
-Each existing archive gains the front executable, the private worker with its
+Each release archive carries the front executable, the private worker with its
 embedded SDK, Grove adapter and inactive examples, their type declarations and
 readable sources, and runtime/license notices. The Homebrew formula installs
 that layout and checks matching versions. Source-development tasks build and
-install the pair; a plain cargo install of the Rust package alone is not the
-documented complete installation. No host runtime is silently used as a fallback.
-The new Rust member inherits the workspace version and opts out of a second
-cargo-release cut; the worker embeds that same package version.
+install the pair; a plain cargo install of the Rust package alone is not a
+complete installation. No host runtime is ever used as a fallback. The Rust
+package inherits the workspace version and takes no cargo-release cut of its
+own; the worker embeds that same package version.
 
-Reusable package check/build/install/smoke tasks join the existing Taskfile, and
-the repository check includes package checks. Archive-content assertions and
-installed-layout smoke tests run the static and computed TypeScript cases, and
-a policy importing one package declared by `main` and one by `exports`, with
-fake harnesses and no separately installed runtime on **each** supported target,
-natively or under emulation. A matching runtime archive is insufficient evidence
-until that test executes. These are implementation/release acceptance
-requirements, not results of this design.
+The Taskfile has the package's check, build and install tasks and the release's
+smoke task, and the repository check includes the package checks.
+Archive-content assertions and an installed-layout smoke test run on **each**
+supported target: macOS arm64 natively, and each Linux target at the floors
+below. The smoke test runs the static and computed TypeScript cases, and a
+policy importing one package declared by `main` and one by `exports`, with fake
+harnesses and no separately installed runtime. A matching runtime archive is
+not evidence for a target; only that test executing there is.
 
 The Linux floor has three dimensions, and each is claimed only as far as its
 instrument observes it:
 
 | Dimension | Floor | Instrument |
 |---|---|---|
-| C library | glibc 2.17, Grove's existing floor | Installed smoke tests run in a glibc-2.17 userland on each Linux target: under the CPU instrument's user-mode QEMU, and first as a container where Docker runs that architecture natively |
+| C library | glibc 2.17, Grove's own floor | Installed smoke tests run in a glibc-2.17 userland on each Linux target: under the CPU instrument's user-mode QEMU, and first as a container where Docker runs that architecture natively |
 | CPU | x64 Nehalem; arm64 at the Cortex-A53 level | The same tests under user-mode QEMU with that CPU model. A probe executing one instruction beyond it (AVX2; an Armv8.1 atomic) must be killed there and run under `-cpu max`, and every ELF file in the archive must match the emulator's registration |
 | Kernel | Bun's documented support | None: a container or user-mode emulation runs on the host's kernel |
 
@@ -1085,8 +1005,9 @@ passes.
 
 Bun 1.4.2's documents disagree about the kernel. Its README gives a 5.1 minimum,
 while its installation page says Bun runs on 3.10 (RHEL 7) with degraded newer
-syscalls. The release states that documented range, labelled documented rather
-than executed, and each Bun upgrade rechecks it. This is an accepted trade-off:
+syscalls. The dispatch README and the release procedure state that documented
+range, labelled documented rather than executed, and each Bun upgrade rechecks
+it. This is an accepted trade-off:
 RHEL 7-era kernels are claimed through Bun's documentation, not tested. A
 cross-link or an ELF-symbol inspection alone satisfies none of the dimensions.
 On macOS the worker additionally inherits Bun's documented macOS 13.0 minimum.
@@ -1094,17 +1015,17 @@ On macOS the worker additionally inherits Bun's documented macOS 13.0 minimum.
 <a id="test-seams"></a>
 ## Agreed test seams and acceptance
 
-The human agreed two process seams during requirements. Keep them as the public
-acceptance instruments; internal tests may support them without replacing them.
+The human agreed two process seams during requirements. They are the public
+acceptance instruments; internal tests support them and never replace them.
 
 | Seam | Required observable cases |
 |---|---|
-| New command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; a caller-ignored HUP or SIGPIPE and the entry signal mask reach the fake harness unchanged; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
+| The command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; a caller-ignored HUP or SIGPIPE and the entry signal mask reach the fake harness unchanged; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
 | Same command, actual shipped examples | Different-origin reviewer on every invocation, retry and explicit choice; same-origin/gateway disguise refuses; a fake producer launched through dispatch writes its `Creator` line from `HARNESS_DISPATCH_RUN_ID`, and the dispatched review of that task file uses the named run's recorded provider, which a changed current mapping cannot rewrite; a store holding an earlier run of the same task identity does not satisfy a review task with no `Creator` line; an unknown run and a run marked not executed refuse; declaration adoption; missing, duplicate or malformed `Reviews`/`Creator` lines refuse; `Reviews` under a kind that is not a configured review entry refuses; a relabelled origin and a misspelt declaration refuse as non-members; the generic reviewed-artifact form selects without a task file |
 | Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, a dotenv file where a policy starts a `Worker`, tsconfig, a cwd `package.json`, package shadow, a package and a `package.json` between the worker's start directory and `/`, one that never yields its content included, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; the front starts its worker in an owner-only empty directory and removes it, and policy code runs in `/`; explicit relative config and personal import are admitted; a package beside an entry loads by the entry point its `package.json` declares, with `main`, `exports`, a subpath, a condition or its own `imports` map, and a granted `NODE_ENV` chooses no condition; an entry's own `package.json` supplies its `imports` map and answers its own name ahead of a nearer `node_modules`; the nearest `package.json` that reads as one is a module's own, named or not, and one that does not is passed over for the next above; a missing package is not installed beside a `package.json` that lists it; a documented package specifier resolves to the embedded module, and an `imports` alias to one is a missing package or the package beside it; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
 | Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields, reads no observation history, and an unreadable store refuses; a stored launch record or observation this release cannot read refuses every read of it; the review's run records the creator provenance used; later observations after tree teardown |
-| Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a close cascade names its run on every live review of each node it closes, one nested in another node and one the closing session cut included, and on no terminal review and no review of another producer; a direct-harness finish removes a stale `Creator` line from the pre-existing review, planted by a dispatched attempt that named its run without finishing, and that review refuses with the declaration remedy, which then admits a different-origin reviewer; a review attaches an observation to the run its line names after `.grove/` is removed; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
-| Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
+| Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a close cascade names its run on every live review of each node it closes, one nested in another node and one the closing session cut included, and on no terminal review and no review of another producer; a direct-harness finish removes a stale `Creator` line from the pre-existing review, planted by a dispatched attempt that named its run without finishing, and that review refuses with the declaration remedy, which then admits a different-origin reviewer; a review attaches an observation to the run its line names after `.grove/` is removed; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
+| Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
 
 Per-target release delivery adds the archive/install tests above. Documentation
 review verifies activation, both inspection surfaces, the `Creator` line
@@ -1114,7 +1035,7 @@ convention, including removal without a run, the node-close step and cutting a
 review before retiring. One does not, by design: the attempt that plants the
 stale line names its run while its leaf is live, which the convention forbids.
 A real session's compliance is the methodology's to check, through the
-conformance rows that ship with the amendment, not these seams'.
+conformance rows that ship with the convention, not these seams'.
 Each hostile class has a named firing configuration, a positive control that
 must be seen to fire, so a test cannot pass merely because its fixture never ran:
 
@@ -1145,11 +1066,10 @@ passing control. On Bun 1.4.2 these are a `~/.bunfig.toml` preload, tsconfig
 `paths` in the caller's cwd, and two in a directory the worker moves into after
 it has started, which is what `/` would need to hold: a `.env` for the VM that
 made the move, and a bunfig preload for that VM or a `Worker` started there.
-None fired under any build. A test keeps checking that each still fails to fire
+None fires under any build. A test keeps checking that each still fails to fire
 under its most permissive probe, and fails if one gains a firing configuration.
 For the moved-into and tsconfig classes the test's policy makes the move: every
-worker but one probe leaves the caller's cwd, and `/` can hold no fixture. The
-`Worker` class in the table above was reported here until it was seen to fire.
+worker but one probe leaves the caller's cwd, and `/` can hold no fixture.
 A package or `package.json` above the worker's start directory answers a
 module in a file under no build, since a file's imports resolve from the file.
 Its case asserts that under the probe that does not move, beside the same
@@ -1162,10 +1082,10 @@ identity, policy quality or task acceptance from these mechanics tests.
 ## Out of scope
 
 Local LLM selection and its evaluation pilot, model comparisons/calibration,
-repository extraction, accumulated contributor exclusions, automatic fallbacks,
-partial overrides, automatic retries, automatic creator guessing, lookup of runs
-by task or artifact identity, cross-checkout discovery, post-teardown artifact
-lookup and dedicated confined `grove run`
-integration are not part of this increment. Windows is outside Grove's current
-release targets. A hostile-code sandbox and supervision after final exec are
+analytics and a learned-selector benchmark, repository extraction, accumulated
+contributor exclusions, automatic fallbacks, partial overrides, automatic
+retries, automatic creator guessing, lookup of runs by task or artifact
+identity, cross-checkout discovery, post-teardown artifact lookup and dedicated
+confined `grove run` integration are not part of harness-dispatch. Windows is
+outside Grove's release targets. A hostile-code sandbox and supervision after final exec are
 also outside this command's contract.

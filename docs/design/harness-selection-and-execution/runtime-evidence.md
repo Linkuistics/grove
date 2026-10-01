@@ -14,7 +14,7 @@ result was the expected candidate `personal-choice` and effort `high`.
 The native standalone executable ran under `env -i PATH=/usr/bin:/bin`, without
 Bun or Node on that PATH. The worker reported no Grove completion variable.
 This establishes embedded TypeScript execution for this native artifact, not
-the final Rust boundary or Linux installation.
+the Rust boundary or a Linux installation.
 
 The same worker was compiled with:
 
@@ -35,21 +35,23 @@ either. Bun 1.4.2 already disables tsconfig and package.json runtime loading in
 standalone builds by default, so this probe showed no risk for those classes. It
 ran the worker in the hostile cwd, so it did not exercise the private worker cwd.
 It does not exhaust module-resolution or shadowing cases; the
-[integration probe](#integration-probe) below covers the ones the design relies
+[integration probe](#integration-probe) below covers the ones the worker relies
 on.
 
 A second positive control supplied `BUN_OPTIONS=--preload <absolute throwing
 module>` to the guarded executable. It ran that module and exited with its error.
-Compile flags alone therefore do not establish the boundary. The front process
-must sanitize runtime options **before** the worker starts. No live Grove control
-value was supplied to these probe processes.
+Compile flags alone therefore do not establish the boundary. That is why the
+front process sanitizes runtime options **before** the worker starts. No live
+Grove control value was supplied to these probe processes.
 
-The throwaway experiment is under `/tmp/harness-dispatch-probe.hDMPYZ`; its
-durable results are the observations above. Production acceptance must reproduce
-these cases against the shipped Rust entry point, including worker-location
-spoofing, explicit config authority, module shadowing, cancellation and structured
-output. The prototype is not an implementation to adopt. The
-[ambient authority](#ambient-authority) section records that reproduction.
+The experiment was a throwaway prototype, never adopted as an implementation.
+Its durable results are the observations above. The shipped Rust entry point
+reproduces these cases at the command seam, with worker-location spoofing,
+explicit config authority, module shadowing, cancellation and structured
+output. [Ambient authority](#ambient-authority) records the hostile classes,
+and the specification's
+[test seams](../../specs/harness-selection-and-execution.md#test-seams) name
+the rest.
 
 <a id="integration-probe"></a>
 ## Integration probe
@@ -74,11 +76,11 @@ relative TypeScript import. Sentinel files recorded whether a hostile module ran
 | cwd `.env` and bunfig preload | Guarded build in the hostile cwd | Inert |
 | `~/.bunfig.toml` preload | HOME set to a directory holding one | Did not fire in either build |
 
-Consequences for the design:
+Consequences:
 
 - Registered virtual modules displace an adjacent package shadow, including
   beside an admitted entry. The prefix reserves nothing, so every documented
-  specifier must be registered.
+  specifier is registered.
 - The private worker cwd and the no-autoload switches are independent controls
   for cwd dotenv and bunfig; either alone kept them inert here. That is for
   what the runtime reads as a process starts.
@@ -87,8 +89,9 @@ Consequences for the design:
   A HOME bunfig and a cwd tsconfig have no observed firing configuration, so no
   control is claimed for them.
 
-This is one host and one Bun version. Linux, the shipped Rust launcher and every
-module-resolution path the SDK does not use remain unmeasured. The throwaway
+This probe was one host and one Bun version. It measured neither Linux, nor the
+shipped Rust launcher, nor any module-resolution path the SDK does not use. The
+sections below record what has been measured of each since. The throwaway
 experiment lived in session scratch space; its durable results are the table
 above.
 
@@ -322,7 +325,7 @@ switch combination, were each driven directly, as a
 [probe build](#ambient-authority) is. Each ran under the front's base
 environment, in a private empty directory unless the case says otherwise.
 
-| Case | All four off, as shipped | package.json on, the other three off | Other builds |
+| Case | All four off, as shipped then | package.json on, the other three off | Other builds |
 |---|---|---|---|
 | A package with only an `index.js` | Loaded | Loaded | |
 | A package declared by `main`, by `exports`, by an `exports` subpath or by `exports` conditions, and one reaching its own file through its `imports` map | "Cannot find package" | Loaded. The condition chosen was `bun`, also with `NODE_ENV` set to `production` or to `development` | |
@@ -343,7 +346,7 @@ substitution above, and each finding was reproduced before it was recorded
 here. The front creates the worker's private directory under the caller's
 TMPDIR, so the fixtures below sit in TMPDIR, one level above the worker.
 
-| Case in TMPDIR | All four off, as shipped | package.json on |
+| Case in TMPDIR | All four off, as shipped then | package.json on |
 |---|---|---|
 | A `package.json` with an `imports` map and a name its `exports` answer, for a policy file's own imports | Did not fire | Did not fire |
 | The same, for a module with no file location that the policy imports: a `data:` URL, a `blob:` URL, or a virtual module the policy registers | Did not fire | Fired: the `#` name and the own name both ran the planted module |
@@ -356,7 +359,7 @@ well as by driving a build, with TMPDIR naming the planted directory. A
 `node:vm` script and `createRequire` with a relative name did not resolve
 anything in either build.
 
-Consequences for the design:
+Consequences:
 
 - The switch stayed off while the worker stayed in its start directory. With
   it on there, a `package.json` that no entry admits takes part in every
@@ -368,15 +371,15 @@ Consequences for the design:
   file location. The worker's directory is private and empty, and its
   ancestors are neither. A module in a file is not affected, because its
   imports resolve from its own directory. [The worker's directory](#worker-directory)
-  records the repair, and `package-json-autoloading-k62` turns the switch on
+  records the repair, and `package-json-autoloading-k62` turned the switch on
   after it.
 - The two tsconfig switches are independent. The
   [integration probe](#integration-probe) saw `paths` fire with tsconfig and
   package.json autoloading both on, and never tried either alone. The
   `tsconfig` probe build now turns on tsconfig autoloading only, so it differs
   from the shipped worker by one switch.
-- Three things would change inside what an entry admits once the switch is on,
-  and `package-json-autoloading-k62` must state each. The nearest
+- Three things change inside what an entry admits with the switch on, and the
+  specification states each. The nearest
   `package.json` at or above an importing module supplies that module's
   `imports` map. A bare import of that package's own `name` resolves through
   its `exports`, ahead of any `node_modules` package of the name, a nearer one
@@ -441,7 +444,7 @@ replaced by a no-op, built for the experiment. The third and fourth had
 package.json autoloading turned on as well, for the experiment only; the
 switch went back to off afterwards.
 
-| Case in TMPDIR | Moves, as shipped | Does not move | Moves, package.json on | Does not move, package.json on |
+| Case in TMPDIR | Moves, as shipped then | Does not move | Moves, package.json on | Does not move, package.json on |
 |---|---|---|---|---|
 | A `node_modules` package, for a `data:` module, a `blob:` module and a virtual module the policy registers | "Cannot find package" for each, exit 3 | Each loaded | "Cannot find package" for each | Each loaded |
 | The same, after the policy itself moved back with `process.chdir` | Each loaded | Each loaded | Each loaded | Each loaded |
@@ -1045,43 +1048,46 @@ records.
   process and fresh worker environment. The installed 1.4.2 help was also checked
   for all four explicit no-autoload switches.
 - [Bun TypeScript](https://bun.com/docs/typescript) describes its TypeScript
-  execution support. Policy type checking belongs to package checks; runtime
-  result validation remains required.
+  execution support. Policy type checking belongs to package checks, and does
+  not replace the front's validation of each result at run time.
 
 No claim is made here about current model quality, alternate runtimes' measured
-latency, or final archive size. No Linux runtime smoke test was performed in this
-design leaf.
+latency, or archive size.
 
 <a id="source-grounding"></a>
 ## Source grounding
 
-Tier 2 graph verification used project
+On 2026-09-29, before any of the command existed, its design was grounded in
+Grove's own source. Tier 2 graph verification used project
 `Users-antony-Development-grove.new-tool-for-harness-selection-and-execution`,
-generation `2026-09-29T11:18:53Z`. These are bounded positive findings:
+generation `2026-09-29T11:18:53Z`. These were bounded positive findings. Each
+is followed by what the delivered command made of it, read from the source on
+2026-10-01:
 
-- [Session expansion](../../../crates/grove-loop/src/session_config.rs) currently
-  supplies prompt, session name, worktree and repository, with exact native
-  argument boundaries. Its existing integration test exercises spaces and shell
-  punctuation. The three new lifecycle slots are proposed, not existing API.
+- [Session expansion](../../../crates/grove-loop/src/session_config.rs)
+  supplied prompt, session name, worktree and repository, with exact native
+  argument boundaries, and its integration test exercised spaces and shell
+  punctuation. It now also supplies `kind`, `task_file` and `task_id`, each at
+  most once, from the selected task.
 - [The loop driver](../../../crates/grove-loop/src/loop_driver.rs) expands the
   command from its authoritative selection, then activates the epoch and calls
   the observed runner. Inbound/outbound graph tracing and the exact launch
-  snippet were inspected. The existing three scrubbed values are signal path and
-  two legacy harness PID values.
+  snippet were inspected. The three scrubbed values are the signal path and two
+  legacy harness PID values, as they were.
 - [Tree lifetime](../../../crates/grove-loop/src/observation.rs) is a pinned open
   directory, compared by device/inode while pinned. Its numbers alone are
-  unsuitable as permanent provenance identity. The design therefore carries
-  provenance as a dispatch run ID and derives none from tree identity.
+  unsuitable as permanent provenance identity. So provenance is carried as a
+  dispatch run ID, and none is derived from tree identity.
 - [Release construction](../../../scripts/release-build.sh),
   [the target list](../../../scripts/release-common.sh) and
-  [Homebrew installation](../../../scripts/templates/grove.rb.tmpl) currently
-  build three archives and install the two existing commands. Linux is linked
-  against a 2.17 glibc floor. The worker/layout and installed smoke checks are
-  additions the implementation must make.
+  [Homebrew installation](../../../scripts/templates/grove.rb.tmpl) built three
+  archives and installed two commands, with Linux linked against a 2.17 glibc
+  floor. They now carry `harness-dispatch` and its worker layout as well, and
+  the [installed smoke](#installed-smoke) test runs over each archive.
 
 Coverage reported no recorded source gaps for the inspected Rust files and
 matching source metadata. Docs and scripts are excluded from the graph and were
 read directly. Task notes and glossary had changed/untracked metadata and were
 read directly. No claim of repository-wide completeness is based on graph
-absence. The command-seam and PTY integration tests are retained as the agreed
-acceptance instruments; this design did not replace them with mocked internals.
+absence. The command-seam and PTY integration tests are the agreed acceptance
+instruments, and no mocked internals replace them.

@@ -26,32 +26,32 @@ or by closing its node. A restarted producer's finishing
 session replaces the line, or removes it when it ran without dispatch, before
 the review runs. A review's retry reads the same line and the same record.
 
-The methodology carries the line as an amendment to three of its rules, which
-the human confirmed in `harness-selection-and-execution-k8`:
+Three of the methodology's rules carry the line, in the form the human
+confirmed in `harness-selection-and-execution-k8`:
 
-- `body-carries-no-launch-metadata` — a body still carries nothing that routes
-  its own session. A review body may carry one `**Creator:**` line, the only
-  record of a past session any body carries.
-- `retirement-is-filename-only` — retirement still touches one filename. The
-  claim that a waiting review needs no record of how its producer ran is
-  rescoped. In its task's commit, a session writes its line for each producer
-  it finishes, on the review it cuts and on any live review already naming that
-  producer's handle, or removes the line when it has no run. It finishes its own
-  leaf and each node its close cascade closes, so the node-close steps and
-  their `node-close-four-steps` row carry the same step. The step has a
-  conformance row of its own, `finishing-session-names-its-run`, so a second
-  file that restates it fails.
-- `diversity-is-the-configs` — Grove still records and compares nothing about
-  how a producer ran. The producing session names its run, and the dispatcher's
+- `body-carries-no-launch-metadata` — a body carries nothing that routes its
+  own session. A review body may carry one `**Creator:**` line, the only record
+  of a past session any body carries.
+- `retirement-is-filename-only` — retirement touches one filename, and the verb
+  writes nothing into a waiting review. The one record that review carries of
+  how its producer ran is written by hand. In its task's commit, a session
+  writes its line for each producer it finishes, on the review it cuts and on
+  any live review already naming that producer's handle, or removes the line
+  when it has no run. It finishes its own leaf and each node its close cascade
+  closes, so the node-close steps and their `node-close-four-steps` row carry
+  the same step. The step has a conformance row of its own,
+  `finishing-session-names-its-run`, so a second file that restates it fails.
+- `diversity-is-the-configs` — Grove records and compares nothing about how a
+  producer ran. The producing session names its run, and the dispatcher's
   policy does the comparing.
 
 The statements that no code reads the relationship lines are scoped to Grove's
 own code: the glossary, `TASK-FORMAT.md`, `docs/ARCHITECTURE.md` and
 `docs/USAGE.md` all make one. The requirements already implied this by giving
-the supplied adapter the `**Reviews:**` relationship. The amendments are in the
-Grove plugin and in the skills Grove provisions to Codex, and ship in the same
-release as the dispatcher, so the methodology never asks a session to name a
-run from a tool that is not installed. Conformance rows and
+the supplied adapter the `**Reviews:**` relationship. The three rules are stated
+in the Grove plugin and in the skills Grove provisions to Codex, and ship in the
+same release as the dispatcher, so the methodology never asks a session to name
+a run from a tool that is not installed. Conformance rows and
 composition-guidance pins hold their wording.
 
 The costs are visible. The reference depends on a session copying its run ID,
@@ -69,10 +69,10 @@ and review must use the same record store.
 
 ## Considered options
 
-- **Look up the reviewed handle's runs under a per-grove dispatch scope.** This
-  was the first design. It kept durable grove state in the workspace control
-  area, which the one-live-driver record says holds none. Its inode tripwire
-  refused a benign recreation of the root, and its only remedy orphaned every
+- **Look up the reviewed handle's runs under a per-grove dispatch scope.** The
+  scope keeps durable grove state in the workspace control area, which the
+  one-live-driver record says holds none. The inode tripwire that guards it
+  refuses a benign recreation of the root, and its only remedy orphans every
   creator in the grove. Reopen only if Grove gains a durable grove identity for
   some other reason.
 - **Mint a durable grove ID under `.grove/` and key runs by it and the handle.**
@@ -89,8 +89,8 @@ and review must use the same record store.
   which its configuration contract and its review-target-diversity rule exclude.
   Reopen only if Grove stops treating commands as opaque.
 - **Register creators explicitly with `creator bind` and `creator declare`.**
-  Nothing produced the execution evidence that binding required, so every
-  unattended review stopped for a human declaration (review
+  Nothing produces the execution evidence that binding requires, so every
+  unattended review stops for a human declaration (review
   `harness-selection-and-execution-k5`, finding F1).
 - **Write a `**Produced-by:**` line into the producer at retirement.**
   Retirement would stop being a filename-only transition. `complete` runs after

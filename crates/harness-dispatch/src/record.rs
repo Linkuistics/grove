@@ -3,9 +3,9 @@
 //! observations*).
 //!
 //! A run's launch fields are one JSON document, committed before exec and never
-//! changed. Every field a later increment supplies is present already, as
-//! `null`, so that increment fills it for new runs without rewriting a
-//! committed one. Raw environment values are not stored. The document
+//! changed. Every field is present in it, `null` where the run has no value for
+//! it, so a release that records something new fills it for new runs without
+//! rewriting a committed one. Raw environment values are not stored. The document
 //! describes the configured launched choice; it is not evidence that the
 //! harness ran, or of which backend model it reached.
 //!

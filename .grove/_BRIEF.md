@@ -248,8 +248,8 @@ policy-ownership ADR and `docs/adr/policy-evaluation-precedes-process-replacemen
 `docs/design/harness-selection-and-execution/` contains editable visual views and
 the bounded native runtime/source evidence. The command name is
 `harness-dispatch`; Rust owns admission/records/exec and an installed compiled Bun
-worker evaluates the TypeScript entry. The spec labels the new behavior as design,
-not implementation.
+worker evaluates the TypeScript entry. The spec labelled the new behavior as
+design until `current-state-documents-k68` made it current state.
 
 `harness-selection-and-execution-k5` reviews that design before
 `harness-selection-and-execution-k6` plans independently useful increments. A
@@ -611,10 +611,12 @@ k42 found this deviation advisory, and k43 accepted it as a visible trade-off.
 
 Obligations common to every implementation leaf:
 
-- Implement against the spec; it is the contract. As behavior lands, narrow the
-  spec's "not implemented" notice to state what is delivered, and never claim
-  the whole feature early. Until its owning leaf lands, a form is explicitly
-  refused, never accepted and ignored, and no stub methods are published.
+- Implement against the spec; it is the contract. Since
+  `current-state-documents-k68` it describes the delivered command as current
+  state and carries no "not implemented" notice, so a leaf that changes
+  behavior changes the spec's sentence with it. A form the command does not
+  support is explicitly refused, never accepted and ignored, and no stub
+  methods are published.
 - The two agreed process seams are the acceptance instruments. The command seam
   uses temporary policies and fake harnesses with no Grove. The other is Grove's
   existing launch boundary and PTY tests. Internal tests support them and never

@@ -55,9 +55,24 @@ above say "this leaf", read the child named here.
    ahead of the two below. Tests that hold a clause more narrowly than their
    names say went to `seam-controls-k70` at the grove root, which the
    documents do not wait on.
-2. `current-state-documents-k68` rewrites the design-tense artifacts as
-   current state: the spec, the visual design README, the runtime evidence,
-   the ADRs and the glossary.
+2. `current-state-documents-k68` rewrote the design-tense artifacts as
+   current state: the spec, the visual design README and viewer manifest, the
+   runtime evidence and the three ADRs. The glossary needed nothing. Its
+   running log has each judgement, and what moved out of the spec's notice
+   into the body. `usage-agreement-k69` builds on these facts. Three sentences
+   are now claims about k69's documents, so k69 keeps the documents true to
+   them or changes the sentence: the last paragraph of the spec's
+   `#grove-integration` says what the Grove-side documents explain and that
+   the command they quote is the one `--help` carries; `#delivery` says the
+   dispatch README and the release procedure state the kernel range; and the
+   policy-ownership ADR names the documents that state the launch-time
+   boundary. *Policy and joint choice* names every shipped example by
+   specifier, which the README's example table must match. The seam table's
+   Grove rows are labelled "Grove launch boundary", without "Existing". The
+   research survey's *Adopted boundary* section is current too. k68 changed
+   two module comments in the package source, and swept no other source
+   comment and no help text for design tense. The review k69 cuts is pointed
+   at k68's running log as well as k67's.
 3. `usage-agreement-k69` places the package in `docs/ARCHITECTURE.md`, brings
    the usage documents into agreement with one another and with `--help`, and
    writes the CHANGELOG. Its retirement closes this node, so it cuts the

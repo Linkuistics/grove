@@ -19,6 +19,6 @@ sequenceDiagram
     D->>S: Commit review run with the provenance it used
     D->>V: exec the different-provider reviewer
   else No Creator line, unknown run, or no eligible candidate
-    D-->>G: Refuse (exit 3) with the declaration remedy, nothing launches
+    D-->>G: Refuse (exit 3) naming the remedy, nothing launches
   end
   Note over G,V: No lookup by handle, so a later grove reusing H cannot collide with R

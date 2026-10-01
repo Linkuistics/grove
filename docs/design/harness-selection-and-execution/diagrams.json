@@ -1,27 +1,15 @@
 {
   "title": "Harness selection and execution",
-  "intro": "First-release design, reviewed in harness-selection-and-execution-k9 and repaired in k10; nothing here is implemented. The human chose the original-creator mechanism; its details are design decisions, not human approvals. These are source-package and process views, not deployment containers. Graphs begin at a dark Start here node; sequence views begin at the first message.",
+  "intro": "Views of the delivered harness-dispatch command, matching the area specification's package, execution and original-creator topics. These are source-package and process views, not deployment containers. Graphs begin at a dark Start here node; sequence views begin at the first message.",
   "groups": [
     {"id": "boundary", "title": "Package boundary", "description": "One public command, an installed private worker, optional caller adapters."},
     {"id": "execution", "title": "Execution and authority", "description": "Selection ends before the foreground process becomes the harness."},
     {"id": "provenance", "title": "Original creator and review", "description": "A review carries a reference to its creator's run; run records outlive the task tree."}
   ],
-  "discussion": {
-    "title": "A review carries its creator reference",
-    "status": "Chosen by the human; reviewed, and its lifecycle rules repaired",
-    "summary": "The producer's finishing session writes a Creator line naming its dispatch run on its review leaf, and the supplied policy reads that immutable run's provider; an artifact without a run carries the owner's declaration. The scope, its slot and commands, the inode tripwire and creator registration are gone. The methodology amendments this needs ship with the dispatch implementation.",
-    "diagramIds": ["creator-options", "creator-flow", "creator", "packages"],
-    "updatedDiagrams": [
-      {"id": "creator-options", "summary": "New: compares where each option keeps the creator's provider and which standing rule it amends; option A is chosen."},
-      {"id": "creator-flow", "summary": "Traces the chosen mechanism from the producer's launch to the review's provider check. Repaired: the finishing session also updates reviews of each node its close cascade closes, and removes the line when it ran without dispatch."},
-      {"id": "creator", "summary": "Replaced registration lookup with the Creator line, the fail-closed review recognition (F3) and the catalog membership check (F4)."},
-      {"id": "packages", "summary": "Corrected the adapter label: it reads only the supplied task file, as integration decided for F5."}
-    ]
-  },
   "diagrams": [
     {"id": "packages", "group": "boundary", "title": "Caller, dispatcher and policy packages", "source": "packages.mmd", "caption": "Source packages and runtime participants. Grove-specific relationship parsing belongs to the optional adapter; the generic command has no review-kind list."},
-    {"id": "handoff", "group": "execution", "title": "Prepare, record and replace the foreground process", "source": "handoff.mmd", "caption": "The worker shares the enclosing job and receives no interactive stdin. Cancellation or timeout before admission launches nothing. Post-exec measurements require an external observer."},
-    {"id": "creator-options", "group": "provenance", "title": "Where each option keeps the creator's provider", "source": "creator-options.mmd", "caption": "Decided: the human chose A. A lookup keyed by handle must tell this grove's handle from an earlier grove's in the same workspace, which needs durable state Grove deliberately lacks (B). A globally unique run reference carried by the review needs none (A)."},
+    {"id": "handoff", "group": "execution", "title": "Prepare, record and replace the foreground process", "source": "handoff.mmd", "caption": "The worker shares the enclosing job and has null stdin. Cancellation or timeout before the handoff launches nothing. Measurements after exec need an external observer."},
+    {"id": "creator-options", "group": "provenance", "title": "Where each option keeps the creator's provider", "source": "creator-options.mmd", "caption": "The decision is A. A lookup keyed by handle must tell this grove's handle from an earlier grove's in the same workspace, which needs durable state Grove deliberately lacks (B). A globally unique run reference carried by the review needs none (A)."},
     {"id": "creator-flow", "group": "provenance", "title": "Producer names its run; the review resolves it", "source": "creator-flow.mmd", "caption": "The run reference is written by the session that ran under it, so the provider comes from dispatch's immutable record rather than a transcription. The association itself is that session's attestation, not verified. A session that finishes without a run removes any earlier line, and the owner declares the finished artifact's provider."},
     {"id": "creator", "group": "provenance", "title": "Resolve the Creator line before selecting a reviewer", "source": "creator.mmd", "caption": "The supplied example policy. Every invocation, retry and explicit choice takes the same path; a retry reads the same line and the same immutable run, so it cannot change the creator."}
   ]

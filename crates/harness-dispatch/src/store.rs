@@ -34,8 +34,8 @@
 //! and a schema version, checked inside the transaction; a pristine file is
 //! initialized in that same transaction, and anything else that does not match
 //! refuses. A store is never reset or replaced. A run's launch fields are one
-//! JSON document carrying its own schema version, with a field for everything
-//! a later increment records, `null` until then; triggers abort any update or
+//! JSON document carrying its own schema version, with every field present,
+//! `null` where the run has no value for it; triggers abort any update or
 //! deletion of a committed row. So a release that records something new writes
 //! it into new runs' documents, at a new document version if schema 1 has no
 //! field for it, and a new table arrives by a migration that only creates. No

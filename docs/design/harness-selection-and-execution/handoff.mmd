@@ -5,7 +5,7 @@ sequenceDiagram
   participant D as Record store
   participant H as Final harness
   G->>R: Authoritative request + inherited terminal/control env
-  R->>W: Sanitized env, private cwd, bounded context, stdin closed
+  R->>W: Fresh env, private start directory, bounded request, null stdin
   W-->>R: Validated catalog, choice, evidence and reason
   R->>R: Reap worker, validate explicit choice and executable
   alt Inspect

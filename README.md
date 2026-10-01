@@ -10,6 +10,7 @@ also contains the agent skills used by those sessions.
 | Product | Source | Purpose |
 |---|---|---|
 | Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over five library crates, the loop that launches one session per task among them. |
+| harness-dispatch | [`crates/harness-dispatch/`](crates/harness-dispatch/) | A separate command in the same workspace, installed with Grove and usable without it: it selects and runs an agent harness from its owner's TypeScript policy. |
 | Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, the Linkuistics coding/design skills, and the Testanyware GUI-testing skill. |
 
 The products share a repository and a release snapshot. Bare `grove` installs
@@ -105,6 +106,9 @@ for the catalogue, ownership rules and installation paths.
   over the task tree, and the start-to-finish workflow.
 - [Configuration](docs/CONFIGURATION.md) — the personal KDL file, the
   command-template grammar, the configuration delta, and the diagnostics.
+- [harness-dispatch](crates/harness-dispatch/README.md) — selection policies,
+  inspection, run records and refusals; the configuration reference has
+  [routing Grove sessions through it](docs/CONFIGURATION.md#harness-dispatch).
 - [Architecture](docs/ARCHITECTURE.md) — the design decisions, constraints and
   measurement records behind the runtime, the task tree and the VCS seam.
 - [System overview](docs/walkthroughs/overview/README.md) — the `grove` binary

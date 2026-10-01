@@ -73,8 +73,11 @@ above say "this leaf", read the child named here.
    two module comments in the package source, and swept no other source
    comment and no help text for design tense. The review k69 cuts is pointed
    at k68's running log as well as k67's.
-3. `usage-agreement-k69` places the package in `docs/ARCHITECTURE.md`, brings
+3. `usage-agreement-k69` placed the package in `docs/ARCHITECTURE.md`, brought
    the usage documents into agreement with one another and with `--help`, and
-   writes the CHANGELOG. Its retirement closes this node, so it cuts the
-   documentation-acceptance review at the grove root before it retires, and
-   runs `task check` on the tree the review will read.
+   rewrote the CHANGELOG's Unreleased section by subject. Its running log
+   lists each disagreement it closed and the one judgement it made without the
+   human, on `CONTEXT-MAP.md`. `task check` passed on its tree. Its retirement
+   closed this node, so it first cut the documentation-acceptance review,
+   `dispatch-documentation-k71`, at the grove root. The root brief's
+   *Documentation closed* paragraph has what later leaves build on.

@@ -29,6 +29,9 @@ them.
 | Human workflow and commands | [`USAGE.md`](USAGE.md) |
 | Session configuration and launch policy | [`CONFIGURATION.md`](CONFIGURATION.md) |
 | Cutting and publishing a release | [`RELEASING.md`](RELEASING.md) |
+| Routing a Grove session through `harness-dispatch`, and a review's creator line | [`CONFIGURATION.md`](CONFIGURATION.md#harness-dispatch) — the Grove-side account; [`USAGE.md`](USAGE.md#if-a-dispatched-launch-refuses) has the refused launch |
+| `harness-dispatch` itself: policies, inspection, running, records and refusals | [`crates/harness-dispatch/README.md`](../crates/harness-dispatch/README.md) — beside the package and not under `docs/`, so that it travels with it |
+| The `harness-dispatch` contract | [`specs/harness-selection-and-execution.md`](specs/harness-selection-and-execution.md), with its [visual views and runtime evidence](design/harness-selection-and-execution/README.md) |
 | Runtime and repository design — the decisions, the constraints, and the measurement records | this document |
 | Grove vocabulary | [`CONTEXT.md`](../CONTEXT.md) |
 | Relationships between this repository's bounded contexts | [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) |
@@ -96,11 +99,13 @@ title does not change the anchor.
 <a id="skills-monorepo"></a>
 ## Repository products
 
-The repository contains the CLI and three skill plugins:
+The repository contains the CLI, a separate harness-selection command and three
+skill plugins:
 
 | Product | Source | Delivery |
 |---|---|---|
-| Grove CLI | `crates/` | Homebrew installs `grove` and `grove-llm`. |
+| Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
+| harness-dispatch | `crates/harness-dispatch/` | The same formula and archives install `harness-dispatch` beside them, with its compiled policy worker under `libexec/harness-dispatch/`. [Its own section](#harness-dispatch) places it. |
 | Agent skill plugins | `plugins/grove/`, `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace, automatic Codex provisioning by bare `grove`, or `plugins/install.sh` for manual checkout delivery. |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative
@@ -495,6 +500,96 @@ Driver-internal VCS children follow the opposite rule — they scrub both the lo
 controls and the repository selectors and are pinned to the leased working tree
 by their working directory — so personal launch context cannot redirect a
 teardown commit.
+
+<a id="harness-dispatch"></a>
+## The harness-dispatch package
+
+`crates/harness-dispatch` is a second product of this workspace and no part of
+Grove. It evaluates an owner's TypeScript selection policy, chooses one
+configured harness, model and reasoning effort together, records the handoff,
+and replaces itself with that harness. A caller needs no Grove to use it. Its
+contract is the [area specification](specs/harness-selection-and-execution.md),
+and what an owner writes and runs is
+[its README](../crates/harness-dispatch/README.md)'s. This section places the
+package and states its boundary, which
+[harness selection is owned by policy](adr/harness-selection-is-owned-by-policy.md)
+decides.
+
+**Grove reaches it as one opaque command, so Grove still does not know what it
+launches.** A personal command definition names `harness-dispatch run` with the
+`kind`, `task_file` and `task_id` slots and the prompt, and the driver expands
+and spawns it as it does any other template. No Rust source Grove ships names
+the command. The three slots are what Grove gained, and they serve any wrapper:
+they carry the selected leaf's kind, path and handle as whole arguments, from
+the selection that composes the mandate. Grove's pre-authoring check therefore
+stops at the configured command, and a delegated policy is evaluated only at
+launch. That can stop an unattended run on a leaf already written, and is the
+accepted cost of delegating
+([configuration reference](CONFIGURATION.md#harness-dispatch)).
+
+The boundary has three sides:
+
+| Side | Rule | Why |
+|---|---|---|
+| What the package depends on | Third-party crates, SQLite compiled into the front, and its compiled policy worker, which the front finds relative to its own real path | An installation needs no system Bun, Node, SQLite or database service, and nothing ambient can substitute another worker |
+| What the package must not depend on | Any other crate of this workspace; the task-tree grammar, a Grove filename or jj; in its core, a list of review kinds or the `**Reviews:**` and `**Creator:**` grammar | Grove is one caller among many, and supplies its kind, task and prompt as data. A review rule is an owner's policy, not the command's |
+| What Grove must not depend on | The package, in any shipped source; any record of how a producer ran | Launch policy left the binary, and Grove allocates and stores nothing for dispatch |
+
+What crosses it is data, in four places:
+
+- **Arguments.** Grove passes the kind, the task file's path, the handle and the
+  unchanged prompt, each as one argument. The front parses no prompt and no
+  filename.
+- **Environment.** The harness inherits the environment Grove gave the front,
+  this launch's `GROVE_SIGNAL_FILE` included, plus `HARNESS_DISPATCH_RUN_ID`
+  and `HARNESS_DISPATCH_STATE_DIR`. The policy worker is given a fresh
+  environment instead. It never holds the two dispatch variables, and it holds
+  the completion channel only if the owner grants that name with
+  `--policy-env`, which no documented configuration does. So selection has no
+  authority to end a session unless its owner hands it over.
+- **The process.** The front `exec`s the harness, so the harness is the process
+  Grove spawned: its PID, process group, terminal and working directory are the
+  ones [process ownership](#process-ownership) supervises
+  ([the launched child is a job](adr/the-launched-child-is-a-job.md)). Selection
+  runs first, in a worker the front starts and reaps
+  ([policy evaluation precedes process replacement](adr/policy-evaluation-precedes-process-replacement.md)).
+- **The task file.** A review leaf's `**Reviews:**` and `**Creator:**` lines are
+  written by sessions, as the methodology directs, and read by a policy import.
+  Grove's code writes and reads neither
+  ([a review carries its creator reference](adr/a-review-carries-its-creator-reference.md)).
+  The methodology names one thing of dispatch's, the `HARNESS_DISPATCH_RUN_ID`
+  variable a finishing session reads, which is why the two ship in one release.
+
+**The Grove adapter is the one piece of the package that knows a Grove
+convention.** `harness-dispatch/grove` reads those two lines from the task file
+it is given. It is an explicit import of an owner's policy, depends only on the
+public SDK and the documented task format, and is never imported by the core.
+It ships inside the worker so that it always matches the SDK embedded there. An
+extraction can move it to Grove's side instead.
+
+**An extraction moves one directory of code.** `crates/harness-dispatch` holds the Rust
+front, and under `worker/` the policy host, the SDK, the adapter, the examples
+and their type-check fixtures. It holds `scripts/dispatch.sh`, which owns the
+worker's build, type check, probe builds and installation, and
+`scripts/installed-smoke.sh`, the installed-layout cases. It holds the notices
+an archive carries, and a test suite whose support code is its own. The rest
+is what refers to that directory from outside it:
+
+- the Taskfile's `dispatch:*` entries, which call into `dispatch.sh`, and the
+  step of `scripts/check.sh` that runs them;
+- the release scripts, which build the front and worker for each target, hold
+  the archive manifest and the formula, and run the installed smoke test;
+- Grove's launch-boundary tests, which spawn the built front as a configured
+  command and would need an installed one;
+- the specification, the three decisions and the design directory, which live
+  under `docs/` while the package lives here and would move with it.
+
+The package takes the workspace version and ships inside Grove's cut, and its
+worker embeds that version
+([Releasing](RELEASING.md#one-release-eight-packages-one-tag)). An extracted
+package would need a release lane of its own. Extraction is not planned: the
+decision above keeps one repository and one release route while development,
+integration tests and delivery benefit from it.
 
 ## Process ownership
 
@@ -1742,6 +1837,12 @@ every `grove-loop` module — is the overview's
 [*What the call reaches*](walkthroughs/overview/05-what-the-call-reaches.md#the-package-map),
 from its package map onward.
 
+That map lists `harness-dispatch` with no workspace dependency, and no
+walkthrough book covers its source. The package's place and boundary are
+[its own section](#harness-dispatch) above, and its internals are described by
+its module comments, [its README](../crates/harness-dispatch/README.md) and the
+[area specification](specs/harness-selection-and-execution.md).
+
 **The workspace root is not a package**, so a module's package is part of its
 identity (`docs/specs/module-decomposition.md`, decision 1).
 
@@ -1755,7 +1856,8 @@ service layer. The task tree, subprocess boundary, and VCS adapter are the
 important seams and are tested through public behavior. No harness abstraction
 replaces the removed routing registry: opaque command targets have exactly one
 production adapter — direct process execution — so another port would be
-hypothetical indirection.
+hypothetical indirection. `harness-dispatch` adds none: it is a program a
+template names, on the far side of that one adapter.
 
 Module visibility is load-bearing rather than incidental: a `pub` item in a
 `pub` module is reachable by definition, so `dead_code` never reports one, and a
@@ -1793,8 +1895,10 @@ bash scripts/check.sh
 
 The script owns the check list: formatting, shell and Rust linting, plugin
 installation and conformance, release tooling, workspace tests and source-exact
-book validation. It announces the resolved toolchain and reports each failed
-check at the end.
+book validation. Before the workspace tests it compiles `harness-dispatch`'s
+policy worker and its probe builds and type-checks the worker's TypeScript, so
+the script needs Task and the Bun version that package pins. It announces the
+resolved toolchain and reports each failed check at the end.
 
 The two conformance scripts are the methodology's own, and they are shell rather
 than Rust because the thing they assert about — the composed loaded path of an
@@ -1817,6 +1921,27 @@ jj worktrees, with isolated home directories, a real
 and the real `grove-llm` binary. Clocks, wait policy, lock backends, and kill
 graces are injected through internal module seams, never through supported
 process configuration.
+
+**`harness-dispatch` is verified at two process seams, and once more on each
+release target.** Its own suite drives the built front with temporary policies
+and fake harnesses, in a cleared environment with no Grove configuration or
+task tree. Grove's launch-boundary suite drives the real driver, front and
+worker together, as a dispatched command, at the launch boundary and under a
+controlling terminal. Neither skips without the compiled worker. Cargo never
+builds it, and the front refuses a worker built from other source with exit 5,
+so a missing or stale worker fails every case that needs one. The probe builds
+are the shipped worker source with one control removed each. A hostile fixture
+is credited only beside a configuration under which it is seen to fire: a
+probe build, the same file named explicitly, or the shipped worker started
+without the front's scrubbing. No front accepts a probe as its worker. The
+third instrument is outside the script:
+`task release:smoke` runs each release archive's installed layout on its
+target, at the Linux floors, and a release runs it over the archives it is
+about to publish
+([the installed smoke test](RELEASING.md#installed-smoke-test)). Run it again
+after a change to the worker, the installed layout or a native dependency. The
+specification's [test seams](specs/harness-selection-and-execution.md#test-seams)
+list what each seam must observe.
 
 <a id="embed-test-seam"></a>
 One claim cannot be reached that way and has a seam of its own: that the composed

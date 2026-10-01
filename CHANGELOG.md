@@ -52,6 +52,78 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `harness-dispatch`: a new command, installed with Grove and usable without
+  it. It evaluates an owner's TypeScript selection policy, chooses one
+  configured harness, model and reasoning effort together for a session kind,
+  records the handoff, and replaces itself with that harness. The policy is
+  `~/.config/harness-dispatch/policy.ts`, or the entry `--config` names, and
+  never one found in the current directory. Installing or upgrading writes no
+  policy. Its [README](crates/harness-dispatch/README.md) is the owner's
+  guide, and the
+  [specification](docs/specs/harness-selection-and-execution.md) is its
+  contract
+  ([harness selection is owned by policy](docs/adr/harness-selection-is-owned-by-policy.md)).
+- `harness-dispatch` commands: `inspect` reports the choice, why it was made,
+  the resolved program and the exact argv, in text or `--json`, and launches
+  nothing. `run` makes the same choice, commits a run record under a fresh run
+  ID, and execs the harness. The harness keeps the caller's process, terminal,
+  working directory, environment, signal mask and ignored signals, and also
+  receives `HARNESS_DISPATCH_RUN_ID` and `HARNESS_DISPATCH_STATE_DIR`. `record
+  show` exports a run, and `record observe` attaches later evidence to it.
+- `harness-dispatch` policies: a policy is an exact `routes` table from a kind
+  to a catalog candidate, or a `select` function that computes the choice. A
+  candidate names its provider, model, effort, program and arguments, and its
+  whole-argument slots are filled without a shell. `--choice ID` names one
+  candidate: a routes policy takes it, and `select` must accept or refuse it.
+  `--context` hands the policy a version-1 JSON document, and a policy's
+  `loadContext` can assemble its own through reads that are measured and
+  hashed. There is no catch-all route, fallback candidate, automatic retry or
+  partial model or effort override.
+- `harness-dispatch` bounds and refusals: selection is bounded to 30 seconds
+  by default and at most 120 (`--timeout-ms`), and its context to 256 KiB by
+  default and at most 8 MiB (`--context-bytes`), with further bounds on each
+  read, the number of sources, protocol messages, policy output and the
+  prompt. An overflow, a timeout, or an interrupt before the harness starts
+  launches nothing. Every refusal names its code, stage, input or source, and
+  remedy, and never substitutes another candidate. A refused `run` prints the
+  equivalent `inspect` command. Exit results before the harness runs are 2, 3,
+  4, 5, 124, 126 and 127, and afterwards the harness's own status is the
+  command's.
+- `harness-dispatch` records: runs are kept in a local SQLite store under
+  `~/.local/state/harness-dispatch`, or the directory `--state-dir` names. A
+  record is a handoff attempt committed before exec, not evidence that the
+  harness ran. An observation adds what an observer saw: execution, exit,
+  duration, usage, acceptance, missed defects, false findings, downstream
+  repair and human work, each observed, unknown or unobserved, and never
+  defaulted to zero. A policy's loader can look a recorded run up by its ID.
+- `harness-dispatch` policy authority: the policy runs in a private worker
+  compiled with Bun 1.4.2, which carries its own runtime, so no system Bun or
+  Node takes part. The worker gets a fresh environment of `HOME`, `PATH`,
+  `TMPDIR`, `LANG` and `LC_*`, plus the names granted with `--policy-env`.
+  Never grant `GROVE_SIGNAL_FILE`: a policy holding it could end the Grove
+  session it is selecting for. A `.env` file, a bunfig preload or a tsconfig
+  path alias, beside the policy or in the current directory, takes no part,
+  and a `node_modules/harness-dispatch` package cannot replace the built-in
+  `harness-dispatch/…` modules. Policy code runs with `/` as its current
+  directory, and the caller's directory is `request.cwd`. An ordinary npm
+  package beside a policy loads by the entry point its `package.json`
+  declares, and nothing is installed automatically. Policy is trusted code:
+  this is not a sandbox against its owner.
+- `harness-dispatch` examples: five policies ship inside the worker, inactive
+  until a personal policy imports one. `harness-dispatch/examples/static` and
+  `grove-static` are exact starter tables, the second over every session kind
+  Grove ships. `dynamic` is a computed `select`. `review` and `grove-review`
+  choose each review's reviewer from another provider than the artifact's
+  original creator, on every invocation, retry and explicit choice. The
+  creator is a recorded run or the owner's declaration, and a review with
+  neither refuses. `harness-dispatch/grove` is the adapter that reads a Grove
+  review leaf's `**Reviews:**` and `**Creator:**` lines.
+- `harness-dispatch` supported platforms: macOS on Apple silicon, Linux arm64
+  and Linux x64. On Linux it needs glibc 2.17 and a Nehalem (x64) or
+  Cortex-A53 (arm64) CPU, each executed before every release. The Linux kernel
+  floor is Bun 1.4.2's documented range, documented rather than executed: 5.1
+  in Bun's README, and 3.10 (RHEL 7) on its installation page. macOS needs
+  13.0 or later, Bun 1.4.2's documented minimum.
 - `grove`: lifecycle command templates may use three optional slots, `${kind}`,
   `${task_file}` and `${task_id}`. They carry the selected leaf's kind token,
   absolute task path and `<slug>-k<key>` handle as whole arguments, taken from the
@@ -59,71 +131,21 @@ stood at the graft — a closed record, not part of the versioned sequence above
   filename. The prompt is unchanged. `grove config show` prints them
   symbolically. `grove run` refuses a routed command that uses one, naming the
   slot, because a standalone invocation has no selected task.
-- `harness-dispatch`: a new, separate command in `crates/harness-dispatch`
-  that evaluates an owner's TypeScript selection policy and reports the
-  harness, model and effort it chooses for a session kind. This first step
-  delivers `harness-dispatch inspect --kind K` for a static `routes` policy, in
-  human text or `--json`. The policy comes from `~/.config/harness-dispatch/policy.ts`
-  or an explicit `--config`, never from the current directory. It is evaluated
-  by a private Bun-compiled worker that is verified before it sees any policy,
-  and it imports its types from the embedded `harness-dispatch/sdk`. Invalid
-  policies, unrouted kinds and failed imports refuse with a stable code, a
-  location and a remedy. Inspection also takes the prompt (`--prompt` or
-  `--prompt-file`), `--task-file` and `--task-id`, fills the chosen candidate's
-  whole-argument slots without a shell, resolves its program as the shell
-  would, and shows the exact argv the harness would receive. A slot with no
-  input, a missing program (exit 127) or an unexecutable one (exit 126) refuses
-  instead. Build and install it from a checkout with `task dispatch:install`.
-- Release archives and the Homebrew formula now carry `harness-dispatch` with
-  its compiled policy worker. Each archive unpacks to an installation prefix:
-  `bin/grove`, `bin/grove-llm` and `bin/harness-dispatch`, and
-  `libexec/harness-dispatch/` holding the worker, the declarations and sources
-  of its SDK and examples, and Bun's and SQLite's notices. `grove` and
-  `grove-llm` moved from the archive's top level into `bin/`; put the extracted
-  `bin/` on `PATH`. `harness-dispatch` finds its worker from its own real path,
-  through the Homebrew symlink too, and `brew test` checks that the front, the
-  worker and Grove report one version. No system Bun or Node is needed.
-- Release builds: each target's worker is compiled from that target's Bun
-  1.4.2 runtime, downloaded from npm and checked against a pinned SHA-256
-  rather than fetched unverified by Bun. Every archive is checked against a
-  manifest of its files as it is built. Archives no longer carry the hidden
-  AppleDouble `._*` files and extended attributes that macOS's `tar` added to
-  earlier ones, which GNU `tar` extracts as stray files. `task
-  release:archives` builds archives of the working copy without a tag or
-  publication.
-- Repository checks: `scripts/check.sh` now builds and type-checks the
-  harness-dispatch worker, so it and `scripts/release-doctor.sh` require
-  Bun 1.4.2. The release tests compare the archive manifest with
-  what harness-dispatch's build emits and with the formula, and
-  `scripts/release-build.sh` is now linted.
-- Release checks: `task release:smoke` rebuilds the archives and runs each
-  one's installed layout on its target, with no Bun or Node on `PATH`:
-  `harness-dispatch` inspects and runs a static TypeScript policy through its
-  front and through a symlink to it, and reads the run's record back. macOS arm64
-  runs natively, and each Linux target in the CentOS 7 (glibc 2.17) userland,
-  where a binary built against a newer glibc must be refused. There each Linux
-  target runs under a pinned user-mode QEMU emulating its CPU floor, Nehalem
-  for x64 and the Cortex-A53 for arm64, in a private binfmt_misc registration.
-  A probe that uses AVX2 or an Armv8.1 atomic must be killed by SIGILL under
-  that model and run under `-cpu max`, and every executable in the archive must
-  be one the emulator runs. Linux arm64 also runs natively as a container
-  first. x64 uses QEMU 10.2.3 from `tonistiigi/binfmt`, because Docker
-  Desktop's own emulator crashes that userland; it needs a 2^47 guest base, or
-  it maps the guest where no x86-64 kernel would and the worker cannot
-  allocate. arm64 uses Debian's `qemu-user` 10.2.2, fetched once from
-  snapshot.debian.org and checked against a pinned SHA-256.
-- Releases: `task release:patch`, `release:minor` and `release:major` now run
-  that smoke test over `target/dist`, after checking each archive against the
-  manifest again, before they push or publish anything. A failure leaves the
-  version cut only locally; `docs/RELEASING.md` gives the recovery for an
-  environment fault and for a defective archive. `scripts/release-doctor.sh`
-  now also requires an Apple silicon Mac and a running arm64 Docker whose
-  kernel is 6.7 or later, so a missing Docker stops a release before its cut.
-- `harness-dispatch` supported platforms: glibc 2.17 and a Nehalem (x64) or
-  Cortex-A53 (arm64) CPU on Linux, each executed before every release. The
-  Linux kernel floor is Bun 1.4.2's documented range, documented rather than
-  executed: 5.1 in Bun's README, and 3.10 (RHEL 7) on its installation page.
-  macOS needs 13.0 or later, Bun 1.4.2's documented minimum.
+- `grove`: a session launches through `harness-dispatch` when a personal
+  command definition runs it with those slots:
+
+  ```kdl
+  command "dispatch" "harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}"
+  ```
+
+  Grove's configuration still admits each kind and names the command, and the
+  dispatch policy selects the harness. A dispatched kind and a direct-harness
+  kind work side by side. Grove checks a kind's command before it writes a
+  leaf, and the policy behind it is evaluated only at launch, so a leaf can be
+  written and its launch then refuse, which leaves the leaf live. `grove config
+  show` explains the command, and `harness-dispatch inspect` explains the
+  selection. The configuration reference gains *Routing sessions through
+  harness-dispatch*, and the usage guide shows a refused launch and its remedy.
 - `grove` methodology: the session that finishes a producer names its run on
   that producer's reviews. It finishes its own leaf by retiring it, and each
   node its close cascade closes. On the review it cuts, and on every live review
@@ -133,56 +155,74 @@ stood at the graft — a closed record, not part of the versioned sequence above
   `**Creator:** declared <provider>`. A session that cuts a review cuts it, and
   writes its `**Reviews:**` line, before it retires its leaf.
   `references/retire.md` owns the step, at retirement and in the node-close
-  steps. `TASK-FORMAT.md` now says a body
-  carries nothing that routes its own session, and admits that one line as the
-  only record of a past session a body carries. `leaf-retire` still touches one
+  steps. `TASK-FORMAT.md` now says a body carries nothing that routes its own
+  session, and admits that one line as the only record of a past session a
+  body carries. `leaf-retire` still touches one
   filename, and Grove still records and compares nothing about how a producer
   ran: a dispatch policy does the comparing. The statements that nothing reads
   the `**Reviews:**` and `**Integrates:**` lines are scoped to Grove's own
   code, because a dispatch policy's adapter reads them. Codex receives the same
   files through `grove`'s provisioned skills
   ([a review carries its creator reference](docs/adr/a-review-carries-its-creator-reference.md)).
-- `grove` / `harness-dispatch` documentation: the configuration reference gains
-  *A review's creator line*, and the usage guide, the `configure-grove` skill
-  and harness-dispatch's README carry the same account. It gives the two
-  `**Creator:**` forms, who writes or removes each, the declaration as the
-  remedy for a review refused with `creator_line_missing`, why a line naming
-  some other existing run is not detected at launch and where inspection shows
-  it, and how a review attaches its findings to the producer's run as an
-  observation that outlasts `.grove/`. The Grove adapter's
-  `creator_line_missing` remedy now states who writes the line and leads with
-  the declaration. Grove's launch-boundary tests run sessions that follow the
-  methodology under the shipped Grove review example: across a producer's
-  retirement and a reordering, a decomposed producer closed through two levels,
-  a close cascade that settles every live review of each node it closes and no
-  other file, and a direct-harness finish that removes a stale line an
-  unfinished dispatched attempt planted.
-- `harness-dispatch`: policy code runs with `/` as its current directory. The
-  worker starts in a private empty directory, now created owner-only whatever
-  the caller's umask, and moves to `/` before it loads a policy. So a
-  `node_modules` in `TMPDIR`, or in any directory between where the worker
-  started and `/`, does not answer a bare import from a module with no file of
-  its own: one imported from a `data:` or `blob:` URL, or registered by the
-  policy. `/node_modules` itself still can, as it can for a module in a file.
-  The caller's directory is `request.cwd`. A native `Worker` a policy starts
-  loads no dotenv file from the directory the process is then in, which is `/`
-  unless the policy moved; the dotenv switch is the one control there, since
-  the worker has left its empty start directory by then.
-- `harness-dispatch`: owner policy can import an ordinary npm package. The
-  worker reads `package.json` at run time, so a package's `main` and `exports`
-  choose its entry point; before, only a package laid out with an `index.js`
-  loaded. The nearest `package.json` at or above a policy file is that file's
-  own package, as in Node: its `imports` map resolves the file's `#` names,
-  and a bare import of its own `name` resolves through its `exports` ahead of
-  any `node_modules` package of that name. Unlike Node, one that does not
-  parse is passed over without a message, and the next one above is the
-  file's package. An `imports` alias to a `harness-dispatch/…` specifier is
-  looked up in `node_modules` and never reaches the embedded module, so
-  import those by name. A `package.json` in `TMPDIR`, or in any directory
-  between where the worker started and `/`, takes no part and is not opened,
-  so one that never yields its content delays nothing. `/package.json` can
-  still answer a module with no file of its own, as `/node_modules` can.
-  Nothing is installed automatically, whatever a `package.json` lists.
+- `grove` / `configure-grove`: the skill gains `references/dispatch.md`, the
+  operator's procedure for a route that runs `harness-dispatch`: who owns the
+  wrapper and who owns selection, activation, verifying each half on its own
+  inspection surface, the remedies for an incomplete mapping and for a review
+  that cannot name its creator, and the `**Creator:**` line's two forms and
+  writers. It warns against granting `GROVE_SIGNAL_FILE` to a policy.
+- Documentation: the configuration reference's *A review's creator line* gives
+  the two `**Creator:**` forms, who writes or removes each, the declaration as
+  the remedy for a review refused with `creator_line_missing`, why a line
+  naming some other existing run is not detected at launch and where inspection
+  shows it, and how a review attaches its findings to the producer's run as an
+  observation that outlasts `.grove/`. The usage guide, the `configure-grove`
+  skill and harness-dispatch's README carry the same account. The architecture
+  document places the package and states its boundary, and the context map
+  lists the words the two sides share.
+- Release archives and the Homebrew formula now carry `harness-dispatch` with
+  its compiled policy worker. Each archive unpacks to an installation prefix:
+  `bin/grove`, `bin/grove-llm` and `bin/harness-dispatch`, and
+  `libexec/harness-dispatch/` holding the worker, the declarations and sources
+  of its SDK, Grove adapter and examples, and Bun's and SQLite's notices.
+  `grove` and `grove-llm` moved from the archive's top level into `bin/`; put
+  the extracted `bin/` on `PATH`. `harness-dispatch` finds its worker from its
+  own real path, through the Homebrew symlink too, and `brew test` checks that
+  the front, the worker and Grove report one version. Build and install the
+  pair from a checkout with `task dispatch:install`.
+- Release builds: each target's worker is compiled from that target's Bun
+  1.4.2 runtime, downloaded from npm and checked against a pinned SHA-256
+  rather than fetched unverified by Bun. Every archive is checked against a
+  manifest of its files as it is built. Archives no longer carry the hidden
+  AppleDouble `._*` files and extended attributes that macOS's `tar` added to
+  earlier ones, which GNU `tar` extracts as stray files. `task
+  release:archives` builds archives of the working copy without a tag or
+  publication.
+- Repository checks: `scripts/check.sh` now builds and type-checks the
+  harness-dispatch worker and its test-only probe builds before the workspace
+  tests, so it needs Task and Bun 1.4.2, and `scripts/release-doctor.sh`
+  checks the Bun version. The release tests compare the archive manifest with
+  what harness-dispatch's build emits and with the formula, and
+  `scripts/release-build.sh` is now linted.
+- Release checks: `task release:smoke` rebuilds the archives and runs each
+  one's installed layout on its target, with no Bun or Node on `PATH`. Through
+  its front and through a symlink to it, `harness-dispatch` inspects and runs
+  a static and a computed TypeScript policy and reads each run's record back,
+  loads packages declared by `main` and by `exports`, and hands a harness the
+  caller's signal state. macOS arm64 runs natively, and each Linux target in
+  the CentOS 7 (glibc 2.17) userland, where a binary built against a newer
+  glibc must be refused. There each Linux target runs under a pinned user-mode
+  QEMU emulating its CPU floor, Nehalem for x64 and the Cortex-A53 for arm64,
+  in a private binfmt_misc registration. A probe that uses AVX2 or an Armv8.1
+  atomic must be killed by SIGILL under that model and run under `-cpu max`,
+  and every executable in the archive must be one the emulator runs. Linux
+  arm64 also runs natively as a container first.
+- Releases: `task release:patch`, `release:minor` and `release:major` now run
+  that smoke test over `target/dist`, after checking each archive against the
+  manifest again, before they push or publish anything. A failure leaves the
+  version cut only locally; `docs/RELEASING.md` gives the recovery for an
+  environment fault and for a defective archive. `scripts/release-doctor.sh`
+  now also requires an Apple silicon Mac and a running arm64 Docker whose
+  kernel is 6.7 or later, so a missing Docker stops a release before its cut.
 
 ## v21.12.0
 

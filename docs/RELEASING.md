@@ -238,10 +238,13 @@ regression check. `TARGETS=aarch64-unknown-linux-gnu` limits it to one target,
 as for `task release:archives`.
 
 Each archive must first match the archive manifest, as the build checked it.
-Then it is extracted into a fresh prefix where its target runs. There,
-harness-dispatch inspects and runs a static and a computed TypeScript policy
-against a fake harness and reads each run's record back, with no Bun or Node on
-`PATH`.
+Then it is extracted into a fresh prefix where its target runs. There, with no
+Bun or Node on `PATH`, harness-dispatch runs its installed-layout cases through
+its front and through a symlink to it. It inspects and runs a static and a
+computed TypeScript policy against a fake harness and reads each run's record
+back. It inspects a policy that imports one package declared by `main` and one
+by `exports`. And it runs a harness that signals itself, to show that the
+caller's ignored or default SIGPIPE and HUP reach it unchanged.
 
 - **macOS arm64** runs natively, so it needs an Apple silicon Mac.
 - **Each Linux target** runs in the CentOS 7 userland of its architecture, the
@@ -275,7 +278,10 @@ against a fake harness and reads each run's record back, with no Bun or Node on
 Neither a container nor user-mode emulation observes the kernel floor, since
 both run on Docker's own kernel. That floor is Bun 1.4.2's documented range,
 stated as documented rather than executed: 5.1 in Bun's README, 3.10 (RHEL 7)
-on its installation page. The
+on its installation page. A Bun upgrade rechecks both documents. It also
+re-pins the three runtime digests, replaces Bun's notice and reruns the
+runtime-evidence cases, as `crates/harness-dispatch/scripts/dispatch.sh` says
+where it pins them. The
 [runtime evidence](design/harness-selection-and-execution/runtime-evidence.md#installed-smoke)
 records what executed where, and why each emulator is the one it is. Rerun
 `task release:smoke` after any change to harness-dispatch's worker, the archive
@@ -509,6 +515,7 @@ bin/grove-llm
 bin/harness-dispatch
 libexec/harness-dispatch/harness-dispatch-policy   the compiled policy worker
 libexec/harness-dispatch/sdk/                      SDK declarations and source
+libexec/harness-dispatch/grove/                    Grove adapter declarations and source
 libexec/harness-dispatch/examples/                 example declarations and sources
 libexec/harness-dispatch/notices/                  Bun's and SQLite's notices
 LICENSE

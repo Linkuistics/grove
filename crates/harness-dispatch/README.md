@@ -5,31 +5,37 @@ which harness, model and reasoning effort it chooses for a session kind, and
 runs that harness. It is independent of Grove: a caller supplies a kind, a
 prompt and optional task data, and the owner's policy supplies the choice. The
 contract is the
-[area specification](../../docs/specs/harness-selection-and-execution.md).
+[area specification](../../docs/specs/harness-selection-and-execution.md). Its
+commands:
 
-This release delivers **inspection and running of a static `routes` policy
-or a computed `select`, with bounded context**. `inspect` reports the choice,
-the harness's expanded arguments and the program that would run. `run` makes
-the same choice, commits a durable record of the handoff with a fresh run ID,
-and then replaces itself with the harness. `record show` exports what a run
-recorded, and `record observe` attaches later evidence to it: whether the
-harness ran, how it went, and how its work was judged. A caller can name one configured candidate with `--choice`, which a
-routes policy takes instead of the kind's route and a `select` policy accepts
-or refuses. A caller can hand the policy a JSON context document with
-`--context`, and a policy can assemble its own context with `loadContext`,
-through reads that are measured and hashed. Selection is bounded in time, and
+| Command | What it does |
+|---|---|
+| [`inspect`](#inspect) | Reports the choice, the harness's expanded arguments and the program that would run. It launches nothing. |
+| [`run`](#run) | Makes the same choice, commits a durable record of the handoff under a fresh run ID, and then replaces itself with the harness. |
+| [`record show`](#run-records) | Exports what a run recorded. |
+| [`record observe`](#observations) | Attaches later evidence to a run: whether the harness ran, how it went, and how its work was judged. |
+
+A policy is a static `routes` table or a computed `select`. A caller can name
+one configured candidate with `--choice`, which a routes policy takes instead
+of the kind's route and a `select` policy accepts or refuses. A caller can hand
+the policy a JSON context document with `--context`, and a policy can assemble
+its own context with `loadContext`, through reads that are measured and hashed.
+A loader can look up an earlier run's recorded launch fields, so a review can
+learn which provider its creator ran under from the record, never from today's
+catalog. Five example policies ship inside the worker: two static starters, a
+computed one, and two that hold reviews to a provider rule, one of them for
+Grove's review leaves. None is active until your own policy imports it.
+
+Every invocation holds to the same limits. Selection is bounded in time, and
 its context, reads, messages and output in size, so a policy that never
 finishes, or delivers or prints too much, is stopped and nothing runs. Every
 refusal says what to fix, and a refused `run` gives the `inspect` command that
-reproduces it. A loader can look up an earlier run's recorded launch fields,
-so a review can learn which provider its creator ran under from the record,
-never from today's catalog. Three starter policies ship inside the worker, two
-static and one computed. An interrupt before the harness starts cancels the
-run, and nothing runs. The harness inherits the caller's signal mask and
-ignored signals, SIGPIPE's included. The policy runs with a scrubbed
-environment, plus exactly the variables you grant it with `--policy-env`, and
-nothing in the current directory or the environment can run code in it or
-change which worker runs.
+reproduces it. Nothing is chosen in place of a candidate that was refused. An
+interrupt before the harness starts cancels the run, and nothing runs. The
+harness inherits the caller's signal mask and ignored signals, SIGPIPE's
+included. The policy runs with a scrubbed environment, plus exactly the
+variables you grant it with `--policy-env`, and nothing in the current
+directory or the environment can run code in it or change which worker runs.
 
 ## Install
 
@@ -42,15 +48,19 @@ harness-dispatch --version
 ```
 
 A release archive unpacks to an installation prefix holding `bin/` and
-`libexec/`; keep the two together and put `bin/` on `PATH`. The notices for
-the Bun runtime inside the worker and the SQLite inside the front are in
-`libexec/harness-dispatch/notices/`.
+`libexec/`; keep the two together and put `bin/` on `PATH`. Under Homebrew the
+prefix is `$(brew --prefix grove)`. `libexec/harness-dispatch/` there holds the
+policy worker, and beside it the declarations and readable sources of the SDK
+(`sdk/`), the Grove adapter (`grove/`) and the examples (`examples/`). The
+notices for the Bun runtime inside the worker and the SQLite inside the front
+are in `libexec/harness-dispatch/notices/`.
 
 ## Supported platforms
 
 Releases carry harness-dispatch for macOS on Apple silicon, Linux arm64 and
 Linux x64. Each floor is claimed only as far as something observes it. Before
-every release, the installed pair runs from each archive at the Linux floors
+every release, the installed pair runs from each archive on its target:
+natively on macOS, and at the Linux floors
 ([Releasing](../../docs/RELEASING.md#installed-smoke-test)).
 
 | Floor | Minimum | Basis |
@@ -89,12 +99,15 @@ worker, so after editing its TypeScript, run `task dispatch:worker` again. The
 front refuses a worker built from other source rather than using it.
 
 `scripts/installed-smoke.sh PREFIX VERSION` checks an installation from itself.
-It inspects and runs a TypeScript policy with a fake harness through
-`PREFIX/bin/harness-dispatch` and through a symlink to it, then reads the run
-back. VERSION is the version both must report. Run it with no Bun or Node on
-`PATH`, such as `env -i PATH=/usr/bin:/bin bash scripts/installed-smoke.sh
-~/.local "$VERSION"`. Grove's `task release:smoke` runs it on every release
-target.
+It runs each of its cases through `PREFIX/bin/harness-dispatch` and through a
+symlink to it. A static and a computed TypeScript policy are each inspected,
+run against a fake harness and read back from the run's record. A policy that
+imports one package declared by `main` and one by `exports` is inspected. And
+a harness that signals itself shows that it inherited the caller's SIGPIPE and
+HUP as they were. VERSION is the version the front and its worker must both
+report. Run it with no Bun or Node on `PATH`, such as
+`env -i PATH=/usr/bin:/bin bash scripts/installed-smoke.sh ~/.local "$VERSION"`.
+Grove's `task release:smoke` runs it on every release target.
 
 ## Which policy runs
 
@@ -585,8 +598,10 @@ export const policy = definePolicy({ schemaVersion: 1, version: "mine-1", catalo
 ```
 
 Better still, copy `examples/grove-static.ts` or `examples/static.ts` from
-beside the worker into your configuration directory and edit it. It imports
-`harness-dispatch/sdk` as your own policy does.
+beside the worker to `~/.config/harness-dispatch/policy.ts` and edit it. It
+imports `harness-dispatch/sdk` as your own policy does, so the copy works where
+it lands. A copy stays yours, whereas an example you import changes with the
+installation.
 
 The dynamic example builds on the static one, importing its catalog and routes
 by their specifier. Its `select` shows what a table cannot say: without a
@@ -901,6 +916,7 @@ loadContext(request, host) {
 | `--context-bytes BYTES` | Optional. The context budget in bytes, from 1 to 8388608 (8 MiB). The default is 262144 (256 KiB). See [bounds](#bounds). |
 | `--state-dir PATH` | Optional. The directory holding run records, instead of `~/.local/state/harness-dispatch`, resolved against the current directory. See [run records](#run-records). |
 | `--policy-env NAME` | Optional and repeatable. Give the policy this environment variable, by exact name, from harness-dispatch's own environment. See [the policy's environment](#the-policys-environment). |
+| `--json` | Optional. Report as JSON. `inspect` prints one version-1 object on stdout, `run` writes its handoff notice as one JSON line on stderr, and each writes a refusal as JSON on stderr. See [inspect](#inspect), [run](#run) and [refusals](#refusals). |
 
 The prompt is read once and kept byte for byte, trailing newlines included. It
 must be valid UTF-8 with no NUL, and at most 1 MiB. A prompt file is resolved

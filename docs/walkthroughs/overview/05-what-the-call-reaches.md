@@ -22,8 +22,9 @@ the viewer restores its terminal before returning an error.
 <a id="the-package-map"></a>
 ## Packages and public boundaries
 
-The workspace contains eight packages. Seven share the product's release
-version; `book-validation` is the separately versioned authoring tool.
+The table lists every package of the workspace. All but one share the
+product's release version; `book-validation` is the separately versioned
+authoring tool.
 
 | Package | Responsibility | Workspace runtime dependencies |
 |---|---|---|
@@ -34,11 +35,16 @@ version; `book-validation` is the separately versioned authoring tool.
 | `ordinal-fs-tree` | Domain-free ordered tree store | none |
 | `jj-workspace` | Domain-free workspace and commit seam | none |
 | `keyed-launch` | Domain-free command runner | none |
+| `harness-dispatch` | A separate command: harness selection by an owner's TypeScript policy, run records and the final exec | none |
 | `book-validation` | Source-fragment and Markdown checks | none |
 
 Ratatui and Crossterm belong to the viewer. Neither the loop library nor the
-session binary depends on the terminal UI. Release archives still contain only
-`grove` and `grove-llm`: the viewer is linked into the human executable.
+session binary depends on the terminal UI. Release archives contain `grove`,
+`grove-llm` and `harness-dispatch` with its compiled policy worker: the viewer
+is linked into the human executable. No Grove package depends on
+`harness-dispatch`, and it depends on none of them. Grove reaches it only as a
+command a personal template names; `docs/ARCHITECTURE.md` places the package
+and states its boundary.
 
 <a id="the-seven-names"></a>
 ## What crosses the binary boundary

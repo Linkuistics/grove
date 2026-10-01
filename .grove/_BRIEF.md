@@ -598,6 +598,35 @@ session cut for an inner node, two terminal reviews and a review of a producer
 whose handle the finished one begins. A change to `name_run` or `finish` is
 checked there.
 
+Documentation closed with `usage-agreement-k69`, after `acceptance-walk-k67`
+and `current-state-documents-k68`. Each running log holds its judgements, and
+k67's names the test for every acceptance clause. Later leaves build on six
+facts. First, `docs/ARCHITECTURE.md` places the package under *The
+harness-dispatch package*: the three sides of its boundary, the four places
+data crosses it, and what refers to the directory from outside. A leaf that
+adds a dependency, a crossing or an outside reference changes that section
+with it. The overview book's package map lists the crate too, and a book page
+may link only its own pages, its guide and its glossary. Second, the
+CHANGELOG's Unreleased section describes the first release as a whole, by
+subject. A leaf that changes behavior edits the bullet its change belongs to
+and appends no increment. Third, every flag in `--help` is in the README's
+*Inputs* table with its default and range, and the Grove-side guidance still
+lives in the four places named under *Grove dispatch closed*. The spec's
+`#grove-integration` says which of them explains what. Activation is
+documented as a copy of the starter to `policy.ts`, and was run as written.
+Fourth, `CONTEXT-MAP.md` says harness-dispatch comes closest of any crate to
+a fourth context and is not declared one, and tabulates the words the two
+sides share. k69 decided that without the human. A finding that the context
+should be declared moves glossary entries, and is the human's to settle.
+Fifth, no worker source, archive manifest entry or native dependency changed
+in this node. The worker is still build `721aab0848f6…`, so k67's run of
+`task release:smoke` stands for it. Sixth, `dispatch-documentation-k71` is the
+mandatory documentation-acceptance review. It is appended at the root's end,
+because no increment follows the node, so it runs after `seam-controls-k70`,
+which may move the test names k67's log gives. It also reads k60's paragraph
+of `references/retire.md`. A review with actionable findings cuts its
+integration.
+
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and
 `creator-reference-k38`. The leaf whose retirement closes a node cuts its review

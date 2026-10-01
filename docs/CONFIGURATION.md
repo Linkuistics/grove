@@ -601,13 +601,22 @@ starter routes every kind this methodology ships:
 export { policy } from "harness-dispatch/examples/grove-static";
 ```
 
-Its programs and models are placeholders for your own, so copy
-`libexec/harness-dispatch/examples/grove-static.ts` from the installation
-prefix beside your policy and edit it
+Its programs and models are placeholders for your own. Until they are yours,
+inspection refuses with `program_not_found`, naming the placeholder wrapper. So
+make the starter your policy by copying it, and edit the copy:
+
+```sh
+mkdir -p ~/.config/harness-dispatch
+cp "$(brew --prefix grove)/libexec/harness-dispatch/examples/grove-static.ts" ~/.config/harness-dispatch/policy.ts
+```
+
+From a release archive, the file is under the prefix you unpacked. The copy
+imports `harness-dispatch/sdk` by name, which is built into the worker, so it
+needs nothing installed
 ([starter examples](../crates/harness-dispatch/README.md#starter-examples)).
-Neither file exists until you write it, and installing or upgrading Grove
-writes neither. An example you import is part of the installation and changes
-with it, whereas a copy stays yours.
+Neither personal file exists until you write it, and installing or upgrading
+Grove writes neither. An example you import is part of the installation and
+changes with it, whereas a copy stays yours.
 
 To hold Grove's reviews to a provider rule, activate the Grove review example
 instead:
@@ -686,7 +695,9 @@ evaluates no policy, so it cannot say which harness will run.
 `harness-dispatch inspect` explains the selection: the policy's path and
 authority, the candidate with its provider, model and effort, what selected it
 and why, and the harness's expanded arguments. It launches nothing and reads
-no Grove configuration. A policy that reads the task needs it: add
+no Grove configuration. It does evaluate your policy, which is trusted
+TypeScript and may have effects of its own, and it is a proposal: each launch
+evaluates the policy afresh. A policy that reads the task needs it: add
 `--task-file` and `--task-id`, as the `inspect:` line of a refused launch does.
 
 ### Delegated policy is checked at launch

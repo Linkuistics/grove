@@ -90,8 +90,26 @@ for. Its decisions are the grove context's, as ever:
 [decision 1](./docs/specs/module-decomposition.md) for the crate split and
 [decision 9](./docs/specs/module-decomposition.md) for the loop's own surface.
 
-**Where every term lives, one line per module.** Four crates carry vocabulary and
-the plugin carries a fifth, and no word is owned twice:
+**`crates/harness-dispatch` is the crate that comes closest to a fourth context,
+and it is not declared one.** It is a separate command with a vocabulary of its
+own: *policy*, *catalog*, *candidate*, *provider origin*, *routes*, *run*,
+*handoff attempt*, *observation*. Unlike the runner's, several of its words do
+mean something else in grove's language, and the
+[relationship below](#grove-and-harness-dispatch) tabulates them. What it lacks
+is the thing a declared context has, a glossary of its own. Its
+[specification](./docs/specs/harness-selection-and-execution.md) and
+[README](./crates/harness-dispatch/README.md) define its words where they use
+them. Grove's [`CONTEXT.md`](./CONTEXT.md) holds the ones a Grove owner or
+session meets, from *Selection provider* to *Delivered context*. So its records
+are the grove context's, in the list under *A durable record has one owner*. A
+separate context becomes worth declaring when the package has a glossary to
+point at, which an extraction would force: the entries that describe the
+command alone would go with it, and *Original creator*, *Creator reference* and
+*Grove adapter*, which describe its seam with a Grove review, would stay.
+
+**Where every term lives, one line per module.** Four of Grove's crates carry
+vocabulary and the plugin carries a fifth, and no word is owned twice among
+them. `harness-dispatch` has the last row:
 
 | module | owns | glossary |
 |---|---|---|
@@ -100,10 +118,11 @@ the plugin carries a fifth, and no word is owned twice:
 | `jj-workspace` | *workspace*, *main repo*, *control directory*, *namespace*, *tracked*, *commit*, *change id* | none — the words are Jujutsu's, with Jujutsu's meanings |
 | `grove-loop`, with `grove`, `grove-llm` and the `grove-tui` reader over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
 | the `grove` plugin | **Spine skill**, **Kind skill**, **Composed loaded path**, **Condition** / **procedure**, **Loop-step reference file** | [`CONTEXT.md`](./CONTEXT.md) for the terms, [`plugins/CONTEXT.md`](./plugins/CONTEXT.md) for packaging and delivery |
+| `harness-dispatch` | *policy*, *catalog*, *candidate*, *provider origin*, *routes*, *context*, *run*, *handoff attempt*, *observation*; with the seam, **Original creator**, **Creator reference** and **Grove adapter** | none of its own — its specification and README define its words, and [`CONTEXT.md`](./CONTEXT.md) holds those a Grove owner meets |
 
-The two middle rows are the ones that had to be *bought*: `keyed-launch` avoids
-**session** and `jj-workspace` refuses to name its consumer, and each is a naming
-decision argued above rather than an accident of scope. The store's *key* and the
+The `keyed-launch` and `jj-workspace` rows are the ones that had to be *bought*:
+the first avoids **session** and the second refuses to name its consumer, and
+each is a naming decision argued above rather than an accident of scope. The store's *key* and the
 runner's *key* are the one word two domain-free crates share, and they never
 meet — the store's is an integer the tree allocates, the runner's is the string a
 consumer names, and no call site passes one where the other is expected.
@@ -183,6 +202,30 @@ consumer names, and no call site passes one where the other is expected.
   *interrupted promotion* and grove's own diagnosis of the tree a failed rollback
   leaves ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#interrupted-promotion)),
   which is exactly the drift a map prevents and a re-wording does not.
+
+- <a id="grove-and-harness-dispatch"></a>**grove → harness-dispatch, a command
+  boundary whose shared words are held by hand.** Grove launches the command
+  from a personal template and depends on it nowhere in code, and the package
+  depends on no Grove crate
+  ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#harness-dispatch) states the
+  boundary). So no compiler keeps the two vocabularies apart, and an owner
+  reads both in one sitting: Grove's configuration reference, then the
+  command's own refusal.
+
+  | harness-dispatch says | grove says | class |
+  |---|---|---|
+  | *kind* — any nonempty token a caller passes | **Session kind** — a well-formed token of the filename grammar | the meanings nest; Grove passes its token unchanged |
+  | *task identity* — the caller's `--task-id` | **Work-item handle** | the words differ; Grove supplies its handle as the value |
+  | *routes* — a policy's table from a kind to a candidate | **Kind route** — a configuration object from a kind to a command binding | the words collide |
+  | *selection* — a policy choosing a candidate | the driver's selection of one leaf, and a configuration's profile **Selection** | the words collide |
+  | *policy* — the owner's TypeScript entry | *launch policy*, *personal policy* — what `config.kdl` declares | the words collide |
+  | *run* — one recorded handoff with its run ID, and the subcommand that makes one | `grove run` — a standalone invocation | the words collide |
+  | *context* — the data a policy selects from | a session's fresh context; a bounded context, in this file | the words collide |
+
+  A dispatched kind therefore has two routes, and a sentence about one says
+  which: its Grove route admits the kind and names the command, and the
+  policy's `routes` entry names the candidate. The same holds for *policy* and
+  *selection*. A document that speaks of both sides says which it means.
 
 - **A durable record has one owner.** Every record under `docs/adr/` and
   `docs/specs/` has a repo-wide unique slug and a maintaining context recorded
@@ -314,6 +357,14 @@ a domain implementation of the seam plus the lifecycle around the tree. A topic
 about `.grove/` *as a task tree* stays **grove** even when it is
 about the same directories on disk: the discriminator is which vocabulary the
 answer is stated in, not which files it touches.
+
+A topic about a selection policy, its catalog and candidates, a run record or an
+observation is `harness-dispatch`'s. That package is not a declared context, so
+state the answer in its own words, from
+[its README](./crates/harness-dispatch/README.md) and
+[specification](./docs/specs/harness-selection-and-execution.md), and qualify
+the words [the two sides share](#grove-and-harness-dispatch). A topic about the
+command a Grove kind runs, or about a review's `**Creator:**` line, is **grove**.
 
 The word "plugin" in this repository refers to the Claude Code skill plugins
 under `plugins/`; route their authoring, packaging, triggering, and installation

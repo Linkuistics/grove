@@ -105,9 +105,20 @@ half on its own surface:
   effects, and it is a proposal, because every launch evaluates afresh.
 
 Check producer and reviewer providers across the policy's choices as for
-static Grove policy. A routes table proves only the planned pairing. Report
-both surfaces. A kind whose inspection refuses is unconfigured, whatever
-Grove's check said.
+static Grove policy. A routes table proves only the planned pairing. The Grove
+review example enforces the pairing at launch, against one provider, the
+original creator's: the session that finished the producer, by its recorded
+run or the user's declaration. It keeps no account of other sessions that
+worked on the artifact, such as an integration that changed it, so a producer
+several providers worked on is still yours to check. Report both
+surfaces. A kind whose inspection refuses is unconfigured, whatever Grove's
+check said.
+
+harness-dispatch itself never falls back. A refused selection launches
+nothing, and no other candidate is substituted. A `select` policy may return
+its own declared table's candidate when its computation cannot decide, and
+its reason should say so. Against an explicit `--choice`, any other candidate
+refuses.
 
 ## Remedy an incomplete mapping
 

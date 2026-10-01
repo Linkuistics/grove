@@ -375,6 +375,7 @@ Grove: hierarchical workstream tool for AI agents
 Usage: grove [COMMAND]
 
 Commands:
+  run     Run one configured task in a confined temporary directory, without a grove
   config  Inspect launch configuration or install inactive examples
   view    Browse a .grove task tree read-only with automatic refresh
 

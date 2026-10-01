@@ -901,14 +901,17 @@ guarantee stops at the complete configured command. Static and computed
 delegated policy are checked only at launch, so task authoring can succeed and
 the delegated launch then refuse, which leaves the leaf live.
 
-Grove's configuration reference and usage guide and the configure-grove skill
-explain activation, both inspection surfaces, that launch-time boundary and the
-remedy for an incomplete mapping, and warn against granting `GROVE_SIGNAL_FILE`
-to policy. With the dispatch README they also explain the two `**Creator:**`
-forms, who writes or removes the line, the declaration remedy, why a wrong but
+Grove's configuration reference and the configure-grove skill explain
+activation, both inspection surfaces, that launch-time boundary and the remedy
+for an incomplete mapping, and warn against granting `GROVE_SIGNAL_FILE` to
+policy. The usage guide shows both inspection surfaces, the boundary and a
+refused launch with its remedy, and links the reference for activation. With
+the dispatch README these documents also explain the two `**Creator:**` forms,
+who writes or removes the line, the declaration remedy, why a wrong but
 existing run is not detected at launch, and how a review attaches its
-findings. The command definition those documents quote is the one
-`harness-dispatch --help` carries and Grove's launch-boundary suite launches.
+findings. Each command definition they quote is the one
+`harness-dispatch --help` carries and Grove's launch-boundary suite launches,
+or that with a literal `--choice`.
 
 <a id="diagnostics"></a>
 ## Diagnostics and exits

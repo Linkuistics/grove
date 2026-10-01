@@ -1,6 +1,6 @@
 //! A standalone invocation must not share its caller's terminal or stdin.
 use std::fs;
-use std::io::{Read, Write};
+use std::io::{Read, Seek, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::{Path, PathBuf};
@@ -161,6 +161,22 @@ fn supervisor() {
     }
 }
 
+/// The control's supervisor: it launches the `child` fixture as any process
+/// launches another, with nothing of `run_noninteractive` between them.
+#[test]
+#[ignore = "subprocess fixture"]
+fn plain_supervisor() {
+    if std::env::var("RUNNER_ROLE").as_deref() != Ok("supervisor") {
+        return;
+    }
+    let status = Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "child", "--ignored", "--nocapture"])
+        .env("RUNNER_ROLE", "child")
+        .status()
+        .unwrap();
+    assert!(status.success());
+}
+
 fn read_ready(path: &Path) -> Option<(libc::pid_t, libc::pid_t)> {
     let contents = fs::read_to_string(path).ok()?;
     let mut fields = contents.split_whitespace();
@@ -294,10 +310,35 @@ fn leader_exit_stops_a_group_helper_before_runner_returns() {
     assert_process_gone(helper);
 }
 
-#[test]
-fn standalone_child_has_a_new_session_and_cannot_consume_callers_stdin() {
+const CALLERS_INPUT: &str = "parent input";
+
+/// What a `child` fixture found under one supervisor, and what was left of the
+/// caller's input afterwards.
+struct Observed {
+    session: libc::pid_t,
+    pid: libc::pid_t,
+    /// `fcntl(197, F_GETFD)` in the child: -1 unless it holds the descriptor.
+    descriptor: i32,
+    /// What the child read from its own stdin.
+    read: String,
+    /// How far into the caller's input any process read.
+    consumed: u64,
+}
+
+/// Run the `child` fixture under the named supervisor fixture, whose stdin is
+/// the caller's input, and return what the child found.
+///
+/// The input is a file, complete before the supervisor exists. It used to be
+/// written to a pipe after the spawn. The supervisor holds that pipe's only
+/// read end, so one that ended first, in its ordinary course or at once because
+/// it failed, broke the pipe, and the write reported that in place of the
+/// supervisor's own failure (noninteractive-stdin-flake-k55).
+fn observe_child_under(supervisor: &str) -> Observed {
     let dir = tempfile::tempdir().unwrap();
     let report = dir.path().join("report");
+    let input = dir.path().join("callers-input");
+    fs::write(&input, CALLERS_INPUT).unwrap();
+    let mut callers_stdin = fs::File::open(input).unwrap();
     let secret = fs::File::create(dir.path().join("parent-secret")).unwrap();
     let descriptor = secret.as_raw_fd();
     let mut command = Command::new(std::env::current_exe().unwrap());
@@ -310,26 +351,49 @@ fn standalone_child_has_a_new_session_and_cannot_consume_callers_stdin() {
             Ok(())
         });
     }
-    let mut supervisor = command
-        .args(["--exact", "supervisor", "--ignored", "--nocapture"])
+    let result = command
+        .args(["--exact", supervisor, "--ignored", "--nocapture"])
         .env("RUNNER_ROLE", "supervisor")
         .env("RUNNER_REPORT", &report)
-        .stdin(Stdio::piped())
+        // A duplicate shares its offset with the original, which is how
+        // `consumed` below sees what any process downstream read.
+        .stdin(callers_stdin.try_clone().unwrap())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .unwrap();
-    supervisor
-        .stdin
-        .take()
         .unwrap()
-        .write_all(b"parent input")
+        .wait_with_output()
         .unwrap();
-    let result = supervisor.wait_with_output().unwrap();
     assert!(result.status.success(), "{result:?}");
     let report = fs::read_to_string(report).unwrap();
-    let fields: Vec<_> = report.split_whitespace().collect();
-    assert_eq!(fields.len(), 3, "child consumed parent input: {report}");
-    assert_eq!(fields[0], fields[1], "child is not a session leader");
-    assert_eq!(fields[2], "-1", "child inherited a parent descriptor");
+    let (found, read) = report.split_once('\n').unwrap();
+    let mut fields = found.split(' ').map(|field| field.parse().unwrap());
+    Observed {
+        session: fields.next().unwrap(),
+        pid: fields.next().unwrap(),
+        descriptor: fields.next().unwrap(),
+        read: read.to_owned(),
+        consumed: callers_stdin.stream_position().unwrap(),
+    }
+}
+
+#[test]
+fn standalone_child_has_a_new_session_and_cannot_consume_callers_stdin() {
+    let child = observe_child_under("supervisor");
+    assert_eq!(child.read, "", "child consumed parent input");
+    assert_eq!(child.consumed, 0, "the caller's input was read");
+    assert_eq!(child.session, child.pid, "child is not a session leader");
+    assert_eq!(child.descriptor, -1, "child inherited a parent descriptor");
+}
+
+/// The control for the test above. A child launched as any process launches
+/// another shares its launcher's stdin, session and descriptors, so each
+/// observation that test makes has to come back the other way here.
+#[test]
+fn a_plainly_launched_child_consumes_callers_stdin_and_shares_its_session_and_descriptors() {
+    let child = observe_child_under("plain_supervisor");
+    assert_eq!(child.read, CALLERS_INPUT);
+    assert_eq!(child.consumed, CALLERS_INPUT.len() as u64);
+    assert_ne!(child.session, child.pid);
+    assert_ne!(child.descriptor, -1);
 }

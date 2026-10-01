@@ -30,6 +30,12 @@ their fixes conditioned on process state rather than time:
 `driver-lease-readiness-flake-k145`, `cleanup-barrier-readiness-flake-k165`
 and `noninteractive-stdin-flake-k55`.
 
+k55 needed no wait: it put the caller's input in place before the process
+that could race it existed. Its running log has the method, a swept delay
+that found the window, and one finding that may bear here. An `unwrap` that
+ran before the child's status was read reported any early death of that child
+as a broken pipe, so the first failure seen was not the cause.
+
 ## Done when
 
 - The failure is reproduced deliberately, its message captured, and the cause

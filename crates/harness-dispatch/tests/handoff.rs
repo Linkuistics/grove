@@ -272,18 +272,38 @@ fn the_same_stall_unsignalled_reaches_the_harness() {
 
 #[test]
 fn a_cancelled_handoff_whose_detail_cannot_be_appended_stays_unknown() {
-    let sandbox = Sandbox::new();
-    sandbox.personal_policy(ROUTED);
-    first_run(&sandbox);
     // Fault injection: the store refuses exactly the append.
-    Connection::open(sandbox.default_store())
-        .unwrap()
-        .execute_batch(
-            "CREATE TRIGGER refuse_the_append BEFORE INSERT ON launch_failures \
-             BEGIN SELECT RAISE(ABORT, 'simulated append failure'); END;",
-        )
-        .unwrap();
+    let refusing_the_append = || {
+        let sandbox = Sandbox::new();
+        sandbox.personal_policy(ROUTED);
+        first_run(&sandbox);
+        Connection::open(sandbox.default_store())
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER refuse_the_append BEFORE INSERT ON launch_failures \
+                 BEGIN SELECT RAISE(ABORT, 'simulated append failure'); END;",
+            )
+            .unwrap();
+        sandbox
+    };
 
+    // The control for this fixture: with the same trigger installed, the
+    // same stall unsignalled commits its run and reaches the harness. So the
+    // trigger refuses the append and nothing else, and it is the signal that
+    // keeps the run below from launching.
+    let sandbox = refusing_the_append();
+    let unsignalled = stalled(&sandbox, None, true, None, 1);
+    assert_eq!(unsignalled.code, Some(0), "{}", unsignalled.stderr);
+    assert!(sandbox.harness_ran());
+    let [notice] = documents(&unsignalled.stderr).try_into().unwrap();
+    let run_id = notice["handoff"]["runId"].as_str().unwrap();
+    assert_eq!(sandbox.harness_run_id(), run_id);
+    let export = show(&sandbox, run_id, true).report();
+    assert_eq!(export["evidence"], "handoff_attempt");
+    assert_eq!(export["execution"], "unknown");
+    assert_eq!(export["launchFailure"], Value::Null);
+
+    let sandbox = refusing_the_append();
     let stalled = stalled(&sandbox, None, true, Some(libc::SIGTERM), 1);
     assert_eq!(
         (stalled.code, stalled.signal),

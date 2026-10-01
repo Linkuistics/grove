@@ -627,6 +627,28 @@ which may move the test names k67's log gives. It also reads k60's paragraph
 of `references/retire.md`. A review with actionable findings cuts its
 integration.
 
+`seam-controls-k70` closed the narrower holds k67 listed, in
+`crates/harness-dispatch/tests/` alone, and its running log says what each
+test now observes and the wrong subject each control failed against. Later
+leaves build on four facts. First, every test name k67's log gives still
+exists. Three tests are new:
+`records::a_lock_released_within_the_wait_is_waited_out_and_the_run_launches`,
+`review::a_candidates_origin_is_its_declared_label_whatever_its_argv` and
+`grove::without_the_adapter_a_review_kind_and_its_marker_lines_mean_nothing_to_the_front`.
+The last is the instrument for the spec's sentence that the generic core has
+no Grove review-kind list or `Reviews` parser, by what an owner would see.
+That the source holds no such list is still k67's search. Second,
+`worker::recording_worker` is a fake worker that records the frame it is sent
+after its hello, in a child the front's kill does not reach, and
+`hostile::assert_import_refused` requires the failure to name its specifier. A
+later case that must see what a refused worker was sent, or that an import was
+reached and refused, uses those. Third, two of the new observations have a
+stated limit: the probe-identity test shows that no policy ran under a probe,
+not that none was sent, and the lock-release test cannot tell a front that
+waited from one that reached the store after the release. Fourth, no shipped
+source changed, so the worker is still build `721aab0848f6…` and k67's run of
+`task release:smoke` stands.
+
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and
 `creator-reference-k38`. The leaf whose retirement closes a node cuts its review

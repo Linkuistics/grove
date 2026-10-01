@@ -374,6 +374,26 @@ fn a_missing_unreadable_or_unlocatable_entry_refuses_naming_the_path() {
         .unwrap()
         .contains(&text(&sandbox.personal_path())));
 
+    // An explicit entry that does not exist is named as the caller's cwd
+    // resolves it. The control is the same argument once the file is there.
+    let absent = sandbox.cwd.join("policies/absent.ts");
+    let explicit = ["--kind", "impl", "--config", "policies/absent.ts", "--json"];
+    let refusal = sandbox.inspect(&explicit).refusal(3);
+    assert_eq!(refusal["error"]["code"], "policy_missing", "{refusal}");
+    assert_eq!(refusal["error"]["source"], text(&absent));
+    assert!(
+        refusal["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains(&format!("{} does not exist", text(&absent))),
+        "{refusal}"
+    );
+    sandbox.file("policies/absent.ts", ROUTED);
+    let report = sandbox.inspect(&explicit).report();
+    assert_eq!(report["policy"]["path"], text(&absent));
+    assert_eq!(report["policy"]["authority"], "explicit");
+    fs::remove_file(&absent).unwrap();
+
     fs::create_dir_all(sandbox.cwd.join("a-directory")).unwrap();
     let refusal = sandbox
         .inspect(&["--kind", "impl", "--config", "a-directory", "--json"])

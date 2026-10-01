@@ -256,6 +256,22 @@ fn an_explicit_choice_is_held_to_the_same_rule() {
     // origin behind a gateway: another program and another model string, but
     // the model's origin is the creator's. Nothing is launched or recorded,
     // and nothing is chosen in its place.
+    //
+    // The disguise is the shipped example's, read here as each candidate is
+    // proposed for ordinary work. Were the gateway candidate to lose it, its
+    // refusal below would show nothing that `careful`'s does not.
+    let (own, gateway) = (
+        offered(&sandbox, "careful"),
+        offered(&sandbox, "gateway-careful"),
+    );
+    assert_eq!(own["selection"]["provider"], "your-provider");
+    assert_eq!(gateway["selection"]["provider"], "your-provider");
+    assert_ne!(
+        gateway["executable"]["program"],
+        own["executable"]["program"]
+    );
+    assert_ne!(gateway["selection"]["model"], own["selection"]["model"]);
+    assert_ne!(gateway["argv"], own["argv"]);
     let before = runs_in(&sandbox);
     for choice in ["careful", "gateway-careful"] {
         for result in [
@@ -282,6 +298,62 @@ fn an_explicit_choice_is_held_to_the_same_rule() {
         }
     }
     assert_eq!(runs_in(&sandbox), before, "a refused review was recorded");
+}
+
+/// The proposal for `feature` work under the explicit choice of `candidate`:
+/// its provider, model, program and expanded arguments, with no review.
+fn offered(sandbox: &Sandbox, candidate: &str) -> Value {
+    sandbox
+        .inspect(&["--kind", "feature", "--choice", candidate, "--json"])
+        .report()
+}
+
+#[test]
+fn a_candidates_origin_is_its_declared_label_whatever_its_argv() {
+    // The gateway case above sets a different argv under the creator's label,
+    // and refuses. This is the other half: the creator's own program, model
+    // and arguments under the other origin's label. The rule reads the label
+    // and nothing else, so that candidate reviews the creator's work, and the
+    // candidate it copies is refused beside it.
+    let sandbox = sandbox();
+    let creator = produce(&sandbox, "feature-k7", None);
+    reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
+    owner_policy(
+        &sandbox,
+        r#"const careful = catalog.find((candidate) => candidate.id === "careful");
+const relabelled = [...catalog, { ...careful, id: "relabelled-careful", provider: "your-other-provider" }];
+export const policy = {
+  schemaVersion: 1,
+  version: "relabelled-twin-1",
+  catalog: relabelled,
+  ...reviewSelector({ catalog: relabelled, routes, reviews }),
+};
+"#,
+    );
+
+    let (own, twin) = (
+        offered(&sandbox, "careful"),
+        offered(&sandbox, "relabelled-careful"),
+    );
+    assert_eq!(own["policy"]["version"], "relabelled-twin-1");
+    assert_eq!(twin["executable"], own["executable"]);
+    assert_eq!(twin["selection"]["model"], own["selection"]["model"]);
+    assert_eq!(twin["argv"], own["argv"]);
+    assert_eq!(own["selection"]["provider"], "your-provider");
+    assert_eq!(twin["selection"]["provider"], "your-other-provider");
+
+    let report = inspect(&sandbox, "code-review", &["--choice", "relabelled-careful"]).report();
+    assert_eq!(report["selection"]["candidateId"], "relabelled-careful");
+    assert_eq!(report["creator"]["provider"], "your-provider");
+    let (_, args) = reviewed(&sandbox, "code-review", &["--choice", "relabelled-careful"]);
+    assert_eq!(args, wrapper_args("your-model", "high", "review it"));
+
+    let refusal = refused(
+        &sandbox,
+        &inspect(&sandbox, "code-review", &["--choice", "careful"]),
+        "same_origin",
+    );
+    assert_eq!(refusal["error"]["input"], "--choice careful");
 }
 
 #[test]

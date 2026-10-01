@@ -831,8 +831,11 @@ fn importing_from_its_file(specifier: &str) -> String {
     format!("import {{ shadowed }} from {specifier:?};\nvoid shadowed;\n{ROUTED}")
 }
 
-/// Assert that a directly driven worker refused the entry at its import.
-fn assert_import_refused(driven: &direct::Driven, context: &str) {
+/// Assert that a directly driven worker refused the entry at its import of
+/// `specifier`; `context` says which case this is. The failure names the
+/// specifier, so an entry that failed at an earlier line, before it imported
+/// anything, is not taken for a refusal.
+fn assert_import_refused(driven: &direct::Driven, specifier: &str, context: &str) {
     let report = driven.report.as_ref().unwrap_or_else(|| {
         panic!(
             "{context}: no report on the entry\nstderr: {}",
@@ -841,6 +844,12 @@ fn assert_import_refused(driven: &direct::Driven, context: &str) {
     });
     assert_eq!(report["type"], "failure", "{context}: {report}");
     assert_eq!(report["stage"], "load", "{context}: {report}");
+    assert!(
+        report["message"]
+            .as_str()
+            .is_some_and(|message| message.contains(specifier)),
+        "{context}: the failure does not name {specifier}: {report}"
+    );
 }
 
 #[test]
@@ -876,7 +885,7 @@ fn a_cwd_package_json_stays_inert_and_fires_for_an_entry_admitted_there() {
         // hostile directory finds nothing either: not the shipped one, which
         // leaves it, and not the unmoved probe, which stays.
         let driven = direct::drive(&shipped_worker(), &sandbox.cwd, &base_env(&sandbox), &entry);
-        assert_import_refused(&driven, specifier);
+        assert_import_refused(&driven, specifier, specifier);
         let driven = direct::drive(
             &probe_build(Probe::Unmoved),
             &sandbox.cwd,
@@ -884,7 +893,7 @@ fn a_cwd_package_json_stays_inert_and_fires_for_an_entry_admitted_there() {
             &entry,
         );
         assert_probe_identity(&driven, Probe::Unmoved, &shipped);
-        assert_import_refused(&driven, specifier);
+        assert_import_refused(&driven, specifier, specifier);
         assert!(
             !fired.exists(),
             "the cwd package answered {specifier} for a worker started there"
@@ -1078,7 +1087,7 @@ fn a_package_above_the_workers_start_directory_stays_inert_and_fires_under_the_u
         // The move alone is the difference: the shipped worker, started in
         // that same directory, finds nothing.
         let driven = direct::drive(&shipped_worker(), &started, &base_env(&sandbox), &entry);
-        assert_import_refused(&driven, kind);
+        assert_import_refused(&driven, "chain-planted", kind);
         assert!(
             !loaded.exists(),
             "the shipped worker loaded the package for a {kind} import"
@@ -1161,7 +1170,7 @@ fn a_package_json_above_the_workers_start_directory_stays_inert_and_fires_under_
                 // A module in a file is resolved from that file in every
                 // build, so the package has no firing configuration for it.
                 // The same fixture fires above for the other three.
-                assert_import_refused(&driven, &context);
+                assert_import_refused(&driven, specifier, &context);
                 assert!(
                     !fired.exists(),
                     "the package answered {context} under the unmoved probe"
@@ -1171,7 +1180,7 @@ fn a_package_json_above_the_workers_start_directory_stays_inert_and_fires_under_
             // The move alone is the difference: the shipped worker, started
             // in that same directory, finds nothing.
             let driven = direct::drive(&shipped_worker(), &started, &base_env(&sandbox), &entry);
-            assert_import_refused(&driven, &context);
+            assert_import_refused(&driven, specifier, &context);
             assert!(
                 !fired.exists(),
                 "the shipped worker loaded the package for {context}"
@@ -1443,6 +1452,11 @@ fn classes_with_no_known_firing_configuration_are_reported_not_counted() {
         &entry,
     );
     assert_probe_identity(&driven, Probe::Tsconfig, &shipped);
+    // The other arms see the probe load its policy. This one expects the
+    // import refused, so the refusal is what shows the probe moved and
+    // reached the import: one that failed earlier would leave the alias
+    // unloaded too.
+    assert_import_refused(&driven, "hostile-alias", "cwd tsconfig");
     still_unfired("cwd tsconfig", aliased.exists());
 }
 
@@ -1450,8 +1464,19 @@ fn classes_with_no_known_firing_configuration_are_reported_not_counted() {
 fn a_probe_build_is_never_accepted_as_an_installations_worker() {
     // So no archive can ship one as its worker: the installed smoke test
     // inspects through each archive's front before a release publishes.
+    //
+    // A probe is a real worker, and would evaluate an entry it was handed.
+    // The policy marks that it was evaluated, so the mark's absence shows
+    // that no policy code ran under a probe, which a front that refused one
+    // only once it had answered would allow. Whether a refused worker is
+    // sent the entry at all is seen in `worker.rs`, by a fake that records
+    // its channel: a probe is killed before it could read one.
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(ROUTED);
+    let evaluated = sandbox.root.join("policy-ran");
+    sandbox.personal_policy(&format!(
+        "import {{ writeFileSync }} from \"node:fs\";\nwriteFileSync({:?}, \"evaluated\");\n{ROUTED}",
+        text(&evaluated)
+    ));
     let prefix = sandbox.root.join("prefix");
     let front = prefix.join("bin/harness-dispatch");
     fs::create_dir_all(front.parent().unwrap()).unwrap();
@@ -1476,9 +1501,15 @@ fn a_probe_build_is_never_accepted_as_an_installations_worker() {
                 .contains(&format!("build probe-{}-", probe.name())),
             "{refusal}"
         );
+        assert!(
+            !evaluated.exists(),
+            "the {} probe evaluated the policy before it was refused",
+            probe.name()
+        );
     }
 
-    // The control: the shipped worker at the same place is accepted.
+    // The control: the shipped worker at the same place is accepted, and
+    // evaluates the same policy.
     fs::remove_file(&layout).unwrap();
     std::os::unix::fs::symlink(shipped_worker(), &layout).unwrap();
     let mut command = sandbox.command_for(&front);
@@ -1486,6 +1517,10 @@ fn a_probe_build_is_never_accepted_as_an_installations_worker() {
     assert_eq!(
         run(&mut command).report()["selection"]["candidateId"],
         "deep"
+    );
+    assert!(
+        evaluated.exists(),
+        "the accepted worker never evaluated the policy"
     );
 }
 

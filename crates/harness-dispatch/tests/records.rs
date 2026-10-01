@@ -585,6 +585,66 @@ fn runs_while_locked(holder: &Connection) -> i64 {
 }
 
 #[test]
+fn a_lock_released_within_the_wait_is_waited_out_and_the_run_launches() {
+    // The other side of the lock wait: the same invocation, with the store
+    // locked when selection ends and released half a second later. The front
+    // is still running while the lock is held, so it did not give up at once,
+    // and it then commits its run and launches. The half second is from the
+    // policy's own mark, as above. It leaves a second and a half of the
+    // 2-second wait for a loaded machine. On one so loaded that the front
+    // reaches the store only after the release, the front never waited, and
+    // this passes as an unlocked run does.
+    const HELD: Duration = Duration::from_millis(500);
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(ROUTED);
+    launched(&sandbox, &["--kind", "impl", "--prompt", "p"]);
+
+    let marker = sandbox.root.join("selected");
+    sandbox.personal_policy(&format!(
+        "import {{ writeFileSync }} from \"node:fs\";\nwriteFileSync({:?}, \"\");\n{ROUTED}",
+        text(&marker)
+    ));
+    let holder = Connection::open(sandbox.default_store()).unwrap();
+    holder.execute_batch("BEGIN EXCLUSIVE").unwrap();
+    let started = Instant::now();
+    let mut command = sandbox.command();
+    command
+        .args([
+            "run",
+            "--kind",
+            "impl",
+            "--timeout-ms",
+            "1000",
+            "--prompt",
+            "p",
+            "--json",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut child = command.spawn().unwrap();
+    while !marker.exists() {
+        assert!(
+            started.elapsed() < Duration::from_secs(20),
+            "the policy never ran"
+        );
+        thread::sleep(Duration::from_millis(5));
+    }
+    thread::sleep(HELD);
+    let ended_early = child.try_wait().unwrap();
+    assert_eq!(runs_while_locked(&holder), 1);
+    holder.execute_batch("COMMIT").unwrap();
+    let result = support::Run::from(child.wait_with_output().unwrap());
+    assert!(
+        ended_early.is_none(),
+        "the front ended while the store was locked ({ended_early:?}), without waiting\nstderr: {}",
+        result.stderr
+    );
+    assert_eq!(result.code, Some(0), "{}", result.stderr);
+    assert!(sandbox.harness_ran());
+    assert_eq!(runs(&sandbox.default_store()), 2);
+}
+
+#[test]
 fn no_lock_is_held_while_the_policy_evaluates() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);

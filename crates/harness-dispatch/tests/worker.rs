@@ -11,6 +11,8 @@ use std::fs;
 use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use serde_json::json;
 use support::{executable, run, text, Run, Sandbox, FRONT, ROUTED};
@@ -35,6 +37,17 @@ fn decoy(sentinel: &Path) -> String {
 /// that accepts it finds the channel closed at once rather than waiting out
 /// the selection deadline.
 fn fake_worker(sandbox: &Sandbox, path: &Path, hello: &serde_json::Value) {
+    executable(
+        path,
+        &format!(
+            "#!/bin/sh\nexec /bin/cat '{}' >&3\n",
+            text(&framed(sandbox, hello))
+        ),
+    );
+}
+
+/// A file holding `hello` as one frame: its length, then its JSON.
+fn framed(sandbox: &Sandbox, hello: &serde_json::Value) -> PathBuf {
     let body = serde_json::to_vec(hello).unwrap();
     let mut frame = u32::try_from(body.len()).unwrap().to_be_bytes().to_vec();
     frame.extend(body);
@@ -43,10 +56,51 @@ fn fake_worker(sandbox: &Sandbox, path: &Path, hello: &serde_json::Value) {
         fs::read_dir(&sandbox.root).unwrap().count()
     ));
     fs::write(&frame_file, frame).unwrap();
+    frame_file
+}
+
+/// A fake worker that sends `hello` as its first frame and records in
+/// `received` the frame it is then sent, byte for byte, or nothing when the
+/// front closes the channel without sending one. `received` appears only once
+/// the recording is whole.
+///
+/// The front kills a worker it refuses. So the recording is a child of the
+/// worker's, started before the hello is sent, which that kill does not
+/// reach: a frame the front sent before it refused is still read.
+fn recording_worker(sandbox: &Sandbox, path: &Path, hello: &serde_json::Value, received: &Path) {
     executable(
         path,
-        &format!("#!/bin/sh\nexec /bin/cat '{}' >&3\n", text(&frame_file)),
+        &format!(
+            "#!/bin/sh\n\
+             (\n  \
+               set -- $(dd bs=1 count=4 <&3 2>/dev/null | od -An -tu1)\n  \
+               if [ $# -eq 4 ]; then\n    \
+                 dd bs=1 count=$(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 )) <&3 2>/dev/null > '{received}.part'\n  \
+               else\n    \
+                 : > '{received}.part'\n  \
+               fi\n  \
+               mv '{received}.part' '{received}'\n\
+             ) > /dev/null 2>&1 &\n\
+             /bin/cat '{hello}' >&3\n\
+             wait\n",
+            hello = text(&framed(sandbox, hello)),
+            received = text(received),
+        ),
     );
+}
+
+/// What a recording worker was sent, once its recording is whole.
+fn recorded(received: &Path) -> String {
+    let started = Instant::now();
+    while !received.exists() {
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "the fake worker recorded nothing at {}: it never ran, or its channel never closed",
+            received.display()
+        );
+        thread::sleep(Duration::from_millis(5));
+    }
+    fs::read_to_string(received).unwrap()
 }
 
 /// Run the front as the leader of a new process group, and say whether any
@@ -251,17 +305,17 @@ fn a_worker_that_never_identifies_itself_is_stopped_at_the_deadline() {
 
 #[test]
 fn a_worker_from_another_build_refuses_before_it_is_given_a_policy() {
+    // Each worker here records the frame it is sent after its hello. A
+    // worker whose hello is refused is sent none: the front closes the
+    // channel on it, and the policy's entry and the request never leave the
+    // front.
     let sandbox = Sandbox::new();
-    let sentinel = sandbox.root.join("policy-ran");
-    sandbox.personal_policy(&format!(
-        "import {{ writeFileSync }} from \"node:fs\";\nwriteFileSync({:?}, \"fired\");\n{ROUTED}",
-        text(&sentinel)
-    ));
+    let entry = sandbox.personal_policy(ROUTED);
     let (front, prefix) = copied_front(&sandbox);
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
     let build_id = report["worker"]["buildId"].as_str().unwrap().to_owned();
     let version = env!("CARGO_PKG_VERSION");
-    fs::remove_file(&sentinel).unwrap();
+    let received = sandbox.root.join("received");
 
     for (name, hello) in [
         (
@@ -277,7 +331,7 @@ fn a_worker_from_another_build_refuses_before_it_is_given_a_policy() {
             json!({"type": "hello", "protocol": 2, "packageVersion": version, "buildId": build_id, "bunVersion": "1.4.2"}),
         ),
     ] {
-        fake_worker(&sandbox, &prefix.join(LAYOUT), &hello);
+        recording_worker(&sandbox, &prefix.join(LAYOUT), &hello, &received);
         let mut command = sandbox.command_for(&front);
         command.args(["inspect", "--kind", "impl", "--json"]);
         let refusal = run(&mut command).refusal(5);
@@ -292,23 +346,30 @@ fn a_worker_from_another_build_refuses_before_it_is_given_a_policy() {
                 .contains("not this front's pair"),
             "{name}"
         );
+        assert_eq!(
+            recorded(&received),
+            "",
+            "{name}: the front sent a frame to a worker it refused"
+        );
+        fs::remove_file(&received).unwrap();
     }
 
     // The positive control: a hello carrying the real identity is accepted,
-    // and this fake then fails for want of a result, not for its identity.
-    fake_worker(
+    // and the same recording then holds the policy's entry. This fake fails
+    // for want of a result, not for its identity.
+    recording_worker(
         &sandbox,
         &prefix.join(LAYOUT),
         &json!({"type": "hello", "protocol": 1, "packageVersion": version, "buildId": build_id, "bunVersion": "1.4.2"}),
+        &received,
     );
     let mut command = sandbox.command_for(&front);
     command.args(["inspect", "--kind", "impl", "--json"]);
     let refusal = run(&mut command).refusal(5);
     assert_eq!(refusal["error"]["code"], "worker_failed", "{refusal}");
-    assert!(
-        !sentinel.exists(),
-        "a fake worker cannot have evaluated the policy"
-    );
+    let message: serde_json::Value = serde_json::from_str(&recorded(&received)).unwrap();
+    assert_eq!(message["type"], "evaluate");
+    assert_eq!(message["entry"], text(&entry));
 }
 
 #[test]
@@ -359,22 +420,8 @@ fn the_request_carries_the_task_inputs_explicit_choice_and_limits_and_never_the_
         "type": "hello", "protocol": 1, "packageVersion": env!("CARGO_PKG_VERSION"),
         "buildId": report["worker"]["buildId"], "bunVersion": "1.4.2",
     });
-    let body = serde_json::to_vec(&hello).unwrap();
-    let mut frame = u32::try_from(body.len()).unwrap().to_be_bytes().to_vec();
-    frame.extend(body);
-    let hello_file = sandbox.root.join("hello-frame");
-    fs::write(&hello_file, frame).unwrap();
     let request_file = sandbox.root.join("request.json");
-    executable(
-        &prefix.join(LAYOUT),
-        &format!(
-            "#!/bin/sh\n/bin/cat '{hello}' >&3\n\
-             set -- $(dd bs=1 count=4 <&3 2>/dev/null | od -An -tu1)\n\
-             dd bs=1 count=$(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 )) <&3 2>/dev/null > '{request}'\n",
-            hello = text(&hello_file),
-            request = text(&request_file),
-        ),
-    );
+    recording_worker(&sandbox, &prefix.join(LAYOUT), &hello, &request_file);
     let prompt_file = sandbox.file("mandate.md", "file-prompt-token\n");
 
     for prompt in [
@@ -397,7 +444,7 @@ fn the_request_carries_the_task_inputs_explicit_choice_and_limits_and_never_the_
         let refusal = run(&mut command).refusal(5);
         assert_eq!(refusal["error"]["code"], "worker_failed", "{refusal}");
 
-        let raw = fs::read_to_string(&request_file).expect("the fake worker saw a request");
+        let raw = recorded(&request_file);
         let message: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(message["type"], "evaluate");
         assert_eq!(

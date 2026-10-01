@@ -1053,6 +1053,66 @@ fn other_grove_kinds_take_the_grove_static_routes() {
 }
 
 #[test]
+fn without_the_adapter_a_review_kind_and_its_marker_lines_mean_nothing_to_the_front() {
+    // The front itself keeps no list of review kinds and reads no marker
+    // line: recognising a Grove review is the adapter's alone. So one review
+    // task, under the kind Grove gives it, is a review to a policy that
+    // imports the adapter, and an ordinary routed kind to one that does not,
+    // which may send it to the creator's own origin.
+    let sandbox = sandbox();
+    let task_file = sandbox.file(
+        REVIEW_TASK,
+        &review_body(Some("**Creator:** declared openai")),
+    );
+
+    // The control: under the Grove example the lines are read, the file is a
+    // measured source, and the reviewer is of the other origin.
+    let read = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
+    assert_eq!(
+        read["reviewedArtifact"],
+        json!({ "id": "parser-k12", "creator": { "declared": "openai" } })
+    );
+    assert_eq!(read["creator"]["provider"], "openai");
+    assert_eq!(read["adapter"], adapter_report());
+    assert_eq!(
+        read["context"]["sources"][0]["name"],
+        support::text(&task_file)
+    );
+    assert_eq!(read["selection"]["provider"], "anthropic");
+
+    // The same kind and task file, routed by a policy with no adapter to a
+    // candidate of the origin the file declares.
+    sandbox.personal_policy(
+        r#"export const policy = {
+  schemaVersion: 1,
+  version: "no-adapter-1",
+  catalog: [
+    { id: "same-origin", provider: "openai", model: "your-codex-model", effort: "high", program: "my-codex-wrapper", args: ["--model", { slot: "model" }, "--effort", { slot: "effort" }, { slot: "prompt" }] },
+  ],
+  routes: { "review-impl": "same-origin" },
+};
+"#,
+    );
+    let plain = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
+    assert_eq!(plain["policy"]["version"], "no-adapter-1");
+    assert_eq!(plain["selection"]["selectedBy"], "route");
+    assert_eq!(plain["selection"]["candidateId"], "same-origin");
+    assert_eq!(plain["selection"]["provider"], "openai");
+    assert_eq!(plain["taskFile"], support::text(&task_file));
+    for unread in ["reviewedArtifact", "creator", "adapter", "context"] {
+        assert_eq!(plain.get(unread), Some(&Value::Null), "{unread}: {plain}");
+    }
+
+    let (run_id, args) = reviewed(&sandbox, "review-impl", REVIEW_TASK);
+    assert_eq!(args, wrapper_args("your-codex-model", "high", "review it"));
+    let launch = show(&sandbox, &run_id, true).report()["launch"].clone();
+    assert_eq!(launch["taskFile"], support::text(&task_file));
+    for unread in ["reviewedArtifact", "creator", "adapter", "context"] {
+        assert_eq!(launch.get(unread), Some(&Value::Null), "{unread}: {launch}");
+    }
+}
+
+#[test]
 fn the_adapter_version_is_reported_exactly_when_the_policy_imports_it() {
     let sandbox = Sandbox::new();
     let routed = |imports: &str, members: &str| {

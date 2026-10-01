@@ -226,7 +226,6 @@ fn a_hold_that_ends_within_the_bound_reaches_the_harness() {
     // and well within this one. Each selects and reaches the fake harness, so
     // the fixtures do evaluate, and the bound is the caller's rather than a
     // fixed one.
-    let held = BOUND_MS + 500;
     for (place, hold) in [
         (Place::Import, Hold::Spin),
         (Place::Import, Hold::Pending),
@@ -235,45 +234,53 @@ fn a_hold_that_ends_within_the_bound_reaches_the_harness() {
         (Place::LoadContext, Hold::Spin),
         (Place::LoadContext, Hold::Pending),
     ] {
-        let hold_name = format!("{place:?} {hold:?}");
-        let sandbox = Sandbox::new();
-        let pid_file = sandbox.root.join("worker-pid");
-        sandbox.personal_policy(&holding(&pid_file, place, hold, Some(held), ""));
-
-        let mut invocation = sandbox.command();
-        invocation.args([
-            "run",
-            "--kind",
-            "impl",
-            "--prompt",
-            "the prompt",
-            "--timeout-ms",
-            "15000",
-            "--json",
-        ]);
-        let timed = guarded(&mut invocation, &pid_file, WATCHDOG);
-
-        assert_eq!(
-            timed.run.code,
-            Some(0),
-            "{hold_name}\nstdout: {}\nstderr: {}",
-            timed.run.stdout,
-            timed.run.stderr
-        );
-        let notice: Value = serde_json::from_str(&timed.run.stderr).unwrap();
-        let selected_by = match place {
-            Place::Import => "route",
-            Place::Select | Place::LoadContext => "select",
-        };
-        assert_eq!(notice["handoff"]["selectedBy"], selected_by, "{hold_name}");
-        assert!(sandbox.harness_ran(), "{hold_name}: the harness never ran");
-        assert_eq!(sandbox.harness_args(), ["the prompt"]);
-        assert!(
-            timed.elapsed >= Duration::from_millis(held),
-            "{hold_name}: the hold ended early, after {:?}",
-            timed.elapsed
-        );
+        assert_reaches_the_harness(place, hold, "");
     }
+}
+
+/// The policy `assert_stopped_at_the_deadline` holds forever, with its hold
+/// ended after longer than that bound and well within this run's: it selects
+/// and reaches the fake harness.
+fn assert_reaches_the_harness(place: Place, hold: Hold, prelude: &str) {
+    let held = BOUND_MS + 500;
+    let hold_name = format!("{place:?} {hold:?}");
+    let sandbox = Sandbox::new();
+    let pid_file = sandbox.root.join("worker-pid");
+    sandbox.personal_policy(&holding(&pid_file, place, hold, Some(held), prelude));
+
+    let mut invocation = sandbox.command();
+    invocation.args([
+        "run",
+        "--kind",
+        "impl",
+        "--prompt",
+        "the prompt",
+        "--timeout-ms",
+        "15000",
+        "--json",
+    ]);
+    let timed = guarded(&mut invocation, &pid_file, WATCHDOG);
+
+    assert_eq!(
+        timed.run.code,
+        Some(0),
+        "{hold_name}\nstdout: {}\nstderr: {}",
+        timed.run.stdout,
+        timed.run.stderr
+    );
+    let notice: Value = serde_json::from_str(&timed.run.stderr).unwrap();
+    let selected_by = match place {
+        Place::Import => "route",
+        Place::Select | Place::LoadContext => "select",
+    };
+    assert_eq!(notice["handoff"]["selectedBy"], selected_by, "{hold_name}");
+    assert!(sandbox.harness_ran(), "{hold_name}: the harness never ran");
+    assert_eq!(sandbox.harness_args(), ["the prompt"]);
+    assert!(
+        timed.elapsed >= Duration::from_millis(held),
+        "{hold_name}: the hold ended early, after {:?}",
+        timed.elapsed
+    );
 }
 
 #[test]
@@ -281,15 +288,16 @@ fn a_worker_that_ignores_term_is_killed_after_at_most_a_second_of_grace() {
     // A handler for TERM keeps the signal from ending the process, and a
     // synchronous spin keeps the handler from ever running, so only KILL ends
     // this worker. The refusal still arrives within the bound and one second.
+    const IGNORES_TERM: &str = "process.on(\"SIGTERM\", () => {});";
     for command in ["inspect", "run"] {
-        let refusal = assert_stopped_at_the_deadline(
-            command,
-            Place::Import,
-            Hold::Spin,
-            "process.on(\"SIGTERM\", () => {});",
-        );
+        let refusal =
+            assert_stopped_at_the_deadline(command, Place::Import, Hold::Spin, IGNORES_TERM);
         assert_eq!(refusal["error"]["code"], "selection_timeout");
     }
+    // The control for this fixture: with the same handler installed, the same
+    // spin ended within its bound selects and reaches the harness, so the
+    // handler is not what keeps the timed-out run from launching.
+    assert_reaches_the_harness(Place::Import, Hold::Spin, IGNORES_TERM);
 }
 
 #[test]

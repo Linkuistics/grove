@@ -171,7 +171,12 @@ fn a_group_interrupt_reaches_the_policys_own_children_through_the_job() {
     // worker, and the child outlives the selection, so the group is what
     // reached it. That is a control, not a promise: a policy reaps its own
     // children before it returns.
-    for group in [true, false] {
+    //
+    // The third run is the control for the fixture itself: the same policy,
+    // its hold ended after a moment and nothing signalled, selects and
+    // reaches the harness. So starting a child is not what keeps the
+    // interrupted runs from launching.
+    for interrupt in [Some(true), Some(false), None] {
         let sandbox = Sandbox::new();
         let pid_file = sandbox.root.join("worker-pid");
         let child_file = sandbox.root.join("child-pid");
@@ -179,7 +184,7 @@ fn a_group_interrupt_reaches_the_policys_own_children_through_the_job() {
             &pid_file,
             Place::LoadContext,
             Hold::Pending,
-            None,
+            interrupt.map_or(Some(200), |_| None),
             &with_a_child(&child_file),
         ));
         let mut invocation = sandbox.command();
@@ -193,30 +198,54 @@ fn a_group_interrupt_reaches_the_policys_own_children_through_the_job() {
             BOUND_MS,
             "--json",
         ]);
-        let interrupt = Interrupt {
-            when: pid_file.clone(),
-            signal: libc::SIGINT,
-            group,
-        };
-        let timed = interrupted(&mut invocation, &pid_file, &interrupt, WATCHDOG);
+        let timed = interrupted(
+            &mut invocation,
+            &pid_file,
+            &Interrupt {
+                // The control never sees its trigger, so it is never signalled.
+                when: if interrupt.is_some() {
+                    pid_file.clone()
+                } else {
+                    sandbox.root.join("never")
+                },
+                signal: libc::SIGINT,
+                group: interrupt == Some(true),
+            },
+            WATCHDOG,
+        );
 
-        timed.run.cancelled(libc::SIGINT, "SIGINT");
-        assert!(!sandbox.harness_ran());
+        if interrupt.is_some() {
+            timed.run.cancelled(libc::SIGINT, "SIGINT");
+            assert!(!sandbox.harness_ran());
+        }
         let child = recorded_pid(&child_file).expect("the policy started its child");
-        if group {
+        if interrupt == Some(true) {
             assert!(
                 gone_within(child, Duration::from_secs(5)),
                 "the policy's child {child} survived the group's interrupt"
             );
-        } else {
-            let survived = exists(child);
-            // SAFETY: kill only sends a signal; the PID is the child the
-            // policy recorded, and it is killed so that nothing outlives the
-            // test.
-            unsafe { libc::kill(child, libc::SIGKILL) };
+            continue;
+        }
+        let survived = exists(child);
+        // SAFETY: kill only sends a signal; the PID is the child the policy
+        // recorded, and it is killed so that nothing outlives the test.
+        unsafe { libc::kill(child, libc::SIGKILL) };
+        if interrupt.is_some() {
             assert!(
                 survived,
                 "the control's child {child} was stopped without the group"
+            );
+        } else {
+            assert_eq!(
+                timed.run.code,
+                Some(0),
+                "uninterrupted\nstderr: {}",
+                timed.run.stderr
+            );
+            assert!(timed.after_signal.is_none(), "the control was signalled");
+            assert!(
+                sandbox.harness_ran(),
+                "uninterrupted: the harness never ran"
             );
         }
     }

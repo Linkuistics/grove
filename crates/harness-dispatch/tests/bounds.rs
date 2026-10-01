@@ -259,10 +259,30 @@ fn one_read_holds_to_its_limit_whatever_the_policy_does_with_the_error() {
         json!({ "bytes": 100, "from": "maxBytes" }),
     );
 
+    // A read's maxBytes raises its limit past the default: the file the
+    // default refused above is read whole, and so is one of exactly the
+    // limit, which one byte more refuses.
+    sandbox.file("budget.txt", &"a".repeat(262_144));
+    sandbox.file("budget-one.txt", &"a".repeat(262_145));
+    for (path, bytes) in [("past.txt", 65_537), ("budget.txt", 262_144)] {
+        read(path, ", 262144", false);
+        let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+        assert_eq!(
+            report["context"]["sources"][0]["bytes"], bytes,
+            "{path}: {report}"
+        );
+        selected(&run(&sandbox, &[]), &sandbox);
+    }
+    read("budget-one.txt", ", 262144", true);
+    refused_by(
+        &run(&sandbox, &[]),
+        &sandbox,
+        "source_too_large",
+        json!({ "bytes": 262_144, "from": "maxBytes" }),
+    );
+
     // maxBytes may reach the context budget and never pass it, even for a
     // file that would fit.
-    read("hundred.txt", ", 262144", false);
-    selected(&run(&sandbox, &[]), &sandbox);
     read("hundred.txt", ", 262145", true);
     let refusal = refused_by(
         &run(&sandbox, &[]),
@@ -462,13 +482,30 @@ fn a_catalog_snapshot_or_result_holds_to_the_message_bound() {
 }
 
 /// A policy that writes `stdout` and `stderr` bytes to its two streams at
-/// import, synchronously, so nothing is left in a buffer at exit.
+/// import, synchronously, so nothing is left in a buffer at exit. Each stream
+/// is `numbered`, so what is kept of it can be told from any other part.
 fn printing(stdout: usize, stderr: usize) -> String {
     format!(
         "import {{ writeSync }} from \"node:fs\";\n\
-         writeSync(1, \"o\".repeat({stdout}));\nwriteSync(2, \"e\".repeat({stderr}));\n{}",
+         const numbered = (mark, bytes) => {{\n  \
+           let text = \"\";\n  \
+           for (let record = 0; text.length < bytes; record++) text += mark + String(record).padStart(7, \"0\");\n  \
+           return text.slice(0, bytes);\n\
+         }};\n\
+         writeSync(1, numbered(\"o\", {stdout}));\nwriteSync(2, numbered(\"e\", {stderr}));\n{}",
         policy(SELECT)
     )
+}
+
+/// What `printing` writes to a stream: `bytes` bytes of eight-byte records,
+/// each `mark` and its seven-digit number, so no two records are alike and a
+/// stretch of the text is its start only if it begins at record 0.
+fn numbered(mark: char, bytes: usize) -> String {
+    let mut text: String = (0..bytes.div_ceil(8))
+        .map(|record| format!("{mark}{record:07}"))
+        .collect();
+    text.truncate(bytes);
+    text
 }
 
 #[test]
@@ -476,14 +513,8 @@ fn diagnostics_hold_to_their_bound_across_both_streams() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&printing(131_072, 131_072));
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    assert_eq!(
-        report["diagnostics"]["stdout"].as_str().unwrap().len(),
-        131_072
-    );
-    assert_eq!(
-        report["diagnostics"]["stderr"].as_str().unwrap().len(),
-        131_072
-    );
+    assert_eq!(report["diagnostics"]["stdout"], numbered('o', 131_072));
+    assert_eq!(report["diagnostics"]["stderr"], numbered('e', 131_072));
     selected(&run(&sandbox, &[]), &sandbox);
 
     for (stdout, stderr) in [(131_073, 131_072), (131_072, 131_073)] {
@@ -495,9 +526,20 @@ fn diagnostics_hold_to_their_bound_across_both_streams() {
             json!({ "bytes": 262_144, "from": "fixed" }),
         );
         assert_eq!(refusal["error"]["stage"], "evaluation");
-        let kept = refusal["diagnostics"]["stdout"].as_str().unwrap().len()
-            + refusal["diagnostics"]["stderr"].as_str().unwrap().len();
-        assert_eq!(kept, 262_144, "the first 262144 bytes are kept");
+        // The first 262144 bytes are kept: the bound in all, and of each
+        // stream its start, with nothing dropped before what is kept. Which
+        // stream gives up the byte is the order the two were read in.
+        let kept = |stream: &str| refusal["diagnostics"][stream].as_str().unwrap().to_owned();
+        let (kept_stdout, kept_stderr) = (kept("stdout"), kept("stderr"));
+        assert_eq!(kept_stdout.len() + kept_stderr.len(), 262_144);
+        assert!(
+            numbered('o', stdout).starts_with(&kept_stdout),
+            "what is kept of stdout is not its start"
+        );
+        assert!(
+            numbered('e', stderr).starts_with(&kept_stderr),
+            "what is kept of stderr is not its start"
+        );
     }
 }
 

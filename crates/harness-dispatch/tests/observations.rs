@@ -122,61 +122,108 @@ fn every_measurement(run_id: &str) -> Value {
     })
 }
 
+/// The same, with each measurement whose value has a second form in that
+/// form: an exit by signal, findings listed where there were none and none
+/// where they were listed, and a calibrated success estimate.
+fn every_measurement_in_its_other_form(run_id: &str) -> Value {
+    let mut measurements = every_measurement(run_id);
+    measurements["exit"] = json!({ "state": "observed", "value": { "signal": "SIGKILL" } });
+    measurements["missedDefects"] = json!({ "state": "observed", "value": [] });
+    measurements["falseFindings"] = json!({ "state": "observed", "value": [
+        { "id": "F1", "summary": "not a defect", "repairs": ["repair-f1"] },
+        { "id": "F2" },
+    ] });
+    measurements["successProbability"] = json!({
+        "state": "observed",
+        "value": { "probability": 0.7, "calibration": "pilot-2026-10" },
+    });
+    measurements
+}
+
 #[test]
 fn an_observation_round_trips_through_observe_and_show() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);
-    let run_id = impl_run(&sandbox);
-    let measurements = every_measurement(&run_id);
-    let document = observation(&run_id, "o-1", measurements.clone());
+    // Each form on a run of its own, so that each export holds one
+    // observation and each measurement one current value.
+    for (id, measurements, worded) in [
+        (
+            "o-1",
+            every_measurement as fn(&str) -> Value,
+            [
+                r#"exit {"code":0} (observation o-1)"#,
+                "falseFindings [] (observation o-1)",
+                r#"successProbability {"probability":0.8,"uncalibrated":true} (observation o-1)"#,
+            ],
+        ),
+        (
+            "o-2",
+            every_measurement_in_its_other_form,
+            [
+                r#"exit {"signal":"SIGKILL"} (observation o-2)"#,
+                r#"falseFindings [{"id":"F1","repairs":["repair-f1"],"summary":"not a defect"},{"id":"F2"}] (observation o-2)"#,
+                r#"successProbability {"calibration":"pilot-2026-10","probability":0.7} (observation o-2)"#,
+            ],
+        ),
+    ] {
+        let run_id = impl_run(&sandbox);
+        let measurements = measurements(&run_id);
+        let document = observation(&run_id, id, measurements.clone());
+        let file = format!("{id}.json");
 
-    let receipt = recorded(&observe(&sandbox, &run_id, "o-1.json", &document));
-    assert_eq!(receipt["observationId"], "o-1");
-    assert_eq!(receipt["runId"], run_id.as_str());
-    assert_eq!(receipt["status"], "recorded");
-    assert_eq!(receipt["supersedes"], Value::Null);
-    let recorded_at = receipt["recordedAt"].as_str().unwrap().to_owned();
-    assert!(recorded_at.ends_with('Z'), "{recorded_at}");
+        let receipt = recorded(&observe(&sandbox, &run_id, &file, &document));
+        assert_eq!(receipt["observationId"], id);
+        assert_eq!(receipt["runId"], run_id.as_str());
+        assert_eq!(receipt["status"], "recorded");
+        assert_eq!(receipt["supersedes"], Value::Null);
+        let recorded_at = receipt["recordedAt"].as_str().unwrap().to_owned();
+        assert!(recorded_at.ends_with('Z'), "{recorded_at}");
 
-    let export = show(&sandbox, &run_id);
-    assert_eq!(export["evidence"], "execution_confirmed");
-    assert_eq!(export["execution"], "confirmed");
-    let mut expected = document.clone();
-    expected["recordedAt"] = json!(recorded_at);
-    expected["supersededBy"] = Value::Null;
-    assert_eq!(export["observations"], json!([expected]));
+        let export = show(&sandbox, &run_id);
+        assert_eq!(export["evidence"], "execution_confirmed");
+        assert_eq!(export["execution"], "confirmed");
+        let mut expected = document.clone();
+        expected["recordedAt"] = json!(recorded_at);
+        expected["supersededBy"] = Value::Null;
+        assert_eq!(export["observations"], json!([expected]), "{id}");
 
-    let summary = export["measurements"].as_object().unwrap();
-    assert_eq!(summary.len(), measurements.as_object().unwrap().len());
-    for (name, measurement) in measurements.as_object().unwrap() {
-        let mut entry = measurement.clone();
-        entry["observationId"] = json!("o-1");
-        assert_eq!(
-            summary[name],
-            json!({ "state": "observed", "current": [entry] }),
-            "{name}"
+        let summary = export["measurements"].as_object().unwrap();
+        assert_eq!(summary.len(), measurements.as_object().unwrap().len());
+        for (name, measurement) in measurements.as_object().unwrap() {
+            let mut entry = measurement.clone();
+            entry["observationId"] = json!(id);
+            assert_eq!(
+                summary[name],
+                json!({ "state": "observed", "current": [entry] }),
+                "{id} {name}"
+            );
+        }
+
+        let text = show_text(&sandbox, &run_id);
+        for expected in [
+            "execution confirmed".to_owned(),
+            "measured".to_owned(),
+            format!("duration 12.5 s (observation {id})"),
+            format!("acceptance accepted (observation {id})"),
+            format!("{id} from a test observer at 2026-10-01T09:30:00Z"),
+        ]
+        .iter()
+        .map(String::as_str)
+        .chain(worded)
+        {
+            assert!(text.contains(expected), "{expected}:\n{text}");
+        }
+        assert!(!text.contains("unobserved"), "{text}");
+
+        let again = observe_file(&sandbox, &run_id, &file, &[]);
+        assert_eq!(again.code, Some(0), "{}", again.stderr);
+        assert!(
+            again.stdout.contains("is already recorded")
+                && again.stdout.contains("nothing changed"),
+            "{}",
+            again.stdout
         );
     }
-
-    let text = show_text(&sandbox, &run_id);
-    for expected in [
-        "execution confirmed",
-        "measured",
-        "duration 12.5 s (observation o-1)",
-        "acceptance accepted (observation o-1)",
-        "o-1 from a test observer at 2026-10-01T09:30:00Z",
-    ] {
-        assert!(text.contains(expected), "{expected}:\n{text}");
-    }
-    assert!(!text.contains("unobserved"), "{text}");
-
-    let again = observe_file(&sandbox, &run_id, "o-1.json", &[]);
-    assert_eq!(again.code, Some(0), "{}", again.stderr);
-    assert!(
-        again.stdout.contains("is already recorded") && again.stdout.contains("nothing changed"),
-        "{}",
-        again.stdout
-    );
 }
 
 #[test]
@@ -216,23 +263,27 @@ fn unsupplied_measurements_stay_unobserved_and_an_attempt_stays_unconfirmed() {
         exported["executionConfirmation"],
         json!({ "state": "unknown" })
     );
-    for absent in [
-        "duration",
-        "exit",
-        "missedDefects",
-        "humanTime",
-        "totalUsage",
-    ] {
+    let summary = &export["measurements"];
+    assert_eq!(summary["acceptance"]["state"], "observed");
+    assert_eq!(summary["executionConfirmation"]["state"], "unknown");
+    // Every other measurement, by name: the one the document gave as
+    // unobserved, and each one it left out. The names are the fixture's own
+    // list of every measurement, not the export's.
+    let every = every_measurement(&run_id);
+    let absent: Vec<&str> = every
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .filter(|name| !["acceptance", "executionConfirmation"].contains(name))
+        .collect();
+    assert_eq!(absent.len(), 13, "{absent:?}");
+    for absent in absent {
         assert_eq!(
             exported[absent],
             json!({ "state": "unobserved" }),
             "{absent}"
         );
-    }
-    let summary = &export["measurements"];
-    assert_eq!(summary["acceptance"]["state"], "observed");
-    assert_eq!(summary["executionConfirmation"]["state"], "unknown");
-    for absent in ["duration", "falseFindings", "totalUsage"] {
         assert_eq!(
             summary[absent],
             json!({ "state": "unobserved", "current": [] }),

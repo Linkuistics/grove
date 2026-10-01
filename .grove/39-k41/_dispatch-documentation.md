@@ -1,4 +1,4 @@
-# dispatch-documentation-k41
+# dispatch-documentation-k41 — brief
 
 ## Goal
 
@@ -38,3 +38,28 @@ instrument, cut or insert the missing work rather than absorbing it.
   activation, both inspection surfaces, the `**Creator:**` conventions and
   their remedies, later outcome entry, launch-time validation guidance and
   the stated floors.
+
+## Decomposition
+
+This leaf proved bigger than one session. Its reading alone is the spec, the
+dispatch README, the runtime evidence, three ADRs, the Grove usage and
+configuration references, configure-grove and the test suites of two crates.
+The children split it by what each one demonstrates, and where the conditions
+above say "this leaf", read the child named here.
+
+1. `acceptance-walk-k67` walks the acceptance cases and the seam rows, and
+   runs `task check` and the installed smoke. It runs first because it is the
+   evidence the documents rest on: the spec may drop its "not implemented"
+   notice only for behavior the walk found an instrument for. Its running log
+   holds the walk. It found an instrument for every case, so nothing was cut
+   ahead of the two below. Tests that hold a clause more narrowly than their
+   names say went to `seam-controls-k70` at the grove root, which the
+   documents do not wait on.
+2. `current-state-documents-k68` rewrites the design-tense artifacts as
+   current state: the spec, the visual design README, the runtime evidence,
+   the ADRs and the glossary.
+3. `usage-agreement-k69` places the package in `docs/ARCHITECTURE.md`, brings
+   the usage documents into agreement with one another and with `--help`, and
+   writes the CHANGELOG. Its retirement closes this node, so it cuts the
+   documentation-acceptance review at the grove root before it retires, and
+   runs `task check` on the tree the review will read.

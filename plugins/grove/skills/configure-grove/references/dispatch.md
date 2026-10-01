@@ -62,8 +62,19 @@ Compose and publish each file as SKILL.md's *Verify and report* directs.
    its harness.
 
    When the user wants every review on another provider than the one that
-   created the reviewed artifact, use `harness-dispatch/examples/grove-review`
-   instead, or a copy of it. It routes other kinds as the Grove starter does.
+   created the reviewed artifact, the policy is
+   `harness-dispatch/examples/grove-review`. It routes other kinds as the
+   Grove starter does, and takes its catalog and those routes from the
+   installed starter by name. So re-exporting it, or copying it alone, runs the
+   installation's placeholder wrappers and never the user's edited catalog.
+   To keep that catalog, and with the user's agreement, move the edited starter
+   to `grove-static.ts` beside the policy, copy
+   `libexec/harness-dispatch/examples/grove-review.ts` to `policy.ts`, and
+   change that copy's import of `harness-dispatch/examples/grove-static` to
+   `./grove-static.ts`. Its `reviews` table names reviewers by candidate ID and
+   creators by provider, so rename there whatever the user renamed in the
+   catalog. The copy still imports the rule and the adapter from the
+   installation.
    For the five `review-*` kinds it reads the review leaf's own `**Reviews:**`
    and `**Creator:**` lines through its Grove adapter, `harness-dispatch/grove`,
    and chooses a reviewer from the other provider. Route those review kinds to
@@ -126,8 +137,9 @@ When the policy has no candidate for a launched kind, harness-dispatch refuses
 with `incomplete_mapping`. A `select` policy refuses as `policy_refused`, with
 its own code. Nothing launches, and no default candidate is substituted. Grove
 reports that the session ended without a completion signal, with exit status 3,
-and stops the loop. The leaf stays live. The refusal's last line, `inspect:`,
-reproduces the selection. The remedy:
+and stops the loop. That status is harness-dispatch's, and Grove's own is 0, so
+read the refusal from Grove's report. The leaf stays live. The refusal's last
+line, `inspect:`, reproduces the selection. The remedy:
 
 1. Run that `inspect:` line. It refuses the same way and launches nothing.
 2. Add the kind to the policy's `routes`, mapped to a catalog ID the user

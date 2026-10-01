@@ -649,6 +649,25 @@ waited from one that reached the store after the release. Fourth, no shipped
 source changed, so the worker is still build `721aab0848f6…` and k67's run of
 `task release:smoke` stands.
 
+`dispatch-documentation-k71` reviewed the documentation against the acceptance
+cases and `dispatch-documentation-k72` integrated the review. k72's running log
+holds each finding's disposition and what was run. Later sessions build on four
+facts. First, the Grove review example takes its catalog and routes from the
+installed starter, so the documents now say how an owner keeps an edited
+catalog under the rule: the edited starter stays beside the policy as
+`grove-static.ts`, and a copy of the example imports it by path.
+`grove::a_copy_of_the_grove_example_takes_an_owners_edited_starter_only_when_its_import_names_that_file`
+holds that, and fails if the example's import line stops matching the one the
+configuration reference quotes. Second, a refused dispatched launch leaves
+Grove's own exit status at 0, and the usage guide, the configuration reference
+and configure-grove now say so beside the child's status. Third, the documents
+no longer say the core never imports the Grove adapter. The policy host embeds
+and registers it and never calls its reader. Fourth, the fourth fact under
+*Documentation closed* is settled: the human chose on 2026-10-01 to leave
+harness-dispatch undeclared as an explicit exception, which `CONTEXT-MAP.md`
+now states. No worker source changed, so the worker is still build
+`721aab0848f6…` and k67's run of `task release:smoke` stands.
+
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and
 `creator-reference-k38`. The leaf whose retirement closes a node cuts its review

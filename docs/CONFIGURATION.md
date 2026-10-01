@@ -638,6 +638,44 @@ Route the review kinds to the dispatch binding like any other dispatched kind.
 The lines' grammar and every refusal are in
 [the Grove review policy](../crates/harness-dispatch/README.md#the-grove-review-policy).
 
+That re-export takes its catalog, and its routes for every other kind, from
+the installed Grove starter, never from a copy of the starter you edited. So
+it runs the placeholder programs again, and inspection refuses with
+`program_not_found` as it first did. A copy of `grove-review.ts` alone does the
+same, because it imports the starter by its installed name. To keep your
+catalog under the rule, keep your edited starter beside the policy as a module
+and make a copy of the review example the policy. With your edited starter
+still at `policy.ts`:
+
+```sh
+cd ~/.config/harness-dispatch
+mv policy.ts grove-static.ts
+cp "$(brew --prefix grove)/libexec/harness-dispatch/examples/grove-review.ts" policy.ts
+```
+
+Then point the copy's one import of the starter at your file. In the new
+`policy.ts`, change
+
+```ts
+import { catalog as groveCatalog, routes as groveRoutes } from "harness-dispatch/examples/grove-static";
+```
+
+to
+
+```ts
+import { catalog as groveCatalog, routes as groveRoutes } from "./grove-static.ts";
+```
+
+The catalog, the routes and the review table are now files of yours, and an
+upgrade changes none of them. The rule and the task-file reader are still the
+installation's, because the copy imports `harness-dispatch/examples/review` and
+`harness-dispatch/grove` by name. The copy's `reviews` table names each
+reviewer by candidate ID and each creator by provider. If you renamed either in
+your catalog, rename it there too: a review whose entry names no candidate of
+the catalog refuses as `reviewer_unknown`. For a catalog and review kinds that
+share nothing with the starter's, build the policy on `groveReviewSelector`,
+as the Grove review policy's section shows.
+
 Optionally, name one candidate for some kinds with a literal `--choice` in a
 command definition of its own:
 
@@ -769,6 +807,8 @@ A refusal launches nothing, and harness-dispatch never runs another candidate
 in its place. It prints the refusal with its remedy, and an `inspect:` line
 that reproduces the selection. Grove then reports a session that ended without
 a completion signal, with harness-dispatch's exit status, and stops the loop.
+Grove's own exit status is `0`, as for any session that ends without
+signalling, so a script reads the refusal from that report and not from `$?`.
 The leaf stays live, and [the usage guide](USAGE.md#if-a-dispatched-launch-refuses)
 shows the whole transcript. An incomplete mapping reads:
 

@@ -456,8 +456,10 @@ A kind routed through `harness-dispatch run` has its harness chosen at launch,
 by your dispatch policy
 ([routing sessions through harness-dispatch](CONFIGURATION.md#harness-dispatch)).
 Grove checked only the command when the leaf was written, so a policy that
-cannot choose for the kind refuses now. It launches nothing, and Grove stops
-the loop with harness-dispatch's exit status and leaves the leaf live:
+cannot choose for the kind refuses now. It launches nothing. Grove reports
+harness-dispatch's exit status, stops the loop and leaves the leaf live. That
+status is the child's: Grove itself exits `0`, as it does for any session that
+ends without signalling ([stopping the loop](#stopping-the-loop)):
 
 ```console
 $ grove

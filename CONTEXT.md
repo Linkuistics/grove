@@ -948,8 +948,9 @@ session.
 file's `**Reviews:**` and `**Creator:**` lines into the generic reviewed
 artifact a dispatch policy reads. It reads only that file, through the measured
 read, and returns a refusal rather than guessing when a line is missing,
-duplicated or malformed. harness-dispatch's core never imports it, and Grove's
-own code reads neither line.
+duplicated or malformed. harness-dispatch builds it into the policy worker and
+calls it nowhere, so it reads a task file only when a policy imports it, and
+Grove's own code reads neither line.
 _Avoid_: calling it part of dispatch or of Grove; it is a policy import that
 sits between them.
 

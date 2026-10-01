@@ -161,8 +161,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
   filename, and Grove still records and compares nothing about how a producer
   ran: a dispatch policy does the comparing. The statements that nothing reads
   the `**Reviews:**` and `**Integrates:**` lines are scoped to Grove's own
-  code, because a dispatch policy's adapter reads them. Codex receives the same
-  files through `grove`'s provisioned skills
+  code, because a dispatch policy's adapter reads `**Reviews:**`, with the
+  `**Creator:**` line under it. Nothing reads `**Integrates:**`. Codex receives
+  the same files through `grove`'s provisioned skills
   ([a review carries its creator reference](docs/adr/a-review-carries-its-creator-reference.md)).
 - `grove` / `configure-grove`: the skill gains `references/dispatch.md`, the
   operator's procedure for a route that runs `harness-dispatch`: who owns the

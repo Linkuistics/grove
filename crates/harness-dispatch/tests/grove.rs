@@ -1296,3 +1296,97 @@ fn the_adapter_and_the_grove_example_ship_their_declarations_and_readable_source
         );
     }
 }
+
+/// The one import by which the Grove review example takes the Grove starter's
+/// catalog and routes. The README's *The Grove review policy* tells an owner
+/// to change it, so that a copy of the example reads their own starter.
+const STARTER_IMPORT: &str = "import { catalog as groveCatalog, routes as groveRoutes } from \"harness-dispatch/examples/grove-static\";";
+
+/// An owner who edited a copy of the Grove starter keeps that catalog under
+/// the rule by leaving the copy beside the policy as `grove-static.ts`, and
+/// making the policy a copy of this example whose import of the starter names
+/// that file. The same copy with its import as shipped is the control: it
+/// takes the installation's starter, whatever the file beside it says.
+#[test]
+fn a_copy_of_the_grove_example_takes_an_owners_edited_starter_only_when_its_import_names_that_file()
+{
+    let sandbox = Sandbox::new();
+    for name in ["owner-codex-wrapper", "owner-claude-wrapper"] {
+        executable(&sandbox.bin.join(name), WRAPPER);
+    }
+    let mut starter = include_str!("../worker/examples/grove-static.ts").to_owned();
+    for (shipped, owned) in [
+        ("my-codex-wrapper", "owner-codex-wrapper"),
+        ("my-claude-wrapper", "owner-claude-wrapper"),
+        ("your-codex-model", "owner-codex-model"),
+        ("your-claude-model", "owner-claude-model"),
+    ] {
+        assert!(starter.contains(shipped), "the starter names {shipped}");
+        starter = starter.replace(shipped, owned);
+    }
+    support::write(
+        &sandbox.personal_path().with_file_name("grove-static.ts"),
+        &starter,
+    );
+    sandbox.file(
+        REVIEW_TASK,
+        &review_body(Some("**Creator:** declared openai")),
+    );
+
+    let example = include_str!("../worker/examples/grove-review.ts");
+    assert_eq!(
+        example
+            .lines()
+            .filter(|line| *line == STARTER_IMPORT)
+            .count(),
+        1,
+        "the example imports the starter on one line"
+    );
+
+    // As shipped, the copy takes the installation's starter and its wrappers.
+    sandbox.personal_policy(example);
+    let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(127);
+    assert_eq!(refusal["error"]["code"], "program_not_found", "{refusal}");
+    assert!(
+        said(&refusal, "message").contains("my-codex-wrapper"),
+        "{refusal}"
+    );
+
+    // Pointed at the owner's file, it takes the owner's.
+    let import = STARTER_IMPORT.replace(
+        "harness-dispatch/examples/grove-static",
+        "./grove-static.ts",
+    );
+    sandbox.personal_policy(&example.replace(STARTER_IMPORT, &import));
+    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    assert_eq!(report["selection"]["candidateId"], "lead-high");
+    assert_eq!(report["executable"]["program"], "owner-codex-wrapper");
+
+    // The rule holds over that catalog: the other origin's reviewer selects
+    // and launches, and a reviewer of the creator's origin refuses.
+    let report = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
+    assert_eq!(report["selection"]["candidateId"], "review-high");
+    assert_eq!(report["selection"]["provider"], "anthropic");
+    assert_eq!(report["executable"]["program"], "owner-claude-wrapper");
+    refused(
+        &sandbox,
+        &inspect(
+            &sandbox,
+            "review-impl",
+            REVIEW_TASK,
+            &["--choice", "lead-high"],
+        ),
+        "same_origin",
+    );
+    let (_, args) = reviewed(&sandbox, "review-impl", REVIEW_TASK);
+    assert_eq!(
+        args,
+        [
+            "--model",
+            "owner-claude-model",
+            "--effort",
+            "high",
+            "review it"
+        ]
+    );
+}

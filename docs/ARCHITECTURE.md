@@ -562,10 +562,14 @@ What crosses it is data, in four places:
 
 **The Grove adapter is the one piece of the package that knows a Grove
 convention.** `harness-dispatch/grove` reads those two lines from the task file
-it is given. It is an explicit import of an owner's policy, depends only on the
-public SDK and the documented task format, and is never imported by the core.
-It ships inside the worker so that it always matches the SDK embedded there. An
-extraction can move it to Grove's side instead.
+it is given. It is an explicit import of an owner's policy, and depends only on
+the public SDK and the documented task format. The front has none of its code.
+The policy host imports it only to embed it beside the SDK and the examples,
+register its specifier and report its version, and never calls its reader, so
+it reads a task file only when a policy imports it. It ships inside the worker
+so that it always matches the SDK embedded there. An extraction can move it to
+Grove's side instead, which also takes it, and the Grove review example that
+composes it, out of the host's embedded set.
 
 **An extraction moves one directory of code.** `crates/harness-dispatch` holds the Rust
 front, and under `worker/` the policy host, the SDK, the adapter, the examples

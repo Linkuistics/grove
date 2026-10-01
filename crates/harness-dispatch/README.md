@@ -770,8 +770,18 @@ static example gives that review. So every review it selects runs on another
 origin than its producer's creator, on every invocation, every retry and every
 explicit choice, by the checks [the review policy](#the-review-policy) lists.
 
-The task file is read by the Grove adapter, `harness-dispatch/grove`, an
-explicit import that ordinary dispatch never loads. It reads the one task file
+That catalog and those routes are the installed static example's, whatever a
+copy of it you edited says. A copy of `examples/grove-review.ts` imports them
+by the same name, so it keeps them too. To apply the rule over your edited
+copy, keep that copy beside your policy as `grove-static.ts`, make a copy of
+this example your policy, and change its import of
+`harness-dispatch/examples/grove-static` to `./grove-static.ts`
+([activating it](../../docs/CONFIGURATION.md#harness-dispatch) has the steps).
+Or build on `groveReviewSelector`, as shown below.
+
+The task file is read by the Grove adapter, `harness-dispatch/grove`. It is
+built into the worker, and nothing calls it unless your policy imports it,
+directly or through this example. It reads the one task file
 Grove supplies, through the host's measured read, on every invocation and for
 every kind. Inspection therefore lists that file among the context's sources
 with its digest, and the run record keeps the digest. It reads the whole file,

@@ -90,22 +90,28 @@ for. Its decisions are the grove context's, as ever:
 [decision 1](./docs/specs/module-decomposition.md) for the crate split and
 [decision 9](./docs/specs/module-decomposition.md) for the loop's own surface.
 
-**`crates/harness-dispatch` is the crate that comes closest to a fourth context,
-and it is not declared one.** It is a separate command with a vocabulary of its
-own: *policy*, *catalog*, *candidate*, *provider origin*, *routes*, *run*,
-*handoff attempt*, *observation*. Unlike the runner's, several of its words do
-mean something else in grove's language, and the
-[relationship below](#grove-and-harness-dispatch) tabulates them. What it lacks
-is the thing a declared context has, a glossary of its own. Its
+**`crates/harness-dispatch` is a language boundary and is not declared a fourth
+context, which is a deliberate exception to this map's own test.** It is a
+separate command with a vocabulary of its own: *policy*, *catalog*,
+*candidate*, *provider origin*, *routes*, *run*, *handoff attempt*,
+*observation*. Unlike the runner's, several of its words do mean something else
+in grove's language. So the boundary exists, and the
+[relationship below](#grove-and-harness-dispatch) is what holds it, word by
+word. What is withheld is the declaration, which would give the package a
+glossary of its own. Its
 [specification](./docs/specs/harness-selection-and-execution.md) and
-[README](./crates/harness-dispatch/README.md) define its words where they use
-them. Grove's [`CONTEXT.md`](./CONTEXT.md) holds the ones a Grove owner or
-session meets, from *Selection provider* to *Delivered context*. So its records
-are the grove context's, in the list under *A durable record has one owner*. A
-separate context becomes worth declaring when the package has a glossary to
-point at, which an extraction would force: the entries that describe the
-command alone would go with it, and *Original creator*, *Creator reference* and
-*Grove adapter*, which describe its seam with a Grove review, would stay.
+[README](./crates/harness-dispatch/README.md) already define its words where
+they use them, so a glossary would state them a third time. Grove's
+[`CONTEXT.md`](./CONTEXT.md) holds the ones a Grove owner or session meets,
+from *Selection provider* to *Delivered context*, where that reader looks for
+them. Those among them that describe the command alone therefore sit outside
+the glossary of the side that owns the words, and the exception covers that
+too. Its records are the grove context's, in the list under *A durable record
+has one owner*. The human accepted the exception on 2026-10-01
+(`dispatch-documentation-k72`). An extraction ends it, because the package then
+needs a glossary to carry: the entries that describe the command alone would go
+with it, and *Original creator*, *Creator reference* and *Grove adapter*, which
+describe its seam with a Grove review, would stay.
 
 **Where every term lives, one line per module.** Four of Grove's crates carry
 vocabulary and the plugin carries a fifth, and no word is owned twice among

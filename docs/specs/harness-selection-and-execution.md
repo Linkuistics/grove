@@ -54,12 +54,16 @@ The SDK, the Grove adapter and the examples are embedded in the worker and
 reached through fixed package specifiers (see
 [runtime discovery](#policy-authority)). Their type declarations and readable
 sources ship beside the worker. The Grove adapter is an explicit import, versioned
-and built with the worker, not a dependency of ordinary dispatch. It uses file
-data; it does not require a Grove binary for selection. It never runs a second
-pick. The package owns no task-tree mutation. The adapter ships with the package
-so that it always matches the embedded SDK. It depends only on the public SDK and
-Grove's documented task conventions, and the core never imports it, so an
-extraction can move it to Grove's side instead.
+and built with the worker. The front has none of its code. The policy host
+imports it only to embed it beside the SDK and the examples, register its
+specifier and report its version, and never calls its reader. So it takes part
+in a selection only when the policy imports it, directly or through the example
+that composes it. It uses file data; it does not require a Grove binary for
+selection. It never runs a second pick. The package owns no task-tree mutation.
+The adapter ships with the package so that it always matches the embedded SDK.
+It depends only on the public SDK and Grove's documented task conventions, so an
+extraction can move it to Grove's side instead. That move takes it, and the
+example that composes it, out of the host's embedded set as well.
 
 <a id="command-interface"></a>
 ## Command interface

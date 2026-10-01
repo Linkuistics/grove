@@ -423,15 +423,33 @@ module the embedded examples that bring it in (`bringsAdapter` in
 and `tests/grove.rs` fails until it does. Fourth, the Grove-side guidance
 activates the example in `docs/CONFIGURATION.md#harness-dispatch`, and gives
 the missing-creator remedy under "When a dispatched launch refuses" and in
-configure-grove's "Remedy a review that cannot name its creator". Those
-documents call the run line the dispatch run that finished the producer,
-without yet promising that a session writes it. The methodology that makes sessions write it,
-and the rescoping of "no code reads the relationship lines", are k38's, and
-join those same places. `review-policy-k58` brought the dispatch side to the
-same interim. The README's Grove review section, the `grove-review` example's
-header, and the adapter's header and `creator_line_missing` remedy say that
-Grove's sessions do not yet write the line, so the owner does. When the
-methodology ships, k38 makes each of them current.
+configure-grove's "Remedy a review that cannot name its creator".
+`creator-reference-k38` has since made those documents, and the dispatch-side
+statements `review-policy-k58` qualified, say who writes the line.
+
+The creator reference closed with `creator-lifecycle-k40`. Later leaves build
+on four facts. First, the finishing session's step is the Grove plugin's
+`references/retire.md`, *Naming your run on what you finish*, and node-close
+step 4 carries it. Its conformance row is `finishing-session-names-its-run`,
+so no other shipped skill file may restate its lead sentence;
+configure-grove's *The creator line* points to it instead. Second, the owner's
+account of the line is `docs/CONFIGURATION.md#a-reviews-creator-line`: the two
+forms and their writers, the declaration, why a wrong but existing run passes
+launch, and attaching findings as an observation. The usage guide's
+review-composition section, configure-grove's *The creator line* and the
+dispatch README's Grove review section carry shorter forms.
+`dispatch-documentation-k41` consolidates against that section and does not
+write a fifth. Those documents keep one owner-written run line: for a producer
+a dispatched session finished without leaving its line. Third, Grove's
+launch-boundary suite has a `Lifecycle` fixture, in
+`crates/grove/tests/loop_driver.rs`. Its fake sessions follow that step under
+the shipped review example, whose two wrapper programs are on the driver's
+`PATH`. A later lifecycle case adds an arm to its `SESSION` procedure. Fourth,
+that suite's `driver_command` scrubs `HARNESS_DISPATCH_RUN_ID` and
+`HARNESS_DISPATCH_STATE_DIR`, so a direct fake harness has no run when the
+suite itself runs under dispatch. A new fixture that launches a driver goes
+through it. `creator-reference-k59` reviews the node, ahead of
+`package-entry-resolution-k52`.
 
 Five nodes end with a `review-impl` of the node: `static-dispatch-k12`,
 `dispatch-records-k23`, `evaluation-boundary-k27`, `review-policy-k35` and

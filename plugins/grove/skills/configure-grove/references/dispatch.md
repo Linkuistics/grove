@@ -70,7 +70,8 @@ Compose and publish each file as SKILL.md's *Verify and report* directs.
    the dispatch binding too. A review needs `**Creator:** run <run-id>`, naming
    the dispatch run that finished its producer, or `**Creator:** declared
    <provider>`, the user's declaration for a producer finished without
-   dispatch. Do not write a declaration on the user's behalf. The provider is
+   dispatch. Sessions settle the run form themselves, as *The creator line*
+   below says. Do not write a declaration on the user's behalf. The provider is
    their assertion about who made the artifact.
 
 3. For a kind that must run one particular candidate, add a separate command
@@ -132,12 +133,14 @@ producer's creator refuses as `policy_refused` at stage `context`, before any
 reviewer is chosen. Its `policyCode` says which line is wrong:
 
 - `creator_line_missing`: the review has `**Reviews:**` and no
-  `**Creator:**`. A recorded run of the producer's task does not stand in,
-  because harness-dispatch never looks a run up by task. Ask the user which
-  provider made the producer when it was finished without dispatch, and have
-  them write `**Creator:** declared <provider>` directly under `**Reviews:**`.
-  When a dispatched session finished it, the line is `**Creator:** run
-  <run-id>` with that session's `HARNESS_DISPATCH_RUN_ID`.
+  `**Creator:**`. The producer was finished with no run to name: before
+  dispatch was adopted, or by a harness Grove launched directly. A recorded run
+  of the producer's task does not stand in, because harness-dispatch never
+  looks a run up by task. Ask the user which provider finished the producer,
+  and have them write `**Creator:** declared <provider>` directly under
+  `**Reviews:**`. Only when a dispatched session finished it and left no line
+  is the remedy `**Creator:** run <run-id>`, with that session's own
+  `HARNESS_DISPATCH_RUN_ID`, never an earlier attempt's.
 - `reviews_line_missing`, `reviews_line_duplicate`, `reviews_line_malformed`,
   `creator_line_duplicate`, `creator_line_malformed`: the review needs exactly
   one line of each, each beginning its own line, with one space after the
@@ -152,3 +155,46 @@ reviewer is chosen. Its `policyCode` says which line is wrong:
 Run the refusal's `inspect:` line after each correction until it reports a
 reviewer, then run `grove` again. Never replace a refused reviewer with one of
 the creator's provider.
+
+## The creator line
+
+A review's `**Creator:**` line sits directly under `**Reviews:**` and has two
+forms, with two writers:
+
+- `**Creator:** run <run-id>` comes from the session that finished the
+  producer, by retiring its leaf or closing its node. The `grove` skill's
+  `references/retire.md` owns that step. Under dispatch the session writes its
+  own `HARNESS_DISPATCH_RUN_ID`, replacing any line there. With no run it
+  removes the line, in either form, so an earlier attempt's run does not stand
+  for the artifact.
+- `**Creator:** declared <provider>` is the user's alone, for a producer
+  finished with no run. It is written once the producer is finished, because
+  a session that finishes it later removes it.
+
+**A run line is its writer's word, and launch does not check it.**
+harness-dispatch records the provider each run launched. It cannot tell which
+run made an artifact, so a line naming some other existing run lends that
+run's provider. Launch does not compare the run's task with the `**Reviews:**`
+handle either, because a decomposed producer is finished by a child task with
+its own handle. So never copy a run ID into a review from another review,
+from version history or from `record show`. When verifying a review route,
+inspect the review itself:
+
+```sh
+harness-dispatch inspect --kind review-impl --task-file FILE --task-id HANDLE
+```
+
+Its `reviewed` line gives the reviewed handle. Its `creator` line gives the
+run, the provider recorded for it, and the task and kind it was launched for.
+Report a run whose task is neither the reviewed producer nor work under it.
+The producer and its review must use the same record store.
+
+**A review can attach its findings to that run.** Its own task file names it:
+
+```sh
+harness-dispatch record observe --run <run-id> --file observation.json
+```
+
+The record store is outside the tree, so the observation remains after
+`.grove/` is removed. The observation document's shape is in
+[harness-dispatch usage](https://github.com/Linkuistics/grove/blob/main/crates/harness-dispatch/README.md#observations).

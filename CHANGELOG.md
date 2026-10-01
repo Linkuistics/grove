@@ -140,6 +140,19 @@ stood at the graft — a closed record, not part of the versioned sequence above
   code, because a dispatch policy's adapter reads them. Codex receives the same
   files through `grove`'s provisioned skills
   ([a review carries its creator reference](docs/adr/a-review-carries-its-creator-reference.md)).
+- `grove` / `harness-dispatch` documentation: the configuration reference gains
+  *A review's creator line*, and the usage guide, the `configure-grove` skill
+  and harness-dispatch's README carry the same account. It gives the two
+  `**Creator:**` forms, who writes or removes each, the declaration as the
+  remedy for a review refused with `creator_line_missing`, why a line naming
+  some other existing run is not detected at launch and where inspection shows
+  it, and how a review attaches its findings to the producer's run as an
+  observation that outlasts `.grove/`. The Grove adapter's
+  `creator_line_missing` remedy now states who writes the line and leads with
+  the declaration. Grove's launch-boundary tests run sessions that follow the
+  methodology under the shipped Grove review example: across a producer's
+  retirement and a reordering, a decomposed producer closed through two levels,
+  and a direct-harness finish after a dispatched attempt.
 
 ## v21.12.0
 

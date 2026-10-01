@@ -623,9 +623,10 @@ task file Grove passes. It then chooses a reviewer from another provider than
 the producer's original creator. `**Creator:** run <run-id>` names the dispatch
 run that finished the producer, whose provider that run's record holds.
 `**Creator:** declared <provider>` is your declaration for a producer finished
-without dispatch. A review with neither refuses. Route the review kinds to the
-dispatch binding like any other dispatched kind. The lines' grammar and every
-refusal are in
+without dispatch. A review with neither refuses.
+[A review's creator line](#a-reviews-creator-line) says who writes each form.
+Route the review kinds to the dispatch binding like any other dispatched kind.
+The lines' grammar and every refusal are in
 [the Grove review policy](../crates/harness-dispatch/README.md#the-grove-review-policy).
 
 Optionally, name one candidate for some kinds with a literal `--choice` in a
@@ -698,6 +699,59 @@ behind it routes `design`. Static routes and a computed `select` alike are
 evaluated only when the leaf launches. So `grove-llm leaf-add . api --kind
 design` can succeed, and the launch of that leaf then refuse.
 
+<a id="a-reviews-creator-line"></a>
+### A review's creator line
+
+Under the Grove review example, a review leaf's `**Creator:**` line names the
+original creator of the producer it reviews. It sits directly under the
+`**Reviews:**` line, in one of two forms:
+
+| Line | Who writes it | Where the provider comes from |
+|---|---|---|
+| `**Creator:** run <run-id>` | The session that finished the producer, launched through dispatch | harness-dispatch's record of that run, as it was launched |
+| `**Creator:** declared <provider>` | You, for a producer finished with no run | Your declaration |
+
+**Sessions write and remove the run form.** The methodology directs the session
+that finishes a producer to settle the line on every live review naming it, in
+its task's commit (`references/retire.md` in the `grove` skill). A session
+finishes its own leaf by retiring it, and it finishes each node that retirement
+closes. Launched through dispatch, it writes its own `HARNESS_DISPATCH_RUN_ID`,
+replacing any line there. Launched directly, it has no run, so it removes the
+line in either form. The original creator is therefore the session that
+finished the producer, never an earlier attempt. For a producer that
+decomposed, it is the session whose retirement closed the node. Grove's own
+code writes and reads neither line.
+
+**You write the declaration.** A producer finished before you adopted dispatch,
+or by a harness Grove launched directly, has no run to name. Its review refuses
+until you declare the provider that finished it
+([the remedy](#when-a-dispatched-launch-refuses)). Declare once the producer is
+finished, because a session that finishes it later removes your line with any
+other. No session writes a declaration. It is your assertion, and inspection
+and the run record label it declared.
+
+**A run line is its writer's word.** harness-dispatch records which provider
+each run launched, and cannot tell which run made an artifact. So a line naming
+some other run that exists lends that run's provider, and the launch does not
+detect it. The launch does not compare the run's task with the `**Reviews:**`
+handle either, because a decomposed producer is finished by a child task with a
+handle of its own. `harness-dispatch inspect` on the review shows the named
+run's task and kind beside the reviewed handle, which is where a wrong run
+shows. The line is in the review's task file, so version control shows every
+change to it. A run is found only in the record store that recorded it, so the
+producer and its review must use the same one.
+
+**A review can attach its findings to the producer's run.** Its task file names
+that run, so it imports an observation against it:
+
+```sh
+harness-dispatch record observe --run <run-id> --file observation.json
+```
+
+The record store is outside the tree, so the run and its observations remain
+when the finish cycle removes `.grove/`
+([observations](../crates/harness-dispatch/README.md#observations)).
+
 ### When a dispatched launch refuses
 
 A refusal launches nothing, and harness-dispatch never runs another candidate
@@ -732,16 +786,18 @@ is the policy's own.
 Under the Grove review example, a review whose task file cannot name its
 creator refuses the same way, as `policy_refused` at stage `context`. The
 commonest code is `creator_line_missing`: the review has a `**Reviews:**` line
-and no `**Creator:**` line. A run recorded for the producer's task does not
-stand in for the line, because harness-dispatch never looks a run up by task.
-The remedy:
+and no `**Creator:**` line. That is what a producer finished without dispatch
+leaves, since its finishing session had no run to name
+([a review's creator line](#a-reviews-creator-line)). A run recorded for the
+producer's task does not stand in for the line, because harness-dispatch never
+looks a run up by task. The remedy:
 
 1. Run the `inspect:` line. It refuses the same way.
-2. Directly under the review's `**Reviews:**` line, write the producer's
-   creator. For a producer finished without dispatch, that is
-   `**Creator:** declared <provider>`, naming the provider that made it as your
-   catalog labels it. For one a dispatched session finished, it is
-   `**Creator:** run <run-id>`, with that session's `HARNESS_DISPATCH_RUN_ID`.
+2. Directly under the review's `**Reviews:**` line, write
+   `**Creator:** declared <provider>`, naming the provider that finished the
+   producer as your catalog labels it. If a dispatched session did finish it
+   and left no line, write `**Creator:** run <run-id>` instead, with that
+   session's own `HARNESS_DISPATCH_RUN_ID`, not an earlier attempt's.
 3. Run the `inspect:` line again until it reports a reviewer, then run `grove`.
 
 A `**Reviews:**` line under a kind the example does not list as a review

@@ -391,11 +391,15 @@ fn an_earlier_run_of_the_same_task_does_not_stand_in_for_a_missing_creator_line(
             message.contains("No run is looked up by its task"),
             "{refusal}"
         );
+        // Who writes the line and who removes it, then the owner's part: the
+        // declaration for an artifact with no run, and a run only as its own
+        // session's.
         let remedy = said(&refusal, "remedy");
         for part in [
-            "**Creator:** run <run ID>",
-            "HARNESS_DISPATCH_RUN_ID",
-            "**Creator:** declared <origin>",
+            "the Grove session that finishes parser-k12 writes this line from its own HARNESS_DISPATCH_RUN_ID",
+            "removes it when it ran without harness-dispatch",
+            "write \"**Creator:** declared <origin>\"",
+            "write \"**Creator:** run <run ID>\" there with that session's own run ID, not an earlier attempt's",
         ] {
             assert!(remedy.contains(part), "{part}: {refusal}");
         }

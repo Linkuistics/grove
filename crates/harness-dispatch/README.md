@@ -708,9 +708,13 @@ dispatch run of the session that finished the producer, its
 `HARNESS_DISPATCH_RUN_ID`, and the creator's origin is the one the record store
 holds for that run. `declared <origin>` is your declaration for a producer
 finished without harness-dispatch: before you adopted it, or by a harness Grove
-launched directly. Inspection and the run record label it declared. Grove's
-sessions do not yet write either form, so you write the line, as described
-under "When the creator line is missing" below.
+launched directly. Inspection and the run record label it declared.
+
+Grove's sessions write the run form themselves. The session that finishes a
+producer, by retiring its leaf or closing its node, names its own run on each
+live review of that producer, and one that finishes it without harness-dispatch
+removes the line (the Grove plugin's `references/retire.md`). The declaration
+is yours alone to write, as "When the creator line is missing" describes below.
 
 Activate it from your personal policy, with Grove's dispatch command:
 
@@ -760,7 +764,7 @@ take a static route. The adapter's refusals come from `loadContext`, at stage
 | `reviews_line_missing` | A review kind's task file has no `**Reviews:**` line | Add `**Reviews:** <handle>`, naming the producer it reviews |
 | `reviews_line_duplicate` | It has more than one | Keep one; reword or indent the others, a fenced example included |
 | `reviews_line_malformed` | The line is not `**Reviews:** <handle>` | Write the producer's handle, such as `parser-k12`, with one space before it and nothing after it |
-| `creator_line_missing` | A review kind's task file has no `**Creator:**` line | Name the run, or declare the origin: see below |
+| `creator_line_missing` | A review kind's task file has no `**Creator:**` line | Declare the origin of a producer finished without a run: see below |
 | `creator_line_duplicate` | It has more than one | Keep the one for the session that finished the producer |
 | `creator_line_malformed` | The line is neither `run <run ID>` nor `declared <origin>` | Write the run ID exactly as `HARNESS_DISPATCH_RUN_ID` gave it, or the declaration |
 | `review_kind_unlisted` | A kind the policy does not list as a review has a `**Reviews:**` line | List the kind in `reviews` in your copy of the policy, or remove the line if the task is not a review |
@@ -771,17 +775,16 @@ it. One larger than the context budget refuses as `source_too_large`: raise
 review policy's own refusals follow, such as `creator_run_missing` and
 `creator_origin_unknown` (see [the review policy](#the-review-policy)).
 
-**When the creator line is missing.** Grove's sessions do not yet maintain the
-line, so you write it, directly under the review's `**Reviews:**` line, once
-the producer is finished. For a producer a dispatched session finished, write
-`**Creator:** run <run ID>`, with that session's `HARNESS_DISPATCH_RUN_ID`, the
-run harness-dispatch named when it launched the session. Name the session that
-finished the producer, not an earlier attempt: a run reference is taken on its
-writer's word, since harness-dispatch cannot tell which run made the artifact.
-harness-dispatch never looks a run up by its task, so a run of the producer's
-task in the record store does not stand in for the line. For a producer
-finished without harness-dispatch, declare the origin that made it, as your
-catalog labels it:
+**When the creator line is missing.** The session that finishes a producer
+settles the line on each live review naming it. Launched through
+harness-dispatch, it writes `**Creator:** run <run ID>` from its own
+`HARNESS_DISPATCH_RUN_ID`, replacing any line there. Launched without it, it has
+no run to name, so it removes the line, including one that an earlier
+dispatched attempt wrote. A review therefore reaches its launch with no line
+when its producer was finished without harness-dispatch. harness-dispatch never
+looks a run up by its task, so a run of the producer's task in the record store
+does not stand in for the line. Declare the origin that finished the producer,
+as your catalog labels it, directly under the review's `**Reviews:**` line:
 
 ```markdown
 **Reviews:** parser-k12
@@ -789,7 +792,35 @@ catalog labels it:
 ```
 
 Then run the refused launch's `inspect:` line until it reports a reviewer, and
-run Grove again.
+run Grove again. Declare once the producer is finished, because a session that
+finishes it later removes the line with any other. If a dispatched session did
+finish the producer and left no line, write `**Creator:** run <run ID>` with
+that session's own run ID, not an earlier attempt's.
+
+**A run line is its writer's word.** harness-dispatch records which provider
+each run launched. It cannot tell which run made an artifact. A line naming
+some other run that exists lends that run's provider, and the launch does not
+detect it. The launch does not compare the named run's task with the
+`**Reviews:**` handle either, because a decomposed producer is finished by a
+child task with a handle of its own. Inspection shows the two side by side:
+
+```text
+  reviewed   {"creator":{"run":"5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34"},"id":"parser-k12"}
+  creator    run 5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34 (execution-recorded): provider openai, model your-codex-model, effort high; task tokens-k15, kind impl, recorded 2026-10-01T09:12:44.501Z
+```
+
+Here the run's task, `tokens-k15`, is not the reviewed `parser-k12`: a child
+whose retirement closed the decomposed producer's node. Read these two lines
+when a review's reviewer is not the one you expected. The creator line is in
+the review's task file, so version control shows every change to it. A run is
+found only in the record store that recorded it, so producer and review must
+use the same one.
+
+**Attaching a review's findings.** Because the review's task file names the
+producer's run, the review can record what it found against that run with
+`harness-dispatch record observe --run <run ID> --file observation.json`
+([observations](#observations)). The record store is outside the tree, so the
+run and its observations remain after Grove removes `.grove/`.
 
 To apply the rule to a catalog, routes and review kinds of your own, use the
 example's `groveReviewSelector`, as you would the review policy's

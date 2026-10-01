@@ -11,12 +11,15 @@
 // names the producer's original creator: `run <run ID>` is the harness-dispatch
 // run of the session that finished it, that session's HARNESS_DISPATCH_RUN_ID;
 // `declared <origin>` is the owner's word for a producer finished without such
-// a run. `**Reviews:**` is Grove's documented task convention (the plugin's
-// TASK-FORMAT.md). `**Creator:**` is the one Grove's
-// docs/adr/a-review-carries-its-creator-reference.md adds to it, which Grove's
-// sessions do not yet write, so the owner writes it. This module depends on
-// them and on harness-dispatch/sdk, and on nothing else, so it can move to
-// Grove's side of an extraction unchanged.
+// a run. Both lines are Grove's documented task conventions (the plugin's
+// TASK-FORMAT.md). The session that finishes a producer writes the run form on
+// that producer's reviews, from its own environment, and removes the line when
+// it has no run (the plugin's references/retire.md). The declared form is the
+// owner's alone. A run line is its writer's word: nothing here can tell which
+// run made the artifact, so a line naming some other existing run is not
+// detected. This module depends on those conventions and on
+// harness-dispatch/sdk, and on nothing else, so it can move to Grove's side of
+// an extraction unchanged.
 //
 // It is an explicit import, never part of ordinary dispatch. Use it through
 // harness-dispatch/examples/grove-review, which composes it with the review
@@ -175,9 +178,11 @@ export function groveContext(request: SelectionRequest, host: ContextHost, revie
       "creator_line_missing",
       `${file} reviews ${quote(id)} but has no ${CREATOR} line, so the origin of its creator is unknown. ` +
         "No run is looked up by its task: a run of the same task in the record store does not stand in for the line",
-      `directly under the ${REVIEWS} line, write "${CREATOR} run <run ID>" with the HARNESS_DISPATCH_RUN_ID ` +
-        `of the dispatched session that finished ${id}; if it finished without harness-dispatch, write ` +
-        `"${CREATOR} declared <origin>" there, naming the provider origin that made it as your catalog labels it`,
+      `the Grove session that finishes ${id} writes this line from its own HARNESS_DISPATCH_RUN_ID, and removes ` +
+        `it when it ran without harness-dispatch. If ${id} was finished without harness-dispatch, declare its ` +
+        `origin: directly under the ${REVIEWS} line, write "${CREATOR} declared <origin>", naming the provider ` +
+        `origin that finished it as your catalog labels it. If a dispatched session finished it, write ` +
+        `"${CREATOR} run <run ID>" there with that session's own run ID, not an earlier attempt's`,
     );
   }
   if (creatorLine === "several") {

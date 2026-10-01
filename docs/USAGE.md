@@ -474,10 +474,11 @@ grove: session ended without a completion signal — status exit status: 3, elap
 Run the `inspect:` line: it reproduces the refusal and launches nothing. Do
 what the remedy says, here adding `design` to the policy's routes, and run the
 line again until it reports a candidate. A review under the Grove review
-example refuses the same way when its task file names no creator, and the
-configuration reference gives
-[that remedy](CONFIGURATION.md#when-a-dispatched-launch-refuses). Then rerun
-`grove`, and the same leaf launches:
+example refuses the same way when its task file names no creator, which is
+what a producer finished without dispatch leaves. That remedy is your
+declaration, `**Creator:** declared <provider>`, and the configuration
+reference gives [its steps](CONFIGURATION.md#when-a-dispatched-launch-refuses).
+Then rerun `grove`, and the same leaf launches:
 
 ```console
 $ grove
@@ -1070,7 +1071,32 @@ neither writes nor reads those lines; they are a convention for you and for the
 session that picks the step up. If you route reviews through
 [harness-dispatch](CONFIGURATION.md#harness-dispatch)'s review policy, the
 adapter that policy imports reads `**Reviews:**` too, with the `**Creator:**`
-line the session that finishes the producer writes under it.
+line under it.
+
+**A review may carry one `**Creator:**` line, directly under `**Reviews:**`.**
+It names the producer's original creator to that review policy, which then
+chooses a reviewer from another provider. It has two forms, with two writers:
+
+- `**Creator:** run <run-id>` is written by the session that finished the
+  producer, by retiring its leaf or closing its node, from its own
+  `HARNESS_DISPATCH_RUN_ID`. It replaces any line already there. A session that
+  finishes a producer without a dispatch run removes the line instead, so an
+  earlier attempt's run never stands for the artifact.
+- `**Creator:** declared <provider>` is yours alone. It declares the provider
+  that finished a producer with no run: one finished before you adopted
+  dispatch, or by a harness Grove launched directly. Such a review refuses at
+  launch until you write it
+  ([the remedy](CONFIGURATION.md#when-a-dispatched-launch-refuses)).
+
+A run line is its writer's word. harness-dispatch records which provider a run
+launched, not which run made the artifact, so a line naming some other run that
+exists is not detected at launch. Nor is the run's task compared with the
+reviewed handle, since a decomposed producer is finished by a child task with
+its own handle. `harness-dispatch inspect` shows the two side by side. The same
+line lets a review attach its findings to the producer's run as an observation,
+which outlasts `.grove/`.
+[A review's creator line](CONFIGURATION.md#a-reviews-creator-line) has the
+whole account.
 
 Grove then launches the review kind's configured command. Whether that command
 differs in harness or model from the producer's is **your** configuration policy:

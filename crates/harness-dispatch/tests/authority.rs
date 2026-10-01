@@ -217,11 +217,12 @@ import { which as imports } from "by-imports";
 
 #[test]
 fn an_entrys_own_package_json_applies_its_imports_map_and_answers_its_own_name() {
-    // The nearest `package.json` at or above an importing module is that
-    // module's package. Its `imports` map resolves `#` names, and a bare
-    // import of its own name resolves through its `exports`, ahead of a
-    // `node_modules` package of that name, as Node's package resolution has
-    // it. The file sits where `node_modules` is already trusted.
+    // The nearest `package.json` at or above an importing module that reads
+    // as one is that module's package. Its `imports` map resolves `#` names,
+    // and a bare import of its own name resolves through its `exports`,
+    // ahead of a `node_modules` package of that name, as Node's package
+    // resolution has it. The file sits where `node_modules` is already
+    // trusted.
     let sandbox = Sandbox::new();
     sandbox.file(
         "policies/package.json",
@@ -254,6 +255,98 @@ import { which as named } from "owner-policies/shared";
         .report();
 
     assert_eq!(report["policy"]["version"], "imports own-name");
+}
+
+#[test]
+fn the_nearest_package_json_that_reads_as_one_is_a_modules_own_and_one_that_does_not_is_passed_over(
+) {
+    // An entry one directory below a package whose `imports` map answers
+    // `#which`. What sits beside the entry as `package.json` decides whether
+    // that outer map is reached.
+    let sandbox = Sandbox::new();
+    sandbox.file(
+        "policies/package.json",
+        r##"{ "name": "outer", "imports": { "#which": "./outer.ts" } }"##,
+    );
+    sandbox.file("policies/outer.ts", "export const which = \"outer\";\n");
+    sandbox.file(
+        "policies/nested/inner.ts",
+        "export const which = \"inner\";\n",
+    );
+    sandbox.file(
+        "policies/nested/policy.ts",
+        &versioned_by("import { which } from \"#which\";\n", "which"),
+    );
+    let nearest = sandbox.cwd.join("policies/nested/package.json");
+    let inspect = || {
+        sandbox.inspect(&[
+            "--kind",
+            "impl",
+            "--config",
+            "policies/nested/policy.ts",
+            "--json",
+        ])
+    };
+    let answers = |case: &str, which: &str| {
+        assert_eq!(inspect().report()["policy"]["version"], which, "{case}");
+    };
+    let own_map = r##"{ "imports": { "#which": "./inner.ts" } }"##;
+
+    // With no nearer file the outer package is the entry's own: the control
+    // for each case below in which a nearer one is passed over.
+    answers("no nearer package.json", "outer");
+
+    // A nearer file that reads as a package is the entry's own, with a name
+    // or without one, and reached through a link or not. This is also the
+    // control that the nearer place is the one consulted first.
+    support::write(&nearest, own_map);
+    answers("a nameless package.json with its own map", "inner");
+    fs::remove_file(&nearest).unwrap();
+    let elsewhere = sandbox.file("elsewhere.json", own_map);
+    std::os::unix::fs::symlink(&elsewhere, &nearest).unwrap();
+    answers("a link to one", "inner");
+    fs::remove_file(&nearest).unwrap();
+
+    // One that reads as a package and has no entry for the name ends the
+    // search there. The import refuses, though the outer map has the name.
+    for (case, manifest) in [
+        ("an empty object", "{}"),
+        ("a name and no imports field", r#"{ "name": "nearer" }"#),
+        (
+            "a map without the name",
+            r##"{ "imports": { "#other": "./inner.ts" } }"##,
+        ),
+    ] {
+        support::write(&nearest, manifest);
+        let refusal = inspect().refusal(3);
+        assert_eq!(
+            refusal["error"]["code"], "policy_import_failed",
+            "{case}: {refusal}"
+        );
+        assert!(
+            refusal["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("#which"),
+            "{case}: {refusal}"
+        );
+    }
+    fs::remove_file(&nearest).unwrap();
+
+    // One that does not read as a package is passed over, with no
+    // diagnostic, and the search goes on upward: the outer map answers. A
+    // broken `package.json` beside a policy therefore does not stop the next
+    // one above it from choosing the code, where Node refuses the import.
+    for (case, manifest) in [
+        ("one that does not parse", "{ broken"),
+        ("JSON that is not an object", "[]"),
+    ] {
+        support::write(&nearest, manifest);
+        answers(case, "outer");
+    }
+    fs::remove_file(&nearest).unwrap();
+    fs::create_dir(&nearest).unwrap();
+    answers("a directory of that name", "outer");
 }
 
 #[test]

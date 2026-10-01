@@ -174,12 +174,14 @@ stood at the graft — a closed record, not part of the versioned sequence above
   loaded. The nearest `package.json` at or above a policy file is that file's
   own package, as in Node: its `imports` map resolves the file's `#` names,
   and a bare import of its own `name` resolves through its `exports` ahead of
-  any `node_modules` package of that name. An `imports` alias to a
-  `harness-dispatch/…` specifier is looked up in `node_modules` and never
-  reaches the embedded module, so import those by name. A `package.json` in
-  `TMPDIR`, or in any directory between where the worker started and `/`,
-  takes no part, and one too large to read delays nothing. `/package.json`
-  can still answer a module with no file of its own, as `/node_modules` can.
+  any `node_modules` package of that name. Unlike Node, one that does not
+  parse is passed over without a message, and the next one above is the
+  file's package. An `imports` alias to a `harness-dispatch/…` specifier is
+  looked up in `node_modules` and never reaches the embedded module, so
+  import those by name. A `package.json` in `TMPDIR`, or in any directory
+  between where the worker started and `/`, takes no part and is not opened,
+  so one that never yields its content delays nothing. `/package.json` can
+  still answer a module with no file of its own, as `/node_modules` can.
   Nothing is installed automatically, whatever a `package.json` lists.
 
 ## v21.12.0

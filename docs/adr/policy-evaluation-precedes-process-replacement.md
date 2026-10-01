@@ -43,7 +43,8 @@ and then moves to `/` before it loads any policy code. The runtime reads its
 startup files from where a process starts and resolves such a module from where
 the process is, and `/` has no ancestors. With the move, a `node_modules` above
 the directory the worker started in answered nothing, and nor did a
-`package.json` there, whether it mapped an import or was too large to read.
+`package.json` there, whether it mapped an import or would stall a worker that
+opened it.
 `/` itself still
 answers, as it does for a module in a file. The move costs one control. The
 runtime loads dotenv files again for each VM it starts, from where the process
@@ -54,10 +55,11 @@ move closes was open in the shipped build to anyone who could write TMPDIR,
 and what the move leaves to one control is a file only the owner of `/` can
 write, behind a switch a command-seam test holds. Turning package.json
 autoloading on has a limit of its own. An entry's own `package.json` takes
-part as it does in Node, and an `imports` alias there that names a registered
-specifier is looked up in `node_modules`, so beside a shadow it loads the
-shadow. A registered specifier an import names still resolves to its embedded
-module. Other classes were not seen to fire at all. The
+part as it does in Node when it is well formed, and one that does not parse is
+passed over for the next one above. An `imports` alias there that names a
+registered specifier is looked up in `node_modules`, so beside a shadow it
+loads the shadow. A registered specifier an import names still resolves to its
+embedded module. Other classes were not seen to fire at all. The
 [runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md)
 records exactly which, the limits of each observation and the primary runtime
 documentation.

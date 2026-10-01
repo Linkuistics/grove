@@ -129,6 +129,14 @@ Its `imports` map resolves the file's `#` names. And a bare import of its own
 that name. A `package.json` in the directory you run from takes no part unless
 the policy file sits in or under that directory.
 
+One difference from Node matters when a `package.json` is broken. Node refuses
+an import beside one it cannot parse. The worker passes over a `package.json`
+that does not parse, or whose JSON is not an object, and says nothing. The
+next one above it is then the file's package, and its `imports` map answers,
+so a typo in the nearer file can change which code a `#` name loads. A
+well-formed nearer file is always the one used, with or without a `name`, and
+a `#` name it has no entry for refuses.
+
 Do not alias a `harness-dispatch/…` name. An `imports` entry such as `"#sdk":
 "harness-dispatch/sdk"` is looked up as a package in `node_modules`, and never
 reaches the SDK built into the worker. With no such package the import

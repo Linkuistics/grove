@@ -16,8 +16,11 @@ mod support;
 
 use std::ffi::OsString;
 use std::fs;
+use std::os::unix::fs::OpenOptionsExt as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::mpsc;
+use std::thread;
 use std::time::Duration;
 
 use serde_json::{json, Value};
@@ -1083,17 +1086,6 @@ fn a_package_above_the_workers_start_directory_stays_inert_and_fires_under_the_u
     }
 }
 
-/// One byte more than 4 GiB, rounded up to a page. Bun 1.4.2 reads a
-/// `package.json` whole when it records the directory, and one longer than a
-/// `u32` counts never comes back from that read. At exactly 4 GiB it does.
-const OVERSIZED: u64 = (1 << 32) + 4096;
-
-/// How long a worker gets to report on an entry in the oversized case, in
-/// milliseconds: the bound the front is given, and the patience each directly
-/// driven worker gets. A worker that reads nothing answers in a hundredth of
-/// it.
-const STALL_MS: u64 = 5_000;
-
 #[test]
 fn a_package_json_above_the_workers_start_directory_stays_inert_and_fires_under_the_unmoved_probe()
 {
@@ -1186,55 +1178,140 @@ fn a_package_json_above_the_workers_start_directory_stays_inert_and_fires_under_
             );
         }
     }
+}
 
-    // An oversized `package.json` in the same place, for a policy that
-    // imports nothing. The file is sparse, so it costs no disk.
-    let manifest = sandbox.tmp.join("package.json");
-    fs::File::create(&manifest)
-        .unwrap()
-        .set_len(OVERSIZED)
-        .unwrap();
+/// How long a worker gets to report on an entry beside a `package.json` that
+/// never yields, in milliseconds: the bound the front is given, and the
+/// patience each directly driven worker gets. A worker that opens nothing
+/// answers in a hundredth of it.
+const STALL_MS: u64 = 5_000;
+
+/// Run `drive`, and say whether any process opened `fifo` for reading
+/// meanwhile.
+///
+/// A reader of a FIFO waits in its open until a writer opens it too, and an
+/// open for writing that does not block fails with ENXIO until a reader is
+/// there. So that open succeeding is the read, seen, and nothing else in a
+/// sandbox opens the file. The write end is then held, with nothing written,
+/// until `drive` returns: the reader gets no content and no end of file, so
+/// it goes on waiting. Closing the end at once instead would let a reader
+/// through on Linux and leave one waiting on macOS, as each was seen to.
+fn watching_for_a_reader<T>(fifo: &Path, drive: impl FnOnce() -> T) -> (T, bool) {
+    // Dropped when `drive` returns or panics, which is what stops the watch.
+    let (running, stopped) = mpsc::channel::<()>();
+    thread::scope(|scope| {
+        let watch = scope.spawn(move || {
+            let mut write_end = None;
+            while stopped.recv_timeout(Duration::from_millis(2))
+                == Err(mpsc::RecvTimeoutError::Timeout)
+            {
+                if write_end.is_some() {
+                    continue;
+                }
+                match fs::OpenOptions::new()
+                    .write(true)
+                    .custom_flags(libc::O_NONBLOCK)
+                    .open(fifo)
+                {
+                    Ok(end) => write_end = Some(end),
+                    Err(error) if error.raw_os_error() == Some(libc::ENXIO) => {}
+                    Err(error) => panic!("cannot watch {}: {error}", fifo.display()),
+                }
+            }
+            write_end.is_some()
+        });
+        let result = drive();
+        drop(running);
+        (result, watch.join().expect("the watch ends"))
+    })
+}
+
+#[test]
+fn a_package_json_that_never_yields_above_the_workers_start_directory_stays_unopened_and_stalls_the_unmoved_probe(
+) {
+    let sandbox = Sandbox::new();
+    let shipped = shipped_build();
+    // A policy that imports nothing: whatever a worker does with this
+    // `package.json`, no import asked it to.
     let entry = sandbox.personal_policy(ROUTED);
+    // The front creates the worker's directory in the caller's TMPDIR, so
+    // this `package.json` sits one level above where the worker starts. Each
+    // directly driven worker starts beside where the front would start it:
+    // in a directory of its own under the same TMPDIR.
+    let manifest = sandbox.tmp.join("package.json");
+    let started = sandbox.tmp.join("started-here");
+    fs::create_dir(&started).unwrap();
     let bound = STALL_MS.to_string();
     let patience = Duration::from_millis(STALL_MS);
+    let directly = |worker: &Path| {
+        direct::drive_within(worker, &started, &base_env(&sandbox), &entry, patience)
+    };
+    let unmoved = || {
+        let driven = directly(&probe_build(Probe::Unmoved));
+        assert_probe_identity(&driven, Probe::Unmoved, &shipped);
+        driven
+    };
 
-    // Through the public launcher the selection is made, well inside a
-    // bound the firing configuration below outlasts.
-    let report = sandbox
-        .inspect(&["--kind", "impl", "--timeout-ms", &bound, "--json"])
-        .report();
+    // The baseline: beside a `package.json` it can read, the unmoved probe
+    // loads this entry from this directory. So what it does below, it does
+    // on account of the file.
+    support::write(&manifest, r#"{ "name": "readable" }"#);
+    let driven = unmoved();
+    assert!(!driven.stalled, "the unmoved probe stalled at its baseline");
+    driven.loaded();
+    fs::remove_file(&manifest).unwrap();
+
+    // The fixture: a `package.json` that is a link to a FIFO. Whoever opens
+    // it waits, and is seen. It must be a link: the runtime passes over a
+    // FIFO of that name unopened, and opens a link to find what it is.
+    let fifo = sandbox.root.join("never-yields");
+    support::mkfifo(&fifo);
+    std::os::unix::fs::symlink(&fifo, &manifest).unwrap();
+
+    // Through the public launcher the selection is made under both commands,
+    // well inside a bound the firing configuration below outlasts, and
+    // nothing opens the file: importing an entry reads no `package.json`
+    // between where the worker started and `/`.
+    let ((report, ran), opened) = watching_for_a_reader(&fifo, || {
+        (
+            sandbox
+                .inspect(&["--kind", "impl", "--timeout-ms", &bound, "--json"])
+                .report(),
+            sandbox.run(&["--kind", "impl", "--prompt", "p", "--timeout-ms", &bound]),
+        )
+    });
     assert_eq!(report["selection"]["candidateId"], "deep");
-    let ran = sandbox.run(&["--kind", "impl", "--prompt", "p", "--timeout-ms", &bound]);
     assert_eq!(ran.code, Some(0), "{}", ran.stderr);
+    assert!(
+        !opened,
+        "the package.json above the worker's directory was opened through the front"
+    );
 
     // The firing configuration: the unmoved probe, started under the same
-    // TMPDIR, announces itself and then never reports on the entry, because
-    // importing it records every directory from the worker's to the root. It
-    // is killed once its time is up. A probe the host stopped for the memory
-    // that read takes fired just the same.
-    let driven = direct::drive_within(
-        &probe_build(Probe::Unmoved),
-        &started,
-        &base_env(&sandbox),
-        &entry,
-        patience,
-    );
-    assert_probe_identity(&driven, Probe::Unmoved, &shipped);
+    // TMPDIR, opens the file, because importing the entry records every
+    // directory from the worker's to the root. Then it never reports, and is
+    // killed once its time is up. Both are asserted, since a probe that died
+    // for some other reason would be silent too: it would have opened
+    // nothing, and would not be running when the time ran out.
+    let (driven, opened) = watching_for_a_reader(&fifo, unmoved);
     assert!(
-        driven.report.is_none(),
-        "the unmoved probe reported on the entry beside an oversized package.json: {:?}",
-        driven.report
+        opened,
+        "the unmoved probe never opened the package.json above its directory: {:?}\nstderr: {}",
+        driven.report, driven.stderr
+    );
+    assert!(
+        driven.stalled,
+        "the unmoved probe was not waiting on the package.json it opened: {:?}\nstderr: {}",
+        driven.report, driven.stderr
     );
 
     // The move alone is the difference, and the bound is not what stopped
-    // the probe: the shipped worker, started in that same directory with
-    // the same patience, loads the policy.
-    let driven = direct::drive_within(
-        &shipped_worker(),
-        &started,
-        &base_env(&sandbox),
-        &entry,
-        patience,
+    // the probe: the shipped worker, started in that same directory with the
+    // same patience, opens nothing and loads the policy.
+    let (driven, opened) = watching_for_a_reader(&fifo, || directly(&shipped_worker()));
+    assert!(
+        !opened,
+        "the shipped worker opened the package.json above its directory"
     );
     assert!(!driven.stalled, "the shipped worker stalled as well");
     driven.loaded();

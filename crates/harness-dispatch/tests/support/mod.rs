@@ -16,7 +16,9 @@ pub mod hold;
 pub mod probe;
 pub mod stall;
 
+use std::ffi::CString;
 use std::fs;
+use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::fs::PermissionsExt as _;
 use std::os::unix::process::ExitStatusExt as _;
 use std::path::{Path, PathBuf};
@@ -223,6 +225,12 @@ pub fn write(path: &Path, contents: &str) {
 pub fn executable(path: &Path, script: &str) {
     write(path, script);
     fs::set_permissions(path, fs::Permissions::from_mode(0o755)).expect("chmod");
+}
+
+pub fn mkfifo(path: &Path) {
+    let name = CString::new(path.as_os_str().as_bytes()).unwrap();
+    // SAFETY: mkfifo reads the NUL-terminated path and creates a FIFO.
+    assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0, "mkfifo");
 }
 
 pub struct Run {

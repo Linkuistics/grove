@@ -382,10 +382,19 @@ imports fail.
 
 The worker reads `package.json` at run time, so an importing module's own
 package takes part in its imports. That package is the nearest `package.json`
-at or above the module. Its `imports` map resolves the module's `#` names. A
-bare import of its own `name` resolves through its `exports`, ahead of any
-`node_modules` package of that name, a nearer one included. This is Node's
-package resolution, so a policy directory that is a package behaves as one.
+at or above the module that the runtime reads as one: a file, or a link to
+one, holding a JSON object. It needs no `name`. Its `imports` map resolves the
+module's `#` names, and a `#` name it has no entry for refuses, whatever a
+`package.json` further up maps. A bare import of its own `name` resolves
+through its `exports`, ahead of any `node_modules` package of that name, a
+nearer one included. For a well-formed `package.json` this is Node's package
+resolution, so a policy directory that is a package behaves as one. A
+`package.json` the runtime does not read as one is passed over with no
+diagnostic, and the search goes on upward: one that does not parse, one whose
+JSON is not an object, or a directory of that name. So a broken `package.json`
+beside a policy leaves the next one above it choosing the code, where Node
+refuses the import
+([runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md#nearest-package-json)).
 These files sit at or above the importing module, where `node_modules` is
 already trusted, and an entry admitted with `--config` admits them with it. A
 `package.json` in the caller's cwd takes no part unless an importing module
@@ -409,10 +418,11 @@ one above it. Importing the policy entry is such a resolution, so it happens
 on every evaluation. The worker is in `/` by then, so that is `/package.json`
 alone. No directory between where the worker started and `/` has its
 `package.json` read on that account, the caller's TMPDIR included. One there
-answers nothing, and one too large to read delays no selection. A worker that
-stayed where it started read each of them whole, on every evaluation: one past
-4 GiB stalled a plain policy to its deadline, and one with an `imports` map
-answered a `#` import from a `data:` module
+answers nothing. Nor is it opened, so one that never yields its content, a
+link to a FIFO, delays no selection. A worker that stayed where it started
+opened each of them on every evaluation, and read a regular file whole: a link
+to a FIFO stalled a plain policy to its deadline, as a file past 4 GiB had,
+and one with an `imports` map answered a `#` import from a `data:` module
 ([runtime evidence](../design/harness-selection-and-execution/runtime-evidence.md#package-json-autoloading)).
 Those files belong to whoever can write there and not to the owner's policy,
 which is why package.json autoloading stayed off until the worker moved.
@@ -1091,7 +1101,7 @@ acceptance instruments; internal tests may support them without replacing them.
 |---|---|
 | New command, temporary policies and fake harnesses | Independent kind/context use with no Grove files or binary; optional task; static and computed selection; complete inspection including measured sources and authority; literal punctuation/newlines; a caller-ignored HUP or SIGPIPE and the entry signal mask reach the fake harness unchanged; policy errors, bad imports, missing context, limits, unavailable program and explicit-choice mismatch launch nothing |
 | Same command, actual shipped examples | Different-origin reviewer on every invocation, retry and explicit choice; same-origin/gateway disguise refuses; a fake producer launched through dispatch writes its `Creator` line from `HARNESS_DISPATCH_RUN_ID`, and the dispatched review of that task file uses the named run's recorded provider, which a changed current mapping cannot rewrite; a store holding an earlier run of the same task identity does not satisfy a review task with no `Creator` line; an unknown run and a run marked not executed refuse; declaration adoption; missing, duplicate or malformed `Reviews`/`Creator` lines refuse; `Reviews` under a kind that is not a configured review entry refuses; a relabelled origin and a misspelt declaration refuse as non-members; the generic reviewed-artifact form selects without a task file |
-| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, a dotenv file where a policy starts a `Worker`, tsconfig, a cwd `package.json`, package shadow, a package and a `package.json` between the worker's start directory and `/`, an oversized one included, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; the front starts its worker in an owner-only empty directory and removes it, and policy code runs in `/`; explicit relative config and personal import are admitted; a package beside an entry loads by the entry point its `package.json` declares, with `main`, `exports`, a subpath, a condition or its own `imports` map, and a granted `NODE_ENV` chooses no condition; an entry's own `package.json` supplies its `imports` map and answers its own name ahead of a nearer `node_modules`; a missing package is not installed beside a `package.json` that lists it; a documented package specifier resolves to the embedded module, and an `imports` alias to one is a missing package or the package beside it; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
+| Same command, authority and lifecycle fixtures | Hostile cwd policy, dotenv, bunfig/preload, a dotenv file where a policy starts a `Worker`, tsconfig, a cwd `package.json`, package shadow, a package and a `package.json` between the worker's start directory and `/`, one that never yields its content included, BUN_OPTIONS, an altered runtime transpiler cache and the caller's resolver and IPC channel variables stay inert through the public launcher, each beside its firing configuration below; the front starts its worker in an owner-only empty directory and removes it, and policy code runs in `/`; explicit relative config and personal import are admitted; a package beside an entry loads by the entry point its `package.json` declares, with `main`, `exports`, a subpath, a condition or its own `imports` map, and a granted `NODE_ENV` chooses no condition; an entry's own `package.json` supplies its `imports` map and answers its own name ahead of a nearer `node_modules`; the nearest `package.json` that reads as one is a module's own, named or not, and one that does not is passed over for the next above; a missing package is not installed beside a `package.json` that lists it; a documented package specifier resolves to the embedded module, and an `imports` alias to one is a missing package or the package beside it; worker and nested normal child environments lack caller completion values; structured diagnostics stay clean; import/loader/callback interruption and timeout launch nothing |
 | Same command, records and observations | Required commit failure prevents exec; attempted handoff and exec failure stay distinct; cancellation after the commit launches nothing and marks the attempt not executed; pre-commit refusals create no run; unknown outcomes; round-trip run lookup and observation import, idempotency/conflicts/correction; policy run lookup returns immutable launch fields, reads no observation history, and an unreadable store refuses; a stored launch record or observation this release cannot read refuses every read of it; the review's run records the creator provenance used; later observations after tree teardown |
 | Existing Grove launch boundary | Original prompt and authoritative `kind`, `task_file` and `task_id` slots preserved as native data; the final harness receives `HARNESS_DISPATCH_RUN_ID`; retiring and reordering the producer between its launch and its review's leaves the review's creator unchanged; a pre-cut review of a decomposed producer carries the run whose retirement closed it through a multi-level close, and selects although that run's task identity is the child's; a close cascade names its run on every live review of each node it closes, one nested in another node and one the closing session cut included, and on no terminal review and no review of another producer; a direct-harness finish removes a stale `Creator` line from the pre-existing review, planted by a dispatched attempt that named its run without finishing, and that review refuses with the declaration remedy, which then admits a different-origin reviewer; a review attaches an observation to the run its line names after `.grove/` is removed; direct-harness compatibility; task authoring succeeds with a valid wrapper but bad delegated policy refuses at launch |
 | Existing Grove launch boundary, controlling PTY | Final harness retains PID/group, cwd, terminal and native exits; the entry signal mask and dispositions, including SIGPIPE, reach it unchanged; helper receives null stdin and scrubbed control environment; final harness receives fresh channel; signal cancellation during selection and execution, plus descendant escalation |
@@ -1118,7 +1128,7 @@ must be seen to fire, so a test cannot pass merely because its fixture never ran
 | tsconfig `paths` | The fixture beside an admitted entry, under a probe build with tsconfig autoloading enabled |
 | `.env` in the directory the process is in when a policy starts a native `Worker` | A default-autoload probe build of the same worker, started in an empty directory, whose policy moves into the hostile directory before it starts the `Worker` |
 | `node_modules` package between the worker's start directory and `/`, for a module with no file location | The fixture in the caller's TMPDIR, under a probe build that does not move to `/`, started in a directory under that TMPDIR |
-| `package.json` between the worker's start directory and `/`: its `imports` map, its own name and a package its `main` declares, for a module with no file location; and one past 4 GiB, for any policy | The fixture in the caller's TMPDIR, under the same probe build started in a directory under that TMPDIR: it answers such a module, and beside the oversized file it never reports on the entry |
+| `package.json` between the worker's start directory and `/`: its `imports` map, its own name and a package its `main` declares, for a module with no file location; and one that never yields its content, a link to a FIFO, for any policy | The fixture in the caller's TMPDIR, under the same probe build started in a directory under that TMPDIR. It answers such a module. It opens the link, which the test sees as a reader on the FIFO, and it is still running and has reported nothing when its time is up. Beside a `package.json` it can read, it loads the same entry |
 | Runtime transpiler cache under HOME or `XDG_CACHE_HOME` | The shipped worker launched directly without the front's cache setting, after its own cache entry for the policy has had its output altered |
 | `NODE_PRESERVE_SYMLINKS`, and `NODE_CHANNEL_FD` | The shipped worker launched directly with the variable set: a helper reached through a directory symlink resolves its bare import beside the link, and a module's `process.send` writes Bun's IPC message where the policy frame belongs |
 

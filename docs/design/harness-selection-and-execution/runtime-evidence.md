@@ -612,11 +612,13 @@ or [`package_json.rs`](https://github.com/oven-sh/bun/blob/bun-v1.4.2/src/resolv
   bare name equal to that file's `name` resolves through its `exports` if it
   has them. A nameless file still counts: the `enclosing_package_json` field,
   which skips one, is not what these two use. `dir_info_uncached` records a
-  `package.json` only where the directory entry is a regular file and the file
+  `package.json` only where the directory entry's kind is a file and the file
   parsed. Seen through the front, for an entry one directory below a named
   `package.json` whose map answers `#x`: a nameless file beside the entry with
   its own map answered instead, a nameless one with no `imports` field refused
   the import, and one that did not parse left the outer map answering.
+  [Which file is the nearest](#nearest-package-json) below has the fuller
+  reading.
 - Where an `imports` target that names a package goes. `load_package_imports`
   tries the target as a built-in alias and then calls `load_node_modules`
   with it. Nothing returns to the module loader, where the worker's
@@ -635,7 +637,8 @@ test, and its firing configuration is in the same test.
 | A `package.json` in the caller's cwd with an `imports` map, a name its `exports` answer and a `node_modules` package its `main` declares, for a personal policy elsewhere | `policy_import_failed` for each of the three names | The same import from an entry in that directory, named with `--config`, ran the planted module. The shipped worker and the `unmoved` probe, each started in that directory, refused the personal policy's import | `hostile::a_cwd_package_json_stays_inert_and_fires_for_an_entry_admitted_there` |
 | The same package in the caller's TMPDIR, one level above the worker's start directory, for each of the three names imported from a `data:` module, a `blob:` module and a virtual module the policy registers | `policy_import_failed` under `inspect`, exit 3 under `run`, and the planted module never ran | The `unmoved` probe, started in a directory under the same TMPDIR, ran it for all nine. The shipped worker started there did not | `hostile::a_package_json_above_the_workers_start_directory_stays_inert_and_fires_under_the_unmoved_probe` |
 | The same, for each name imported from the policy's own file | The same refusals | None in any build: the `unmoved` probe refused each too | The same test |
-| A sparse `package.json` of 4,294,971,392 bytes in the caller's TMPDIR, for a plain routed policy | Selected under `inspect` and `run`, at a five-second bound | The `unmoved` probe, started under that TMPDIR, said hello and never reported on the entry in five seconds. The shipped worker started there loaded the policy | The same test |
+| A `package.json` in the caller's TMPDIR that is a link to a FIFO, for a plain routed policy | Selected under `inspect` and `run`, at a five-second bound, and no reader came to the FIFO | The `unmoved` probe, started under that TMPDIR, opened the link, seen as a reader on the FIFO, and was running and silent when its five seconds were up. Beside a `package.json` it could read, it loaded the entry. The shipped worker started there opened nothing and loaded the policy | `hostile::a_package_json_that_never_yields_above_the_workers_start_directory_stays_unopened_and_stalls_the_unmoved_probe` |
+| An entry one directory below a named `package.json` whose map answers a `#` name, and beside the entry: no `package.json`, a nameless map, a link to one, `{}`, a name with no `imports`, a map without the name, a file that does not parse, `[]`, and a directory of that name | The outer map, the nearer map twice, `policy_import_failed` three times, and the outer map three times | | `authority::the_nearest_package_json_that_reads_as_one_is_a_modules_own_and_one_that_does_not_is_passed_over` |
 | A `package.json` beside the entry naming `is-odd` as a dependency, and no `node_modules` | `policy_import_failed`, and no cache written under HOME | | `inspect::a_missing_package_is_never_installed_automatically` |
 | The entry's own `package.json` aliasing `#sdk` to `harness-dispatch/sdk` | With no package of the name, `policy_import_failed`, "Cannot find package '#sdk'". Beside `node_modules/harness-dispatch/sdk.js`, the alias loaded that file, and `harness-dispatch/sdk` in the same entry was the embedded module | | `hostile::an_imports_alias_to_a_registered_specifier_is_a_package_lookup_and_never_the_embedded_module` |
 
@@ -667,10 +670,12 @@ loaded the policy in 0.01 s at 17 MiB resident in every row.
 | A FIFO of that name | Loaded at once | 17 MiB |
 
 So the file is read whole on each evaluation at any size, and one longer than
-4 GiB never comes back. A file that is not a regular file is not opened. The
-suite's firing configuration therefore holds about 4 GiB resident for its five
-seconds. Through the shipped front the 1 GiB and the oversized file each
-selected at once.
+4 GiB never comes back. A FIFO of that name is not opened. Through the shipped
+front the 1 GiB and the oversized file each selected at once. These rows are
+k62's readings, taken by hand. The suite held the last one as its firing
+configuration, at about 4 GiB resident for five seconds on every run, until
+`package-json-autoloading-k66` replaced it with
+[a `package.json` that never yields](#package-json-that-never-yields).
 
 **Each control was seen to fail.** With the switch put back to off in
 `scripts/dispatch.sh`, and the worker and probes rebuilt, six cases failed:
@@ -678,11 +683,11 @@ the two `authority` cases above, and the shadow, cwd, TMPDIR and alias cases
 in `hostile`. The auto-install case passed, as it must either way. With the
 move to `/` removed from the shipped source instead, the TMPDIR case and
 `hostile::a_package_above_the_workers_start_directory_stays_inert_and_fires_under_the_unmoved_probe`
-failed at their front arms, where `inspect` exited 0. That stops the TMPDIR
-case before its oversized arm, so that arm was run by hand through the same
-mutant's front: `selection_timeout`, exit 124, at the five-second bound. Both
-files were then restored to their digests and the worker rebuilt as the build
-above.
+failed at their front arms, where `inspect` exited 0. That stopped the TMPDIR
+case before the oversized arm it then had, so that arm was run by hand through
+the same mutant's front: `selection_timeout`, exit 124, at the five-second
+bound. Both files were then restored to their digests and the worker rebuilt
+as the build above.
 
 **The installed smoke test.** `task release:smoke` passed on all three targets
 at that worker build: four cases through both fronts on macOS arm64, on Linux
@@ -693,11 +698,80 @@ worker built with the switch off, with `policy_import_failed`. `task check`
 passed all twelve checks before it, and the working copy had one snapshot
 before the check, after it and after the smoke test.
 
+<a id="nearest-package-json"></a>
+**Which file is the nearest.** `package-json-autoloading-k65` found the
+public rule stated without its exception: a nearest `package.json` that does
+not parse is passed over. `package-json-autoloading-k66` measured the boundary
+the same day, through the checkout's front at the build above. The entry sat
+one directory below a named `package.json` whose `imports` map answers `#x`,
+and imported `#x`.
+
+| The `package.json` beside the entry | Through the shipped front |
+|---|---|
+| None | The outer map answered |
+| A map of its own, nameless or named, or a link to a file holding one | Its own map answered |
+| `{}`, a name with no `imports`, an `imports` that is not a map, a map without the name, or an empty file | `policy_import_failed`, "Cannot find package '#x'" |
+| One that does not parse; JSON that is an array, `null` or a string; a file with no read permission; a directory, a FIFO or a dangling link of that name | The outer map answered, with no diagnostic |
+| A link to a FIFO | `selection_timeout`, exit 124, at a three-second bound |
+
+So a file that reads as a package is the module's own, and ends the search
+whether or not it has the name. One that does not is passed over. Node 26.10.0
+on the same layouts refused the unparsable file and the array with
+`ERR_INVALID_PACKAGE_CONFIG`, and agreed on the other rows it was given: none,
+a nameless map and `{}`. So "as in Node" holds for a well-formed file. The
+command-seam test in the table above holds nine of these rows. The rest were
+seen once, by hand. Every file here is at or above an admitted entry, so none
+gives a new party a say, the stalling link included.
+
+<a id="package-json-that-never-yields"></a>
+**A `package.json` that never yields.** k65 also found that the oversized
+arm's firing configuration asserted only that the probe reported nothing,
+which a probe that died for any reason satisfies. k66 replaced the fixture. A
+`package.json` that is a link to a FIFO is opened by a worker that records its
+directory, though a FIFO of that name is not, and the open can be seen from
+outside: an open of the FIFO for writing that does not block fails with
+`ENXIO` until some process has it open for reading. Each worker was driven
+directly, started in a directory under a TMPDIR holding the link, with a plain
+routed policy. On Linux the two builds were cross-compiled by hand from this
+source, with the shipped switches, at the pinned `bun-linux-aarch64` runtime
+(`9ab3970a1966…`), and driven as root in a `python:3-slim` container on kernel
+7.0.14.
+
+| Worker | No writer | A writer that opens once a reader is there, and writes nothing | A writer that opens and closes at once |
+|---|---|---|---|
+| `unmoved` probe, macOS arm64 | No report in 3 s, then killed. 18 MiB resident while it waited | A reader, no report, then killed, in 20 runs of 20 | A reader, no report, then killed |
+| `unmoved` probe, Linux arm64 | No report in 3 s, then killed | A reader, no report, then killed, in 20 runs of 20 | A reader, and the policy loaded |
+| Shipped worker, either host | Loaded in about 0.01 s | Loaded, and no reader came, in 20 runs of 20 | Loaded, and no reader came |
+
+Where it was timed, the reader came within 13 ms of the worker starting. The
+last column is why the test holds its write end and never releases the reader:
+a writer that leaves at once lets the probe through on one host and not the
+other. The case takes five seconds and no memory to speak of.
+
+**The old control passed a dead probe, and the new one fails.** Each run
+below was of the suite's own cases, with one thing changed.
+
+| What was changed | k62's oversized arm | k66's case |
+|---|---|---|
+| The `unmoved` probe replaced by a stand-in: the real probe beside an ordinary `package.json`, and beside the hostile one a program that says the probe's hello, reads the request and exits 1, never touching the file | Passed | Failed: "the unmoved probe never opened the package.json above its directory" |
+| The same stand-in, opening the file without blocking before it exits | | Failed: "the unmoved probe was not waiting on the package.json it opened" |
+| The move to `/` removed from the shipped source, and the worker and probes rebuilt | | Failed at its front arm: `selection_timeout`, exit 124, at the five-second bound. The other TMPDIR case failed at its front arm too |
+| The switch put back to off, and the worker and probes rebuilt | | Failed at its firing arm: the probe opened nothing and loaded the policy. The three `authority` package cases failed, the nearest-file one at its first control |
+
+Afterwards `worker/src/main.ts` and `scripts/dispatch.sh` were back at
+`030406f5f9ac…` and `323c445ac685…`, and the worker rebuilt byte for byte as
+`c840885f5a45…`, build `721aab0848f6…`.
+
 Limits of these observations:
 
 - One host and one Bun version. A Bun upgrade rereads `load_node_modules`,
   `load_package_imports` and `dir_info_uncached`, and reruns the cases. The
-  4 GiB threshold is this version's.
+  4 GiB threshold is this version's, and so is each row of the nearest-file
+  table.
+- The never-yielding case rests on the resolver opening a link to learn what
+  it is. That was seen on both hosts and not read in the source, so no line is
+  cited for it. If an upgrade changes it, the case fails at its firing arm and
+  says so. The Linux readings are one run by hand, and nothing reruns them.
 - `/package.json` was not planted here. From the source it is read whole on
   every evaluation and answers a module with no file location. The container
   cases under [the worker's directory](#worker-directory) saw it answer one in

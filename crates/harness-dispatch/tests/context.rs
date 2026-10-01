@@ -9,14 +9,12 @@
 
 mod support;
 
-use std::ffi::CString;
 use std::fs;
-use std::os::unix::ffi::OsStrExt as _;
 use std::path::Path;
 
 use serde_json::{json, Value};
 use sha2::{Digest as _, Sha256};
-use support::{text, Sandbox};
+use support::{mkfifo, text, Sandbox};
 
 const CATALOG: &str = r#"[
     { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
@@ -76,12 +74,6 @@ fn encoding(value: &Value) -> Vec<u8> {
 fn read_json(path: &Path) -> Value {
     serde_json::from_str(&fs::read_to_string(path).expect("the policy recorded"))
         .expect("the policy recorded JSON")
-}
-
-fn mkfifo(path: &Path) {
-    let name = CString::new(path.as_os_str().as_bytes()).unwrap();
-    // SAFETY: mkfifo reads the NUL-terminated path and creates a FIFO.
-    assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0, "mkfifo");
 }
 
 #[test]

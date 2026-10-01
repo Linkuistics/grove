@@ -490,6 +490,30 @@ installed smoke test has a fourth case, `declared_package`, and
 `dispatch-documentation-k41` runs. A review with actionable findings inserts
 its integration ahead of k41.
 
+`package-json-autoloading-k66` integrated that review, and its running log
+holds both findings' dispositions. Later leaves build on four facts. First,
+the fifth fact above no longer holds. The oversized file is out of the suite.
+`hostile::a_package_json_that_never_yields_above_the_workers_start_directory_stays_unopened_and_stalls_the_unmoved_probe`
+holds the claim instead, with a `package.json` that is a link to a FIFO, in
+five seconds and no memory to speak of. Its firing arm asserts that the probe
+opened the file and was still running and silent at its bound, so a probe
+that dies passes neither. `watching_for_a_reader` in `tests/hostile.rs` says
+whether any process opened a FIFO while a closure ran, and serves any later
+case that must see a file opened or left alone. `support::mkfifo` makes the
+FIFO. Second, the nearest-`package.json` rule is qualified wherever it is
+stated. The nearest one that reads as a package is a module's own, named or
+not. One that does not parse is passed over for the next above, where Node
+refuses. The spec has it in the `#policy-authority` paragraph beginning "The
+worker reads `package.json` at run time", and the README in the paragraph of
+*Which policy runs* beginning "One difference from Node".
+`authority::the_nearest_package_json_that_reads_as_one_is_a_modules_own_and_one_that_does_not_is_passed_over`
+holds it, and `dispatch-documentation-k41` consolidates around those
+paragraphs too. Third, the runtime evidence has both readings under *Which
+file is the nearest* and *A `package.json` that never yields*, and keeps the
+4 GiB table as k62's measurement. Fourth, no shipped source changed. The
+worker is still build `721aab0848f6…`, so the installed smoke test was not
+rerun, and k62's run of it stands for this worker.
+
 Grove dispatch closed with `grove-dispatch-guidance-k34`. Later leaves build on
 three facts. First, the Grove-side guidance lives in four places, and later
 guidance joins them rather than starting a fifth.

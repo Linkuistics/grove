@@ -52,6 +52,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v21.13.0
+
 - `harness-dispatch`: a new command, installed with Grove and usable without
   it. It evaluates an owner's TypeScript selection policy, chooses one
   configured harness, model and reasoning effort together for a session kind,

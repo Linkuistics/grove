@@ -1516,7 +1516,7 @@ fn probe(directory: &Path, mode: i32) -> bool {
 // and `u64` on Linux, `ino_t` is `u64` on both. Writing them out keeps one
 // spelling that compiles either way.
 #[allow(clippy::unnecessary_cast)]
-fn descriptors_held_on(directory: &Path) -> usize {
+pub(crate) fn descriptors_held_on(directory: &Path) -> usize {
     use std::os::unix::fs::MetadataExt;
 
     let Ok(target) = std::fs::metadata(directory) else {

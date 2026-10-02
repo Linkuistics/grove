@@ -515,4 +515,4 @@ fn stem(name: &str) -> &str {
 }
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

@@ -32,3 +32,24 @@ forks at the wrong moment.
   it surfaced there.
 - Confirm the mechanism before fixing it. The evidence is one failure and a
   matching comment, not a reproduction.
+
+## Decisions (running log)
+
+**The mechanism is confirmed by reproduction.** A scratch test ran this test's
+own selection and lock probe 3,000 times per setting, alone in the binary: the
+probe was refused 0 times with nothing spawning, 157 with four threads spawning
+`/usr/bin/true` and 589 with eight. The descriptor count read zero in every
+iteration of the same run. The scratch test is not committed.
+
+**The fix asks the descriptor count, not the isolated child.** The crate has
+two answers to this window. `driver_lease.rs` re-runs a test in a child process,
+and `task_grow/tests.rs` counts this process's descriptors on the directory with
+`descriptors_held_on`. The book's chapter 17 already names the second as what an
+assertion of this shape asks, it needs no subprocess, and a lock needs a
+descriptor to live on. `TreeLifetime` pins `.grove`, not the containing
+directory, so a retained pin does not disturb the count. Cost: `task_grow`'s
+test module and that one function became visible to the crate.
+
+**The control sits before selection.** With the sentinel after `picked`, a
+mutant that leaked the guard failed at the unlabelled control (2, not 1). Moved
+ahead, the same mutant fails at the assertion that names the fault.

@@ -597,6 +597,7 @@ mod support;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::task_grow::tests::descriptors_held_on;
 
     fn selected_root_fixture() -> tempfile::TempDir {
         let temp = tempfile::tempdir().unwrap();
@@ -679,15 +680,21 @@ mod tests {
 
     #[test]
     fn selected_root_pin_releases_tree_guard_and_survives_path_replacement() {
-        use std::os::fd::AsRawFd;
         let temp = selected_root_fixture();
         let work = temp.path();
+        // The control for the scan below: it must count a descriptor this test
+        // is holding open, or a zero after selection says nothing.
+        let sentinel = std::fs::File::open(work).unwrap();
+        assert_eq!(descriptors_held_on(work), 1);
+        drop(sentinel);
         let Sought::Match(selected) = picked(work).unwrap() else {
             panic!("fixture must select work-k1");
         };
-        let writer = std::fs::File::open(work).unwrap();
+        // Asked of this process's descriptors and not of the lock: a sibling
+        // test's forked child keeps a released guard alive until it execs.
+        // `descriptors_held_on` carries the measurement.
         assert_eq!(
-            unsafe { libc::flock(writer.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+            descriptors_held_on(work),
             0,
             "selection retained the containing-directory tree guard"
         );

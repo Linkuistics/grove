@@ -187,7 +187,7 @@ loop, then the four chosen values are declared **before** anything uses them,
 then the outcome type, then the loop itself, then the five helpers it calls, and
 last the two tests that hold the one ordering the loop cannot get wrong.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-787" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-794" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-worktree-name» -->
@@ -1653,10 +1653,20 @@ activate the epoch.
 Removing the launch identity check makes this control fail; refusing every
 launch also fails its positive case.
 
-The pin control obtains an independent exclusive lock on the containing
-directory while the selection is retained, then replaces the task root. It
-checks both the pin's current-path relation and its distinction from the new
-root. Retaining the tree guard would fail the nonblocking lock attempt.
+The pin control counts this process's descriptors on the containing directory
+while the selection is retained, then replaces the task root. It checks both the
+pin's current-path relation and its distinction from the new root. A retained
+tree guard is a descriptor on that directory, so it would make the count one
+where the control requires none. A sentinel opened and counted before selection
+is what shows the scan sees that directory at all.
+
+**The count replaces a nonblocking exclusive lock attempt, which a sibling test
+could refuse.** A forked child keeps a released guard alive until it execs,
+which is the mechanism chapter 17 settles. Measured on this control's own
+selection: the lock attempt was refused 0 times in 3,000 with
+nothing else spawning, 157 with four spawning threads and 589 with eight, and
+the descriptor count read zero in every one of those iterations. The scan is
+`task_grow`'s test module's, which is why that module is visible to the crate.
 
 The finish control retires the only ordinary task, materializes finish, then
 adds ordinary work and selects through that path again. It catches loss of
@@ -1668,7 +1678,7 @@ The remaining tests hold the separate handoff invariant: completion
 interpretation stays behind successful epoch invalidation, and a failed handoff
 preserves the preceding launch failure.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="590-728" parent="loop-driver" -->
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="590-735" parent="loop-driver" -->
 ````rust
 // The repository's shared test helpers. Declared out here because a `#[path]`
 // inside the inline module below would resolve against a directory that does
@@ -1680,6 +1690,7 @@ mod support;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::task_grow::tests::descriptors_held_on;
 
     fn selected_root_fixture() -> tempfile::TempDir {
         let temp = tempfile::tempdir().unwrap();
@@ -1762,15 +1773,21 @@ mod tests {
 
     #[test]
     fn selected_root_pin_releases_tree_guard_and_survives_path_replacement() {
-        use std::os::fd::AsRawFd;
         let temp = selected_root_fixture();
         let work = temp.path();
+        // The control for the scan below: it must count a descriptor this test
+        // is holding open, or a zero after selection says nothing.
+        let sentinel = std::fs::File::open(work).unwrap();
+        assert_eq!(descriptors_held_on(work), 1);
+        drop(sentinel);
         let Sought::Match(selected) = picked(work).unwrap() else {
             panic!("fixture must select work-k1");
         };
-        let writer = std::fs::File::open(work).unwrap();
+        // Asked of this process's descriptors and not of the lock: a sibling
+        // test's forked child keeps a released guard alive until it execs.
+        // `descriptors_held_on` carries the measurement.
         assert_eq!(
-            unsafe { libc::flock(writer.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+            descriptors_held_on(work),
             0,
             "selection retained the containing-directory tree guard"
         );
@@ -1822,7 +1839,7 @@ end-to-end behaviour is `crates/keyed-launch/tests/launch.rs`'s, against a fake
 child, and the comment says so rather than leaving the gap to be read as an
 omission.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="729-764" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="736-771" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1892,7 +1909,7 @@ things, and they are different in kind.
   so the pair of assertions together does reach this arm, though neither does
   alone.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="765-787" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="772-794" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {

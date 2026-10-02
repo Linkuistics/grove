@@ -1648,10 +1648,11 @@ duplicates every one of them, so it is not a re-exec'd grove that matters but
 child that holds the lock until `exec` closes it under `O_CLOEXEC`. Against a
 private directory locked and released in a loop, an exclusive probe came back
 `EWOULDBLOCK` 0 times in 20,000 with nothing else spawning, 189 with four
-spawning threads and 445 with eight. Both assertions of this shape ask
-`descriptors_held_on` how many descriptors *this process* holds instead, which a
-forked child's copy cannot perturb and which is the stronger question anyway,
-since a lock needs a descriptor to live on.
+spawning threads and 445 with eight. The assertions of this shape in that file,
+and the loop's pin control in chapter 19 since, ask `descriptors_held_on` how
+many descriptors *this process* holds instead, which a forked child's copy
+cannot perturb and which is the stronger question anyway, since a lock needs a
+descriptor to live on.
 
 The general form is worth keeping. A cross-test flake reads exactly like a newly
 attributed observer, and a second full run is the expensive way to tell them

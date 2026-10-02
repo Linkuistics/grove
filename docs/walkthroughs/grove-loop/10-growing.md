@@ -1264,12 +1264,13 @@ a path reference, and a node directory's name has no extension and comes back
 unchanged. `stale_cross_refs` calls it once, on each old name, and nothing else
 in the crate calls it at all.
 
-The file ends by naming the tests it does not contain.
+The file ends by naming the tests it does not contain. The module is visible to
+the crate because chapter 19's pin control borrows its descriptor scan.
 
 <!-- fragment «grow-test-module» owner="what-the-library-cannot-see" source="crates/grove-loop/src/task_grow.rs" lines="517-518" parent="growing-the-tree" -->
 ````rust
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;
 ````
 <!-- /fragment -->
 

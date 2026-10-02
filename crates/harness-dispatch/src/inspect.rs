@@ -104,7 +104,7 @@ impl Report {
             "command": {
                 "program": command.program,
                 "args": command.args,
-                "executable": choice.executable.path.to_string_lossy(),
+                "executable": choice.executable.path,
             },
             "bounds": choice.inputs.limits.to_json(),
             "timing": { "selectionMs": millis(choice.elapsed) },

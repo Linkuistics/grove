@@ -1127,8 +1127,10 @@ The `program` a selected result returns is one of three things:
   empty entry, the current directory. With `PATH` unset, no name is found.
 
 A program that cannot be found refuses with exit 127, and one that exists but
-cannot be executed with exit 126. harness-dispatch never runs another command
-instead. Resolution happens once: the resolved file is what `run` executes,
+cannot be executed with exit 126. A program whose resolved path is not valid
+UTF-8 refuses with exit 126 too, under `run` and `inspect` alike: reports and
+records name the file by a string, and no string names that one exactly.
+harness-dispatch never runs another command instead. Resolution happens once: the resolved file is what `run` executes,
 and the program as `select` returned it is the harness's `argv[0]`, as a shell
 passes a command as typed.
 

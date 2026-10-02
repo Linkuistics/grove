@@ -10,7 +10,9 @@
 //! resolved path, so what inspection reports is what runs.
 //!
 //! A missing program exits 127 and an unexecutable one 126, and nothing is
-//! ever run in its place.
+//! ever run in its place. A resolved path that is not UTF-8 is unexecutable
+//! too: inspection reports the path as a string for its caller to execute,
+//! and the lossy string of such a path names another file.
 
 use std::ffi::{CString, OsStr};
 use std::fs;
@@ -24,8 +26,8 @@ use crate::refusal::{Refusal, Stage, EXIT_NOT_FOUND, EXIT_UNEXECUTABLE};
 pub struct Executable {
     /// The program exactly as `select` returned it; also argv[0].
     pub program: String,
-    /// The file `run` execs.
-    pub path: PathBuf,
+    /// The file `run` execs, and the string a report or record names it by.
+    pub path: String,
     pub resolved_by: ResolvedBy,
 }
 
@@ -42,7 +44,7 @@ pub enum ResolvedBy {
 
 impl Executable {
     pub fn to_text(&self) -> String {
-        let path = self.path.display();
+        let path = &self.path;
         match &self.resolved_by {
             ResolvedBy::Absolute => format!("{path} (an absolute path)"),
             ResolvedBy::Cwd => format!("{path} (relative to the current directory)"),
@@ -100,10 +102,27 @@ pub fn resolve(
             ),
         )
     };
-    let found = |file: PathBuf, resolved_by: ResolvedBy| Executable {
-        program: program.to_owned(),
-        path: file,
-        resolved_by,
+    // Refused where it is found, not passed over: the caller's shell would
+    // have run this file, and a later match is another command.
+    let found = |file: PathBuf, resolved_by: ResolvedBy| match file.to_str() {
+        Some(path) => Ok(Executable {
+            program: program.to_owned(),
+            path: path.to_owned(),
+            resolved_by,
+        }),
+        None => Err(refuse(
+            "program_unexecutable",
+            EXIT_UNEXECUTABLE,
+            format!(
+                "select in {source} returned the program {program:?}, and {} is not run: its \
+                 path is not valid UTF-8, so no report or record names it exactly",
+                file.display()
+            ),
+            format!(
+                "reach {program} through a path that is UTF-8, or correct the program select \
+                 returns in {source}; harness-dispatch never runs another command instead"
+            ),
+        )),
     };
 
     if program.contains('/') {
@@ -113,7 +132,7 @@ pub fn resolve(
             (cwd.join(program), ResolvedBy::Cwd)
         };
         return match probe(&file) {
-            Probe::Executable => Ok(found(file, resolved_by)),
+            Probe::Executable => found(file, resolved_by),
             Probe::Missing => Err(not_found(format!("does not exist at {}", file.display()))),
             Probe::Unexecutable(why) => Err(unexecutable(&file, why)),
         };
@@ -131,7 +150,7 @@ pub fn resolve(
         // As execvp: an empty entry is the cwd, and a relative one is under it.
         let file = cwd.join(&entry).join(program);
         match probe(&file) {
-            Probe::Executable => return Ok(found(file, ResolvedBy::Path { entry })),
+            Probe::Executable => return found(file, ResolvedBy::Path { entry }),
             Probe::Missing => {}
             Probe::Unexecutable(why) => {
                 first_unexecutable.get_or_insert((file, why));

@@ -104,7 +104,7 @@ pub fn launch(choice: &Choice) -> Value {
         "executable": {
             "program": executable.program,
             "resolvedBy": resolved_by,
-            "path": executable.path.to_string_lossy(),
+            "path": executable.path,
         },
         "argv": argv,
         // Digests and sizes only: the delivered value can hold whole sources.

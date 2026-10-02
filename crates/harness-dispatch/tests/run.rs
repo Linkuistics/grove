@@ -886,6 +886,56 @@ fn an_unexecutable_program_exits_126() {
 }
 
 #[test]
+fn a_program_whose_resolved_path_is_not_utf8_refuses_and_is_not_passed_over() {
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(&policy(&[
+        ("named", r#""agent""#, PROMPT),
+        ("relative", r#""./agent""#, PROMPT),
+    ]));
+    let native = sandbox.root.join(std::ffi::OsStr::from_bytes(b"bin-\xff"));
+    match fs::create_dir(&native) {
+        Ok(()) => {}
+        // A filesystem that admits only UTF-8 names, as APFS does, has no
+        // such path to resolve to, and this test has no subject there.
+        Err(error) if error.raw_os_error() == Some(libc::EILSEQ) => return,
+        Err(error) => panic!("create {}: {error}", native.display()),
+    }
+    // The firing configuration: the path's lossy string names another
+    // executable, and so does a later PATH entry.
+    let lossy = sandbox.root.join("bin-\u{FFFD}");
+    let later = sandbox.root.join("later");
+    for dir in [&native, &lossy, &later] {
+        executable(&dir.join("agent"), FAKE_HARNESS);
+    }
+    let mut path = native.clone().into_os_string();
+    path.push(format!(":{}:/usr/bin:/bin", text(&later)));
+
+    let cases: [(&str, &Path); 2] = [("named", &sandbox.cwd), ("relative", &native)];
+    for (kind, cwd) in cases {
+        for subcommand in ["inspect", "run"] {
+            let mut command = sandbox.command();
+            command
+                .env("PATH", &path)
+                .current_dir(cwd)
+                .args([subcommand, "--kind", kind, "--prompt", "p", "--json"]);
+            let refusal = run(&mut command).refusal(126);
+            let error = &refusal["error"];
+            assert_eq!(error["code"], "program_unexecutable", "{kind}: {refusal}");
+            assert_eq!(error["stage"], "resolution", "{kind}: {refusal}");
+            assert!(
+                error["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("is not valid UTF-8"),
+                "{kind}: {refusal}"
+            );
+        }
+    }
+    assert!(!sandbox.harness_ran(), "another command ran instead");
+    assert!(!sandbox.default_store().exists(), "a run was recorded");
+}
+
+#[test]
 fn an_exec_error_reports_errno_with_a_remedy() {
     let sandbox = Sandbox::new();
     let orphan = sandbox.root.join("orphan-script");

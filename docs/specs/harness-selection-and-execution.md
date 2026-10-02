@@ -194,7 +194,11 @@ file wins. A PATH that is set but empty is one empty entry. An unset PATH leaves
 nothing to search, so the name is not found. Resolution happens once, and `run`
 executes the resolved file with the program as returned for `argv[0]`.
 Inspection resolves the program as `run` does and refuses with the same exit
-when it cannot.
+when it cannot. A resolved path that is not UTF-8 refuses as unexecutable, for
+`run` as for inspection. Inspection reports the path as a string that its
+caller executes, and the lossy string of such a path names another file. The
+file is not passed over for a later PATH entry, because the caller's shell
+would have run it.
 
 The worker reports the policy's version and whether it has a loader once the
 entry has loaded, and Rust validates that before any `loadContext` or `select`

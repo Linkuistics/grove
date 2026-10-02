@@ -162,7 +162,7 @@ fn not_executed(choice: &Choice, run_id: &RunId, signal: Signal, source: &str) -
 /// `--json`, one JSON object instead.
 fn announce(choice: &Choice, run_id: &RunId, committed: &Committed, json: bool) {
     let command = &choice.command;
-    let executable = choice.executable.path.to_string_lossy();
+    let executable = &choice.executable.path;
     if json {
         let notice = json!({
             "schemaVersion": 1,
@@ -231,8 +231,7 @@ fn exec_failed(choice: &Choice, error: &io::Error) -> Refusal {
         exit,
         format!(
             "exec of {} for the program {:?} failed: {error}",
-            choice.executable.path.display(),
-            choice.command.program
+            choice.executable.path, choice.command.program
         ),
         format!("{remedy}; harness-dispatch never runs another command instead"),
     )

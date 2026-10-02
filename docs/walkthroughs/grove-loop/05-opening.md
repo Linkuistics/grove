@@ -801,7 +801,7 @@ three, and until `manifest-dependency-clauses-k133` it named it alone —
 explains why the probe is no longer allowed to stand for the crate. `libc` is
 reached from three production modules: this probe, the lease's own locking and
 close-on-exec descriptors in `driver_lease.rs`, and the terminal and signal calls
-in `loop_driver.rs` that chapter 20 reads. What is true of this function is
+in `loop_driver.rs` that chapter 19 reads. What is true of this function is
 narrower than the dependency and still worth having: it is the use the manifest
 names first, and it is the one that would be hardest to justify without the
 argument above, because a probe that is never a decision appears redundant until

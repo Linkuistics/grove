@@ -86,12 +86,12 @@ lines = 61
 [[root]]
 id    = "source-entry-point"
 path  = "crates/grove/src/main.rs"
-lines = 20
+lines = 17
 
 [[root]]
 id    = "source-command-surface"
 path  = "crates/grove/src/cli.rs"
-lines = 269
+lines = 188
 
 [[root]]
 id    = "source-codex-provisioning"
@@ -108,25 +108,25 @@ lines = "1-61"
 id    = "entry-point-three-steps"
 root  = "source-entry-point"
 owner = "one-call"
-lines = "1-20"
+lines = "1-17"
 
 [[block]]
 id    = "surface-grammar"
 root  = "source-command-surface"
 owner = "no-arguments"
-lines = "1-120"
+lines = "1-62"
 
 [[block]]
 id    = "surface-resolve-lease-run"
 root  = "source-command-surface"
 owner = "one-call"
-lines = "121-169"
+lines = "63-105"
 
 [[block]]
 id    = "surface-closure-tests"
 root  = "source-command-surface"
 owner = "closure-proved"
-lines = "170-269"
+lines = "106-188"
 
 [[block]]
 id    = "codex-provisioning"
@@ -166,44 +166,11 @@ statement = "A resolved jj working tree, produced once here and handed to both t
 
 [guide]
 path    = "docs/USAGE.md"
-anchors = ["usage-configuration-examples", "usage-inspecting-configuration", "usage-viewing-tree", "usage-running-grove", "usage-tree-verbs", "usage-driver-lease", "usage-session-lifecycle"]
+anchors = ["usage-viewing-tree", "usage-running-grove", "usage-tree-verbs", "usage-driver-lease", "usage-session-lifecycle"]
 
 [[glossary]]
 path    = "CONTEXT.md"
 anchors = ["driver-lease", "stated-vcs", "loop-control-channel", "guaranteed-core", "task-tree-scheme"]
-
-[[root]]
-id = "source-configuration-report"
-path = "crates/grove/src/config.rs"
-lines = 160
-
-[[block]]
-id = "configuration-report"
-root = "source-configuration-report"
-owner = "assembly"
-lines = "1-160"
-
-[[root]]
-id = "source-configuration-json"
-path = "crates/grove/src/config_json.rs"
-lines = 163
-
-[[block]]
-id = "configuration-json"
-root = "source-configuration-json"
-owner = "assembly"
-lines = "1-163"
-
-[[root]]
-id = "source-configuration-examples"
-path = "crates/grove/src/examples.rs"
-lines = 314
-
-[[block]]
-id = "configuration-examples"
-root = "source-configuration-examples"
-owner = "assembly"
-lines = "1-314"
 
 [[root]]
 id = "source-standalone"

@@ -1,6 +1,6 @@
 # Which calls the lease admits
 <!-- book-page id="the-epoch" slice="which-calls-are-admitted" order="17" -->
-[Previous: One live driver per working tree](16-the-lease.md) | [Contents](README.md) | [Next: Which files take part](18-which-files.md)
+[Previous: One live driver per working tree](16-the-lease.md) | [Contents](README.md) | [Next: The guaranteed core](18-the-core.md)
 
 <a id="which-calls-are-admitted"></a>
 ## The rule: the epoch decides, and a handoff is ordered rather than raced
@@ -5195,4 +5195,4 @@ The native scenarios open independent descriptors and prove both shared probes c
 ````
 <!-- /fragment -->
 
-[Previous: One live driver per working tree](16-the-lease.md) | [Contents](README.md) | [Next: Which files take part](18-which-files.md)
+[Previous: One live driver per working tree](16-the-lease.md) | [Contents](README.md) | [Next: The guaranteed core](18-the-core.md)

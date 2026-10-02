@@ -577,10 +577,8 @@ would be true. It is about which mistake the reader has actually made.
 | in neither document | not written the key down anywhere | there is no template for it |
 | in both branches | — | `` Declare `k` in <primary>. `` |
 
-The first row is *the untracked configuration delta* at the point where the
-record is actually kept. The record's own property is that a delta overrides and
-never supplies. Grove separately refuses tracked local policy, so a repository
-cannot supply executable policy merely by shipping a file. The runner enforces
+The first row is the rule that an overlay overrides and never supplies, at the
+point where it is actually kept. The runner enforces
 personal authority in chapter 3 by capturing admitted targets before local
 patches apply. A reader hitting that boundary does not see the fold. They see this sentence, and it is the
 sentence that has to carry the reason, because the operator looking at it is

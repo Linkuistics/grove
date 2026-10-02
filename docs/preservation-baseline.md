@@ -439,7 +439,8 @@ inheritance, and nothing is assembled from a precedence chain.
 > the delta gains an explicit rule of its own: **a kind resolves only if the
 > personal file declares it**. Every row below that reports `missing session
 > kinds` or `unknown session kind` records behaviour that has been deliberately
-> removed. See `docs/adr/complete-session-configuration.md`.
+> removed. See `docs/adr/complete-session-configuration.md` (since deleted, with
+> Grove's configuration).
 
 **Per-checkout delta**: `.grove.kdl`, same grammar, **any subset** of the
 nineteen. Looked for at the worktree root first, then the main repository root;

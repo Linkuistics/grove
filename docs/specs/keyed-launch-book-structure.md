@@ -583,11 +583,9 @@ enough to buy an edit outside the book; and `[guide] omitted`, which
 on exactly that ground.
 
 **The records this crate is governed by are named and never cited.** Decision 7
-of [`module-decomposition.md`](module-decomposition.md),
-[*complete session configuration*](../adr/complete-session-configuration.md),
-[*the untracked configuration delta*](../adr/untracked-configuration-delta.md)
+of [`module-decomposition.md`](module-decomposition.md)
 and [*the launched child is a job*](../adr/the-launched-child-is-a-job.md) are
-where this crate's decisions live, and none of them is a permitted link target
+where this crate's decisions live, and neither of them is a permitted link target
 from a book page — the contract closes a book's local targets to its own pages,
 its own roots, the guide and the glossary. The book states what each record
 settles, in prose, at the chapter that keeps it, and links none of them. That is

@@ -8,15 +8,14 @@
 `grove` is the human's command. Bare invocation in a Jujutsu working tree
 resolves that tree, takes its driver lease and calls the loop. The loop chooses
 the next task and launches it through `harness-dispatch`, which selects the
-command. Viewing, configuration inspection and
-inactive sample delivery have separate early-return paths. `grove run` names
+command. Viewing has a separate early-return path. `grove run` names
 one kind explicitly, asks the owner's harness-dispatch policy for its command,
 and orchestrates its confined temporary files,
 completion and output transfer without entering a task-tree lifecycle.
 
 This book's corpus is `crates/grove`: its manifest and all production modules.
 The first chapters explain the package boundary, parser, lifecycle dispatch and
-its checks. Configuration and example presentation follow, then the standalone
+its checks. The module map follows, then the standalone
 invocation chapter explains staging, supervision, publication and log display.
 The library calls expose the operations needed by these paths without making
 private loop implementation available to the binary.
@@ -126,8 +125,7 @@ personal `harness-dispatch` policy, `~/.config/harness-dispatch/policy.ts`, whos
 that selected either would be a second source for a fact that already has one.
 *The surface* reads the grammar that results, and *Proving a negative* reads the
 test that keeps the bare lifecycle free of selectors and the subcommand set
-at `{run, run-log, config, view}`, with `run-log` hidden from ordinary help
-and `examples` and `show` beneath `config`.
+at `{run, run-log, view}`, with `run-log` hidden from ordinary help.
 
 <a id="crate-not-a-bin"></a>
 ## A crate, not a `[[bin]]` target
@@ -222,11 +220,9 @@ and `grove-tui` owns observation. Only the viewer pulls in Ratatui and
 Crossterm. `Workspace` still arrives through the loop's re-export; the human
 binary never opens a store lock itself. The manifest therefore records two
 public entry seams without importing their private implementation modules.
-`keyed-launch` supplies public inspection records to the formatter and
-its argv and confinement APIs to standalone invocation. SessionConfig
-owns ordinary project-policy resolution; the standalone runner loads no
-configuration, and takes its command from `harness-dispatch`. `serde_json`
-encodes configuration reports and reads that selection,
+`keyed-launch` supplies its argv and confinement APIs to standalone
+invocation, which loads no configuration and takes its command from
+`harness-dispatch`. `serde_json` reads that selection,
 `tempfile` owns scratch storage and staged exports, and `libc` supplies the
 artifact-open flags used by that runner.
 
@@ -244,7 +240,7 @@ clap = { version = "4", features = ["derive"] }
 # behind grove-tui.
 grove-loop = { path = "../grove-loop" }
 grove-tui = { path = "../grove-tui" }
-# Public inspection records; resolution remains SessionConfig's responsibility.
+# The runner a standalone invocation is launched and confined through.
 keyed-launch = { path = "../keyed-launch" }
 serde_json = "1.0"
 tempfile = "3.10"
@@ -275,7 +271,7 @@ spawned process against a temporary tree, which is the only harness a binary
 with no library can offer them.
 
 The comment names the original repository-surface tests. Later tests include
-configuration inspection and viewer fixtures. All are evidence for this book
+viewer and standalone fixtures. All are evidence for this book
 rather than corpus: `tests/` directories are cited and never reproduced.
 
 <!-- fragment «manifest-tests-live-here» owner="compiler-held" source="crates/grove/Cargo.toml" lines="41-52" parent="manifest-thin-by-construction" -->
@@ -418,9 +414,9 @@ job is the invocation itself.
 | 1 | A package boundary: the entry point can reach only what the library publishes | the compiler | Orientation |
 | — | The grammar that results, and the agent surface beside it | — | The surface |
 | — | Startup checks and the signal path | — | Lifecycle startup |
-| 2 | A closure property: bare lifecycle selectors are absent and the top-level command set is run, run-log, config and view | `the_human_command_surface_has_nothing_left_to_select` | Proving a negative |
+| 2 | A closure property: bare lifecycle selectors are absent and the top-level command set is run, run-log and view | `the_human_command_surface_has_nothing_left_to_select` | Proving a negative |
 | 3 | A convention, checked: every option the binary lists is described | `the_human_facing_binary_describes_every_option_it_lists` | Proving a negative |
-| — | The module map and configuration presentation | — | What the call reaches |
+| — | The module map | — | What the call reaches |
 | — | Confined scratch state, checked export and parent-owned display | Native policy and artifact checks | One isolated invocation |
 
 Mechanism 1 is this chapter's, and it is now fully read: a separate crate, no

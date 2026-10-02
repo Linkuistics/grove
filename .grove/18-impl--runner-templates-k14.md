@@ -48,3 +48,17 @@ is deleted, and so is the last record of Grove configuration.
   `driver_lease/witnesses.rs`. They need `Argv::new` when the templates go, and
   the `grove-loop` book reproduces all three files. `lifecycle-launch-k12` left
   them: they launch no session and read no Grove configuration.
+- `grove-configuration-k13` deleted both configuration ADRs with
+  `session_config.rs`, which held their last citation from live code. What it
+  left, each still describing deleted Grove code: the `keyed-launch` book's
+  chapter 5, which cites `session_config.rs` and its test as evidence;
+  `docs/specs/module-decomposition.md`'s decisions 6 and 7, which name
+  `SessionConfig` and the `grove config` commands; the rest of the glossary's
+  **Grove configuration** cluster; and `docs/CONFIGURATION.md`,
+  `docs/specs/modular-configuration.md`, its design directory and the forms
+  audit, where only links into deleted files were removed.
+- A book's line ranges and its source index are derived data. `k13` rebased two
+  books with throwaway scripts: carry each fragment's range across a `difflib`
+  diff of the root's old and new text, re-read every literal body from the
+  file, then rewrite each index row from `walkthrough.toml` and the fragment
+  headers. Only the prose and the roll-up figures needed hands.

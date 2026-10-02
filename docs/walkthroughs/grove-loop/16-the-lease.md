@@ -210,11 +210,11 @@ with the first.* That is a claim about a call site in another crate, and it hold
 let workspace = Workspace::resolve(&cwd)?;
 let lease     = DriverLease::acquire(&workspace)?;
 …
-grove_loop::run(&workspace, lease, &templates)?
+grove_loop::run(&workspace, lease, &dispatch)?
 ```
 
-One resolution behind the lease, behind the delta search, behind `${repo}`
-expansion and behind the prompt's stated version control. The lease is then
+One resolution behind the lease, behind the two roots a launch is told
+about and behind the prompt's stated version control. The lease is then
 *moved* into `run`, which is why the guard's lifetime is the loop's: it is
 released exactly when the loop that justified holding it returns. The decision
 record states both halves — one resolution, and the move into the loop — and this
@@ -222,7 +222,7 @@ signature is where they are enforced. A `&Workspace` parameter rather than a
 `&Path` is not a convenience; a `&Path` would have made a second resolution
 possible, and a second resolution is exactly the disagreement the record forbids.
 
-**`run` is chapter 20's.** The header names it, three chapters early, because the
+**`run` is chapter 19's.** The header names it, three chapters early, because the
 lifetime argument cannot be made without it. Chapter 1's cast already states the
 minimum: `run` is the loop itself, and how it ends.
 

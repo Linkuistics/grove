@@ -153,28 +153,21 @@ role  = "chapter"
 slice = "which-calls-are-admitted"
 
 [[page]]
-file  = "18-which-files.md"
-id    = "which-files"
-title = "Which files take part"
-role  = "chapter"
-slice = "whose-file-and-whether"
-
-[[page]]
-file  = "19-the-core.md"
+file  = "18-the-core.md"
 id    = "the-core"
 title = "The guaranteed core"
 role  = "chapter"
 slice = "too-late-to-say-later"
 
 [[page]]
-file  = "20-the-loop.md"
+file  = "19-the-loop.md"
 id    = "the-loop"
 title = "The loop"
 role  = "chapter"
 slice = "four-things-a-runner-cannot-choose"
 
 [[page]]
-file  = "21-what-could-not-move.md"
+file  = "20-what-could-not-move.md"
 id    = "what-could-not-move"
 title = "What could not move"
 role  = "chapter"
@@ -200,12 +193,12 @@ role  = "lookup"
 [[root]]
 id    = "source-crate-manifest"
 path  = "crates/grove-loop/Cargo.toml"
-lines = 68
+lines = 67
 
 [[root]]
 id    = "source-library-root"
 path  = "crates/grove-loop/src/lib.rs"
-lines = 436
+lines = 419
 
 [[root]]
 id    = "source-task-name"
@@ -248,11 +241,6 @@ path  = "crates/grove-loop/src/driver_lease.rs"
 lines = 2079
 
 [[root]]
-id    = "source-session-config"
-path  = "crates/grove-loop/src/session_config.rs"
-lines = 490
-
-[[root]]
 id    = "source-prompt"
 path  = "crates/grove-loop/src/prompt.rs"
 lines = 245
@@ -271,13 +259,13 @@ lines = 218
 id    = "manifest-domain-bound"
 root  = "source-crate-manifest"
 owner = "allowed-to-mean"
-lines = "1-68"
+lines = "1-67"
 
 [[block]]
 id    = "library-root"
 root  = "source-library-root"
 owner = "allowed-to-mean"
-lines = "1-436"
+lines = "1-419"
 
 [[block]]
 id    = "tokens-and-verdicts"
@@ -482,12 +470,6 @@ id    = "lease-tests"
 root  = "source-driver-lease"
 owner = "which-calls-are-admitted"
 lines = "975-2079"
-
-[[block]]
-id    = "whose-file"
-root  = "source-session-config"
-owner = "whose-file-and-whether"
-lines = "1-490"
 
 [[block]]
 id    = "the-prompt-core"

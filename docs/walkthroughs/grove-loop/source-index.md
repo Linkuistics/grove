@@ -8,8 +8,8 @@
 
 | Root ID | Source path | Lines |
 |---|---|---|
-| `source-crate-manifest` | `crates/grove-loop/Cargo.toml` | 68 |
-| `source-library-root` | `crates/grove-loop/src/lib.rs` | 436 |
+| `source-crate-manifest` | `crates/grove-loop/Cargo.toml` | 67 |
+| `source-library-root` | `crates/grove-loop/src/lib.rs` | 419 |
 | `source-task-name` | `crates/grove-loop/src/task_name.rs` | 1,675 |
 | `source-task-tree` | `crates/grove-loop/src/task_tree.rs` | 2,001 |
 | `source-task-grow` | `crates/grove-loop/src/task_grow.rs` | 518 |
@@ -18,7 +18,6 @@
 | `source-driver` | `crates/grove-loop/src/driver.rs` | 59 |
 | `source-complete` | `crates/grove-loop/src/complete.rs` | 96 |
 | `source-driver-lease` | `crates/grove-loop/src/driver_lease.rs` | 2,079 |
-| `source-session-config` | `crates/grove-loop/src/session_config.rs` | 490 |
 | `source-prompt` | `crates/grove-loop/src/prompt.rs` | 245 |
 | `source-loop-driver` | `crates/grove-loop/src/loop_driver.rs` | 787 |
 | `source-observation` | `crates/grove-loop/src/observation.rs` | 218 |
@@ -26,10 +25,10 @@
 | `source-witnesses` | `crates/grove-loop/src/driver_lease/witnesses.rs` | 722 |
 
 
-<!-- source-root «source-crate-manifest» source="crates/grove-loop/Cargo.toml" lines="1-68" -->
+<!-- source-root «source-crate-manifest» source="crates/grove-loop/Cargo.toml" lines="1-67" -->
 <!-- insert «manifest-domain-bound» -->
 <!-- /source-root -->
-<!-- source-root «source-library-root» source="crates/grove-loop/src/lib.rs" lines="1-436" -->
+<!-- source-root «source-library-root» source="crates/grove-loop/src/lib.rs" lines="1-419" -->
 <!-- insert «library-root» -->
 <!-- /source-root -->
 <!-- source-root «source-task-name» source="crates/grove-loop/src/task_name.rs" lines="1-1675" -->
@@ -82,9 +81,6 @@
 <!-- insert «lease-and-epoch» -->
 <!-- insert «lease-tests» -->
 <!-- /source-root -->
-<!-- source-root «source-session-config» source="crates/grove-loop/src/session_config.rs" lines="1-490" -->
-<!-- insert «whose-file» -->
-<!-- /source-root -->
 <!-- source-root «source-prompt» source="crates/grove-loop/src/prompt.rs" lines="1-245" -->
 <!-- insert «the-prompt-core» -->
 <!-- /source-root -->
@@ -109,8 +105,8 @@
 
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
-| `manifest-domain-bound` | `source-crate-manifest` | `allowed-to-mean` | `1-68` | 68 | `resolved` |
-| `library-root` | `source-library-root` | `allowed-to-mean` | `1-436` | 436 | `resolved` |
+| `manifest-domain-bound` | `source-crate-manifest` | `allowed-to-mean` | `1-67` | 67 | `resolved` |
+| `library-root` | `source-library-root` | `allowed-to-mean` | `1-419` | 419 | `resolved` |
 | `tokens-and-verdicts` | `source-task-name` | `four-verdicts` | `1-156` | 156 | `resolved` |
 | `kind-slug-and-handle` | `source-task-name` | `the-handle-not-the-position` | `157-505` | 349 | `resolved` |
 | `the-task-name` | `source-task-name` | `canonical-or-nothing` | `506-953` | 448 | `resolved` |
@@ -145,7 +141,6 @@
 | `complete-verb` | `source-complete` | `twelve-not-fourteen` | `1-96` | 96 | `resolved` |
 | `lease-and-epoch` | `source-driver-lease` | `one-per-working-tree` | `1-974` | 974 | `resolved` |
 | `lease-tests` | `source-driver-lease` | `which-calls-are-admitted` | `975-2079` | 1,105 | `resolved` |
-| `whose-file` | `source-session-config` | `whose-file-and-whether` | `1-490` | 490 | `resolved` |
 | `the-prompt-core` | `source-prompt` | `too-late-to-say-later` | `1-245` | 245 | `resolved` |
 | `loop-driver` | `source-loop-driver` | `four-things-a-runner-cannot-choose` | `1-787` | 787 | `resolved` |
 | `observation-tree` | `source-observation` | `one-spelling-of-grove` | `1-218` | 218 | `resolved` |
@@ -158,35 +153,35 @@
 
 | Fragment ID | Page ID | Root ID | Kind | Owner | Source lines | Parent ID | Child IDs |
 |---|---|---|---|---|---|---|---|
-| `source-crate-manifest` | `source-index` | `source-crate-manifest` | `root` | `—` | `1-68` | `—` | `manifest-domain-bound` |
+| `source-crate-manifest` | `source-index` | `source-crate-manifest` | `root` | `—` | `1-67` | `—` | `manifest-domain-bound` |
 | `manifest-package-identity` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `1-10` | `manifest-domain-bound` | `—` |
-| `manifest-domain-bound` | `orientation` | `source-crate-manifest` | `composite` | `allowed-to-mean` | `1-68` | `source-crate-manifest` | `manifest-package-identity`, `manifest-dependencies`, `manifest-extracted-tree`, `manifest-dev-dependencies`, `manifest-lints`, `manifest-release` |
-| `manifest-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `11-39` | `manifest-domain-bound` | `—` |
-| `manifest-extracted-tree` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `40-47` | `manifest-domain-bound` | `—` |
-| `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `48-50` | `manifest-domain-bound` | `—` |
-| `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `51-53` | `manifest-domain-bound` | `—` |
-| `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `54-68` | `manifest-domain-bound` | `—` |
-| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-436` | `—` | `library-root` |
+| `manifest-domain-bound` | `orientation` | `source-crate-manifest` | `composite` | `allowed-to-mean` | `1-67` | `source-crate-manifest` | `manifest-package-identity`, `manifest-dependencies`, `manifest-extracted-tree`, `manifest-dev-dependencies`, `manifest-lints`, `manifest-release` |
+| `manifest-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `11-38` | `manifest-domain-bound` | `—` |
+| `manifest-extracted-tree` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `39-46` | `manifest-domain-bound` | `—` |
+| `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `47-49` | `manifest-domain-bound` | `—` |
+| `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `50-52` | `manifest-domain-bound` | `—` |
+| `manifest-release` | `orientation` | `source-crate-manifest` | `literal` | `allowed-to-mean` | `53-67` | `manifest-domain-bound` | `—` |
+| `source-library-root` | `source-index` | `source-library-root` | `root` | `—` | `1-419` | `—` | `library-root` |
 | `library-root-thesis` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `1-9` | `library-root` | `—` |
-| `library-root` | `orientation` | `source-library-root` | `composite` | `allowed-to-mean` | `1-436` | `source-library-root` | `library-root-thesis`, `library-root-and-the-driver`, `library-root-opening-mirrors`, `library-root-three-shapes`, `library-root-one-error`, `library-root-modules`, `library-root-version`, `library-root-imports-and-exports`, `library-root-tree-and-vacancy`, `library-root-reading-and-writing`, `library-root-tree-write`, `library-root-tree-write-impl`, `library-root-read-and-write`, `library-root-grove-root`, `library-root-reference`, `library-root-reference-display`, `library-root-selection`, `library-root-error`, `library-root-error-traits` |
+| `library-root` | `orientation` | `source-library-root` | `composite` | `allowed-to-mean` | `1-419` | `source-library-root` | `library-root-thesis`, `library-root-and-the-driver`, `library-root-opening-mirrors`, `library-root-three-shapes`, `library-root-one-error`, `library-root-modules`, `library-root-version`, `library-root-imports-and-exports`, `library-root-tree-and-vacancy`, `library-root-reading-and-writing`, `library-root-tree-write`, `library-root-tree-write-impl`, `library-root-read-and-write`, `library-root-grove-root`, `library-root-reference`, `library-root-reference-display`, `library-root-selection`, `library-root-error`, `library-root-error-traits` |
 | `library-root-and-the-driver` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `10-14` | `library-root` | `—` |
 | `library-root-opening-mirrors` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `15-29` | `library-root` | `—` |
 | `library-root-three-shapes` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `30-40` | `library-root` | `—` |
 | `library-root-one-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `41-49` | `library-root` | `—` |
-| `library-root-modules` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `50-63` | `library-root` | `—` |
-| `library-root-version` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `64-73` | `library-root` | `—` |
-| `library-root-imports-and-exports` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `74-97` | `library-root` | `—` |
-| `library-root-tree-and-vacancy` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `98-112` | `library-root` | `—` |
-| `library-root-reading-and-writing` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `113-137` | `library-root` | `—` |
-| `library-root-tree-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `138-193` | `library-root` | `—` |
-| `library-root-tree-write-impl` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `194-246` | `library-root` | `—` |
-| `library-root-read-and-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `247-290` | `library-root` | `—` |
-| `library-root-grove-root` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `291-295` | `library-root` | `—` |
-| `library-root-reference` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `296-346` | `library-root` | `—` |
-| `library-root-reference-display` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `347-352` | `library-root` | `—` |
-| `library-root-selection` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `353-376` | `library-root` | `—` |
-| `library-root-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `377-410` | `library-root` | `—` |
-| `library-root-error-traits` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `411-436` | `library-root` | `—` |
+| `library-root-modules` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `50-62` | `library-root` | `—` |
+| `library-root-version` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `63-72` | `library-root` | `—` |
+| `library-root-imports-and-exports` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `73-95` | `library-root` | `—` |
+| `library-root-tree-and-vacancy` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `96-110` | `library-root` | `—` |
+| `library-root-reading-and-writing` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `111-135` | `library-root` | `—` |
+| `library-root-tree-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `136-191` | `library-root` | `—` |
+| `library-root-tree-write-impl` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `192-244` | `library-root` | `—` |
+| `library-root-read-and-write` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `245-288` | `library-root` | `—` |
+| `library-root-grove-root` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `289-293` | `library-root` | `—` |
+| `library-root-reference` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `294-344` | `library-root` | `—` |
+| `library-root-reference-display` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `345-350` | `library-root` | `—` |
+| `library-root-selection` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `351-374` | `library-root` | `—` |
+| `library-root-error` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `375-393` | `library-root` | `—` |
+| `library-root-error-traits` | `orientation` | `source-library-root` | `literal` | `allowed-to-mean` | `394-419` | `library-root` | `—` |
 | `source-task-name` | `source-index` | `source-task-name` | `root` | `—` | `1-1675` | `—` | `tokens-and-verdicts`, `kind-slug-and-handle`, `the-task-name`, `name-test-support-and-kit`, `classification-verdict-tests`, `grammar-and-canonicity-tests`, `shape-refusal-tests`, `slug-rule-tests`, `handle-grammar-tests` |
 | `name-the-only-grammar` | `the-tokens` | `source-task-name` | `literal` | `four-verdicts` | `1-7` | `tokens-and-verdicts` | `—` |
 | `tokens-and-verdicts` | `the-tokens` | `source-task-name` | `composite` | `four-verdicts` | `1-156` | `source-task-name` | `name-the-only-grammar`, `name-canonicity-departure`, `name-classification-loses-data`, `name-handle-is-this-grammar`, `name-handle-terminal-substring`, `name-imports`, `name-brief-and-key-mark`, `name-separator`, `name-outcome`, `name-outcome-infix-and-strip`, `name-token-error`, `name-token-error-traits`, `name-refuse-token` |
@@ -616,31 +611,6 @@
 | `epoch-tests-probe-releases` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2001-2042` | `lease-tests` | `—` |
 | `epoch-tests-active-no-lease` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2043-2062` | `lease-tests` | `—` |
 | `epoch-tests-malformed` | `the-epoch` | `source-driver-lease` | `literal` | `which-calls-are-admitted` | `2063-2079` | `lease-tests` | `—` |
-| `source-session-config` | `source-index` | `source-session-config` | `root` | `—` | `1-490` | `—` | `whose-file` |
-| `config-header` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `1-17` | `whose-file` | `—` |
-| `whose-file` | `which-files` | `source-session-config` | `composite` | `whose-file-and-whether` | `1-490` | `source-session-config` | `config-header`, `config-imports`, `config-two-paths`, `config-slots`, `config-vocabulary`, `config-expansion-context`, `config-delta-roots`, `config-template-source`, `config-template-source-open`, `config-from-env`, `config-personal-path`, `config-template-source-load`, `config-session-config`, `config-path-and-candidates`, `config-load`, `config-read`, `config-load-for-worktree`, `config-source-and-require`, `config-expand`, `config-find-delta`, `config-refuse-tracked`, `config-delta-is-tracked`, `config-diagnostics` |
-| `config-imports` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `18-28` | `whose-file` | `—` |
-| `config-two-paths` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `29-33` | `whose-file` | `—` |
-| `config-slots` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `34-72` | `whose-file` | `—` |
-| `config-vocabulary` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `73-79` | `whose-file` | `—` |
-| `config-expansion-context` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `80-90` | `whose-file` | `—` |
-| `config-delta-roots` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `91-104` | `whose-file` | `—` |
-| `config-template-source` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `105-121` | `whose-file` | `—` |
-| `config-template-source-open` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `122-128` | `whose-file` | `—` |
-| `config-from-env` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `129-146` | `whose-file` | `—` |
-| `config-personal-path` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `147-153` | `whose-file` | `—` |
-| `config-template-source-load` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `154-159` | `whose-file` | `—` |
-| `config-session-config` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `160-163` | `whose-file` | `—` |
-| `config-path-and-candidates` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `164-178` | `whose-file` | `—` |
-| `config-load` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `179-196` | `whose-file` | `—` |
-| `config-read` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `197-213` | `whose-file` | `—` |
-| `config-load-for-worktree` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `214-239` | `whose-file` | `—` |
-| `config-source-and-require` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `240-266` | `whose-file` | `—` |
-| `config-expand` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `267-319` | `whose-file` | `—` |
-| `config-find-delta` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `320-355` | `whose-file` | `—` |
-| `config-refuse-tracked` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `356-398` | `whose-file` | `—` |
-| `config-delta-is-tracked` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `399-431` | `whose-file` | `—` |
-| `config-diagnostics` | `which-files` | `source-session-config` | `literal` | `whose-file-and-whether` | `432-490` | `whose-file` | `—` |
 | `source-prompt` | `source-index` | `source-prompt` | `root` | `—` | `1-245` | `—` | `the-prompt-core` |
 | `core-header` | `the-core` | `source-prompt` | `literal` | `too-late-to-say-later` | `1-41` | `the-prompt-core` | `—` |
 | `the-prompt-core` | `the-core` | `source-prompt` | `composite` | `too-late-to-say-later` | `1-245` | `source-prompt` | `core-header`, `core-imports`, `core-plugin`, `core-skill-name`, `core-load-instruction`, `core-runtime-facts`, `core-signalling-contract`, `core-mandate`, `core-compose`, `core-stated-vcs` |
@@ -757,7 +727,6 @@
 | `interpret`, `Disposition` | `01-orientation.md#the-cast` | `twelve-not-fourteen` | What the child side of the loop makes of a token written to the control channel: relaunch, or stop. | `explained` |
 | `verbs`, `verbs::stale_cross_refs`, `verbs::signal_channel` | `01-orientation.md#the-cast` | `twelve-not-fourteen` | `verbs` declares fifteen public functions; twelve of them are the tree's verb surface, and `stale_cross_refs` and `signal_channel` each say in their own doc comment why they are not verbs. | `explained` |
 | `admit_ambient_session`, `DriverLease`, `SessionEpochGuard` | `01-orientation.md#the-cast` | `one-per-working-tree` | The lease that keeps one live driver per working tree, the epoch that decides which calls it admits, and the check a session runs when there is no driver at all. | `explained` |
-| `SessionConfig`, `TemplateSource` | `01-orientation.md#the-cast` | `whose-file-and-whether` | Which sources are admitted, which profile declaration selects the composition, and how inspect exposes the same compiled snapshot as expansion. | `explained` |
 | `compose`, `Mandate` | `01-orientation.md#the-cast` | `too-late-to-say-later` | The prompt a session is launched with, composed from the parts a skill cannot supply because by the time it could speak the moment has passed. | `explained` |
 | `run`, `LoopOutcome` | `01-orientation.md#the-cast` | `four-things-a-runner-cannot-choose` | The loop itself, and how it ends: relaunched with fresh context, stopped resumably, or interrupted. | `explained` |
 | `TaskName::Brief` | `02-the-tokens.md#the-four-verdicts` | `canonical-or-nothing` | The distinguished value supplied by the lifecycle callers for initialization and promotion. The classification test checks its species and rendered filename. | `explained` |
@@ -809,7 +778,7 @@ the declared corpus.
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `allowed-to-mean` | `01-orientation.md` | 504 |
+| `allowed-to-mean` | `01-orientation.md` | 486 |
 | `four-verdicts` | `02-the-tokens.md` | 373 |
 | `the-handle-not-the-position` | `03-kind-slug-handle.md` | 529 |
 | `canonical-or-nothing` | `04-the-name.md` | 773 |
@@ -826,9 +795,8 @@ the declared corpus.
 | `twelve-not-fourteen` | `15-the-verbs.md` | 516 |
 | `one-per-working-tree` | `16-the-lease.md` | 1,149 |
 | `which-calls-are-admitted` | `17-the-epoch.md` | 3,824 |
-| `whose-file-and-whether` | `18-which-files.md` | 490 |
-| `too-late-to-say-later` | `19-the-core.md` | 245 |
-| `four-things-a-runner-cannot-choose` | `20-the-loop.md` | 787 |
-| `assembly` | `21-what-could-not-move.md` | 0 |
-| **Total** | 16 source roots | **14,661** |
+| `too-late-to-say-later` | `18-the-core.md` | 245 |
+| `four-things-a-runner-cannot-choose` | `19-the-loop.md` | 787 |
+| `assembly` | `20-what-could-not-move.md` | 0 |
+| **Total** | 15 source roots | **14,153** |
 

@@ -5,16 +5,15 @@
 <a id="no-arguments"></a>
 ## Lifecycle and observation
 
-The human binary has lifecycle, standalone invocation, tree-viewing,
-configuration-inspection and example-delivery paths. Bare `grove` starts, resumes or finishes
+The human binary has lifecycle, standalone invocation and tree-viewing
+paths. Bare `grove` starts, resumes or finishes
 the lifecycle in the enclosing jj workspace. `grove view [WORKTREE]` opens an
 inert, read-only browser at one directory's `.grove`. Its path selects what to
 observe; it does not select a session, a kind or launch policy. `grove-llm`
 remains the separate flat command surface a running session uses.
 
 The parser turns the shell's argument vector into `Cli`. An absent command
-means lifecycle dispatch; a `View` variant carries an optional path and a
-`Config` variant carries inspection or inactive example delivery. Help and
+means lifecycle dispatch; a `View` variant carries an optional path. Help and
 version exit during parsing, before application dispatch. `Run` carries one
 kind, prompt and artifact contract; the hidden `RunLog` command tails a log for a
 parent-created pane. Neither starts the lifecycle.
@@ -28,12 +27,11 @@ reader order below. The `Command` enum belongs here alongside `Cli`, because
 its job is parsing the requested operation. Standalone mode names a kind;
 the owner's harness-dispatch policy selects the command that implements it.
 
-<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-120" parent="source-command-surface" -->
+<!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-62" parent="source-command-surface" -->
 <!-- insert «surface-imports» -->
 <!-- insert «surface-doc-comment» -->
 <!-- insert «surface-clap-attributes» -->
 <!-- insert «surface-empty-struct» -->
-<!-- insert «surface-config-command» -->
 <!-- insert «surface-process-reporting» -->
 <!-- /fragment -->
 
@@ -50,7 +48,7 @@ The loop imports are used by the next chapter's lifecycle path:
 | `DriverLease` | The one-driver claim held while the loop runs |
 | `LoopOutcome` | Why the loop stopped, including interruption by a signal |
 
-The viewer and example installer return before any of those three is constructed or used.
+The viewer returns before any of those three is constructed or used.
 
 <!-- fragment «surface-imports» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-5" parent="surface-grammar" -->
 ````rust
@@ -88,7 +86,7 @@ libraries shipped with them inherit the workspace version. `book-validation`
 is an authoring tool with its own version and is outside that release set.
 
 `disable_help_subcommand` avoids an extra help verb. The subcommand set is
-`{run, run-log, config, view}`; `run-log` is hidden from ordinary help.
+`{run, run-log, view}`; `run-log` is hidden from ordinary help.
 The normal `--help` option still describes every command and argument.
 
 <!-- fragment «surface-clap-attributes» owner="no-arguments" source="crates/grove/src/cli.rs" lines="10-21" parent="surface-grammar" -->
@@ -119,7 +117,7 @@ when that directory is absent; absence is a visible state of the viewer.
 `Run` delegates its argument model to the standalone module. `RunLog` carries
 the exact log and status paths used by the separate display process.
 
-<!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="22-59" parent="surface-grammar" -->
+<!-- fragment «surface-empty-struct» owner="no-arguments" source="crates/grove/src/cli.rs" lines="22-51" parent="surface-grammar" -->
 ````rust
 pub struct Cli {
     #[command(subcommand)]
@@ -141,59 +139,14 @@ enum Command {
         /// Status file written when supervision finishes.
         status: PathBuf,
     },
-    /// Inspect launch configuration or install inactive examples.
-    // clap 4.6.1: variant-level subcommand nests the enum's commands.
-    // https://docs.rs/clap/4.6.1/clap/_derive/index.html#command-attributes
-    #[command(
-        subcommand,
-        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n  grove config examples\n\nExit codes: 0 success, 1 configuration/source/installation failure, 2 invalid usage."
-    )]
-    Config(ConfigCommand),
     /// Browse a .grove task tree read-only with automatic refresh.
     #[command(
-        long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or launch configuration is needed.",
+        long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or harness-dispatch policy is needed.",
         after_help = "Examples:\n  grove view\n  grove view /path/to/another/worktree"
     )]
     View {
         /// Directory containing .grove (defaults to the current directory).
         worktree: Option<PathBuf>,
-    },
-}
-````
-<!-- /fragment -->
-
-<a id="config-grammar"></a>
-## Inspecting configured policy and installing examples
-
-`ConfigCommand::Show` holds an optional kind filter and a JSON output flag. It changes which
-validated commands are displayed, not which profiles resolve or what launches.
-Clap requires a child of `config`; its nested help provides examples and exit
-codes. SessionConfig owns validation; the parser cannot establish that a kind
-is admitted. The JSON flag selects the wire projection of that same validated result.
-
-<!-- fragment «surface-config-command» owner="no-arguments" source="crates/grove/src/cli.rs" lines="60-82" parent="surface-grammar" -->
-````rust
-
-#[derive(Subcommand)]
-enum ConfigCommand {
-    /// Install inactive example files beside the personal configuration.
-    #[command(
-        long_about = "Install six .example.kdl files and CONFIGURATION.examples.md under ~/.config/grove/. Works outside a workspace without loading active policy. All destinations are checked first: matching regular files stay untouched; differing, unreadable or non-regular entries are conflicts. Missing files are created exclusively. Later failures may leave created or partial files, which are reported. Never overwrites config.kdl or edits a workspace delta or ignore rule.",
-        after_help = "Examples:\n  grove config examples\n  grove config examples --help\n\nExit codes: 0 whole set present, 1 conflict or I/O failure, 2 invalid usage.\nSuccess paths go to stdout; conflicts and partial-failure paths go to stderr. No force or destination option. Inspect conflicting paths and move them aside yourself before retrying. See also: grove config show --help."
-    )]
-    Examples,
-    /// Show sources, selected profiles, commands and override provenance.
-    #[command(
-        long_about = "Inspect the workspace's configuration read-only, using the same complete validation and admission as launch. Requires a jj workspace but no task tree or driver lease. Runtime slots remain placeholders; no executable is probed or launched. jj may snapshot metadata when checking local configuration trackedness.",
-        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n\nExit codes: 0 valid inspection, 1 source/configuration/resolution failure, 2 invalid usage.\nReports go to stdout; errors go to stderr. --json emits one schema-version-1 object, including usage diagnostics on stderr. A report describes one load; later launches reload configuration."
-    )]
-    Show {
-        /// Show one kind after validating the entire active configuration.
-        #[arg(long, value_name = "KIND")]
-        kind: Option<String>,
-        /// Emit schema-version-1 JSON; failures emit JSON diagnostics on stderr.
-        #[arg(long)]
-        json: bool,
     },
 }
 ````
@@ -208,7 +161,6 @@ enum ConfigCommand {
 | `grove run review "Review input.txt" --input input.txt` | Ask the owner's policy for the command and run it once in confined scratch storage |
 | `grove view` | `View { worktree: None }`; observe current directory's `.grove` |
 | `grove view /tmp/tasks` | `View` with `/tmp/tasks`; observe `/tmp/tasks/.grove` |
-| `grove config show --kind impl` | Validate all active policy, then require and display impl |
 | `grove view --help` | Print observation help and exit before terminal setup |
 | `grove --version` | Print the shared release version and exit |
 | `grove --harness claude` | Clap refuses the unknown lifecycle flag |
@@ -230,62 +182,24 @@ ordinary session verbs retain their task-tree epoch checks. The human binary del
 shows the branch that separates these paths.
 
 
-
-The `Examples` variant takes no selector or destination. Its help describes the
-fixed personal-directory package, preflight conflicts, exclusive creation and
-partial-failure reports. It shares the outer config group but never calls the
-configuration reader.
-
 <a id="process-reporting"></a>
-## Reporting before a command exists
+## Process reporting
 
-`run` owns parsing and process reporting. It scans native arguments for the JSON
-request before asking clap to parse, so even an earlier unknown option can produce
-structured diagnostics. The `--` terminator ends that scan. Malformed equals-form
-requests still ask for JSON errors, while clap refuses their value. Help and
-version requests keep clap's successful human output.
+`run` owns parsing and process reporting. `Cli::parse` exits by itself on help,
+version and a usage refusal, so an unknown lifecycle flag never reaches
+dispatch. After parsing, `execute` returns any application failure to this
+boundary, which prints the error with its context chain once. Returning
+`ExitCode` lets `main` finish without Rust adding a second error message.
 
-After parsing, `execute` returns any application failure to this boundary. JSON
-configuration errors preserve structured records; other failures get the same
-record shape. Human errors retain their context chain. Returning `ExitCode` lets
-`main` finish without Rust adding a second error message.
-
-<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="83-120" parent="surface-grammar" -->
+<!-- fragment «surface-process-reporting» owner="no-arguments" source="crates/grove/src/cli.rs" lines="52-62" parent="surface-grammar" -->
 ````rust
 
-/// Own process reporting, including usage failures before a command exists.
+/// Own process reporting: clap exits on help, version and usage refusals.
 pub fn run() -> ExitCode {
-    let args: Vec<_> = std::env::args_os().collect();
-    let json = args
-        .iter()
-        .skip(1)
-        .take_while(|arg| *arg != "--")
-        .any(|arg| arg == "--json" || arg.as_encoded_bytes().starts_with(b"--json="));
-    // try_parse_from preserves native arguments; use_stderr distinguishes help
-    // from refusal. https://docs.rs/clap/4.6.1/clap/error/struct.Error.html#method.use_stderr
-    let cli = match Cli::try_parse_from(args) {
-        Ok(cli) => cli,
-        Err(error) if json && error.use_stderr() => {
-            eprintln!(
-                "{}",
-                crate::config_json::failure(
-                    "usage",
-                    &error.to_string(),
-                    "Run grove config show --help for supported options."
-                )
-            );
-            return ExitCode::from(2);
-        }
-        Err(error) => error.exit(),
-    };
-    match execute(cli) {
+    match execute(Cli::parse()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            if json {
-                eprintln!("{}", crate::config_json::error(&error));
-            } else {
-                eprintln!("Error: {error:?}");
-            }
+            eprintln!("Error: {error:?}");
             ExitCode::FAILURE
         }
     }

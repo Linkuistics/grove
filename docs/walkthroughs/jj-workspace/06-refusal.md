@@ -92,7 +92,7 @@ where E: StdError + Send + Sync + 'static` is in `src/error.rs` of that release
 ([anyhow](https://docs.rs/anyhow/1.0.102/anyhow/struct.Error.html)). `Refusal`
 carries only `PathBuf`, `String`, `io::Error` and a boxed `Refusal`, so it
 satisfies those bounds without a line of the file saying so, and grove converts a
-refusal that way at `crates/grove-loop/src/session_config.rs:194`. Opacity does
+refusal that way at `crates/grove/src/cli.rs:96`. Opacity does
 not cost a consumer its error plumbing; it costs it the ability to branch.
 
 <a id="worked-refusal"></a>
@@ -269,17 +269,14 @@ shared refusal.
 
 > **The consumer's half.** grove never names this type. `grove-loop` re-exports
 > `Commit` and `Workspace` from this crate and not `Refusal`
-> (`crates/grove-loop/src/lib.rs:81`), and its three call sites each do one of the
-> three things an opaque error allows. `session_config.rs:194` converts it —
-> `Workspace::resolve(worktree).map_err(anyhow::Error::from)` — and lets it print
-> as it stands. `crates/grove-llm/src/cli.rs:452` adds the sentence the crate
+> (`crates/grove-loop/src/lib.rs:80`), and its call sites each do one of the
+> two things grove asks of an opaque error. `crates/grove/src/cli.rs:96` converts it —
+> `Workspace::resolve(&cwd)?`, into an `anyhow::Error` — and lets it print
+> as it stands. `crates/grove-llm/src/cli.rs:473` adds the sentence the crate
 > could not have written, `.context("cannot commit the finished grove")`, so an
 > operator reads what grove was attempting and then what jj said about it.
-> `session_config.rs:354` discards it: `let Ok(workspace) = Workspace::resolve(
-> directory) else { return Ok(false) }`, because that caller's question is whether
-> a configuration delta is tracked, and a directory that is not a workspace
-> answers `false` rather than failing. Convert, contextualise, or discard. None of
-> the three requires a variant, and grove matches on no refusal this crate
+> Convert, or contextualise. Neither
+> requires a variant, and grove matches on no refusal this crate
 > produces.
 
 <a id="the-opaque-type"></a>

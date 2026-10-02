@@ -402,17 +402,13 @@ call `commit` makes on every one of its paths. The two operations share their
 addressing entirely, which is why the path algebra is one section of this chapter
 rather than an appendix to two.
 
-> **The consumer's half.** grove asks this question twice, and both times to
+> **The consumer's half.** grove asks this question once, to
 > decide whether something else is safe. In
 > `crates/grove-loop/src/tree_lifecycle.rs` it is the precondition for deleting a
 > finished task tree: jj can only restore what it tracks, so an untracked
 > `.grove/` would make the deletion the unrecoverable kind, and grove refuses
-> with a message naming the commit that would fix it. In
-> `crates/grove-loop/src/session_config.rs` it enforces the opposite polarity — a
-> *tracked* configuration delta is refused, because a delta names a program to
-> execute and a tracked one would let a repository choose what grove spawns in
-> every checkout of it. One probe, two consumers' rules, and the crate holds
-> neither of them.
+> with a message naming the commit that would fix it. One probe, one
+> consumer's rule, and the crate does not hold it.
 
 <a id="the-commit"></a>
 ## One path-scoped commit, and two refusals that mean different things

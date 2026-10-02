@@ -335,11 +335,7 @@ it is not a registry of the kinds a task tree may use.
 the personal base plus selected personal profiles admits a key for local
 override. An inactive profile does not count, and a local-only key fails on use,
 naming the key and personal file. Local parameters may complete a personally
-targeted route. The generic library enforces this without knowing what a kind is
-([`complete-session-configuration`](../adr/complete-session-configuration.md) for
-what a template must be,
-[`untracked-configuration-delta`](../adr/untracked-configuration-delta.md) for the
-second document and the safety property it now states as its own).
+targeted route. The generic library enforces this without knowing what a kind is.
 
 ### 7 — The runner
 

@@ -1,11 +1,11 @@
 # The loop
-<!-- book-page id="the-loop" slice="four-things-a-runner-cannot-choose" order="20" -->
-[Previous: The guaranteed core](19-the-core.md) | [Contents](README.md) | [Next: What could not move](21-what-could-not-move.md)
+<!-- book-page id="the-loop" slice="four-things-a-runner-cannot-choose" order="19" -->
+[Previous: The guaranteed core](18-the-core.md) | [Contents](README.md) | [Next: What could not move](20-what-could-not-move.md)
 
 <a id="four-things-a-runner-cannot-choose"></a>
 ## The rule: all of the spawning, watching and escalating is `keyed-launch`'s
 
-Chapter 19 read the string a session is launched with. This chapter reads the
+Chapter 18 read the string a session is launched with. This chapter reads the
 thing that launches it, and the surprise is how little of that is here. The
 module that drives grove's whole runtime is 615 lines, and it spawns nothing it
 supervises, watches nothing it spawned, and kills nothing at all.
@@ -28,7 +28,7 @@ of every chapter before it:
 ```text
   the tree is transitioned to current      chapter 14
   the walk chooses a leaf                  chapter 7 — kind `impl`, handle `plan-k1`
-  the prompt is composed                   chapter 19
+  the prompt is composed                   chapter 18
   the dispatch invocation is built         this chapter
 
   Channel::allocate(control_dir)        -> choice 1: whose directory
@@ -41,10 +41,10 @@ of every chapter before it:
   -> a token, or none; relaunch, stop, or interrupted
 ```
 
-This is the outcome's third question one layer out from where chapter 19 asked
+This is the outcome's third question one layer out from where chapter 18 asked
 it. *On the way out — the policy: what does this layer choose that nothing
-beneath it could have defaulted?* Chapter 18 answered with seven slot **names**;
-chapter 19 answered with the contents of the required slot; this chapter answers
+beneath it could have defaulted?* Chapter 18 answered with the contents of the
+prompt; this chapter answers
 with four **values handed to a library that has no opinion about any of them**.
 The cost the outcome names — *a chosen value must be stated where a reader can
 find it* — is paid here about as literally as a codebase can pay it: three of the
@@ -89,19 +89,19 @@ is 51.5% and 8.7%, and the structure brief says 51% and 8%. The one-point
 disagreement chapter 15 recorded over `verbs.rs` and `driver.rs` does not recur
 here, and neither figure is given as a percentage alone: the counts are what a
 later page can check. Whole, the root is 287 of 615 lines, 46.7%, which is the
-figure chapter 19 forecast for it.
+figure chapter 18 forecast for it.
 
 **This root has 204 `///` lines, no `//!` at all, 83 plain `//` lines, and an
 inline `#[cfg(test)]` module.** It is therefore the one root in Part V that
 carries **both** of the instrument blind spots this book has been working around,
-where `session_config.rs` and `prompt.rs` carried neither:
+where `prompt.rs` carried neither:
 
 - chapter 16's — `cargo doc` sees only `///` and `//!`, so the entire 54-line
   header is invisible to it;
 - chapter 17's — `cargo doc` cannot see inside a `#[cfg(test)]` module at all, so
   the last 69 lines are invisible too.
 
-Chapter 19 measured `prompt.rs` and found it an exception, and said explicitly
+Chapter 18 measured `prompt.rs` and found it an exception, and said explicitly
 that the forecast still stood for this root. It does. The two blind spots together
 hide 123 of this file's 615 lines from the instrument, and what is inside them is
 not incidental: the header carries the module's whole thesis — the bold rule, the
@@ -138,8 +138,8 @@ instrument cannot see, and by the citation forms it does not look for.
 **The block holds exactly two `#[test]` functions.** They are at lines 557 and
 593, counted against the bytes rather than against any prose list of them, and
 the structure brief names those two and no others. Chapter 17's list was wrong in
-both directions and chapter 18's and 19's had to be counted too; this is the
-fifth such count in the book and the first that needed no correction.
+both directions and chapter 18's had to be counted too; this is the
+first such count in the book that needed no correction.
 
 <a id="the-harness-widened"></a>
 ## The harness this chapter had to widen, and the direction the error runs
@@ -312,7 +312,7 @@ header's *constraint 6, walk-away-able* cites the grove spine's sixth constraint
 which is a citation form no instrument in this repository checks and which does
 resolve: `plugins/grove/skills/grove/SKILL.md` numbers *Walk-away-able* sixth.
 
-**`$prompt` carries `$handle`, and that is the whole interface to chapter 19.**
+**`$prompt` carries `$handle`, and that is the whole interface to chapter 18.**
 The sketch's launch line passes the handle twice, once as `--task-id` and once
 inside the prompt, and its trailing comment says the second in five words. The
 composition itself is `session_prompt`, below.
@@ -515,9 +515,8 @@ either way, so the root is still 615 lines, the block still occupies lines 76 to
 115, and no ownership range or fragment range moved; the fragment above
 reproduces the corrected bytes.
 
-It was the fourth *form* of broken citation the book found, each invisible to a
-different instrument: chapter 18's reference to a numbered requirement that does
-not exist and its Markdown link resolving from neither surface, chapter 19's rule
+It was the second *form* of broken citation Part V found, each invisible to a
+different instrument: chapter 18's rule
 id with an invented `skill-` prefix, and this one, a bare parenthesised anchor
 naming no anchor. **Only
 enumerating a block's tokens and resolving each one finds this class**; no
@@ -1061,7 +1060,7 @@ session that happened to signal turn a `timeout(1)` into a clean finish.
 <a id="session-prompt"></a>
 ## `session_prompt`: a pointer, not the methodology
 
-The first of the five helpers `drive` calls, and the one that reaches chapter 19.
+The first of the five helpers `drive` calls, and the one that reaches chapter 18.
 
 <!-- fragment «loop-session-prompt» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="319-352" parent="loop-driver" -->
 ````rust
@@ -1102,7 +1101,7 @@ fn session_prompt(handle: &Handle, kind: &Kind, workspace: &Workspace) -> String
 ````
 <!-- /fragment -->
 
-Eight lines of code under twenty-five of argument, and chapter 19 is the other
+Eight lines of code under twenty-five of argument, and chapter 18 is the other
 half of it. Three things are decided here rather than there.
 
 **The kind is passed rather than re-read.** *The same value `harness-dispatch`
@@ -1131,7 +1130,7 @@ the loop still had to carry, and taking the workspace as an argument to `run`
 deleted it. The [stated VCS](../../../CONTEXT.md#stated-vcs) the prompt publishes
 is therefore a value the driver resolved once, at the top, and never re-derives —
 which is the `docs/ARCHITECTURE.md` residue subject *the stated VCS in
-`${prompt}`* seen from the supplying side, chapter 19 having read the composing
+`${prompt}`* seen from the supplying side, chapter 18 having read the composing
 side.
 
 <a id="dispatch-run"></a>
@@ -2124,7 +2123,7 @@ the nine that fire.
 ## What could not move
 
 The book's three questions, asked of the last root and the last chapter that owns
-one. This chapter states no rank for it: chapter 19 is the one page a later page
+one. This chapter states no rank for it: chapter 18 is the one page a later page
 should take a Part V size from, and nothing in the questions below wants an
 ordinal.
 
@@ -2133,7 +2132,7 @@ module parses no filename, spells no token and constructs no name: `Handle`,
 `Kind` and `Selection` all arrive already made, through one guarded `pick`. The
 grammar's cost — a conformance kit, canonicity, `format(parse(f)) == f` — was paid
 across `task_name.rs`'s 1,743 lines in chapters 2 to 4, and what reaches here is
-the return on it. Chapter 19 answered this question the same way and found one
+the return on it. Chapter 18 answered this question the same way and found one
 name of its own, `PLUGIN`; this chapter finds one too, and it is not in the
 grammar at all but in the *environment*: `CHANNEL_VAR`,
 a string two binaries have agreed on with no shared constant between them, whose
@@ -2159,10 +2158,10 @@ fact about grove and not about launching, which is why the header can hand away
 the spawning, the watching and the escalating in one bold sentence and still have
 something left to be.
 
-**And the thing this chapter is really for.** The loop is the one place where all
-twenty preceding chapters are used at once: the transition from chapter 14, the
+**And the thing this chapter is really for.** The loop is the one place where the
+preceding chapters are used at once: the transition from chapter 14, the
 walk from chapter 7, the lease and epoch from chapters 16 and 17, the prompt from
-chapter 19 — four subsystems, called in order, in the 112 lines of `drive`. It could have been the place where
+chapter 18 — four subsystems, called in order, in the 112 lines of `drive`. It could have been the place where
 the crate's thesis broke down, because a loop is the natural home for a cursor,
 a cache and a retry count. It holds none of them. Position is re-derived from the
 tree on every pass, the command is selected afresh by a process outside this
@@ -2171,4 +2170,4 @@ still act. **Restart is continuation** because there is nothing to restore — a
 that is chapter 13's *the tree's shape is the only state* proved in the one module
 that had every excuse to break it.
 
-[Previous: The guaranteed core](19-the-core.md) | [Contents](README.md) | [Next: What could not move](21-what-could-not-move.md)
+[Previous: The guaranteed core](18-the-core.md) | [Contents](README.md) | [Next: What could not move](20-what-could-not-move.md)

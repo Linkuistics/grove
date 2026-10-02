@@ -1702,10 +1702,9 @@ outright reddens nothing — the suite lands exactly on its 560-test control —
 nothing in this workspace passes `--kind finish` to this verb.
 
 **And the path is open.** `grove-llm`'s `cmd_leaf_decompose` parses `--kind` into
-a `Kind` and passes it straight through; the check it runs first,
-`require_declared`, asks whether the *launch configuration* declares that kind, not
-whether grove reserved it. So an operator whose configuration declared a `finish`
-template would meet line 555 and nothing else. The help text says so —
+a `Kind` and passes it straight through, with no check of its own.
+So an operator who passed `--kind finish`
+would meet line 555 and nothing else. The help text says so —
 `leaf-decompose`'s `--kind` is documented as *except driver-reserved finish* — and
 the sentence is held by one unobserved line.
 

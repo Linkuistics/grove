@@ -5,14 +5,13 @@
 <a id="one-call"></a>
 ## Dispatch, then prepare the lifecycle
 
-The CLI first parses the command and chooses the error format; `execute` then
-dispatches standalone invocation, its hidden log viewer and sample delivery
+The CLI first parses the command; `execute` then
+dispatches standalone invocation and its hidden log viewer
 before obtaining the current directory. For
 `view`, it calls the viewer with the supplied path or that directory and
-returns. `config show` likewise returns before lease acquisition, but resolves
-a workspace and loads launch policy through SessionConfig. The remaining
-statements belong to the bare lifecycle. Tree viewing needs no workspace or
-configuration; configuration inspection needs no tree, lease or session epoch.
+returns. The remaining
+statements belong to the bare lifecycle. Tree viewing needs no workspace and
+no harness-dispatch policy.
 
 For bare `grove`, the workspace is resolved once and shared with the lease and
 loop. The binary provisions bundled Codex-compatible skills before calling the
@@ -25,10 +24,10 @@ reason into the process's exit behavior.
 
 The composite assembles the function's contract and implementation in source
 order. The documentation separates ordinary errors from a signal that took the
-driver away; the body returns from standalone, display, sample and observation operations
+driver away; the body returns from standalone, display and observation operations
 before lifecycle setup.
 
-<!-- fragment «surface-resolve-lease-run» owner="one-call" source="crates/grove/src/cli.rs" lines="121-169" parent="source-command-surface" -->
+<!-- fragment «surface-resolve-lease-run» owner="one-call" source="crates/grove/src/cli.rs" lines="63-105" parent="source-command-surface" -->
 <!-- insert «run-seam-doc» -->
 <!-- insert «run-signal-doc» -->
 <!-- insert «run-errors-doc» -->
@@ -37,8 +36,8 @@ before lifecycle setup.
 <!-- /fragment -->
 
 The provisioning adapter is its own complete source root. Keeping it beside
-startup makes the causal boundary visible: the lease is already held, but no
-template has been loaded and no child can start until this function succeeds.
+startup makes the causal boundary visible: the lease is already held, but
+no child can start until this function succeeds.
 
 <!-- fragment «codex-provisioning» owner="one-call" source="crates/grove/src/provision.rs" lines="1-401" parent="source-codex-provisioning" -->
 <!-- insert «provision-entry-and-detection» -->
@@ -54,30 +53,30 @@ template has been loaded and no child can start until this function succeeds.
 <a id="the-entry-point"></a>
 ## The entry point
 
-`main.rs` declares the CLI, configuration, dispatch-lookup, provisioning, standalone and display modules and calls
+`main.rs` declares the CLI, dispatch-lookup, provisioning, standalone and display modules and calls
 the CLI’s `run`. Its module comment
 explains why the binaries and library are separate packages: the application
 entry point should call public seams rather than compile private modules into
 itself. The CLI reports errors once and returns an `ExitCode`; main propagates that
 status without adding a second message.
 
-<!-- fragment «entry-point-three-steps» owner="one-call" source="crates/grove/src/main.rs" lines="1-20" parent="source-entry-point" -->
+<!-- fragment «entry-point-three-steps» owner="one-call" source="crates/grove/src/main.rs" lines="1-17" parent="source-entry-point" -->
 <!-- insert «entry-point-module-doc» -->
 <!-- insert «entry-point-module-and-main» -->
 <!-- /fragment -->
 
 The module documentation states which actor owns each path. The loop and viewer
-sit behind public library entry points; standalone artifact handling and sample
-delivery and Codex provisioning remain binary adapters. Main propagates their selected exit status.
+sit behind public library entry points; standalone artifact handling
+and Codex provisioning remain binary adapters. Main propagates their selected exit status.
 
 <!-- fragment «entry-point-module-doc» owner="one-call" source="crates/grove/src/main.rs" lines="1-7" parent="entry-point-three-steps" -->
 ````rust
-//! The human's binary: lifecycle, standalone work, observation and examples.
+//! The human's binary: lifecycle, standalone work and observation.
 //!
-//! The CLI dispatches `run`, `view` and `config` before lifecycle setup. Bare `grove`
+//! The CLI dispatches `run` and `view` before lifecycle setup. Bare `grove`
 //! resolves the working tree and takes the one-driver lease before calling
 //! [`grove_loop::run`]. The loop and viewer use public library entry points;
-//! standalone artifact handling and sample delivery stay here. Main propagates exit status
+//! standalone artifact handling stays here. Main propagates exit status
 //! (`docs/specs/module-decomposition.md`, decision 9).
 ````
 <!-- /fragment -->
@@ -85,14 +84,11 @@ delivery and Codex provisioning remain binary adapters. Main propagates their se
 The module declaration and main function implement that boundary: one call
 returns the CLI result directly to the process runtime.
 
-<!-- fragment «entry-point-module-and-main» owner="one-call" source="crates/grove/src/main.rs" lines="8-20" parent="entry-point-three-steps" -->
+<!-- fragment «entry-point-module-and-main» owner="one-call" source="crates/grove/src/main.rs" lines="8-17" parent="entry-point-three-steps" -->
 ````rust
 
 mod cli;
-mod config;
-mod config_json;
 mod dispatch;
-mod examples;
 mod provision;
 mod run_display;
 mod standalone;
@@ -112,10 +108,10 @@ therefore runs once and passes its result to both consumers. This contract is
 about the lifecycle; the viewer's absolute observation path is not a workspace
 resolution.
 
-<!-- fragment «run-seam-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="121-129" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-seam-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="63-71" parent="surface-resolve-lease-run" -->
 ````rust
 
-/// Dispatch inspection, viewing or example delivery before the lifecycle.
+/// Dispatch a standalone invocation or the viewer before the lifecycle.
 ///
 /// The workspace is resolved **here**, once, and handed to both the lease and
 /// the loop. That is the shape `loop-crate-driver-k22` gave the seam: the lease
@@ -131,12 +127,11 @@ resolution.
 
 | Statement | Input and result |
 |---|---|
-| `Cli::try_parse_from` | Shell arguments become an optional command; help/version exit here |
+| `Cli::parse` | Shell arguments become an optional command; help, version and usage refusals exit here |
 | `standalone::run` | Execute one kind and return before workspace setup |
 | `run_display::watch` | Display a parent-selected log and status file |
 | `current_dir` | Capture the caller's working directory, or return its I/O error |
 | `grove_tui::run` | A view request observes a path and returns before the following steps |
-| `config::show` | Validate and display configuration before lifecycle setup |
 | `Workspace::resolve` | Find the enclosing jj workspace for bare invocation |
 | `DriverLease::acquire` | Refuse a competing lifecycle driver, otherwise hold the lease |
 | `provision::ensure_codex_skills` | Install or repair bundled Codex skills, or skip when Codex is absent |
@@ -147,11 +142,7 @@ here, before anything is scaffolded or launched. It is never looked for on a vie
 request. A non-jj directory can be observed, even though
 bare invocation there is refused. Both outcomes follow from the early return.
 
-`config examples` follows the standalone and hidden log-viewer branches: it resolves only HOME and returns
-before current-directory lookup, workspace discovery or leasing. Missing or broken
-active policy and stale ambient epochs therefore cannot change sample delivery.
-
-<!-- fragment «run-three-steps» owner="one-call" source="crates/grove/src/cli.rs" lines="143-163" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-three-steps» owner="one-call" source="crates/grove/src/cli.rs" lines="85-99" parent="surface-resolve-lease-run" -->
 ````rust
 fn execute(cli: Cli) -> anyhow::Result<()> {
     if let Some(Command::Run(args)) = cli.command {
@@ -160,15 +151,9 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     if let Some(Command::RunLog { log, status }) = cli.command {
         return crate::run_display::watch(&log, &status);
     }
-    if let Some(Command::Config(ConfigCommand::Examples)) = cli.command {
-        return crate::examples::run();
-    }
     let cwd = std::env::current_dir()?;
     if let Some(Command::View { worktree }) = cli.command {
         return grove_tui::run(&worktree.unwrap_or(cwd));
-    }
-    if let Some(Command::Config(ConfigCommand::Show { kind, json })) = cli.command {
-        return crate::config::show(&cwd, kind.as_deref(), json);
     }
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
@@ -726,7 +711,7 @@ observes termination by that signal. This is the lifecycle's contract; the
 viewer's current Ctrl-c handling is an ordinary quit through its own terminal
 lifetime, and full signal hardening is a later viewer increment.
 
-<!-- fragment «run-signal-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="130-138" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-signal-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="72-80" parent="surface-resolve-lease-run" -->
 ````rust
 /// **A driver that was killed does not exit 0.** The loop returns *why* it
 /// stopped, and one of the reasons is that this process was sent SIGTERM or
@@ -741,10 +726,10 @@ lifetime, and full signal hardening is a later viewer increment.
 <!-- /fragment -->
 
 The final match maps the returned lifecycle outcome to clean return or signal
-re-raising. The standalone runner, log viewer, observation commands and sample installer
+re-raising. The standalone runner, log viewer and tree viewer
 have already returned before this match can run.
 
-<!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="164-169" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-call-and-endings» owner="one-call" source="crates/grove/src/cli.rs" lines="100-105" parent="surface-resolve-lease-run" -->
 ````rust
     match grove_loop::run(&workspace, lease, &dispatch)? {
         LoopOutcome::Finished | LoopOutcome::Stopped => Ok(()),
@@ -778,7 +763,7 @@ grove view
   parse: View with no explicit path
   current_dir: /work/atlas/src
   view: observe /work/atlas/src/.grove
-  return: no workspace resolution, lease or template source
+  return: no workspace resolution, lease or dispatch lookup
 ```
 
 If that `.grove` is absent, view shows a Missing state and accepts `r` to retry.
@@ -804,9 +789,9 @@ owner's policy refuses is not one of them, since the loop stops on it and return
 cleanly. A viewer can return a
 non-TTY refusal or a terminal setup/input/draw error; its terminal owner restores
 modes before that error reaches the reporting boundary. `execute` returns the error
-to `run`, which writes human or JSON diagnostics and returns exit 1 to main.
+to `run`, which writes the error and returns exit 1 to main.
 
-<!-- fragment «run-errors-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="139-142" parent="surface-resolve-lease-run" -->
+<!-- fragment «run-errors-doc» owner="one-call" source="crates/grove/src/cli.rs" lines="81-84" parent="surface-resolve-lease-run" -->
 ````rust
 /// # Errors
 ///

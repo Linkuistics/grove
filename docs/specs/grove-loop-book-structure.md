@@ -100,12 +100,12 @@ three provable inside this corpus.
 |---:|---|---|---|---|
 | 1 | **On the way in — the names.** Does the layer own a grammar the library beneath it cannot check? | A grammar you own must be canonical — `format(parse(f)) == f` — or one entity occupies two files, sharing a key and a position. Canonicity costs a conformance kit. | the conformance kit (`task_name.rs` 1059–1177); *question 2: the grammar is canonical* (1257–1312); `pick_refuses_a_species_mismatch_at_a_task_shaped_name` | 2, 3, 4, 5 |
 | 2 | **On the way through — the preconditions.** Does it check what the library cannot see, and against *which* snapshot? | The check must run against the same snapshot the operation then plans from, or it is a race with a name. A refused run must consume nothing. | `prune_node_is_atomic_bails_clean_on_a_leaf_it_cannot_address`; `a_refused_run_does_not_consume_positions_or_keys`; `one_process_creating_and_reading_a_grove_never_waits_on_itself` | 6–13 |
-| 3 | **On the way out — the policy.** What does it choose that nothing beneath it could have defaulted? | A chosen value must be stated where a reader can find it, and the layer must not restate what the layer above owns. | `the_slots_are_the_vocabulary_and_prompt_is_the_required_one`; `the_runtime_facts_restate_no_rule_the_skill_owns`; `the_library_imposes_only_libc` | 14–20 |
+| 3 | **On the way out — the policy.** What does it choose that nothing beneath it could have defaulted? | A chosen value must be stated where a reader can find it, and the layer must not restate what the layer above owns. | `the_runtime_facts_restate_no_rule_the_skill_owns`; `the_library_imposes_only_libc` | 14–19 |
 
 The three parts are the three things that are provably hard to move — meaning,
-timing and choice — and grove pays a visible price for each. Chapter 21 applies
+timing and choice — and grove pays a visible price for each. Chapter 20 applies
 all three to every source-owning chapter in turn; that application is the whole
-of what chapter 21 is.
+of what chapter 20 is.
 
 **Two outcomes were rejected.** The **re-derivation test** — *what do you
 remember that you could re-derive?* — is sharp and explains the crate's single
@@ -116,7 +116,7 @@ chapters 13 and 16, and the contrast between those two is stated once, in
 chapter 13 — the earlier of the two pages, so the book states it before either
 chapter needs it, and chapter 16 inherits it rather than re-arguing it. The
 **maintainer outcome** — *you can now maintain this crate* — follows free from
-source-exactness, is not transferable, and leaves chapter 21 nothing to
+source-exactness, is not transferable, and leaves chapter 20 nothing to
 argue; all four preceding briefs rejected the equivalent on the same ground.
 
 ## The spine: what is left here is grove's own
@@ -140,7 +140,6 @@ then every large module's own header opens on exactly the same move:
 | `task_tree.rs` | *What changes is who owns the walk* | path construction, and refusal precedence |
 | `task_grow.rs` | *What grove still owns, and why each piece could not move* | the reference, the preconditions, the template, the lint |
 | `tree_lifecycle.rs` | *what happens to a grove that the store has no word for* | beginning, outcomes, ending |
-| `session_config.rs` | *What is left here is the part that is grove's alone* | whose file, and whether it is admissible |
 | `verbs.rs` | *none of which the store has a word for* | the surface, and its three shapes |
 | `driver.rs` | *the reason they are not in [`crate::verbs`]* | the two operations that are not verbs |
 | `driver_lease.rs` | the seam owns *where*; grove owns *whose* | the lease, and the epoch |
@@ -177,7 +176,7 @@ It is stated in chapter 1 and is the Part IV/Part V boundary below.
 
 ## Chapter sequence
 
-**Twenty-one pages: twenty owning source, and a final-only assembly page that
+**Twenty pages: nineteen owning source, and a final-only assembly page that
 owns none.** The order is the seam order the spine names — grove's grammar, then
 grove's walk, then what the store has no word for, then the surface, then what a
 runner cannot choose. Each chapter is cut by **concept**, and the inline test
@@ -210,14 +209,13 @@ work along them.
 | 14 | Finishing | `the-tree-deletes-itself` | `tree_lifecycle.rs` 1–331, 1467–1665 | 530 |
 | | **Part IV — the surface** | | | **516** |
 | 15 | The twelve verbs, and the two that are not | `twelve-not-fourteen` | `verbs.rs` 1–363; `driver.rs` 1–57; `complete.rs` 1–96 | 516 |
-| | **Part V — what a loop must choose and a runner cannot** | | | **2,601** |
+| | **Part V — what a loop must choose and a runner cannot** | | | **2,243** |
 | 16 | One live driver per working tree | `one-per-working-tree` | `driver_lease.rs` 1–819 | 819 |
 | 17 | Which calls the lease admits | `which-calls-are-admitted` | `driver_lease.rs` 820–1383 | 564 |
-| 18 | Which files take part | `whose-file-and-whether` | `session_config.rs` 1–358 | 358 |
-| 19 | The guaranteed core | `too-late-to-say-later` | `prompt.rs` 1–245 | 245 |
-| 20 | The loop | `four-things-a-runner-cannot-choose` | `loop_driver.rs` 1–615 | 615 |
-| 21 | What could not move | `assembly` | — (final-only; owns no source) | 0 |
-| | **Total** | | **13 roots** | **10,533** |
+| 18 | The guaranteed core | `too-late-to-say-later` | `prompt.rs` 1–245 | 245 |
+| 19 | The loop | `four-things-a-runner-cannot-choose` | `loop_driver.rs` 1–615 | 615 |
+| 20 | What could not move | `assembly` | — (final-only; owns no source) | 0 |
+| | **Total** | | **12 roots** | **10,175** |
 
 **Slice IDs are named for the rule each chapter carries**, none equal to a page
 ID and none carrying a task key, applying `jj-workspace-structure-k17`'s decision
@@ -243,7 +241,7 @@ and a trivially checkable source index — but chapters 3, 5, 8 and 11 would the
 *the tests for the previous chapter*, a cut by file half rather than by concept,
 with chapter 8 alone at 1,649 lines and no rule of its own to open on. **Eleven
 pages, one per root, whole files** is closest to the file layout and leaves a
-2,725-line chapter. **Twenty-one pages in the reader's order** — the loop first,
+2,725-line chapter. **Twenty pages in the reader's order** — the loop first,
 then a session's life, then the grammar underneath — is `docs/USAGE.md`'s order and
 the way a grove actually runs, but every early chapter would use vocabulary the
 book has not defined, and a seam is only visible once both of its sides are named.
@@ -285,7 +283,7 @@ fifth is `jj-workspace`, and it has no clause of its own: the comment accounts
 for it only as one of *the three modules it composes*. That is a gap in the
 manifest's own account rather than an incidental omission, because
 `jj-workspace` is the crate's version-control seam — `tree_lifecycle.rs`,
-`driver_lease.rs`, `prompt.rs`, `session_config.rs` and `loop_driver.rs` all
+`driver_lease.rs`, `prompt.rs` and `loop_driver.rs` all
 `use` it directly, and `lib.rs` re-exports `Commit` and `Workspace` — so the
 chapter says what it is reached for where the manifest does not.
 
@@ -353,7 +351,7 @@ is not the whole reason `libc` is a dependency, and the chapter says so rather
 than letting the probe stand for the crate: `libc` is reached from three
 production modules — this probe, `driver_lease.rs` for the lease's own locking
 and its close-on-exec descriptors, and `loop_driver.rs` for the terminal and
-signal calls chapter 20 reads. Chapter 1 owns the manifest and explains all
+signal calls chapter 19 reads. Chapter 1 owns the manifest and explains all
 three.
 
 ### 6 · Paths, and addressing — `paths-are-built-here`
@@ -540,24 +538,7 @@ At 3% comment prose this is the barest block in the corpus, and the chapter's
 whole job is to say what each scenario establishes and what it would still pass
 under.
 
-### 18 · Which files take part — `whose-file-and-whether`
-
-**The rule: everything a template *is* belongs to `keyed-launch`; what is left
-here is whose file, and whether the second one is admissible.** The personal
-file's path, the two roots the delta is searched at, `DeltaRoots`,
-`TemplateSource`, the slots grove's templates are written against, and the
-refusal of a **tracked** delta — which could not move because it is a question
-about grove's worktree, answered through grove's version-control seam, and it is
-the boundary between an untrusted repository and arbitrary code execution.
-Pinned by `the_slots_are_the_vocabulary_and_prompt_is_the_required_one`,
-`a_snapshotted_jj_delta_is_refused_in_both_jj_shapes`,
-`a_trackedness_probe_that_cannot_be_completed_fails_closed` and
-`a_grove_configuration_conforms_to_the_runners_own_kit`.
-
-**It explains the corrected read count on `TemplateSource`.** See *Known in
-advance*. Chapter 20 carries the other half of that explanation.
-
-### 19 · The guaranteed core — `too-late-to-say-later`
+### 18 · The guaranteed core — `too-late-to-say-later`
 
 **The rule: a sentence rides `${prompt}` only if its failure mode is one the
 skill cannot repair — because by the time the skill could speak, the moment has
@@ -569,7 +550,7 @@ skill. `the_prompt_is_three_parts_in_the_sessions_own_timeline_order`,
 `the_signalling_contract_states_the_mechanism_and_defers_the_ending`,
 `every_kind_names_a_skill_the_plugin_ships`.
 
-### 20 · The loop — `four-things-a-runner-cannot-choose`
+### 19 · The loop — `four-things-a-runner-cannot-choose`
 
 **The rule: all of the spawning, watching and escalating is `keyed-launch`'s;
 what stays here is the four things a loop has to choose and a runner cannot** —
@@ -585,10 +566,10 @@ The chapter carries *restart ≡ continuation* — the loop body holds zero stat
 re-derives position from the tree — and the shell sketch the header keeps, which
 is still the whole loop *because a boundary is not a step*.
 
-### 21 · What could not move — `assembly`
+### 20 · What could not move — `assembly`
 
 **Final-only, and it owns no source.** It applies the stated outcome's three
-questions to each of the twenty source-owning chapters in turn, and answers them
+questions to each of the nineteen source-owning chapters in turn, and answers them
 for the crate as a whole. It is the only page whose every sentence is a claim
 about another page, which is what makes it the page a reviewer should be spent on.
 
@@ -611,10 +592,9 @@ chapter; four are split by concept, and each split is named below.
 | `src/driver.rs` | 57 | 15 | 1 |
 | `src/complete.rs` | 96 | 15 | 1 |
 | `src/driver_lease.rs` | 1,383 | 16, 17 | 2 |
-| `src/session_config.rs` | 358 | 18 | 1 |
-| `src/prompt.rs` | 245 | 19 | 1 |
-| `src/loop_driver.rs` | 615 | 20 | 1 |
-| **13 roots** | **10,533** | | **39** |
+| `src/prompt.rs` | 245 | 18 | 1 |
+| `src/loop_driver.rs` | 615 | 19 | 1 |
+| **12 roots** | **10,175** | | **38** |
 
 ### Where a file's concerns split across chapters
 
@@ -660,11 +640,11 @@ can.
 | 4 | 700 | 15 | 516 |
 | 5 | 290 | 16 | 819 |
 | 6 | 370 | 17 | 564 |
-| 7 | 322 | 18 | 358 |
-| 8 | 428 | 19 | 245 |
-| 9 | 613 | 20 | 615 |
-| 10 | 518 | 21 | 0 |
-| 11 | 612 | **Total** | **10,533** |
+| 7 | 322 | 18 | 245 |
+| 8 | 428 | 19 | 615 |
+| 9 | 613 | 20 | 0 |
+| 10 | 518 | **Total** | **10,175** |
+| 11 | 612 | | |
 
 The mapping closes arithmetically against the frozen corpus: 12,154 lines of
 `src/**/*.rs`, less the 1,680 of the excluded `src/task_grow/tests.rs`, plus the
@@ -689,9 +669,9 @@ The third is this book's own, and it was set by measurement.
 | `driver_lease.rs` | 819 | **12%** | 564 | **3%** |
 
 Unsplit roots, for comparison: `driver.rs` 73%, `prompt.rs` 69%, `complete.rs`
-65%, `Cargo.toml` 59%, `lib.rs` 58%, `verbs.rs` 57%, `task_grow.rs` 49%,
-`session_config.rs` 44%. Across the corpus, 3,662 of 10,533 lines are comment
-prose — 35%, close to `keyed-launch`'s 33% — but the distribution is the fact
+65%, `Cargo.toml` 59%, `lib.rs` 58%, `verbs.rs` 57%, `task_grow.rs` 49%.
+Across the corpus as first measured, about 35% of the lines are comment
+prose, close to `keyed-launch`'s 33% — but the distribution is the fact
 that matters, and it splits three ways.
 
 **Third obligation: say what each reproduced test establishes, and what it would
@@ -699,7 +679,7 @@ still pass under.** It is stated per *block*, not per chapter, so a technical
 review can check it against the mapping above.
 
 1. **Supply the claim — every inline test block** (chapters 2, 3, 4, 6, 7, 8, 9,
-   11, 12, 13, 14, 17, 20; 3,984 lines, 38% of the corpus, at 14% prose). For each
+   11, 12, 13, 14, 17, 19; 3,984 lines, 38% of the corpus, at 14% prose). For each
    reproduced test: the property it establishes, **and what would have to be true
    for it to pass while the property was broken**. That second half is the part a
    reviewer can check and the test itself cannot state — a `#[test]` body shown
@@ -721,7 +701,7 @@ review can check it against the mapping above.
    `templates.rs` at 13%, and for the same reason: it is where the rules bind and
    the source is silent.
 3. **Do not restate — the production blocks at 41–73%** (chapters 1, 5, 10, 15,
-   18, 19, and the production halves of 2, 3, 4, 6–14 and 20). The comments
+   18, and the production halves of 2, 3, 4, 6–14 and 19). The comments
    already argue and the fragment graph quotes them verbatim on the page. Prose
    there connects arguments across items, names the test, and stops.
 
@@ -732,7 +712,7 @@ and silent across the 38% where it does not. It is the same failure
 **Two obligations were rejected.** *Name the owning side at every fragment* turns
 the spine into a per-fragment duty, but the spine already does it once per
 chapter and the outcome once per part; at fragment granularity it is repetition,
-and it is nearly content-free across chapters 16–20 where there is no seam
+and it is nearly content-free across chapters 16–19 where there is no seam
 underneath at all. *Hold the records to the code* would make
 `architecture-residue-k75`'s deletion a check rather than a judgement, but it is
 roughly half-discharged by comments that cite records already and reproduce those
@@ -779,10 +759,9 @@ not is not this book's.
 | 15 | the twelve | a session mid-task | every verb returns the paths it wrote |
 | 16 | the lease | bare `grove` in a worktree | one driver; a second exits naming the canonical worktree |
 | 17 | the epoch | a driver replaced under a running one | admitted calls finish; new ones are refused |
-| 18 | `config.kdl` and its delta | a repository with an untracked delta | templates for grove's slots — or a **tracked** delta refused |
-| 19 | `${prompt}` | the selected leaf | three parts in the session's own timeline order |
-| 20 | the loop | bare `grove` | relaunch with fresh context, or a stop that is resumable |
-| 21 | — | the twenty chapters | the three questions, answered for the crate |
+| 18 | `${prompt}` | the selected leaf | three parts in the session's own timeline order |
+| 19 | the loop | bare `grove` | relaunch with fresh context, or a stop that is resumable |
+| 20 | — | the nineteen chapters | the three questions, answered for the crate |
 
 **The observable end of the carried example is that it ceases to exist.**
 Chapter 14 is where the grove deletes itself, and that is what finishing *is*.
@@ -803,11 +782,11 @@ ending rather than the carried thread, so the happy path is not an aside.
 make every step a named passing test, but the fixtures are ad-hoc per test —
 `a`/`b` for ordering, `design`/`build` for decomposition, `add` for outcomes —
 built and discarded inside each test precisely because each isolates one
-property, so twenty chapters would carry twenty unrelated trees. That is the
+property, so nineteen chapters would carry nineteen unrelated trees. That is the
 ground on which `keyed-launch`'s brief rejected the same shape; the tests remain
 the book's evidence, cited chapter by chapter. *One session's life, driver-side*
-is the crate's reason and carries chapters 15–20 better than anything else, but
-reaches none of the 7,436 lines before them; it is chapter 20's thesis instead.
+is the crate's reason and carries chapters 15–19 better than anything else, but
+reaches none of the 7,436 lines before them; it is chapter 19's thesis instead.
 *This repository's own `.grove/`, quoted* is disqualified by chapter 14.
 
 ## Early uses the order forces
@@ -866,7 +845,7 @@ reference, and it is the same shape all four preceding orientation chapters took
 
 **The link contract closes a book's local targets to its own pages, its own
 roots, [`docs/USAGE.md`](../USAGE.md) and [`CONTEXT.md`](../../CONTEXT.md).**
-Decision records, `docs/specs/*` and `docs/CONFIGURATION.md` are **named in prose
+Decision records and `docs/specs/*` are **named in prose
 and never cited**. That is stated here because a reviewer who does not know it
 reads the absence of a link to
 `docs/adr/one-live-driver-per-working-tree.md` from chapter 16 as an omission
@@ -893,9 +872,9 @@ is reserved by no other book.
 
 | Anchor | Chapters | Anchor | Chapters |
 |---|---|---|---|
-| `task-tree-scheme` | 2, 3, 4, 11, 12, 13 | `guaranteed-core` | 19 |
-| `tree-access-lock` | 5 | `stated-vcs` | 19, 20 |
-| `driver-lease` | 16, 17 | `loop-control-channel` | 15, 20 |
+| `task-tree-scheme` | 2, 3, 4, 11, 12, 13 | `guaranteed-core` | 18 |
+| `tree-access-lock` | 5 | `stated-vcs` | 18, 19 |
+| `driver-lease` | 16, 17 | `loop-control-channel` | 15, 19 |
 | `session-epoch` | 16, 17 | `task-commit-boundary` | 14, 15 |
 
 All eight are over vocabulary this crate owns. `CONTEXT.md`'s own ownership table
@@ -968,7 +947,7 @@ chapter:
 | 857, 873, 905 | the lock's scope and holders; what it does and does not promise; the contention probe and `restate` | 5 |
 | 969 | `addressable_key`'s refusal, and `leaf-prune` on a node | 6, 13 |
 | 433 | the walk and the finish-reservation rule | 7, 14 |
-| 451 | the one pick and what it serves | 20 |
+| 451 | the one pick and what it serves | 19 |
 | 323 | what a node is, and why missing or competing node files are refused | 8, 12 |
 | 779 | `resolve` on a chained stem, and the grow verbs' refusal | 9, 10 |
 | 884, 1007, 1053 | `leaf-add`'s all-or-nothing on error; the lint's second opening; key prediction and its check | 10 |
@@ -976,8 +955,8 @@ chapter:
 | 706 | the two kind tokens grove writes itself | 3, 11, 14 |
 | 1163 | the transition table | 11, 14 |
 | 739, 1242, 1265 | the finish reservation; the finish flow; the four teardown steps and the two undo commands | 14 |
-| 461, 472, 1343 | the core's three parts; what the core reads; the stated VCS in `${prompt}` | 19 |
-| 1190, 1325 | the watch and the escalation; the scrub inside the seam and the loop's complementary list | 20 |
+| 461, 472, 1343 | the core's three parts; what the core reads; the stated VCS in `${prompt}` | 18 |
+| 1190, 1325 | the watch and the escalation; the scrub inside the seam and the loop's complementary list | 19 |
 
 Two of these are **joint** and their other books are written: line 1190 also
 names `keyed-launch`, line 1325 also names `jj-workspace`. Line 472 is joint with
@@ -1013,7 +992,7 @@ this crate declines to make.
 *What a `requirements` session is for*, *when a leaf should decompose*, *which
 kinds are human-in-the-loop* — none of it is here. The crate knows a kind is a
 token and that two are reserved; everything else about kinds is the plugin's and
-`docs/USAGE.md`'s. Chapter 19 states the boundary exactly, because the too-late
+`docs/USAGE.md`'s. Chapter 18 states the boundary exactly, because the too-late
 test is where the crate draws it.
 
 ### The `tests/` directory
@@ -1021,8 +1000,7 @@ test is where the crate draws it.
 `crates/grove-loop/tests/` is 3,442 lines over five files and is **evidence, not
 roots**. Its tests are cited by name throughout — `the_library_imposes_only_libc`,
 `distinct_worktrees_hold_independent_leases`,
-`grove_llm_admits_only_the_live_epoch_while_version_remains_exempt`,
-`the_slots_are_the_vocabulary_and_prompt_is_the_required_one` — and none of
+`grove_llm_admits_only_the_live_epoch_while_version_remains_exempt` — and none of
 it is reproduced. `src/task_grow/tests.rs` is treated the same way for the same
 reason, though it reaches the book through the corpus exception inventory rather
 than through the `tests/` rule.
@@ -1040,17 +1018,10 @@ states that consequence and cites the comment that makes it.
 The crate is Unix-only by construction and says so in its imports. The book does
 not speculate about what a port would need.
 
-### `docs/CONFIGURATION.md`'s account of the schema
-
-Chapter 18 owns *whose file and whether*, not what a template *is*. The KDL
-grammar, the slot rules and the diagnostics are `keyed-launch`'s book's, and the
-operator-facing account is the configuration document's; both are named in prose
-and neither is cited.
-
 ### The decision records themselves
 
 Decisions 1 and 9 of [`module-decomposition.md`](module-decomposition.md), and
-the ADRs `one-live-driver-per-working-tree`, `complete-session-configuration`,
+the ADRs `one-live-driver-per-working-tree`,
 `the-launched-child-is-a-job`, `grove-does-not-stage-its-own-renames` and
 `entries-are-never-removed`, are named at the chapters that keep them and cited
 nowhere, under the link contract above.
@@ -1097,31 +1068,14 @@ version an operator can install. The identical clause is at
 two pages stay uniform. Both paragraphs, both comments and the workspace root's
 own comment moved in k84's single commit.
 
-### 2 · *The loop re-reads the configuration once per iteration* — chapters 18 and 20, corrected
+### 2 · *The loop re-reads the configuration once per iteration* — corrected, then deleted
 
-`src/session_config.rs` line 89, in `TemplateSource`'s doc comment. It was false:
-`src/loop_driver.rs` calls `templates.load(&delta_roots)` **twice** per iteration
-— line 241 before `transition_to_current`, so the just-in-time presence rule for
-the finish leaf is asked against the document as it stood *before* the tree was
-mutated, and line 260 after the leaf is selected, so the launch expands the
-selected kind's template from the document as it stands. The type's own doc
-comment named both reads in the same sentence that said *once*, so the count was
-stale rather than the design. `template-source-read-count-k86` landed the fix
-inside the comment's frozen seven-line span, so no ownership range moved: the
-sentence now reads *twice per iteration* and attaches each of its two clauses to
-the read it belongs to.
-
-**Neither chapter adjudicates any longer.** Chapter 18 owns the sentence and
-explains why the corrected wording enumerates rather than asserts a single
-consequence; chapter 20 owns the two calls and shows the count against the bytes,
-which is the evidence the fix was made from. That the claim and its refutation
-were **both inside this book's corpus** is why the defect could be settled
-without citing another crate's page — the same property claim 3 has, and the
-reason both were fixable from evidence the book itself reproduces. The outcome's
-third question, *what does this layer choose that nothing beneath it could
-default*, is exactly the question the two reads answer. The overview never
-repeated the stale count; its ledger row and chapter 3 were amended at
-`three-steps-k79`, so nothing there changed when the comment did.
+`src/session_config.rs`, in `TemplateSource`'s doc comment. It was false: the
+loop read the configuration twice per iteration, and the comment named both
+reads in the same sentence that said *once*. `template-source-read-count-k86`
+landed the fix. The file, both reads and the chapter that explained the sentence
+have since gone: Grove reads no configuration, and the loop launches each
+session through `harness-dispatch`.
 
 ### 3 · *`libc` is the probe in `task_tree`* and *`keyed-launch` is reached by exactly one verb* — chapter 1, corrected
 
@@ -1137,12 +1091,12 @@ calls) and `loop_driver` (`isatty`, `tcgetpgrp` and `signal`). The one it named
 is not the largest — outside the test modules `driver_lease` reaches `libc` on
 thirteen lines, more than the other two together. The `keyed-launch` clause was **true of the verbs and false
 of the crate**: `complete` is still the only one of the twelve verbs that
-reaches the runner, but `driver_lease`, `loop_driver`, `session_config` and
+reaches the runner, but `driver_lease`, `loop_driver` and
 `src/lib.rs`'s `reraise` re-export reach it too.
 
 `manifest-dependency-clauses-k133` landed both fixes, and the distinction is what
 the correction turns on: the clause now says the **verb surface** reaches the
-runner once *and* that the crate reaches it in four more places, rather than
+runner once *and* that the crate reaches it in three more places, rather than
 letting the first stand for the second. Deleting the clauses was ruled out —
 the dependency argument is chapter 1's evidence for what the crate imposes, so
 what was wrong was their scope, not their existence.
@@ -1243,4 +1197,4 @@ per-chapter prose obligation. `book-check` proves structure and reconstruction;
 the repository tests prove links, subject, exceptions and the ownership row.
 The crate's 3,442-line integration suite and the 3,984 lines of inline tests are
 the book's **evidence**, not its gate — which is why the third prose obligation
-exists and why chapter 21 is the page a reviewer should be spent on.
+exists and why chapter 20 is the page a reviewer should be spent on.

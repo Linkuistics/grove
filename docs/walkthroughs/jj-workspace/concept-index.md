@@ -70,7 +70,7 @@
 - [The same attempt, declining](06-refusal.md#worked-refusal)
 - [A `source()` chain one link deep](06-refusal.md#worked-refusal)
 - [A message states its own layer, and never restates its cause](06-refusal.md#worked-refusal)
-- [Convert, contextualise, or discard](06-refusal.md#worked-refusal)
+- [Convert or contextualise](06-refusal.md#worked-refusal)
 - [Why the type is opaque, and every case a stop](06-refusal.md#the-opaque-type)
 - [The matchable refusal enum in the same workspace](06-refusal.md#the-opaque-type)
 - [Eleven kinds, in the order the operations are met](06-refusal.md#the-case-analysis)

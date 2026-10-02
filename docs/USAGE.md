@@ -87,110 +87,6 @@ failure or cancellation; exit 2 means invalid usage. Inspect the announced log
 after a failure. A new invocation starts fresh; no resume or project discovery
 occurs.
 
-<a id="usage-configuration-examples"></a>
-## Installing configuration examples
-
-```sh
-grove config examples --help
-grove config examples
-```
-
-This command works outside a workspace, with absent or broken active policy,
-and without a driver lease or live session epoch. It ignores stale inherited
-signals. It installs only these fixed paths under `~/.config/grove/`:
-
-- `config.modular.example.kdl`
-- `grove.codex-led.example.kdl`
-- `grove.claude-led.example.kdl`
-- `grove.high-effort.example.kdl`
-- `grove.local-override.example.kdl`
-- `CONFIGURATION.examples.md`
-
-The instructions explain how to supply your executable/model policy and adapt
-a sample. Nothing is activated: `config.kdl`, workspace `.grove.kdl`, ignore
-rules and unrelated files are preserved. See the
-[configuration reference](CONFIGURATION.md#installing-examples) for sample behavior.
-
-Preflight checks the whole set before writing. Matching regular files are left
-untouched, including on repeated runs. Different contents, symlinks, directories
-and unreadable entries are conflicts. Move or reconcile the reported conflicts
-yourself before retrying. There is no force or destination option.
-
-Missing files are exclusively created, so a new occupant cannot be overwritten
-between preflight and creation. Installation is not a batch transaction: a later
-create/write failure reports the created paths, identifies any partial file and
-stops. Those files remain for inspection; Grove deletes nothing as cleanup.
-Inspect a partial file before moving it aside and retrying.
-
-Exit 0 means the entire intended set is present and paths are reported on stdout.
-Conflicts or I/O failures exit 1 with the failure and any created paths on stderr.
-Invalid usage exits 2. `--help` prints usage without installing anything.
-
-<a id="usage-inspecting-configuration"></a>
-## Inspecting configuration before launch
-
-```sh
-grove config --help
-grove config show
-grove config show --kind impl
-grove config show --kind impl --json
-```
-
-Inside a jj workspace, `config show` explains the same active policy launch
-uses: source paths, selected profiles and include occurrences, admitted kinds,
-non-admitted local keys, binding/command references, parameter winners and
-assignment histories. Executable and argument words are listed in order.
-Quoted literals stay distinct from runtime placeholders such as `slot <prompt>`;
-no prompt is fabricated. Origin and history IDs are local to the report, and
-origins identify source paths and byte spans. See the
-[configuration reference](CONFIGURATION.md#inspecting-the-active-configuration)
-for the record meanings.
-
-`--kind KIND` filters displayed commands after validating all active policy;
-it cannot hide a broken different kind. Unknown or non-admitted kinds fail.
-Success writes the report to stdout and exits 0. Source, trackedness and
-configuration failures write actionable errors to stderr and exit 1. Invalid
-options or missing option values exit 2 with usage on stderr. `--help` works
-without a repository. No profile override flag is provided.
-
-`--json` writes one object with `schema_version: 1` and the complete inspection
-records. Each word is tagged `literal` with `value`, or `slot` with `name`;
-`${prompt}` inside a parameter remains a literal. Missing optional fields are
-null. Unicode paths are strings; other native paths use tagged integer arrays
-as described in the [JSON reference](CONFIGURATION.md#configuration-json).
-Failures, including invalid options when `--json` was requested, write one
-version-1 object with a `diagnostics` array to stderr and leave stdout empty.
-Explicit help/version output stays human-readable. `--json` (including malformed `--json=…`) before
-`--` requests JSON errors even when another argument fails parsing.
-
-Inspection needs no `.grove/`, selected leaf, lease or session epoch. It works
-while a driver holds the lease and ignores stale inherited completion signals.
-It launches and probes no executable, creates no coordination/completion file,
-and changes no configuration or working-tree bytes; jj may snapshot metadata
-for its existing trackedness check. Output has no pager or truncation. A report
-covers one load, while launches reload configuration: equal argv requires
-unchanged source inputs and runtime context.
-
-A kind whose command runs `harness-dispatch run` hands the choice of harness,
-model and effort to your dispatch policy, and this report stops at that
-command. It shows the wrapper, `harness-dispatch` with `slot <kind>`,
-`slot <task_file>`, `slot <task_id>` and `slot <prompt>` among its words, and
-evaluates no policy. The selection has its own inspection, which launches
-nothing:
-
-```sh
-harness-dispatch inspect --kind impl
-```
-
-It reports the policy it evaluated, the candidate with its provider, model and
-effort, why that candidate was chosen, and the harness's arguments. Grove's
-configuration owns the wrapper and the policy owns the selection, and a policy
-that cannot choose for a kind refuses only when a leaf of that kind launches.
-See [routing sessions through harness-dispatch](CONFIGURATION.md#harness-dispatch)
-for activation, and the
-[harness-dispatch documentation](../crates/harness-dispatch/README.md) for
-its policies.
-
 <a id="usage-viewing-tree"></a>
 ## Viewing a tree
 
@@ -1285,9 +1181,7 @@ added to the inventory and forgotten here is a test failure rather than a silenc
 | G2 | [Running Grove](#usage-running-grove) |
 | G3 | [Running Grove](#usage-running-grove) |
 | G4 | [Running Grove](#usage-running-grove) |
-| G8 | [Installing configuration examples](#usage-configuration-examples) |
 | G9 | [Running a standalone task](#usage-standalone) |
-| G7 | [Inspecting configuration before launch](#usage-inspecting-configuration) |
 | G6 | [Viewing a tree](#usage-viewing-tree) |
 | G5 | [Stopping the loop](#stopping-the-loop) |
 | L1 | [Growing the tree](#growing-the-tree) |

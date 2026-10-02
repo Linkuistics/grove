@@ -39,17 +39,9 @@ enum Command {
         /// Status file written when supervision finishes.
         status: PathBuf,
     },
-    /// Inspect launch configuration or install inactive examples.
-    // clap 4.6.1: variant-level subcommand nests the enum's commands.
-    // https://docs.rs/clap/4.6.1/clap/_derive/index.html#command-attributes
-    #[command(
-        subcommand,
-        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n  grove config examples\n\nExit codes: 0 success, 1 configuration/source/installation failure, 2 invalid usage."
-    )]
-    Config(ConfigCommand),
     /// Browse a .grove task tree read-only with automatic refresh.
     #[command(
-        long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or launch configuration is needed.",
+        long_about = "Browse WORKTREE/.grove read-only with automatic refresh. There is no upward search: from a subdirectory, view observes that subdirectory's .grove. Requires an interactive terminal; no jj workspace or harness-dispatch policy is needed.",
         after_help = "Examples:\n  grove view\n  grove view /path/to/another/worktree"
     )]
     View {
@@ -58,68 +50,18 @@ enum Command {
     },
 }
 
-#[derive(Subcommand)]
-enum ConfigCommand {
-    /// Install inactive example files beside the personal configuration.
-    #[command(
-        long_about = "Install six .example.kdl files and CONFIGURATION.examples.md under ~/.config/grove/. Works outside a workspace without loading active policy. All destinations are checked first: matching regular files stay untouched; differing, unreadable or non-regular entries are conflicts. Missing files are created exclusively. Later failures may leave created or partial files, which are reported. Never overwrites config.kdl or edits a workspace delta or ignore rule.",
-        after_help = "Examples:\n  grove config examples\n  grove config examples --help\n\nExit codes: 0 whole set present, 1 conflict or I/O failure, 2 invalid usage.\nSuccess paths go to stdout; conflicts and partial-failure paths go to stderr. No force or destination option. Inspect conflicting paths and move them aside yourself before retrying. See also: grove config show --help."
-    )]
-    Examples,
-    /// Show sources, selected profiles, commands and override provenance.
-    #[command(
-        long_about = "Inspect the workspace's configuration read-only, using the same complete validation and admission as launch. Requires a jj workspace but no task tree or driver lease. Runtime slots remain placeholders; no executable is probed or launched. jj may snapshot metadata when checking local configuration trackedness.",
-        after_help = "Examples:\n  grove config show\n  grove config show --kind impl\n  grove config show --json\n\nExit codes: 0 valid inspection, 1 source/configuration/resolution failure, 2 invalid usage.\nReports go to stdout; errors go to stderr. --json emits one schema-version-1 object, including usage diagnostics on stderr. A report describes one load; later launches reload configuration."
-    )]
-    Show {
-        /// Show one kind after validating the entire active configuration.
-        #[arg(long, value_name = "KIND")]
-        kind: Option<String>,
-        /// Emit schema-version-1 JSON; failures emit JSON diagnostics on stderr.
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-/// Own process reporting, including usage failures before a command exists.
+/// Own process reporting: clap exits on help, version and usage refusals.
 pub fn run() -> ExitCode {
-    let args: Vec<_> = std::env::args_os().collect();
-    let json = args
-        .iter()
-        .skip(1)
-        .take_while(|arg| *arg != "--")
-        .any(|arg| arg == "--json" || arg.as_encoded_bytes().starts_with(b"--json="));
-    // try_parse_from preserves native arguments; use_stderr distinguishes help
-    // from refusal. https://docs.rs/clap/4.6.1/clap/error/struct.Error.html#method.use_stderr
-    let cli = match Cli::try_parse_from(args) {
-        Ok(cli) => cli,
-        Err(error) if json && error.use_stderr() => {
-            eprintln!(
-                "{}",
-                crate::config_json::failure(
-                    "usage",
-                    &error.to_string(),
-                    "Run grove config show --help for supported options."
-                )
-            );
-            return ExitCode::from(2);
-        }
-        Err(error) => error.exit(),
-    };
-    match execute(cli) {
+    match execute(Cli::parse()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            if json {
-                eprintln!("{}", crate::config_json::error(&error));
-            } else {
-                eprintln!("Error: {error:?}");
-            }
+            eprintln!("Error: {error:?}");
             ExitCode::FAILURE
         }
     }
 }
 
-/// Dispatch inspection, viewing or example delivery before the lifecycle.
+/// Dispatch a standalone invocation or the viewer before the lifecycle.
 ///
 /// The workspace is resolved **here**, once, and handed to both the lease and
 /// the loop. That is the shape `loop-crate-driver-k22` gave the seam: the lease
@@ -147,15 +89,9 @@ fn execute(cli: Cli) -> anyhow::Result<()> {
     if let Some(Command::RunLog { log, status }) = cli.command {
         return crate::run_display::watch(&log, &status);
     }
-    if let Some(Command::Config(ConfigCommand::Examples)) = cli.command {
-        return crate::examples::run();
-    }
     let cwd = std::env::current_dir()?;
     if let Some(Command::View { worktree }) = cli.command {
         return grove_tui::run(&worktree.unwrap_or(cwd));
-    }
-    if let Some(Command::Config(ConfigCommand::Show { kind, json })) = cli.command {
-        return crate::config::show(&cwd, kind.as_deref(), json);
     }
     let workspace = Workspace::resolve(&cwd)?;
     let lease = DriverLease::acquire(&workspace)?;
@@ -227,34 +163,17 @@ mod tests {
     }
 
     /// Stated as a closure property rather than as a list of rejected verbs: the
-    /// bare lifecycle has no launch-policy selectors. `view` observes a path;
-    /// `config` inspects policy or installs inactive samples. A new command or argument fails
-    /// this closed-set assertion without being named in a rejection list.
+    /// bare lifecycle has no launch-policy selectors. `view` observes a path.
+    /// A new command or argument fails this closed-set assertion without being
+    /// named in a rejection list.
     #[test]
     fn the_human_command_surface_has_nothing_left_to_select() {
         let command = Cli::command();
         let subcommands: Vec<&str> = command.get_subcommands().map(|s| s.get_name()).collect();
         assert!(
-            subcommands == ["run", "run-log", "config", "view"],
+            subcommands == ["run", "run-log", "view"],
             "unexpected command beside the bare lifecycle: {subcommands:?}"
         );
-        let config = command.find_subcommand("config").unwrap();
-        let config_commands: Vec<_> = config.get_subcommands().map(|s| s.get_name()).collect();
-        assert_eq!(config_commands, ["examples", "show"]);
-        assert_eq!(
-            config
-                .find_subcommand("examples")
-                .unwrap()
-                .get_arguments()
-                .count(),
-            0
-        );
-        let show = config.find_subcommand("show").unwrap();
-        let options: Vec<_> = show
-            .get_arguments()
-            .map(|arg| arg.get_id().as_str())
-            .collect();
-        assert_eq!(options, ["kind", "json"]);
         let arguments: Vec<String> = command
             .get_arguments()
             .map(|argument| argument.get_id().to_string())

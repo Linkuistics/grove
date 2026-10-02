@@ -1075,7 +1075,7 @@ generation `2026-09-29T11:18:53Z`. These were bounded positive findings. Each
 is followed by what the delivered command made of it, read from the source on
 2026-10-01:
 
-- [Session expansion](../../../crates/grove-loop/src/session_config.rs)
+- Session expansion (`crates/grove-loop/src/session_config.rs`, since deleted)
   supplied prompt, session name, worktree and repository, with exact native
   argument boundaries, and its integration test exercised spaces and shell
   punctuation. It now also supplies `kind`, `task_file` and `task_id`, each at

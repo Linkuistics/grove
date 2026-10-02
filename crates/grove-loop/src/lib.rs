@@ -9,9 +9,9 @@
 //! verbs stated in them.
 //!
 //! Since `loop-crate-driver-k22` it is also the **driver**: the one-driver-per
-//! -working-tree lease, the prompt composition, the launch configuration grove
-//! reads, and [`run`] — the loop itself. What is left outside is one binary per
-//! audience, each a command-line surface over what is in here.
+//! -working-tree lease, the prompt composition, and [`run`] — the loop itself.
+//! What is left outside is one binary per audience, each a command-line surface
+//! over what is in here.
 //!
 //! # Opening mirrors the store's, one level up
 //!
@@ -59,7 +59,6 @@ mod task_tree;
 mod tree_lifecycle;
 
 pub mod prompt;
-pub mod session_config;
 pub mod verbs;
 
 /// The version this repository ships, and the only one.
@@ -92,7 +91,6 @@ pub use observation::{
 };
 pub use ordinal_fs_tree::Sought;
 pub use prompt::{compose, Mandate};
-pub use session_config::{SessionConfig, TemplateSource};
 pub use task_name::{Handle, HandleError, Kind, Outcome, Parts, Slug, TaskName, TokenError};
 pub use task_tree::entry_path;
 
@@ -388,21 +386,6 @@ pub fn select_snapshot(
 pub struct Error(anyhow::Error);
 
 impl Error {
-    /// Structured configuration refusals, retaining the runner's records or
-    /// Grove's source-discovery/admission record. Other failures return no records.
-    #[must_use]
-    pub fn diagnostics(&self) -> &[keyed_launch::Diagnostic] {
-        if let Some(error) = self.0.downcast_ref::<keyed_launch::ConfigError>() {
-            error.diagnostics()
-        } else if let Some(error) = self.0.downcast_ref::<session_config::SourceError>() {
-            std::slice::from_ref(&error.0)
-        } else if let Some(error) = self.0.downcast_ref::<Self>() {
-            error.diagnostics()
-        } else {
-            &[]
-        }
-    }
-
     /// An error from a message this crate states itself.
     pub(crate) fn msg(message: impl Into<String>) -> Self {
         Self(anyhow::Error::msg(message.into()))

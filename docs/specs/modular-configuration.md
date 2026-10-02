@@ -15,13 +15,12 @@ declarations are captured with source spans; the convenience loader ignores them
 while Grove chooses the local declaration, else the personal default, else empty.
 Explicit selections compose every profile/include occurrence with active-only
 semantic validation and occurrence-specific histories. Inactive profiles receive
-structural checks without affecting resolution. `config show [--kind KIND] [--json]`
-uses that snapshot before lease acquisition. The example installer is implemented; the [reference](../CONFIGURATION.md) describes
+structural checks without affecting resolution. The [reference](../CONFIGURATION.md) describes
 the current boundary.
 
 The authority and execution constraints are owned by
-[complete session configuration](../adr/complete-session-configuration.md) and
-[the untracked configuration delta](../adr/untracked-configuration-delta.md).
+the complete session configuration and untracked configuration delta records,
+both since deleted with the Grove code they described.
 The [module contract](module-decomposition.md#7--the-runner) assigns the seams.
 This spec owns the grammar, composition, validation and inspection semantics.
 
@@ -122,9 +121,7 @@ config {
 ```
 
 A workspace can select `daily` and `high-effort`, select `routes` and `b-led`,
-or add a direct `route "impl" { param "effort" "low"; }` patch. The complete
-[example set](../examples/modular-configuration/README.md) supplies both lead
-arrangements, explicit kind routes, and the local-file variants.
+or add a direct `route "impl" { param "effort" "low"; }` patch.
 
 ### Structural uniqueness
 

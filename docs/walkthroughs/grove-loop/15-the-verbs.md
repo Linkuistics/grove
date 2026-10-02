@@ -1068,7 +1068,7 @@ three records. And the record attributes *the launch, the watch and the kill* to
 `crates/keyed-launch`, where this comment attributes them to `src/loop_driver.rs`.
 Both hold, at different altitudes: `loop_driver.rs` chooses the control
 directory, the variable name, the scrub list and the two graces, then hands the
-supervision to `keyed_launch::run`. Chapter 20 owns that file. `keyed-launch` is
+supervision to `keyed_launch::run`. Chapter 19 owns that file. `keyed-launch` is
 another crate with its own book, and this book names it and stops.
 
 **One clause is in the wrong order.** *The agent runs this as its **last step** of

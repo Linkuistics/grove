@@ -1,7 +1,0 @@
-config {
-    select "daily"
-    // Direct local values apply after the selected profiles.
-    route "impl" { param "effort" "low"; }
-    // Change proof from its explicit high override to inherited medium.
-    route "proof" { unset "effort"; }
-}

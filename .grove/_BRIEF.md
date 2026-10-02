@@ -177,9 +177,9 @@ Every implementation leaf holds to these:
   `docs/adr/policy-evaluation-precedes-process-replacement.md` (the `exec`
   handoff this grove keeps, and the supervisor it rejected),
   `docs/adr/the-launched-child-is-a-job.md` (the runner contract that stays),
-  `docs/adr/complete-session-configuration.md` and
-  `docs/adr/untracked-configuration-delta.md` (both describe what is deleted,
-  and are themselves deleted with it),
+  (the two configuration records, *complete session configuration* and *the
+  untracked configuration delta*, were deleted by `grove-configuration-k13`
+  with the code they described),
   `docs/adr/a-review-carries-its-creator-reference.md` (why the provider label
   must reach the run record).
 - Specs covering this area: `docs/specs/harness-selection-and-execution.md`

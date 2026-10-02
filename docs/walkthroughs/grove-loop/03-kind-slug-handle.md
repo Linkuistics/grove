@@ -129,11 +129,11 @@ pub struct Kind(String);
 The first line's second clause compresses one step. A kind is not the skill a
 session loads; it is the stem the skill's name is built from. `crates/grove-loop/src/prompt.rs`
 line 63 renders `format!("{PLUGIN}-{}", kind.label())` with `PLUGIN` as `"grove"`,
-so the kind `impl` names the skill `grove-impl`, and chapter 19 reads that
+so the kind `impl` names the skill `grove-impl`, and chapter 18 reads that
 composition. The third clause is exact as written: the launch is selected by the
 label itself. `dispatch_run` in `crates/grove-loop/src/loop_driver.rs` passes
 `task.kind.label()` to `harness-dispatch` as `--kind`, and the owner's policy
-selects a command from it. Chapter 20 reads that call.
+selects a command from it. Chapter 19 reads that call.
 
 The claim in the second bold sentence is checkable inside this corpus, and it
 holds. Extracting every string literal from the production source of

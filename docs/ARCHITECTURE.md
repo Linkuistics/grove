@@ -312,12 +312,13 @@ The renderer performs no I/O.
 
 ## Session configuration
 
-`~/.config/grove/config.kdl` carries user launch policy: a map of session
-kinds to complete commands through modular `config { ... }` declarations:
-personal command definitions, bindings and routes, with optional parameters and profiles. There are no implicit kind defaults or families.
+Grove reads no configuration file. Every launch's command is selected by the
+owner's `harness-dispatch` policy ([below](#harness-dispatch)), and a
+`config.kdl` or `.grove.kdl` left on disk is never read.
 
-**The whole of that is `crates/keyed-launch`, which has never heard of a
-session.** It loads the file — and at most one overlay — into a key-to-template
+**`crates/keyed-launch` still carries a template reader, which has never heard
+of a session and which no Grove launch uses.** It loads a file — and at most one
+overlay — into a key-to-template
 map, validated whole against a *slot vocabulary* the consumer supplies at load,
 and expands one selected template into an argv. It hides KDL handling, aggregate
 schema diagnostics, POSIX shell-word splitting, substitution validation, and argv
@@ -337,18 +338,8 @@ and shared/route values fill pre-split words and retain contributing origins and
 assignment/removal histories. Explicit generic selections expand includes
 before each profile patch, repeating every occurrence and checking personal target
 authority before local patches. Inactive profiles receive structural checks only.
-`config show` presents this snapshot in human or schema-version-1 JSON form.
 Catalog captures optional selection
-declarations; the convenience loader ignores them. Grove chooses the local list,
-else the personal default, else empty, preserving the chosen declaration origin.
-SessionConfig exposes that snapshot through `inspect`; Grove errors expose the
-runner diagnostics and path-bearing source-discovery/admission records through
-`diagnostics`. Both driver load points and mutating verbs use this adapter.
-The driver retains a reloadable source between children. Workspace selection and
-shared-value edits leave the running process intact and apply at the next
-session; invalid policy at the second load refuses launch. Process acceptance
-in `lifecycle_cutover.rs` and `loop_driver.rs` covers workspace isolation, exact
-parameter argv, live-child edits and an external edit between the two loads.
+declarations; the convenience loader ignores them.
 Named definitions
 are primary-only; effective bindings validate their templates after local targets
 replace personal targets. Dormant definitions are not compiled.
@@ -359,12 +350,8 @@ and applies the kill escalation — so `Argv` is both the only thing expansion
 produces and the only thing a spawn accepts. A caller that already holds a
 command builds one with `Argv::new`, which is how `grove run` hands the runner
 the command `harness-dispatch inspect` reported. Whatever was put into an `Argv`
-is what is spawned, each string one argument. `crates/grove-loop/src/session_config.rs`
-is what is left of grove's side: the personal file's path, the slots grove's
-templates are written against (`prompt`, `session_name`, `worktree`, `repo`, and
-the selected task's `kind`, `task_file` and `task_id`), and the delta's search and
-trackedness rules below. The user-facing grammar and diagnostics are in
-[CONFIGURATION.md](CONFIGURATION.md).
+is what is spawned, each string one argument. Grove supplies no template to it:
+the loop and `grove run` each hand it a command through `Argv::new`.
 
 The driver retains the selected task-root directory in a separate `TreeLifetime`
 pin, checked under the selection's tree guard. Finish materialization is followed
@@ -436,62 +423,12 @@ consumers handle observational failures internally. Ordinary `run(Launch)`
 remains available. Grove uses these events for witness publication and release;
 the viewer consumes their verified same-tree evidence for RUNNING and NEXT.
 
-The human CLI dispatches `config show [--kind KIND]` before driver setup.
-`grove::config` resolves the enclosing workspace, calls SessionConfig to load the
-same sources and admission policy, requires an optional kind only after global
-validation, then formats the captured Inspection. `keyed-launch` supplies public
-record types; the binary implements no configuration resolver. Runtime words
-remain tagged literals or symbolic slots. No tree, lease or epoch is consulted,
-and the trackedness query's jj metadata snapshot is the only permitted write.
-Both report formats expose origin/history references. The human binary owns the JSON projection and structured usage errors; the resolver stays format-independent.
-
-The human CLI also dispatches `config examples` before resolving a workspace or
-loading policy. `grove::examples` embeds the repository samples and instructions,
-preflights the fixed personal-directory destinations and exclusively creates only
-missing files. It reports partial failures without rollback; matching files and
-active policy remain untouched. Its filesystem seam exercises races and I/O
-failures without introducing configuration semantics into the installer.
-
-**Presence is per kind and just-in-time**
-(`docs/adr/complete-session-configuration.md`): both documents are validated
-whole before every tree mutation and every launch, but whether a *particular*
-kind resolves is asked at the two moments grove commits to it — before it writes
-a leaf of that kind, and before it launches one.
-
-Automatic bootstrap passes the pre-transition `SessionConfig` into the driver
-transition. The lifecycle's locked vacancy branch admits `requirements` before
-initializing the root; an existing tree bypasses that admission. No separate
-existence probe or configuration reload splits the vacancy observation from the
-write, and the generic store has no knowledge of session kinds.
-
-At most one second file takes part: an untracked `.grove.kdl` **configuration
-delta**, searched at the worktree root and then the main repository root, the
-first one found selected outright and the two never merged. It declares any
-subset of admitted kinds through routes, bindings and parameter patches, and can
-select personal profiles or redirect bindings to personal command definitions. **It overrides and never supplies**:
-a kind resolves only if the personal base and selected personal profiles target
-it before direct local patches apply. Each launch resolves to a
-complete compiled command, with its reference origins retained, preserving
-[complete session configuration](adr/complete-session-configuration.md).
-The module takes
-both roots from the driver rather than deriving them, so the search order cannot
-disagree with what `${repo}` expands to in the template it selected.
-
-That gives the module its one non-filesystem dependency: because a delta names a
-program to execute, a **tracked** candidate is refused rather than trusted to an
-ignore rule, so `session_config` asks the VCS seam one read-only question about
-one path — and only when a candidate file exists. An unreadable, unparseable,
-invalid, or tracked delta fails the load at both read points, with the same
-aggregate diagnostics attributed to the delta's own path and location. See [the
-untracked configuration delta](adr/untracked-configuration-delta.md).
-
 Grove executes the expanded argv directly — no shell, no proxy, no router
 service, and no harness-specific argument or environment injection. Because a
 command string is opaque, Grove cannot identify the program it launches, which
 is what removes harness detection, model routing, session-name arguments, Codex
 sandbox grants, and launch-target comparison from the binary altogether. Those
-choices are visible in the template instead. See [Complete session
-configuration](adr/complete-session-configuration.md).
+choices are visible in the owner's policy instead.
 
 Two environment rules follow from that opacity. Immediately before spawning the
 configured child, Grove clears its own loop-control variables and grants only
@@ -1877,7 +1814,7 @@ and nothing else — a second exemption for **a frozen grammar kept whole** cove
 `leaf_id`, the v1-flat parser, and retired with it when that layout stopped being
 read. The list is reproduced by copying a package's `src/` to a scratch crate,
 making every module private except its own entry surface — `cli` for
-`grove-llm`, and `verbs`, `prompt`, `session_config` and the crate root for
+`grove-llm`, and `verbs`, `prompt` and the crate root for
 `grove-loop` — and reading the compiler's reachability warnings. `crates/grove`
 needs no such copy: it is a binary with no library, so every item in it is
 already private to one target.

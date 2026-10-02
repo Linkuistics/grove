@@ -235,7 +235,7 @@ than as a reading.
 The repair k159 did not make is worth naming, because a reader reaches for it
 first. The CLI could have read the crate's constant instead, leaving one spelling
 and nothing to keep in step — which is the preference [chapter
-21](21-what-could-not-move.md#stated-twice) records this crate stating elsewhere,
+21](20-what-could-not-move.md#stated-twice) records this crate stating elsewhere,
 about `VERSION`. It was not taken because `cli.rs` line 322 is the `grove-llm`
 book's frozen corpus — it is a root of that book and of no other — so changing it
 moves a reproduced fragment, that book's ledger and its validator run, plus the two
@@ -1587,7 +1587,7 @@ red, not two. Five are in `crates/grove-loop/tests/driver_lease.rs` and three in
 `crates/grove-llm/tests/removed_surface.rs`, and every one of the eight drives
 the loop against a worktree that *already holds* a grove — so
 `transition_to_current` classifies it `ATree` before any launch happens, and each
-dies in its fixture rather than in an assertion. That is the shape chapter 19
+dies in its fixture rather than in an assertion. That is the shape chapter 18
 reads in `prompt.rs`'s ten: a test refused entry to what it came to check says
 nothing about the arm it died on. The two named in the table are the two that
 assert on what the arm *returns* — `AlreadyCurrent`, and that a current grove is

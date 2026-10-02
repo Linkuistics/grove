@@ -261,8 +261,8 @@ where the reader first meets *this is the package that is grove-the-product*.
 Owns `crates/grove/src/cli.rs` lines 1–19: the imports, the `Cli` struct, and the
 clap attributes. Absorbs *Command surfaces*. Responsible for: the audience split
 between a human binary and an agent binary; the human grammar having nothing left
-to select and why — the driver reads the task tree for what to do and
-`~/.config/grove/config.kdl` for how to launch it; the twelve `grove-llm` verbs as
+to select and why — the driver reads the task tree for what to do and the
+owner's `harness-dispatch` policy decides how to launch it; the twelve `grove-llm` verbs as
 a flat surface; and one version constant read by both binaries so `grove
 --version` and `grove-llm --version` cannot skew.
 
@@ -376,9 +376,9 @@ convenience:
   begins at the `#[cfg(test)]` attribute line.
 
 **One deliberate consequence, accepted rather than engineered around.** The `use
-grove_loop::{DriverLease, LoopOutcome, TemplateSource, Workspace};` line is line 2
-and therefore belongs to chapter 2, four of whose named types chapter 3 owns.
-Giving chapter 3 a second block of `1-2` would have removed four early-use rows at
+grove_loop::{DriverLease, LoopOutcome, Workspace};` line sits among the imports
+and therefore belongs to chapter 2, three of whose named types chapter 3 owns.
+Giving chapter 3 a second block of `1-2` would have removed three early-use rows at
 the cost of separating `use clap::Parser;` from the `#[derive(Parser)]` that needs
 it, and of a chapter owning two non-adjacent blocks to save an early-use table
 that the specification expects every book to have. The rows are in *Early uses the
@@ -437,7 +437,7 @@ production source and its job is synthesis.
 |---|---|---|
 | `01-orientation.md` | `one-invocation` | The carried invocation at low resolution: `grove` typed at a grove working tree's root, through the lease to one launched session, the loop continuing, and the process exiting 0. |
 | `02-the-surface.md` | `worked-argv` | The same invocation's argv: `grove` alone; `grove --help` and `grove --version` stopping before the flow, discovering no repository and acquiring no lease; and `grove --harness claude` refused, with the text clap renders. The twelve-verb catalogue follows. |
-| `03-three-steps.md` | `worked-run` | The same invocation at full resolution: `current_dir`, `Workspace::resolve`, `DriverLease::acquire`, `TemplateSource::from_env`, `grove_loop::run` — and both endings. `Finished` and `Stopped` reach `Ok(())`; `Interrupted(SIGTERM)` reaches `reraise`, and whoever started `grove` reads a wait status of `128 + 15`. The two error endings `run`'s own doc comment names are the same trace stopping earlier. |
+| `03-three-steps.md` | `worked-run` | The same invocation at full resolution: `current_dir`, `Workspace::resolve`, `DriverLease::acquire`, `dispatch::locate`, `grove_loop::run` — and both endings. `Finished` and `Stopped` reach `Ok(())`; `Interrupted(SIGTERM)` reaches `reraise`, and whoever started `grove` reads a wait status of `128 + 15`. The two error endings `run`'s own doc comment names are the same trace stopping earlier. |
 | `04-proving-a-negative.md` | `worked-assertion` | The two tests run against a `Cli` that has grown one flag: what `undescribed` collects, what `get_arguments` reports once `help` and `version` are filtered out, and the exact text each assertion prints. |
 
 **One invocation, carried through the book, with two endings.** Chapters 1 and 3
@@ -462,7 +462,7 @@ because that chapter has no example section.
 
 ## Early uses the order forces
 
-The order forces five rows. All five are `grove-loop`'s public items named by
+The order forces four rows. All four are `grove-loop`'s public items named by
 chapter 2's import line or by chapter 1's manifest comment, before chapter 3
 explains what the binary does with them.
 
@@ -471,7 +471,6 @@ explains what the binary does with them.
 | `grove_loop::run` | ch. 1, `Cargo.toml` comment | ch. 3 | The loop's single entry point; everything the binary does after its three steps is behind this call. |
 | `Workspace` | ch. 2, `cli.rs` line 2 | ch. 3 | A resolved jj working tree, produced once here and handed to both the lease and the loop. |
 | `DriverLease` | ch. 2, `cli.rs` line 2 | ch. 3 | The one-driver-per-working-tree claim, taken for the life of the process. Linked to the glossary at `driver-lease`. |
-| `TemplateSource` | ch. 2, `cli.rs` line 2 | ch. 3 | Where launch policy is read from; the loop re-reads it every iteration — twice, before and after the tree transition — rather than holding a copy. |
 | `LoopOutcome` | ch. 2, `cli.rs` line 2 | ch. 3 | Why the loop stopped — the value that decides whether this process exits 0 or dies of a signal. |
 
 `grove_loop::VERSION` is named and owned in chapter 2 and is not an early use.
@@ -575,12 +574,13 @@ Chapter 2 describes the agent surface because *Command surfaces* describes both,
 and the twelve verbs are half of the audience-split argument. `crates/grove-llm/src/cli.rs`
 is another book's corpus and no byte of it appears here.
 
-### Launch configuration
+### Launch policy
 
-`~/.config/grove/config.kdl`, the four template slots and the `.grove.kdl` delta
-are named in chapters 2 and 3 as the reason the command line has nothing to
-select. [`CONFIGURATION.md`](../CONFIGURATION.md) owns them, and the ownership
-table's one-canonical-source rule is what keeps this book from re-describing them.
+The owner's `harness-dispatch` policy is named in chapters 1 and 2 as the reason
+the command line has nothing to select.
+[`harness-dispatch`'s own documentation](../../crates/harness-dispatch/README.md)
+owns it, and the ownership table's one-canonical-source rule is what keeps this
+book from re-describing it.
 
 ### The workspace root manifest, and the methodology plugin
 

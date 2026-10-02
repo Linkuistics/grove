@@ -113,7 +113,7 @@ no longer carries. Copying all three under one guard closes that, and it is why
 the type exists rather than `pick` simply returning a path.
 
 **The three fields are consumed at the far end of the crate.** `kind` names the
-launch template and the skill, and chapter 20 spells the launch line with
+skill and is what the owner's policy selects a command from, and chapter 19 spells the launch line with
 `selection.kind.label()`; `handle` is what a diagnostic and a commit message name
 the work item by, because a handle survives the renumbering a path does not;
 `path` is what the session is pointed at. `crates/grove-loop/src/lib.rs`

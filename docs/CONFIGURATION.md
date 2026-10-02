@@ -2,9 +2,7 @@
 
 This reference describes modular command reuse, parameters and
 ordered profile composition with workspace selection. The [modular design](specs/modular-configuration.md)
-specifies the resolution and delivery contract. `grove config show [--kind KIND]
-[--json]` explains active policy; `grove config examples` installs the validated
-[example set](examples/modular-configuration/README.md) without activating it.
+specifies the resolution and delivery contract.
 Flat top-level commands are rejected. Move templates into command definitions and
 connect them with bindings and routes inside `config { ... }`.
 
@@ -132,26 +130,6 @@ visibility, cancellation and exit behavior. The command supplies a supervised
 one-shot invocation; it does not replace AgentAnyware's richer session and event
 interfaces or embed an interactive harness UI.
 
-## Installing examples
-
-Run `grove config examples` to place five `.example.kdl` files and
-`CONFIGURATION.examples.md` in `~/.config/grove/`. It needs neither a workspace
-nor valid active policy. Destinations are fixed; active `config.kdl` and
-`.grove.kdl` files are never written. The installed instructions explain
-wrapper/model/policy choices and how to activate a local sample after ignoring
-its destination. The samples cover both lead/review arrangements, includes,
-parameter experiments, local selection and overrides, and an inactive unfinished
-profile. They are illustrative policy, not built-in harness support.
-
-All destinations are checked before writes. Matching regular files remain
-untouched; different contents, symlinks, directories and unreadable entries are
-conflicts. Missing files are exclusively created. A later create/write failure
-can leave completed or partial new files: stderr names them and the failure,
-and nothing is deleted as cleanup. Resolve conflicts yourself before retrying;
-there is no force option, destination option or automatic ignore edit.
-Success reports paths on stdout and exits 0; conflicts/I/O failures exit 1;
-invalid usage exits 2. See the [worked command](USAGE.md#usage-configuration-examples).
-
 ## The file
 
 The file contains one `config { ... }` wrapper with command definitions,
@@ -171,8 +149,6 @@ config {
 
 `my-agent` is an illustrative executable supplied by the owner. Add an explicit
 route for each kind you use; Grove checks presence when it needs that kind.
-The [packaged examples](examples/modular-configuration/README.md) show a complete
-policy with separate commands for implementation, review and research.
 
 ### The kinds this methodology ships
 

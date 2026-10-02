@@ -324,8 +324,8 @@ The TypeScript runtime, module-loading rules and exact interface are design
 choices for the separate dispatcher implementation, not features claimed here.
 
 Existing source supports the boundary: the [driver](../../crates/grove-loop/src/loop_driver.rs)
-already selects the task before expanding the command; the [configuration
-adapter](../../crates/grove-loop/src/session_config.rs) currently provides four
+already selects the task before expanding the command; the configuration
+adapter (`crates/grove-loop/src/session_config.rs`, since deleted) provided four
 runtime slots; and [direct-execution rules](../CONFIGURATION.md#command-templates)
 already allow an executable wrapper. The current advisory running-session
 observer is unsuitable for recovering task identity at wrapper startup because

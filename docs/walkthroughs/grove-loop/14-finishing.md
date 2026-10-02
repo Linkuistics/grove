@@ -79,7 +79,7 @@ by concept, so the two orders disagree. They disagree most sharply here.
 item of the finish lifecycle — which is the file's *first* block and the largest
 of its five production blocks. It also owns lines 1,500 to 1,694 the eight
 inline tests that exercise the transition and the sentinel. 530 lines in all,
-and the chapter that reads them is the twentieth of the book's twenty
+and the chapter that reads them is the fourteenth of the book's nineteen
 source-owning pages.
 
 The inversion is not an accident of layout. A module that holds *beginning,
@@ -390,7 +390,7 @@ The vacancy is all the transition needs. It used to ask, before consuming one,
 whether Grove's configuration could launch a `requirements` session, and drop the
 vacancy if not. No kind is asked about now: the root and its first leaf are
 written, and whether the owner's policy routes that leaf's kind is found out when
-the leaf launches ([chapter 20](20-the-loop.md#no-kind-is-asked)).
+the leaf launches ([chapter 19](19-the-loop.md#no-kind-is-asked)).
 
 <!-- fragment «finishing-transition-body» owner="the-tree-deletes-itself" source="crates/grove-loop/src/tree_lifecycle.rs" lines="75-108" parent="finish-transition" -->
 ````rust

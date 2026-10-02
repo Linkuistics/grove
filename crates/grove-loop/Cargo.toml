@@ -26,10 +26,9 @@ rust-version.workspace = true
 # `isatty`, `tcgetpgrp` and `signal`. `keyed-launch` is the runner, and the
 # **verb surface** reaches it exactly once: `complete` writes the relaunch flag
 # into the channel the driver allocated, through the runner's own child-side
-# half of it. The crate reaches it in four more places, all of which arrived
+# half of it. The crate reaches it in three more places, all of which arrived
 # with the driver at `loop-crate-driver-k22`: `driver_lease` discards an
-# abandoned channel, `loop_driver` spawns and reaps through it, `session_config`
-# compiles grove's templates against the runner's own types, and `lib.rs`
+# abandoned channel, `loop_driver` spawns and reaps through it, and `lib.rs`
 # re-exports `reraise` so grove's binary can die of a signal without depending
 # on the runner itself.
 [dependencies]

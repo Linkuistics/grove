@@ -11,7 +11,7 @@ and whose shape is the only state grove keeps. This reader has run a grove, has
 watched `pick` choose a leaf, and has seen a session's commit name a work item by
 its handle.
 
-`crates/grove-loop` is sixteen source roots and 14,180 lines, and it is the layer that
+`crates/grove-loop` is fifteen source roots and 14,153 lines, and it is the layer that
 stayed. Three domain-free crates sit underneath it — an ordered filesystem tree,
 a keyed launcher, a version-control workspace — and none of them has a word for a
 *kind*, a *brief chain*, an *outcome*, a *handle* or *finishing*. **This is the
@@ -38,7 +38,7 @@ three parts, each with a cost the layer visibly pays.
   can find it, and the layer must not restate what the layer above owns.
 
 All three are examined inside this corpus, and the closing chapter applies
-them to each of the twenty source-owning chapters in turn.
+them to each of the nineteen source-owning chapters in turn.
 
 **The book's boundary is this crate's side of every seam it sits on.** Where
 `grove-loop` calls `ordinal-fs-tree`, `keyed-launch` or `jj-workspace`, the book
@@ -93,10 +93,9 @@ planned work, not an unresolved reference, and not reconstructed source.
 15. [The twelve verbs, and the two that are not](15-the-verbs.md)
 16. [One live driver per working tree](16-the-lease.md)
 17. [Which calls the lease admits](17-the-epoch.md)
-18. [Which files take part](18-which-files.md)
-19. [The guaranteed core](19-the-core.md)
-20. [The loop](20-the-loop.md)
-21. [What could not move](21-what-could-not-move.md)
+18. [The guaranteed core](18-the-core.md)
+19. [The loop](19-the-loop.md)
+20. [What could not move](20-what-could-not-move.md)
 
 Optional lookup:
 

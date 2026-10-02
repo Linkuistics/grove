@@ -780,8 +780,7 @@ into that cycle's own confirmation, giving up to four questions about one fact.
 ### Grove configuration (`~/.config/grove/config.kdl`)
 
 Personal launch policy: explicit [[Session kind]] routes, reusable command
-definitions, [[Command binding]]s, and named [[Configuration profile]]s, with an
-optional [[Configuration delta]]. The modular design is specified in
+definitions, [[Command binding]]s, and named [[Configuration profile]]s. The modular design is specified in
 [modular configuration](docs/specs/modular-configuration.md); the currently
 implemented modular form, with explicit generic profile
 composition and structurally checked inactive profiles, are documented in
@@ -789,22 +788,15 @@ composition and structurally checked inactive profiles, are documented in
 The generic runner's **Catalog** is the captured source documents and slot
 vocabulary; **Templates** is an owned resolved command snapshot; its **Inspection** is the
 read-only explanation of captured sources, compiled words and assignment histories.
-`grove config show` presents that snapshot as human text or versioned JSON
-without entering a driver session. `grove config examples` installs separately
-named inactive samples and instructions beside personal policy; installation
-does not activate or modify that policy.
 Catalog captures an optional **Selection** declaration from each source, retaining
 the difference between absence and an empty list; callers supply the selection
-to resolve. Grove chooses the local declaration, else the personal default,
-else an empty selection. A present empty local list disables profiles.
+to resolve.
 _Avoid_: "primary harness" — harness selection is a property of each session kind,
 not of the grove as a whole.
 _Avoid_: "thinking effort" — use **reasoning effort**, the launch-policy term.
 _Avoid_: a fallback on configuration error — a failed selection launches nothing.
 _Avoid_: executing the template with `sh -c` or an interactive login shell — the
 configured process remains Grove's direct foreground child.
-_Avoid_: describing a diagnostic environment override as configuration; a
-delta is the only second source, and it is still personal policy.
 
 <a id="configuration-profile"></a>
 ### Configuration profile
@@ -842,20 +834,6 @@ An author-named reference to one reusable command definition in [[Grove
 configuration]], shared by any number of explicit [[Session kind]] routes.
 Names such as `lead` and `review` are personal policy, not Grove-defined roles.
 
-<a id="configuration-delta"></a>
-### Configuration delta (`.grove.kdl`)
-
-The untracked local part of [[Grove configuration]], selected from the worktree
-root or, when absent there, the main repository root. It may replace the selected
-[[Configuration profile]] list and override values for kinds explicitly routed
-by the active personal configuration; the global definitions still participate.
-_Avoid_: "project configuration" — it is untracked personal policy that happens
-to be scoped to a checkout, and no clone reproduces it.
-_Avoid_: treating a tracked delta as absent and falling back; the refusal is what
-reaches the person who can fix it.
-_Avoid_: reading the ignore rule instead of the index — a file already committed
-stays tracked after a `.gitignore` line is added.
-
 <a id="kind-routing"></a>
 ### Kind routing
 
@@ -870,8 +848,7 @@ Bootstraps the resolved leaf, and does not pick again. A session started outside
 `grove` has no mandate and is not a Grove loop session; Grove executes the
 configured command directly and is not a model router or proxy.
 _Avoid_: describing environment variables, a harness stamp, `--harness`, or a
-leaf-level `**Harness:**` declaration as configuration fallbacks. Grove uses
-personal configuration and at most one admitted configuration delta.
+leaf-level `**Harness:**` declaration as configuration fallbacks.
 _Avoid_: recovering the kind from `${prompt}`. The kind is the routing *key* and
 the core is the *payload*, so every substring test is indirect and unsound: the
 core names a reference file a whole family shares, and the driver's sentence
@@ -1056,7 +1033,7 @@ _Avoid_: calling it configuration of Grove. Grove reads no personal file.
 A file in one checkout that names which of the options an owner's policy offers
 apply there, read by an SDK helper the policy calls. It can choose among those
 options and can introduce nothing.
-_Avoid_: reading it as a [[Configuration delta]]. It names no program, argument
+_Avoid_: reading it as configuration. It names no program, argument
 or kind, so a repository that ships one gains no authority.
 
 <a id="sample-policy"></a>

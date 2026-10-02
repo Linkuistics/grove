@@ -59,11 +59,7 @@ below for nothing — the crate never learns what a launch is *for*. Grove's
 mapping is one line: a **Session kind** is a key. Its decisions live in the grove
 context that owns them:
 [decision 7](./docs/specs/module-decomposition.md) for the interface and
-[modular configuration](./docs/specs/modular-configuration.md) for composition,
-[*complete session configuration*](./docs/adr/complete-session-configuration.md)
-for what a template must be,
-[*the untracked configuration delta*](./docs/adr/untracked-configuration-delta.md)
-for the second document, and
+[modular configuration](./docs/specs/modular-configuration.md) for composition, and
 [*the launched child is a job*](./docs/adr/the-launched-child-is-a-job.md) for
 what the child inherits, what the escalation reaps, and who owns the terminal
 while it runs.
@@ -241,11 +237,9 @@ consumer names, and no call site passes one where the other is expected.
   `plugins/grove/skills/grove/ADR-FORMAT.md` defines when a flat
   root set is appropriate. A term is defined in the glossary of its owning
   context, never both. The **grove** context owns
-  [`complete-session-configuration`](docs/adr/complete-session-configuration.md),
   [`harness-selection-is-owned-by-policy`](docs/adr/harness-selection-is-owned-by-policy.md),
   [`a-review-carries-its-creator-reference`](docs/adr/a-review-carries-its-creator-reference.md),
   [`policy-evaluation-precedes-process-replacement`](docs/adr/policy-evaluation-precedes-process-replacement.md),
-  [`untracked-configuration-delta`](docs/adr/untracked-configuration-delta.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
   [`corpus-rules-have-one-owner`](docs/adr/corpus-rules-have-one-owner.md),

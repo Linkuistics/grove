@@ -1650,7 +1650,7 @@ covered*. It is that **one test in this chapter holds two clauses without
 distinguishing them, two clauses are held entirely from outside this chapter —
 one of them partly from outside the book's corpus as well — and three are held
 by nothing** — and that the reason to know this is not to add tests to a
-frozen corpus, but so that chapter 21 can answer *what did not go* with a measured
+frozen corpus, but so that chapter 20 can answer *what did not go* with a measured
 answer rather than a plausible one.
 
 <a id="what-resolution-kept"></a>

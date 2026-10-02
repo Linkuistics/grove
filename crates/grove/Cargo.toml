@@ -33,7 +33,7 @@ clap = { version = "4", features = ["derive"] }
 # behind grove-tui.
 grove-loop = { path = "../grove-loop" }
 grove-tui = { path = "../grove-tui" }
-# Public inspection records; resolution remains SessionConfig's responsibility.
+# The runner a standalone invocation is launched and confined through.
 keyed-launch = { path = "../keyed-launch" }
 serde_json = "1.0"
 tempfile = "3.10"

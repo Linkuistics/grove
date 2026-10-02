@@ -1,13 +1,13 @@
 # The guaranteed core
-<!-- book-page id="the-core" slice="too-late-to-say-later" order="19" -->
-[Previous: Which files take part](18-which-files.md) | [Contents](README.md) | [Next: The loop](20-the-loop.md)
+<!-- book-page id="the-core" slice="too-late-to-say-later" order="18" -->
+[Previous: Which calls the lease admits](17-the-epoch.md) | [Contents](README.md) | [Next: The loop](19-the-loop.md)
 
 <a id="too-late-to-say-later"></a>
 ## The rule: a sentence rides `${prompt}` only if its failure mode is one the skill cannot repair
 
-Chapter 18 read the file that decides *which* document names the program a launch
-runs. This one reads what that launch is handed. `${prompt}` is the required slot
-of the four chapter 18 enumerated, and this 245-line module is the whole of what
+Chapters 16 and 17 read the lease that admits a driver and the calls its
+sessions make. This one reads what a launch is handed. `${prompt}` is the
+source's own name for that prompt, and this 245-line module is the whole of what
 goes in it.
 
 > **A sentence rides `${prompt}` only if its failure mode is one the skill cannot
@@ -32,7 +32,6 @@ The carried example reaches the point where a selected leaf becomes a session.
 ```text
   the walk has chosen a leaf              kind `impl`, handle `plan-k1`
   the lease has admitted the driver       chapters 16, 17
-  the configuration has resolved          chapter 18 — `${prompt}` is required
 
   compose(Mandate { handle, kind, workspace, version })
 
@@ -48,8 +47,8 @@ now, how to end — and nothing between them but a blank line.
 
 This is the outcome's third question in its most direct form. *On the way out — the
 policy: what does this layer choose that nothing beneath it could have
-defaulted?* Chapter 18 answered it with seven slot **names**. This chapter answers
-it with the contents of the one slot that is required, and the cost the outcome
+defaulted?* This chapter answers
+it with the contents of the prompt, and the cost the outcome
 names — *a chosen value must be stated where a reader can find it, and the layer
 must not restate what the layer above owns* — is visible here as a rule with a
 test beside it rather than as a principle. The pin is
@@ -73,13 +72,10 @@ to 70 and truncates to 69, and nothing turns on which.
 
 **All 171 are `///` or `//!`. The root has no plain `//` comment, and no
 `#[cfg(test)]` module.** Both of the blind spots this book has been working
-around are therefore absent, as they were in chapter 18 — which is worth stating
-plainly, because it was forecast otherwise. Chapter 18 ends its own instrument
-section saying *the next two chapters go back to the general case*, and the
-finding it handed forward puts it more strongly still: **chapters 19 and 20 are
-not the exception this root was.** The reasoning behind that was about
-`loop_driver.rs`, whose inline test module `cargo doc` cannot see at all, and it
-still holds for chapter 20. It does not hold here, and only the measurement
+around are therefore absent — which is worth stating
+plainly, because the general case is the other way. `loop_driver.rs` carries an
+inline test module `cargo doc` cannot see at all, and that
+holds for chapter 19. It does not hold here, and only the measurement
 settles which.
 
 So the reading here means something in both directions. `cargo doc --no-deps
@@ -91,8 +87,8 @@ measurement rather than an assumption: planting a broken link inside a `///`
 docblock in it takes the crate to twenty-seven and names the new line, so the
 silence over all 171 comment lines is silence about links that resolve.
 
-**One thing it still cannot see, and this root has none of them.** Chapter 18's
-last finding was that `cargo doc` says nothing at all about a Markdown link with
+**One thing it still cannot see, and this root has none of them.**
+`cargo doc` says nothing at all about a Markdown link with
 an explicit URL target. This block contains no such link: every citation in it is
 a backticked path or a record named in prose, which is this file's convention
 throughout. So the two broken addresses this chapter does adjudicate are of two
@@ -101,7 +97,7 @@ looks for at all.
 
 **The block holds no test, and that is why it takes *do not restate*.** There is
 no `#[cfg(test)]` module and no `#[test]` function in the 245 lines, so the book's
-*supply the claim* obligation has nothing here to attach to; chapter 19 is not on
+*supply the claim* obligation has nothing here to attach to; chapter 18 is not on
 the structure brief's list for it. At 69% comment prose the instruction is the
 third one — the comments already argue, the fragment graph quotes them verbatim,
 and prose here connects arguments, names the test, and stops.
@@ -132,9 +128,8 @@ resolves one from the repository root instead, unwrapping the result on the
 stated ground that the repository is a jj workspace. In a copy it is not, so
 every test that composes a prompt dies in the fixture rather than in an
 assertion, with `Refusal(NotAWorkspace { … })`. Nothing about composition is
-under test in a copy; the tests are refused entry to it. That is the same *state
-unknown is not absence* shape chapter 18 read in the delta search, arriving from
-the other side: here the fixture is entitled to fail closed, because a prompt
+under test in a copy; the tests are refused entry to it. The fixture is entitled
+to fail closed, because a prompt
 that cannot state the version control has nothing to state.
 
 **Ten of the eleven have that cause, and the eleventh has another** — which
@@ -326,9 +321,8 @@ read below.
 decision 9 carries `Mandate`'s four fields and `compose`'s signature as
 written source, and its own paragraph on the provisioning gap is nearly this
 header's wording. The one that does not is at line 234, and the last section of
-this chapter reads it. That census is worth taking because chapter 18 found two
-addresses in its block that did not resolve and chapter 16 found a name that
-resolved to nothing, and because this file cites more heavily than either.
+this chapter reads it. That census is worth taking because chapter 16 found a name that
+resolved to nothing, and because this file cites more heavily than that one.
 
 **The module name in that sentence is deliberately not a link, and `cargo doc` is
 why.**
@@ -380,11 +374,10 @@ use jj_workspace::Workspace;
 
 Two of the three are chapter 3's, and the third is another crate's. What is
 absent is the striking part: `keyed_launch` appears nowhere in this module,
-though the string this module builds exists only to be substituted into one of
-that crate's templates. Chapter 18's imports named six `keyed_launch` types on one
-line because that module hands the runner a vocabulary and receives an `Argv`.
-This one hands the runner nothing — it returns a `String` to its caller, and
-chapter 20's `session_prompt` is what puts it in a slot.
+though the string this module builds exists only to be handed to the command
+that crate launches.
+This module hands the runner nothing — it returns a `String` to its caller, and
+chapter 19's `session_prompt` is what passes it on.
 
 <a id="one-name-twice"></a>
 ## One name, and why it is stated once
@@ -418,9 +411,8 @@ workspace, `PLUGIN` and `skill_name` have no consumer outside this file except
 `crates/grove-loop/tests/prompt.rs`, which reaches them nine and two times; and
 `lib.rs` re-exports only `compose` and `Mandate` from this module, not these two.
 What makes the tests' access legal is `pub mod prompt` in the library root. This
-is chapter 18's `DELTA_FILE_NAME` shape — public surface with no production
-caller — arriving for a different reason: there the `pub` bought an intra-doc link
-from the module's own header, here it buys an out-of-process suite the ability to
+is public surface with no production
+caller, and what the `pub` buys is an out-of-process suite's ability to
 name the plugin without hard-coding it.
 
 That matters more than it sounds, because one of those tests,
@@ -951,9 +943,9 @@ those terms. That citation holds.
 The book's three questions, asked of the smallest root in Part V. That ranking
 is an enumeration rather than an impression, and it is worth writing down because
 the unit is the trap that caught chapter 16: Part V's roots run `driver_lease.rs`
-1,383, `loop_driver.rs` 742, `session_config.rs` 358 and `prompt.rs` **245**,
-and its owned blocks run 819, 615, 564, 358 and 245. `prompt.rs` is last in both
-lists, and because chapters 18 and 19 each own a whole unsplit root there is no
+1,383, `loop_driver.rs` 742 and `prompt.rs` **245**,
+and its owned blocks run 819, 615, 564 and 245. `prompt.rs` is last in both
+lists, and because this chapter owns a whole unsplit root there is no
 unit under which that changes.
 
 **On the way in — the names.** Almost nothing, and the almost is the interesting
@@ -967,7 +959,7 @@ find it, and here the reader who most needs it is a marketplace manifest in
 another directory, held in step by one test and nothing else.
 
 **On the way through — the preconditions.** None. Enumerated across the crate's
-twelve Rust roots — counting the lines that match `Result`, `?`, `bail!`,
+Rust roots — counting the lines that match `Result`, `?`, `bail!`,
 `unwrap`, `expect` or `panic!` once `//` comments are stripped — `prompt.rs` is
 the **only one with no fallible construct at all**, and it is a zero rather than
 a minimum: the next lowest root carries four, and the two heaviest carry 257
@@ -979,9 +971,8 @@ here by there being nothing left to check: `loop_driver.rs` reads the selection
 once and does not recompute it before the spawn, so the mandate the prompt states
 is the same value every other consumer of that read was given.
 
-**On the way out — the policy.** Chapter 18 answered this question with four
-names a runner could not have guessed; this chapter answers the same question
-one layer in, and its answer is a **test** rather than a value. Grove chooses what
+**On the way out — the policy.** This chapter's
+answer is a **test** rather than a value. Grove chooses what
 a session is told at the moment it can still be told anything, and the too-late
 test is what bounds that choice: a sentence earns the channel only when its
 failure mode is one the skill cannot repair. Closing the test on *fact* is what
@@ -992,11 +983,11 @@ ending deferred to the kind's skill in part 3, and a compatibility check inverte
 into a bare version string in part 2. Each of those is a sentence grove could have
 written into every prompt and chose not to.
 
-**And the thing this chapter is really for.** The other four chapters of Part V
-are about a runner's authority — who holds the lease, which calls it admits, which
-file names the program. This one is about a **channel**, and about the only
+**And the thing this chapter is really for.** The other three chapters of Part V
+are about a runner's authority — who holds the lease, which calls it admits, how
+a session is launched and ended. This one is about a **channel**, and about the only
 question a channel poses: what has to be said now because it cannot be said later.
-Nothing beneath this layer could answer it. `keyed-launch` expands a template and
+Nothing beneath this layer could answer it. `keyed-launch` runs a command and
 knows nothing about sessions; `jj-workspace` resolves a workspace and knows nothing
 about what the answer is for; the store has no word for a kind at all. The
 too-late test could not move because it is a judgement about a methodology the
@@ -1005,4 +996,4 @@ it cannot check is to write the judgement down, close it on a definition, and ke
 245 lines of prose arguing why each sentence that is not there has somewhere better
 to be.
 
-[Previous: Which files take part](18-which-files.md) | [Contents](README.md) | [Next: The loop](20-the-loop.md)
+[Previous: Which calls the lease admits](17-the-epoch.md) | [Contents](README.md) | [Next: The loop](19-the-loop.md)

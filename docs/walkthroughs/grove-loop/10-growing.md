@@ -1437,7 +1437,7 @@ cleanly along *who could produce the condition*, and the reason is this block's
 own shape: grove classifies before it calls, so every refusal is either grove's
 own precondition — checked, and held — or a statement about the library's
 answer, which only a broken library could trigger. **That is the same fact the
-chapter has been making from the other direction**, and it is what chapter 21
+chapter has been making from the other direction**, and it is what chapter 20
 needs: the layer that stayed pays for its preconditions with tests, and pays for
 its trust in the layer beneath with assertions nobody can fire.
 

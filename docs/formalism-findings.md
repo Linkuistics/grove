@@ -8901,7 +8901,7 @@ product path this leaf did not open.
 is the one that settles it: `src/loop_driver.rs` is the sole caller of
 `SessionConfig::load` and calls it TWICE an iteration, once before the tree
 mutation and once before the launch, which
-`docs/adr/complete-session-configuration.md` states as *validated in full —
+`docs/adr/complete-session-configuration.md` (since deleted) stated as *validated in full —
 before every tree mutation and again before every launch*. So no product defect
 stands behind the finding; the licence was this model's, licensed by the
 catalogue's silence. `lifecycle.als` read the configuration LIVE and was green on

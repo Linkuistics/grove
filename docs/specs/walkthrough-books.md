@@ -1175,6 +1175,12 @@ defers — and it is final-only: it adds synthesis, closes the indexes, runs fin
 fragment and Markdown validation, and records the final evidence. The manifest
 does not declare that; it follows from the slice owning no `[[block]]`.
 
+A later change to a crate with a book treats the book's line ranges and source
+index as derived data. Carry each fragment's range across a diff of the root's
+old and new text, re-read every literal body from the file, and rewrite the
+index rows from `walkthrough.toml` and the fragment headers. Only the prose and
+the roll-up figures need hands.
+
 ## Fragment validator contract
 
 The implementation exposes one deep operation, expressed here as interface

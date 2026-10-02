@@ -85,7 +85,13 @@ Considered alternatives:
 - **Keep a supervisor after launching the harness.** It could collect exits,
   but would replace the direct-child contract to obtain measurements that are
   explicitly permitted to remain unknown. Reopen only with an
-  independently agreed supervisor/terminal design.
+  independently agreed supervisor/terminal design. The owner wants that design
+  eventually: dispatch would handle the launched harness's completion signal
+  and so become the process wrapper for one run of an interactive harness.
+  That moves the runner's completion channel, supervision, kill escalation,
+  terminal handover and confinement under dispatch. Until then the runner
+  stays a domain-free unit separable from Grove's loop, and a confined launch
+  selects through a capability that does not assume the `exec` handoff.
 
 The [policy ownership decision](harness-selection-is-owned-by-policy.md) remains
 separate: changing the TypeScript host need not move selection rules into Grove.

@@ -236,12 +236,13 @@ template authored it, and nothing between the file and the process re-read it.
 
 The compile-time half of the same answer is chapter 5's, and it is the one place
 in the book where a refusal is held by a type instead of by a rule. `Argv` has
-private fields and a `pub(crate)` constructor, so
-[nothing can hand `run` words a template did not author](05-to-an-argv.md#no-constructor):
+private fields and no method that changes one, so
+[what was put into an `Argv` is what `run` spawns](05-to-an-argv.md#the-seam-type):
 `run` takes an `Argv` and nothing else that could name a program. Chapter 1
-claimed that seam and chapter 5 proved it, and this is the answer it was being
+claimed that seam and chapter 5 read it, and this is the answer it was being
 saved for — the *adding* direction closed before the program is written rather
-than checked after it runs.
+than checked after it runs. The type says nothing about who authored the words.
+A caller that builds an `Argv` itself, with `Argv::new`, answers for them.
 
 In the *inferring* direction the answer is [chapter 6](06-the-channel.md#the-thesis).
 The crate does not decide that a child is finished: it allocates a path, hands
@@ -281,7 +282,7 @@ the one the next section qualifies.
 |---|---|---|---|
 | 1 · on the way in | one effective value assembled from a default, a file, a variable, a flag, an overlay — which needs to know which parts merge, override or concatenate | nobody can see the whole of a value in one place, and the precedence rule is a document nobody wrote | explicit binding and route targets resolve to a complete command, and the overlay cannot authorize a new key ([chapter 3](03-two-documents.md#never-assembled)) |
 | 2 · on the way through | the value read a second time in a grammar it was not written in — a split, a `$`, a quote, a glob, or a shell asked to do the reading | the failures are silent, and the program runs more or less than the operator wrote | split into words exactly once, at load, and never again; a substitution is a whole word or nothing, and a compiled slot names one validated runtime value ([chapter 4](04-template-law.md#words-not-shell), [chapter 5](05-to-an-argv.md#whole-word-or-nothing)) |
-| 3 · on the way out | a conclusion the value did not carry — that the work is done, or that the launch wants something the operator did not write | a launcher that decides a child is done is sometimes wrong while looking exactly right, and a value not in the file cannot be changed by editing it | one variable holding one path is the whole of what is added and `Argv` has no public constructor; the appearance of a file the crate never wrote is the only completion event ([chapter 6](06-the-channel.md#the-thesis), [chapter 7](07-the-job.md#nothing-else-added), [chapter 8](08-the-escalation.md#three-observables)) |
+| 3 · on the way out | a conclusion the value did not carry — that the work is done, or that the launch wants something the operator did not write | a launcher that decides a child is done is sometimes wrong while looking exactly right, and a value not in the file cannot be changed by editing it | one variable holding one path is the whole of what is added and nothing can change an `Argv` once it is built; the appearance of a file the crate never wrote is the only completion event ([chapter 6](06-the-channel.md#the-thesis), [chapter 7](07-the-job.md#nothing-else-added), [chapter 8](08-the-escalation.md#three-observables)) |
 
 <a id="the-one-that-stays-open"></a>
 ## The one the crate cannot close
@@ -363,10 +364,10 @@ happens once, the substitution that is whole-word or nothing. Cheap checks, run
 early, over a document that is complete — which is what makes them checkable by a
 conformance kit a consumer can run in its own suite. And **the one answer above
 that a type holds cannot decay**, which the others can: a rule is a line somebody
-can edit, but `Argv`'s missing constructor fails a build. The crate's own launch
-suite is that seam seen from the other side — it reaches `run` through
-`Templates::expand` because there is no other route, and its module comment says
-it does not want one. Where a property can be moved from a rule to a type, a
+can edit, but a second way to hand `run` a program would have to be a new field
+on `Launch`, and that fails every caller's build. The crate's own launch suite
+is that seam seen from the other side — it reaches `run` with an `Argv` from
+`Templates::expand`, and in one case with an `Argv` it built itself. Where a property can be moved from a rule to a type, a
 breach becomes a compile failure rather than a condition every caller must
 remember to check.
 
@@ -461,7 +462,7 @@ together. Each row turned `explained` in its owner's slice and in no other.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 297 + 300 + 1,448 + 259 + 235 + 288 + 559 + 294 + 263 + 219 = 4,162
+**Owned source.** 297 + 300 + 1,448 + 259 + 237 + 288 + 559 + 294 + 263 + 217 = 4,162
 lines across 10 source-owning chapters, and 0 for this one. The tenth row of that table exists
 to be zero: a chapter that owns no source is the shape the structure brief chose
 for the assembly, and the total is the 4,162 lines in the current declared corpus.

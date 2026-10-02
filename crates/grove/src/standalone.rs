@@ -1,26 +1,26 @@
-//! One configured invocation, with no workspace or task-tree authority.
+//! One invocation of a kind, with no workspace or task-tree authority.
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context, Result};
-use keyed_launch::{
-    Catalog, Channel, CompiledWord, Confinement, End, Escalation, Launch, Selection, Slot,
-    Templates,
-};
+use keyed_launch::{Argv, Channel, Confinement, End, Escalation, Launch};
+use serde_json::Value;
 
-/// The slots a standalone invocation fills. Grove's other slots describe a
-/// lifecycle session's selected task, and a standalone invocation has none.
-const OFFERED: [&str; 4] = ["prompt", "session_name", "worktree", "repo"];
+/// What selection must not inherit: the completion channel of a session this
+/// invocation runs inside, lifecycle or standalone. The policy decides what
+/// launches, and ends nothing.
+const CONTROL_ENV: [&str; 2] = ["GROVE_SIGNAL_FILE", "GROVE_RUN_SIGNAL_FILE"];
 
 #[derive(clap::Args)]
 pub(crate) struct Args {
-    /// Task kind routed to a named command by personal Grove configuration.
+    /// Task kind, which the owner's harness-dispatch policy routes to a command.
     pub kind: String,
     /// Task instructions, delivered as one literal prompt argument.
     #[arg(
@@ -53,15 +53,16 @@ pub(crate) enum Ui {
 }
 
 pub(crate) fn run(args: Args) -> Result<()> {
-    let source = grove_loop::TemplateSource::from_env()?;
-    let helper = std::env::current_exe()?.with_file_name("grove-llm");
+    let dispatch = crate::dispatch::locate()?;
+    // The matching completion helper ships in the same directory.
+    let helper = dispatch.with_file_name("grove-llm");
     let owner_home =
         std::env::var_os("HOME").context("HOME is required to locate personal run logs")?;
     let logs = PathBuf::from(owner_home).join(".local/state/grove/runs");
-    execute(args, &source.personal_path(), &helper, &logs)
+    execute(args, &dispatch, &helper, &logs)
 }
 
-pub(crate) fn execute(args: Args, policy: &Path, helper: &Path, logs: &Path) -> Result<()> {
+fn execute(args: Args, dispatch: &Path, helper: &Path, logs: &Path) -> Result<()> {
     let prompt = match (&args.prompt, &args.prompt_file) {
         (Some(prompt), None) => prompt.clone(),
         (None, Some(path)) => fs::read_to_string(path)
@@ -72,14 +73,6 @@ pub(crate) fn execute(args: Args, policy: &Path, helper: &Path, logs: &Path) -> 
         !prompt.trim().is_empty(),
         "the standalone prompt must not be empty"
     );
-    // The whole lifecycle vocabulary, because lifecycle routes share this file:
-    // a route whose command uses a task slot must not stop every standalone kind.
-    let catalog = Catalog::load(policy, None, grove_loop::session_config::vocabulary())?;
-    let default_selection = Selection::default();
-    let templates = catalog.resolve(catalog.primary_selection().unwrap_or(&default_selection))?;
-    templates.require(&args.kind)?;
-    refuse_unoffered_slots(&templates, &args.kind, policy)?;
-
     let temporary = tempfile::Builder::new().prefix("grove-run-").tempdir()?;
     let root = temporary.path().canonicalize()?;
     let work = root.join("work");
@@ -139,43 +132,7 @@ pub(crate) fn execute(args: Args, policy: &Path, helper: &Path, logs: &Path) -> 
         destinations.iter().map(|path| path.file_name()).collect::<Vec<_>>(),
         shell_word(completion.as_os_str())?
     );
-    let session_name = format!("standalone:{}", args.kind);
-    let argv = templates.expand(
-        &args.kind,
-        &[
-            Slot {
-                name: "prompt",
-                value: instructions.as_ref(),
-            },
-            Slot {
-                name: "session_name",
-                value: session_name.as_ref(),
-            },
-            Slot {
-                name: "worktree",
-                value: work.as_os_str(),
-            },
-            Slot {
-                name: "repo",
-                value: work.as_os_str(),
-            },
-        ]
-        .into_iter()
-        // Expansion takes a value for every slot in the vocabulary. The refusal
-        // above proved this command spells none of the others, so these empty
-        // values cannot reach argv.
-        .chain(
-            grove_loop::session_config::vocabulary()
-                .slots
-                .iter()
-                .filter(|slot| !OFFERED.contains(&slot.name))
-                .map(|slot| Slot {
-                    name: slot.name,
-                    value: OsStr::new(""),
-                }),
-        )
-        .collect::<Vec<_>>(),
-    )?;
+    let argv = select(dispatch, &args.kind, &instructions, &work)?;
     let channel = Channel::allocate(&control)?;
     // Hold the original directory, since the harness can rename paths inside
     // its scratch root. Output reads must never follow a substituted parent.
@@ -275,38 +232,82 @@ pub(crate) fn execute(args: Args, policy: &Path, helper: &Path, logs: &Path) -> 
     result
 }
 
-/// Refuse a routed command that requests a slot only a lifecycle launch fills,
-/// before anything is staged. The check reads the same compiled words expansion
-/// fills, so it covers exactly what would have reached argv.
-fn refuse_unoffered_slots(templates: &Templates, kind: &str, policy: &Path) -> Result<()> {
-    let command = templates
-        .inspect()
-        .commands
-        .iter()
-        .find(|command| command.key == kind)
-        .with_context(|| format!("resolved kind `{kind}` has no inspected command"))?;
-    let requested: Vec<String> = command
-        .words
-        .iter()
-        .filter_map(|word| match &word.word {
-            CompiledWord::Slot(name) if !OFFERED.contains(&name.as_str()) => {
-                Some(format!("`${{{name}}}`"))
-            }
-            _ => None,
-        })
-        .collect();
-    if requested.is_empty() {
-        return Ok(());
+/// Ask the owner's policy which command runs this kind, before confinement
+/// and outside it: the policy, the owner's settings and the record store are
+/// personal files a confined harness must not read.
+///
+/// `harness-dispatch inspect` runs in the staged directory, in Grove's own
+/// process group and environment, and launches nothing. What comes back is the
+/// file the program resolved to and the arguments the policy returned, which the
+/// runner launches as they are: nothing looks the program up a second time.
+fn select(dispatch: &Path, kind: &str, prompt: &str, work: &Path) -> Result<Argv> {
+    let staged = work
+        .to_str()
+        .context("the staged directory's path is not UTF-8, so no parameter can carry it")?;
+    let mut inspect = Command::new(dispatch);
+    inspect
+        .arg("inspect")
+        .arg("--json")
+        .arg(format!("--kind={kind}"))
+        .arg(format!("--prompt={prompt}"))
+        .arg(format!("--param=session_name=standalone:{kind}"))
+        .arg(format!("--param=worktree={staged}"))
+        .arg(format!("--param=repo={staged}"))
+        .current_dir(work)
+        .stdin(Stdio::null());
+    for name in CONTROL_ENV {
+        inspect.env_remove(name);
     }
-    bail!(
-        "grove run cannot launch kind `{kind}`: its command `{command}` requests {requested}, \
-         which only a lifecycle session's selected task fills. A standalone invocation offers \
-         `${{prompt}}`, `${{session_name}}`, `${{worktree}}` and `${{repo}}`.\n  Route `{kind}` \
-         in {policy} to a command that does not use {requested}.",
-        command = command.command,
-        requested = requested.join(", "),
-        policy = policy.display(),
-    )
+    let output = inspect
+        .output()
+        .with_context(|| format!("running {}", dispatch.display()))?;
+    if !output.status.success() {
+        bail!(
+            "grove run cannot launch kind `{kind}`: {}\nNothing was launched or published.",
+            refusal(&output.stderr, output.status)
+        );
+    }
+    let report: Value = serde_json::from_slice(&output.stdout)
+        .context("reading the selection harness-dispatch inspect reported")?;
+    let command = &report["command"];
+    let (Some(executable), Some(args)) = (
+        command["executable"].as_str(),
+        command["args"]
+            .as_array()
+            .and_then(|args| args.iter().map(Value::as_str).collect::<Option<Vec<_>>>()),
+    ) else {
+        bail!(
+            "{} inspect reported no command to launch; install grove and harness-dispatch \
+             from one release",
+            dispatch.display()
+        );
+    };
+    Ok(Argv::new(
+        executable.into(),
+        args.into_iter().map(OsString::from).collect(),
+    ))
+}
+
+/// Dispatch's own account of a selection that launched nothing: its code,
+/// message and remedy, with the policy's code beside a refusal the policy made.
+fn refusal(stderr: &[u8], status: std::process::ExitStatus) -> String {
+    let report = serde_json::from_slice::<Value>(stderr).unwrap_or_default();
+    let error = &report["error"];
+    let (Some(code), Some(message), Some(remedy)) = (
+        error["code"].as_str(),
+        error["message"].as_str(),
+        error["remedy"].as_str(),
+    ) else {
+        return format!(
+            "harness-dispatch inspect ended with {status}: {}",
+            String::from_utf8_lossy(stderr).trim()
+        );
+    };
+    let code = match error["policyCode"].as_str() {
+        Some(policy) => format!("{code}: {policy}"),
+        None => code.to_owned(),
+    };
+    format!("harness-dispatch refused the selection ({code}).\n  {message}\n  {remedy}")
 }
 
 fn inherited(name: &OsStr) -> bool {
@@ -391,7 +392,3 @@ pub(crate) fn shell_word(word: &OsStr) -> Result<String> {
         .context("the display/completion command requires a UTF-8 executable path")?;
     Ok(format!("'{}'", word.replace('\'', "'\\''")))
 }
-
-#[cfg(test)]
-#[path = "../tests/internal/standalone.rs"]
-mod tests;

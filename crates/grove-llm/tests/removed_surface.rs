@@ -98,9 +98,6 @@ const ROLES: &[(&str, Role)] = &[
     ("GROVE_SIGNAL_FILE", Role::LoopControlChannel),
     ("GROVE_RUN_SIGNAL_FILE", Role::StandaloneControlChannel),
     ("GROVE_RELEASE_RUNTIME_READ", Role::ReleaseTooling),
-    ("GROVE_SMOKE_COMMAND", Role::InternalTestSeam),
-    ("GROVE_SMOKE_RUNTIME_READ", Role::InternalTestSeam),
-    ("GROVE_SMOKE_INPUTS", Role::InternalTestSeam),
     (
         "GROVE_DRIVER_LEASE_FORK_SENSITIVE_TEST",
         Role::InternalTestSeam,

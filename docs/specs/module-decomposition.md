@@ -507,10 +507,12 @@ pub struct Diagnostic {
 /// separate and may already have filled fragments inside a literal word.
 pub struct Slot<'a> { pub name: &'a str, pub value: &'a OsStr }
 
-/// A program and its arguments, in order, ready to spawn. Built only by
-/// expansion, so nothing reaches a spawn that a template did not author.
+/// A program and its arguments, in order, ready to spawn: each string one
+/// whole word, with no shell and no second reading. Expansion authors one from
+/// a template, and a caller that already holds a command builds one.
 pub struct Argv { /* program, args */ }
 impl Argv {
+    pub fn new(program: OsString, args: Vec<OsString>) -> Self;
     pub fn program(&self) -> &OsStr;
     pub fn args(&self) -> &[OsString];
     /// The whole launch as one word list, program first — the shape a

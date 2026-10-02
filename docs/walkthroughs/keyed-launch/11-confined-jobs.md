@@ -26,7 +26,7 @@ The escalation uses a two-second completion grace and five-second kill grace.
 `Confinement.writable` is `/tmp/invocation`; its runtime-read list contains the
 existing file `/home/reader/.config/harness/token`.
 
-The configured template expands to program `/bin/sh` and two arguments: `-c`
+The caller's `Argv` holds the program `/bin/sh` and two arguments: `-c`
 and the following command body. It copies the staged input and acknowledges
 completion through the exact channel granted by this launch.
 
@@ -71,7 +71,7 @@ The following comparison states which boundary each entry point supplies.
 The policy implementation below supplies command construction and stable artifact
 reads; the job and watch chapters own spawning, cancellation and reaping.
 
-<!-- fragment «confinement-policy» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="1-219" parent="source-confinement" -->
+<!-- fragment «confinement-policy» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="1-217" parent="source-confinement" -->
 <!-- insert «held-directory-read» -->
 <!-- insert «confinement-contract» -->
 <!-- insert «confinement-resource-resolution» -->
@@ -195,12 +195,14 @@ pub(crate) fn command(argv: &Argv, policy: &Confinement<'_>) -> Result<Command, 
 ## Resolve executable and resource paths
 
 `canonical` turns missing or inaccessible resources into a diagnostic naming
-the path. `executable` resolves a path-bearing program directly or searches PATH
-for a bare program name. The selected executable becomes an explicit read grant;
-configuration still owns its argument vector. For the example, the credential
-and executable must resolve before any child is spawned.
+the path. `executable` takes an absolute program path and refuses any other: it
+looks no name up, on PATH or anywhere else, so the file the caller chose is the
+file that is granted and run. A caller that holds a bare name resolves it first,
+by whatever rule it trusts. The resolved executable becomes an explicit read
+grant; the caller still owns its argument vector. For the example, the
+credential and executable must resolve before any child is spawned.
 
-<!-- fragment «confinement-resource-resolution» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="79-103" parent="confinement-policy" -->
+<!-- fragment «confinement-resource-resolution» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="79-101" parent="confinement-policy" -->
 ````rust
 fn canonical(path: &Path) -> Result<PathBuf, LaunchError> {
     path.canonicalize().map_err(|error| {
@@ -211,20 +213,18 @@ fn canonical(path: &Path) -> Result<PathBuf, LaunchError> {
     })
 }
 
-fn executable(program: &std::ffi::OsStr) -> Result<PathBuf, LaunchError> {
+/// The file a confined launch grants and runs: the caller's absolute path. A
+/// name is refused, never looked up, so the file the caller chose is the file
+/// that runs.
+fn executable(program: &OsStr) -> Result<PathBuf, LaunchError> {
     let path = Path::new(program);
-    if path.components().count() > 1 {
-        return canonical(path);
+    if !path.is_absolute() {
+        return Err(LaunchError::new(format!(
+            "a confined launch takes an absolute program path, and {program:?} is not one; \
+             resolve the program to a file before launching it"
+        )));
     }
-    for directory in std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()) {
-        let candidate = directory.join(path);
-        if candidate.is_file() {
-            return canonical(&candidate);
-        }
-    }
-    Err(LaunchError::new(format!(
-        "configured executable {program:?} is not on PATH; install it before running the task"
-    )))
+    canonical(path)
 }
 
 ````
@@ -248,7 +248,7 @@ outbound IP networking. The public CA certificate and trust services support
 TLS. These grants let a harness contact its service while preserving the
 example's filesystem boundary; network destinations are not restricted.
 
-<!-- fragment «confinement-macos» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="104-155" parent="confinement-policy" -->
+<!-- fragment «confinement-macos» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="102-153" parent="confinement-policy" -->
 ````rust
 #[cfg(target_os = "macos")]
 fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchError> {
@@ -318,7 +318,7 @@ invocation bind remains writable. User, PID, IPC and UTS namespaces and
 die-with-parent behavior accompany the filesystem view;
 the outer runner already creates the POSIX session used by supervision.
 
-<!-- fragment «confinement-linux» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="156-213" parent="confinement-policy" -->
+<!-- fragment «confinement-linux» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="154-211" parent="confinement-policy" -->
 ````rust
 #[cfg(target_os = "linux")]
 fn platform_command(root: &Path, reads: &[PathBuf]) -> Result<Command, LaunchError> {
@@ -389,7 +389,7 @@ native backend. This preserves the meaning of `run_confined`: the caller cannot
 mistake an unsupported environment for the confined result required before
 reading and exporting the example's output.
 
-<!-- fragment «confinement-unavailable» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="214-219" parent="confinement-policy" -->
+<!-- fragment «confinement-unavailable» owner="confined-jobs" source="crates/keyed-launch/src/confinement.rs" lines="212-217" parent="confinement-policy" -->
 ````rust
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 fn platform_command(_: &Path, _: &[PathBuf]) -> Result<Command, LaunchError> {

@@ -153,7 +153,7 @@ lines = 104
 [[root]]
 id    = "source-argv"
 path  = "crates/keyed-launch/src/argv.rs"
-lines = 48
+lines = 50
 
 [[root]]
 id    = "source-channel"
@@ -248,7 +248,7 @@ lines = "1-104"
 id    = "argv"
 root  = "source-argv"
 owner = "whole-word-or-nothing"
-lines = "1-48"
+lines = "1-50"
 
 [[block]]
 id    = "channel-production"
@@ -308,7 +308,7 @@ statement = "One loaded configuration: key to complete command template, compile
 symbols   = "`Argv`, `Slot`"
 first-use = "01-orientation.md#the-cast"
 owner     = "whole-word-or-nothing"
-statement = "`Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call."
+statement = "`Argv` is a program and its arguments, which `Templates::expand` authors from a template and a caller that already holds a command builds with `Argv::new`; `Slot` is one name-and-value a caller offers to `expand`."
 
 [[early-use]]
 symbols   = "`Channel`, `Token`, `signal`"
@@ -411,10 +411,10 @@ lines = "1325-1359"
 [[root]]
 id = "source-confinement"
 path = "crates/keyed-launch/src/confinement.rs"
-lines = 219
+lines = 217
 
 [[block]]
 id = "confinement-policy"
 root = "source-confinement"
 owner = "confined-jobs"
-lines = "1-219"
+lines = "1-217"

@@ -125,10 +125,10 @@ crate from being a bounded context of its own.
 | the conformance kit | a configuration is held to a contract without either side knowing what a key is for | 9 |
 
 Three alternatives were rejected. **The two halves meet only at `Argv`**
-(`src/lib.rs` lines 31–34) is the crate's true structural claim and is compiler-
-enforced rather than tested — `Argv` has no public constructor — but it is one
+(`src/lib.rs` lines 31–34) is the crate's true structural claim: `run` takes an
+`Argv` and nothing else that could name a program. But it is one
 boundary, so it splits the book in two rather than giving nine chapters nine
-rules; it is stated in chapter 1 and proved in chapter 5, where the seam actually
+rules; it is stated in chapter 1 and read in chapter 5, where the seam actually
 is. **Checked whole before anything is spawned** is the configuration half's
 thesis, and `src/run.rs` — 29% of the corpus — validates nothing; it is
 chapter 3's. **A launch ends out of band** is the mirror of it, the launch half's
@@ -282,13 +282,14 @@ that works for one key and fails for its neighbour purely because the two
 templates mention different optional slots; `match_values` as that check;
 `unresolved` and its two wordings, which is where the untracked-delta rule is
 actually kept; `keys` as the conformance kit's one window and nothing more; and
-`Argv` — no constructor, no shell, `words()` for the callers that want the whole
+`Argv` — private fields, no shell, `words()` for the callers that want the whole
 launch as one list.
 
-**The seam is proved here.** `Argv::new` is `pub(crate)` and `Templates::expand`
-is its only caller, so *nothing reaches a spawn that a template did not author*
-is a fact about the types. Chapter 1 stated it; this chapter shows the two lines
-that make it true.
+**The seam is read here.** `Argv::new` is public: `Templates::expand` calls it
+with the words a template produced, and a caller that already holds a command
+calls it directly. The type promises that what was put in is what is spawned,
+and says nothing about who authored the words. Chapter 1 stated the seam; this
+chapter reads the type.
 
 ### 6 · Appearance is the event — the channel
 

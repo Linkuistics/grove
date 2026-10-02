@@ -6,7 +6,7 @@
 ## Observation and lifecycle have separate lifetimes
 
 <!-- rollup «owned-lines-total» -->
-The book reconstructs 1,902 source lines. The preceding chapters explain parsing,
+The book reconstructs 1,926 source lines. The preceding chapters explain parsing,
 dispatch and their tests. This chapter
 connects the public library calls and owns the configuration report formatter,
 which turns validated records into human text or versioned JSON, plus the
@@ -370,7 +370,7 @@ proves reproduction and ownership, not the truth of explanatory claims.
 <!-- rollup «ownership-blocks» -->
 <!-- rollup «source-roots» -->
 <!-- rollup «ownership-blocks-not-owned-by» of="compiler-held" -->
-There are 11 ownership blocks over 9 source roots; 10 blocks belong to chapters
+There are 12 ownership blocks over 10 source roots; 11 blocks belong to chapters
 after Orientation. Each is resolved in the source index.
 
 <!-- rollup «early-use-rows» -->
@@ -380,7 +380,7 @@ types at first use.
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-Owned source is 61 + 119 + 469 + 100 + 637 + 516 = 1,902 lines across 6 source-owning chapters.
+Owned source is 61 + 119 + 470 + 100 + 637 + 539 = 1,926 lines across 6 source-owning chapters.
 Assembly owns configuration presentation and example delivery. The ledgers are maintained with source changes;
 production files remain authoritative.
 
@@ -400,7 +400,7 @@ terminal smoke. The task's verification record states their observed results.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The corpus contains 9 roots and 1,902 lines, explained across 6 chapters and two
+The corpus contains 10 roots and 1,926 lines, explained across 6 chapters and two
 lookup pages. No deferred source range belongs in the final book.
 
 

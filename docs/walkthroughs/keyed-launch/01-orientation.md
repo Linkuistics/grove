@@ -296,15 +296,15 @@ in hand.
 The fourth fragment states the crate's structural claim, which is the ground this
 book's fifth chapter stands on. `Templates::expand` authors an `Argv`; `run`
 consumes one; **the two halves meet only at `Argv`**, and neither module takes a
-type or calls a function of the other. That is enforced rather than kept by
-convention: `Argv` has no public constructor, so a launcher that builds its argv
-some other way cannot construct one. The claim is about the code and not about
-the prose: `run.rs` does name `Templates::expand` once, in the doc comment on
-`Launch::argv`, and what that comment records is the authoring rule rather than a
-dependency — nothing in `run` compiles against `templates`, and nothing in
-`templates` compiles against `run`. This chapter states the claim; chapter 5
-shows the two lines that make it true, and this chapter's last section reads the
-error module that the claim is also visible in.
+type or calls a function of the other. Each half is usable without the other: a
+caller that already holds a program and its arguments builds the `Argv` itself,
+with `Argv::new`, and launches it without loading a configuration. The claim is
+about the code and not about the prose: `run.rs` does name `Templates::expand`
+once, in the doc comment on `Launch::argv`, and what that comment records is
+where an `Argv` comes from rather than a dependency — nothing in `run` compiles
+against `templates`, and nothing in `templates` compiles against `run`. This
+chapter states the claim; chapter 5 reads the type the two halves share, and this
+chapter's last section reads the error module that the claim is also visible in.
 
 <!-- fragment «library-root-to-a-child» owner="understands-neither" source="crates/keyed-launch/src/lib.rs" lines="44-53" parent="library-root" -->
 ````rust
@@ -313,8 +313,8 @@ error module that the claim is also visible in.
 //!
 //! [`Templates::expand`] authors an [`Argv`]; [`run`] spawns it — directly,
 //! with no shell — and supervises the child until it ends. The two halves meet
-//! only at `Argv`, and each is usable without the other: a launcher that builds
-//! its argv some other way still cannot construct one, which is the point.
+//! only at `Argv`, and each is usable without the other: a launcher that already
+//! holds a program and its arguments builds the `Argv` with [`Argv::new`].
 //! Active named templates and resolved parameters reject NUL
 //! before resolution succeeds; expansion rejects NUL in every offered runtime
 //! value, including unused optional slots. Other native bytes remain unchanged.
@@ -470,8 +470,8 @@ Four properties of that trace are worth naming now, because they are what the
 later chapters prove and what the closing chapter tests. **Step 1 captures the
 primary and any explicit overlay, then resolves targets**: each route reaches a
 command through a binding, which other routes may share. **Step 2
-produces a value the caller cannot construct any other way**, which is what makes
-step 4's promise checkable. **Step 3 writes nothing**, so the file's later
+produces the one kind of value step 4 accepts**: `run` takes an `Argv` and
+nothing else that could name a program. **Step 3 writes nothing**, so the file's later
 existence is unambiguous evidence that something wrote it. And **step 5 is the
 only thing that ends the launch**: the crate reaches no conclusion of its own
 about whether the child finished its work.
@@ -527,11 +527,11 @@ pub use vocabulary::{Requirement, SlotRule, Vocabulary};
 Eight modules, one of them public. `conformance` is public because a consumer's
 own test suite calls into it; the other seven are private, and everything a
 consumer touches from them is re-exported by the seven `pub use` declarations. That shape
-is what makes the seam of the fourth fragment enforceable rather than
-conventional. `argv` is a private module, so the only thing outside this crate
-can see of it is what `pub use argv::{Argv, Slot}` publishes — the two types, and
-none of the constructor. Chapter 5 reads the line that makes `Argv::new`
-`pub(crate)` and counts its callers.
+is what keeps the seam of the fourth fragment narrow. `argv` is a private module,
+so all that anything outside this crate can see of it is what
+`pub use argv::{Argv, Slot}` publishes: the two types, with `Argv`'s fields
+private and its constructor public. Chapter 5 reads that constructor, and what
+the type promises about a value however it was built.
 
 Every name in that block belongs to a later chapter except `ConfigError` and
 `LaunchError`, which this chapter reads next. The table below states the minimum a
@@ -547,7 +547,7 @@ last row is this chapter's own and is not one.
 | `Catalog`, `Selection`, `SourceRole`, `Source`, `SourceSpan` | Catalog owns captured documents and vocabulary; Selection supplies the explicit profile list and optional source origin; SourceRole, Source and SourceSpan identify that origin. | 2 |
 | `Templates` | One loaded configuration: key to complete command template, compiled against a vocabulary and validated whole before anything is spawned. | 2 |
 | `Vocabulary`, `SlotRule`, `Requirement` | The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name. | 2 |
-| `Argv`, `Slot` | `Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call. | 5 |
+| `Argv`, `Slot` | `Argv` is a program and its arguments, which `Templates::expand` authors from a template and a caller that already holds a command builds with `Argv::new`; `Slot` is one name-and-value a caller offers to `expand`. | 5 |
 | `Channel`, `Token`, `signal` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | 6 |
 | `run`, `Launch`, `Ended`, `End`, `Escalation` | `run` spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | 7 |
 | `reraise`, `take_interrupt` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | 8 |

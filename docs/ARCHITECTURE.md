@@ -355,10 +355,11 @@ replace personal targets. Dormant definitions are not compiled.
 
 **And it runs what it expanded.** The same crate allocates the launch's
 completion channel, spawns the argv directly with no shell, supervises the child
-and applies the kill escalation — so `Argv`, which has no constructor, is both
-the only thing expansion produces and the only thing a spawn accepts. *Nothing
-reaches a spawn that a template did not author* is therefore a fact about the
-types rather than a convention grove keeps. `crates/grove-loop/src/session_config.rs`
+and applies the kill escalation — so `Argv` is both the only thing expansion
+produces and the only thing a spawn accepts. A caller that already holds a
+command builds one with `Argv::new`, which is how `grove run` hands the runner
+the command `harness-dispatch inspect` reported. Whatever was put into an `Argv`
+is what is spawned, each string one argument. `crates/grove-loop/src/session_config.rs`
 is what is left of grove's side: the personal file's path, the slots grove's
 templates are written against (`prompt`, `session_name`, `worktree`, `repo`, and
 the selected task's `kind`, `task_file` and `task_id`), and the delta's search and

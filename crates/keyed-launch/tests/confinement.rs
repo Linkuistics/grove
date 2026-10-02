@@ -2,7 +2,9 @@
 use std::fs;
 use std::time::Duration;
 
-use keyed_launch::{Channel, Escalation, Launch, Templates, Vocabulary};
+use std::ffi::OsString;
+
+use keyed_launch::{Argv, Channel, Escalation, Launch};
 
 #[test]
 fn confined_child_and_descendants_cannot_read_or_write_outside_the_invocation() {
@@ -18,11 +20,7 @@ fn confined_child_and_descendants_cannot_read_or_write_outside_the_invocation() 
         "set -eu\nif cat '{}' ; then exit 41; fi\nif cat link; then exit 42; fi\nif sh -c 'echo changed > \"$1\"' probe '{}'; then exit 43; fi\nprintf allowed > result\nprintf done > \"$TEST_CHANNEL\"\n",
         secret.display(), secret.display()
     )).unwrap();
-    let config = root.join("config.kdl");
-    let template = format!("/bin/sh '{}'", script.display());
-    fs::write(&config, format!("config {{\ncommand \"probe\" {template:?}\nbind \"probe\" \"probe\"\nroute \"probe\" \"probe\"\n}}\n")).unwrap();
-    let templates = Templates::load(&config, None, Vocabulary { slots: &[] }).unwrap();
-    let argv = templates.expand("probe", &[]).unwrap();
+    let argv = Argv::new(OsString::from("/bin/sh"), vec![script.into_os_string()]);
     let channel = Channel::allocate(&work).unwrap();
     let log = root.join("log");
     let ended = keyed_launch::run_confined(
@@ -74,19 +72,13 @@ fn explicit_runtime_file_grant_allows_reads_but_denies_writes() {
          printf done > \"$TEST_CHANNEL\"\n",
     )
     .unwrap();
-    let config = root.join("config.kdl");
-    let template = format!(
-        "/bin/sh '{}' '{}'",
-        script.display(),
-        runtime_file.display()
+    let argv = Argv::new(
+        OsString::from("/bin/sh"),
+        vec![
+            script.into_os_string(),
+            runtime_file.clone().into_os_string(),
+        ],
     );
-    fs::write(
-        &config,
-        format!("config {{\ncommand \"probe\" {template:?}\nbind \"probe\" \"probe\"\nroute \"probe\" \"probe\"\n}}\n"),
-    )
-    .unwrap();
-    let templates = Templates::load(&config, None, Vocabulary { slots: &[] }).unwrap();
-    let argv = templates.expand("probe", &[]).unwrap();
     let channel = Channel::allocate(&work).unwrap();
     let log = root.join("log");
     let ended = keyed_launch::run_confined(
@@ -123,4 +115,44 @@ fn explicit_runtime_file_grant_allows_reads_but_denies_writes() {
         fs::read_to_string(work.join("result")).unwrap(),
         "read-only"
     );
+}
+
+/// A confined launch grants and runs the file its caller named. A name would
+/// need a lookup, and the runner has none: a relative path refuses as a bare
+/// name does, although `sh` is on PATH and the relative file exists.
+#[test]
+fn a_confined_program_that_is_not_an_absolute_path_refuses() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let work = root.join("work");
+    fs::create_dir(&work).unwrap();
+    let marker = work.join("ran");
+    fs::write(work.join("probe.sh"), "#!/bin/sh\n: > ran\n").unwrap();
+    for program in ["sh", "./probe.sh", "work/probe.sh"] {
+        let argv = Argv::new(OsString::from(program), vec![]);
+        let channel = Channel::allocate(&work).unwrap();
+        let error = keyed_launch::run_confined(
+            Launch {
+                argv: &argv,
+                channel: &channel,
+                channel_var: "TEST_CHANNEL",
+                scrub: &[],
+                cwd: Some(&work),
+                escalation: Escalation {
+                    grace: Duration::ZERO,
+                    kill_grace: Duration::from_millis(100),
+                },
+            },
+            fs::File::create(root.join("log")).unwrap(),
+            &keyed_launch::Confinement {
+                writable: &work,
+                runtime_read: &[],
+            },
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("absolute program path"), "{error}");
+        assert!(error.contains(program), "{error}");
+        assert!(!marker.exists(), "{program} was launched");
+    }
 }

@@ -46,8 +46,8 @@
 //!
 //! [`Templates::expand`] authors an [`Argv`]; [`run`] spawns it — directly,
 //! with no shell — and supervises the child until it ends. The two halves meet
-//! only at `Argv`, and each is usable without the other: a launcher that builds
-//! its argv some other way still cannot construct one, which is the point.
+//! only at `Argv`, and each is usable without the other: a launcher that already
+//! holds a program and its arguments builds the `Argv` with [`Argv::new`].
 //! Active named templates and resolved parameters reject NUL
 //! before resolution succeeds; expansion rejects NUL in every offered runtime
 //! value, including unused optional slots. Other native bytes remain unchanged.

@@ -84,4 +84,6 @@
 - [Refusing before any creation](05-what-the-call-reaches.md#examples-refusal-test)
 - [Standalone invocation boundary](06-standalone-invocations.md#one-isolated-invocation)
 - [Staged inputs and checked output publication](06-standalone-invocations.md#worked-standalone)
+- [Finding `harness-dispatch` beside Grove's real path](06-standalone-invocations.md#dispatch-lookup)
+- [Selection outside the sandbox, and the file that runs](06-standalone-invocations.md#standalone-selection)
 - [Parent-owned transcript and mux display](06-standalone-invocations.md#display-relay)

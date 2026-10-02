@@ -8,8 +8,9 @@
 `grove` is the human's command. Bare invocation in a Jujutsu working tree
 resolves that tree, takes its driver lease and calls the loop. The loop chooses
 the next task and configured command. Viewing, configuration inspection and
-inactive sample delivery have separate early-return paths. `grove run` selects
-one configured kind explicitly and orchestrates its confined temporary files,
+inactive sample delivery have separate early-return paths. `grove run` names
+one kind explicitly, asks the owner's harness-dispatch policy for its command,
+and orchestrates its confined temporary files,
 completion and output transfer without entering a task-tree lifecycle.
 
 This book's corpus is `crates/grove`: its manifest and all production modules.
@@ -158,7 +159,7 @@ false of the arrangement a reader pictures. What the package boundary adds is
 not that the first shape becomes impossible — a `#[path]` can point outside a
 package, and three of this repository's test targets do exactly that — but
 that from here it has to, and the production modules do not include private library source. The test-only
-module in `standalone.rs` includes a fixture file from this package’s own tests. The
+module in `run_display.rs` includes a fixture file from this package’s own tests. The
 move is made visible rather than unavailable. Inside `grove-loop`'s package,
 *the binary is thin* would be a fact about which of the two shapes the current
 commit uses, held by whoever reviews the next one. Through its loop dependency
@@ -221,9 +222,10 @@ Crossterm. `Workspace` still arrives through the loop's re-export; the human
 binary never opens a store lock itself. The manifest therefore records two
 public entry seams without importing their private implementation modules.
 `keyed-launch` supplies public inspection records to the formatter and
-configured-command and confinement APIs to standalone invocation. SessionConfig
-owns ordinary project-policy resolution; the standalone runner loads a personal
-catalog without an overlay. `serde_json` encodes configuration reports,
+its argv and confinement APIs to standalone invocation. SessionConfig
+owns ordinary project-policy resolution; the standalone runner loads no
+configuration, and takes its command from `harness-dispatch`. `serde_json`
+encodes configuration reports and reads that selection,
 `tempfile` owns scratch storage and staged exports, and `libc` supplies the
 artifact-open flags used by that runner.
 

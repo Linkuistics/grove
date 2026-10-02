@@ -9,20 +9,21 @@
 | Root ID | Source path | Lines |
 |---|---|---|
 | `source-crate-manifest` | `crates/grove/Cargo.toml` | 61 |
-| `source-entry-point` | `crates/grove/src/main.rs` | 19 |
+| `source-entry-point` | `crates/grove/src/main.rs` | 20 |
 | `source-command-surface` | `crates/grove/src/cli.rs` | 268 |
 | `source-codex-provisioning` | `crates/grove/src/provision.rs` | 401 |
 | `source-configuration-report` | `crates/grove/src/config.rs` | 160 |
 | `source-configuration-json` | `crates/grove/src/config_json.rs` | 163 |
 | `source-configuration-examples` | `crates/grove/src/examples.rs` | 314 |
-| `source-standalone` | `crates/grove/src/standalone.rs` | 397 |
+| `source-standalone` | `crates/grove/src/standalone.rs` | 394 |
 | `source-run-display` | `crates/grove/src/run_display.rs` | 119 |
+| `source-dispatch-lookup` | `crates/grove/src/dispatch.rs` | 26 |
 
 <!-- source-root «source-crate-manifest» source="crates/grove/Cargo.toml" lines="1-61" -->
 <!-- insert «manifest-thin-by-construction» -->
 <!-- /source-root -->
 
-<!-- source-root «source-entry-point» source="crates/grove/src/main.rs" lines="1-19" -->
+<!-- source-root «source-entry-point» source="crates/grove/src/main.rs" lines="1-20" -->
 <!-- insert «entry-point-three-steps» -->
 <!-- /source-root -->
 
@@ -48,12 +49,16 @@
 <!-- insert «configuration-examples» -->
 <!-- /source-root -->
 
-<!-- source-root «source-standalone» source="crates/grove/src/standalone.rs" lines="1-397" -->
+<!-- source-root «source-standalone» source="crates/grove/src/standalone.rs" lines="1-394" -->
 <!-- insert «standalone-invocation» -->
 <!-- /source-root -->
 
 <!-- source-root «source-run-display» source="crates/grove/src/run_display.rs" lines="1-119" -->
 <!-- insert «standalone-display» -->
+<!-- /source-root -->
+
+<!-- source-root «source-dispatch-lookup» source="crates/grove/src/dispatch.rs" lines="1-26" -->
+<!-- insert «dispatch-lookup» -->
 <!-- /source-root -->
 
 <a id="ownership-blocks"></a>
@@ -62,7 +67,7 @@
 | Block ID | Root ID | Owner | Source lines | Count | State |
 |---|---|---|---|---|---|
 | `manifest-thin-by-construction` | `source-crate-manifest` | `compiler-held` | `1-61` | 61 | `resolved` |
-| `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-19` | 19 | `resolved` |
+| `entry-point-three-steps` | `source-entry-point` | `one-call` | `1-20` | 20 | `resolved` |
 | `surface-grammar` | `source-command-surface` | `no-arguments` | `1-119` | 119 | `resolved` |
 | `surface-resolve-lease-run` | `source-command-surface` | `one-call` | `120-168` | 49 | `resolved` |
 | `surface-closure-tests` | `source-command-surface` | `closure-proved` | `169-268` | 100 | `resolved` |
@@ -70,8 +75,9 @@
 | `configuration-report` | `source-configuration-report` | `assembly` | `1-160` | 160 | `resolved` |
 | `configuration-json` | `source-configuration-json` | `assembly` | `1-163` | 163 | `resolved` |
 | `configuration-examples` | `source-configuration-examples` | `assembly` | `1-314` | 314 | `resolved` |
-| `standalone-invocation` | `source-standalone` | `isolated-invocation` | `1-397` | 397 | `resolved` |
+| `standalone-invocation` | `source-standalone` | `isolated-invocation` | `1-394` | 394 | `resolved` |
 | `standalone-display` | `source-run-display` | `isolated-invocation` | `1-119` | 119 | `resolved` |
+| `dispatch-lookup` | `source-dispatch-lookup` | `isolated-invocation` | `1-26` | 26 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -88,10 +94,10 @@
 | `manifest-tests-live-here` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `41-52` | `manifest-thin-by-construction` | `—` |
 | `manifest-dev-dependencies` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `53-58` | `manifest-thin-by-construction` | `—` |
 | `manifest-lints` | `orientation` | `source-crate-manifest` | `literal` | `compiler-held` | `59-61` | `manifest-thin-by-construction` | `—` |
-| `source-entry-point` | `source-index` | `source-entry-point` | `root` | `—` | `1-19` | `—` | `entry-point-three-steps` |
+| `source-entry-point` | `source-index` | `source-entry-point` | `root` | `—` | `1-20` | `—` | `entry-point-three-steps` |
 | `entry-point-module-doc` | `three-steps` | `source-entry-point` | `literal` | `one-call` | `1-7` | `entry-point-three-steps` | `—` |
-| `entry-point-three-steps` | `three-steps` | `source-entry-point` | `composite` | `one-call` | `1-19` | `source-entry-point` | `entry-point-module-doc`, `entry-point-module-and-main` |
-| `entry-point-module-and-main` | `three-steps` | `source-entry-point` | `literal` | `one-call` | `8-19` | `entry-point-three-steps` | `—` |
+| `entry-point-three-steps` | `three-steps` | `source-entry-point` | `composite` | `one-call` | `1-20` | `source-entry-point` | `entry-point-module-doc`, `entry-point-module-and-main` |
+| `entry-point-module-and-main` | `three-steps` | `source-entry-point` | `literal` | `one-call` | `8-20` | `entry-point-three-steps` | `—` |
 | `source-command-surface` | `source-index` | `source-command-surface` | `root` | `—` | `1-268` | `—` | `surface-grammar`, `surface-resolve-lease-run`, `surface-closure-tests` |
 | `surface-imports` | `the-surface` | `source-command-surface` | `literal` | `no-arguments` | `1-5` | `surface-grammar` | `—` |
 | `surface-grammar` | `the-surface` | `source-command-surface` | `composite` | `no-arguments` | `1-119` | `source-command-surface` | `surface-imports`, `surface-doc-comment`, `surface-clap-attributes`, `surface-empty-struct`, `surface-config-command`, `surface-process-reporting` |
@@ -154,20 +160,22 @@
 | `examples-race-test` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `242-264` | `configuration-examples` | `—` |
 | `examples-write-test` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `265-296` | `configuration-examples` | `—` |
 | `examples-refusal-test` | `what-the-call-reaches` | `source-configuration-examples` | `literal` | `assembly` | `297-314` | `configuration-examples` | `—` |
-| `source-standalone` | `source-index` | `source-standalone` | `root` | `—` | `1-397` | `—` | `standalone-invocation` |
-| `standalone-interface` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `1-63` | `standalone-invocation` | `—` |
-| `standalone-invocation` | `standalone-invocations` | `source-standalone` | `composite` | `isolated-invocation` | `1-397` | `source-standalone` | `standalone-interface`, `standalone-policy`, `standalone-launch-context`, `standalone-supervision`, `standalone-slot-refusal`, `standalone-artifact-checks`, `standalone-publication` |
-| `standalone-policy` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `64-131` | `standalone-invocation` | `—` |
-| `standalone-launch-context` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `132-203` | `standalone-invocation` | `—` |
-| `standalone-supervision` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `204-277` | `standalone-invocation` | `—` |
-| `standalone-slot-refusal` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `278-311` | `standalone-invocation` | `—` |
-| `standalone-artifact-checks` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `312-357` | `standalone-invocation` | `—` |
-| `standalone-publication` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `358-397` | `standalone-invocation` | `—` |
+| `source-standalone` | `source-index` | `source-standalone` | `root` | `—` | `1-394` | `—` | `standalone-invocation` |
+| `standalone-interface` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `1-64` | `standalone-invocation` | `—` |
+| `standalone-invocation` | `standalone-invocations` | `source-standalone` | `composite` | `isolated-invocation` | `1-394` | `source-standalone` | `standalone-interface`, `standalone-staging`, `standalone-launch-context`, `standalone-supervision`, `standalone-selection`, `standalone-artifact-checks`, `standalone-publication` |
+| `standalone-staging` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `65-124` | `standalone-invocation` | `—` |
+| `standalone-launch-context` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `125-160` | `standalone-invocation` | `—` |
+| `standalone-supervision` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `161-234` | `standalone-invocation` | `—` |
+| `standalone-selection` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `235-312` | `standalone-invocation` | `—` |
+| `standalone-artifact-checks` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `313-358` | `standalone-invocation` | `—` |
+| `standalone-publication` | `standalone-invocations` | `source-standalone` | `literal` | `isolated-invocation` | `359-394` | `standalone-invocation` | `—` |
 | `source-run-display` | `source-index` | `source-run-display` | `root` | `—` | `1-119` | `—` | `standalone-display` |
 | `display-relay` | `standalone-invocations` | `source-run-display` | `literal` | `isolated-invocation` | `1-43` | `standalone-display` | `—` |
 | `standalone-display` | `standalone-invocations` | `source-run-display` | `composite` | `isolated-invocation` | `1-119` | `source-run-display` | `display-relay`, `display-pane`, `display-control-test` |
 | `display-pane` | `standalone-invocations` | `source-run-display` | `literal` | `isolated-invocation` | `44-116` | `standalone-display` | `—` |
 | `display-control-test` | `standalone-invocations` | `source-run-display` | `literal` | `isolated-invocation` | `117-119` | `standalone-display` | `—` |
+| `source-dispatch-lookup` | `source-index` | `source-dispatch-lookup` | `root` | `—` | `1-26` | `—` | `dispatch-lookup` |
+| `dispatch-lookup` | `standalone-invocations` | `source-dispatch-lookup` | `literal` | `isolated-invocation` | `1-26` | `source-dispatch-lookup` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -190,8 +198,8 @@ Every source line is credited once to its owning chapter.
 |---|---|---:|
 | `compiler-held` | `01-orientation.md` | 61 |
 | `no-arguments` | `02-the-surface.md` | 119 |
-| `one-call` | `03-three-steps.md` | 469 |
+| `one-call` | `03-three-steps.md` | 470 |
 | `closure-proved` | `04-proving-a-negative.md` | 100 |
 | `assembly` | `05-what-the-call-reaches.md` | 637 |
-| `isolated-invocation` | `06-standalone-invocations.md` | 516 |
-| **Total** | 9 source roots | **1,902** |
+| `isolated-invocation` | `06-standalone-invocations.md` | 539 |
+| **Total** | 10 source roots | **1,926** |

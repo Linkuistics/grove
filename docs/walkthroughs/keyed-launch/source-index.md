@@ -14,12 +14,12 @@
 | `source-vocabulary` | `crates/keyed-launch/src/vocabulary.rs` | 46 |
 | `source-templates` | `crates/keyed-launch/src/templates.rs` | 685 |
 | `source-inspection` | `crates/keyed-launch/src/inspection.rs` | 104 |
-| `source-argv` | `crates/keyed-launch/src/argv.rs` | 48 |
+| `source-argv` | `crates/keyed-launch/src/argv.rs` | 50 |
 | `source-channel` | `crates/keyed-launch/src/channel.rs` | 453 |
 | `source-run` | `crates/keyed-launch/src/run.rs` | 853 |
 | `source-conformance` | `crates/keyed-launch/src/conformance.rs` | 98 |
 | `source-named` | `crates/keyed-launch/src/templates/named.rs` | 1,359 |
-| `source-confinement` | `crates/keyed-launch/src/confinement.rs` | 219 |
+| `source-confinement` | `crates/keyed-launch/src/confinement.rs` | 217 |
 
 <!-- source-root «source-crate-manifest» source="crates/keyed-launch/Cargo.toml" lines="1-47" -->
 <!-- insert «manifest-three-dependencies» -->
@@ -45,7 +45,7 @@
 <!-- source-root «source-inspection» source="crates/keyed-launch/src/inspection.rs" lines="1-104" -->
 <!-- insert «inspection-records» -->
 <!-- /source-root -->
-<!-- source-root «source-argv» source="crates/keyed-launch/src/argv.rs" lines="1-48" -->
+<!-- source-root «source-argv» source="crates/keyed-launch/src/argv.rs" lines="1-50" -->
 <!-- insert «argv» -->
 <!-- /source-root -->
 <!-- source-root «source-channel» source="crates/keyed-launch/src/channel.rs" lines="1-453" -->
@@ -71,7 +71,7 @@
 <!-- insert «named-lookups» -->
 <!-- /source-root -->
 
-<!-- source-root «source-confinement» source="crates/keyed-launch/src/confinement.rs" lines="1-219" -->
+<!-- source-root «source-confinement» source="crates/keyed-launch/src/confinement.rs" lines="1-217" -->
 <!-- insert «confinement-policy» -->
 <!-- /source-root -->
 
@@ -92,7 +92,7 @@
 | `diagnostics` | `source-templates` | `words-not-shell` | `605-675` | 71 | `resolved` |
 | `templates-keys` | `source-templates` | `whole-word-or-nothing` | `676-685` | 10 | `resolved` |
 | `inspection-records` | `source-inspection` | `rules-about-names` | `1-104` | 104 | `resolved` |
-| `argv` | `source-argv` | `whole-word-or-nothing` | `1-48` | 48 | `resolved` |
+| `argv` | `source-argv` | `whole-word-or-nothing` | `1-50` | 50 | `resolved` |
 | `channel-production` | `source-channel` | `appearance-is-the-event` | `1-288` | 288 | `resolved` |
 | `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `289-453` | 165 | `resolved` |
 | `launch-shape` | `source-run` | `nothing-else-added` | `1-124` | 124 | `resolved` |
@@ -106,7 +106,7 @@
 | `named-fold` | `source-named` | `never-assembled` | `689-1027` | 339 | `resolved` |
 | `named-resolve` | `source-named` | `never-assembled` | `1028-1324` | 297 | `resolved` |
 | `named-lookups` | `source-named` | `never-assembled` | `1325-1359` | 35 | `resolved` |
-| `confinement-policy` | `source-confinement` | `confined-jobs` | `1-219` | 219 | `resolved` |
+| `confinement-policy` | `source-confinement` | `confined-jobs` | `1-217` | 217 | `resolved` |
 
 <a id="fragment-index"></a>
 ## Fragment index
@@ -177,13 +177,13 @@
 | `inspection-words` | `the-names` | `source-inspection` | `literal` | `rules-about-names` | `45-59` | `inspection-records` | `—` |
 | `inspection-commands` | `the-names` | `source-inspection` | `literal` | `rules-about-names` | `60-88` | `inspection-records` | `—` |
 | `inspection-snapshot` | `the-names` | `source-inspection` | `literal` | `rules-about-names` | `89-104` | `inspection-records` | `—` |
-| `source-argv` | `source-index` | `source-argv` | `root` | `—` | `1-48` | `—` | `argv` |
+| `source-argv` | `source-index` | `source-argv` | `root` | `—` | `1-50` | `—` | `argv` |
 | `argv-slot` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `1-10` | `argv` | `—` |
-| `argv` | `to-an-argv` | `source-argv` | `composite` | `whole-word-or-nothing` | `1-48` | `source-argv` | `argv-slot`, `argv-authored-only-by-expand`, `argv-no-public-constructor`, `argv-program-and-args`, `argv-words` |
-| `argv-authored-only-by-expand` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `11-22` | `argv` | `—` |
-| `argv-no-public-constructor` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `23-27` | `argv` | `—` |
-| `argv-program-and-args` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `28-37` | `argv` | `—` |
-| `argv-words` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `38-48` | `argv` | `—` |
+| `argv` | `to-an-argv` | `source-argv` | `composite` | `whole-word-or-nothing` | `1-50` | `source-argv` | `argv-slot`, `argv-type`, `argv-public-constructor`, `argv-program-and-args`, `argv-words` |
+| `argv-type` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `11-22` | `argv` | `—` |
+| `argv-public-constructor` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `23-29` | `argv` | `—` |
+| `argv-program-and-args` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `30-39` | `argv` | `—` |
+| `argv-words` | `to-an-argv` | `source-argv` | `literal` | `whole-word-or-nothing` | `40-50` | `argv` | `—` |
 | `source-channel` | `source-index` | `source-channel` | `root` | `—` | `1-453` | `—` | `channel-production`, `channel-inline-tests` |
 | `channel-thesis` | `the-channel` | `source-channel` | `literal` | `appearance-is-the-event` | `1-9` | `channel-production` | `—` |
 | `channel-production` | `the-channel` | `source-channel` | `composite` | `appearance-is-the-event` | `1-288` | `source-channel` | `channel-thesis`, `channel-prefix`, `channel-nonce-bytes`, `channel-retry-limit`, `channel-type`, `channel-allocate`, `channel-published-path`, `channel-read`, `channel-discard`, `channel-discard-abandoned`, `channel-token`, `channel-signal`, `channel-name-grammar`, `channel-remove-if-present`, `channel-draw-nonce`, `channel-hex` |
@@ -271,14 +271,14 @@
 | `named-fold` | `two-documents` | `source-named` | `literal` | `never-assembled` | `689-1027` | `source-named` | `—` |
 | `named-resolve` | `two-documents` | `source-named` | `literal` | `never-assembled` | `1028-1324` | `source-named` | `—` |
 | `named-lookups` | `two-documents` | `source-named` | `literal` | `never-assembled` | `1325-1359` | `source-named` | `—` |
-| `source-confinement` | `source-index` | `source-confinement` | `root` | `—` | `1-219` | `—` | `confinement-policy` |
+| `source-confinement` | `source-index` | `source-confinement` | `root` | `—` | `1-217` | `—` | `confinement-policy` |
 | `held-directory-read` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `1-44` | `confinement-policy` | `—` |
-| `confinement-policy` | `confined-jobs` | `source-confinement` | `composite` | `confined-jobs` | `1-219` | `source-confinement` | `held-directory-read`, `confinement-contract`, `confinement-resource-resolution`, `confinement-macos`, `confinement-linux`, `confinement-unavailable` |
+| `confinement-policy` | `confined-jobs` | `source-confinement` | `composite` | `confined-jobs` | `1-217` | `source-confinement` | `held-directory-read`, `confinement-contract`, `confinement-resource-resolution`, `confinement-macos`, `confinement-linux`, `confinement-unavailable` |
 | `confinement-contract` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `45-78` | `confinement-policy` | `—` |
-| `confinement-resource-resolution` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `79-103` | `confinement-policy` | `—` |
-| `confinement-macos` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `104-155` | `confinement-policy` | `—` |
-| `confinement-linux` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `156-213` | `confinement-policy` | `—` |
-| `confinement-unavailable` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `214-219` | `confinement-policy` | `—` |
+| `confinement-resource-resolution` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `79-101` | `confinement-policy` | `—` |
+| `confinement-macos` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `102-153` | `confinement-policy` | `—` |
+| `confinement-linux` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `154-211` | `confinement-policy` | `—` |
+| `confinement-unavailable` | `confined-jobs` | `source-confinement` | `literal` | `confined-jobs` | `212-217` | `confinement-policy` | `—` |
 
 <a id="early-uses"></a>
 ## Early uses
@@ -289,7 +289,7 @@
 | `Inspection`, `CompiledWord`, `Origin`, `AssignmentHistory` | `01-orientation.md#the-cast` | `rules-about-names` | Inspection explains captured commands and replaced assignments through response-local origins and histories; CompiledWord is the literal/slot representation also used by expansion. | `explained` |
 | `Templates` | `01-orientation.md#the-cast` | `rules-about-names` | One loaded configuration: key to complete command template, compiled against a vocabulary and validated whole before anything is spawned. | `explained` |
 | `Vocabulary`, `SlotRule`, `Requirement` | `01-orientation.md#the-cast` | `rules-about-names` | The slot names a consumer's templates are written against, each with a cardinality; supplied at load, because every template rule is a rule about a slot's name. | `explained` |
-| `Argv`, `Slot` | `01-orientation.md#the-cast` | `whole-word-or-nothing` | `Argv` is a program and its arguments with no public constructor, authored only by `Templates::expand`; `Slot` is one name-and-value a caller offers to that call. | `explained` |
+| `Argv`, `Slot` | `01-orientation.md#the-cast` | `whole-word-or-nothing` | `Argv` is a program and its arguments, which `Templates::expand` authors from a template and a caller that already holds a command builds with `Argv::new`; `Slot` is one name-and-value a caller offers to `expand`. | `explained` |
 | `Channel`, `Token`, `signal` | `01-orientation.md#the-cast` | `appearance-is-the-event` | A fresh path per launch that allocation picks and writes nothing to; `signal` is what the child calls to make it appear, and `Token` is what the caller reads back. | `explained` |
 | `run`, `run_observed`, `LaunchEvent`, `Launch`, `Ended`, `End`, `Escalation` | `01-orientation.md#the-cast` | `nothing-else-added` | `run_observed` reports successful spawn and confirmed reap synchronously; `run` uses a no-op observer. Each spawns one `Launch` — argv, channel, scrub list, working directory and the two graces of an `Escalation` — and returns an `Ended` saying which of `End`'s three cases happened. | `explained` |
 | `reraise`, `take_interrupt` | `01-orientation.md#the-cast` | `the-launchers-job` | The launcher's own two obligations for a termination signal: `take_interrupt` collects one that arrived between launches, and `reraise` is how a launcher dies of the same signal rather than reporting an exit code. | `explained` |
@@ -312,11 +312,11 @@ are owned whole.
 | `rules-about-names` | `02-the-names.md` | 300 |
 | `never-assembled` | `03-two-documents.md` | 1,448 |
 | `words-not-shell` | `04-template-law.md` | 259 |
-| `whole-word-or-nothing` | `05-to-an-argv.md` | 235 |
+| `whole-word-or-nothing` | `05-to-an-argv.md` | 237 |
 | `appearance-is-the-event` | `06-the-channel.md` | 288 |
 | `nothing-else-added` | `07-the-job.md` | 559 |
 | `the-launchers-job` | `08-the-escalation.md` | 294 |
 | `checked-without-meaning` | `09-how-checked.md` | 263 |
 | `assembly` | `10-what-passes-through.md` | 0 |
-| `confined-jobs` | `11-confined-jobs.md` | 219 |
+| `confined-jobs` | `11-confined-jobs.md` | 217 |
 | **Total** | 12 source roots | **4,162** |

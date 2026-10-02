@@ -319,9 +319,9 @@ comment says in one sentence why none of its fields has a default.
 /// argument, no reordering — and that the child's environment is the caller's
 /// own minus `scrub` plus the one channel path.
 pub struct Launch<'a> {
-    /// The program and arguments, built only by
-    /// [`Templates::expand`](crate::Templates::expand), so nothing reaches a
-    /// spawn that a template did not author.
+    /// The program and arguments, from
+    /// [`Templates::expand`](crate::Templates::expand) or built by the caller
+    /// with [`Argv::new`](crate::Argv::new).
     pub argv: &'a crate::Argv,
     /// This launch's completion channel. Its path is published to the child;
     /// its appearance ends the launch.
@@ -357,14 +357,14 @@ The three fields whose comments carry an argument are worth reading against each
 other, because each argues about a *different* boundary and together they are the
 whole of the chapter's claim.
 
-`argv` argues about **who authored the words**. It borrows a `crate::Argv`, which
-chapter 5 showed has no public constructor, so the only thing that can reach this
-field is the output of `Templates::expand` — and the only thing that can
-reach *that* is a command compiled from resolved configuration. The chain is
-enforced by the compiler rather than by this crate's own care, which is why the
-promise *no appended argument* is checkable at all rather than merely intended.
-`arguments_reach_the_child_as_written` walks the whole of it, from a template
-holding a quoted three-word value to the child's `$1`.
+`argv` argues about **what happens to the words**. It borrows a `crate::Argv`,
+which chapter 5 showed has private fields and no method that changes one, so what
+reaches this field is exactly what `Templates::expand` authored or a caller built
+with `Argv::new`. `Launch` has no other field that could name a program or add an
+argument, which is why the promise *no appended argument* is checkable at all
+rather than merely intended. `arguments_reach_the_child_as_written` walks one
+route, from a template holding a quoted three-word value to the child's `$1`, and
+`a_caller_built_argv_is_spawned_whole_and_directly` walks the other.
 
 `scrub` argues about **inheritance**, and it is where chapter 6's central
 property turns into a hazard. Chapter 6 established that a channel path is
@@ -895,8 +895,8 @@ pub fn run_noninteractive(launch: Launch<'_>, output: File) -> Result<Ended, Lau
     run_with_output(launch, &mut |_| {}, Some(output), None)
 }
 
-/// As [`run_noninteractive`], with mandatory operating-system filesystem
-/// confinement. No fallback to an unconfined launch is performed.
+/// As [`run_noninteractive`], under mandatory filesystem confinement, with no
+/// unconfined fallback. The program is an absolute path: no name is looked up.
 pub fn run_confined(
     launch: Launch<'_>,
     output: File,

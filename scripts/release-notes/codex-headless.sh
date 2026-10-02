@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Headless Codex for a confined `grove run`, staged beside SKILL.md.
-# Personal policy selects it and keeps the model and effort, for example:
-#   command "release-notes-codex" "/bin/bash codex-headless.sh ${param.model} ${param.effort} ${prompt}"
+# The owner's harness-dispatch policy selects it and keeps the model and
+# effort. Its `select` returns, for the `release-notes` kind:
+#   program "/bin/bash", args ["codex-headless.sh", model, effort, request.prompt]
 # It runs with the private invocation directory as its working directory and
 # keeps every writable Codex file beneath it. The credential file and the Codex
 # runtime files need --runtime-read grants (GROVE_RELEASE_RUNTIME_READ).

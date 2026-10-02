@@ -607,9 +607,9 @@ on, and what it promises about the path.
 
 `discard` takes `self` by value, and the comment says why in its first clause:
 consuming the channel is what stops anything reading a path whose file is gone.
-That is the same reasoning as chapter 5's `Argv` having no public constructor,
-one type earlier — a property enforced by the compiler costs nothing to maintain
-and cannot be forgotten by a caller.
+That is the same reasoning as chapter 5's `Argv` having private fields, one type
+earlier — a property enforced by the compiler costs nothing to maintain and
+cannot be forgotten by a caller.
 
 The second paragraph states a post-condition rather than an effect, and the
 distinction is the whole of `remove_if_present` further down. *This path holds

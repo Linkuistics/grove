@@ -44,12 +44,14 @@ grove run release-notes --prompt-file prompt.md \
   --input changes.txt --output release-notes.md --ui auto
 ```
 
-First configure a noninteractive named command and route in your
-[personal policy](CONFIGURATION.md#standalone-commands). This invocation can run
+First route the kind to a noninteractive command in your harness-dispatch
+policy, `~/.config/harness-dispatch/policy.ts`. The sample that
+`harness-dispatch init` installs routes `release-notes`. `grove run` reads no
+Grove configuration. This invocation can run
 from anywhere, including a release task launched inside a running grove. It
 creates a private temporary directory, copies inputs into it by basename, and
-passes your prompt plus output and completion instructions to the configured
-harness. You can supply the prompt as a positional argument instead of
+passes your prompt plus output and completion instructions to the harness your
+policy selects. You can supply the prompt as a positional argument instead of
 `--prompt-file`. Repeat `--input`, `--output` or `--runtime-read` for multiple
 files. Input/output basenames must be distinct; symlink inputs and existing
 output destinations are refused.

@@ -25,8 +25,8 @@ parent-created pane. Neither starts the lifecycle.
 The grammar owns the imports, its stated contract, clap metadata and the
 command declarations. Their source-order concatenation is independent of the
 reader order below. The `Command` enum belongs here alongside `Cli`, because
-its job is parsing the requested operation. Standalone mode selects a kind;
-personal configuration still selects the command that implements it.
+its job is parsing the requested operation. Standalone mode names a kind;
+the owner's harness-dispatch policy selects the command that implements it.
 
 <!-- fragment «surface-grammar» owner="no-arguments" source="crates/grove/src/cli.rs" lines="1-119" parent="source-command-surface" -->
 <!-- insert «surface-imports» -->
@@ -128,9 +128,9 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Run one configured task in a confined temporary directory, without a grove.
+    /// Run one task kind in a confined temporary directory, without a grove.
     #[command(
-        after_help = "Examples:\n  grove run release-notes --prompt-file prompt.md --input changes.txt --output notes.md\n  grove run summarise 'Summarise input.txt into summary.md' --input input.txt --output summary.md --ui inline\n\nPersonal configuration only; no jj or project discovery. Requires OS confinement and a noninteractive harness command. Exit codes: 0 completed and outputs published, 1 failure/cancellation, 2 invalid usage. Existing output files are never overwritten. Runtime credentials need explicit --runtime-read grants."
+        after_help = "Examples:\n  grove run release-notes --prompt-file prompt.md --input changes.txt --output notes.md\n  grove run summarise 'Summarise input.txt into summary.md' --input input.txt --output summary.md --ui inline\n\nThe owner's harness-dispatch policy selects the command for the kind; no jj or project discovery. Requires OS confinement and a noninteractive harness command. Exit codes: 0 completed and outputs published, 1 failure/cancellation, 2 invalid usage. Existing output files are never overwritten. Runtime credentials need explicit --runtime-read grants."
     )]
     Run(crate::standalone::Args),
     /// Display a standalone transcript in a supervisor-owned pane.
@@ -205,7 +205,7 @@ enum ConfigCommand {
 | Argument vector | Parser result and next effect |
 |---|---|
 | `grove` | `command: None`; resolve workspace, acquire lease, run lifecycle |
-| `grove run review "Review input.txt" --input input.txt` | Resolve personal policy and run once in confined scratch storage |
+| `grove run review "Review input.txt" --input input.txt` | Ask the owner's policy for the command and run it once in confined scratch storage |
 | `grove view` | `View { worktree: None }`; observe current directory's `.grove` |
 | `grove view /tmp/tasks` | `View` with `/tmp/tasks`; observe `/tmp/tasks/.grove` |
 | `grove config show --kind impl` | Validate all active policy, then require and display impl |

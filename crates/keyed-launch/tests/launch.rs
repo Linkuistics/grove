@@ -3,9 +3,8 @@
 //!
 //! Every child here is `/bin/sh` running a script the test wrote, which is what
 //! makes the seam real: nothing below knows what a session is, and the argv
-//! always arrives the way a launcher's would — authored by a template, read out
-//! of a configuration file. There is no `Argv` constructor, and these tests do
-//! not want one.
+//! arrives the way a launcher's would — authored by a template read out of a
+//! configuration file, or, in the one case that says so, built by the caller.
 
 use std::ffi::{OsStr, OsString};
 use std::fs;
@@ -455,6 +454,38 @@ fn arguments_reach_the_child_as_written() {
         ended.token.as_ref().map(|t| t.as_str()),
         Some("one two  three")
     );
+}
+
+/// A program and argument list its caller built is spawned whole and directly.
+/// Text a template would read as a slot, a quote or a word break is one
+/// argument here, because nothing reads it a second time.
+#[test]
+fn a_caller_built_argv_is_spawned_whole_and_directly() {
+    let harness = Harness::new();
+    let record = harness.dir.path().join("args");
+    let script = harness.script(&format!(
+        "for argument in \"$@\"; do printf '%s\\0' \"$argument\"; done > {}\n\
+         printf done > \"$TEST_CHANNEL\"\n",
+        quoted(&record)
+    ));
+    let words = [
+        "one two  three",
+        "${script}",
+        "it's \"quoted\"",
+        "line\nbreak",
+        "",
+    ];
+    let mut args = vec![script.into_os_string()];
+    args.extend(words.map(OsString::from));
+    let argv = keyed_launch::Argv::new(OsString::from("/bin/sh"), args);
+    let channel = Channel::allocate(&harness.control()).unwrap();
+
+    let ended = run(launch(&argv, &channel, &[], None)).unwrap();
+
+    assert_eq!(ended.token.as_ref().map(|t| t.as_str()), Some("done"));
+    let received = fs::read_to_string(&record).unwrap();
+    let received: Vec<&str> = received.split_terminator('\0').collect();
+    assert_eq!(received, words);
 }
 
 // ---------------------------------------------------------------------------

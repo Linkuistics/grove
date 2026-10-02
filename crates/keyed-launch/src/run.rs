@@ -50,9 +50,9 @@ pub struct Escalation {
 /// argument, no reordering — and that the child's environment is the caller's
 /// own minus `scrub` plus the one channel path.
 pub struct Launch<'a> {
-    /// The program and arguments, built only by
-    /// [`Templates::expand`](crate::Templates::expand), so nothing reaches a
-    /// spawn that a template did not author.
+    /// The program and arguments, from
+    /// [`Templates::expand`](crate::Templates::expand) or built by the caller
+    /// with [`Argv::new`](crate::Argv::new).
     pub argv: &'a crate::Argv,
     /// This launch's completion channel. Its path is published to the child;
     /// its appearance ends the launch.
@@ -412,8 +412,8 @@ pub fn run_noninteractive(launch: Launch<'_>, output: File) -> Result<Ended, Lau
     run_with_output(launch, &mut |_| {}, Some(output), None)
 }
 
-/// As [`run_noninteractive`], with mandatory operating-system filesystem
-/// confinement. No fallback to an unconfined launch is performed.
+/// As [`run_noninteractive`], under mandatory filesystem confinement, with no
+/// unconfined fallback. The program is an absolute path: no name is looked up.
 pub fn run_confined(
     launch: Launch<'_>,
     output: File,

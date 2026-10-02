@@ -86,7 +86,7 @@ lines = 61
 [[root]]
 id    = "source-entry-point"
 path  = "crates/grove/src/main.rs"
-lines = 19
+lines = 20
 
 [[root]]
 id    = "source-command-surface"
@@ -108,7 +108,7 @@ lines = "1-61"
 id    = "entry-point-three-steps"
 root  = "source-entry-point"
 owner = "one-call"
-lines = "1-19"
+lines = "1-20"
 
 [[block]]
 id    = "surface-grammar"
@@ -214,13 +214,13 @@ lines = "1-314"
 [[root]]
 id = "source-standalone"
 path = "crates/grove/src/standalone.rs"
-lines = 397
+lines = 394
 
 [[block]]
 id = "standalone-invocation"
 root = "source-standalone"
 owner = "isolated-invocation"
-lines = "1-397"
+lines = "1-394"
 
 [[root]]
 id = "source-run-display"
@@ -232,3 +232,14 @@ id = "standalone-display"
 root = "source-run-display"
 owner = "isolated-invocation"
 lines = "1-119"
+
+[[root]]
+id = "source-dispatch-lookup"
+path = "crates/grove/src/dispatch.rs"
+lines = 26
+
+[[block]]
+id = "dispatch-lookup"
+root = "source-dispatch-lookup"
+owner = "isolated-invocation"
+lines = "1-26"

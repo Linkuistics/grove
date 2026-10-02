@@ -35,10 +35,9 @@ together or take one apart.
 Two further things are settled here. Expansion's one remaining obligation is
 stated over the **vocabulary** rather than over the template being expanded,
 which is what stops a consumer having a call that works for one key and fails for
-its neighbour. And the seam chapter 1 claimed — that the crate's two halves meet
-only at `Argv`, so nothing reaches a spawn that a template did not author — stops
-being a claim about the design and becomes a fact about the types. This chapter
-reads the line that makes `Argv::new` `pub(crate)` and counts the callers it has.
+its neighbour. And the seam chapter 1 claimed, that the crate's two halves meet
+only at `Argv`, is read here as code: the type, the two ways a value of it comes
+to exist, and what it promises about either.
 
 <a id="four-words"></a>
 ## Four words
@@ -669,19 +668,18 @@ mentions, and no way to render it back to text. A kit that could read a template
 could assert things about *which program* a key runs, and that is a judgement
 about meaning — the one thing neither this crate nor its kit is allowed to make.
 
-<a id="no-constructor"></a>
-## The type no caller can construct
+<a id="the-seam-type"></a>
+## The type the two halves share
 
-`src/argv.rs` is forty-eight lines and two types, and it is where the crate's two
+`src/argv.rs` is fifty lines and two types, and it is where the crate's two
 halves meet. Chapter 1 stated that as a claim about the design and pointed here;
-this section is the two lines that make it a fact about the types instead — the
-`pub(crate)` on the constructor, and the single call to it. The whole file is one
-ownership block, and it is the last of the configuration half.
+this section reads the type, and the two ways a value of it comes to exist. The
+whole file is one ownership block, and it is the last of the configuration half.
 
-<!-- fragment «argv» owner="whole-word-or-nothing" source="crates/keyed-launch/src/argv.rs" lines="1-48" parent="source-argv" -->
+<!-- fragment «argv» owner="whole-word-or-nothing" source="crates/keyed-launch/src/argv.rs" lines="1-50" parent="source-argv" -->
 <!-- insert «argv-slot» -->
-<!-- insert «argv-authored-only-by-expand» -->
-<!-- insert «argv-no-public-constructor» -->
+<!-- insert «argv-type» -->
+<!-- insert «argv-public-constructor» -->
 <!-- insert «argv-program-and-args» -->
 <!-- insert «argv-words» -->
 <!-- /fragment -->
@@ -723,18 +721,18 @@ name means, and it never rewrites part of a word. Chapter 4 enforced the first
 clause on the template. This chapter's expansion loop is the second and third.
 
 `Argv` is what expansion produces and what the launch half consumes. Its two
-fields are private, and its doc comment states the property that makes the whole
-book's third arm checkable before any of it is spawned.
+fields are private, and its doc comment says what holds for every value of the
+type, however it was made.
 
-<!-- fragment «argv-authored-only-by-expand» owner="whole-word-or-nothing" source="crates/keyed-launch/src/argv.rs" lines="11-22" parent="argv" -->
+<!-- fragment «argv-type» owner="whole-word-or-nothing" source="crates/keyed-launch/src/argv.rs" lines="11-22" parent="argv" -->
 ````rust
 
 /// A program and its arguments, in order, ready to spawn.
 ///
-/// Built only by [`Templates::expand`](crate::Templates::expand), so nothing
-/// reaches a spawn that a template did not author. There is no constructor and
-/// no shell: the words are the words the file holds, with each whole-word slot
-/// replaced by the value offered for it.
+/// There is no shell and no second reading of any word: each is spawned as it
+/// is given. [`Templates::expand`](crate::Templates::expand) authors one from a
+/// template, with each whole-word slot replaced by the value offered for it. A
+/// caller that already holds a command builds one with [`Argv::new`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Argv {
     program: OsString,
@@ -743,49 +741,53 @@ pub struct Argv {
 ````
 <!-- /fragment -->
 
-*Built only by `Templates::expand`, so nothing reaches a spawn that a template did
-not author.* That is the sentence, and the next fragment is what enforces it.
+*There is no shell and no second reading of any word.* That is the sentence, and
+it is a promise about what happens to the words, not about where they came from.
+The next fragment is the second way a value comes to exist.
 
-<!-- fragment «argv-no-public-constructor» owner="whole-word-or-nothing" source="crates/keyed-launch/src/argv.rs" lines="23-27" parent="argv" -->
+<!-- fragment «argv-public-constructor» owner="whole-word-or-nothing" source="crates/keyed-launch/src/argv.rs" lines="23-29" parent="argv" -->
 ````rust
 
 impl Argv {
-    pub(crate) fn new(program: OsString, args: Vec<OsString>) -> Self {
+    /// A program and arguments the caller built, each string one whole word.
+    #[must_use]
+    pub fn new(program: OsString, args: Vec<OsString>) -> Self {
         Self { program, args }
     }
 ````
 <!-- /fragment -->
 
-Five lines, and the load-bearing token in them is `pub(crate)`. `argv` is a
-private module — chapter 1 read the module list — so the only things visible
-outside the crate are what `pub use argv::{Argv, Slot}` re-exports: the two
-types, and none of the constructor. Inside the crate, `Argv::new` has exactly one
-caller. It is line 375 of `src/templates.rs`, the last line of `expand`, and a
-search of the whole workspace finds no other. The figure below is that count
-stated as what it proves.
+`Argv::new` is public, and it checks nothing: a program and a list of arguments
+go in, and the same program and arguments are what the value holds. Inside the
+crate its caller is the last line of `Templates::expand`, which hands it the
+words a validated template produced. Outside the crate its caller is a launcher
+that already holds a command and has no configuration to load. Grove's standalone
+invocation is one. Its command is selected elsewhere and arrives as a file path
+and a list of strings, and `crates/grove/src/standalone.rs` builds the `Argv`
+from them directly.
 
 ```text
-Argv::new                       pub(crate), crates/keyed-launch/src/argv.rs:25
-  called from                   crates/keyed-launch/src/templates.rs:198  (Templates::expand)
-  called from                   — nothing else, in this crate or any other
+Argv::new                       pub, crates/keyed-launch/src/argv.rs
+  called from                   crates/keyed-launch/src/templates.rs  (Templates::expand)
+  called from                   a caller that already holds a program and its arguments
 ```
 
-So the claim *nothing reaches a spawn that a template did not author* is not a
-convention anyone has to maintain. A consumer cannot build an `Argv` from words
-it chose, cannot build one from a string it read somewhere, and cannot build one
-by any route that does not pass through a template that was validated at load —
-because there is no function that would let it, and the compiler is what says so.
-`run` in chapter 7 takes an `Argv` and nothing else that could name a program,
-which is the other end of the same seam: the launch half has no way to be handed
-words the configuration half did not produce.
+So the type does not say who authored the words. What it carries is narrower,
+and it holds for both routes. The fields are private and no method changes one,
+and `run` in chapter 7 takes an `Argv` and nothing else that could name a
+program. Whatever was put in is what is spawned, each string one argument. A
+launch that comes through expansion has the configuration half's guarantees as
+well: its words came from a template that was validated at load. A launch that
+comes through `Argv::new` has the launch half's alone, and its caller answers
+for the words.
 
-It is one boundary, proved once. Chapter 1 stated it and this section proves it,
-so no chapter in between has to carry it; the closing chapter revisits it only as
-one of the nine answers to the book's own test.
+It is one boundary, read once. Chapter 1 stated it and this section reads it, so
+no chapter in between has to carry it; the closing chapter revisits it as one of
+the nine answers to the book's own test.
 
 The two accessors are the launch half's whole view of the value.
 
-<!-- fragment «argv-program-and-args» owner="whole-word-or-nothing" source="crates/keyed-launch/src/argv.rs" lines="28-37" parent="argv" -->
+<!-- fragment «argv-program-and-args» owner="whole-word-or-nothing" source="crates/keyed-launch/src/argv.rs" lines="30-39" parent="argv" -->
 ````rust
 
     #[must_use]
@@ -820,7 +822,7 @@ that difference matters.
 
 The last method is the same value in the other shape.
 
-<!-- fragment «argv-words» owner="whole-word-or-nothing" source="crates/keyed-launch/src/argv.rs" lines="38-48" parent="argv" -->
+<!-- fragment «argv-words» owner="whole-word-or-nothing" source="crates/keyed-launch/src/argv.rs" lines="40-50" parent="argv" -->
 ````rust
 
     /// The whole launch as one word list, program first — the shape a
@@ -851,12 +853,10 @@ routes four of its expansion tests through a `words()` helper — including the 
 this chapter cited above. The code that actually spawns takes the opposite route
 on purpose. `crates/grove-loop/src/loop_driver.rs` passes the `Argv` itself into
 `keyed_launch::run`, and the comment on the call that produced it explains why
-the `Argv` remains unflattened. `Argv` has no constructor, so handing it through
-makes *nothing reaches a spawn that a template did not author* a compiler-checked
-property. `words` is the shape for inspecting a launch, and the `Argv` itself is
-the shape for performing one. Once a caller flattens an `Argv` to a
-`Vec<OsString>`, it has a word list it could have built by any other means, and
-nothing downstream can distinguish its provenance.
+the `Argv` remains unflattened. `run` accepts nothing but an `Argv`, so handing
+the expanded value through leaves no intermediate word list for a later edit to
+change. `words` is the shape for inspecting a launch, and the `Argv` itself is
+the shape for performing one.
 
 Every path from a human's file to a process has now been read. A key was declared
 through explicit targets, a template was split once and checked, four values

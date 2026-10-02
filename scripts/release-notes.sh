@@ -107,14 +107,17 @@ PROMPT
     [[ -n "$runtime_read" ]] || continue
     [[ -f "$runtime_read" && -r "$runtime_read" ]] \
       || die "GROVE_RELEASE_RUNTIME_READ entry is not a readable regular file: $runtime_read
-Update the grant to an existing file required by your configured harness.
+Update the grant to an existing file required by the harness your policy selects.
 Use one literal file path per line; see docs/RELEASING.md#runtime-access."
     run_args+=(--runtime-read "$runtime_read")
   done <<<"${GROVE_RELEASE_RUNTIME_READ:-}"
 
+  # `grove run` selects through the harness-dispatch built beside it, whose
+  # policy worker cargo does not build.
+  task dispatch:build
   cargo build --locked -p grove -p grove-llm
   if ! ./target/debug/grove "${run_args[@]}"; then
-    die "the configured release-notes writer failed; CHANGELOG.md was left unchanged.
+    die "the release-notes writer your policy selects failed; CHANGELOG.md was left unchanged.
 Read the error and any transcript above. If a credential or runtime file was
 denied, export GROVE_RELEASE_RUNTIME_READ with the files your harness needs,
 one literal file path per line, in the shell launching the task.

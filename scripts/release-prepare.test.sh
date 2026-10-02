@@ -103,7 +103,19 @@ case "${RELEASE_TEST_MODE:-success}" in
   *) exit 2 ;;
 esac
 EOF
-chmod +x "$scratch/bin/cargo"
+# The harness-dispatch pair that the real `grove run` selects through.
+export RELEASE_TEST_TASK
+RELEASE_TEST_TASK="$(command -v task)"
+cat >"$scratch/bin/task" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+if [[ "$*" != dispatch:build ]]; then
+  exec "$RELEASE_TEST_TASK" "$@"
+fi
+echo dispatch >>"$RELEASE_TEST_SCRATCH/calls"
+EOF
+chmod +x "$scratch/bin/cargo" "$scratch/bin/task"
 export PATH="$scratch/bin:$PATH"
 printf '{}\n' >"$scratch/auth one.json"
 printf '{}\n' >"$scratch/auth-two.json"
@@ -126,7 +138,7 @@ workspace_state() {
 }
 ws_before="$(workspace_state)"
 
-# Invalid grants are diagnosed before either the build or configured harness.
+# Invalid grants are diagnosed before either the build or the selected harness.
 # No real agent credentials are inspected: grants can belong to any harness.
 : >"$scratch/calls"
 for invalid_grant in "$scratch/missing credentials.json" "$scratch/bin"; do
@@ -198,7 +210,7 @@ cmp "$repo_root/scripts/release-notes/codex-headless.sh" "$scratch/observed/code
 grep -Fq 'SKILL.md' "$scratch/observed/prompt"
 [[ "$(workspace_state)" == "$ws_before" ]]
 
-# A configured harness may use only resources already readable in the sandbox.
+# A selected harness may use only resources already readable in the sandbox.
 GROVE_RELEASE_RUNTIME_READ='' RELEASE_TEST_MODE=no-grants task --dir "$scratch/ws" release:notes
 cmp "$scratch/expected" "$scratch/ws/CHANGELOG.md"
 [[ "$(workspace_state)" == "$ws_before" ]]
@@ -215,8 +227,11 @@ for mode in build-failure runner-failure missing empty whitespace heading indent
   [[ "$(jj -R "$scratch/repo" log --no-graph -r main -T commit_id)" == "$main_before" ]]
 done
 
-# Missing notes use the configured runner; unrelated work stays saved.
+# Missing notes use the runner, after building the pair it selects through;
+# unrelated work stays saved.
+: >"$scratch/calls"
 (cd "$scratch/repo" && bash scripts/release-prepare.sh)
+[[ "$(cat "$scratch/calls")" == $'dispatch\nbuild\nrun' ]]
 grep -Fxq -- '- The fixture now prints an improvement.' "$scratch/repo/CHANGELOG.md"
 grep -Fxq -- '- Existing notes.' "$scratch/repo/CHANGELOG.md"
 grep -Fxq -- '- Existing notes.' "$scratch/observed/previous-changelog.md"

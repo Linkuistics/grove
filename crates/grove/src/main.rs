@@ -9,6 +9,7 @@
 mod cli;
 mod config;
 mod config_json;
+mod dispatch;
 mod examples;
 mod provision;
 mod run_display;

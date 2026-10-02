@@ -10,8 +10,8 @@ its human command surface.
 Bare invocation resolves a working tree, takes a driver lease, provisions
 bundled Codex-compatible skills when Codex is present, and calls the loop.
 Viewing, configuration inspection and inactive sample delivery return before
-that lifecycle. `grove run` adds a separate lifetime: one configured kind
-in confined temporary storage, with staged inputs, checked output publication
+that lifecycle. `grove run` adds a separate lifetime: one kind, with the command
+the owner's harness-dispatch policy selects for it, in confined temporary storage, with staged inputs, checked output publication
 and a parent-owned transcript. It needs no workspace or task tree.
 
 The corpus is every production source file and the manifest of `crates/grove`.

@@ -92,15 +92,15 @@ tells the harness to read and follow it. It is deliberately outside `plugins/`:
 it is not a session kind, has no task-tree lifecycle, and must not depend on the
 sandbox discovering an installed skill.
 
-Both paths require a `release-notes` route in your personal
-`~/.config/grove/config.kdl`, targeting the command and binding you choose. For
-example, add `route "release-notes" "writer"` inside `config { ... }` if `writer`
-selects a noninteractive command that can keep its writable state in the scratch
-directory. An interactive Grove session command generally needs a separate
-headless command definition. [Configuration](CONFIGURATION.md#standalone-commands) explains
-commands, bindings, routes, and profiles. The standalone invocation uses personal
-policy only; a repository's `.grove.kdl` does not participate. The release task
-does not select a harness, model, or permission policy.
+Both paths require your harness-dispatch policy,
+`~/.config/harness-dispatch/policy.ts`, to route the `release-notes` kind to a
+noninteractive command that can keep its writable state in the scratch
+directory. The sample policy that `harness-dispatch init` installs routes it to
+the staged Codex helper. An interactive session command generally cannot serve,
+so route the kind to a headless command of its own. The script builds
+`harness-dispatch` and its policy worker beside the `grove` it runs, with
+`task dispatch:build`. The release task does not select a harness, model, or
+permission policy.
 
 The skill asks for a concise Markdown section body grounded in the supplied
 changes. `grove run` copies the input files (`SKILL.md`,
@@ -178,7 +178,7 @@ run the task in a shell that loads the profile, for example
 `zsh -ic 'task release:notes'`, or supply the export in the shell launching the
 task. Direct `grove run` calls take `--runtime-read <file>` flags instead.
 
-Missing configuration, unavailable confinement, a failed build or invocation,
+A missing or refusing policy, unavailable confinement, a failed build or invocation,
 and invalid output stop the release before its version cut. Correct the cause
 or write the Unreleased notes yourself before retrying preparation. The release
 preparation tests use a deterministic runner fixture and make no paid LLM calls.

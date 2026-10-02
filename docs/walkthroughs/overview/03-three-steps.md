@@ -54,14 +54,14 @@ template has been loaded and no child can start until this function succeeds.
 <a id="the-entry-point"></a>
 ## The entry point
 
-`main.rs` declares the CLI, configuration, provisioning, standalone and display modules and calls
+`main.rs` declares the CLI, configuration, dispatch-lookup, provisioning, standalone and display modules and calls
 the CLI’s `run`. Its module comment
 explains why the binaries and library are separate packages: the application
 entry point should call public seams rather than compile private modules into
 itself. The CLI reports errors once and returns an `ExitCode`; main propagates that
 status without adding a second message.
 
-<!-- fragment «entry-point-three-steps» owner="one-call" source="crates/grove/src/main.rs" lines="1-19" parent="source-entry-point" -->
+<!-- fragment «entry-point-three-steps» owner="one-call" source="crates/grove/src/main.rs" lines="1-20" parent="source-entry-point" -->
 <!-- insert «entry-point-module-doc» -->
 <!-- insert «entry-point-module-and-main» -->
 <!-- /fragment -->
@@ -85,12 +85,13 @@ delivery and Codex provisioning remain binary adapters. Main propagates their se
 The module declaration and main function implement that boundary: one call
 returns the CLI result directly to the process runtime.
 
-<!-- fragment «entry-point-module-and-main» owner="one-call" source="crates/grove/src/main.rs" lines="8-19" parent="entry-point-three-steps" -->
+<!-- fragment «entry-point-module-and-main» owner="one-call" source="crates/grove/src/main.rs" lines="8-20" parent="entry-point-three-steps" -->
 ````rust
 
 mod cli;
 mod config;
 mod config_json;
+mod dispatch;
 mod examples;
 mod provision;
 mod run_display;

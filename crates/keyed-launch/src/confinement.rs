@@ -85,20 +85,18 @@ fn canonical(path: &Path) -> Result<PathBuf, LaunchError> {
     })
 }
 
-fn executable(program: &std::ffi::OsStr) -> Result<PathBuf, LaunchError> {
+/// The file a confined launch grants and runs: the caller's absolute path. A
+/// name is refused, never looked up, so the file the caller chose is the file
+/// that runs.
+fn executable(program: &OsStr) -> Result<PathBuf, LaunchError> {
     let path = Path::new(program);
-    if path.components().count() > 1 {
-        return canonical(path);
+    if !path.is_absolute() {
+        return Err(LaunchError::new(format!(
+            "a confined launch takes an absolute program path, and {program:?} is not one; \
+             resolve the program to a file before launching it"
+        )));
     }
-    for directory in std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()) {
-        let candidate = directory.join(path);
-        if candidate.is_file() {
-            return canonical(&candidate);
-        }
-    }
-    Err(LaunchError::new(format!(
-        "configured executable {program:?} is not on PATH; install it before running the task"
-    )))
+    canonical(path)
 }
 
 #[cfg(target_os = "macos")]

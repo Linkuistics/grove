@@ -11,10 +11,10 @@ pub struct Slot<'a> {
 
 /// A program and its arguments, in order, ready to spawn.
 ///
-/// Built only by [`Templates::expand`](crate::Templates::expand), so nothing
-/// reaches a spawn that a template did not author. There is no constructor and
-/// no shell: the words are the words the file holds, with each whole-word slot
-/// replaced by the value offered for it.
+/// There is no shell and no second reading of any word: each is spawned as it
+/// is given. [`Templates::expand`](crate::Templates::expand) authors one from a
+/// template, with each whole-word slot replaced by the value offered for it. A
+/// caller that already holds a command builds one with [`Argv::new`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Argv {
     program: OsString,
@@ -22,7 +22,9 @@ pub struct Argv {
 }
 
 impl Argv {
-    pub(crate) fn new(program: OsString, args: Vec<OsString>) -> Self {
+    /// A program and arguments the caller built, each string one whole word.
+    #[must_use]
+    pub fn new(program: OsString, args: Vec<OsString>) -> Self {
         Self { program, args }
     }
 

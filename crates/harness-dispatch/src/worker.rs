@@ -1122,7 +1122,13 @@ fn expired_slice(error: &io::Error) -> bool {
 impl Read for Bounded<'_> {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         loop {
-            self.channel.set_read_timeout(Some(self.slice()?))?;
+            // macOS refuses a timeout on a socket whose peer has closed, with
+            // `EINVAL`, while frames the peer wrote are still unread. A read
+            // from such a socket cannot block, so it needs no timeout.
+            match self.channel.set_read_timeout(Some(self.slice()?)) {
+                Err(error) if error.raw_os_error() != Some(libc::EINVAL) => return Err(error),
+                _ => {}
+            }
             let mut channel = self.channel;
             match channel.read(buffer) {
                 Err(error) if expired_slice(&error) => {}
@@ -1325,5 +1331,29 @@ impl Capture {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
         (captured, self.overflowed())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A worker exits as soon as it has written its last frame, and macOS
+    // refuses a timeout on a socket whose peer has closed.
+    #[test]
+    fn a_frame_written_before_the_worker_exited_is_still_read() {
+        let (front, mut worker) = UnixStream::pair().unwrap();
+        write_frame(&mut worker, &json!({"type": "result"})).unwrap();
+        drop(worker);
+        let overflow = AtomicBool::new(false);
+        let channel = Bounded {
+            channel: &front,
+            deadline: Instant::now() + Duration::from_secs(5),
+            overflow: &overflow,
+        };
+        assert_eq!(
+            read_frame(channel, 1024).unwrap(),
+            json!({"type": "result"})
+        );
     }
 }

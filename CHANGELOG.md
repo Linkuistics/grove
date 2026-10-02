@@ -165,6 +165,9 @@ policy written for 21.13.0 refuses too.
 - Run records written under the 21.13.0 contract are still shown, observed and
   looked up, and a review whose creator ran under it still resolves that
   creator's provider.
+- Fixed: on macOS a selection could refuse as `worker_failed`, with `Invalid
+  argument (os error 22)`, when the policy worker exited before the front read
+  its last frame. The frame is now read.
 
 ### Skills and documents
 

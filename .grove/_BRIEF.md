@@ -121,8 +121,41 @@ Position order is the order of work. `plan-k1` settled the requirements above.
 `direct-dispatch-k3`, the design leaf, reworked the dispatch specification and
 the ADR set to say how each requirement is met. `direct-dispatch-k5` read that
 design adversarially, `direct-dispatch-k6` integrated its findings, and
-`direct-dispatch-k4`, the planning leaf, cuts it into increments. Implementation
-leaves are the planning session's to cut.
+`direct-dispatch-k4`, the planning leaf, cut it into nine implementation
+leaves:
+
+- `parity-fixture-k7` records what the resolver produces, while it exists.
+- `select-contract-k8` gives harness-dispatch its new contract. Grove still
+  reaches it through an owner's command definition.
+- `owner-settings-k9` adds the settings file, the raised ceiling and the
+  deciding-agent cases.
+- `sample-policy-k10` adds the sample, `init` and the choice-file helper, and
+  proves the sample against the fixture.
+- `standalone-selection-k11` moves `grove run` onto inspection.
+- `lifecycle-launch-k12` moves the loop onto `harness-dispatch run` and removes
+  kind admission.
+- `grove-configuration-k13` deletes Grove's configuration code and commands.
+- `runner-templates-k14` deletes the runner's template machinery and the last
+  records of configuration.
+- `current-state-documents-k15` rewrites the usage documents, the skill and the
+  methodology, writes the release notes, and sweeps for anything that still
+  describes configuration as live.
+
+The first four change only harness-dispatch and leave Grove working as released.
+The other five ship together: after `lifecycle-launch-k12` Grove still has
+configuration commands that nothing launches from, until the two deletion
+leaves land.
+
+Every implementation leaf holds to these:
+
+- It lands with `bash scripts/check.sh` passing. That check reconstructs every
+  walkthrough book from its crate, so a leaf that changes a crate with a book
+  repairs that book itself.
+- It retires the glossary terms, and reworks the ADRs and specs, of what it
+  removes.
+- It decomposes if it outgrows its session, at the seam its own notes name.
+- `direct-dispatch-k4`'s notes say where the design lands in the code, which
+  records go with the deleted machinery, and what not to build.
 
 ## Pointers
 

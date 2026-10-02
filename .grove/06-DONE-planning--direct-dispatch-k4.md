@@ -122,3 +122,37 @@ in a file that describes that mechanism as live, so they go together and
 in the SDK, no run record for a standalone invocation, no launcher on `run` for
 a confined launch, no owner settings that differ by kind, no rename of
 `keyed-launch`, and no agent policy.
+
+## Decisions (running log)
+
+**One grove, not two.** The harness-dispatch leaves leave Grove working as
+released, so they are a point where this could have been two groves and two
+releases. It stays one: the requirements ask for one result, the root brief
+plans one major release, and a release in between would break owners twice.
+The boundary is kept in the leaf order, so the human can still split there.
+
+**Flat leaves under the root, and no nodes.** Nine sibling `impl` leaves in the
+order of work. A leaf that outgrows its session decomposes itself, at the seam
+its own notes name.
+
+**The contract change is one leaf.** Policies, examples and tests all change
+shape at once. Accepting both schema versions for a while would keep it green
+in smaller steps, at the cost of building coexistence that is then deleted. That
+is the fallback if the leaf proves too big, not the plan.
+
+**`grove run` moves before the loop.** It is the smaller cutover and it brings
+the two shared pieces, finding dispatch beside Grove and the runner's argv
+constructor, before the loop's wide test migration needs them.
+
+**Deletion runs consumers first.** The `grove config` commands use the session
+configuration, which uses the runner's templates, so they go in that order and
+each step compiles. A record of configuration goes in the leaf that removes its
+last citation from live code.
+
+**A book is repaired in the leaf that changes its crate.** A following book
+leaf would leave `scripts/check.sh` red in between.
+
+**No review of this plan.** The root brief gives the requirements and the
+design a review each and this leaf none. A wrong cut shows up as a red check in
+the leaf that meets it and is repaired there with an insert or a decompose. The
+in-session reviewer was not spent either.

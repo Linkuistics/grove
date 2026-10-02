@@ -243,6 +243,11 @@ promotes this note to somewhere that outlives `.grove/`.
   the human did not discuss are in the specification. `direct-dispatch-k3`'s
   log holds what each was chosen over. Every part the human did not discuss was
   left alone, apart from the reshapes the missing catalog forces.
+- **A book's line ranges and its source index are derived data.** A leaf that
+  changes a crate with a book carries each fragment's range across a diff of
+  the root, re-reads every literal body from the file, and rewrites the index
+  rows from `walkthrough.toml` and the fragment headers. Only the prose and the
+  roll-up figures need hands. Promoted from `runner-templates-k14`.
 - **Two requirements the design reads narrowly.** Requirement 1: dispatch
   selects every launch's command, `run` launches a lifecycle session, and
   Grove's runner launches a confined `grove run` from what `inspect` reports.

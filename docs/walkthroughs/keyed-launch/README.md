@@ -11,27 +11,28 @@ This reader has watched a session end without ever seeing what ended it.
 command its caller built and a running process. The crate keeps the name it took
 when it also resolved a key to a command template; that half is deleted, and it
 reads no configuration. **Nothing in the crate understands what it launches.**
-Each chapter opens on the one thing this stage must not add and must not
-interpret — one dependency and no domain; a file whose *appearance* is the
+Chapters 1 to 5 each open on the one thing their stage must not add and must
+not interpret — one dependency and no domain; a file whose *appearance* is the
 event; a child handed nothing the caller did not write; an ending the launcher
 must perform because the child cannot; and a name held to a grammar without
 anyone asking what it refers to.
 
-**The intended outcome is the pass-through test, not a reference card.** At the
-end you should be able to take any layer in your own code that carries a value
-to an effect in the world — a command to a process, a query to an engine, a
-route to a handler — and ask *where does this layer learn what the value means?*
-The right answer is nowhere. This crate's part of that test is **the way out**:
-inferring what came back, or adding to the launch what the caller did not write.
-The assembly chapter applies it to the preceding stages. The final chapter adds
-the explicit noninteractive and native confinement boundaries.
+**The intended outcome is the ending test, not a reference card.** At the end
+you should be able to take any layer in your own code that starts work it does
+not understand — a launcher, a job runner, a supervisor — and ask *what ends
+it, and who decides?* A layer that does not know what the work is cannot decide
+that it is done. It can only observe. You should be able to name the three
+things this crate observes, what breaks without each, and the one ending none
+of them reaches. The assembly chapter applies the test to chapters 1 to 5. The
+final chapter adds a launch with no terminal and the confinement around it,
+which the same supervisor ends.
 
 **The book's boundary is the argv it was handed and the process it spawned.** It
 explains one crate and stops there. What a session *is*, what a kind means, the
 driver lease, the task tree and the methodology are grove's, not this crate's,
 and the account of what a launch is for lives in the
 [user guide's session lifecycle](../../USAGE.md#usage-session-lifecycle), where
-this book points once so that no chapter has to. A book that explained grove's
+this book points so that no chapter has to give it. A book that explained grove's
 sessions would have documented the wrong crate.
 
 It does not teach Rust or libc: `signal(2)`, `setpgid(2)`, `tcsetpgrp(2)`,
@@ -70,7 +71,7 @@ source.
 3. [The child is a job](03-the-job.md)
 4. [The watch and the escalation](04-the-escalation.md)
 5. [How this is checked](05-how-checked.md)
-6. [What passes through](06-what-passes-through.md)
+6. [What ends a launch](06-what-ends-a-launch.md)
 7. [Confined noninteractive jobs](07-confined-jobs.md)
 
 Optional lookup:

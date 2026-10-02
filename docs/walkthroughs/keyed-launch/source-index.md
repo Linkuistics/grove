@@ -10,7 +10,7 @@
 |---|---|---|
 | `source-crate-manifest` | `crates/keyed-launch/Cargo.toml` | 42 |
 | `source-library-root` | `crates/keyed-launch/src/lib.rs` | 47 |
-| `source-error-types` | `crates/keyed-launch/src/error.rs` | 38 |
+| `source-error-type` | `crates/keyed-launch/src/error.rs` | 38 |
 | `source-argv` | `crates/keyed-launch/src/argv.rs` | 39 |
 | `source-channel` | `crates/keyed-launch/src/channel.rs` | 453 |
 | `source-run` | `crates/keyed-launch/src/run.rs` | 852 |
@@ -22,7 +22,7 @@
 <!-- source-root «source-library-root» source="crates/keyed-launch/src/lib.rs" lines="1-47" -->
 <!-- insert «library-root» -->
 <!-- /source-root -->
-<!-- source-root «source-error-types» source="crates/keyed-launch/src/error.rs" lines="1-38" -->
+<!-- source-root «source-error-type» source="crates/keyed-launch/src/error.rs" lines="1-38" -->
 <!-- insert «one-opaque-error» -->
 <!-- /source-root -->
 <!-- source-root «source-argv» source="crates/keyed-launch/src/argv.rs" lines="1-39" -->
@@ -49,7 +49,7 @@
 |---|---|---|---|---|---|
 | `manifest-one-dependency` | `source-crate-manifest` | `understands-neither` | `1-42` | 42 | `resolved` |
 | `library-root` | `source-library-root` | `understands-neither` | `1-47` | 47 | `resolved` |
-| `one-opaque-error` | `source-error-types` | `understands-neither` | `1-38` | 38 | `resolved` |
+| `one-opaque-error` | `source-error-type` | `understands-neither` | `1-38` | 38 | `resolved` |
 | `argv` | `source-argv` | `understands-neither` | `1-39` | 39 | `resolved` |
 | `channel-production` | `source-channel` | `appearance-is-the-event` | `1-288` | 288 | `resolved` |
 | `channel-inline-tests` | `source-channel` | `checked-without-meaning` | `289-453` | 165 | `resolved` |
@@ -78,11 +78,11 @@
 | `library-root-job-and-out-of-band` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `15-27` | `library-root` | `—` |
 | `library-root-observed` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `28-32` | `library-root` | `—` |
 | `library-root-modules-and-exports` | `orientation` | `source-library-root` | `literal` | `understands-neither` | `33-47` | `library-root` | `—` |
-| `source-error-types` | `source-index` | `source-error-types` | `root` | `—` | `1-38` | `—` | `one-opaque-error` |
-| `error-import` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `1-1` | `one-opaque-error` | `—` |
-| `one-opaque-error` | `orientation` | `source-error-types` | `composite` | `understands-neither` | `1-38` | `source-error-types` | `error-import`, `error-launch-type`, `error-launch-traits` |
-| `error-launch-type` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `2-22` | `one-opaque-error` | `—` |
-| `error-launch-traits` | `orientation` | `source-error-types` | `literal` | `understands-neither` | `23-38` | `one-opaque-error` | `—` |
+| `source-error-type` | `source-index` | `source-error-type` | `root` | `—` | `1-38` | `—` | `one-opaque-error` |
+| `error-import` | `orientation` | `source-error-type` | `literal` | `understands-neither` | `1-1` | `one-opaque-error` | `—` |
+| `one-opaque-error` | `orientation` | `source-error-type` | `composite` | `understands-neither` | `1-38` | `source-error-type` | `error-import`, `error-launch-type`, `error-launch-traits` |
+| `error-launch-type` | `orientation` | `source-error-type` | `literal` | `understands-neither` | `2-22` | `one-opaque-error` | `—` |
+| `error-launch-traits` | `orientation` | `source-error-type` | `literal` | `understands-neither` | `23-38` | `one-opaque-error` | `—` |
 | `source-argv` | `source-index` | `source-argv` | `root` | `—` | `1-39` | `—` | `argv` |
 | `argv-type` | `orientation` | `source-argv` | `literal` | `understands-neither` | `1-11` | `argv` | `—` |
 | `argv` | `orientation` | `source-argv` | `composite` | `understands-neither` | `1-39` | `source-argv` | `argv-type`, `argv-public-constructor`, `argv-program-and-args`, `argv-words` |
@@ -195,6 +195,6 @@ are owned whole.
 | `nothing-else-added` | `03-the-job.md` | 558 |
 | `the-launchers-job` | `04-the-escalation.md` | 294 |
 | `checked-without-meaning` | `05-how-checked.md` | 165 |
-| `assembly` | `06-what-passes-through.md` | 0 |
+| `assembly` | `06-what-ends-a-launch.md` | 0 |
 | `confined-jobs` | `07-confined-jobs.md` | 217 |
 | **Total** | 7 source roots | **1,688** |

@@ -63,9 +63,9 @@ role  = "chapter"
 slice = "checked-without-meaning"
 
 [[page]]
-file  = "06-what-passes-through.md"
-id    = "what-passes-through"
-title = "What passes through"
+file  = "06-what-ends-a-launch.md"
+id    = "what-ends-a-launch"
+title = "What ends a launch"
 role  = "chapter"
 slice = "assembly"
 
@@ -102,7 +102,7 @@ path  = "crates/keyed-launch/src/lib.rs"
 lines = 47
 
 [[root]]
-id    = "source-error-types"
+id    = "source-error-type"
 path  = "crates/keyed-launch/src/error.rs"
 lines = 38
 
@@ -140,7 +140,7 @@ lines = "1-47"
 
 [[block]]
 id    = "one-opaque-error"
-root  = "source-error-types"
+root  = "source-error-type"
 owner = "understands-neither"
 lines = "1-38"
 

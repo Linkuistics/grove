@@ -1,6 +1,6 @@
 # How this is checked
 <!-- book-page id="how-checked" slice="checked-without-meaning" order="5" -->
-[Previous: The watch and the escalation](04-the-escalation.md) | [Contents](README.md) | [Next: What passes through](06-what-passes-through.md)
+[Previous: The watch and the escalation](04-the-escalation.md) | [Contents](README.md) | [Next: What ends a launch](06-what-ends-a-launch.md)
 
 <a id="checked-without-meaning"></a>
 ## Checked without meaning
@@ -470,4 +470,4 @@ crate could have learned what a value means.
 Chapter 6 owns no source. Chapter 7 reads the last root: a child with no
 terminal, and the same child under a filesystem policy.
 
-[Previous: The watch and the escalation](04-the-escalation.md) | [Contents](README.md) | [Next: What passes through](06-what-passes-through.md)
+[Previous: The watch and the escalation](04-the-escalation.md) | [Contents](README.md) | [Next: What ends a launch](06-what-ends-a-launch.md)

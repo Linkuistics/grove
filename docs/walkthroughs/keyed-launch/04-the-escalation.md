@@ -37,8 +37,8 @@ failure meaning anything, which is why `kill`'s return value is discarded on
 purpose.
 
 `src/run.rs` splits between chapter 3 and this one by whose signal it is, and
-this chapter owns the two blocks chapter 3 left: lines 125–244, which sit between
-that chapter’s two, and lines 680–853, which close the file — 294 lines. The
+this chapter owns the two blocks chapter 3 left: lines 124–243, which sit between
+that chapter’s two, and lines 679–852, which close the file — 294 lines. The
 first block is the supervisor's state type and the launcher's own signal
 machinery; the second is the supervisor itself. After this page every byte of
 `src/run.rs` is accounted for.
@@ -128,7 +128,7 @@ differ only because the second launch was cut short before its child spoke.
 <a id="what-the-blocks-answer"></a>
 ## What the two blocks answer
 
-This chapter's 282 lines are two blocks with chapter 3's spawn between them: one
+This chapter's 294 lines are two blocks with chapter 3's spawn between them: one
 private enum, one static and four functions at the top of the file; then the
 supervisor, the poll loop and the signalling helper that close it. The table
 collects what each answers and what pins it. Tests named without a path are in
@@ -329,7 +329,7 @@ is an event and not a condition, and an event that could be collected twice woul
 stop a looping launcher twice — which the test asserts in the same phase that
 first collects it, by calling `take_interrupt` a second time and requiring
 `None`. The attribute is doing correspondingly harder work here than on the
-eleven: a launcher that called this and dropped the result would have consumed
+other eight: a launcher that called this and dropped the result would have consumed
 the signal and acted on nothing.
 
 The division of labour with `run` is exact and is stated nowhere else. A signal
@@ -753,7 +753,7 @@ could leave an
 interactive one holding the terminal with nothing left in the process tree to
 reap it. So the launch does the last thing it can still do correctly — SIGKILL
 the group, try to reap — and only then reports. The message is built to the same
-shape chapter 1 read off the two error types and chapter 3 applied to the failed
+shape chapter 1 read off the error type and chapter 3 applied to the failed
 spawn: it names what went wrong, carries the operating system's own words, and
 ends by naming what the reader must do, which here is either nothing or *check
 for an orphaned process*, depending on which of the two the launcher managed. It
@@ -817,8 +817,8 @@ Note what is *not* set here: `signalled` stays false. The launch is being ended
 by the launcher's own death, not by the escalation, and the closure above turns
 that pair into `End::Interrupted`. Phase 4 of
 `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other` is the
-whole of this block under test — it raises SIGTERM from a thread 300ms into a
-launch whose child loops forever, and asserts that the ending names the signal,
+whole of this block under test — it raises SIGTERM as soon as the launch reports
+`Started`, with a child that loops forever, and asserts that the ending names the signal,
 that the child's own status carries the same number, and that the latch is empty
 afterwards so the next launch is not stopped by an interrupt already reported.
 
@@ -960,9 +960,9 @@ server, an agent's own in-flight command — is a member of the child's process
 group and is reaped with its parent rather than surviving it. The comment names
 the cost of the alternative in one clause: such a grandchild can hold a lock its
 launcher's caller is about to wait on, and then the escalation's SIGKILL causes
-a stall rather than a teardown. That is the third arm of the book's outcome seen
-from the far end — a launcher that ended the process it could see and inferred
-that the job was over.
+a stall rather than a teardown. That is the book's question seen from the far
+end — a launcher that ended the process it could see and inferred that the job
+was over.
 
 This function is where *the launched child is a job* is kept, and the record
 settles which of the child's identities changes. The child gets a process group

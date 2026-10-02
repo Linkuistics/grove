@@ -15,9 +15,8 @@ What this stage must not add and must not interpret is **the ending**. The crate
 does not decide that a child is finished. It allocates a path, hands that path to
 the child, and waits for the path to exist; whether the work was done, whether it
 succeeded, and what should happen next are all encoded in a string this crate
-reads only to return to its caller and never interprets. A layer can learn what
-a value means **on the way out**, by inferring what came back, and this is where
-the crate declines to infer it.
+reads only to return to its caller and never interprets. A launcher can infer
+an ending from what came back, and this is where the crate declines to.
 
 The reason a launch needs a channel at all is that the obvious signal is wrong
 for the child this crate exists to launch. A batch program ends by exiting, and
@@ -948,10 +947,9 @@ fn draw_nonce() -> Result<[u8; NONCE_BYTES], LaunchError> {
 
 Sixteen bytes are read from `/dev/urandom` with `File::open` and `read_exact` —
 `std` and nothing else. This is the concrete instance of the manifest rule
-chapter 1 read: *two document formats this crate reads, and the syscalls it
-cannot reach from `std`*. A randomness crate would have been a fourth dependency
-satisfying neither clause, and the four lines above are what the crate does
-instead. `read_exact` rather than `read` is the correct call and not merely the
+chapter 1 read: *the syscalls this crate cannot reach from `std`*. A randomness
+crate would have been a second dependency outside that clause, and the four
+lines above are what the crate does instead. `read_exact` rather than `read` is the correct call and not merely the
 convenient one: a short read would otherwise yield a nonce with predictable
 trailing zeros and no error at all, and the error arm is where the operator is
 told which of *open* and *read* failed and how many bytes were wanted.

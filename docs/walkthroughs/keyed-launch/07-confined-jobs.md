@@ -1,6 +1,6 @@
 # Confined noninteractive jobs
 <!-- book-page id="confined-jobs" slice="confined-jobs" order="7" -->
-[Previous: What passes through](06-what-passes-through.md) | [Contents](README.md)
+[Previous: What ends a launch](06-what-ends-a-launch.md) | [Contents](README.md)
 
 <a id="confined-job"></a>
 ## A separate process mode and filesystem policy
@@ -400,4 +400,4 @@ fn platform_command(_: &Path, _: &[PathBuf]) -> Result<Command, LaunchError> {
 ````
 <!-- /fragment -->
 
-[Previous: What passes through](06-what-passes-through.md) | [Contents](README.md)
+[Previous: What ends a launch](06-what-ends-a-launch.md) | [Contents](README.md)

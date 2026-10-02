@@ -15,21 +15,20 @@ argument, no flag, no variable the operator did not write. The claim is easy to
 state and easy to lose, because a launcher is exactly the layer where additions
 look like helpfulness. A `--yes` because the child is non-interactive. A `HOME`
 because the child seemed to want one. A working directory because none was given.
-Each is a value the caller cannot see in the argv it built, and each is a layer
-learning what a value means **on the way out**, expressed as an inferred
-convenience.
+Each is a value the caller cannot see in the argv it built, and each is the
+launcher deciding what the child is for.
 `a_scrubbed_variable_is_removed_from_an_inherited_environment` and
-`arguments_reach_the_child_as_written` are where the crate is held to the claim
-from the two directions it could fail in.
+`a_caller_built_argv_is_spawned_whole_and_directly` are where the crate is held
+to the claim from the two directions it could fail in.
 
-The file is `src/run.rs`, 853 lines, and it splits between
+The file is `src/run.rs`, 852 lines, and it splits between
 this chapter and the next **by whose signal it is**. Everything done *to* the
 child is here: the shape of a launch, the dispositions it is handed, the terminal
 it is given, and the spawn that puts it in a process group of its own. Everything
 about *endings* is chapter 4's: the supervisor's state machine, the escalation,
-and the launcher's own SIGTERM. This chapter owns lines 1–124 and
-245–679; chapter 4 owns the 125–244 between them and the 680–853 after.
-The 559 lines here include detached-mode setup, descriptor isolation and
+and the launcher's own SIGTERM. This chapter owns lines 1–123 and
+244–678; chapter 4 owns the 124–243 between them and the 679–852 after.
+The 558 lines here include detached-mode setup, descriptor isolation and
 identity-preserving waits, because those establish the process the watch owns.
 
 Read the source closely on this page. The source comments explain the order
@@ -102,7 +101,7 @@ operation performed on them.
 checkable, and the field's own section below reads how.
 
 **Three names appear in this chapter's source and are explained in chapter 4.**
-`run_observed`'s first act is `install_termination_handler()` and its last is
+The spawn's first act is `install_termination_handler()` and its last is
 `supervise(…)`, and between them it stores a zero into `INTERRUPTED_BY`. The
 minimum needed here is that `INTERRUPTED_BY` is a process-global latch holding
 the number of a termination signal the *launcher* received,
@@ -115,7 +114,7 @@ handler and the loop are reproduced.
 <a id="what-the-blocks-answer"></a>
 ## What the two blocks answer
 
-This chapter's 390 lines are two blocks with chapter 4's first block between
+This chapter's 558 lines are two blocks with chapter 4's first block between
 them: one constant, four types and a module thesis at the top of the file; then a
 constant, the terminal wrapper, the two public runner entry points,
 launch events and the private process seam. The table collects what each answers and what pins it. Tests named
@@ -126,7 +125,7 @@ names its own file.
 |---|---|---|
 | `POLL_INTERVAL` | how late an escalation may start | — |
 | `Escalation` | how long after the token, and how long after SIGTERM | `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace`, `a_child_that_ignores_sigterm_is_killed_after_the_kill_grace` |
-| `Launch::argv` | which program, and which arguments | `arguments_reach_the_child_as_written`, `a_program_that_does_not_exist_names_itself_and_says_what_to_check` |
+| `Launch::argv` | which program, and which arguments | `a_caller_built_argv_is_spawned_whole_and_directly`, `a_program_that_does_not_exist_names_itself_and_says_what_to_check` |
 | `Launch::channel`, `Launch::channel_var` | which path this child signals on, under which name | `the_channel_path_is_published_under_the_callers_chosen_variable_name` |
 | `Launch::scrub` | which inherited variables the child must not receive | `a_scrubbed_variable_is_removed_from_an_inherited_environment`, `granting_the_channel_survives_a_scrub_list_that_names_it` |
 | `Launch::cwd` | where the child starts | `the_child_starts_in_the_given_directory` |

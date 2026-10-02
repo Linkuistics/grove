@@ -13,19 +13,25 @@ ended.
 
 Between those two points it learns nothing about what it is serving. It does not
 know what the program does, and it does not know what the child's completion
-token says. Four files declare that: the manifest, which buys one dependency and
-no domain; the library root, which states the claim in its first paragraph and
+token says. So it cannot decide that the child's work is done. It can only
+observe, and this book is for one question a reader can take to a layer of
+their own: *what ends a launch, and who decides?* The crate observes three
+things. Chapters 2 to 4 build them, and chapter 6 says what breaks without each
+and names the one ending none of them reaches.
+
+Four files declare what the crate does not know: the manifest, which buys one dependency and
+no domain; the library root, which states the claim in its opening lines and
 maps the rest of the crate; the error module, whose one type is a message; and
 `src/argv.rs`, the type a command arrives in.
 
 The crate keeps the name it took when it also resolved a key to a command
 template. That half is gone. The crate reads no configuration, and nothing in it
-chooses a program.
+chooses what a caller launches.
 
 Grove is the consumer this crate was extracted from. Its loop builds one argv
 for each session and its standalone command builds another, and both hand the
 result here. What a session is and what a launch is *for* are the guide's, and
-the `README.md` points there once so that no chapter has to.
+the `README.md` points there so that no chapter has to explain them.
 
 <a id="the-package"></a>
 ## The package: one dependency and no domain
@@ -377,14 +383,14 @@ The last row is this chapter's own and is not one.
 | `run_noninteractive`, `run_confined`, `Confinement`, `regular_file_at` | A launch with no terminal whose output goes to a file, the same launch under a mandatory filesystem policy, that policy's two fields, and the one read of a result that policy leaves safe. | 7 |
 | `LaunchError`, `Argv` | the one error type and the type a command arrives in, read next | 1 |
 
-<a id="the-two-errors"></a>
+<a id="one-opaque-error"></a>
 ## One opaque error
 
 `LaunchError` is a message. It covers allocating a channel, spawning a child
 and supervising one, and it implements `Display`, `Debug` and `Error` without an
 error-library dependency.
 
-<!-- fragment «one-opaque-error» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="1-38" parent="source-error-types" -->
+<!-- fragment «one-opaque-error» owner="understands-neither" source="crates/keyed-launch/src/error.rs" lines="1-38" parent="source-error-type" -->
 <!-- insert «error-import» -->
 <!-- insert «error-launch-type» -->
 <!-- insert «error-launch-traits» -->
@@ -457,7 +463,7 @@ impl std::error::Error for LaunchError {}
 ````
 <!-- /fragment -->
 
-<a id="the-seam-type"></a>
+<a id="the-argv"></a>
 ## The type a command arrives in
 
 `src/argv.rs` is thirty-nine lines and one type. It is the only way a program

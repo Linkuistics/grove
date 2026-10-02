@@ -1,5 +1,5 @@
-# What passes through
-<!-- book-page id="what-passes-through" slice="assembly" order="6" -->
+# What ends a launch
+<!-- book-page id="what-ends-a-launch" slice="assembly" order="6" -->
 [Previous: How this is checked](05-how-checked.md) | [Contents](README.md) | [Next: Confined noninteractive jobs](07-confined-jobs.md)
 
 <a id="assembly"></a>
@@ -12,129 +12,152 @@ and the [source index](source-index.md) records that graph in full. What is left
 is the thing no single chapter could state, because each one opened on its own
 refusal and stopped at the boundary of the lines it owned.
 
-Every chapter opened the same way: *what this stage must not add and must not
-interpret is X*. Read one at a time, each of those is a local argument about a
+Chapters 1 to 5 each opened on what its stage must not add and must not
+interpret. Read one at a time, each of those is a local argument about a
 few dozen lines — a manifest with no domain dependency, a path nothing has
-written to, an environment with one variable added. Read
-together, they are answers to the question that this chapter applies:
+written to, an environment with one variable added. Read together, they answer
+the question this chapter applies:
 
-> **Where does this layer learn what the value means?**
+> **What ends a launch, and who decides?**
 
-The answer this crate gives is *nowhere*, and that answer must be checked rather
-than assumed. A layer that carries a value to an effect in the world has three
-chances to learn a meaning it was never given: on the way in, by composing a value from several sources; on the way
-through, by reading a value a second time in another grammar; and on the way
-out, by inferring what came back or adding what was not written. This crate
-used to resolve a key to a command template, and the first two were closed
-there. That half is deleted. A command now arrives as an `Argv` its caller
-built, so the crate composes nothing and reads no word twice, and what is left
-to check is the way out. The table is where each chapter stands.
+The crate decides nothing. It does not know what the program does or what the
+token says, so it has nothing to judge the work by, and a layer in that position
+can only observe. It observes three things, and they are the only three ways a
+launch ends: the child exits, the file the child was handed a path to appears,
+or the launcher itself is signalled. The table is what each chapter's refusal
+left for that answer.
 
-| Ch | What the stage carries | The meaning available to be learned | Where it would enter |
+| Ch | What the stage carries | What it must not add or interpret | What that leaves the ending |
 |---:|---|---|---|
-| 1 | the manifest, the library root, the error type and the argv | what the program does | the claim, and a type that holds it |
-| 2 | the completion channel | what the token says | on the way out |
-| 3 | the environment, the terminal, the spawn | what the child needs that the caller did not write | on the way out |
-| 4 | the watch, the escalation and the launcher's signals | whether the child is done | on the way out |
-| 5 | the channel's inline tests | what *correct* means | from outside |
+| 1 | the manifest, the library root, the error type and the argv | what the program does, and what the token says | nothing here can judge whether the work is done |
+| 2 | the completion channel | the ending, and what the token says | a file the launcher never wrote, so its appearance is evidence that the child spoke |
+| 3 | the environment, the terminal, the spawn | anything the caller did not write | a job that can be ended whole, handed this launch's path |
+| 4 | the watch, the escalation and the launcher's signals | the ending: whether the child is done | three observables, and an ending the launcher performs |
+| 5 | the channel's inline tests | what a name refers to | the properties appearance rests on, held by tests that spawn nothing |
 
-[Chapter 1](01-orientation.md#understands-neither) states the claim: the
-manifest buys one dependency and no domain, the library root says every word of
-the command is the caller's, and `Argv` holds whatever was put into it.
-[Chapter 5](05-how-checked.md#checked-without-meaning) is the other end — it
-holds a filename to a grammar, and nothing it checks is about what a name is
-for. The three rows between them are where the answer is earned.
+One ending reaches none of the three, and it has a section of its own below.
 
-One case on the way out has no answer at this layer at all, and this page ends
-on it.
+<a id="three-endings"></a>
+## Three endings, and what breaks without each
 
-<a id="where-does-it-learn"></a>
-## Where does it learn what the value means?
+Take each observable away in turn. What breaks is the reason it is there, and
+the test named beside it is the one that holds it. The launch is the
+interactive one chapters 1 to 5 cover. Chapter 7's mode changes what the
+launcher sends, and not the three things it observes.
 
-Take any layer in your own code that carries a value to an effect in the world
-— a command to a process, a query to an engine, a route to a handler — and ask
-where it learns what the value means. What follows is the one part of the test
-this crate still answers, against the chapters that proved it, with the carried
-example — one of grove's launches and its channel variable — as the material.
+### The child exits
 
-### 3 · On the way out — inferring what came back, or adding what was not written
+**The observable.** `try_wait` returns a status before anything else has ended
+the child. The launch comes back `End::Exited`, with a token if the child wrote one and without if it did not.
 
-**The move.** The layer reaches a conclusion the value did not carry. It decides
-from a status, a timeout or a silence that the work is done; or it adds to the
-call something the operator did not write, because the addition looks like
-helpfulness — a flag because the child is non-interactive, a variable because the
-child seemed to want one, a directory because none was given.
+**Without it.** A launcher that waited only to be told would wait for ever on a
+child that crashed, or one that exited before it spoke.
 
-**The cost.** A launcher that decides for itself that a child is done will
-sometimes be wrong while looking exactly as if it were right; and a value the
-caller cannot see in the argv it built is a value it cannot change by building a
-different one.
+**What the crate does not do with it** is read the status. An exit says the
+child is gone and says nothing about its work:
+[the token, never the exit status, says what the launch meant](04-the-escalation.md#the-poll).
+`a_child_that_never_signals_ends_with_no_token` pins it in four assertions. A
+child that exits 3 without writing anything comes back with `token` of `None`,
+`end` of `End::Exited`, status code 3, and no file on the channel path. A
+launcher that inferred completion from an exit, or made an empty token out of
+an absent file, fails there.
 
-**What the crate does instead**, in the *adding* direction, is
-[chapter 3](03-the-job.md#nothing-else-added): `run` hands the child one
-environment variable holding one path, and that is the whole of what it adds. The
-argv is the one the caller built, the working directory is the caller's, and
-the scrub list removes launch-control variables a nested launcher must not
-inherit rather than installing any.
-`a_scrubbed_variable_is_removed_from_an_inherited_environment` is the test, and
-its shape is the claim: it scrubs `HOME` from a child that inherits an ordinary
-environment, then asserts through the channel that `HOME` came back `<unset>`
-while `PATH` came back equal to the launcher's own. A scrub that merely emptied a
-variable, or an inheritance that quietly rebuilt one, fails a different assertion
-in the same test. `a_caller_built_argv_is_spawned_whole_and_directly` holds the
-other direction over a whole trip: five words a shell would re-read go into an
-`Argv`, and the child reports the same five back.
+### The file appears
 
-The compile-time half of the same answer is chapter 1's, and it is the one place
-in the book where a refusal is held by a type instead of by a rule. `Argv` has
-private fields and no method that changes one, so
-[what was put into an `Argv` is what `run` spawns](01-orientation.md#the-seam-type):
-`run` takes an `Argv` and nothing else that could name a program. The *adding*
-direction is closed before the program is written rather than checked after it
-runs. The type says nothing about who authored the words. The caller that built
-the `Argv` answers for them.
+**The observable.** `channel.path().exists()`. Appearance starts the grace. If
+the child is still running when the grace runs out, the launcher ends it and
+the launch comes back `End::Signalled`.
 
-In the *inferring* direction the answer is [chapter 2](02-the-channel.md#the-thesis).
-The crate does not decide that a child is finished: it allocates a path, hands
-that path to the child, and waits for the path to exist. `Channel::allocate`
-writes nothing, which is why the file's later existence is unambiguous evidence
-that something else wrote it, and why appearance alone can be the event. What the
-child wrote is read back once and handed to the caller as an opaque `Token`. The
-crate's only interest in the bytes is
-[whether there are any](02-the-channel.md#three-ways-to-have-no-token): `read`
-trims trailing framing and reports nothing for an empty file, which is a presence
-test and not a semantic interpretation. `relaunch` is grove's word, and this book
-has carried it through every chapter without the crate ever having read it *as*
-a word. The
-string does occur once inside the corpus — `src/channel.rs` line 357, where the
-inline module writes it to a channel and reads it back — and that occurrence is
-the point rather than an exception to it: even the crate's own test uses the word
-as a value to move, and would pass just as well with any other.
+**Without it.**
+[An interactive child returns to its prompt when it finishes](02-the-channel.md#appearance-is-the-event)
+and does not exit. A launcher with only the first observable waits for as long
+as the child sits there. Or it guesses: a timeout, a quiet period, a pattern in
+the output. Each guess is a conclusion about work the crate cannot see, and a
+launcher that decides for itself that a child is done is sometimes wrong while
+looking exactly as if it were right.
 
-[Chapter 4](04-the-escalation.md#three-observables) is where the restriction
-becomes a state machine. Supervision polls three things, and they are the only
-three ways a launch ends: the child exits, the token's file appears, or the
-launcher itself is signalled. Nothing else is counted as an ending — not a
-timeout, not a quiet period, not an exit status the crate liked the look of.
-`a_child_that_never_signals_ends_with_no_token` is the test that pins the
-negative case, and it pins it in four assertions: a child that exits 3 without
-writing anything comes back with `token` of `None`, `end` of `End::Exited`,
-status code 3, and no file on the channel path. A launcher that inferred
-completion from a clean exit, or that manufactured an empty token from an absent
-file, fails there.
+**What makes it an observation and not a guess** is work chapters 2 and 3 did.
+`Channel::allocate` [writes nothing](02-the-channel.md#writes-nothing), so a
+file at that path was put there by somebody other than the launcher. A caller
+that allocates a channel for each launch gets a fresh path each time, so the
+file belongs to this launch, which
+`successive_launches_get_independent_channels` holds. And
+[the scrub list](03-the-job.md#everything-one-launch-is) is where a caller
+removes the launch-control variables its own environment carried, so a nested
+child is not handed a live path belonging to somebody else's launch. A leaked
+path is authority to end that launch.
+`an_allocated_channel_names_a_path_that_does_not_yet_exist` holds the first, and
+`a_scrubbed_variable_is_removed_from_an_inherited_environment` holds that a
+scrub removes what was inherited.
 
-The arm, collected. The second column is the move to look for, the third is
-what it costs when you find it, and the fourth is one shape that closes it —
-which the next section qualifies.
+What the child wrote is read back once, after the child is gone, and handed to
+the caller as an opaque `Token`. The crate never compares the bytes with
+anything. `read`
+[refuses what is not a token](02-the-channel.md#three-ways-to-have-no-token) —
+an empty file, one that is too large, a path that is not a regular file — and
+trims trailing framing from the rest, which is a test of shape and not an
+interpretation. `relaunch` is grove's word, and this book has carried it since
+chapter 1 without the crate ever having read it *as* a word. The string does
+occur inside the corpus, where the inline module in `src/channel.rs` writes it
+to a channel it then discards. Even the crate's own test uses the word as a
+value to move, and would pass just as well with any other.
 
-| The arm | The move | The cost | What this crate does instead |
+### The launcher is signalled
+
+**The observable.** `take_interrupt()` returns the number of a SIGTERM or SIGHUP
+that the launcher's own handler latched. The launcher sends the job the same
+signal, reaps the child, and the launch comes back
+`End::Interrupted { signal }`.
+
+**Without it.** The signal's default disposition ends the launcher where it
+stands, and its child is left on the terminal with no parent to end it. A
+launcher that caught the signal, tidied up and exited 0 would do no better: it
+would tell its own parent that the work finished.
+[An exit code cannot say *was signalled*](04-the-escalation.md#dying-of-it), so
+the number is carried and `reraise` lets the launcher die of the signal it was
+sent.
+
+The channel cannot express this ending, because an interrupt normally leaves no
+token. `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other`
+in `tests/interrupt.rs` holds the report, and
+`a_reraised_signal_reaches_the_parent_as_a_wait_status` in `tests/reraise.rs`
+holds the death.
+
+### Seeing an ending is not performing one
+
+Two of the three are followed by an act, and the act is the launcher's because
+[only the child's parent can perform it](03-the-job.md#the-two-waits). A child
+at its prompt will not exit, and a child asked to end itself from inside a
+sandbox may be denied silently. So the launcher signals: the grace, SIGTERM, the
+kill grace, SIGKILL.
+
+The signal goes to [the whole process group and then the child](04-the-escalation.md#the-whole-group),
+which is why chapter 3 spawned the child as a job. A grandchild outside that
+reach survives its parent, can hold a lock the launcher's caller is about to
+wait on, and turns a reported ending into a stall.
+`the_escalation_reaps_the_childs_descendants` holds it, with a bystander in
+another group that must be left alone.
+
+What comes back keeps the two facts apart.
+[`End` says who acted and `token` says whether the child spoke](03-the-job.md#which-of-three-happened),
+and neither is inferred from the other.
+`a_child_that_signals_and_exits_inside_the_grace_is_never_touched` is the case
+that separates them: a token came back, and the launch still ended `Exited`,
+because nothing had to end it.
+
+The three, collected. The third column is what the reader looks for in a layer
+of their own.
+
+| The ending | Where it is observed | Without it | Held by |
 |---|---|---|---|
-| on the way out | a conclusion the value did not carry — that the work is done, or that the launch wants something the caller did not write | a launcher that decides a child is done is sometimes wrong while looking exactly right, and a value not in the argv cannot be changed by building a different one | one variable holding one path is the whole of what is added and nothing can change an `Argv` once it is built; the appearance of a file the crate never wrote is the only completion event ([chapter 2](02-the-channel.md#the-thesis), [chapter 3](03-the-job.md#nothing-else-added), [chapter 4](04-the-escalation.md#three-observables)) |
+| the child exits | `child.try_wait` | a child that dies without speaking is waited on for ever | `a_child_that_never_signals_ends_with_no_token`, `an_unsignalled_child_runs_to_its_own_exit_untouched` |
+| the file appears | `channel.path().exists()` | an interactive child never ends, or the launcher guesses that it has | `a_signalled_child_that_keeps_waiting_is_terminated_after_the_grace`, `a_child_that_signals_and_exits_inside_the_grace_is_never_touched` |
+| the launcher is signalled | `take_interrupt()` | the launcher dies and leaves its child on the terminal, or exits 0 and reports work that was cut short | `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other`, `a_reraised_signal_reaches_the_parent_as_a_wait_status` |
 
 <a id="the-one-that-stays-open"></a>
-## The one the crate cannot close
+## The ending no observable reaches
 
-The way out has a limitation.
+The three observables leave a gap.
 [Chapter 4 states it in its second paragraph](04-the-escalation.md#the-launchers-job),
 and [chapter 3 reproduces it inside `run`'s own doc comment](03-the-job.md#the-child-is-a-job),
 where it is part of the function's stated contract and, as that section says
@@ -164,7 +187,7 @@ is what makes signalling the child's last act, and the
 is where that obligation is written down for an operator. None of that is in this
 crate. Keeping the obligation outside preserves the crate's domain independence:
 an obligation on the child is a statement about what the child is for, and a
-layer that has never heard of sessions cannot make one.
+layer that does not know what a session is cannot make one.
 
 The general form applies to the reader's own layer: **a layer that learns nothing
 cannot notice that nothing happened.** The cost of preserving that independence
@@ -176,40 +199,30 @@ grove's instruction does the second, and the three observables do the third.
 <a id="taking-the-test-away"></a>
 ## Taking the test to a layer of your own
 
-The transferable result is the question, which applies to any layer that sits
-between a value somebody wrote and
-something that happens. Four steps, and the third is where the answer usually
-turns out to be *somewhere after all*.
+The transferable result is the question. It applies to any layer that starts
+work it does not understand: a launcher, a job runner, a supervisor, a consumer
+handing a message to a handler. Four steps.
 
-1. **Name the value and the two ends of its trip.** Not *"the command"* — *"the
-   words in this `Argv` become the argv of a process"*. A trip you cannot state as a
-   start and an end has no *through* for anything to be learned in.
-2. **Find every point where the value is read, and count the grammars.** One
-   reading is a parse. Two readings in different grammars is where this arm's
-   failures live, and the second reading is often not in your code: a splitter, a
-   templating layer, a shell invoked for convenience, a serialiser that
-   round-trips. This crate has one reading and no grammar: `Argv` holds words
-   and `run` spawns them.
-3. **Ask what your layer would have to know for each of its own rules to be
-   correct.** This is the one that finds the meaning. A merge rule has to know
-   which fields are lists. A retry has to know which operations are idempotent. A
-   default has to know what the absence of a value meant. Each of those is a fact
-   about the caller's domain living inside a layer that will not be told when the
-   domain changes — and none of them looks like a domain model at the point where
-   it is written.
-4. **Ask what ends the trip, and who decides.** If the answer is *the layer
-   decides* — from a status, a timeout, a silence — you have this book's
-   arm, and the question is whether the thing being decided is a fact the layer
-   can observe or a conclusion it is drawing. `Channel::allocate` writing nothing
-   is what turns the observation into a fact; the stall above is what is left when
-   even that is not enough.
-
-Run those four over `keyed-launch` and you get the table this page opened with.
-**The one answer above that a type holds cannot decay**, which the others can:
-a rule is a line somebody can edit, but a second way to hand `run` a program
-would have to be a new field on `Launch`, and that fails every caller's build.
-Where a property can be moved from a rule to a type, a breach becomes a compile
-failure rather than a condition every caller must remember to check.
+1. **Name what your layer starts and what it can see of it.** Not *"the job"* —
+   *"a process I am the parent of, a path I chose, and my own signals"*. What a
+   layer can see bounds what it can know. Anything else it reports about the
+   work is a conclusion.
+2. **List every way the work ends, and mark each one observed or inferred.** An
+   exit is observed. *Finished* is not, unless the work says so. A timeout, a
+   quiet period and a status the layer liked the look of are inferences. Where
+   the work has to say it is done, check that only the work can say it:
+   `Channel::allocate` writing nothing is what makes a file's appearance a fact
+   about this launch, and the scrub is what keeps a nested child from holding
+   somebody else's path.
+3. **Take each ending away and say what breaks.** If nothing breaks, it was not
+   an ending. If what breaks is a stall, an orphan or a false report, that is why
+   it is there, and it names the test that should hold it. The table above is
+   this step run over `keyed-launch`.
+4. **Find the ending that reaches none of them, and say whose it is.** A layer
+   that does not know the work cannot add an observable for it. The obligation
+   goes to the layer that knows what was asked. Then ask who performs each
+   ending: if the work cannot end itself, the layer that started it must, and
+   must reach everything it started.
 
 The last question the test will not answer is whether the property justifies its
 cost. That is a judgement about what the layer is for. A crate that does not
@@ -217,8 +230,8 @@ know what it launches can serve a caller with a different domain unchanged. The
 corpus does name grove, in three kinds of place: the comment over the release
 block, which is about how the package ships; `src/channel.rs`'s note on whose
 driver leaves files in a control directory; and a shell line in a comment in
-`src/run.rs`. Packaging, provenance and illustration — never a branch, a
-constant or a name the crate acts on.
+`src/run.rs`. Packaging, provenance and illustration. The crate never branches
+on who its caller is.
 
 <a id="the-closed-ledgers"></a>
 ## The closed ledgers
@@ -247,9 +260,9 @@ two split, and each split is the concept order disagreeing with the file's. In
 
 ```text
 src/run.rs         852 lines, 4 blocks, chapters 3 4
-      1–124   ch 3   ┐  the launch’s shape
-    125–244   ch 4   │  the watch and the latch, inside chapter 3’s pair
-    245–678   ch 3   ┘  terminal, detached mode and spawn
+      1–123   ch 3   ┐  the launch’s shape
+    124–243   ch 4   │  the watch and the latch, inside chapter 3’s pair
+    244–678   ch 3   ┘  terminal, detached mode and spawn
     679–852   ch 4      supervise and escalate
 
 src/channel.rs     453 lines, 2 blocks, chapters 2 5
@@ -367,9 +380,9 @@ re-executes itself as.
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
 The book reconstructs 7 roots, 1,688 lines, 7 chapters, two lookup surfaces,
-zero deferred ranges. What it leaves the reader with is the question — *where
-does this layer learn what the value means?* — together with the one case where
-this crate's own answer runs out, and the reason that case belongs to whoever
-knows what the child was asked to do.
+zero deferred ranges. What it leaves the reader with is the question — *what ends
+a launch, and who decides?* — together with the one ending no observable
+reaches, and the reason that ending belongs to whoever knows what the child was
+asked to do.
 
 [Previous: How this is checked](05-how-checked.md) | [Contents](README.md) | [Next: Confined noninteractive jobs](07-confined-jobs.md)

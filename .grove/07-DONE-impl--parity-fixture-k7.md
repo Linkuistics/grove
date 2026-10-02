@@ -32,3 +32,30 @@ fixture the sample policy is compared against after the resolver is deleted.
 - No test may read `.grove/`, which the finish cycle deletes. The fixture is the
   record that stays, and the pinned file is not copied beside it.
 - Nothing reads the fixture yet. `sample-policy-k10` is its consumer.
+
+## Decisions (running log)
+
+**The fixture is `crates/harness-dispatch/tests/fixtures/parity/commands.json`,
+with a `README.md` beside it.** That is where the crate's other fixtures live,
+and the crate has no walkthrough book for a new file to break.
+
+**`grove config show --json` is the capture.** It reports the resolver's
+compiled words, the same ones expansion fills, with slots still symbolic. The
+pinned file sat unmodified under a temporary `HOME`, and an ignored `.grove.kdl`
+holding only a `select` line reached each selection. The run with no delta and
+the delta run of the pinned selection gave identical commands.
+
+**Sixteen entries, each with `arrangement`, `modifiers`, `select` and
+`commands`.** A command is `program` and `args`, the names the new contract
+uses, and a slot is written `${name}` as the pinned file spells it. `select` is
+kept because it is what the resolver was actually given.
+
+**One modifier order is recorded.** `codex-sol` then `high-effort` and the
+reverse resolved to identical commands under all four arrangements, so the
+sample owes no ordering rule.
+
+**No generator is committed.** It would run a resolver the next leaves delete.
+The README carries the recipe instead.
+
+**`high-effort` leaves `release-notes` at `medium`.** It names the `codex` and
+`claude` commands only, and the fixture records that. The sample reproduces it.

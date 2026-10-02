@@ -7,7 +7,7 @@ subject = "crates/grove-llm"
 
 # The bare rule, with no exceptions at all: the crate's own manifest and every
 # Rust file under `src/`. There is no `bin/`, no test-support module under
-# `src/` and no inline `tests.rs` — `crates/grove-llm/tests/` is nine times the
+# `src/` and no inline `tests.rs` — `crates/grove-llm/tests/` is ten times the
 # corpus and all of it is evidence — so this book carries no `[[corpus.add]]`
 # and no `[[corpus.exclude]]`, and the normative inventory in
 # `docs/specs/walkthrough-books.md` records that emptiness by giving the book
@@ -298,12 +298,6 @@ owner     = "before-the-lock"
 statement = "The grammar's own types for a `--kind` token and a slug; malformed text is refused by them, before any lock."
 
 [[early-use]]
-symbols   = "`SessionConfig`"
-first-use = "01-orientation.md#the-imports"
-owner     = "before-the-lock"
-statement = "The launch configuration, loaded whole and asked whether one kind resolves to a template."
-
-[[early-use]]
 symbols   = "`Handle`"
 first-use = "01-orientation.md#the-imports"
 owner     = "admit-before-signal"
@@ -325,7 +319,7 @@ statement = "One handler per reading verb: the shared opening, one `grove_loop::
 symbols   = "`cmd_root_init`, `cmd_leaf_add`, `cmd_leaf_insert`, `cmd_leaf_decompose`"
 first-use = "02-the-grammar.md#worked-dispatch"
 owner     = "before-the-lock"
-statement = "One handler per growing verb: text parsed, presence asked, then the exclusive opening, then one call."
+statement = "One handler per growing verb: text parsed, then the exclusive opening, then one call."
 
 [[early-use]]
 symbols   = "`cmd_leaf_retire`, `cmd_leaf_prune`"

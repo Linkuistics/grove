@@ -19,8 +19,8 @@ it writes only `GROVE_RUN_SIGNAL_FILE`, rejects a conflicting tree channel and
 returns without cwd, workspace or epoch admission. That branch cannot dispatch
 `finish-commit` or any other tree verb.
 
-The rule this chapter opens on is `complete`'s, and it is the third of the
-three orders *Orientation* named: **the completion channel is resolved and
+The rule this chapter opens on is `complete`'s, and it is the second of the
+two orders *Orientation* named: **the completion channel is resolved and
 checked against the admitted epoch before it is written.** The check has to
 precede the write because the write is what it protects against. A session
 whose channel is not the one the live epoch admitted is a session signalling a
@@ -622,8 +622,8 @@ is the admitted one, writes a word, and names what the loop will do next.
 `finish-commit` reads a handle by its type, hands the workspace to a call that
 opens the tree it is about to delete, and prints the change id that records the
 deletion. With them the twelve verbs are all read, each as one call into
-`grove_loop::verbs` plus rendering, and the three orders the header promised
-have all been shown where they happen. The next chapter puts them in one table
+`grove_loop::verbs` plus rendering, and the two orders the header names have
+both been shown where they happen. The next chapter puts them in one table
 and asks what the compiler holds, what order holds, and what tests hold.
 
 [Previous: Ending work](05-ending-work.md) | [Contents](README.md) | [Next: What order holds](07-what-order-holds.md)

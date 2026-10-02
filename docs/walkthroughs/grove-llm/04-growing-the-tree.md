@@ -13,8 +13,8 @@ that order — **text before lock.** A refusal at the first step leaves the tree
 byte-identical and takes no exclusive lock on the way out, because the text is
 parsed before `writable` is ever called. This is the same discipline *Reading the
 tree*'s verbs kept when they read a `Reference` before taking the shared
-opening; here the opening is exclusive and the cost of getting the order wrong
-is a tree changed by a command that was refused.
+opening; here the opening is exclusive, and the cost of getting the order wrong
+is that lock over the whole grove, taken and waited for, to refuse a typo.
 
 The order used to have a step between those two. Each grow verb asked whether
 the kind it was about to write resolved to a launch template in Grove's own
@@ -884,9 +884,9 @@ The clause *stray position-prefixed cross-references go to stderr* is
 of this comment, like `leaf-add`'s, is the integration-placement methodology, and
 the page links the guide for it and explains only that placement is the caller's.
 
-`LeafDecompose`'s comment is the shortest of the four and the one whose promise
-the handler's two openings exist to keep: the first child inherits the decomposed
-leaf's kind unless `--kind` overrides it.
+`LeafDecompose`'s comment is the shortest of the four, and its promise is one
+the verb keeps under the lock the handler takes: the first child inherits the
+decomposed leaf's kind unless `--kind` overrides it.
 
 <!-- fragment «verbs-leaf-decompose-help» owner="before-the-lock" source="crates/grove-llm/src/cli.rs" lines="206-217" parent="verbs-growing" -->
 ````rust

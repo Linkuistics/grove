@@ -146,3 +146,8 @@ not spent.** The production change is one invocation built and four checks
 deleted, and each case the specification's two launch-boundary rows name has a
 test that was run. Whether the node earns a review is `two-orders-k20`'s to
 judge when it closes it.
+
+**The node closed with a review cut.** `two-orders-k20` rewrote the `grove-llm`
+book to two orders and judged the cutover load-bearing enough for an
+adversarial read. `lifecycle-launch-k21` is that review, placed ahead of
+`grove-configuration-k13`.

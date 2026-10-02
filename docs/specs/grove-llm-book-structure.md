@@ -2,17 +2,20 @@
 
 ## Status and provenance
 
-This is the structure brief for the book at `docs/walkthroughs/grove-llm/`,
-which does not exist yet and which this document is written ahead of, in the
-form [`walkthrough-books.md`](walkthrough-books.md) requires under *The
+This is the structure brief for the book at `docs/walkthroughs/grove-llm/`, in
+the form [`walkthrough-books.md`](walkthrough-books.md) requires under *The
 structure brief*. It settles what that specification deliberately does not: the
 chapter sequence, the mapping of that sequence onto the corpus, each chapter's
 worked example, the early uses the order forces, and what the book does not
 cover.
 
-**This document is authored, not recovered, and it precedes its book.** Every
-decision below was settled in the `grove-llm-structure-k32` interview and is
-recorded, with its rejected alternatives, in that leaf's decision log. It follows
+**This document is authored, not recovered, and it was written before its
+book.** Every structural decision below was settled in the
+`grove-llm-structure-k32` interview and is recorded, with its rejected
+alternatives, in that leaf's decision log. It is kept in step with the book and
+the corpus: its line ranges and counts are the manifest's, and its thesis is the
+two orders the source header names since `dispatch-launch-k19` deleted the
+presence rule that was a third. It follows
 [`jj-workspace-book-structure.md`](jj-workspace-book-structure.md) and
 [`overview-book-structure.md`](overview-book-structure.md), the two briefs
 elicited before their books, and is uniform with them.
@@ -23,11 +26,11 @@ The chapter sequence and ownership mapping below are what
 `[[block]]` groups. Where the two disagree, that is a defect in one of them, not
 a licence to prefer either.
 
-**What is different about this corpus.** Four roots and 1,017 lines, of which
-`src/cli.rs` is 944: the book's structural problem is how to divide one large
+**What is different about this corpus.** Four roots and 971 lines, of which
+`src/cli.rs` is 898: the book's structural problem is how to divide one large
 file, and the answer below divides it by concept rather than by file order, at
 the price of twenty-two ownership blocks in that one root. There is no inline
-test module — `crates/grove-llm/tests/` is nine times the corpus and all of it
+test module — `crates/grove-llm/tests/` is ten times the corpus and all of it
 is evidence — and `docs/ARCHITECTURE.md` keeps no descriptive passage this book
 makes redundant: every residue mark in that document names another crate's
 book, so `architecture-residue-k75` owes nothing on this book's account.
@@ -43,24 +46,26 @@ tree; what they have not read is the code.
 
 **The intended outcome is the what-is-left test.** At the end the reader can
 take a thin command surface over a library in their own code, ask *what is left
-here that is not rendering*, and answer in three parts: which text is parsed
-before which lock, which check runs before which mutation, which admission
-precedes which signal. For each part they can say what reversing the order costs
-— a process blocking against itself, a tree mutated by a command that was
-refused, a signal sent to a loop that did not launch this session — and name the
-test that would catch it. All three are provable inside this book's 1,017 lines,
-and each has a named test:
+here that is not rendering*, and answer as this book does for its two orders:
+which text is parsed before which lock, and which admission precedes which
+signal. For each they can say what reversing the order costs — a lock over the
+whole grove taken, and waited for, to refuse a typo; a signal sent to a loop
+that did not launch this session — and name what would catch it. Both are
+readable inside this book's 971 lines, and they are not equally held:
 
-- the read before the write opening in `cmd_leaf_decompose`, held by
-  `no_production_lock_grove_takes_for_itself_ever_blocks` in
-  `crates/grove-llm/tests/tree_lock.rs`;
-- the presence rule before the exclusive opening in every grow verb, held by
-  `leaf_add_refuses_a_kind_no_template_resolves_for_and_mutates_nothing` in
-  `crates/grove-llm/tests/session_kind_presence.rs`; and
+- text before lock, in the six handlers that read text with a grammar type, is
+  held by the source and by one measurement the closing chapter records. No
+  test asserts it: the refusal tests require an untouched tree, which holds in
+  either order.
 - the admission before dispatch in `run`, and the channel check before the
-  write in `cmd_complete`, held by
+  write in `cmd_complete`, are held by
   `grove_llm_admits_only_the_live_epoch_while_version_remains_exempt` in
   `crates/grove-loop/tests/driver_lease.rs`, which drives the real binary.
+
+A third order stood between them until Grove lost its launch configuration: a
+presence rule, asked by each leaf-writing verb before it wrote. No verb asks
+whether a kind can be launched now, and the book says so where the header does.
+`crates/grove-llm/tests/no_kind_admission.rs` holds that nothing is asked.
 
 The closing chapter states the test and applies it to all twelve verbs.
 
@@ -71,25 +76,26 @@ it, but as the complement of *order is what is left* rather than as a
 transferable claim of its own.
 
 Three candidate outcomes were rejected. **The maintainer outcome** — add a
-thirteenth verb without breaking admission, text-before-lock,
-presence-before-mutation or stdout-is-data — follows for free from
+thirteenth verb without breaking admission, text-before-lock or
+stdout-is-data — follows for free from
 source-exactness plus chapter 7's table and is therefore not the stated goal,
 as both precedents found for theirs. **A reference card for the twelve verbs** is
 already [`USAGE.md`](../USAGE.md)'s row for the human and `--help`'s for the
 LLM; a source-exact book is a poor way to deliver a third copy. **Take it as a
 dependency** is ruled out by fact: [`RELEASING.md`](../RELEASING.md), *One
-release, six packages, one tag*, settles that this package ships inside grove's
+release, eight packages, one tag*, settles that this package ships inside grove's
 cut, and it is a binary in any case.
 
 ## The spine: order is what is left
 
 **Every chapter opens on the one thing a thin binary still has to get right at
 that point in a session.** The spine is recovered from the source rather than
-imposed on it. `src/cli.rs`'s own header, lines 10–23, states it: every verb is
+imposed on it. `src/cli.rs`'s own header, lines 10–24, states it: every verb is
 one `grove_loop::verbs::` call plus rendering, and what is left that is not
 rendering is *order* — the operator's text read by the type that owns it before
-a lock is taken, the just-in-time presence rule asked before the mutation, and
-the session admitted against the completion channel before it is written to.
+a lock is taken, and the session admitted against the completion channel before
+it is written to. The same lines say that no verb asks whether a kind can be
+launched.
 The chapters follow the order a session meets the verbs, and each carries the
 rule that family enforces:
 
@@ -98,8 +104,8 @@ rule that family enforces:
 | the manifest, the library root, the entry point, the header | thin is held by the crate boundary, and order and rendering are what thin leaves behind | 1 |
 | the grammar, dispatch and the two openings | every verb is admitted before it is dispatched, and a grove that is not there is not a grove that is finished | 2 |
 | `pick`, `brief-chain`, `kind`, `resolve` | an absent answer is information, not an error | 3 |
-| `root-init`, `leaf-add`, `leaf-insert`, `leaf-decompose` | text before lock, presence before mutation | 4 |
-| `leaf-retire`, `leaf-prune` | the last grove verbs a session runs say on stderr what remains | 5 |
+| `root-init`, `leaf-add`, `leaf-insert`, `leaf-decompose` | text before lock | 4 |
+| `leaf-retire`, `leaf-prune` | the last tree verbs a session runs say on stderr what remains | 5 |
 | `finish-commit`, `complete` | admit against the channel before writing to it | 6 |
 
 Three alternatives were rejected. **The session's verb order with no
@@ -148,13 +154,14 @@ family's variants, argument structs, handlers and helpers on one page, beside
 the rule they enforce. That is what the spine asks for, and it is what makes
 *hold the help to the handler* (below) possible on a single page.
 
-**Chapter 4 is one chapter, at 37% of the corpus, rather than two.** It is one
+**Chapter 4 is one chapter, at 32% of the corpus, rather than two.** It is one
 rule with four instances, and each instance adds one lock-scope argument in
 order: `root-init`'s drop order for the live `TreeWrite`, `leaf-add` printing
 only after the run landed, `leaf-insert`'s cross-reference lint outside the
-lock, and `leaf-decompose`'s read of the inherited kind before the write
-opening. Splitting `leaf-decompose` into a 78-line chapter of its own would
-carry the last step of an argument the other three build; keeping the whole
+lock, and `leaf-decompose` handing its kind override through so that the
+inherited kind is read by the verb, under the lock the handler took. Splitting
+`leaf-decompose` into a chapter of its own would carry the last step of an
+argument the other three build; keeping the whole
 `Command` enum in chapter 2 as *the contract as `--help` renders it* would put
 204 lines of help text before any handler and make the catalogue rule bind a
 whole chapter; file order would give the fewest blocks and no chapter a rule to
@@ -178,20 +185,22 @@ the book's boundary: it explains one module, `grove_llm::cli`, and stops at
 ### 1 · Orientation — one call plus rendering
 
 Owns `Cargo.toml`, `src/lib.rs` and `src/main.rs` whole, and `src/cli.rs` lines
-1–34: the header comment and the import block. Responsible for: what `grove-llm`
+1–35: the header comment and the import block. Responsible for: what `grove-llm`
 is and who drives it — the LLM inside a session, deterministically, which is the
 audience-split decision the header cites; the manifest's crate-not-a-target
 argument, stated once as the ground every later chapter stands on; why there is
 a library target as well as the binary — the clap surface can be inspected by
 this crate's own tests, and the library costs the guarantee nothing because the
 code the binary must not reimplement is in another crate either way; the
-three-line `main`; the header's thesis — one call plus rendering, and the three
-orders — which is the book's map; the import block read as the evidence of what
-the binary reaches, fourteen `grove_loop` items and one `jj_workspace` type; the
-four dev-dependencies and which test needs each — `keyed-launch` for the
-completion channel's own framing, `libc` for holding the tree lock from outside
-the binary, `ordinal-fs-tree` for reading a filename back through the seam
-production uses, `tempfile`; and `release = false` as an answered question.
+three-line `main`; the header's thesis — one call plus rendering, the two
+orders, and the launch question no verb asks — which is the book's map; the
+import block read as the evidence of what the binary reaches, thirteen
+`grove_loop` items and one `jj_workspace` type; the five dev-dependencies and
+which test needs each — `assert_cmd` and `tempfile` for driving the binary
+against a temporary tree, `keyed-launch` for the completion channel's own
+framing, `libc` for holding the tree lock from outside the binary,
+`ordinal-fs-tree` for reading a filename back through the seam production uses;
+and `release = false` as an answered question.
 
 This chapter reads the clauses recorded under *Known in advance* below — all
 of them corrected in the source since drafting — beside the fragments that
@@ -200,7 +209,7 @@ low resolution.
 
 ### 2 · The grammar and the openings — admitted before dispatch
 
-Owns `cli.rs` lines 35–65, 290–310, 412–437 and 863–903: the `Cli` struct and
+Owns `cli.rs` lines 36–66, 291–311, 414–461 and 817–857: the `Cli` struct and
 the command enum's head, the enum's close and `operation_label`, `run`, and the
 four shared openings. Responsible for: the `#[command]` attributes — one version
 constant read by both binaries, `arg_required_else_help`, and why `command` is
@@ -224,7 +233,7 @@ catalogue rule binds.
 
 ### 3 · Reading the tree — information, not error
 
-Owns `cli.rs` lines 75–124, 514–636 and 904–944: the `pick`, `brief-chain`,
+Owns `cli.rs` lines 76–125, 533–656 and 858–898: the `pick`, `brief-chain`,
 `kind` and `resolve` variants, their handlers with `leaf_in` and
 `render_resolution`, and the path and label helpers. Thesis: an absent answer is
 information, so `pick` on a finished grove prints its diagnostic on stderr and
@@ -243,15 +252,15 @@ in this crate's tests.
 
 ### 4 · Growing the tree — before the lock
 
-Owns `cli.rs` lines 66–74, 125–216, 323–330, 331–358, 359–399, 484–513,
-637–767 and 826–862: the `root-init` variant and the three grow variants, their
+Owns `cli.rs` lines 67–75, 126–217, 324–331, 332–360, 361–401, 505–532,
+657–750 and 809–816: the `root-init` variant and the three grow variants, their
 argument structs, the two `--kind` help constants with `parse_kind`, the
-handlers with `print_paths`, `report_insert` and `inherited_kind`, and
-`require_declared` with `slug`. Thesis: **text before lock, presence before
-mutation.** Every grow verb reads its text by the grammar's own types — `slug`,
-`parse_kind`, `Reference::parse` — and asks `require_declared` whether each kind
-resolves to a template, and only then opens the tree for writing; a refusal at
-either step leaves the tree byte-identical and takes no exclusive lock.
+handlers with `print_paths` and `report_insert`, and `slug`. Thesis: **text
+before lock.** Every grow verb reads its text by the grammar's own types —
+`slug`, `parse_kind`, `Reference::parse` — and only then opens the tree for
+writing; a refusal there leaves the tree byte-identical and takes no exclusive
+lock. The chapter opens by saying what stood between those two steps until
+Grove lost its launch configuration, and that nothing does now.
 
 Walk the four verbs in this order, because each adds one lock-scope argument:
 
@@ -266,19 +275,16 @@ Walk the four verbs in this order, because each adds one lock-scope argument:
    stdout, the renumber summary on stderr, and the cross-reference lint written
    through `writeln!(…).ok()` after the insert has landed and **outside** the
    lock, so a stderr that has stopped draining blocks this process and no other.
-4. **`leaf-decompose`** — the inherited kind read through its own opening
-   **before** `writable`, because two file descriptions do not share an
-   `flock` and reading under the write opening would block this process against
-   itself; and the verb's own refusals — a brief, a retired leaf, a malformed
-   name — left to the verb rather than pre-empted by a configuration complaint.
+4. **`leaf-decompose`** — the `--kind` override parsed if given and handed on
+   as an `Option`, so that the inherited kind is read by the verb under the
+   exclusive lock, and the handler opens the tree once; and the verb's own
+   refusals — a brief, a retired leaf, a malformed name — left to the verb.
 
 Explain `KIND_HELP` as help that teaches the shape and lists nothing, because
-grove holds no list of kinds; `require_declared` as the just-in-time presence
-rule that replaced an all-kinds completeness check grove can no longer make, and
-why it still loads the whole configuration to ask about one kind; and the
-`--kind` flag being required with no default, because a default is a kind
-literal under a friendlier name and the one that would produce a *wrong* leaf
-rather than an error.
+grove holds no list of kinds, and that tells a caller a kind nothing can launch
+is found out when its leaf launches; and the `--kind` flag being required with
+no default, because a default is a kind literal under a friendlier name and the
+one that would produce a *wrong* leaf rather than an error.
 
 State here, as this chapter's premise, what the tree access lock is — one
 paragraph, linked to the glossary at `tree-access-lock`. The methodology in
@@ -286,15 +292,15 @@ paragraph, linked to the glossary at `tree-access-lock`. The methodology in
 integration is placed — is linked to the guide at `usage-review-composition`
 and not explained; the page says what the code keeps of it, which is the atomic
 list, the silence on failure, and that placement is the caller's. Evidence:
-`session_kind_presence.rs`, `tree_lock.rs`, `composition_verbs.rs`, `leaf.rs`,
+`no_kind_admission.rs`, `tree_lock.rs`, `composition_verbs.rs`, `leaf.rs`,
 `leaf_ops.rs` and `root_init.rs`.
 
 ### 5 · Ending work — two steps remain
 
-Owns `cli.rs` lines 217–247, 400–411 and 768–825: the `leaf-retire` and
+Owns `cli.rs` lines 218–248, 402–413 and 751–808: the `leaf-retire` and
 `leaf-prune` variants, their argument structs, and the handlers with
 `eprint_next_steps`. Thesis: retire and prune are the terminal-marking pair and
-the **last grove verbs a session runs** — Retire precedes Commit, and the commit
+the **last tree verbs a session runs** — Retire precedes Commit, and the commit
 is jj's — so their stderr names the two steps that remain, at the moment of
 decision rather than a whole session earlier in the mandate; stdout stays data.
 Responsible for: `eprint_next_steps` and its plural; retire's refusals — a
@@ -308,7 +314,7 @@ reminder. Evidence: `leaf_ops.rs` and `reviewed_producer_lifecycle.rs`.
 
 ### 6 · Leaving the loop — admit before signal
 
-Owns `cli.rs` lines 248–289, 311–322 and 438–483: the `finish-commit` and
+Owns `cli.rs` lines 249–290, 312–323 and 462–504: the `finish-commit` and
 `complete` variants, `CompleteArgs`, and the two handlers. Thesis: the
 completion channel is resolved and checked against the admitted epoch
 **before** it is written, because an answer that came back with the signal
@@ -331,11 +337,12 @@ that open no tree, and the chapter says so. Link the glossary at
 ### 7 · What order holds — assembly and the transferable test
 
 Owns no production source. Assemble the twelve verbs into one table — which
-text each parses, which opening it takes, which check precedes its mutation,
-what its stdout carries, what its stderr carries, and the test that holds it —
+text each parses, which opening it takes, what its stdout carries, what its
+stderr carries, and the test that holds it —
 and read the table as the what-is-left test with the stream contract as its
 rendering half. State what the compiler holds (the crate boundary), what order
-holds (the three), and what tests hold (the flat surface, the described options,
+holds (the two, with the presence rule named as the third that was deleted),
+and what tests hold (the flat surface, the described options,
 the instructed set). State where the book stops — `grove_loop::verbs` — and
 that this crate's test directory also carries the suite that compares the
 shipped methodology against the binary, which the book cites and does not
@@ -352,8 +359,8 @@ and the manifest's `[[root]]` array follows.
 | `source-crate-manifest` | `crates/grove-llm/Cargo.toml` | 54 |
 | `source-library-root` | `crates/grove-llm/src/lib.rs` | 16 |
 | `source-entry-point` | `crates/grove-llm/src/main.rs` | 3 |
-| `source-command-surface` | `crates/grove-llm/src/cli.rs` | 944 |
-| **total** | | **1,017** |
+| `source-command-surface` | `crates/grove-llm/src/cli.rs` | 898 |
+| **total** | | **971** |
 
 **The corpus rule needs no exceptions.** `include` is the two base patterns
 fixed by `[book].subject` — the exact path `crates/grove-llm/Cargo.toml` and
@@ -381,31 +388,31 @@ adds the definition.
 | `manifest-thin-by-crate` | `source-crate-manifest` | `one-call-plus-rendering` | `1-54` | 54 | `resolved` |
 | `library-root` | `source-library-root` | `one-call-plus-rendering` | `1-16` | 16 | `resolved` |
 | `entry-point` | `source-entry-point` | `one-call-plus-rendering` | `1-3` | 3 | `resolved` |
-| `surface-thesis-and-imports` | `source-command-surface` | `one-call-plus-rendering` | `1-34` | 34 | `resolved` |
-| `grammar-cli-and-enum-head` | `source-command-surface` | `admitted-before-dispatch` | `35-65` | 31 | `deferred` |
-| `verb-root-init` | `source-command-surface` | `before-the-lock` | `66-74` | 9 | `deferred` |
-| `verbs-reading` | `source-command-surface` | `information-not-error` | `75-124` | 50 | `deferred` |
-| `verbs-growing` | `source-command-surface` | `before-the-lock` | `125-216` | 92 | `deferred` |
-| `verbs-ending` | `source-command-surface` | `two-steps-remain` | `217-247` | 31 | `deferred` |
-| `verbs-leaving` | `source-command-surface` | `admit-before-signal` | `248-289` | 42 | `deferred` |
-| `enum-close-and-operation-label` | `source-command-surface` | `admitted-before-dispatch` | `290-310` | 21 | `deferred` |
-| `args-complete` | `source-command-surface` | `admit-before-signal` | `311-322` | 12 | `deferred` |
-| `args-root-init` | `source-command-surface` | `before-the-lock` | `323-330` | 8 | `deferred` |
-| `kind-help-and-parse-kind` | `source-command-surface` | `before-the-lock` | `331-358` | 28 | `deferred` |
-| `args-growing` | `source-command-surface` | `before-the-lock` | `359-399` | 41 | `deferred` |
-| `args-ending` | `source-command-surface` | `two-steps-remain` | `400-411` | 12 | `deferred` |
-| `run-admission-and-dispatch` | `source-command-surface` | `admitted-before-dispatch` | `412-437` | 26 | `deferred` |
-| `handlers-leaving` | `source-command-surface` | `admit-before-signal` | `438-483` | 46 | `deferred` |
-| `handler-root-init` | `source-command-surface` | `before-the-lock` | `484-513` | 30 | `deferred` |
-| `handlers-reading-and-rendering` | `source-command-surface` | `information-not-error` | `514-636` | 123 | `deferred` |
-| `handlers-growing` | `source-command-surface` | `before-the-lock` | `637-767` | 131 | `deferred` |
-| `handlers-ending` | `source-command-surface` | `two-steps-remain` | `768-825` | 58 | `deferred` |
-| `slug-argument` | `source-command-surface` | `before-the-lock` | `826-862` | 37 | `deferred` |
-| `openings` | `source-command-surface` | `admitted-before-dispatch` | `863-903` | 41 | `deferred` |
-| `path-and-label-helpers` | `source-command-surface` | `information-not-error` | `904-944` | 41 | `deferred` |
+| `surface-thesis-and-imports` | `source-command-surface` | `one-call-plus-rendering` | `1-35` | 35 | `resolved` |
+| `grammar-cli-and-enum-head` | `source-command-surface` | `admitted-before-dispatch` | `36-66` | 31 | `deferred` |
+| `verb-root-init` | `source-command-surface` | `before-the-lock` | `67-75` | 9 | `deferred` |
+| `verbs-reading` | `source-command-surface` | `information-not-error` | `76-125` | 50 | `deferred` |
+| `verbs-growing` | `source-command-surface` | `before-the-lock` | `126-217` | 92 | `deferred` |
+| `verbs-ending` | `source-command-surface` | `two-steps-remain` | `218-248` | 31 | `deferred` |
+| `verbs-leaving` | `source-command-surface` | `admit-before-signal` | `249-290` | 42 | `deferred` |
+| `enum-close-and-operation-label` | `source-command-surface` | `admitted-before-dispatch` | `291-311` | 21 | `deferred` |
+| `args-complete` | `source-command-surface` | `admit-before-signal` | `312-323` | 12 | `deferred` |
+| `args-root-init` | `source-command-surface` | `before-the-lock` | `324-331` | 8 | `deferred` |
+| `kind-help-and-parse-kind` | `source-command-surface` | `before-the-lock` | `332-360` | 29 | `deferred` |
+| `args-growing` | `source-command-surface` | `before-the-lock` | `361-401` | 41 | `deferred` |
+| `args-ending` | `source-command-surface` | `two-steps-remain` | `402-413` | 12 | `deferred` |
+| `run-admission-and-dispatch` | `source-command-surface` | `admitted-before-dispatch` | `414-461` | 48 | `deferred` |
+| `handlers-leaving` | `source-command-surface` | `admit-before-signal` | `462-504` | 43 | `deferred` |
+| `handler-root-init` | `source-command-surface` | `before-the-lock` | `505-532` | 28 | `deferred` |
+| `handlers-reading-and-rendering` | `source-command-surface` | `information-not-error` | `533-656` | 124 | `deferred` |
+| `handlers-growing` | `source-command-surface` | `before-the-lock` | `657-750` | 94 | `deferred` |
+| `handlers-ending` | `source-command-surface` | `two-steps-remain` | `751-808` | 58 | `deferred` |
+| `slug-argument` | `source-command-surface` | `before-the-lock` | `809-816` | 8 | `deferred` |
+| `openings` | `source-command-surface` | `admitted-before-dispatch` | `817-857` | 41 | `deferred` |
+| `path-and-label-helpers` | `source-command-surface` | `information-not-error` | `858-898` | 41 | `deferred` |
 
 The blocks of `source-command-surface`, in array order, are ordered, adjacent,
-non-overlapping, and cover 1 to 944 exactly. Every boundary falls on a
+non-overlapping, and cover 1 to 898 exactly. Every boundary falls on a
 structural line: a block ends on the blank line after an item or on an item's
 last line, and the next begins on the next item's first attribute, doc comment
 or head. The other three roots are single full-file blocks.
@@ -419,22 +426,21 @@ the handlers, the helpers — while the book gathers each verb family from all
 four:
 
 - **the grammar and the openings** owns the `Cli` struct and the enum's head
-  (`35-65`), the enum's close and `operation_label` (`290-310`), `run`
-  (`412-437`), and `worktree`, `readable`, `writable` and `absent` (`863-903`);
-- **reading the tree** owns its four variants (`75-124`), its four handlers with
-  `leaf_in` and `render_resolution` (`514-636`), and `normalize_leaf_path`,
-  `label` and `no_live_leaves` (`904-944`);
-- **growing the tree** owns the `root-init` variant (`66-74`) and the three
-  grow variants (`125-216`), `RootInitArgs` (`323-330`), the two `--kind`
-  constants with `parse_kind` (`331-358`), the three grow argument structs
-  (`359-399`), `cmd_root_init` (`484-513`), the three grow handlers with
-  `print_paths`, `report_insert` and `inherited_kind` (`637-767`), and
-  `require_declared` with `slug` (`826-862`);
-- **ending work** owns its two variants (`217-247`), its two argument structs
-  (`400-411`), and its two handlers with `eprint_next_steps` (`768-825`);
-- **leaving the loop** owns its two variants (`248-289`), `CompleteArgs`
-  (`311-322`), and its two handlers (`438-483`);
-- **orientation** owns the header and the imports (`1-34`).
+  (`36-66`), the enum's close and `operation_label` (`291-311`), `run`
+  (`414-461`), and `worktree`, `readable`, `writable` and `absent` (`817-857`);
+- **reading the tree** owns its four variants (`76-125`), its four handlers with
+  `leaf_in` and `render_resolution` (`533-656`), and `normalize_leaf_path`,
+  `label` and `no_live_leaves` (`858-898`);
+- **growing the tree** owns the `root-init` variant (`67-75`) and the three
+  grow variants (`126-217`), `RootInitArgs` (`324-331`), the two `--kind`
+  constants with `parse_kind` (`332-360`), the three grow argument structs
+  (`361-401`), `cmd_root_init` (`505-532`), the three grow handlers with
+  `print_paths` and `report_insert` (`657-750`), and `slug` (`809-816`);
+- **ending work** owns its two variants (`218-248`), its two argument structs
+  (`402-413`), and its two handlers with `eprint_next_steps` (`751-808`);
+- **leaving the loop** owns its two variants (`249-290`), `CompleteArgs`
+  (`312-323`), and its two handlers (`462-504`);
+- **orientation** owns the header and the imports (`1-35`).
 
 Two consequences are accepted rather than engineered around. **`RootInit` is
 the enum's first variant and a grow verb**, so chapter 4's first block is nine
@@ -450,14 +456,14 @@ both considered and are rejected under *Chapter sequence*.
 
 | Slice | Page | Owned lines |
 |---|---|---:|
-| `one-call-plus-rendering` | `01-orientation.md` | 107 |
-| `admitted-before-dispatch` | `02-the-grammar.md` | 119 |
-| `information-not-error` | `03-reading-the-tree.md` | 214 |
-| `before-the-lock` | `04-growing-the-tree.md` | 376 |
+| `one-call-plus-rendering` | `01-orientation.md` | 108 |
+| `admitted-before-dispatch` | `02-the-grammar.md` | 141 |
+| `information-not-error` | `03-reading-the-tree.md` | 215 |
+| `before-the-lock` | `04-growing-the-tree.md` | 309 |
 | `two-steps-remain` | `05-ending-work.md` | 101 |
-| `admit-before-signal` | `06-leaving-the-loop.md` | 100 |
+| `admit-before-signal` | `06-leaving-the-loop.md` | 97 |
 | `assembly` | `07-what-order-holds.md` | 0 |
-| **Total** | 4 source roots | **1,017** |
+| **Total** | 4 source roots | **971** |
 
 The scoped-slice domain derived from these blocks is `one-call-plus-rendering`,
 `admitted-before-dispatch`, `information-not-error`, `before-the-lock`,
@@ -466,8 +472,9 @@ with `assembly` final-only.
 
 ## What each chapter's prose owes
 
-Measured before deciding: **45% of the corpus is comment prose** — `cli.rs` 426
-of 944 lines, `Cargo.toml` 23 of 54, `lib.rs` 14 of 16 — and **204 of `cli.rs`'s
+Measured, and measured again at 971 lines: **44% of the corpus is comment
+prose** — `cli.rs` 389 of 898 lines, `Cargo.toml` 23 of 54, `lib.rs` 14 of 16 —
+and **204 of `cli.rs`'s
 comment lines are the doc comments on the twelve `Command` variants**, which are
 the `--help` text the LLM reads and the guide paraphrases for the human. The
 fragment graph quotes them verbatim on the page anyway. The standing risk for
@@ -517,27 +524,27 @@ production source and its job is synthesis.
 | `01-orientation.md` | `one-session` | The carried session at low resolution: the mandated handle resolved, the brief chain printed, the work done, a review leaf added, the session's own leaf retired, the commit, and `complete` writing the relaunch flag — one tree, one live leaf, every verb named, no handler shown. |
 | `02-the-grammar.md` | `worked-dispatch` | The session's first verb as argv: `grove-llm resolve <handle>` parsed, its operation label, the epoch admitted, the handler dispatched; the same argv one directory off, refused with `root-init` named as the remedy; and `grove-llm --version` answered before admission is reached. |
 | `03-reading-the-tree.md` | `worked-resolve` | `resolve` at full resolution with three renderings: the live leaf's path on stdout and nothing on stderr; the same handle after retirement — the path, and the note; and a bare slug two entries share — empty stdout, the keys on stderr, exit zero. `brief-chain` for the same leaf follows on the same values. |
-| `04-growing-the-tree.md` | `worked-leaf-add` | `leaf-add . <stem> --kind review-impl`: the kinds, the slug and the parent read by their types, the presence rule answered from the configuration, the exclusive opening, the run landed and its path printed; then the same argv with a kind no template declares — refused naming the kind and the file that must declare it, no exclusive lock taken, the tree byte-identical. `root-init` on a vacancy is a second, shorter trace. |
+| `04-growing-the-tree.md` | `worked-leaf-add` | `leaf-add . <stem> --kind review-impl`: the kinds, the slug and the parent read by their types, the exclusive opening, the run landed and its path printed; then the same argv with a kind that is not a well-formed token — refused naming the flag and the character, no exclusive lock taken, the tree byte-identical; then a well-formed kind no methodology names, written all the same. `root-init` on a vacancy is a second, shorter trace. |
 | `05-ending-work.md` | `worked-retire` | `leaf-retire` of the session's own leaf: the renamed path on stdout and the two remaining steps on stderr; `leaf-prune` of a node shown once, with its untouched `DONE` leaf reported. |
 | `06-leaving-the-loop.md` | `worked-complete` | `complete` with the loop's channel in the environment: the channel resolved, checked against the admitted epoch, written, and *the loop will start the next task* on stderr; the same verb with no channel — `NoLoop`, and the instruction to exit manually. `finish-commit finish-k0001` is a second, shorter trace: accepted leniently, committed as `finish-k1`, the change id on stderr. |
 
-**One session, carried through the book, with the presence refusal as its
-second ending.** The carried example is grove's real usage of this binary: a
+**One session, carried through the book, with the refusal before the lock as
+its second ending.** The carried example is grove's real usage of this binary: a
 session over one fixed tree with one live leaf, running the verbs in the order
 the chapters run them. Chapter 1 traces it whole at low resolution; chapters 2
 to 6 each take the verb that chapter owns at full resolution, on the same tree
 and the same names. The second ending is chapter 4's refusal before the lock,
-because it is the spine's second order made visible and
-`session_kind_presence.rs` pins it — where the self-deadlock, the file's most
-argued claim, is not an ending at all: `tree_lock.rs` proves it cannot happen,
-and chapter 4 says so instead of tracing it. The two verbs a session never runs,
+because it is the spine's first order made visible — where the self-deadlock,
+the file's most argued claim, is not an ending at all: `tree_lock.rs` shows
+grove adds no blocking lock of its own, no handler opens the tree twice, and
+chapter 4 says so instead of tracing it. The two verbs a session never runs,
 `root-init` and `finish-commit`, are the driver's, and each gets one short trace
 in the chapter that owns it.
 
 Rejected: **`leaf-decompose` alone** carried from orientation to chapter 4 with
 its two endings, which breaks the carry after chapter 4 and leaves three
 chapters with unrelated examples; **two refusals** as the carry — the
-wrong-working-tree admission and the undeclared kind — which makes the happy
+wrong-working-tree admission and a refused kind — which makes the happy
 path the aside, as both precedents found; and **this grove's own tree**, whose
 named leaf is retired and renamed within days of the book landing.
 
@@ -566,18 +573,17 @@ Authors add a row before introducing any additional later-owned name.
 | `Reference` | `01-orientation.md#the-imports` | `information-not-error` | A parsed spelling of a tree entry — key, handle or slug — read by its own type before any tree is opened. |
 | `Outcome` | `01-orientation.md#the-imports` | `information-not-error` | Live, retired or abandoned — the infix a filename carries, rendered as a stderr note so a dead end never looks live. |
 | `Kind`, `Slug` | `01-orientation.md#the-imports` | `before-the-lock` | The grammar's own types for a `--kind` token and a slug; malformed text is refused by them, before any lock. |
-| `SessionConfig` | `01-orientation.md#the-imports` | `before-the-lock` | The launch configuration, loaded whole and asked whether one kind resolves to a template. |
-| `Handle` | `01-orientation.md#the-imports` | `admit-before-signal` | A `<slug>-k<key>` handle, parsed leniently on the key and spoken canonically thereafter. |
+| `Handle` | `01-orientation.md#the-imports` | `admit-before-signal` | A `<slug>-k<key>` handle, parsed with a canonical positive key. |
 | `Signalled` | `01-orientation.md#the-imports` | `admit-before-signal` | Whether `complete` wrote the disposition to a channel or found no loop to signal. |
 | `cmd_pick`, `cmd_brief_chain`, `cmd_kind`, `cmd_resolve` | `02-the-grammar.md#worked-dispatch` | `information-not-error` | One handler per reading verb: the shared opening, one `grove_loop::verbs` call, and rendering. |
-| `cmd_root_init`, `cmd_leaf_add`, `cmd_leaf_insert`, `cmd_leaf_decompose` | `02-the-grammar.md#worked-dispatch` | `before-the-lock` | One handler per growing verb: text parsed, presence asked, then the exclusive opening, then one call. |
+| `cmd_root_init`, `cmd_leaf_add`, `cmd_leaf_insert`, `cmd_leaf_decompose` | `02-the-grammar.md#worked-dispatch` | `before-the-lock` | One handler per growing verb: text parsed, then the exclusive opening, then one call. |
 | `cmd_leaf_retire`, `cmd_leaf_prune` | `02-the-grammar.md#worked-dispatch` | `two-steps-remain` | One handler per terminal mark: the exclusive opening, one call, the marked paths, and the two remaining steps on stderr. |
 | `cmd_finish_commit`, `cmd_complete` | `02-the-grammar.md#worked-dispatch` | `admit-before-signal` | The two handlers that open no tree: one commits through the workspace, one writes the completion channel. |
 
 `verbs` — the module — is named in chapter 1 and explained there as *one call
 per verb*; it is `grove-loop`'s and no chapter of this book owns it, so it
 needs no row. `worktree`, `readable`, `writable`, `absent`, `slug`,
-`parse_kind`, `require_declared` and `normalize_leaf_path` are each owned by a
+`parse_kind` and `normalize_leaf_path` are each owned by a
 chapter earlier than or equal to every chapter that names them, which is
 forward reference in the ordinary direction and needs no row.
 
@@ -676,12 +682,13 @@ summarise the loop, and it is not silent about it.
 
 ### The tests
 
-`crates/grove-llm/tests/` — twenty-two test files and a support module, 9,379
+`crates/grove-llm/tests/` — twenty-four test files and a support module, 9,865
 lines — is outside the corpus: no chapter owns it and no fragment reconstructs
 it. Tests remain **evidence** the book cites, and this book cites them more
 heavily than either precedent, because *hold the help to the handler* names a
-test for every promise. The only traces of them inside the corpus are the four
-dev-dependencies whose manifest comments say which test needs each, which
+test for every promise. The only traces of them inside the corpus are the five
+dev-dependencies, three of them under manifest comments saying which test needs
+them, which
 chapter 1 owns and explains. Four of the files — `instructed_verbs.rs`,
 `composition_guidance.rs`, `session_kind_guidance.rs` and `removed_surface.rs` —
 test the shipped methodology and the repository's documents against this binary

@@ -969,7 +969,7 @@ then matched against every page of every book, in digits and spelled in words.
   which VCS owns the tree anywhere in 752 lines*; the same chapter's
   `**Owned source.**` paragraph holds that figure under a mark.
 - **A chapter title states its figures as words**, and the ledgers' digit form is
-  not a title's register — `grove-llm`'s *Six families, three orders, seven
+  not a title's register — `grove-llm`'s *Six families, two orders, seven
   chapters*, `overview`'s *Three mechanisms, five chapters*, `grove-loop`'s
   *Twenty chapters, three questions*. A concept-index row that quotes a title
   inherits this. What stands in their place is the assembly chapter's own marked

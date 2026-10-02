@@ -514,7 +514,7 @@ handler is called with its arguments and nothing else: admission is a fact
 | Handler family | What it is, for this page | Owning chapter |
 |---|---|---|
 | `cmd_pick`, `cmd_brief_chain`, `cmd_kind`, `cmd_resolve` | One handler per reading verb: the shared opening, one `grove_loop::verbs` call, and rendering. | Reading the tree |
-| `cmd_root_init`, `cmd_leaf_add`, `cmd_leaf_insert`, `cmd_leaf_decompose` | One handler per growing verb: text parsed, presence asked, then the exclusive opening, then one call. | Growing the tree |
+| `cmd_root_init`, `cmd_leaf_add`, `cmd_leaf_insert`, `cmd_leaf_decompose` | One handler per growing verb: text parsed, then the exclusive opening, then one call. | Growing the tree |
 | `cmd_leaf_retire`, `cmd_leaf_prune` | One handler per terminal mark: the exclusive opening, one call, the marked paths, and the two remaining steps on stderr. | Ending work |
 | `cmd_finish_commit`, `cmd_complete` | The two handlers that open no tree: one commits through the workspace, one writes the completion channel. | Leaving the loop |
 

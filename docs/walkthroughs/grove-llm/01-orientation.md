@@ -9,8 +9,8 @@
 launches a session for one leaf, the session runs these verbs to find its leaf,
 read its brief chain, grow the tree, mark its own leaf done and signal the
 driver, and each of those verbs is a call into `grove_loop::verbs` plus the
-rendering of what came back. Its whole source is four files and 1,037
-lines, and 944 of them are one module; nearly half of that module is comment,
+rendering of what came back. Its whole source is four files and 971 lines,
+and 898 of them are one module; more than two fifths of that module is comment,
 and the comment at its head states the book's organizing claim.
 
 This book explains that module to a reader who has already run most of the
@@ -19,8 +19,8 @@ say that again. Each chapter opens on the one thing a thin binary still has to
 get right at that point in a session — the package it is, which is this
 chapter; the admission every verb asks for before it is dispatched; the reading
 verbs, whose absent answer is information; the growing verbs, which read their
-text and ask the presence rule before any lock; the two terminal marks, which
-say on stderr what remains; and the two verbs that leave the loop. What the
+text before any lock; the two terminal marks, which say on stderr what remains;
+and the two verbs that leave the loop. What the
 loop does behind each call is named on those pages and explained on none of
 them, and *What order holds* states that boundary in one place.
 
@@ -31,16 +31,19 @@ files reach is something a dependency chose to publish, and a verb that
 walked a tree or spelled a filename would fail to compile rather than fail
 review. That half is the overview's organizing claim and is stated here once,
 as a premise the rest of the book reuses. The second half is this book's:
-**what is left that is not rendering is order.** The header names three
+**what is left that is not rendering is order.** The header names two
 orders — the operator's text read by the type that owns it *before* a lock is
-taken, the just-in-time presence rule asked *before* the mutation, and the
-session admitted against the completion channel *before* it is written to.
-Each is stated in the source where it happens, each has a test that pins it,
-and each has a cost if reversed: a process blocking against itself, a tree
-mutated by a command that was refused, a signal sent to a loop that did not
-launch this session. Those three, and the test for each, are what the reader
-takes away — given a thin surface of their own, what is left there that is not
-rendering, and which order would it be wrong to reverse.
+taken, and the session admitted against the completion channel *before* it is
+written to. Each is stated in the source where it happens, and each has a cost
+if reversed: a lock over the whole grove taken, and waited for, to refuse a
+typo; and a signal sent to a loop that did not launch this session. The header
+also says what is not there. No verb asks whether a kind can be launched. That
+was a third order until Grove lost its launch configuration — a presence rule,
+asked before the mutation — and the owner's harness-dispatch policy now answers
+the question when a leaf of the kind launches. The two orders, the cost of
+each, and what would catch its reversal are what the reader takes away — given
+a thin surface of their own, what is left there that is not rendering, and
+which order would it be wrong to reverse.
 
 <a id="the-package"></a>
 ## The package: a crate, not a target
@@ -106,9 +109,9 @@ separate crate it is a fact the compiler holds, and no test is needed to assert
 it.
 
 The comment's last sentence is scoped to `grove-loop`, and this page is where
-that scope is earned. Every `grove_loop::` name the module uses — the fourteen
+that scope is earned. Every `grove_loop::` name the module uses — the thirteen
 imported items and the module under *The imports*, and the five reached by
-path — is a `pub` item of that crate, twelve of the imports at its root and
+path — is a `pub` item of that crate, eleven of the imports at its root and
 two in its `pub mod verbs`; and the one type it imports from elsewhere,
 `Workspace`, is re-exported by that root too, at
 `crates/grove-loop/src/lib.rs` line 81. So the binary *reaches* nothing
@@ -141,21 +144,23 @@ rather than through the crate that owns it is the weaker dependency edge, and
 
 The third fragment records a dependency that is gone, and it is owned here
 because *The library root* below still names it. Two of this binary's concerns
-were once the driver's own — the admission every verb passes through, and the
-launch-template check the leaf-writing verbs make — and while they lived in
+were once the driver's own — the admission every verb passes through, and a
+launch-template check the leaf-writing verbs made — and while they lived in
 `crates/grove` this manifest depended on that package too. The leaf the comment
 names moved both into `grove-loop`, and the dependency line went with them.
-The consequence for a reader of this book is that *admitted* and *declared*,
-the two words chapters 2 and 4 turn on, are both answered by calls into the
-same crate every other verb calls, and nothing in this binary reaches the human
-binary at all.
+The second concern has since been deleted outright: Grove has no launch
+configuration, so there is no template for a verb to ask about, which is why
+the comment speaks of that check in the past tense. What is left for a reader
+of this book is that *admitted*, the word chapter 2 turns on, is answered by a
+call into the same crate every other verb calls, and nothing in this binary
+reaches the human binary at all.
 
 <!-- fragment «manifest-grove-dependency-removed» owner="one-call-plus-rendering" source="crates/grove-llm/Cargo.toml" lines="16-22" parent="manifest-thin-by-crate" -->
 ````toml
 #
 # It once depended on `grove` as well, because two of its concerns were the
 # driver's: the session-epoch admission every verb passes through, and the
-# just-in-time launch-template check `root-init` and the leaf-writing verbs make.
+# just-in-time launch-template check `root-init` and the leaf-writing verbs made.
 # `loop-crate-driver-k22` moved both into `grove-loop`, and this manifest lost
 # that line with them — so `grove-loop` is now the whole of what this binary can
 # reach of grove.
@@ -228,8 +233,9 @@ of its own — is checked by
 `no_production_lock_grove_takes_for_itself_ever_blocks`
 (`crates/grove-llm/tests/tree_lock.rs`), which scans the production source for
 every lock call and needs no `libc` to do it. It does not prove a verb never
-opens the store twice; *Growing the tree* establishes that structurally by
-reading the one handler that takes both openings. The `keyed-launch` row is
+opens the store twice; *Growing the tree* establishes that structurally: no
+handler in this module opens the tree twice, and the one call that does keeps
+its two openings sequential. The `keyed-launch` row is
 *Leaving the loop*'s: the driver
 reads the channel back through that crate's framing, so a test of `complete`
 that invented its own framing would prove nothing about the driver.
@@ -379,10 +385,10 @@ fn main() -> anyhow::Result<()> {
 <!-- /fragment -->
 
 <a id="the-header"></a>
-## The header: the audience, the thesis, the three orders
+## The header: the audience, the thesis, the two orders
 
 The module's header comment states the book's organizing claim, and the chapter owns its
-thirty-four lines — the comment and the imports that follow it — in three
+thirty-five lines — the comment and the imports that follow it — in three
 fragments. The first fragment states who the verbs are for, and the decision it
 cites is the audience split this repository's `docs/ARCHITECTURE.md` records
 under `cli-binary-split`: one binary for the human, whose bare invocation
@@ -414,12 +420,18 @@ holding the whole module can look for a tree walk, a filename rule or a kind
 definition and find none, because they live in a different crate since the
 leaf the comment names. The second paragraph is where this book parts from the
 overview. A thin surface still has to get one thing right, and it is order:
-which text is read before which lock, which check is asked before which
-mutation, which admission precedes which signal. The comment counts *three
-verbs*; the chapters find the first two orders hold in four verbs each — every
-verb that writes a leaf — and the third in one, `complete`. Each order is
-stated in the handler where it happens, each is pinned by a named test, and
-*What order holds* tabulates all twelve verbs against the three.
+which text is read before which lock, and which admission precedes which
+signal. The first holds wherever a handler reads text with a grammar type —
+the four verbs that write a leaf, and `resolve` and `finish-commit` — and the
+second in one verb, `complete`. Each is stated in the handler where it happens,
+and *What order holds* tabulates all twelve verbs against the two.
+
+The fragment's last sentence is a negative, and it is there because it used to
+be an order. Until Grove's launch configuration was deleted, each leaf-writing
+verb asked whether its kind resolved to a launch template before it touched the
+tree. Nothing asks now: a well-formed kind is written, and the owner's
+harness-dispatch policy decides whether a session of that kind can run when the
+leaf launches. *Growing the tree* shows the write.
 
 <!-- fragment «surface-header-thin-and-order» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="10-24" parent="surface-thesis-and-imports" -->
 ````rust
@@ -448,16 +460,15 @@ The import block is the evidence for the thesis, read the way the compiler
 reads it: every name the module can use without a path is listed here, and
 what is not listed is either reached by an explicit path or not reached at
 all. Two `use` lines are the standard library's and two are the error and
-grammar crates'. The three that matter name one module and fourteen items from
+grammar crates'. The three that matter name one module and thirteen items from
 `grove_loop`, and one type from `jj_workspace`. The module is `verbs`, and it
 is what the thesis means by *one call per verb*. Read as a count, the slogan
-is the header's and not quite the file's: eight handlers make one `verbs` call,
-and four make a second through a helper — `brief-chain` picks before it
-chains, `leaf-insert` lints after it inserts, `leaf-decompose` reads a kind
-before it decomposes, `complete` resolves its channel before it writes — and
+is the header's and not quite the file's: nine handlers make one `verbs` call,
+and three make a second — `brief-chain` picks before it chains, `leaf-insert`
+lints after it inserts, `complete` resolves its channel before it writes — and
 the owning chapters name each. What holds without exception is the claim's
 substance: no handler does anything a `verbs` call does not do for it, and the
-book names those calls and explains none of them. The fourteen items are types
+book names those calls and explains none of them. The thirteen items are types
 the loop publishes and the handlers pass in or match on, and the block names
 every one of them before its owning chapter explains what the binary does with
 it. The table states each family's minimum
@@ -474,18 +485,17 @@ read in full.
 | `Reference` | A parsed spelling of a tree entry — key, handle or slug — read by its own type before any tree is opened. | Reading the tree |
 | `Sought`, `Resolution` | `Sought` is a found-or-nothing answer; `Resolution` is what `resolve` found — the root, one entry, or an ambiguity. | Reading the tree |
 | `Kind`, `Slug` | The grammar's own types for a `--kind` token and a slug; malformed text is refused by them, before any lock. | Growing the tree |
-| `SessionConfig` | The launch configuration, loaded whole and asked whether one kind resolves to a template. | Growing the tree |
 | `Handle` | A `<slug>-k<key>` handle, parsed with a canonical positive key. | Leaving the loop |
 | `Signalled` | Whether `complete` wrote the disposition to a channel or found no loop to signal. | Leaving the loop |
 
 What the block is not evidence of is the five `grove_loop` items the module
 reaches by path and never imports: the `VERSION` constant that the grammar's
 attribute reads, `admit_ambient_session` that `run` calls once before
-dispatch, the `read` and `write` functions the two openings, one handler and
-one helper call, and the `verbs::Inserted` value one helper takes. Four are
-`pub` at the crate's root and the fifth is `verbs`'s, so the count of what the
-binary reaches is nineteen items and one module, and the block shows fourteen
-of them. The one `jj_workspace` import is the type the manifest's second
+dispatch, the `read` and `write` functions the two openings and one handler
+call, and the `verbs::Inserted` value one helper takes. Four are `pub` at the
+crate's root and the fifth is `verbs`'s, so the count of what the binary
+reaches is eighteen items and one module, and the block shows thirteen of
+them. The one `jj_workspace` import is the type the manifest's second
 dependency exists for, and the chapter that owns the function using it —
 `worktree`, in *The grammar and the openings* — is where the dependence on jj
 is stated. `std::io::Write` is imported for one `writeln!` in *Growing the
@@ -510,7 +520,7 @@ use std::path::{Path, PathBuf};
 <!-- /fragment -->
 
 The composite that reassembles the chapter's share of the module — the header
-and the imports, lines 1 to 34 — is stated here; the source index defers the
+and the imports, lines 1 to 35 — is stated here; the source index defers the
 remaining source to the five chapters that own them.
 
 <!-- fragment «surface-thesis-and-imports» owner="one-call-plus-rendering" source="crates/grove-llm/src/cli.rs" lines="1-35" parent="source-command-surface" -->
@@ -524,13 +534,15 @@ remaining source to the five chapters that own them.
 
 This is the session the book carries. It appears at low resolution here — every
 verb named, no handler shown — and chapters 2 to 6 each take the verb they own
-at full resolution, on the same tree and the same names. The tree, the leaf,
-the configuration and the driver's control files below are fixed here and
-reused unchanged by every later page.
+at full resolution, on the same tree and the same names. The tree, the leaf
+and the driver's control files below are fixed here and reused unchanged by
+every later page.
 
-The starting tree is the overview's, one template richer: a Jujutsu workspace
-holding a grove with one live leaf, a driver that has taken the lease over it,
-and a configuration mapping two kinds to commands. The driver has launched a
+The starting tree is the overview's: a Jujutsu workspace holding a grove with
+one live leaf, and a driver that has taken the lease over it. The overview's
+page also carries the owner's harness-dispatch policy, which decided what the
+driver launched. It is left out here because no verb in this book reads it, and
+there is no Grove configuration for one to read. The driver has launched a
 session for that leaf and is watching for one file to appear.
 
 ```text
@@ -544,14 +556,6 @@ session for that leaf and is watching for one file to appear.
 │   └── 01-impl--rate-limit-k3.md      live: no DONE or ABANDONED infix
 └── crates/
     └── gateway/
-
-~/.config/grove/config.kdl
-    config {
-        command "agent" "claude --add-dir ${repo} ${prompt}"
-        bind "lead" "agent"
-        route "impl" "lead"
-        route "review-impl" "lead"
-    }
 
 the session's environment, set by the driver
     GROVE_SIGNAL_FILE=/work/atlas/.jj/grove/signal-3f9c2a7e5b1d4c8890aa61e0f27b4d13
@@ -579,8 +583,7 @@ $ grove-llm brief-chain /work/atlas/.grove/01-impl--rate-limit-k3.md
   … the session reads the brief and the leaf, and does the work …
 
 $ grove-llm leaf-add . rate-limit --kind review-impl
-  admitted; `review-impl` and `rate-limit` read by their own types; the
-  configuration asked whether review-impl resolves to a template: it does;
+  admitted; `review-impl`, `rate-limit` and `.` read by their own types;
   then verbs::leaf_add under the exclusive opening — one leaf, fresh key
   stdout   /work/atlas/.grove/02-review-impl--rate-limit-k4.md
 
@@ -606,11 +609,12 @@ subject of a later page. The two reading verbs are *Reading the tree*'s: the
 shared opening, one call, a path on stdout. `leaf-add` is *Growing the tree*'s,
 and the clause *read by their own types* before *the exclusive opening* is the
 first order made visible; that chapter's second ending is this same argv with
-a kind the configuration does not declare, refused before any lock. The
+a kind that is not a well-formed token, refused before any lock, and its third
+is a kind no methodology names, written all the same. The
 retirement is *Ending work*'s, and its stderr is why that chapter is named for
 two steps. `complete` is *Leaving the loop*'s: the channel is the
 [loop control channel](../../../CONTEXT.md#loop-control-channel), and the
-check *against the admitted epoch* before the write is the third order. What
+check *against the admitted epoch* before the write is the second order. What
 *admitted* means at every step is *The grammar and the openings*' premise.
 
 The fresh key is `k4` because a key is the maximum over the whole tree plus
@@ -655,12 +659,12 @@ the loop* shows the whole grove terminal with a `finish` leaf the driver
 materialised.
 
 <a id="the-map"></a>
-## Six families, three orders, seven chapters
+## Six families, two orders, seven chapters
 
 Now that one session has been seen end to end, the map. The verbs fall into
 six families by what they do to the tree, the chapters follow the order a
 session meets them, and each chapter opens on the rule its family enforces.
-The table says which page holds which family and which of the three orders,
+The table says which page holds which family and which of the two orders,
 if any, that page states; it is read from the header comment above and from
 the structure the pages follow.
 
@@ -669,17 +673,16 @@ the structure the pages follow.
 | the manifest, the library root, the entry point, the header | thin is held by the crate boundary, and order and rendering are what thin leaves behind | — | Orientation |
 | the grammar, dispatch and the two openings | every verb is admitted before it is dispatched, and a grove that is not there is not a grove that is finished | — | The grammar and the openings |
 | `pick`, `brief-chain`, `kind`, `resolve` | an absent answer is information, not an error | — | Reading the tree |
-| `root-init`, `leaf-add`, `leaf-insert`, `leaf-decompose` | text before lock, presence before mutation | the first and the second | Growing the tree |
+| `root-init`, `leaf-add`, `leaf-insert`, `leaf-decompose` | text before lock | the first | Growing the tree |
 | `leaf-retire`, `leaf-prune` | the last tree verbs a session runs say on stderr what remains | — | Ending work |
-| `finish-commit`, `complete` | admit against the channel before writing to it | the third | Leaving the loop |
-| all twelve, in one table | what the compiler holds, what order holds, what tests hold | all three, applied back | What order holds |
+| `finish-commit`, `complete` | admit against the channel before writing to it | the second | Leaving the loop |
+| all twelve, in one table | what the compiler holds, what order holds, what tests hold | both, applied back | What order holds |
 
 The first half of the thesis is this chapter's, and it is now fully read: a
 separate crate with one binary target and a library that carries only the
 surface, two workspace dependencies of which one is reached through the other,
 and a header that states thin as the compiler's fact and names the remaining
-responsibility. The three orders are stated on three later pages, and the
-grammar every verb
-passes through before it reaches any of them is read next.
+responsibility. The two orders are stated on two later pages, and the grammar
+every verb passes through before it reaches either is read next.
 
 [Contents](README.md) | [Next: The grammar and the openings](02-the-grammar.md)

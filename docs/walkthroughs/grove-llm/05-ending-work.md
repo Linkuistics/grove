@@ -234,13 +234,12 @@ fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {
 ````
 <!-- /fragment -->
 
-Set beside *Growing the tree*'s handlers, two steps are absent, and their
-absence is the point. There is no text read by a grammar type and no presence
-rule. The
-only argument is a path; `normalize_leaf_path`, *Reading the tree*'s helper,
+Set beside *Growing the tree*'s handlers, one step is absent, and its absence
+is the point. There is no text read by a grammar type. The only argument is a
+path; `normalize_leaf_path`, *Reading the tree*'s helper,
 makes it absolute if it exists relative to the current directory and otherwise
 passes it through, and the call resolves it against the tree under the lock. No
-kind is written, so there is no template to ask about, and `writable` is the
+kind is written, and `writable` is the
 first thing after the path — a bad path is refused by the call, not before it.
 The order that is left is the one the chapter is about: `println!` of the
 returned path, then `eprint_next_steps("leaf-retire", 1)`. The path is printed

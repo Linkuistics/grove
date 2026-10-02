@@ -9,25 +9,27 @@ which says what each of the twelve verbs does to the tree, what it prints and
 whether it commits. This reader has run most of those verbs; what they have not
 read is the code.
 
-`crates/grove-llm` is four files and 1,037 lines: a manifest, a sixteen-line
-library root, a three-line entry point, and one module of 944 lines that is
+`crates/grove-llm` is four files and 971 lines: a manifest, a sixteen-line
+library root, a three-line entry point, and one module of 898 lines that is
 the whole command surface. Every verb in that module is one call into
 `grove_loop::verbs` plus rendering, and the file's own header says what is left
-that is not rendering: **order**. Three orders, each stated where it happens —
-the operator's text read by the type that owns it before a lock is taken, the
-just-in-time presence rule asked before the mutation, and the session admitted
-against the completion channel before it is written to. Each chapter opens on
+that is not rendering: **order**. Two orders, each stated where it happens —
+the operator's text read by the type that owns it before a lock is taken, and
+the session admitted against the completion channel before it is written to.
+The header also says what no verb does: none asks whether a kind can be
+launched, which the owner's harness-dispatch policy answers when a leaf of that
+kind launches. Each chapter opens on
 the one thing a thin binary still has to get right at that point in a session,
 and the description of the verbs a session runs at that point is that chapter's
 body.
 
 **The intended outcome is the what-is-left test, not a reference card.** At the
 end you should be able to take a thin command surface over a library in your
-own code, ask what is left there that is not rendering, and answer in three
-parts: which text is parsed before which lock, which check runs before which
-mutation, which admission precedes which signal — and for each, say what
-reversing the order costs and name the test that would catch it. All three are
-provable inside these 1,037 lines. The stream contract — data on stdout,
+own code, ask what is left there that is not rendering, and answer the way
+this book does for its two: which text is parsed before which lock, and which
+admission precedes which signal — and for each, say what reversing the order
+costs and name what would catch it, a test or something weaker. Both are
+readable inside these 971 lines. The stream contract — data on stdout,
 advice on stderr, exit zero for information, every refusal carrying its
 remedy — is the rendering half of the same thesis, and the last chapter
 tabulates it.
@@ -43,7 +45,7 @@ It does not teach Rust or `clap` from first principles. `clap`'s derive macros
 and its command model are named where the source names them and explained only
 where an argument rests on their behaviour. `flock(2)` semantics are stated
 once, in *Growing the tree*, as that chapter's premise. The crate's own `tests/`
-directory — twenty-three files, nine times the corpus — is cited as evidence
+directory — twenty-four files, ten times the corpus — is cited as evidence
 throughout and is not reproduced: it is outside the corpus this book
 reconstructs, and this book cites it more heavily than its predecessors,
 because for every promise a verb's help text makes the page names the line in
@@ -53,7 +55,7 @@ The production source is authoritative. Literal fragments in the numbered pages
 are copied from it exactly, and the source index records how those fragments
 reconstruct each in-scope file. During authoring a scoped check proves the
 completed prefix and reports later-owned ranges as deferred; only the final
-check proves complete reconstruction of all four files and 1,037 lines.
+check proves complete reconstruction of all four files and 971 lines.
 
 <a id="reading-fragments"></a>
 ## Reading fragments

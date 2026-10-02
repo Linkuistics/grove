@@ -325,8 +325,9 @@ in one optional JSON file beside your policy,
 | `stateDir` | The directory holding [run records](#run-records), an absolute path | `--state-dir` |
 | `policyEnv` | The names [granted to the policy](#the-policys-environment), an array | `--policy-env` adds to it |
 
-Every key is optional, and a missing file sets nothing. Every command reads
-the file before any policy runs, `record show` and `record observe` included,
+Every key is optional, and a missing file sets nothing. Every command but
+`init` reads the file before any policy runs, `record show` and
+`record observe` included,
 so they all find the same records. A flag replaces its setting for one
 invocation, and `--policy-env` adds names to the ones the file grants.
 [Inspection](#inspect) reports each bound and the record directory with where
@@ -997,8 +998,9 @@ producer's original creator, in one of two forms. `run <run ID>` names the
 dispatch run of the session that finished the producer, its
 `HARNESS_DISPATCH_RUN_ID`, and the creator's origin is the one the record store
 holds for that run. `declared <origin>` is your declaration for a producer
-finished without harness-dispatch: before you adopted it, or by a harness Grove
-launched directly. Inspection and the run record label it declared.
+finished without harness-dispatch: under a Grove release that launched its
+harnesses itself, or by a harness you started by hand. Inspection and the run
+record label it declared.
 
 Grove's sessions write the run form themselves. The session that finishes a
 producer, by retiring its leaf or closing its node, names its own run on each
@@ -1006,7 +1008,7 @@ live review of that producer, and one that finishes it without harness-dispatch
 removes the line (the Grove plugin's `references/retire.md`). The declaration
 is yours alone to write, as "When the creator line is missing" describes below.
 
-Activate it from your personal policy, with Grove's dispatch command:
+Activate it from your personal policy:
 
 ```ts
 export { policy } from "harness-dispatch/examples/grove-review";
@@ -1058,7 +1060,7 @@ take a static route. The adapter's refusals come from `loadContext`, at stage
 
 | `policyCode` | Why | Remedy |
 |---|---|---|
-| `task_file_missing` | A review kind was given no `--task-file` | Pass the review's task file, as Grove's dispatch command does with `${task_file}` |
+| `task_file_missing` | A review kind was given no `--task-file` | Pass the review's task file, as Grove does for every session it launches |
 | `reviewed_artifact_conflict` | A `--context` document names a reviewed artifact too | Leave `reviewedArtifact` out of the document |
 | `reviews_line_missing` | A review kind's task file has no `**Reviews:**` line | Add `**Reviews:** <handle>`, naming the producer it reviews |
 | `reviews_line_duplicate` | It has more than one | Keep one; reword or indent the others, a fenced example included |
@@ -1070,7 +1072,8 @@ take a static route. The adapter's refusals come from `loadContext`, at stage
 
 A task file that cannot be read refuses as `context_source_unreadable`, naming
 it. One larger than the context budget refuses as `source_too_large`: raise
-`--context-bytes` in the command Grove runs. Once the lines are read, the
+`contextBytes` in your [owner settings](#owner-settings), since Grove passes no
+bound. Once the lines are read, the
 review policy's own refusals follow, such as `creator_run_missing` and
 `creator_origin_unlisted` (see [the review policy](#the-review-policy)).
 
@@ -1617,37 +1620,59 @@ is a second JSON line after the handoff notice.
 
 ## Called from Grove
 
-Grove launches a lifecycle session through harness-dispatch when a personal
-command definition in `~/.config/grove/config.kdl` runs `run` with Grove's task
-slots and the prompt:
+Grove has no launch configuration. It runs harness-dispatch itself for every
+session it launches, from the `harness-dispatch` installed beside its own
+executable, and your policy returns the harness command. For a lifecycle
+session Grove runs this, in the working-tree root, with values from the leaf it
+selected:
 
-```kdl
-config {
-    command "dispatch" "harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}"
-    bind "dispatched" "dispatch"
-    route "impl" "dispatched"
-}
+```text
+harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --param=session_name=NAME --param=worktree=WORKTREE --param=repo=REPO
 ```
 
-Grove fills the slots from the leaf it selected: its kind, the absolute path of
-its task file and its stable handle, each as one argument. The prompt arrives
-unchanged, and your `select` receives it as `request.prompt`. To
-harness-dispatch these are ordinary inputs, and it reads no Grove file or
-filename. Grove's configuration admits the kind and runs this command, and your
-policy returns the harness command. Grove checks its own command before it
-writes a leaf, but not your policy, which is evaluated only at launch. A
-definition can also pass a literal [parameter](#parameters), such as
-`--param effort=high`, for your policy to read.
-[`harness-dispatch/examples/grove-static`](#starter-examples) routes every
-kind Grove ships.
+| Passed as | Value |
+|---|---|
+| `--kind` | The leaf's kind |
+| `--task-file` | The absolute path of its task file |
+| `--task-id` | Its stable handle |
+| `--prompt` | The prompt Grove composed, unchanged. Your `select` receives it as `request.prompt` |
+| `--param session_name=` | The session name Grove gives the working tree |
+| `--param worktree=` | The working-tree root |
+| `--param repo=` | The main repository's root |
+
+To harness-dispatch these are ordinary inputs, and it reads no Grove file or
+filename. Grove passes nothing else: no policy entry, bound, grant or record
+directory. Those are your [owner settings](#owner-settings).
+
+`grove run KIND` selects through the same policy with `inspect`. The policy
+and the record store are outside what a confined harness may read, so Grove
+runs `harness-dispatch inspect --json` outside the sandbox, with the
+invocation's whole prompt and the same three parameters, and then launches the
+reported `executable` with the reported `args` inside it. Such an invocation
+has no task file and no task identity. Its `session_name` is `standalone:` and
+the kind, and both roots are its staged working directory. It records no run,
+and its harness receives no run ID.
+
+**Your policy is evaluated only at launch.** Grove consults it for no tree
+verb and not when it scaffolds a grove, so a leaf of a kind your `select`
+refuses can be written, and refuses when it launches. Grove then reports the
+exit status, stops its loop and leaves the leaf live. Correct what the
+refusal's remedy names, and run `grove` again. A refused `grove run` reports
+the refusal's code, message and remedy and publishes nothing.
+
+[The sample policy](#the-sample-policy) routes every kind Grove ships and the
+standalone `release-notes` kind.
+[`harness-dispatch/examples/grove-static`](#starter-examples) routes Grove's
+kinds over placeholder commands, and
 [`harness-dispatch/examples/grove-review`](#the-grove-review-policy) routes them
-the same way, and applies the provider rule to Grove's reviews, reading each
+the same way and applies the provider rule to Grove's reviews, reading each
 review's creator from its task file.
 
 The harness receives Grove's completion channel, `GROVE_SIGNAL_FILE`, in the
 environment it inherits. The policy does not, and must not be granted it with
 `policyEnv` or `--policy-env`
 ([the policy's environment](#the-policys-environment)).
+
 ## Run records
 
 Every `run` records one **handoff attempt** before it execs. The record is

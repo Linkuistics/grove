@@ -63,44 +63,47 @@ Inspect custom review contracts too. Editorial stages that edit the artifact
 are not automatically review sessions merely because they read it; preserve
 any separately specified diversity requirements for them.
 
-## Static policy and per-invocation selection
+## A table by kind, and selection per launch
 
-Use task-kind defaults as a starting point. Tailor a local override using the
-specific task, its briefs, uncertainty, verification strength, consequences of a
-miss, degree of abstraction, downstream dependencies and observed failures.
-For dynamic selection, supply these features with their supporting context;
-unknown risk or missing context is not evidence for a lower allocation.
-Preserve explicit user model/effort choices.
+Use task-kind defaults as a starting point. Tailor one checkout's choice, or a
+kind's route, using the specific task, its briefs, uncertainty, verification
+strength, consequences of a miss, degree of abstraction, downstream
+dependencies and observed failures. Unknown risk or missing context is not
+evidence for a lower allocation. Preserve explicit user model/effort choices.
 If an explicit review choice conflicts with provider separation, report the
 conflict and do not apply it. Resolve an eligible choice within the authorized
 scope; an explicit override does not waive provider separation.
 
-For static policy, check each producer/review pairing under the complete
-effective configuration. This proves a prospective pairing only. Grove itself
-records no producer provider, and changing defaults does not change the identity
-of a past producer. Check pending reviews affected by provider changes using
-the human's account or trustworthy harness execution records; unknown provenance
-must be resolved before activating a conflicting or unverifiable pairing.
+For a policy that consults a table by kind, check each producer/review pairing
+under every selection the policy offers. This proves a prospective pairing
+only: changing a table does not change the identity of a past producer. Check
+pending reviews affected by a provider change against the run each review's
+`**Creator:**` line names, or the human's account; unknown provenance must be
+resolved before activating a conflicting or unverifiable pairing.
 
-For an external invocation-time router, require the reviewed artifact's producer
-identity and actual model provider as context. The router must exclude that
-provider before ranking candidates, and validate the result again before launch.
-If multiple providers produced the reviewed artifact, exclude all recorded
-producing providers. Identify the underlying model provider, not its gateway or
-the executable hosting it. Missing provenance requires resolution, not an
-assumption based on the current producer default.
+A policy that enforces the pairing at launch needs the reviewed artifact's
+creator and that creator's actual model provider as context.
+`harness-dispatch/examples/grove-review` reads both, as
+[policy.md](policy.md) describes. A policy of the user's own must exclude that
+provider before it chooses, and refuse when it cannot. Identify the underlying
+model provider, not its gateway or the executable hosting it. Missing
+provenance requires resolution, not an assumption based on the current
+producer default.
 
-Automatic pre-launch selection is a separate mechanism, not a capability of a
-static `.grove.kdl`. Grove ships one, `harness-dispatch`, whose TypeScript
-policy selects per launch; configure it through its supported interface as
-[dispatch.md](dispatch.md) directs. Inspect any other mechanism's contract the
-same way. Do not invent a Grove hook, runtime slot or task-file override.
+A policy can also select per task: its `select` receives the prompt and the
+task file, and may hand the prompt to a deciding agent it starts and reaps. No
+such policy ships. The prompt is a mandate to carry the task out, so keeping a
+deciding agent from executing the task, and from changing the tree, is the
+policy owner's job: what the agent is told, which tools it has and whether it
+can write. Do not invent a Grove hook or a task-file field for selection.
 
 A learned selector needs outcomes from comparable tasks and an approved menu
 of model/effort pairs. Treat its option probability as a classification signal
 until held-out outcomes demonstrate calibration for successful task completion.
 Compare it against fixed task-kind defaults and a simple rules baseline before
-letting it change launches. Fall back to declared policy on insufficient context,
-an unavailable model or a failed selection; make that fallback visible.
-Fallbacks must satisfy the same review-provider constraint. If none does, stop
-with an actionable diagnostic; availability or cost does not relax the rule.
+letting it change launches. harness-dispatch substitutes nothing for a refused
+selection, so a policy that falls back to its own table on insufficient
+context, an unavailable model or a failed selection must say so in its
+`reason`. A fallback must satisfy the same review-provider constraint. If none
+does, refuse with an actionable remedy; availability or cost does not relax
+the rule.

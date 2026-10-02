@@ -55,9 +55,14 @@ class Grove < Formula
         git clone https://github.com/Linkuistics/grove
         ./grove/plugins/install.sh
 
-      Grove also needs launch policy in ~/.config/grove/config.kdl. Run
-      grove config examples for inactive samples, then give every session
-      kind you use a command template before the first run.
+      Grove launches every session through harness-dispatch, which needs
+      your policy in ~/.config/harness-dispatch/policy.ts. Install the sample:
+
+        harness-dispatch init
+
+      Read it and edit it before the first run: it launches codex with
+      approvals off and full access. A config.kdl or .grove.kdl from an
+      earlier release is no longer read.
     EOS
   end
 
@@ -71,10 +76,17 @@ class Grove < Formula
     # the front, as bin/ is linked, so the worker is found from the real path.
     (testpath/"policy.ts").write <<~TS
       export const policy = {
-        schemaVersion: 1,
+        schemaVersion: 2,
         version: "brew-test",
-        catalog: [{ id: "check", provider: "check", model: "check", effort: "check", program: "true", args: [{ slot: "prompt" }] }],
-        routes: { check: "check" },
+        select: () => ({
+          status: "selected",
+          program: "true",
+          args: [],
+          provider: "check",
+          model: "check",
+          effort: "check",
+          reason: "brew test",
+        }),
       };
     TS
     ln_s bin/"harness-dispatch", testpath/"harness-dispatch"

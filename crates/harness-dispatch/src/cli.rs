@@ -222,7 +222,7 @@ pub struct ObserveArgs {
 pub struct InspectArgs {
     #[command(flatten)]
     pub selection: SelectionArgs,
-    /// Print one version-1 JSON object on stdout, or one JSON error on stderr
+    /// Print one version-2 JSON object on stdout, or one JSON error on stderr
     #[arg(long)]
     pub json: bool,
 }

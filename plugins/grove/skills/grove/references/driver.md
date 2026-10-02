@@ -13,37 +13,30 @@ selection's **stable handle** is what the driver hands you as your mandate.
 **Why a second walk can disagree.** `grove-llm pick` remains a diagnostic and
 tree-interface verb — it is how you or a human read the tree's next answer
 directly, the same one `find .grove` gives by eye — but it is not this session's
-dispatcher. A leaf inserted while your configured command was starting can move
+dispatcher. A leaf inserted while your session was starting can move
 your leaf's *path* and would make a second walk disagree with your mandate; the
 mandate wins, and the inserted leaf is simply the next iteration's work.
 
-## What the one configuration carries
+## What launched this session
 
-Every session is launched from personal configuration, which gives each session
-kind one complete resolved command. The modular `config { ... }` form in
-`~/.config/grove/config.kdl` declares commands, bindings and routes, with optional
-parameters and profiles. An untracked `.grove.kdl` **delta** at the worktree root
-(or, if absent there, the repository root) may select personal profiles and patch
-bindings, routes and parameter values. **The delta overrides and never supplies**:
-a kind needs an explicit target in the personal base or selected personal profiles
-before direct local patches apply. Presence is
-checked per kind, at the moment the kind is used: a kind with no template stops
-the `leaf-add` that would write it and the launch that would run it, and the
-refusal names the kind and the file that must declare it. That template chooses the executable or wrapper and every user-controlled
-argument — harness, model, reasoning effort, approval, permission and sandbox
-policy — and grove neither knows nor infers which harness it eventually reaches:
-it reads the selected leaf's kind from the filename, looks that one kind up,
-expands its own substitutions, and executes the result directly (no shell). `${prompt}` carries what grove has to say to the session,
-and `${session_name}`, `${worktree}`, `${repo}` and the selected leaf's `${kind}`,
-`${task_file}` and `${task_id}` are the only others.
-**Nothing else routes a session** — no environment variable, no command-line
-flag, no field in a task file, and no implicit kind default or family.
+Grove has no launch configuration. The driver runs `harness-dispatch` for every
+session, and the owner's policy there returns the command: the executable or
+wrapper and every argument — harness, model, reasoning effort, approval,
+permission and sandbox policy. Grove neither knows nor infers which harness it
+eventually reaches. It reads the selected leaf's kind from the filename and
+passes that kind, the task file, the handle and the prompt, with the session
+name and the two roots as named parameters. The prompt carries what grove has
+to say to the session.
+**Nothing else routes a session** — Grove reads no environment variable, no
+command-line flag and no field in a task file to choose one, and has no implicit
+kind default or family. What the policy itself consults is its owner's.
 
-Grove never creates or edits either file, because it cannot choose personal model
-or wrapper policy, and it re-validates both before every tree mutation and again
-before every launch: an edit lands on the next session, and an invalid file — or
-a delta the repository has committed, which grove refuses — launches nothing
-while leaving the selected leaf live and resumable.
+**The policy is evaluated when a leaf launches, and nowhere earlier.** No tree
+verb consults it, so a leaf of a kind the policy does not route is written
+without complaint and refuses at its launch: nothing runs, the leaf stays live
+and resumable, and the loop stops until the owner corrects the policy and
+reruns `grove`. Grove never creates or edits the policy, because it cannot
+choose personal model or wrapper policy. An edit lands on the next session.
 
 ## The loop is stateless, which is why restart ≡ continuation
 
@@ -76,9 +69,9 @@ change.
 ## Deriving the session name yourself
 
 The driver computes this grove's session name — `<repo-basename>: <name> grove`
-— and offers it to the configured command as `${session_name}`; it never renames
-a session itself. If your template does not pass it and the session name doesn't
-already match, suggest `/rename <repo-basename>: <name> grove` once per session
+— and passes it to the owner's policy as the `session_name` parameter; it never
+renames a session itself. If the policy does not place it and the session name
+doesn't already match, suggest `/rename <repo-basename>: <name> grove` once per session
 and move on. The skill can derive both names: `<name>` from the working tree's
 own basename (`jj workspace root`), `<repo-basename>` from the **main repo**'s
 basename (`jj workspace root --name default`'s basename — the repo a secondary

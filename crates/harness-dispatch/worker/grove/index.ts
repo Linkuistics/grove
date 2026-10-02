@@ -110,7 +110,7 @@ export function groveContext(request: SelectionRequest, host: ContextHost, revie
       "task_file_missing",
       `kind ${quote(kind)} is a review, but no task file was supplied, ` +
         "so the artifact it reviews and that artifact's creator are unknown",
-      "pass the review's task file with --task-file, as Grove's dispatch command does with ${task_file}; " +
+      "pass the review's task file with --task-file, as Grove does for every session it launches; " +
         "a caller without a Grove task file names the reviewed artifact in a --context document " +
         "to a policy built on harness-dispatch/examples/review instead",
     );

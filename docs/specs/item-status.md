@@ -178,7 +178,7 @@ and cannot change completion. No observer creates, cleans or repairs controls.
 The VCS seam discovers an existing namespace in the exact observed workspace,
 sharing path derivation and namespace validation with the creating operation.
 Discovery creates nothing, follows neither a secondary workspace's repository
-link nor an ancestor workspace, and uses no jj command, launch configuration
+link nor an ancestor workspace, and uses no jj command, launch policy
 or ambient session context. A symlink alias of the exact workspace is allowed.
 
 The loop's observer completes the tree capture before acquiring any epoch guard:
@@ -449,7 +449,7 @@ terminal fixture owns key translation and terminal cleanup checks.
 | Directory witness held while a session mutates or deletes the root | The containing-directory tree lock remains usable; root replacement remains possible and never inherits the old root's witness | Real filesystem/process fixture |
 | Help in both views; selected LIVE, DONE, RUNNING and NEXT with color disabled | Active view and Tab destination are named; gutter alone marks selection, NEXT is bold normal text, RUNNING retains its specified styles | Application; terminal fixture |
 | Tree or epoch contention and rapid start/end changes | Current pair is withheld when unverifiable; navigation/quit remain responsive; cadence recovers | Application and process fixtures |
-| Multiple viewers, non-jj location, missing namespace, absent tree | Browsing creates no files/directories or persisted state and never resolves launch configuration | Application filesystem snapshots; typed observer |
+| Multiple viewers, non-jj location, missing namespace, absent tree | Browsing creates no files/directories or persisted state and never resolves a launch policy | Application filesystem snapshots; typed observer |
 | Ambient old session after rotation; an admitted operation during replacement | Existing admission rejection and handoff semantics still hold; observation grants no authority | Existing lease/admission process fixtures |
 
 Process assertions wait on fixture events and actual reap/lock transitions,

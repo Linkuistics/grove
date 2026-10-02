@@ -15,7 +15,7 @@ plugin configuration.
 The default scope is every bundled skill eligible for Codex under its existing
 `harnesses:` frontmatter: Grove, Linkuistics, and Testanyware. Claude-only skills
 remain excluded. Custom, independently authored session-kind skills remain
-the configuration author's responsibility.
+their author's responsibility.
 
 ## Delivery choice
 
@@ -102,7 +102,7 @@ adding the adapter, then cover:
 - replacement of an older managed snapshot and removal of obsolete owned links;
 - existing developer links and working legacy links;
 - refusal of foreign files/directories/symlinks without modifying them;
-- provisioning failure preventing a fake configured child from launching;
+- provisioning failure preventing a fake harness from launching;
 - concurrent startup in separate workspaces, including different Codex homes
   sharing one HOME;
 - custom Codex homes and a machine with no Codex installation;

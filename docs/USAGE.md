@@ -9,24 +9,118 @@ while keeping its history and leaving every Git tool working.
 `grove run` is a separate standalone invocation which needs no project or jj.
 
 Before starting, install Grove as described in the [README](../README.md) and
-install a harness-dispatch policy as
-[its README](../crates/harness-dispatch/README.md#which-policy-runs) describes. Grove launches no session
+install a [launch policy](#usage-launch-policy). Grove launches no session
 without one.
 
 This guide covers the whole installed command surface — the `grove` binary you
 run, and the `grove-llm` verbs a session runs over the tree — plus every journey
-from scaffolding a grove to tearing one down. It does **not** carry the
-launch policy ([harness-dispatch](../crates/harness-dispatch/README.md)), installation
-([README](../README.md)), grove's vocabulary ([CONTEXT.md](../CONTEXT.md)), or
-the methodology a session executes (the `grove` plugin's own skills). Each is
-linked where it is reached. The set this guide is obliged to cover is written
-down separately, in
+from scaffolding a grove to tearing one down. It says what a Grove owner does
+about launch policy and leaves the policy contract to
+[harness-dispatch](../crates/harness-dispatch/README.md). It does **not** carry
+installation ([README](../README.md)), grove's vocabulary
+([CONTEXT.md](../CONTEXT.md)), or the methodology a session executes (the
+`grove` plugin's own skills). Each is linked where it is reached. The set this
+guide is obliged to cover is written down separately, in
 [the coverage inventory](specs/user-guide-coverage.md), and the
 [coverage map](#usage-coverage-map) at the end says which section answers each
 row of it.
 
-Every transcript below is real output with the working tree rewritten to
-`/home/you/app`.
+Every transcript below is real output, with the working tree rewritten to
+`/home/you/app`, the home directory to `/home/you` and the directories holding
+programs to system paths. The launches in them were selected by the sample
+policy.
+
+<a id="usage-launch-policy"></a>
+## Launch policy
+
+Grove has no launch configuration. It launches every session by running the
+`harness-dispatch` installed beside it, and your policy,
+`~/.config/harness-dispatch/policy.ts`, returns the command to run: the
+harness, with the model and effort you chose for that kind of work. A
+`config.kdl` or `.grove.kdl` left from an earlier release is never read, and
+there is no converter.
+
+**Install a policy.** `harness-dispatch init` writes the sample policy, when
+nothing is at that path, and nothing else ever writes one:
+
+```console
+$ harness-dispatch init
+Installed the sample policy as /home/you/.config/harness-dispatch/policy.ts.
+It launches codex with approvals off and full access (--ask-for-approval never, default_permissions=:danger-full-access). Read it, and edit it, before the first launch: it is yours.
+See what it selects with
+  harness-dispatch inspect --kind impl --param session_name=NAME --param repo=PATH
+```
+
+The sample is one owner's policy for Grove, with real `codex` and `claude`
+command lines. It routes every session kind the methodology ships and the
+standalone `release-notes` kind.
+
+**Edit it.** The file is yours, and an upgrade never touches it. It is
+TypeScript: one `select` function over tables you edit in place. Change a
+kind's model or effort in its route, add a route for a kind of your own, or
+remove the `codex` arguments that turn approvals off. You can also write a
+policy from nothing, or import one of the shipped examples
+([a policy](../crates/harness-dispatch/README.md#a-policy)). An edit applies to
+the next launch, because every launch evaluates the policy afresh.
+
+**Choose per checkout.** A `.harness-dispatch-choice` file in the working-tree
+root selects among what your policy offers, for that checkout alone. For the
+sample it names one arrangement and any modifiers:
+
+```sh
+echo 'codex-led high-effort' > .harness-dispatch-choice
+```
+
+The file replaces the sample's default whole. It can name only what the policy
+offers, and a name the policy does not offer refuses the launch
+([the choice file](../crates/harness-dispatch/README.md#the-choice-file)). It
+is read in the directory the launch runs in, which for a lifecycle session is
+the working-tree root. `grove run` selects in its own staged directory, so no
+checkout's choice file applies to it.
+
+**Set what applies to every launch.** Grove passes no time bound, context
+budget, record directory or environment grant. Set them once, in
+`~/.config/harness-dispatch/settings.json`
+([owner settings](../crates/harness-dispatch/README.md#owner-settings)):
+
+```json
+{
+  "timeoutMs": 240000,
+  "policyEnv": ["ROUTER_TOKEN"]
+}
+```
+
+**Do not grant `GROVE_SIGNAL_FILE`**, in `policyEnv` or with `--policy-env`.
+Grove ends a session when a file appears at that path, so a policy holding it
+could end the session it is selecting for. Without a grant only the harness
+receives it.
+
+**Inspect before you launch.** `inspect` reports the command a kind would
+launch, with its provider, model and effort labels and the file its program
+resolves to. It launches nothing:
+
+```sh
+harness-dispatch inspect --kind impl --param session_name=parser --param repo=/work/parser
+```
+
+Pass what Grove passes, because a policy may read any of it. For a lifecycle
+session Grove runs this, in the working-tree root:
+
+```text
+harness-dispatch run --kind=KIND --task-file=TASK_FILE --task-id=HANDLE --prompt=MANDATE --param=session_name=NAME --param=worktree=WORKTREE --param=repo=REPO
+```
+
+`KIND` is the leaf's kind, `TASK_FILE` its absolute path and `HANDLE` its
+stable handle. `MANDATE` is the prompt Grove composed. `NAME` is the session
+name Grove gives the working tree, `<repo-basename>: <grove-name> grove`.
+`WORKTREE` and `REPO` are the working-tree root and the main repository's root.
+
+**The policy is consulted only at launch.** Scaffolding a grove and the
+`grove-llm` tree verbs consult no policy, so a leaf of any well-formed kind can
+be written, including one your policy does not route. That kind is refused when
+its leaf launches, which in an unattended run can be many sessions later. When
+you add a kind of your own, inspect it first.
+[If a launch refuses](#usage-refused-launch) has the recovery.
 
 <a id="usage-standalone"></a>
 ## Running a standalone task
@@ -37,10 +131,27 @@ grove run release-notes --prompt-file prompt.md \
   --input changes.txt --output release-notes.md --ui auto
 ```
 
-First route the kind to a noninteractive command in your harness-dispatch
-policy, `~/.config/harness-dispatch/policy.ts`. The sample that
-`harness-dispatch init` installs routes `release-notes`. `grove run` reads no
-Grove configuration. This invocation can run
+First route the kind to a noninteractive command in your
+[launch policy](#usage-launch-policy). The sample that `harness-dispatch init`
+installs routes `release-notes` to a headless helper that the release task
+stages as an input ([Releasing](RELEASING.md#release-notes)), so that route
+serves `task release:notes` and a kind of your own needs a route of its own.
+Grove selects the command with
+`harness-dispatch inspect`, outside the sandbox, and then runs the reported
+program inside it, so the policy, your owner settings and the run records stay
+out of the harness's reach. A standalone invocation has no task and records no
+run. A kind your policy refuses launches nothing and publishes nothing, and
+Grove reports the refusal's code, message and remedy:
+
+```console
+$ grove run summarise 'Summarise input.txt' --ui inline
+Error: grove run cannot launch kind `summarise`: harness-dispatch refused the selection (policy_refused: incomplete_mapping).
+  the policy /home/you/.config/harness-dispatch/policy.ts refused the selection: ROUTES names no route for kind "summarise"
+  add a route for this kind to ROUTES in your policy
+Nothing was launched or published.
+```
+
+This invocation can run
 from anywhere, including a release task launched inside a running grove. It
 creates a private temporary directory, copies inputs into it by basename, and
 passes your prompt plus output and completion instructions to the harness your
@@ -55,14 +166,14 @@ grants; writable harness state must remain in the temporary directory. macOS
 requires its native sandbox; Linux requires bubblewrap. An unavailable sandbox
 fails the invocation before any unconfined command can run.
 
-Every invocation announces its task kind and transcript location under
+Every invocation that launches announces its task kind and transcript location under
 `~/.local/state/grove/runs/`, streams sanitized output through its caller, and
 reports completion or failure. `--ui auto` also opens a view in an active tmux
 or Zellij session when available; a failed pane falls back to inline output.
 `--ui inline` requests just the caller's transcript; `--ui pane` requires a
 working supported mux and reports an error otherwise. The pane displays the
-transcript; interaction and approvals belong to the configured noninteractive
-harness policy. The child receives no parent terminal or mux handles. Logs remain
+transcript; interaction and approvals belong to the noninteractive command
+your policy selects. The child receives no parent terminal or mux handles. Logs remain
 available after the pane or temporary directory closes.
 
 After producing the requested files, the harness invokes the exact
@@ -92,7 +203,7 @@ The argument is the directory containing `.grove`. It defaults to the current
 working directory, with **no upward search**: from a subdirectory, view observes
 that subdirectory's `.grove`. The path is made absolute once. Temporary non-jj
 directories and concurrent viewers work; viewing uses no driver lease or launch
-configuration. It never creates, repairs, renames or writes tree files, and all
+policy. It never creates, repairs, renames or writes tree files, and all
 selection, expansion and scrolling state disappears on exit.
 
 The viewer starts in full-width **Tree** view. **Tab** switches to the selected
@@ -252,8 +363,13 @@ Run Grove from anywhere inside the working tree:
 
 ```console
 $ grove
-grove: launching requirements with configured "claude" — plan-k1
+grove: launching requirements through harness-dispatch — plan-k1
+harness-dispatch: running provider anthropic, model claude-opus-5-5, effort max for kind "requirements" as run b5e2cf54-4e9c-48eb-865b-59753829502d: /usr/local/bin/claude
 ```
+
+The first line is Grove's and names the kind and the leaf's stable handle. The
+second is harness-dispatch's: the labels your policy gave the command it
+selected, the run it recorded, and the program it then became.
 
 Bare `grove` is the lifecycle command, with no launch-policy flags.
 `grove view [WORKTREE]` opens the read-only browser described below.
@@ -266,16 +382,15 @@ Grove: hierarchical workstream tool for AI agents
 Usage: grove [COMMAND]
 
 Commands:
-  run     Run one configured task in a confined temporary directory, without a grove
-  config  Inspect launch configuration or install inactive examples
-  view    Browse a .grove task tree read-only with automatic refresh
+  run   Run one task kind in a confined temporary directory, without a grove
+  view  Browse a .grove task tree read-only with automatic refresh
 
 Options:
   -h, --help     Print help
   -V, --version  Print version
 
 $ grove --version
-grove 21.0.0
+grove 21.13.0
 ```
 
 Bare `grove` inspects the filesystem and does the appropriate next thing:
@@ -292,8 +407,9 @@ session, press Ctrl-C, or the process dies — stops the loop, and Grove says wh
 ending it was:
 
 ```console
-grove: launching impl with configured "claude" — api-k7
-grove: session ended without a completion signal — status exit status: 0, elapsed 41.106s; loop stopped.
+grove: launching impl through harness-dispatch — api-k7
+harness-dispatch: running provider anthropic, model claude-opus-5-5, effort high for kind "impl" as run bc969024-d275-4a44-97ea-6e31217bb145: /usr/local/bin/claude
+grove: session ended without a completion signal — status exit status: 0, elapsed 0.508s; loop stopped.
 ```
 
 A session that signalled the grove's *end* rather than one task's prints
@@ -312,8 +428,17 @@ To resume, run `grove` again. Grove has no progress database; it re-derives its
 position from the task tree every iteration, which is what makes restart and
 continuation the same thing.
 
-Full configuration validation precedes every one of those tree mutations, so a
-missing or malformed `config.kdl` leaves your working tree byte-identical.
+None of those tree mutations consults your policy. Grove scaffolds a grove and
+materializes a `finish` leaf with no policy installed, and the policy is
+evaluated when the leaf launches
+([launch policy](#usage-launch-policy)). The one thing Grove checks first is
+that `harness-dispatch` is installed beside it. Without it Grove stops before
+touching the tree:
+
+```console
+$ grove
+Error: grove launches through /opt/grove/bin/harness-dispatch, which is missing or not executable. Install grove and harness-dispatch together, from one release: they ship in the same bin directory.
+```
 
 Grove makes one commit of its own — the teardown commit at the end. It touches
 only `.grove/`, leaving unrelated working-copy changes in the successor commit.
@@ -341,44 +466,57 @@ leaves `git` itself working; `jj git init` is for a directory with no repository
 at all. Run one and rerun `grove`. Jujutsu's own binary must be on `PATH` —
 Grove asks jj for facts it will not guess, and says so if it cannot run it.
 
-### If a dispatched launch refuses
+<a id="usage-refused-launch"></a>
+### If a launch refuses
 
-A kind routed through `harness-dispatch run` has its harness chosen at launch,
-by your dispatch policy
-([called from Grove](../crates/harness-dispatch/README.md#called-from-grove)).
-Grove checked only the command when the leaf was written, so a policy that
-cannot choose for the kind refuses now. It launches nothing. Grove reports
-harness-dispatch's exit status, stops the loop and leaves the leaf live. That
-status is the child's: Grove itself exits `0`, as it does for any session that
-ends without signalling ([stopping the loop](#stopping-the-loop)):
+Your policy is evaluated when a leaf launches, and nowhere earlier
+([launch policy](#usage-launch-policy)). When it cannot select a command for
+the kind, harness-dispatch refuses and launches nothing. Its diagnostic
+appears on the terminal the session would have had, with the remedy. Grove
+then reports the exit status, stops the loop and leaves the leaf live. That
+status is harness-dispatch's: Grove itself exits `0`, as it does for any
+session that ends without signalling ([stopping the loop](#stopping-the-loop)).
+Here the tree holds a leaf of a kind, `spike`, that the policy does not route:
 
 ```console
 $ grove
-grove: launching design with configured "harness-dispatch" — api-k1
-harness-dispatch: refused (incomplete_mapping, stage selection): the routes in /home/you/.config/harness-dispatch/policy.ts name no candidate for kind "design"
-  input: --kind design
+grove: launching spike through harness-dispatch — api-k1
+harness-dispatch: refused (policy_refused, stage selection): the policy /home/you/.config/harness-dispatch/policy.ts refused the selection: ROUTES names no route for kind "spike"
+  input: --kind spike
   source: /home/you/.config/harness-dispatch/policy.ts
-  location: policy.routes
-  remedy: add a route "design" to a candidate ID in /home/you/.config/harness-dispatch/policy.ts, or name one configured candidate with --choice ID; harness-dispatch never substitutes a default candidate
-  inspect: (cd /home/you/app && harness-dispatch inspect --kind design --task-file /home/you/app/.grove/01-design--api-k1.md --task-id api-k1)
-grove: session ended without a completion signal — status exit status: 3, elapsed 1.517s; loop stopped.
-       configured session kind `design` failed via "harness-dispatch" from /home/you/.config/grove/config.kdl.
+  policy code: incomplete_mapping
+  remedy: add a route for this kind to ROUTES in your policy
+  inspect: (cd /home/you/app && /opt/grove/bin/harness-dispatch inspect --kind spike --param 'session_name=app: app grove' --param worktree=/home/you/app --param repo=/home/you/app --task-file /home/you/app/.grove/01-spike--api-k1.md --task-id api-k1)
+  prompt: omitted: a policy that reads the prompt selects as it did only when the same --prompt or --prompt-file is added
+grove: session ended without a completion signal — status exit status: 3, elapsed 0.510s; loop stopped.
+       session kind `spike` for `api-k1` failed; if harness-dispatch refused the launch, its diagnostic and remedy are above and the leaf is still live. Either way, rerun `grove` to continue.
 ```
 
-Run the `inspect:` line: it reproduces the refusal and launches nothing. Do
-what the remedy says, here adding `design` to the policy's routes, and run the
-line again until it reports a candidate. A review under the Grove review
-example refuses the same way when its task file names no creator, which is
-what a producer finished without dispatch leaves. That remedy is your
-declaration, `**Creator:** declared <provider>`, and the harness-dispatch
-README gives [its steps](../crates/harness-dispatch/README.md#the-grove-review-policy).
-Then rerun `grove`, and the same leaf launches:
+Run the `inspect:` line: it reproduces the refusal and launches nothing. It
+names the `harness-dispatch` Grove ran, by its full path, so the reproduction
+uses the same installation. Do
+what the remedy says, here adding `spike` to the policy's `ROUTES` table, and
+run the line again until it reports a command. Then rerun `grove`, and the same
+leaf launches:
 
 ```console
 $ grove
-grove: launching design with configured "harness-dispatch" — api-k1
-harness-dispatch: running candidate "lead" (provider openai, model your-model, effort high) for kind "design" as run 1e8cf6c2-1dd5-4e38-bb6a-2e550bdc98d1: /home/you/bin/my-agent
+grove: launching spike through harness-dispatch — api-k1
+harness-dispatch: running provider anthropic, model claude-opus-5-5, effort high for kind "spike" as run e82b57a0-ec73-4d65-9233-02d294b25c0c: /usr/local/bin/claude
 ```
+
+The same recovery serves every refusal. Three an owner meets:
+
+- **No policy.** The refusal is `policy_missing`, and its remedy is
+  `harness-dispatch init`. A fresh grove is scaffolded first, so its
+  `requirements` leaf is waiting when you rerun.
+- **A choice file that names something the policy does not offer**, or no
+  arrangement, or two. The remedy lists the names on offer.
+- **A review whose task file names no creator**, under a policy that imports
+  the Grove review example. That is what a producer finished without a
+  dispatch run leaves. The remedy is your declaration,
+  `**Creator:** declared <provider>`, and the harness-dispatch README gives
+  [its steps](../crates/harness-dispatch/README.md#the-grove-review-policy).
 
 ### Stopping the loop
 
@@ -390,7 +528,8 @@ loop from outside is `kill` on the `grove` process:
 ```console
 # the shell running the loop
 $ grove
-grove: launching impl with configured "claude" — api-k7
+grove: launching impl through harness-dispatch — api-k7
+harness-dispatch: running provider anthropic, model claude-opus-5-5, effort high for kind "impl" as run 9e644930-4e48-40c8-be5a-d1b5b196a6df: /usr/local/bin/claude
 grove: interrupted by signal 15 — stopping the loop.
 $ echo $?
 143
@@ -459,8 +598,8 @@ NN-[DONE-|ABANDONED-]<session-kind>--<slug>-k<key>.md
 - `DONE` and `ABANDONED` are the two terminal outcomes, kept in place until the
   grove finishes.
 - `<session-kind>` is any well-formed token — lowercase ASCII letters, digits and
-  single dashes, no `--` — and is what selects the command template from your
-  configuration and names the skill a session loads. Grove holds no list of
+  single dashes, no `--` — and is what your launch policy selects a command
+  for and what names the skill a session loads. Grove holds no list of
   kinds; the ones that exist are the `grove-<kind>` skills you have installed.
   The `--` between the kind and the slug is what makes the name unambiguous.
 - `<slug>` is the human-readable name.
@@ -519,8 +658,8 @@ stem is a reading convention, not grammar. See
 <a id="usage-session-lifecycle"></a>
 ## What happens in a session
 
-Grove launches the configured command for the selected leaf's kind and hands it
-that leaf's stable handle as an explicit mandate. The session:
+Grove launches the command your policy selects for the selected leaf's kind and
+hands it that leaf's stable handle as an explicit mandate. The session:
 
 1. Resolves the mandated handle and reads the glossary, ancestor briefs, cited
    decision records, and the task file.
@@ -530,14 +669,17 @@ that leaf's stable handle as an explicit mandate. The session:
    that as one focused commit naming the stable handle.
 5. Signals Grove, which relaunches for the next leaf.
 
-Watching one leaf through, from the outside, is three lines of driver output:
+Watching one leaf through, from the outside, is a launch line for it and a
+launch line for the next, each followed by harness-dispatch's own:
 
 ```console
-grove: launching impl with configured "claude" — api-k7
-grove: launching review-impl with configured "claude" — api-k8
+grove: launching impl through harness-dispatch — api-k7
+harness-dispatch: running provider anthropic, model claude-opus-5-5, effort high for kind "impl" as run 039fbfde-8c37-42a4-8a3b-1b7f19a894bc: /usr/local/bin/claude
+grove: launching review-impl through harness-dispatch — api-k8
+harness-dispatch: running provider openai, model gpt-6.1-sol, effort high for kind "review-impl" as run c3d1edf6-61c3-456a-9b30-85eadc362f9c: /usr/local/bin/codex
 ```
 
-The second line is the whole of step 5 as you see it: the session ran
+The second `grove:` line is the whole of step 5 as you see it: the session ran
 `grove-llm complete`, which wrote the relaunch flag; Grove ended that session and
 launched the next leaf with fresh context. Between the two lines the session made
 its own commit, so `jj log` shows `api-k7: …` before the relaunch.
@@ -557,8 +699,8 @@ The runtime methodology is the **`grove` plugin**, whose spine is
 and which ships one `grove-<kind>` skill per session kind. A launch prompt names
 the one skill this session's kind needs, and the session loads it through its
 harness's own skill-loading affordance. **A kind exists iff a skill of that name
-exists** — adding one is authoring a skill and declaring a template for it, never
-editing or rebuilding a binary.
+exists** — adding one is authoring a skill and routing the kind in your policy,
+never editing or rebuilding a binary.
 
 For Codex, bare `grove` installs and repairs every bundled compatible skill
 before launching the first child. It detects `~/.codex` or an explicit
@@ -572,7 +714,7 @@ use the manual installer. See
 A checkout edit reaches marketplace and manual-install users through their
 respective update route. Codex auto-provisioning uses the installed binary's
 snapshot, so those edits require rebuilding and installing Grove. Independently
-authored session-kind skills remain the configuration author's responsibility.
+authored session-kind skills remain their author's responsibility.
 
 <a id="usage-tree-verbs"></a>
 ## The `grove-llm` verbs over the tree
@@ -962,9 +1104,9 @@ preserved by construction.
 Write the relationship into the new leaf's body by hand — `**Reviews:**
 <producer-handle>`, or `**Integrates:** <review-handle>`. Grove's own code
 neither writes nor reads those lines; they are a convention for you and for the
-session that picks the step up. If you route reviews through
-[harness-dispatch](../crates/harness-dispatch/README.md#the-grove-review-policy)'s review policy, the
-adapter that policy imports reads `**Reviews:**` too, with the `**Creator:**`
+session that picks the step up. If your policy imports
+[harness-dispatch](../crates/harness-dispatch/README.md#the-grove-review-policy)'s Grove review example, the
+adapter that example composes reads `**Reviews:**` too, with the `**Creator:**`
 line under it.
 
 **A review may carry one `**Creator:**` line, directly under `**Reviews:**`.**
@@ -977,8 +1119,8 @@ chooses a reviewer from another provider. It has two forms, with two writers:
   finishes a producer without a dispatch run removes the line instead, so an
   earlier attempt's run never stands for the artifact.
 - `**Creator:** declared <provider>` is yours alone. It declares the provider
-  that finished a producer with no run: one finished before you adopted
-  dispatch, or by a harness Grove launched directly. Such a review refuses at
+  that finished a producer with no run: one finished under a release that
+  recorded none, or by a harness you started by hand. Such a review refuses at
   launch until you write it
   ([the remedy](../crates/harness-dispatch/README.md#the-grove-review-policy)).
 
@@ -992,12 +1134,13 @@ which outlasts `.grove/`.
 [The Grove review policy](../crates/harness-dispatch/README.md#the-grove-review-policy) has the
 whole account.
 
-Grove then launches the review kind's configured command. Whether that command
-differs in harness or model from the producer's is **your** configuration policy:
-Grove executes opaque command strings, so it cannot compare two targets, and it
-records no launch receipts and emits no diversity warnings. The tree guarantees a
-fresh session; choosing a materially different command is up to the configuration
-owner.
+Grove then launches the command your policy selects for the review kind.
+Whether that command differs in harness or model from the producer's is
+**your** policy's to decide: Grove passes the kind and never sees the command
+that comes back, so it compares no two commands, keeps no record of how a producer ran and emits no
+diversity warnings. The tree guarantees a fresh session. The sample policy
+sends each review to the other provider by its arrangement, and the Grove
+review example checks the creator's recorded provider at every launch.
 
 Pruning only the producer leaves its review live and next, deliberately
 uncheckable. To abandon the whole reviewed path, prune each of its live steps —
@@ -1108,7 +1251,8 @@ launches a session that proposes one complete finish cycle:
    loop cleanly.
 
 ```console
-grove: launching finish with configured "claude" — finish-k42
+grove: launching finish through harness-dispatch — finish-k42
+harness-dispatch: running provider anthropic, model claude-opus-5-5, effort medium for kind "finish" as run ee15ad1d-56b1-4f29-afb2-f80e586c930c: /usr/local/bin/claude
 grove: grove finished — loop complete.
 ```
 

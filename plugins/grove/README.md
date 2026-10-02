@@ -10,7 +10,8 @@ them. Prose here describes the set as it stands, which is a different thing from
 machinery holding it.
 
 The separate [`configure-grove`](skills/configure-grove/SKILL.md) operator skill
-maintains personal launch policy and task-specific project overrides. Its name
+maintains the owner's harness-dispatch policy, its settings and a checkout's
+choice file. Its name
 does not use the `grove-<kind>` prefix because it is not a lifecycle task kind.
 
 | | |

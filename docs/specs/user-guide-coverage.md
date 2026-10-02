@@ -136,7 +136,7 @@ lifecycle; the guide's subject is the human's path through it.
 
 | Row | Journey | Start state | End state |
 |---|---|---|---|
-| J1 | Scaffold a grove | A jj working tree with no `.grove/`, configuration written | Root brief and a live `requirements` leaf; first session launched |
+| J1 | Scaffold a grove | A jj working tree with no `.grove/`, a launch policy installed | Root brief and a live `requirements` leaf; first session launched |
 | J2 | Prepare a tree that is not jj-enabled | A Git or plain directory | `jj git init --colocate` run; `grove` starts |
 | J3 | Run and resume | A grove with live leaves | The first live leaf in tree order launched; resuming is the same command |
 | J4 | Watch one session through | A leaf launched | Leaf `DONE`, its work committed under the stable handle, loop relaunched |
@@ -187,9 +187,11 @@ validation is what reports it.
 
 Named here so that "complete" does not silently mean "everything".
 
-- **The launch policy, its settings and its choice file.** The harness-dispatch
-  README owns them. The guide states that a kind is selected for when its leaf
-  launches and links; it does not carry the policy contract.
+- **The policy contract.** The harness-dispatch README owns what a policy is,
+  what `select` receives and returns, and every refusal. The guide says what a
+  Grove owner does, installing and editing a policy, the owner settings, the
+  choice file, inspection and recovering from a refused launch, and that a kind
+  is selected for only when its leaf launches. It links the rest.
 - **Installation and the marketplace.** The `README` owns them.
 - **The methodology.** Kinds, their disciplines and the seven constraints belong
   to the `grove` plugin skills; the guide names the plugin and links its spine.

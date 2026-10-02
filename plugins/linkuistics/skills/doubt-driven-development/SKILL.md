@@ -152,11 +152,11 @@ session that just ran and leaving the review task untouched, because the review
 reads the committed artifact.
 
 Grove owns the escalated route from there. It launches the scheduled `review-*`
-from that kind's own configuration entry, and whether that reaches a different
-harness or model from the producer's is the configuration owner's policy — Grove
-compares no targets and raises no notice, so there is none to wait for or
-consume. Do not reconstruct that history, and do not start another review cycle
-to compensate for its absence.
+with the command the owner's harness-dispatch policy selects for that kind, and
+whether that reaches a different harness or model from the producer's is that
+owner's policy — Grove compares no targets and raises no notice, so there is
+none to wait for or consume. Do not reconstruct that history, and do not start
+another review cycle to compensate for its absence.
 
 ## The process — CLAIM → EXTRACT → DOUBT → RECONCILE → STOP
 

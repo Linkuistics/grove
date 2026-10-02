@@ -23,8 +23,8 @@ distinct from the markdown task notes under `.grove/`.
 
 Keep background, delegated and spawned tasks visible. Announce each task's
 purpose, expose its progress through the current harness's nested-task UI when
-available, and report its outcome. For external one-shot work, use a configured
-`grove run` kind: its live transcript and persistent log provide a baseline,
+available, and report its outcome. For external one-shot work, use a
+`grove run` kind the owner's policy routes: its live transcript and persistent log provide a baseline,
 and `--ui auto` can add a view in a supported active multiplexer. Keep display
 control with the supervisor; a confined child must not inherit the parent's
 terminal, mux connection or completion authority. If an embedded UI or pane is
@@ -33,7 +33,7 @@ unavailable, retain inline progress and a log rather than silently detaching.
 ## Review ownership inside a picked leaf
 
 **The allowance is a picked leaf's, and only a picked leaf's.** It applies after
-the driver launched this session with a selected-leaf mandate in `${prompt}` and
+the driver launched this session with a selected-leaf mandate in its prompt and
 this session adopted that mandate by running Bootstrap. A `.grove/` directory in
 the checkout and inherited Grove control variables do not count; outside that
 predicate, doubt keeps its standalone bounded cycles unchanged.
@@ -74,8 +74,8 @@ cannot establish:
    stated unclearly, valid and actionable, a visible trade-off, or noise.
 
 **Once review is escalated to the tree, grove owns the route.** It launches the
-`review-*` kind's own configured command, so do not add a competing in-session
-reviewer beside a scheduled review.
+command the owner's policy selects for the `review-*` kind, so do not add a
+competing in-session reviewer beside a scheduled review.
 
 ## Verifying a claim about the repo itself
 

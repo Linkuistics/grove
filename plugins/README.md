@@ -23,9 +23,10 @@ shipped skill set.
 Grove skills declare `harnesses: [any]`. Both automatic Codex provisioning and
 the manual installer select skills through this metadata.
 
-The `configure-grove` operator skill inspects and updates global model/effort
-defaults and creates task-specific `.grove.kdl` overrides. It is available
-without a task tree and is not a lifecycle kind.
+The `configure-grove` operator skill installs, inspects and edits the owner's
+harness-dispatch policy, which selects the harness, model and effort for each
+session kind, with its owner settings and per-checkout choice file. It is
+available without a task tree and is not a lifecycle kind.
 
 ## `linkuistics` — engineering-practice skills
 
@@ -115,8 +116,8 @@ collision and stops before launch. Move the reported entry aside, then retry.
 
 Automatic installations follow the **installed binary's** snapshot. Rebuild and
 install Grove to use edited skill bytes; marketplace and manual-checkout updates
-have their own lifetimes. Help, version, configuration inspection/examples,
-viewing and standalone invocations do not install skills.
+have their own lifetimes. Help, version, viewing and standalone invocations do
+not install skills.
 
 ## Manual install — Gemini CLI, Pi and checkout-based Codex
 

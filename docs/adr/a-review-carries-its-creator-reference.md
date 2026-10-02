@@ -42,7 +42,7 @@ confirmed in `harness-selection-and-execution-k8`:
   closes, so the node-close steps and their `node-close-four-steps` row carry
   the same step. The step has a conformance row of its own,
   `finishing-session-names-its-run`, so a second file that restates it fails.
-- `diversity-is-the-configs` — Grove records and compares nothing about how a
+- `diversity-is-the-policys` — Grove records and compares nothing about how a
   producer ran. The producing session names its run, and the dispatcher's
   policy does the comparing.
 

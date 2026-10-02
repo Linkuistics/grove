@@ -776,7 +776,7 @@ held until Reaped; successful spawn leaves exactly eight bytes, failed spawn non
 <!-- /fragment -->
 
 `workspace_at` resolves the fixture marker into the same Workspace value the
-real lease acquisition accepts. It creates no launch configuration.
+real lease acquisition accepts.
 
 <!-- fragment «epoch-tests-workspace-fixture» owner="which-calls-are-admitted" source="crates/grove-loop/src/driver_lease.rs" lines="1508-1514" parent="lease-tests" -->
 ````rust
@@ -4268,7 +4268,7 @@ The tests create real directories and private files and probe them through indep
 
 The marker controls check duplicate Started calls and a failed write followed
 by a duplicate: neither can rewrite the file. A read-only private descriptor
-injects a real publication failure during a configured child launch. Independent
+injects a real publication failure during a real child launch. Independent
 shared probes still find both locks held at Started and released at Reaped;
 exclusive epoch and containing-directory probes succeed inside both callbacks.
 Admission remains usable and the successful runner result survives the warning.

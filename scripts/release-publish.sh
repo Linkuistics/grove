@@ -25,37 +25,34 @@
 # sometimes a wrong one. Drive it functionally instead. One isolated launch
 # yields several proofs at once:
 #
-#   scratch=$(mktemp -d) && cd "$scratch" && git init -q .
-#   grove-llm root-init                       # a live tree for `pick` to walk
-#   printf '#!/bin/sh\nprintf "GROVE_SIGNAL_FILE=%s\\n" "$GROVE_SIGNAL_FILE"\n' > fake
+#   scratch=$(mktemp -d) && cd "$scratch" && jj git init . >/dev/null
+#   printf '#!/bin/sh\nprintf "GROVE_SIGNAL_FILE=%%s\\n" "$GROVE_SIGNAL_FILE"\n' > fake
 #   chmod +x fake
-#   mkdir -p "$scratch/home/.config/grove"
-#   {
-#     printf 'config {\n  command "smoke" "%s/fake ${prompt}"\n  bind "smoke" "smoke"\n' "$scratch"
-#     for kind in requirements design planning prototype impl \
-#               review-requirements review-design review-planning \
-#               review-prototype review-impl \
-#               integrate-review-requirements integrate-review-design \
-#               integrate-review-planning integrate-review-prototype \
-#               integrate-review-impl \
-#               research-a research-b combine-research \
-#               draft copy-edit art proof finish; do
-#       printf '  route "%s" "smoke"\n' "$kind"
-#     done
-#     printf '}\n'
-#   } > "$scratch/home/.config/grove/config.kdl"
+#   mkdir -p "$scratch/home/.config/harness-dispatch"
+#   cat > "$scratch/home/.config/harness-dispatch/policy.ts" <<EOF
+#   export const policy = {
+#     schemaVersion: 2,
+#     version: "smoke",
+#     select: (request) => ({
+#       status: "selected", program: "$scratch/fake", args: [request.prompt],
+#       provider: "smoke", model: "smoke", effort: "smoke", reason: "smoke",
+#     }),
+#   };
+#   EOF
 #   env -u GROVE_SIGNAL_FILE HOME="$scratch/home" grove
 #
 # The isolated `HOME` is what makes this a *test* rather than a run of your own
-# launch policy: a complete personal config is mandatory, every kind the
-# methodology ships, and the fake stands in for every one of them. It exits 0 without signalling,
-# so the nested loop stops itself after one iteration.
+# launch policy: the policy there selects the fake for every kind. Bare `grove`
+# scaffolds the tree and launches its first leaf through the installed
+# `harness-dispatch`. The fake exits 0 without signalling, so the nested loop
+# stops itself after one iteration.
 #
-# What that shows: the configured argv reaching the real foreground child and a
-# fresh completion-signal path granted to it. It shows nothing about the
-# methodology delivery: that needs an isolated Codex installation and is covered
-# by skill_provisioning.rs. Point `HOME` at a directory with no `config.kdl` for the other half:
-# the aggregate configuration diagnostic, with no tree mutation.
+# What that shows: the installed pair finding each other, the policy's command
+# reaching the real foreground child, and a fresh completion-signal path granted
+# to it. It shows nothing about the methodology delivery: that needs an isolated
+# Codex installation and is covered by skill_provisioning.rs. Point `HOME` at a
+# directory with no policy for the other half: the `policy_missing` refusal,
+# whose remedy names `harness-dispatch init`, with the leaf left live.
 #
 # Run this in the same session as the `brew upgrade` — see release.toml on why
 # that is safe and why deferring it to a follow-up session is unnecessary.

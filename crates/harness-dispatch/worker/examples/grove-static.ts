@@ -11,7 +11,7 @@
 // policy, not a recommendation. Grove passes the kind; this file never reads a
 // task file or a Grove filename.
 //
-// Two harnesses share the work, as in Grove's own configuration examples. A
+// Two harnesses share the work, as in the sample policy. A
 // lead produces and integrates; a reviewer from another provider reviews, runs
 // the second research survey, copy-edits and proofs. `my-codex-wrapper` and
 // `my-claude-wrapper` are illustrative wrappers you supply, not shipped tools:

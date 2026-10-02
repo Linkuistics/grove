@@ -26,10 +26,10 @@ ahead of queued work without disturbing it.
 **Grove holds no list of kinds.** A kind is any well-formed token — lowercase
 ASCII letters, digits and single dashes — and it names the `grove-<kind>` skill a
 session of that kind loads, so the set is exactly the set of skills installed.
-A token no skill exists for is written, launched, and reported by the session
-that could not load it. What that buys is the whole of `TASK-FORMAT.md`'s set
+A token no skill exists for is written and, where the owner's policy routes
+it, launched and reported by the session that could not load it. What that buys is the whole of `TASK-FORMAT.md`'s set
 being the methodology's rather than the binary's; what it costs is that a typo'd
-kind is caught by the launch configuration rather than at the verb.
+kind is caught when its leaf launches rather than at the verb.
 
 Every grow verb is a working-tree change only; the enclosing task's commit folds
 it in. What each verb *does* — what it moves, retitles, creates, gates and
@@ -194,17 +194,16 @@ so name a specific step by its `<slug>-k<key>` handle or its key — in a refere
 you write, and as a `leaf-insert` target. What each verb does with an ambiguous
 stem is the CLI's to state; read `--help`.
 
-**Diversity is the configuration's, not the tree's.** Whether a `review-*` or
-`research-b` template reaches a different harness or model from its producer's is
-a property of two entries in your configuration — in
-`~/.config/grove/config.kdl`, or in whichever of them an untracked `.grove.kdl`
-delta overrides. Grove cannot recover a target from an opaque command string, so
+**Diversity is the policy's, not the tree's.** Whether a `review-*` or
+`research-b` session reaches a different harness or model from its producer's is
+a property of what the owner's `harness-dispatch` policy returns for the two
+kinds. Grove passes the kind and never sees the command that comes back, so
 it records nothing about how the producer ran, compares nothing, and warns about
 nothing. Where a comparison is made at all, it is made outside Grove: the session
 that finishes the producer names its run on the review (`references/retire.md`),
-and a dispatcher's policy, where your configuration routes reviews through one,
-compares providers from that line. If the axis matters, read the two effective
-entries before you pay for the second leaf.
+and a policy that enforces a provider rule compares providers from that line. If
+the axis matters, `harness-dispatch inspect` reports what each of the two kinds
+would launch; read both before you pay for the second leaf.
 
 ## A series is built one pass at a time
 

@@ -18,7 +18,7 @@ and all structural:
 |---|---|
 | position `NN` | a per-level number using at least two digits and no excess leading zero, its place among its directory's children; orders the `pick` walk |
 | outcome infix | absent while the leaf is live; `DONE` for retired work (`03-DONE-impl--extract-k7.md`) and `ABANDONED` for a path decided against (`03-ABANDONED-impl--extract-k7.md`, `leaf-prune`) — either keeps the leaf out of `pick`, marked in place |
-| session kind | one of the kinds below — the ones this methodology ships a skill for; the key one command template is configured under |
+| session kind | one of the kinds below — the ones this methodology ships a skill for; the token the owner's launch policy selects a command for |
 | slug | a human name for the **artifact**, not for the leaf's role |
 | key `-k<key>` | positive decimal with no leading zero; stable identity, the terminal token, assigned once and never reused |
 
@@ -36,7 +36,7 @@ body. That is also the test the deleted step suffix failed and the bare stem
 passes — a convention that *adds* what Grove does not parse is legible, while
 one that *duplicates* a parsed field can disagree with it.
 
-Putting the kind in the name is what lets `pick`, the driver's routing lookup and
+Putting the kind in the name is what lets `pick`, the driver's launch and
 your own eye read a session's discipline out of `find .grove` without opening a
 file. Reading is strict in both directions. Every task-shaped leaf name — live,
 `DONE` or `ABANDONED` — must carry a well-formed kind and slug, separated by
@@ -82,9 +82,9 @@ carries the discipline it runs under, inline or by directing a load of its
 family's file in the spine, and its HITL/AFK mark is on that page.
 
 The research row holds **two** kinds rather than one kind run twice: `research-a`
-and `research-b` share a discipline but are separate configuration keys, which is
-what makes "two independent corpora" a fact in the tree instead of a forecast
-about routing policy.
+and `research-b` share a discipline but are separate kinds, which the owner's
+policy can send to different commands. That is what makes "two independent
+corpora" a fact in the tree instead of a forecast about routing policy.
 
 The editorial row holds **four**, and its arrow is pipeline order rather than a
 chain of reviews. Each stage is a producer that reads the whole document and
@@ -156,6 +156,6 @@ It names the run of the session that finished the reviewed producer.
 `references/retire.md` states who writes it, when, and when it is removed
 instead. The owner's `**Creator:** declared <provider>` takes its place for an
 artifact finished without a run. None of Grove's own code reads the line; its
-reader is a dispatch policy the configuration owner chose. Everything about the
-launch still comes from the filename's kind and the one configuration entry it
-keys (`references/driver.md`).
+reader is a dispatch policy its owner chose. Everything about the
+launch still comes from the filename's kind and what the owner's policy returns
+for it (`references/driver.md`).

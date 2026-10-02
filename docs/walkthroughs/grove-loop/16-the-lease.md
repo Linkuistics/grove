@@ -1613,11 +1613,11 @@ function exists because *already true* and *checked* are different guarantees,
 and this is the one the record makes.
 
 The clause is one sentence — *every descriptor is close-on-exec* — and the
-rejected option beneath it is what gives it force: *let the configured command
+rejected option beneath it is what gives it force: *let the launched command
 inherit the driver-lock descriptor — rejected because an opaque harness may pass
 it to descendants that outlive the session, wedging the working tree after the
 foreground child exits.* The failure is not theoretical for this crate. The whole
-loop is a driver spawning an opaque configured harness; if the lease descriptor
+loop is a driver spawning an opaque harness; if the lease descriptor
 survived that `exec`, and the harness handed it to a background process, the lock
 would be held by something grove never launched and cannot reap, and every later
 `grove` in that tree would refuse to start with no live driver to point at.

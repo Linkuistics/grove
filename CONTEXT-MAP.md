@@ -85,8 +85,8 @@ for. Its decisions are the grove context's, as ever:
 
 **`crates/harness-dispatch` is a language boundary and is not declared a fourth
 context, which is a deliberate exception to this map's own test.** It is a
-separate command with a vocabulary of its own: *policy*, *catalog*,
-*candidate*, *provider origin*, *routes*, *run*, *handoff attempt*,
+separate command with a vocabulary of its own: *policy*, *selected command*,
+*provider origin*, *parameter*, *owner settings*, *run*, *handoff attempt*,
 *observation*. Unlike the runner's, several of its words do mean something else
 in grove's language. So the boundary exists, and the
 [relationship below](#grove-and-harness-dispatch) is what holds it, word by
@@ -117,7 +117,7 @@ them. `harness-dispatch` has the last row:
 | `jj-workspace` | *workspace*, *main repo*, *control directory*, *namespace*, *tracked*, *commit*, *change id* | none — the words are Jujutsu's, with Jujutsu's meanings |
 | `grove-loop`, with `grove`, `grove-llm` and the `grove-tui` reader over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
 | the `grove` plugin | **Spine skill**, **Kind skill**, **Composed loaded path**, **Condition** / **procedure**, **Loop-step reference file** | [`CONTEXT.md`](./CONTEXT.md) for the terms, [`plugins/CONTEXT.md`](./plugins/CONTEXT.md) for packaging and delivery |
-| `harness-dispatch` | *policy*, *catalog*, *candidate*, *provider origin*, *routes*, *context*, *run*, *handoff attempt*, *observation*; with the seam, **Original creator**, **Creator reference** and **Grove adapter** | none of its own — its specification and README define its words, and [`CONTEXT.md`](./CONTEXT.md) holds those a Grove owner meets |
+| `harness-dispatch` | *policy*, *selected command*, *provider origin*, *parameter*, *owner settings*, *choice file*, *context*, *run*, *handoff attempt*, *observation*; with the seam, **Original creator**, **Creator reference** and **Grove adapter** | none of its own — its specification and README define its words, and [`CONTEXT.md`](./CONTEXT.md) holds those a Grove owner meets |
 
 The `keyed-launch` and `jj-workspace` rows are the ones that had to be *bought*:
 the first avoids **session** and the second refuses to name its consumer, and
@@ -346,8 +346,8 @@ about `.grove/` *as a task tree* stays **grove** even when it is
 about the same directories on disk: the discriminator is which vocabulary the
 answer is stated in, not which files it touches.
 
-A topic about a selection policy, its catalog and candidates, a run record or an
-observation is `harness-dispatch`'s. That package is not a declared context, so
+A topic about a selection policy, the command it returns, its settings, a run
+record or an observation is `harness-dispatch`'s. That package is not a declared context, so
 state the answer in its own words, from
 [its README](./crates/harness-dispatch/README.md) and
 [specification](./docs/specs/harness-selection-and-execution.md), and qualify

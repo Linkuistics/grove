@@ -97,7 +97,27 @@ Both paths require your harness-dispatch policy,
 noninteractive command that can keep its writable state in the scratch
 directory. The sample policy that `harness-dispatch init` installs routes it to
 the staged Codex helper. An interactive session command generally cannot serve,
-so route the kind to a headless command of its own. The script builds
+so route the kind to a headless command of its own.
+
+**Install the policy before notes are generated.** Grove reads no
+configuration of its own, so with no policy, or with one that does not route
+`release-notes`, generation refuses and a release stops before its version
+cut:
+
+```sh
+task dispatch:build
+./target/debug/harness-dispatch init
+```
+
+`init` writes the sample only when no policy exists, and the file is then
+yours to edit. A release whose Unreleased notes are already written generates
+nothing and needs no policy. The policy is read by the `harness-dispatch` this
+checkout builds, so it must be written to that build's contract, which is why
+the checkout's own `init` installs it: an installed release may predate `init`
+or carry an older sample. A policy an earlier release accepted can refuse here,
+and the refusal's remedy says what to change.
+
+The script builds
 `harness-dispatch` and its policy worker beside the `grove` it runs, with
 `task dispatch:build`. The release task does not select a harness, model, or
 permission policy.
@@ -116,7 +136,7 @@ During a release, existing notes skip both that build and the LLM call.
 
 #### Runtime access
 
-If your configured harness needs credential or other runtime files, explicitly
+If the harness your policy selects needs credential or other runtime files, explicitly
 grant read-only access with `GROVE_RELEASE_RUNTIME_READ`, one literal file path
 per line. Blank lines are ignored; paths containing spaces remain intact. For
 example:
@@ -143,9 +163,9 @@ underlying error and transcript, since a writer can fail for other reasons.
 Use grants for the command selected by your personal `release-notes` route.
 A Claude Code route needs its own headless authentication and runtime setup;
 it does not need Codex's `auth.json` or Codex runtime files. The release task
-does not require or inspect another harness's credentials. See
-[standalone invocations](specs/standalone-invocations.md) for the wrapper's
-responsibilities.
+does not require or inspect another harness's credentials.
+[Standalone invocations](specs/standalone-invocations.md) specifies how the
+selected command is confined.
 
 For the staged Codex helper with Homebrew Codex 0.155.1 on macOS, the five grants
 are the credential file and the installed executable, code-mode host, shell and
@@ -353,9 +373,9 @@ Record the shipped behavior under `## Unreleased` in
 [`CHANGELOG.md`](../CHANGELOG.md). If the release adds, removes, or renames a
 session kind, say so explicitly there. A kind is selected for
 [when its leaf launches](specs/harness-selection-and-execution.md#diagnostics),
-so an added kind does not break every configuration on upgrade — it stops the
-first task of that kind, in the middle of a workstream, and the release note is
-what lets an owner get ahead of it.
+so an added kind breaks no owner's policy on upgrade — it stops the
+first task of that kind, in the middle of a workstream, until the policy routes
+it, and the release note is what lets an owner add the route ahead of it.
 
 For a tree-grammar release, prepare converted scratch copies and verify them
 with the release candidate before installation. Obtain the human's approval
@@ -614,9 +634,15 @@ proves it finds and accepts its worker and that the worker reports that version
 too. For a behavioral smoke test of the installed binary, use the isolated
 harness procedure documented in `scripts/release-publish.sh`.
 
+An installation launches nothing until its owner has a policy. The formula's
+caveats say so: `harness-dispatch init` installs the sample, which the owner
+reads and edits before the first run. Installing or upgrading writes no policy
+and changes none, and a `config.kdl` or `.grove.kdl` an earlier release read is
+left where it is and ignored.
+
 The read-only monitor ships inside `grove`, not as a command of its own. Check
 `grove view --help` from the installed binaries,
 then run `grove view /path/to/worktree` in a terminal and edit a scratch tree
-externally to check automatic updates. The viewer needs no launch configuration,
+externally to check automatic updates. The viewer needs no launch policy,
 jj workspace or skill installation. Its binary PTY regression tests cover live
 edits, wide Markdown, resize, recovery and terminal restoration.

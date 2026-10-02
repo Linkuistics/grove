@@ -32,7 +32,7 @@ does nothing else about delivery.
 **What this replaces, and why the arguments are kept.** The binary used to embed
 its whole methodology as a `content/` tree and sweep it, on every invocation,
 into **every installed harness's** personal global skill directory — every one,
-because an opaque configured command cannot be traced to a single harness. Four
+because an opaque launch command could not be traced to a single harness. Four
 terms hung off that one mechanism and are retired with it: *global skill
 provisioning* (the sweep), *embedded methodology* (the `include_dir!` tree fixed
 at build time), *methodology identity* (its content hash, written as the
@@ -93,7 +93,10 @@ saving.
 <a id="guaranteed-core"></a>
 ### Guaranteed core / the too-late test
 
-The whole of a session's `${prompt}`: a forceful instruction to load this kind's
+The whole of a session's `${prompt}`, which is this repository's name for the
+prompt Grove composes. The spelling is the command-template slot that once
+carried it; nothing expands it now, and Grove passes the prompt to
+`harness-dispatch run` as `--prompt`. It holds a forceful instruction to load this kind's
 [[Kind skill]], named in both the bare and the plugin-namespaced spelling of that
 one target; the runtime facts the driver resolved (the selected [[Work-item
 handle]], the [[Stated VCS]], and Grove's published release version); and Grove's

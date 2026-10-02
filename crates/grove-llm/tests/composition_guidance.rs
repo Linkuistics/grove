@@ -703,7 +703,7 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
     }
 
     for (surface, text, replacement) in [
-        // `diversity-is-the-configs` is `references/decompose.md`'s — it is a
+        // `diversity-is-the-policys` is `references/decompose.md`'s — it is a
         // judgement made while *cutting* a review step, not while executing one —
         // and `retirement-is-filename-only` is `references/retire.md`'s. Both
         // anchors follow their rules; neither claim changed

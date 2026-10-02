@@ -112,7 +112,7 @@ bigger-than-brief-decomposes	grove/references/decompose.md	B*	on(the leaf is big
 chain-is-lazy	grove/references/decompose.md	B	on(an artifact may need review) @ grove/references/decompose.md	only if it has findings worth acting on
 correction-run-is-not-a-pass	grove/references/decompose.md	B	on(a defect an earlier step owns) @ grove/SKILL.md	a correction run is a repetition **the finding session decided**
 creating-session-writes-the-body	grove/references/decompose.md	B	on(cutting a step) @ grove/references/decompose.md	The creating session writes the new leaf's body
-diversity-is-the-configs	grove/references/decompose.md	B	on(cutting a review step) @ grove/references/decompose.md	Diversity is the configuration's, not the tree's
+diversity-is-the-policys	grove/references/decompose.md	B	on(cutting a review step) @ grove/references/decompose.md	Diversity is the policy's, not the tree's
 externalize-by-default	grove/references/decompose.md	B*	on(work surfaces that does not serve this goal) @ grove/SKILL.md	the bar is *"fits this session,"* not "I can finish it."
 fog-or-ticket	grove/references/decompose.md	B	on(foreseeing work you cannot yet state) @ grove/SKILL.md	a speculative leaf is the wrong shape for fog
 grow-verbs-are-working-tree-only	grove/references/decompose.md	B	on(growing the tree) @ grove/references/decompose.md	
@@ -146,9 +146,9 @@ visual-design-information-prerequisites	grove-design/references/visual-design-di
 draft-requires-a-structure-brief	grove-draft/SKILL.md	B+S	static({draft})	If this document has no structure brief, stop and say so
 structure-brief-is-three-citable-things	grove-draft/SKILL.md	B	static({draft})	The existence of a node file is not the test
 draft-owns-structure-and-technical-truth	grove-draft/SKILL.md	B	static({draft})	every claim about the subject is checked against the subject
-config-edit-lands-next-session	grove/references/driver.md	B	on(the configuration is wrong or edited) @ grove/references/driver.md	
+policy-edit-lands-next-session	grove/references/driver.md	B	on(the policy is wrong or edited) @ grove/references/driver.md	
 tree-grammar-is-required	grove/references/driver.md	B	on(opening a tree) @ grove/references/driver.md	Grove performs no migration
-one-configuration	grove/references/driver.md	S	on(how this session was launched matters) @ grove/SKILL.md	**Nothing else routes a session**
+one-policy	grove/references/driver.md	S	on(how this session was launched matters) @ grove/SKILL.md	**Nothing else routes a session**
 pick-walk-order	grove/references/driver.md	B	on(how this session was launched matters) @ grove/SKILL.md	first live leaf in a depth-first **pre-order** walk
 restart-equals-continuation	grove/references/driver.md	B	on(resuming) @ grove/references/driver.md	**restart ≡ continuation**
 scaffold-is-the-drivers	grove/references/driver.md	B	on(the tree was just created) @ grove/references/driver.md	a session **never scaffolds the tree itself**
@@ -169,7 +169,7 @@ control-must-be-seen-to-fail	grove/references/execute.md	B+S	on(making a repo-wi
 decisions-land-as-they-settle	grove/references/execute.md	B	on(a decision settles) @ grove/SKILL.md	Never reconstruct a session's decisions at the end of it
 doubt-pass-procedure	grove/references/execute.md	B	on(spending the allowance) @ grove/references/execute.md	stripping the conclusion
 enumerate-then-classify	grove/references/execute.md	B	on(making a repo-wide claim) @ grove/references/execute.md	Enumerate, then classify. Do not sweep a pattern list
-escalated-review-routes-through-config	grove/references/execute.md	B	on(a review leaf exists) @ grove/references/execute.md	Once review is escalated to the tree, grove owns the route
+escalated-review-routes-through-policy	grove/references/execute.md	B	on(a review leaf exists) @ grove/references/execute.md	Once review is escalated to the tree, grove owns the route
 escalation-names-the-tradeoff	grove/references/execute.md	B	on(handing a question back to a human) @ grove/SKILL.md	name the trade-off you want input on
 measure-a-frozen-subject	grove/references/execute.md	B+S	on(reporting a measured result) @ grove/references/execute.md	an instrument you adjust mid-reading has not read anything
 no-self-invalidating-count	grove/references/execute.md	B	on(making a repo-wide claim) @ grove/references/execute.md	Never document a claim with a count of itself

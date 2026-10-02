@@ -7,11 +7,9 @@
 //
 //   export { policy } from "harness-dispatch/examples/grove-review";
 //
-// with Grove's dispatch command, which passes the task file it selected:
-//
-//   harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}
-//
-// or apply the rule to routes and review kinds of your own:
+// Grove passes the task file of the leaf it selected for every session it
+// launches, so nothing else is needed. Or apply the rule to routes and review
+// kinds of your own:
 //
 //   import { definePolicy } from "harness-dispatch/sdk";
 //   import { groveReviewSelector } from "harness-dispatch/examples/grove-review";

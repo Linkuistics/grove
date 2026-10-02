@@ -5,11 +5,11 @@ methodology authored as plugin files and delivered through each harness's
 installation path. Durable work stays in
 ordinary repository files and VCS;
 Grove adds only enough coordination to own one working tree, select one task,
-launch one configured agent session, and continue until the tree is complete.
+launch one agent session, and continue until the tree is complete.
 
-Grove does not know what it launches. One personal file maps each session kind
-to one complete command template, and the driver executes the expanded argv
-directly. Everything below is what remains once launch policy leaves the binary
+Grove does not know what it launches. It runs `harness-dispatch` for every
+session, the owner's policy there returns the command, and the harness replaces
+that process. Everything below is what remains once launch policy leaves the binary
 — process ownership, a task-tree data model, and the loop that composes them —
 recorded as the decisions, the constraints and the measurements behind each.
 The description of what the system does at its entry point, how its two command
@@ -28,7 +28,7 @@ them.
 | Project description and installation | [`README.md`](../README.md) |
 | Human workflow and commands | [`USAGE.md`](USAGE.md) |
 | Cutting and publishing a release | [`RELEASING.md`](RELEASING.md) |
-| A refused launch, and a review's creator line as a Grove owner meets them | [`USAGE.md`](USAGE.md#if-a-dispatched-launch-refuses) |
+| Launch policy, a refused launch, and a review's creator line as a Grove owner meets them | [`USAGE.md`](USAGE.md#usage-launch-policy) |
 | `harness-dispatch` itself: policies, inspection, running, records and refusals | [`crates/harness-dispatch/README.md`](../crates/harness-dispatch/README.md) — beside the package and not under `docs/`, so that it travels with it |
 | The `harness-dispatch` contract | [`specs/harness-selection-and-execution.md`](specs/harness-selection-and-execution.md), with its [visual views and runtime evidence](design/harness-selection-and-execution/README.md) |
 | Runtime and repository design — the decisions, the constraints, and the measurement records | this document |
@@ -110,8 +110,8 @@ skill plugins:
 Their documented interfaces evolve together. `plugins/` is the authoritative
 skill source; the human binary embeds its snapshot and provisions all skills
 whose `harnesses:` metadata permits Codex. Claude Code retains marketplace
-installation and auto-update. No harness is inferred from the configured
-command, which remains opaque.
+installation and auto-update. No harness is inferred from the command a policy
+selects, which Grove never sees.
 
 ## Runtime flow
 
@@ -125,8 +125,8 @@ restored any skill directory another build had clobbered, and re-checked the
 identity — a mid-loop `brew upgrade` being exactly the skew a start-time check
 misses. Both had the same subject, the embedded corpus, and both went with it at
 `delete-provisioning-k19`. Nothing in the iteration is advisory now:
-configuration, lease, and workspace layout are facts the driver establishes
-directly and stops on. Codex provisioning now happens once in the binary before
+the lease, the workspace layout and the `harness-dispatch` beside the binary are
+facts the driver establishes directly and stops on. Codex provisioning now happens once in the binary before
 the loop begins; it fails startup on an installation error.
 
 <a id="cli-binary-split"></a>
@@ -172,7 +172,7 @@ implement the [item-status design](specs/item-status.md), including exceptional
 tree lifetimes and independently fresh runtime summaries.
 
 `grove view [WORKTREE]` dispatches to the `grove-tui` library before jj workspace
-resolution, driver lease acquisition or launch configuration. Its observation
+resolution, driver lease acquisition or any launch. Its observation
 path is the specified directory's `.grove`; it never searches upward.
 `grove-tui` owns the terminal lifetime, application state and Ratatui rendering.
 Only the human binary depends on it. `grove-loop` and `grove-llm` have no terminal
@@ -200,7 +200,7 @@ The loop capture calls `select_snapshot` before selecting content.
 results. Tree capture finishes before runtime takes a quiet shared epoch lock;
 all advisory locks release before return. Runtime uses exact-workspace namespace
 discovery and admission's mandatory record grammar, without probing the lease
-lock or requiring launch configuration. Missing workspace, namespace or lease
+lock or requiring a launch policy. Missing workspace, namespace or lease
 means Idle; matching inactive records mean Idle; epoch contention means Busy;
 legacy active, malformed, mismatched or unreadable records mean Unavailable.
 For a version-1 active epoch, observation validates every extension field and
@@ -309,11 +309,24 @@ Only surviving target lines retain their intra-line and transformed-event offset
 File errors retain the saved anchor and display a diagnostic separately.
 The renderer performs no I/O.
 
-## Session configuration
+## Launching a session
 
 Grove reads no configuration file. Every launch's command is selected by the
 owner's `harness-dispatch` policy ([below](#harness-dispatch)), and a
-`config.kdl` or `.grove.kdl` left on disk is never read.
+`config.kdl` or `.grove.kdl` left on disk is never read. Grove finds
+`harness-dispatch` beside its own executable, from its own real path, never
+from PATH or the cwd, so the pair is one release.
+
+Three files decide a launch, and none of them is Grove's. The
+policy, `~/.config/harness-dispatch/policy.ts`, returns the command.
+`harness-dispatch init` installs a sample, and the owner edits it. The owner
+settings, `settings.json` beside it, carry the selection bound, the context
+budget, the record directory and the environment granted to the policy, which
+Grove therefore never passes. A choice file, `.harness-dispatch-choice` in the
+working-tree root, picks among the options the policy offers for that
+checkout's lifecycle sessions and can introduce nothing. `harness-dispatch inspect` shows what a kind would launch. Nothing is
+evaluated before a launch, and a refused launch leaves its leaf live with the
+remedy on the terminal ([usage](USAGE.md#usage-refused-launch)).
 
 **`crates/keyed-launch` runs the command it is handed, and has never heard of a
 session.** It reads no configuration and resolves no name to a command. The
@@ -394,17 +407,18 @@ consumers handle observational failures internally. Ordinary `run(Launch)`
 remains available. Grove uses these events for witness publication and release;
 the viewer consumes their verified same-tree evidence for RUNNING and NEXT.
 
-Grove executes the expanded argv directly — no shell, no proxy, no router
-service, and no harness-specific argument or environment injection. Because a
-command string is opaque, Grove cannot identify the program it launches, which
-is what removes harness detection, model routing, session-name arguments, Codex
-sandbox grants, and launch-target comparison from the binary altogether. Those
-choices are visible in the owner's policy instead.
+Grove spawns `harness-dispatch run` directly — no shell, no proxy, no router
+service, and no harness-specific argument or environment injection. The command
+the policy selects never passes through Grove, so Grove cannot identify the
+program a session runs, which is what removes harness detection, model routing,
+session-name arguments, Codex sandbox grants, and launch-target comparison from
+the binary altogether. Those choices are visible in the owner's policy instead.
 
-Two environment rules follow from that opacity. Immediately before spawning the
-configured child, Grove clears its own loop-control variables and grants only
+Two environment rules follow from that. Immediately before spawning the
+child, Grove clears its own loop-control variables and grants only
 this launch's `GROVE_SIGNAL_FILE`; everything else the caller had, including Git
-repository selectors, is preserved as the configuration owner's policy.
+repository selectors, is preserved for the harness. The policy worker is given
+a fresh environment instead ([below](#harness-dispatch)).
 Driver-internal VCS children follow the opposite rule — they scrub both the loop
 controls and the repository selectors and are pinned to the leased working tree
 by their working directory — so personal launch context cannot redirect a
@@ -414,9 +428,9 @@ teardown commit.
 ## The harness-dispatch package
 
 `crates/harness-dispatch` is a second product of this workspace and no part of
-Grove. It evaluates an owner's TypeScript selection policy, chooses one
-configured harness, model and reasoning effort together, records the handoff,
-and replaces itself with that harness. A caller needs no Grove to use it. Its
+Grove. It passes what its caller gave it to the `select` function of an owner's
+TypeScript policy, records the handoff, and replaces itself with the command
+that function returns. A caller needs no Grove to use it. Its
 contract is the [area specification](specs/harness-selection-and-execution.md),
 and what an owner writes and runs is
 [its README](../crates/harness-dispatch/README.md)'s. This section places the
@@ -424,43 +438,49 @@ package and states its boundary, which
 [harness selection is owned by policy](adr/harness-selection-is-owned-by-policy.md)
 decides.
 
-**Grove reaches it as one opaque command, so Grove still does not know what it
-launches.** A personal command definition names `harness-dispatch run` with the
-`kind`, `task_file` and `task_id` slots and the prompt, and the driver expands
-and spawns it as it does any other template. No Rust source Grove ships names
-the command. The three slots are what Grove gained, and they serve any wrapper:
-they carry the selected leaf's kind, path and handle as whole arguments, from
-the selection that composes the mandate. Grove's pre-authoring check therefore
-stops at the configured command, and a delegated policy is evaluated only at
-launch. That can stop an unattended run on a leaf already written, and is the
-accepted cost of delegating.
+**Grove runs it for every session, and still does not know what it launches.**
+The loop builds one `harness-dispatch run` invocation for the leaf it selected:
+the kind, the task file's path, the handle and the unchanged mandate, and the
+session name and the two roots as named parameters. `grove run` builds one
+`harness-dispatch inspect --json` invocation instead and hands the reported
+file and arguments to the runner, because the policy and the record store are
+outside what a confined process may read. Grove passes no policy entry, bound,
+grant or record directory: those are the owner's settings. Nothing is checked
+before a launch. A kind the policy does not route is refused when its leaf
+launches, which can stop an unattended run on a leaf already written, and is
+the accepted cost of one place to decide.
 
-The boundary has three sides:
+The dependency runs one way:
 
 | Side | Rule | Why |
 |---|---|---|
 | What the package depends on | Third-party crates, SQLite compiled into the front, and its compiled policy worker, which the front finds relative to its own real path | An installation needs no system Bun, Node, SQLite or database service, and nothing ambient can substitute another worker |
 | What the package must not depend on | Any other crate of this workspace; the task-tree grammar, a Grove filename or jj; in its core, a list of review kinds or the `**Reviews:**` and `**Creator:**` grammar | Grove is one caller among many, and supplies its kind, task and prompt as data. A review rule is an owner's policy, not the command's |
-| What Grove must not depend on | The package, in any shipped source; any record of how a producer ran | Launch policy left the binary, and Grove allocates and stores nothing for dispatch |
+| What Grove depends on | The installed executable, by its command line and the `command` object of its inspection report. No crate of Grove's links the package | Whatever Grove needs is a capability any caller can use |
+| What Grove must not hold | Launch configuration of its own; any record of how a producer ran | One place decides what runs, and Grove allocates and stores nothing for dispatch |
 
-What crosses it is data, in four places:
+What crosses the boundary is data, in four places:
 
 - **Arguments.** Grove passes the kind, the task file's path, the handle and the
-  unchanged prompt, each as one argument. The front parses no prompt and no
-  filename.
+  unchanged prompt, and `session_name`, `worktree` and `repo` as parameters,
+  each as one argument. The front parses no prompt and no filename, and gives a
+  parameter no meaning.
 - **Environment.** The harness inherits the environment Grove gave the front,
   this launch's `GROVE_SIGNAL_FILE` included, plus `HARNESS_DISPATCH_RUN_ID`
   and `HARNESS_DISPATCH_STATE_DIR`. The policy worker is given a fresh
   environment instead. It never holds the two dispatch variables, and it holds
-  the completion channel only if the owner grants that name with
-  `--policy-env`, which no documented configuration does. So selection has no
-  authority to end a session unless its owner hands it over.
+  the completion channel only if the owner grants that name in the owner
+  settings or with `--policy-env`, which Grove never passes and the documents
+  warn against. So selection has no authority to end a session unless its
+  owner hands it over.
 - **The process.** The front `exec`s the harness, so the harness is the process
   Grove spawned: its PID, process group, terminal and working directory are the
   ones [process ownership](#process-ownership) supervises
   ([the launched child is a job](adr/the-launched-child-is-a-job.md)). Selection
   runs first, in a worker the front starts and reaps
   ([policy evaluation precedes process replacement](adr/policy-evaluation-precedes-process-replacement.md)).
+  A confined standalone invocation is the exception: Grove's runner spawns the
+  file inspection reported, and dispatch launches nothing there.
 - **The task file.** A review leaf's `**Reviews:**` and `**Creator:**` lines are
   written by sessions, as the methodology directs, and read by a policy import.
   Grove's code writes and reads neither
@@ -491,8 +511,8 @@ is what refers to that directory from outside it:
   step of `scripts/check.sh` that runs them;
 - the release scripts, which build the front and worker for each target, hold
   the archive manifest and the formula, and run the installed smoke test;
-- Grove's launch-boundary tests, which spawn the built front as a configured
-  command and would need an installed one;
+- Grove's launch code and its launch-boundary tests, which run the front
+  beside Grove's own executable and would need an installed one;
 - the specification, the three decisions and the design directory, which live
   under `docs/` while the package lives here and would move with it.
 
@@ -505,7 +525,7 @@ integration tests and delivery benefit from it.
 
 ## Process ownership
 
-A working tree has at most one live driver. Before configuration validation or
+A working tree has at most one live driver. Before
 any `.grove/` observation, bare `grove` acquires a
 **driver lease**: a nonblocking exclusive advisory lock on a fixed file in a
 control directory grove does not derive. It asks the resolved workspace for one
@@ -533,8 +553,8 @@ descriptors until the loop reaches a terminal disposition and revalidates before
 every lifecycle transition and launch. Kernel release on return, panic, or
 process death is what makes restarting after a crash ordinary continuation. A
 second driver fails immediately rather than queueing, because two drivers would
-issue two mandates for one task. Every descriptor is close-on-exec, so an opaque
-configured command cannot pass ownership to a descendant.
+issue two mandates for one task. Every descriptor is close-on-exec, so the
+launched command cannot pass ownership to a descendant.
 
 The same control directory holds one **session epoch** file binding the driver's
 fresh 128-bit OS-random nonce, the working-tree identity, and the current signal
@@ -671,7 +691,7 @@ priorities, or scheduler outside sibling order.
 <!-- residue(none): the Bootstrap sequence is the methodology's, not a crate's -->
 **One pick is authoritative, and it is a fact rather than a routing forecast.**
 The driver performs exactly one per iteration, and that single value serves
-readiness, the launch diagnostic line, template selection, and the mandate, with
+readiness, the launch diagnostic line, the dispatch invocation, and the mandate, with
 no second tree read; it is not recomputed immediately before spawn. Its read
 guard is released before the spawn, so the mandated session can take an exclusive
 tree guard while the driver still owns the loop. What the prompt then carries,
@@ -887,14 +907,14 @@ to extending the store's interface solely for this diagnostic.
 <a id="task-kind-taxonomy"></a>
 ## Task kinds and composition
 
-A session kind gives each session a discipline and gives the driver its
-configuration key. **Grove holds no set of them**
+A session kind gives each session a discipline and gives the owner's policy the
+token it selects a command for. **Grove holds no set of them**
 ([`a-kind-is-an-open-token`](adr/a-kind-is-an-open-token.md)): a kind is any
 well-formed token — lowercase ASCII letters, digits and single hyphens, no `--` —
 and the kinds that *exist* are the `grove-<kind>` skills the installed
 methodology ships. The table below is the methodology's current set of twenty-three,
-not the binary's; adding another is authoring a skill and declaring a template
-for it, never editing this repository's Rust.
+not the binary's; adding another is authoring a skill and routing the kind in a
+policy, never editing this repository's Rust.
 
 **Grove spells a kind token only where it writes the leaf itself**, with no
 session to delegate to, and only for a leaf it can recognise afterwards: the
@@ -1012,10 +1032,10 @@ because `collect_live_leaf_entries` descends a node directory in place, and
 directory-local, because that same pre-order finishes the review's own directory
 before any later sibling of an ancestor. Nothing in the binaries enforces or
 checks that. `research-a` and
-`research-b` share one discipline but are separate configuration keys, which is
+`research-b` share one discipline but are separate kinds, which is
 how a vendor pair reaches two different commands without any per-leaf metadata;
-whether those two commands are materially independent is configuration-owner
-policy, because Grove cannot compare opaque strings.
+whether those two commands are materially independent is the policy owner's to
+decide, because Grove sees neither command.
 
 <!-- residue(none): the in-session reviewer allowance, `references/execute.md`'s -->
 Once a session has run Bootstrap and adopted its prompt mandate, a plain
@@ -1297,9 +1317,8 @@ writes by hand.
 ## Lifecycle and resumption
 
 Bare `grove` is the sole start/continue/finish entry. Each iteration performs at
-most one lifecycle transition, and full configuration validation precedes every
-one of them, so a missing or malformed `config.kdl` — or an invalid or tracked
-`.grove.kdl` delta — leaves the working tree byte-identical. Which state maps to
+most one lifecycle transition, and none of them consults the owner's policy,
+which is evaluated only when the leaf launches. Which state maps to
 which transition is the [`grove-loop`
 walkthrough](walkthroughs/grove-loop/README.md)'s.
 
@@ -1456,15 +1475,15 @@ unrelated working-copy changes in the successor commit.
 
 The user owns topology. Grove reads no branch or bookmark, creates no working
 tree, and performs no integration or teardown. The working-tree basename is
-the grove name, and `<repo-basename>: <grove-name> grove` is the session name a
-template may request.
+the grove name, and `<repo-basename>: <grove-name> grove` is the session name
+Grove passes to the policy as the `session_name` parameter.
 
 <a id="self-extension-core-and-methodology"></a>
 ## How the methodology reaches a session
 
 The methodology is the `grove` plugin: a shared spine plus one `grove-<kind>`
-skill per bundled session kind. `${prompt}` names the skill a session must load.
-The configuration author supplies any independently authored kind's skill.
+skill per bundled session kind. The prompt Grove composes names the skill a
+session must load. Whoever authors an independent kind supplies its skill.
 
 For Codex, the human binary owns delivery before entering `grove_loop::run`.
 After workspace resolution and the driver lease, `provision` detects an existing
@@ -1497,7 +1516,7 @@ receive changes through their own update route.
 
 Provisioning establishes bundled Codex bytes at startup. It does not pin them
 for the lifetime of every running session: another Grove build can publish its
-snapshot later, and a configured `grove-llm` can still come from another build.
+snapshot later, and the `grove-llm` a session resolves can still come from another build.
 `crates/grove-llm/tests/instructed_verbs.rs` verifies that this checkout's skills
 instruct only verbs its CLI exposes. Keep the two halves in one release.
 
@@ -1605,7 +1624,7 @@ and reachable loaded path — the path composed out of `content/SKILL.md`,
 `reference_file(kind)` and that kind's signal file. `prompt-names-the-kind-k18`
 deleted the composition and `delete-provisioning-k19` deleted the corpus, so
 their subject is gone; `crates/grove-loop/tests/prompt.rs`'s 4 KiB ceiling on each kind's
-`${prompt}` is the one that remains, because the prompt is still composed. The
+prompt is the one that remains, because the prompt is still composed. The
 arguments the budgets were built on are worth keeping and are recorded below,
 because the next person to reach for a size measure over prose will need them.
 
@@ -1766,10 +1785,10 @@ no `leaf` module: it held `Kind`, which is `task_name`'s since
 The modules are intentionally file-sized rather than wrapped in another
 service layer. The task tree, subprocess boundary, and VCS adapter are the
 important seams and are tested through public behavior. No harness abstraction
-replaces the removed routing registry: opaque command targets have exactly one
+replaces the removed routing registry: a launch has exactly one
 production adapter — direct process execution — so another port would be
-hypothetical indirection. `harness-dispatch` adds none: it is a program a
-template names, on the far side of that one adapter.
+hypothetical indirection. `harness-dispatch` adds none: it is the program the
+loop spawns, on the far side of that one adapter.
 
 Module visibility is load-bearing rather than incidental: a `pub` item in a
 `pub` module is reachable by definition, so `dead_code` never reports one, and a
@@ -1828,17 +1847,17 @@ list is retyped by nobody; it does not make a green tree a guarded one. The
 script's own header carries why it pins no toolchain.
 
 Integration tests drive the real bare `grove` process in native jj and colocated
-jj worktrees, with isolated home directories, a real
-`config.kdl`, executable fake commands that record argv/cwd/environment/prompt,
-and the real `grove-llm` binary. Clocks, wait policy, lock backends, and kill
+jj worktrees, with isolated home directories holding a harness-dispatch policy,
+the real front and its compiled worker, executable fake harnesses that record
+argv/cwd/environment/prompt, and the real `grove-llm` binary. Clocks, wait policy, lock backends, and kill
 graces are injected through internal module seams, never through supported
 process configuration.
 
 **`harness-dispatch` is verified at two process seams, and once more on each
 release target.** Its own suite drives the built front with temporary policies
-and fake harnesses, in a cleared environment with no Grove configuration or
+and fake harnesses, in a cleared environment with no Grove installation or
 task tree. Grove's launch-boundary suite drives the real driver, front and
-worker together, as a dispatched command, at the launch boundary and under a
+worker together, at the launch boundary and under a
 controlling terminal. Neither skips without the compiled worker. Cargo never
 builds it, and the front refuses a worker built from other source with exit 5,
 so a missing or stale worker fails every case that needs one. The probe builds

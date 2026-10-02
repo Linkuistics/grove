@@ -52,6 +52,134 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+**This is a major release, and every owner has something to do before the next
+launch.** Grove's launch configuration is gone: Grove now launches every
+session by running `harness-dispatch` itself, and one personal policy file
+decides what runs. harness-dispatch's policy contract changed with it, so a
+policy written for 21.13.0 refuses too.
+
+### What breaks, and what to do about it
+
+- **Grove no longer reads `~/.config/grove/config.kdl` or `.grove.kdl`.** A
+  copy left on disk is never read and refuses nothing, whether it is valid,
+  invalid or tracked. Commands, bindings, routes, parameters, profiles, the
+  per-checkout delta with its trackedness check, and both `grove config show`
+  and `grove config examples` are deleted. There is no converter. **Run
+  `harness-dispatch init`**, which installs a sample policy as
+  `~/.config/harness-dispatch/policy.ts`, then read it and edit it: the sample
+  is one owner's former configuration, converted, and it launches `codex` with
+  approvals off and full access. Until a policy exists, every launch refuses
+  as `policy_missing` and names `init`
+  ([launch policy](docs/USAGE.md#usage-launch-policy);
+  [harness selection is owned by policy](docs/adr/harness-selection-is-owned-by-policy.md)).
+- **A harness-dispatch policy that declares `schemaVersion: 1` refuses**, as
+  `unsupported_version`, and nothing converts it. `catalog`, `routes`, slot
+  objects among a candidate's arguments and the `--choice` input are gone, and
+  so is the `harness-dispatch/examples/dynamic` example. Rewrite the policy as
+  one `select` that returns the command to run, or start from `init`'s sample
+  ([a policy](crates/harness-dispatch/README.md#a-policy)).
+- **A kind your policy does not route is caught only when its leaf launches.**
+  `leaf-add`, `leaf-insert`, `leaf-decompose`, root scaffolding and the
+  `finish` leaf consult no policy, so a leaf of any well-formed kind is
+  written, and a typo'd or unrouted kind stops the loop at its launch, possibly
+  in the middle of an unattended run. The refusal carries its remedy and the
+  `inspect` command that reproduces it, the leaf stays live, and rerunning
+  `grove` continues. Check a kind of your own ahead of time with
+  `harness-dispatch inspect`, passing the parameters Grove passes.
+- **What a command definition carried as flags moves to a settings file.**
+  Grove passes harness-dispatch no bound, grant or record directory. Set
+  `timeoutMs`, `contextBytes`, `stateDir` and `policyEnv` once, in
+  `~/.config/harness-dispatch/settings.json`
+  ([owner settings](crates/harness-dispatch/README.md#owner-settings)). Do not
+  grant `GROVE_SIGNAL_FILE` there.
+- **A per-checkout `.grove.kdl` becomes a choice file.**
+  `.harness-dispatch-choice` in the working-tree root names which of the
+  options your policy offers that checkout uses. It can introduce no program,
+  argument or label, so it needs no ignore rule.
+- **Grove requires `harness-dispatch` beside it.** Grove finds it next to its
+  own executable, never on `PATH`, and stops with the path it looked at when it
+  is missing. Homebrew and the release archives install the pair together.
+- **`grove run KIND` needs the kind routed in the same policy**, to a
+  noninteractive command. The sample routes `release-notes`, which
+  `task release:notes` uses.
+
+### Grove
+
+- Every lifecycle session is launched as `harness-dispatch run`, in the
+  working-tree root, with the leaf's kind, task file, stable handle and the
+  unchanged prompt, and the session name, working-tree root and main-repository
+  root as the parameters `session_name`, `worktree` and `repo`. The driver's
+  launch line now reads `grove: launching KIND through harness-dispatch —
+  HANDLE`, and harness-dispatch's own line follows it with the provider, model
+  and effort labels, the run ID and the program.
+- A session that ends without a completion signal and with a failing status is
+  reported with its kind and handle and a pointer to harness-dispatch's
+  diagnostic above it. A refused launch leaves the leaf live.
+- `grove run KIND` selects its command with `harness-dispatch inspect`, outside
+  the sandbox, and launches the reported file inside it. The harness cannot
+  read the policy, the owner settings or the record store, records no run and
+  receives no run ID. A refused selection, or a signal during it, launches
+  nothing and publishes nothing.
+- `grove --help` lists `run` and `view` only.
+
+### harness-dispatch
+
+- **A policy is one `select` function.** It receives the kind, the prompt byte
+  for byte, the caller's directory, every `--param`, and the optional task
+  file, task identity and context. It returns `selected`, with `program`,
+  `args`, the `provider`, `model` and `effort` labels and a `reason`, or
+  `refused`, with `code`, `message` and `remedy`. The command validates the
+  shape of the result and nothing about its content. A policy's own refusal is
+  reported as `policy_refused` with the policy's code beside it. The policy,
+  the request and the inspection report are schema version 2.
+- `--param NAME=VALUE` passes caller data to the policy by name, repeatably.
+  A repeated or malformed parameter refuses, and all of them together are at
+  most 64 KiB.
+- `init` installs the sample policy as the personal default when nothing is
+  there, and has no option to replace one. Nothing else writes a policy. The
+  sample routes Grove's 23 session kinds and the standalone `release-notes`
+  kind, offers four arrangements of which harness leads and which reviews and
+  two modifiers, and places the `session_name` and `repo` parameters Grove
+  passes.
+- The SDK's `readChoice` reads a `.harness-dispatch-choice` file for a policy
+  that calls it, and refuses a name the policy did not offer.
+- Owner settings: one optional `settings.json` beside the policy sets the
+  selection bound, the context budget, the record directory and the names
+  granted to the policy, for every invocation and every kind. A flag replaces
+  its setting, `--policy-env` adds to the grants, and inspection reports where
+  each value came from. The selection bound's ceiling rises from 120 to 600
+  seconds; its default stays 30.
+- A policy can hand the prompt to a deciding agent that it starts in the
+  caller's directory and reaps, within the selection bound. No agent policy
+  and no model-calling policy ships. The prompt is a mandate, so keeping such
+  an agent from executing the task it evaluates is the policy owner's job
+  ([handing the prompt to a deciding agent](crates/harness-dispatch/README.md#handing-the-prompt-to-a-deciding-agent)).
+- `inspect` reports the selected command as a `command` object: the `program`
+  and `args` the policy returned and the `executable` the program resolved to.
+  Without `--prompt` it gives `select` a marker the SDK names
+  `PROMPT_NOT_SUPPLIED`. A resolved program path that is not UTF-8 refuses, so
+  inspection reports exactly the file `run` executes.
+- A refused `run` prints its equivalent `inspect` invocation with the
+  parameters and without the prompt. A missing policy refuses as
+  `policy_missing`, and its remedy names `init`.
+- Run records written under the 21.13.0 contract are still shown, observed and
+  looked up, and a review whose creator ran under it still resolves that
+  creator's provider.
+
+### Skills and documents
+
+- `grove` / `configure-grove`: rewritten for the policy, its settings file and
+  the choice file. Its two configuration references are replaced by one,
+  `references/policy.md`.
+- `grove` methodology: `references/driver.md` says how a session is launched,
+  `references/decompose.md` that reviewer diversity is the policy's, and
+  `TASK-FORMAT.md` that a kind is the token the owner's policy selects a
+  command for.
+- The usage guide gains a launch-policy section, and its transcripts are the
+  new driver output.
+- The Homebrew formula's caveats name `harness-dispatch init`, and its test
+  inspects a policy written to the new contract.
+
 ## v21.13.0
 
 - `harness-dispatch`: a new command, installed with Grove and usable without

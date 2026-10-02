@@ -1,7 +1,8 @@
 - **research-a** and **research-b** (both AFK) — a citation-disciplined
   literature/prior-art survey, breadth-seeking. No grilling, no tree growth. The
-  two kinds are identical in discipline and distinct only in configuration, so a
-  single survey that needs no second corpus is `research-a`.
+  two kinds are identical in discipline and distinct only in what the owner's
+  policy launches for each, so a single survey that needs no second corpus is
+  `research-a`.
 
 ## What the survey owes
 

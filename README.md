@@ -2,7 +2,8 @@
 
 Grove is a hierarchical, self-extending workstream tool for AI coding agents.
 It keeps a long project in a small, version-controlled task tree and launches
-one fresh, appropriately configured agent session at a time. The repository
+one fresh agent session at a time, with the harness, model and effort your own
+policy selects for that task. The repository
 also contains the agent skills used by those sessions.
 
 ## What's in this repository
@@ -10,7 +11,7 @@ also contains the agent skills used by those sessions.
 | Product | Source | Purpose |
 |---|---|---|
 | Grove | [`crates/`](crates/) | The Rust workspace: two thin binaries over five library crates, the loop that launches one session per task among them. |
-| harness-dispatch | [`crates/harness-dispatch/`](crates/harness-dispatch/) | A separate command in the same workspace, installed with Grove and usable without it: it selects and runs an agent harness from its owner's TypeScript policy. |
+| harness-dispatch | [`crates/harness-dispatch/`](crates/harness-dispatch/) | A separate command in the same workspace, installed with Grove and usable without it: it selects and runs an agent harness from its owner's TypeScript policy. Grove launches every session through it. |
 | Skill plugins | [`plugins/`](plugins/) | Grove's own methodology, the Linkuistics coding/design skills, and the Testanyware GUI-testing skill. |
 
 The products share a repository and a release snapshot. Bare `grove` installs
@@ -31,14 +32,30 @@ TypeScript policy ([its README](crates/harness-dispatch/README.md)). The first b
 `~/.codex` is a directory or `CODEX_HOME` is set to a nonempty value. Claude Code and other
 harnesses need the setup below.
 
-Grove needs one personal configuration file, `~/.config/grove/config.kdl`, giving
-each session kind you use a complete command template. Grove holds no list of
-kinds and enforces no schema: it asks whether a kind is declared at the moment it
-needs one. The lifecycle will not start without the file at all.
-Run `grove config examples` for inactive samples and instructions in
-`~/.config/grove/`, then adapt the policy yourself. The command preserves active
-configuration and refuses conflicting files. Use `grove config show --json` inside
-a workspace to inspect resolved commands and their origins before launching.
+Grove has no launch configuration of its own. It launches every session by
+running `harness-dispatch`, and your policy there,
+`~/.config/harness-dispatch/policy.ts`, returns the harness command for each
+session kind. Install the sample policy once, read it, and edit it:
+
+```sh
+harness-dispatch init
+harness-dispatch inspect --kind impl --param session_name=parser --param repo=/work/parser
+```
+
+The sample launches `codex` with approvals off and full access, so read it
+before the first launch. `inspect` reports what a kind would launch, and
+launches nothing. A kind your policy does not route is refused when its leaf
+launches, with a remedy, and rerunning `grove` continues. A `config.kdl` or
+`.grove.kdl` from an earlier release is never read.
+
+Two more files are yours. `~/.config/harness-dispatch/settings.json` sets what
+applies to every launch: the selection time bound and the environment variables
+granted to the policy among it. Never grant `GROVE_SIGNAL_FILE` there, because
+a policy holding it could end the session it is selecting for. A
+`.harness-dispatch-choice` file in a working-tree root picks, for that checkout,
+among the options your policy offers.
+[Launch policy](docs/USAGE.md#usage-launch-policy) in the usage guide has the
+rest.
 
 Grove's methodology uses Linkuistics' `decision-records` for ADR discipline and
 `codebase-design` for module design, structural simplicity, and test seams.
@@ -49,7 +66,7 @@ Claude Code using the instructions below.
 
 Run `grove view` for the current directory's `.grove`, or
 `grove view /path/to/worktree` for another tree. The browser is permanently
-read-only and needs no jj workspace, launch configuration or installed skills.
+read-only and needs no jj workspace, launch policy or installed skills.
 It never searches parent directories. Files render as formatted Markdown and
 refresh automatically every 500 ms; `r` requests an immediate refresh.
 Tab switches between tree navigation and file scrolling;

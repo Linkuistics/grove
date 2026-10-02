@@ -1199,7 +1199,7 @@ returns the session to its prompt, the child never exits, and the loop **stalls*
 rather than stopping. The glossary's own `_Avoid_` for the
 [loop control channel](../../../CONTEXT.md#loop-control-channel) states the same
 trap and adds what settles it — which of the two a forgotten `complete` produces
-is a property of the configured command, not of grove. Nothing downstream of
+is a property of the launched harness, not of grove. Nothing downstream of
 `interpret` can distinguish a stalled session from a working one, which is why
 the fix named here is a reminder delivered somewhere else entirely, on
 `leaf-retire`'s stderr.

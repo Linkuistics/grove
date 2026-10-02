@@ -369,8 +369,8 @@ finish-reservation rule* and *the one pick and what it serves* as a single joint
 row against chapters 7 and 14. That pairing is right for the first marker and
 was wrong for the second. The one pick — the driver's single authoritative pick
 per iteration, one guarded read copying the selected leaf's path, handle and
-kind, the guard released before the second configuration load and the spawn, and
-that one value serving readiness, the launch diagnostic, template selection and
+kind, the guard released before the spawn, and
+that one value serving readiness, the launch diagnostic, the dispatch invocation and
 the mandate with no second tree read — is covered by neither of those chapters.
 **[Chapter 19](19-the-loop.md) is where it is covered**, and all but one clause
 of it: that page reproduces the block which performs the pick and argues *the

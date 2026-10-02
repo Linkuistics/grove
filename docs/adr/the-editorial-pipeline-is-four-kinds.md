@@ -109,7 +109,7 @@ directions at once.
   margin is recorded here so the result is not read as a rout; recording a margin
   is not the same as spending it.
 - **Reuse `impl` for the draft rather than minting a kind.** Tempting: it costs no
-  token and no launch template, and the campaign's book leaves are `impl` leaves
+  token and no policy entry, and the campaign's book leaves are `impl` leaves
   today. Rejected on two counts. Folding the developmental and technical charters
   into `impl` would bind every `impl` session in every grove to a structural and
   technical-accuracy discipline over a document it is not writing — a merge target

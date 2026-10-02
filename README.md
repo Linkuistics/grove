@@ -34,8 +34,7 @@ harnesses need the setup below.
 Grove needs one personal configuration file, `~/.config/grove/config.kdl`, giving
 each session kind you use a complete command template. Grove holds no list of
 kinds and enforces no schema: it asks whether a kind is declared at the moment it
-needs one. The lifecycle will not start without the file at all — see
-[Configuration](docs/CONFIGURATION.md).
+needs one. The lifecycle will not start without the file at all.
 Run `grove config examples` for inactive samples and instructions in
 `~/.config/grove/`, then adapt the policy yourself. The command preserves active
 configuration and refuses conflicting files. Use `grove config show --json` inside
@@ -104,11 +103,9 @@ for the catalogue, ownership rules and installation paths.
 
 - [Usage](docs/USAGE.md) — the bare `grove` lifecycle, the `grove-llm` verbs
   over the task tree, and the start-to-finish workflow.
-- [Configuration](docs/CONFIGURATION.md) — the personal KDL file, the
-  command-template grammar, the configuration delta, and the diagnostics.
 - [harness-dispatch](crates/harness-dispatch/README.md) — selection policies,
-  inspection, run records and refusals; the configuration reference has
-  [routing Grove sessions through it](docs/CONFIGURATION.md#harness-dispatch).
+  inspection, run records and refusals, and
+  [how Grove calls it](crates/harness-dispatch/README.md#called-from-grove).
 - [Architecture](docs/ARCHITECTURE.md) — the design decisions, constraints and
   measurement records behind the runtime, the task tree and the VCS seam.
 - [System overview](docs/walkthroughs/overview/README.md) — the `grove` binary

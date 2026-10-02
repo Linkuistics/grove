@@ -152,6 +152,10 @@ loop-test launch-boundary findings before those deletions.
 `fork-sensitive-pin-test-k18` is an unrelated test flake that surfaced during
 the cutover.
 
+`runner-templates-k14` decomposed at the `keyed-launch` book. `argv-runner-k23`
+did the deletion and left every book valid, and `book-thesis-k24` restates what
+that book is for.
+
 The first four change only harness-dispatch and leave Grove working as released.
 The other five ship together: after `lifecycle-launch-k12` Grove still has
 configuration commands that nothing launches from, until the two deletion
@@ -184,15 +188,16 @@ Every implementation leaf holds to these:
   must reach the run record).
 - Specs covering this area: `docs/specs/harness-selection-and-execution.md`
   (the design: the contract, Grove's two launches, the test seams' cases),
-  `docs/specs/standalone-invocations.md`, `docs/specs/modular-configuration.md`
-  (describes what is deleted), `docs/specs/module-decomposition.md` (decision 7,
-  the runner's interface, which follows the code).
+  `docs/specs/standalone-invocations.md`, `docs/specs/module-decomposition.md`
+  (decision 7, the runner's interface, which follows the code). The
+  modular-configuration specification, its design, the configuration reference
+  and its forms audit were deleted by `runner-templates-k14`.
 - Research: `docs/research/grove-model-effort-routing.md`, which anticipated a
   selector that reads the task.
 - Glossary terms in play (see `CONTEXT.md`): **Static dispatch / dynamic
   dispatch** and **Deciding agent**, both new here; **Guaranteed core**, **Kind
   routing**, **Loop control channel**, **Creator reference**, **Joint
-  candidate**, and the **Grove configuration** cluster this grove retires.
+  candidate**, and **Grove configuration**, which this grove retired.
 - Test seams, agreed with the human, all existing:
   1. the `harness-dispatch` command, with temporary policies and fake harnesses;
   2. the Grove launch boundary: the real driver, the real front and its compiled

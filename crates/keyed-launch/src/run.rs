@@ -50,9 +50,8 @@ pub struct Escalation {
 /// argument, no reordering — and that the child's environment is the caller's
 /// own minus `scrub` plus the one channel path.
 pub struct Launch<'a> {
-    /// The program and arguments, from
-    /// [`Templates::expand`](crate::Templates::expand) or built by the caller
-    /// with [`Argv::new`](crate::Argv::new).
+    /// The program and arguments, built by the caller with
+    /// [`Argv::new`](crate::Argv::new).
     pub argv: &'a crate::Argv,
     /// This launch's completion channel. Its path is published to the child;
     /// its appearance ends the launch.
@@ -338,8 +337,8 @@ fn own_group() -> libc::pid_t {
 ///
 /// The child's environment is the launcher's, minus [`Launch::scrub`], plus the
 /// channel path under [`Launch::channel_var`]. Nothing else is added: no
-/// argument, no flag, no variable. A child that needs one says so in its own
-/// template, where whoever wrote the configuration can see it.
+/// argument, no flag, no variable. A child that needs one is given it by the
+/// caller, in the argv the caller built.
 ///
 /// **The child is a job, not just a process.** It is put in a process group of
 /// its own and — when this launcher owns a controlling terminal and is the

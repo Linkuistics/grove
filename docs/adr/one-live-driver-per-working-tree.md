@@ -1,7 +1,7 @@
 # One live driver owns each working tree
 
 Bare `grove` acquires one process-scoped **driver lease** for the working tree
-before it validates configuration or reads or mutates that grove. It does not
+before it reads or mutates that grove. It does not
 derive where that lease lives. The **version control seam**
 (`crates/jj-workspace`) owns that: grove asks the resolved workspace for a
 control directory under the namespace `grove`, and what comes back is guaranteed
@@ -116,7 +116,7 @@ successfully commits deletion and the driver dies before observing
 `complete --done`, the next bare invocation initializes a new grove. Neither a
 matching teardown commit nor an abandoned signal file can distinguish recovery
 intent from an intentional new workstream without adding a second user input or
-durable state. A configured child that exits without a signal likewise retains
+durable state. A launched child that exits without a signal likewise retains
 the ordinary no-signal disposition; the driver does not infer `done` from
 task-root absence. A `finish-commit` whose own result is lost recovers nothing
 here either: there is no attempt identity in the commit message, no proof that a
@@ -295,7 +295,7 @@ leaving activity Unavailable for that launch while admission remains intact.
   collision is one jj release away and would be silent. Asking for a *namespace*
   moves the guarantee into the seam, where it can be kept. Reopen only if the
   version control system reserves a consumer area of its own.
-- **Let the configured command inherit the driver-lock descriptor.** Rejected
+- **Let the launched command inherit the driver-lock descriptor.** Rejected
   because an opaque harness may pass it to descendants that outlive the session,
   wedging the working tree after the foreground child exits. Reopen only if Grove
   owns and can close every descendant process.
@@ -317,7 +317,7 @@ leaving activity Unavailable for that launch while admission remains intact.
 - **Infer `done` when a finish target exits without a signal and `.grove/` is
   absent.** Rejected because absence does not carry the finish session's
   disposition or attest human confirmation; it would make the no-signal path
-  report a result the configured child did not send. Reopen if completion
+  report a result the launched child did not send. Reopen if completion
   signaling stops being the sole disposition channel.
 - **Use a PID or the existence of a control file as ownership.** Rejected because
   PIDs are reused and files survive crashes. Reopen only on a platform without

@@ -15,7 +15,8 @@ Two failure modes bound the fix, and both are real. Too narrow and the guide is
 provably complete against a set nobody wanted: `grove` itself exposes only `-h`
 and `-V`, so a guide covering "every subcommand and flag the `grove` binary
 exposes" is three rows long and omits every command a human actually meets. Too
-wide and the guide takes [`CONFIGURATION.md`](../CONFIGURATION.md)'s subject,
+wide and the guide takes the
+[harness-dispatch README](../../crates/harness-dispatch/README.md)'s subject,
 which the ownership table forbids.
 
 ## Solution
@@ -47,8 +48,8 @@ not the calling contract a session works from. That contract is the `--help`
 text and the methodology skills, and restating it here would create a second
 source for it.
 
-**Three lines the boundary does not cross.** Session configuration, launch
-templates and kind routing are `CONFIGURATION.md`'s. Installation is the
+**Three lines the boundary does not cross.** What launches for a kind is the
+owner's dispatch policy, and the harness-dispatch README's. Installation is the
 `README`'s. The methodology a session executes — kinds, their disciplines, the
 review procedures — belongs to the `grove` plugin skills. The guide may *link*
 each; it may not restate any.
@@ -186,9 +187,9 @@ validation is what reports it.
 
 Named here so that "complete" does not silently mean "everything".
 
-- **Session configuration, launch templates, kind routing, the `.grove.kdl`
-  delta.** `CONFIGURATION.md` owns them. The guide states that configuration is
-  validated before any tree mutation and links; it does not carry the schema.
+- **The launch policy, its settings and its choice file.** The harness-dispatch
+  README owns them. The guide states that a kind is selected for when its leaf
+  launches and links; it does not carry the policy contract.
 - **Installation and the marketplace.** The `README` owns them.
 - **The methodology.** Kinds, their disciplines and the seven constraints belong
   to the `grove` plugin skills; the guide names the plugin and links its spine.

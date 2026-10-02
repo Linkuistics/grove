@@ -20,7 +20,10 @@ an interrupted scaffold, `allocate-finish-leaf`, `recover`, and the driver's own
 advance of the task tree between sessions. §*Actions* also gained the
 `validate-config` row the group had always been short: `SY-02` ordered the layout
 proof *before configuration validation* and `SY-04.b` required one, while the
-table named only `layout-preflight` and put one action under two jobs.
+table named only `layout-preflight` and put one action under two jobs. The
+driver has since lost that step: Grove's configuration is deleted, and nothing
+is validated before a launch. The rule about what a claim is stated over does
+not depend on it.
 
 ## The trade-off this settles
 
@@ -46,7 +49,7 @@ A narrowing declared twice by two independent readers is the contract being
 wrong, not the models being cautious.
 
 **The referee for the transition reading is the *so that* clause and the shipped
-product, not a preference between columns.** `SY-04` says *so an invalid
+product, not a preference between columns.** `SY-04` said *so an invalid
 configuration leaves the working tree byte-identical*, and a gate in front of
 `close-epoch` or `release-lease` buys that nothing — neither writes a tree. A
 claim whose justification reaches only part of its own quantifier is stated too

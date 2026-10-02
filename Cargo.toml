@@ -39,10 +39,9 @@
 # rather than knowing grove's name — and it is the only thing in this workspace
 # that spawns `jj`.
 #
-# `crates/keyed-launch` is the runner (decision 7): a configuration of
-# `key -> complete command template`, validated whole against a slot vocabulary
-# supplied at load, expanded into an argv, spawned directly and supervised. It is
-# domain-free down to the noun — it says *key*, never *session kind*.
+# `crates/keyed-launch` is the runner (decision 7): a program and its arguments
+# its caller built, spawned directly as a job and supervised. It is domain-free
+# down to the noun — it says *launch*, never *session*.
 #
 # `crates/harness-dispatch` is a separate executable, not a part of grove
 # (`docs/specs/harness-selection-and-execution.md`). It evaluates an owner's

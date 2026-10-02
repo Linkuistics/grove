@@ -1126,12 +1126,10 @@ mod tests {
             crate::try_observe(temp.path(), &[None]).activity,
             crate::ActivityObservation::Unavailable(_)
         ));
-        let config = temp.path().join("launch.kdl");
-        fs::write(&config, "config { command \"run\" \"/bin/sh -c 'echo launched > proof'\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
-        let templates =
-            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
-                .unwrap();
-        let argv = templates.expand("test", &[]).unwrap();
+        let argv = keyed_launch::Argv::new(
+            "/bin/sh".into(),
+            vec!["-c".into(), "echo launched > proof".into()],
+        );
         lease
             .supervise_launch(|observer| {
                 keyed_launch::run_observed(
@@ -1291,15 +1289,7 @@ mod tests {
             let directory = File::open(temp.path().join(".grove")).unwrap();
             let private_path = lease.launch.as_ref().unwrap().path().unwrap().to_path_buf();
             let private = File::open(&private_path).unwrap();
-            let config = temp.path().join("launch.kdl");
-            fs::write(&config, format!("config {{ command \"run\" \"{program} -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }}\n")).unwrap();
-            let templates = keyed_launch::Templates::load(
-                &config,
-                None,
-                keyed_launch::Vocabulary { slots: &[] },
-            )
-            .unwrap();
-            let argv = templates.expand("test", &[]).unwrap();
+            let argv = keyed_launch::Argv::new(program.into(), vec!["-c".into(), "true".into()]);
             let result = lease.supervise_launch(|observer| {
                 keyed_launch::run_observed(
                     keyed_launch::Launch {

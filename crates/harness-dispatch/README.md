@@ -1025,8 +1025,7 @@ copy of it you edited says. A copy of `examples/grove-review.ts` imports them
 by the same name, so it keeps them too. To apply the rule over your edited
 copy, keep that copy beside your policy as `grove-static.ts`, make a copy of
 this example your policy, and change its import of
-`harness-dispatch/examples/grove-static` to `./grove-static.ts`
-([activating it](../../docs/CONFIGURATION.md#harness-dispatch) has the steps).
+`harness-dispatch/examples/grove-static` to `./grove-static.ts`.
 Or build on `groveReviewSelector`, as shown below.
 
 The task file is read by the Grove adapter, `harness-dispatch/grove`. It is
@@ -1649,10 +1648,6 @@ The harness receives Grove's completion channel, `GROVE_SIGNAL_FILE`, in the
 environment it inherits. The policy does not, and must not be granted it with
 `policyEnv` or `--policy-env`
 ([the policy's environment](#the-policys-environment)).
-[Routing sessions through harness-dispatch](../../docs/CONFIGURATION.md#harness-dispatch),
-in Grove's configuration reference, covers activation, both inspection
-surfaces and the remedy when a launch refuses.
-
 ## Run records
 
 Every `run` records one **handoff attempt** before it execs. The record is

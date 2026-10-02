@@ -1161,8 +1161,8 @@ token is safe, and a corrupted `done` degrades to *keep going* rather than to
 /// crash → the loop stops.
 ///
 /// An agent that finishes its work and forgets the verb is **not** that case,
-/// and reading it as one is what made this failure mode hard to see. The
-/// configured templates launch *interactive* harnesses (no `-p`, no `exec`), so
+/// and reading it as one is what made this failure mode hard to see. A
+/// lifecycle session is an *interactive* harness (no `-p`, no `exec`), so
 /// finishing a turn returns the session to its prompt and it never exits: the
 /// runner's supervision sits on a channel that will never appear and a child
 /// that will never exit, and the loop **stalls** rather than stopping. Nothing
@@ -1194,7 +1194,7 @@ read only to tell `Relaunch` from `Done`.
 
 The twenty lines in the middle are not about this function. They record a failure
 mode — an agent that finishes and forgets the verb — and the reason it was hard to
-see: the configured templates launch *interactive* harnesses, so finishing a turn
+see: a lifecycle session is an *interactive* harness, so finishing a turn
 returns the session to its prompt, the child never exits, and the loop **stalls**
 rather than stopping. The glossary's own `_Avoid_` for the
 [loop control channel](../../../CONTEXT.md#loop-control-channel) states the same

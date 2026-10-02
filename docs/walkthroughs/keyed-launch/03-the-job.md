@@ -1,13 +1,13 @@
 # The child is a job
-<!-- book-page id="the-job" slice="nothing-else-added" order="7" -->
-[Previous: Appearance is the event](06-the-channel.md) | [Contents](README.md) | [Next: The watch and the escalation](08-the-escalation.md)
+<!-- book-page id="the-job" slice="nothing-else-added" order="3" -->
+[Previous: Appearance is the event](02-the-channel.md) | [Contents](README.md) | [Next: The watch and the escalation](04-the-escalation.md)
 
 <a id="nothing-else-added"></a>
 ## The interactive launch contract
 
-Chapter 5 produced an `Argv` no caller can construct any other way, and chapter 6
+Chapter 1 read an `Argv` whose words nothing changes once it is built, and chapter 2
 produced a path nothing has written to. This chapter is where the two meet. `run`
-takes both, spawns the program the template named, and hands the child one
+takes both, spawns the program the argv names, and hands the child one
 environment variable holding one path — and that is the whole of what it adds.
 
 What this stage must not add and must not interpret is **the launch itself**: no
@@ -15,9 +15,9 @@ argument, no flag, no variable the operator did not write. The claim is easy to
 state and easy to lose, because a launcher is exactly the layer where additions
 look like helpfulness. A `--yes` because the child is non-interactive. A `HOME`
 because the child seemed to want one. A working directory because none was given.
-Each is a value the operator cannot see in their own configuration file, and each
-is the third arm of the book's outcome — a layer learning what a value means **on
-the way out** — expressed as an inferred convenience.
+Each is a value the caller cannot see in the argv it built, and each is a layer
+learning what a value means **on the way out**, expressed as an inferred
+convenience.
 `a_scrubbed_variable_is_removed_from_an_inherited_environment` and
 `arguments_reach_the_child_as_written` are where the crate is held to the claim
 from the two directions it could fail in.
@@ -26,9 +26,9 @@ The file is `src/run.rs`, 853 lines, and it splits between
 this chapter and the next **by whose signal it is**. Everything done *to* the
 child is here: the shape of a launch, the dispositions it is handed, the terminal
 it is given, and the spawn that puts it in a process group of its own. Everything
-about *endings* is chapter 8's: the supervisor's state machine, the escalation,
+about *endings* is chapter 4's: the supervisor's state machine, the escalation,
 and the launcher's own SIGTERM. This chapter owns lines 1–124 and
-245–679; chapter 8 owns the 125–244 between them and the 680–853 after.
+245–679; chapter 4 owns the 125–244 between them and the 680–853 after.
 The 559 lines here include detached-mode setup, descriptor isolation and
 identity-preserving waits, because those establish the process the watch owns.
 
@@ -43,13 +43,13 @@ test that holds each claim.
 <a id="the-spawn"></a>
 ## The spawn
 
-This section takes step 4 of the five-call trace chapter 1 wrote and runs it to
+This section takes step 3 of the four-step trace chapter 1 wrote and runs it to
 the point where a child is running. The half after that — the poll, the
-grace, the escalation and the value that comes back — is chapter 8's; this
+grace, the escalation and the value that comes back — is chapter 4's; this
 one ends with a process, not with an `Ended`.
 
-Everything the call needs already exists. The `Argv` is chapter 5's, produced by
-`templates.expand("impl", …)`; the `Channel` is chapter 6's, drawn in grove's
+Everything the call needs already exists. The `Argv` is chapter 1's, built by
+its caller with `Argv::new`; the `Channel` is chapter 2's, drawn in grove's
 control directory and written to by nobody. grove supplies the four remaining
 fields, and every one of them is grove's rather than this crate's.
 
@@ -85,7 +85,7 @@ below. The child is **in a process group of its own**, and holds the terminal
 whenever the launcher had one to give, so a Ctrl-C the human types reaches the
 child rather than the launcher. Its environment is the launcher's **minus a list
 and plus one entry**. Its signal dispositions are the **defaults**, whatever the
-launcher's happened to be. And its `argv` is the four words a template authored,
+launcher's happened to be. And its `argv` is the four words the caller built,
 with nothing appended.
 
 Two things about that environment are worth reading before the source, because
@@ -101,7 +101,7 @@ operation performed on them.
 `a_scrubbed_variable_is_removed_from_an_inherited_environment` is what makes that
 checkable, and the field's own section below reads how.
 
-**Three names appear in this chapter's source and are explained in chapter 8.**
+**Three names appear in this chapter's source and are explained in chapter 4.**
 `run_observed`'s first act is `install_termination_handler()` and its last is
 `supervise(…)`, and between them it stores a zero into `INTERRUPTED_BY`. The
 minimum needed here is that `INTERRUPTED_BY` is a process-global latch holding
@@ -109,13 +109,13 @@ the number of a termination signal the *launcher* received,
 `install_termination_handler` is what puts a handler behind it, and `supervise`
 is the poll loop that watches the child and hands the terminal back. Why the
 latch is cleared at exactly that point, why it carries a number rather than a
-flag, and why SIGINT is not among the signals caught are chapter 8's, where the
+flag, and why SIGINT is not among the signals caught are chapter 4's, where the
 handler and the loop are reproduced.
 
 <a id="what-the-blocks-answer"></a>
 ## What the two blocks answer
 
-This chapter's 390 lines are two blocks with chapter 8's first block between
+This chapter's 390 lines are two blocks with chapter 4's first block between
 them: one constant, four types and a module thesis at the top of the file; then a
 constant, the terminal wrapper, the two public runner entry points,
 launch events and the private process seam. The table collects what each answers and what pins it. Tests named
@@ -155,12 +155,12 @@ about it rests on the source and on the operating system rather than on this
 repository's suite. The process-group half of the
 same spawn *is* pinned, by `the_escalation_reaps_the_childs_descendants`, which
 observes the group indirectly — through what the escalation reaches —
-and which is chapter 8's to read for that reason.
+and which is chapter 4's to read for that reason.
 
 The first composite is the file's opening 123 lines — the thesis, the poll
 interval, and the four public types this file defines.
 
-<!-- fragment «launch-shape» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="1-124" parent="source-run" -->
+<!-- fragment «launch-shape» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="1-123" parent="source-run" -->
 <!-- insert «run-thesis» -->
 <!-- insert «run-poll-interval» -->
 <!-- insert «run-escalation» -->
@@ -169,10 +169,10 @@ interval, and the four public types this file defines.
 <!-- insert «run-end» -->
 <!-- /fragment -->
 
-The second is the block after chapter 8's, and it is the machinery of a spawn:
+The second is the block after chapter 4's, and it is the machinery of a spawn:
 the dispositions, the terminal, and `run` itself.
 
-<!-- fragment «terminal-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="245-679" parent="source-run" -->
+<!-- fragment «terminal-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="244-678" parent="source-run" -->
 <!-- insert «run-default-dispositions» -->
 <!-- insert «run-terminal-type» -->
 <!-- insert «run-terminal-open» -->
@@ -219,11 +219,9 @@ boundary. There is no `use libc`: every call into it below
 is written out as `libc::…`, so a reader scanning the file can see each place the
 crate leaves `std` without following an import to find out. And `Argv` is absent
 too, although this file names it — it appears exactly once, fully qualified
-as `crate::Argv`, in the field the next-but-one fragment declares. That is the
-seam chapter 1 stated and chapter 5 proved, visible here as an import that was
-not worth making: the launch half touches the configuration half at one field and
-nowhere else, and `Channel`, `Token` and `LaunchError` are the whole of what it
-imports from its own crate.
+as `crate::Argv`, in the field the next-but-one fragment declares. The command
+enters this file at that one field and nowhere else, and `Channel`, `Token` and
+`LaunchError` are the whole of what it imports from its own crate.
 
 <!-- fragment «run-poll-interval» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="15-22" parent="launch-shape" -->
 ````rust
@@ -238,7 +236,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 ````
 <!-- /fragment -->
 
-`POLL_INTERVAL` is read in one place, chapter 8's `watch`, and is reproduced here
+`POLL_INTERVAL` is read in one place, chapter 4's `watch`, and is reproduced here
 only because it stands at the top of the file. Its argument is the argument for
 *not* exposing something, and it is the mirror image of every field of `Launch`
 below: those are the caller's because the caller is the only one who can know
@@ -278,8 +276,8 @@ pub struct Escalation {
 ````
 <!-- /fragment -->
 
-This is the consequence of chapter 6's opening fact, arriving one chapter later
-as an obligation. Chapter 6 said that an interactive child does not end by
+This is the consequence of chapter 2's opening fact, arriving one chapter later
+as an obligation. Chapter 2 said that an interactive child does not end by
 exiting: it finishes its turn and returns to its prompt, so its exit is not an
 observable a launcher can wait for. The comment above takes the next step —
 if the child will not end itself, somebody has to end it, and the only process
@@ -308,7 +306,7 @@ and nothing in this crate knows or could check that.
 The next struct combines the values introduced by the last two sections, and its
 comment says in one sentence why none of its fields has a default.
 
-<!-- fragment «run-launch» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="44-78" parent="launch-shape" -->
+<!-- fragment «run-launch» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="44-77" parent="launch-shape" -->
 ````rust
 
 /// Everything one launch is.
@@ -319,9 +317,8 @@ comment says in one sentence why none of its fields has a default.
 /// argument, no reordering — and that the child's environment is the caller's
 /// own minus `scrub` plus the one channel path.
 pub struct Launch<'a> {
-    /// The program and arguments, from
-    /// [`Templates::expand`](crate::Templates::expand) or built by the caller
-    /// with [`Argv::new`](crate::Argv::new).
+    /// The program and arguments, built by the caller with
+    /// [`Argv::new`](crate::Argv::new).
     pub argv: &'a crate::Argv,
     /// This launch's completion channel. Its path is published to the child;
     /// its appearance ends the launch.
@@ -358,16 +355,15 @@ other, because each argues about a *different* boundary and together they are th
 whole of the chapter's claim.
 
 `argv` argues about **what happens to the words**. It borrows a `crate::Argv`,
-which chapter 5 showed has private fields and no method that changes one, so what
-reaches this field is exactly what `Templates::expand` authored or a caller built
-with `Argv::new`. `Launch` has no other field that could name a program or add an
+which chapter 1 showed has private fields and no method that changes one, so what
+reaches this field is exactly what a caller built with `Argv::new`. `Launch` has no other field that could name a program or add an
 argument, which is why the promise *no appended argument* is checkable at all
-rather than merely intended. `arguments_reach_the_child_as_written` walks one
-route, from a template holding a quoted three-word value to the child's `$1`, and
-`a_caller_built_argv_is_spawned_whole_and_directly` walks the other.
+rather than merely intended. `a_caller_built_argv_is_spawned_whole_and_directly`
+walks the route, from five words a shell would re-read to the same five words in
+the child.
 
-`scrub` argues about **inheritance**, and it is where chapter 6's central
-property turns into a hazard. Chapter 6 established that a channel path is
+`scrub` argues about **inheritance**, and it is where chapter 2's central
+property turns into a hazard. Chapter 2 established that a channel path is
 authority: allocation writes nothing, so the file's appearance is the event that
 ends a launch, and whoever holds the path can produce that appearance. An
 environment is inherited rather than addressed, so a launcher that merely
@@ -400,7 +396,7 @@ What comes back from a launch is one struct of four fields, and its comment is
 doing the same work `Escalation`'s did — naming, in advance, the distinction a
 caller would otherwise collapse.
 
-<!-- fragment «run-ended» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="79-93" parent="launch-shape" -->
+<!-- fragment «run-ended» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="78-92" parent="launch-shape" -->
 ````rust
 
 /// How a launch ended.
@@ -421,16 +417,16 @@ pub struct Ended {
 <!-- /fragment -->
 
 Four fields, and the one to read carefully is the relationship between the first
-and the last. `token` is `Option<Token>` — chapter 6's value, read back off
+and the last. `token` is `Option<Token>` — chapter 2's value, read back off
 the path — and it is *orthogonal* to `end` rather than a refinement of it.
 The reason is that they answer different questions: `token` says whether the
 child spoke, and `end` says who ended the child. Both are needed because either
 one alone is ambiguous. `a_child_that_never_signals_ends_with_no_token` is the
 case where the child exits of its own accord having said nothing, and it also
-checks that the channel file does not exist — which is chapter 6's
+checks that the channel file does not exist — which is chapter 2's
 writes-nothing property observed from the far end of a real launch.
 
-<!-- fragment «run-end» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="94-124" parent="launch-shape" -->
+<!-- fragment «run-end» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="93-123" parent="launch-shape" -->
 ````rust
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -487,14 +483,14 @@ a caller that wants *did this launch complete or fall over* reads `end`; and a
 caller that conflated them would be inferring one from the other, which is
 exactly the failure this crate is designed to prevent.
 
-`Interrupted` is **defined here and produced only in chapter 8**. Its argument
+`Interrupted` is **defined here and produced only in chapter 4**. Its argument
 — that the signal is carried rather than merely noted, so a launcher can
 die of the same signal instead of exiting zero — is `reraise`'s, and
-`reraise` is chapter 8's; so is the distinction the last paragraph draws between
+`reraise` is chapter 4's; so is the distinction the last paragraph draws between
 a signal arriving *during* a launch and one arriving between two, which is
 `take_interrupt`'s. `an_interrupt_is_reported_against_the_launch_it_arrives_in_and_no_other`,
 in `crates/keyed-launch/tests/interrupt.rs`, is the test that holds both halves,
-and chapter 8 reads it. What belongs here is only that the third case exists and
+and chapter 4 reads it. What belongs here is only that the third case exists and
 that `run` can return it, because a reader meeting `Ended` needs all three arms
 to know what they are matching on.
 
@@ -507,10 +503,10 @@ an `assert_eq!` against one of its three arms.
 <a id="what-survives-an-exec"></a>
 ## The one disposition that survives an exec
 
-The block resumes after chapter 8's supervisor, handler and latch, and it opens
+The block resumes after chapter 4's supervisor, handler and latch, and it opens
 on a list of seven signals.
 
-<!-- fragment «run-default-dispositions» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="245-271" parent="terminal-and-spawn" -->
+<!-- fragment «run-default-dispositions» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="244-270" parent="terminal-and-spawn" -->
 ````rust
 
 /// The signals the child is handed back at their **default** disposition.
@@ -546,7 +542,7 @@ The argument above turns on one asymmetry: across `execve`, a *caught* handler i
 reset to the default and an *ignore* is kept. So for six of the seven entries the
 loop is not defending against a launcher's handlers, which the exec resets on its
 own. It is defending against a launcher's **ignores**, which the exec preserves
-and which propagate onward through every wrapper the template happens to name.
+and which propagate onward through every wrapper the command happens to name.
 The seventh entry is SIGTTOU, which is doing a second job the other six are not,
 and the handover section below is where that job appears.
 
@@ -564,7 +560,7 @@ Two of the seven connect forward on this page, and both connections are the same
 job-control fact seen from a different side. **SIGTTOU** is in the list, and it is
 also ignored across the `tcsetpgrp` in `Terminal::hand_to` below and again inside
 the `pre_exec` closure — three appearances, one reason, which the terminal
-sections read. **SIGINT** is in the list, and it is the absence chapter 8's
+sections read. **SIGINT** is in the list, and it is the absence chapter 4's
 `install_termination_handler` argues for in so many words — that handler
 catches SIGTERM and SIGHUP, and its comment says why SIGINT is not among them.
 Those are the two halves of a single decision: a Ctrl-C the human types is delivered to
@@ -578,7 +574,7 @@ no business intercepting it.
 The controlling terminal is wrapped in a private newtype rather than carried
 around as a descriptor, and the wrapper itself is four lines.
 
-<!-- fragment «run-terminal-type» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="272-275" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-type» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="271-274" parent="terminal-and-spawn" -->
 ````rust
 
 /// The launcher's controlling terminal, open for as long as a launch needs to
@@ -590,7 +586,7 @@ struct Terminal(OwnedFd);
 One owned descriptor, private, and the type exists so that the close is the
 compiler's problem rather than a launch's. Every method below is on it.
 
-<!-- fragment «run-terminal-open» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="276-300" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-open» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="275-299" parent="terminal-and-spawn" -->
 ````rust
 
 impl Terminal {
@@ -649,7 +645,7 @@ The flag is descriptor hygiene. The child's ownership of the terminal comes from
 the process group and the `tcsetpgrp` below, not from which descriptors survive
 the exec.
 
-<!-- fragment «run-terminal-accessors» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="301-310" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-accessors» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="300-309" parent="terminal-and-spawn" -->
 ````rust
 
     fn fd(&self) -> RawFd {
@@ -669,10 +665,10 @@ below, which is the one place a `&Terminal` cannot go. `foreground` is the
 question every handover in this file asks before it acts: *who owns the terminal
 right now*. All three of its call sites use it as a guard
 rather than as information — once below in `run`, to decide whether this
-launcher has a terminal it is entitled to give away, and twice in chapter 8, to
+launcher has a terminal it is entitled to give away, and twice in chapter 4, to
 decide whether it has one it is entitled to take back.
 
-<!-- fragment «run-terminal-hand-to» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="311-329" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-hand-to» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="310-328" parent="terminal-and-spawn" -->
 ````rust
 
     /// Make `pgid` the terminal's foreground process group.
@@ -698,7 +694,7 @@ decide whether it has one it is entitled to take back.
 
 Three sites in this file hand the terminal to a process group, and this method
 exists so that two of them do not have to write the dance out. Both of those two
-are the recovery closure below and chapter 8's `watch` —
+are the recovery closure below and chapter 4's `watch` —
 which is why a chapter about spawning a child owns the method and a chapter about
 ending one owns every call to it. The third site cannot use it: it is the
 `tcsetpgrp` inside `pre_exec`, in a forked child where the only async-signal-safe
@@ -706,7 +702,7 @@ work permitted is the bare calls themselves, and where the disposition is put ba
 not by a saved handler but by the `DEFAULT_DISPOSITION_IN_CHILD` loop that runs
 immediately after.
 
-<!-- fragment «run-own-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="330-335" parent="terminal-and-spawn" -->
+<!-- fragment «run-own-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="329-334" parent="terminal-and-spawn" -->
 ````rust
 
 /// This process's own process group.
@@ -728,15 +724,15 @@ system call whose result the reader has to interpret.
 `run`'s own documentation is the chapter's title and its argument, and it is
 thirty-one lines because three separate cases live in it.
 
-<!-- fragment «run-the-child-is-a-job» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="336-367" parent="terminal-and-spawn" -->
+<!-- fragment «run-the-child-is-a-job» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="335-366" parent="terminal-and-spawn" -->
 ````rust
 
 /// Spawn `launch`'s argv directly and supervise the child until it ends.
 ///
 /// The child's environment is the launcher's, minus [`Launch::scrub`], plus the
 /// channel path under [`Launch::channel_var`]. Nothing else is added: no
-/// argument, no flag, no variable. A child that needs one says so in its own
-/// template, where whoever wrote the configuration can see it.
+/// argument, no flag, no variable. A child that needs one is given it by the
+/// caller, in the argv the caller built.
 ///
 /// **The child is a job, not just a process.** It is put in a process group of
 /// its own and — when this launcher owns a controlling terminal and is the
@@ -766,11 +762,11 @@ thirty-one lines because three separate cases live in it.
 <!-- /fragment -->
 
 The first paragraph is the chapter's claim stated as a contract, and the sentence
-that makes it operable is the last one: *a child that needs one says so in its own
-template, where whoever wrote the configuration can see it.* That is where the
+that makes it operable is the last one: *a child that needs one is given it by the
+caller, in the argv the caller built.* That is where the
 promise stops being restraint and becomes a property of the system — the
-refusal to add is what keeps the configuration file a complete account of what
-will run, and a complete account is the only thing an operator can audit.
+refusal to add is what keeps the caller's argv a complete account of what
+will run, and a complete account is the only thing anyone can audit.
 
 The second paragraph's rejected alternative is the one to read against the
 disposition list above. The **decision** is not in doubt and its shape is this
@@ -810,17 +806,17 @@ process that was supposed to be shielded from it. All of this is one platform �
 macOS 26.6 on arm64 — and the errnos are POSIX's, not Darwin's, but the reading
 is a reading and not a portability proof.
 
-The third paragraph belongs to chapter 8 and is reproduced here only because it is
+The third paragraph belongs to chapter 4 and is reproduced here only because it is
 `run`'s contract: the three observables, and the honest statement that a child
 which finishes its interactive turn and never signals reaches none of them.
-Chapter 8 owns `watch`, where those three are polled, and owns the stall as a
+Chapter 4 owns `watch`, where those three are polled, and owns the stall as a
 named failure mode.
 
 <a id="nothing-added"></a>
 ## Nothing added
 
 `run` delegates to `run_observed` with a no-op callback, preserving existing
-`Launch` literals and results. The observed entry point installs chapter 8's
+`Launch` literals and results. The observed entry point installs chapter 4's
 handler and builds the same `Command`. `LaunchEvent` reports parent-side
 boundaries independently of `End`: a successfully spawned child always emits
 Started, even if it exits immediately, while only confirmed reap emits Reaped.
@@ -831,7 +827,7 @@ POSIX session. The confined entry point adds a native filesystem wrapper.
 Those choices are explicit APIs; the ordinary interactive path retains the
 command, environment and terminal contract explained here.
 
-<!-- fragment «run-command-and-environment» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="368-473" parent="terminal-and-spawn" -->
+<!-- fragment «run-command-and-environment» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="367-472" parent="terminal-and-spawn" -->
 <!-- insert «run-output-modes» -->
 <!-- insert «run-output-setup» -->
 <!-- /fragment -->
@@ -846,7 +842,7 @@ constructs a mandatory native filesystem policy before spawning. All four return
 the same `Ended` shape. A no-op observer keeps the simpler APIs free of callback
 requirements, while the caller still interprets the returned token.
 
-<!-- fragment «run-output-modes» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="368-434" parent="run-command-and-environment" -->
+<!-- fragment «run-output-modes» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="367-433" parent="run-command-and-environment" -->
 ````rust
 pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError> {
     run_observed(launch, &mut |_| {})
@@ -929,7 +925,7 @@ and arguments are used directly. The scrub list is applied before the fresh
 channel grant, preserving the current invocation's authority while removing
 any inherited channel named by the caller.
 
-<!-- fragment «run-output-setup» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="435-473" parent="run-command-and-environment" -->
+<!-- fragment «run-output-setup» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="434-472" parent="run-command-and-environment" -->
 ````rust
 fn run_with_output(
     launch: Launch<'_>,
@@ -991,7 +987,7 @@ For the unconfined interactive path, command construction is the claim’s other
 half. `Command::new(program)` with `args(…)` and no `sh -c` is what *spawned whole
 and directly* means concretely; `current_dir` is set only when the caller gave a
 path, so `None` really is inheritance rather than a default this crate chose. And
-`launch.argv.program()` and `launch.argv.args()` are chapter 5's two accessors,
+`launch.argv.program()` and `launch.argv.args()` are chapter 1's two accessors,
 which exist split precisely because this is what a spawn wants.
 
 <a id="both-sides-of-the-handover"></a>
@@ -1000,7 +996,7 @@ which exist split precisely because this is what a spawn wants.
 With the environment settled, the interactive path turns to the terminal and asks two
 separate questions of it before handing anything over.
 
-<!-- fragment «run-terminal-handover» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="474-485" parent="terminal-and-spawn" -->
+<!-- fragment «run-terminal-handover» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="473-484" parent="terminal-and-spawn" -->
 ````rust
 
     let terminal = if detached { None } else { Terminal::open() };
@@ -1033,11 +1029,11 @@ is the answer because of *where* it runs — between the fork and the exec, orde
 before the first instruction of the program being launched. The cost is that the
 same operation is performed at two sites: here, as a descriptor captured for the
 closure that will perform it inside the child, and again from the parent, which
-is not in this function at all but in chapter 8's `watch`. That second site is
+is not in this function at all but in chapter 4's `watch`. That second site is
 not the other half of a race. It earns its place for a reason of its own, and the
-reason is chapter 8's too: it is re-asked every tick.
+reason is chapter 4's too: it is re-asked every tick.
 
-<!-- fragment «run-process-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="486-493" parent="terminal-and-spawn" -->
+<!-- fragment «run-process-group» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="485-492" parent="terminal-and-spawn" -->
 ````rust
 
     // The group, through `std`'s own checked path rather than a `setpgid` of our
@@ -1055,11 +1051,11 @@ own*, and the comment's reason for preferring it to a `setpgid` in the closure i
 about **where a failure lands**. Inside `pre_exec` a failed call could only be
 reported by hand, from a context that must stay async-signal-safe; through `std`
 it runs before the closures and a failure comes back as a failed spawn, which is
-an ordinary `Err` the caller already handles. This is the same reasoning chapter 6
+an ordinary `Err` the caller already handles. This is the same reasoning chapter 2
 gave for checking the channel directory before the launch rather than letting the
 child's write fail: move the failure to where somebody is reading.
 
-<!-- fragment «run-pre-exec» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="494-533" parent="terminal-and-spawn" -->
+<!-- fragment «run-pre-exec» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="493-532" parent="terminal-and-spawn" -->
 ````rust
 
     // SAFETY: the closure runs between `fork` and `exec`, so it may call only
@@ -1124,7 +1120,7 @@ Everything is now built and nothing has been started. Two acts stand between the
 assembled `Command` and a running child, and the first of them is a single
 store.
 
-<!-- fragment «run-clear-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="534-545" parent="terminal-and-spawn" -->
+<!-- fragment «run-clear-and-spawn» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="533-544" parent="terminal-and-spawn" -->
 ````rust
 
     // Clear the latch *before* the spawn, never after: see `INTERRUPTED_BY`. A
@@ -1141,7 +1137,7 @@ store.
 ````
 <!-- /fragment -->
 
-The store is chapter 8's to argue and this chapter's only to place: it happens
+The store is chapter 4's to argue and this chapter's only to place: it happens
 **immediately before the spawn**, with the `Command` fully built and nothing left
 between the two but the call. Everything above it — opening the terminal,
 building the environment, installing the closure — is work during which a
@@ -1152,8 +1148,7 @@ The spawn's refusal is the only `LaunchError` this function constructs. It names
 the program in `{:?}`, so a path with spaces or a name that is empty comes back
 legible, carries the operating system's own message, and ends by naming what to
 check — the same *say what is wrong, say where, say what fixes it* shape
-chapter 1 read off the error types and chapter 4 applied to the template
-diagnostics. `a_program_that_does_not_exist_names_itself_and_says_what_to_check`
+chapter 1 read off the error type. `a_program_that_does_not_exist_names_itself_and_says_what_to_check`
 asserts on both halves: the program's name, and the word *executable*.
 
 The callback receives Started immediately after successful spawn, before any
@@ -1163,7 +1158,7 @@ private test seam: production delegates waits to `Child` and signals its existin
 process group; tests can force failed waits without inventing lifecycle events.
 The seam introduces no new public launch policy.
 
-<!-- fragment «run-parent-group-and-supervise» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="546-679" parent="terminal-and-spawn" -->
+<!-- fragment «run-parent-group-and-supervise» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="545-678" parent="terminal-and-spawn" -->
 <!-- insert «run-spawn-handoff» -->
 <!-- insert «run-descriptor-bound» -->
 <!-- insert «run-group-drain» -->
@@ -1179,7 +1174,7 @@ interactive launches; detached launches already created a session and group.
 `supervise` receives both the group ID and the detached flag. Its recovery
 closure returns a terminal only when that terminal still belongs to this job.
 
-<!-- fragment «run-spawn-handoff» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="546-576" parent="run-parent-group-and-supervise" -->
+<!-- fragment «run-spawn-handoff» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="545-575" parent="run-parent-group-and-supervise" -->
 ````rust
 
     observer(LaunchEvent::Started);
@@ -1225,7 +1220,7 @@ pre-exec loop uses the resulting bound to mark inherited descriptors
 close-on-exec. Inspection failure refuses launch; callers must not concurrently
 change descriptor limits or signal dispositions during a noninteractive launch.
 
-<!-- fragment «run-descriptor-bound» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="577-614" parent="run-parent-group-and-supervise" -->
+<!-- fragment «run-descriptor-bound» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="576-613" parent="run-parent-group-and-supervise" -->
 ````rust
 /// Include existing descriptors even if the caller lowered its soft limit
 /// after opening them. The remaining range covers descriptors std opens while
@@ -1277,7 +1272,7 @@ was already performed while the unreaped child reserved the ID. A surviving or
 unqueryable group returns a launch error, so a caller that requires stopped
 writers can refuse to publish outputs.
 
-<!-- fragment «run-group-drain» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="615-637" parent="run-parent-group-and-supervise" -->
+<!-- fragment «run-group-drain» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="614-636" parent="run-parent-group-and-supervise" -->
 ````rust
 fn drain_group(pgid: libc::pid_t) -> Result<(), LaunchError> {
     // Destructive signalling happened while the unreaped child still reserved
@@ -1315,7 +1310,7 @@ wait reaps that leader. Interactive launches retain their ordinary wait path.
 This ordering prevents a reused ID from becoming the target of a later cleanup
 kill; it does not capture processes that deliberately left the group.
 
-<!-- fragment «run-process-adapter» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="638-679" parent="run-parent-group-and-supervise" -->
+<!-- fragment «run-process-adapter» owner="nothing-else-added" source="crates/keyed-launch/src/run.rs" lines="637-678" parent="run-parent-group-and-supervise" -->
 ````rust
 // The private seam lets tests force wait errors without faking launch events.
 trait Process {
@@ -1378,7 +1373,7 @@ than a stuck instrument.
 it, which is exactly why the second call stays. It is insurance against an
 implementation detail changing, and the comment says so. Either way the parent
 ends up holding a `pgid` it knows exists before it can possibly need to signal
-it, which is what chapter 8's escalation addresses when it sends to `-pgid`
+it, which is what chapter 4's escalation addresses when it sends to `-pgid`
 rather than to the child alone. The ignored return value is right on either
 reading: every failure the call can produce here means the group already
 exists.
@@ -1386,16 +1381,16 @@ exists.
 `supervise` takes the child, channel, escalation, borrowed terminal, group,
 observer and recovery closure. The child moves into supervision; `run_with_output`
 retains the optional terminal, which the closure reclaims after the watch returns on
-success or failure. Chapter 8 owns the wait and notification boundaries.
+success or failure. Chapter 4 owns the wait and notification boundaries.
 
-That is the interactive spawn. A program a template authored, an environment the launcher's
+That is the interactive spawn. A program the caller named, an environment the launcher's
 own minus a list and plus one path, a working directory the caller named, seven
 dispositions handed back at their defaults, a process group of the child's own,
 and a terminal — if there was one to give. Nothing was added, and the one
 thing that was granted was granted because the caller asked for it by name. What
 happens next is not this crate deciding the child is finished; it is this crate
 waiting for the child to say so, and for the grace to run out when it says so and
-keeps sitting there. Chapter 8 is the watch, the escalation, and the launcher's
+keeps sitting there. Chapter 4 is the watch, the escalation, and the launcher's
 own signals.
 
-[Previous: Appearance is the event](06-the-channel.md) | [Contents](README.md) | [Next: The watch and the escalation](08-the-escalation.md)
+[Previous: Appearance is the event](02-the-channel.md) | [Contents](README.md) | [Next: The watch and the escalation](04-the-escalation.md)

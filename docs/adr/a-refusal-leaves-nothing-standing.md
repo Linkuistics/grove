@@ -88,7 +88,8 @@ The seventeen original reasons were drawn over the questions the **task-tree**
 scope asks: preconditions and guards on a tree. The set is swept by **three**
 scopes. Three of the four members added under this record are a question a
 *later* scope asks — a commit's disposition (`DeletionNotCommitted`), a
-configuration (`ConfigurationInvalid`), a launch generation
+configuration (`ConfigurationInvalid`, a question the driver stopped asking
+when Grove's configuration was deleted), a launch generation
 (`GenerationContended`) — which is the pattern under what the finish scope had
 recorded as three separate accidents, and it predicts where the next gap is
 rather than merely listing the closed ones.

@@ -3,7 +3,7 @@
 //!
 //! Grove vocabulary lives here and in the read-only `grove-tui` viewer.
 //! Its reusable seams are domain-free: `ordinal-fs-tree` has an ordered tree,
-//! `keyed-launch` has a key and a template, `jj-workspace` has a workspace and a
+//! `keyed-launch` has an argv and a job, `jj-workspace` has a workspace and a
 //! commit — and none of them has a word for a *kind*, a *brief chain*, an
 //! *outcome*, a *handle* or *finishing*. Those are here, and so are the twelve
 //! verbs stated in them.

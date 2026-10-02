@@ -3,14 +3,13 @@
 ## Status and provenance
 
 This is the structure brief for the book at `docs/walkthroughs/keyed-launch/`.
-The original interview below establishes its audience and concept order; current
-source ownership and lengths are recorded in the book's checked manifest and
-source index. Chapters 2 and 3 cover Catalog, Selection, modular capture,
-profile composition, parameters and inspection. Chapter 4 owns active command
-compilation; chapter 5 owns expansion; chapter 9 checks captured resolutions.
-Only modular wrappers and empty documents load. The original interview's corpus
-measurements below are historical; the checked manifest and source index own
-current file counts, line ranges and fragment ownership.
+
+**The book has moved ahead of this brief.** The crate's template half is deleted:
+it reads no configuration, and a command arrives as an `Argv` its caller built.
+The book now has seven pages and seven source roots, and its checked manifest
+and source index describe it as it stands. Everything below still describes the
+ten-page book of the crate that resolved a key to a command template, including
+its outcome, its spine, its chapter sequence and its worked example.
 
 **This document is authored, not recovered, and it precedes its book.** Every
 decision below was settled in the `keyed-launch-structure-k34` interview and is
@@ -651,14 +650,6 @@ key — in one sentence, and the book's whole spine is that the crate does not k
 the rest. A book that explains grove's sessions has documented the wrong crate.
 [`USAGE.md`](../USAGE.md) at `usage-session-lifecycle` is where that account
 lives, and the `README.md` points there once.
-
-### `docs/CONFIGURATION.md`'s account of the schema
-
-That document is the human's reference for writing a `config.kdl`: what the file
-must contain, which slots exist, what a delta may do. This book explains the code
-that reads it. The two describe the same rules from opposite sides and neither
-is a substitute; the book does not restate the schema and does not link the
-document, which the contract does not permit as a target.
 
 ### The `tests/` directory
 

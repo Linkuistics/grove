@@ -3028,7 +3028,7 @@ existing task trees are migrated automatically on first run.
   exactly once; there are no defaults, families, or inheritance, so a target is
   complete when read on its own. Diagnostics are aggregate rather than
   first-error, naming every missing, duplicate, unknown, and malformed entry with
-  its source location. See [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) and
+  its source location. See `docs/CONFIGURATION.md` and
   ADR *complete-session-configuration*.
 - **Session kinds live in leaf filenames**, as
   `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md`, with the current

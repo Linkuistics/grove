@@ -6,8 +6,8 @@
 ## What this crate is allowed to mean
 
 `grove-loop` is the layer that stayed. Three domain-free crates sit underneath
-it — `ordinal-fs-tree` has an ordered filesystem tree, `keyed-launch` has a key
-and a template, `jj-workspace` has a workspace and a commit — and none of them
+it — `ordinal-fs-tree` has an ordered filesystem tree, `keyed-launch` has an
+argv and a job, `jj-workspace` has a workspace and a commit — and none of them
 has a word for a *kind*, a *brief chain*, an *outcome*, a *handle* or
 *finishing*. Those words are here, because meaning is the one thing a
 domain-free crate cannot hold, and every chapter of this book opens on what this
@@ -297,7 +297,7 @@ opens on the grammar underneath it.
 
 The first fragment is the spine, and every chapter of this book is a reading of
 it. It states the permission — a domain-bound library alongside the read-only viewer — and then it states the boundary by enumeration: the other three
-crates have a tree, a key and a template, and a workspace and a commit, and none
+crates have a tree, an argv and a job, and a workspace and a commit, and none
 of them has a word for a kind, a brief chain, an outcome, a handle or finishing.
 The last clause is the crate's own count of its surface, and chapter 15 is where
 twelve is checked against the fourteen functions `verbs` declares.
@@ -309,7 +309,7 @@ twelve is checked against the fourteen functions `verbs` declares.
 //!
 //! Grove vocabulary lives here and in the read-only `grove-tui` viewer.
 //! Its reusable seams are domain-free: `ordinal-fs-tree` has an ordered tree,
-//! `keyed-launch` has a key and a template, `jj-workspace` has a workspace and a
+//! `keyed-launch` has an argv and a job, `jj-workspace` has a workspace and a
 //! commit — and none of them has a word for a *kind*, a *brief chain*, an
 //! *outcome*, a *handle* or *finishing*. Those are here, and so are the twelve
 //! verbs stated in them.

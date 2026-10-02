@@ -33,6 +33,7 @@ install -m 600 "$auth" "$codex_home/auth.json"
 # The public CA bundle replaces keychain access, which the sandbox denies.
 export CODEX_HOME="$codex_home" SSL_CERT_FILE=/etc/ssl/cert.pem
 # Codex's nested sandbox rejects tool execution inside Grove's; the outer
-# confinement remains the filesystem boundary (docs/CONFIGURATION.md).
+# confinement remains the filesystem boundary
+# (docs/specs/standalone-invocations.md).
 exec codex exec --ephemeral --ignore-user-config --ignore-rules --skip-git-repo-check \
   --sandbox danger-full-access --model "$1" -c "model_reasoning_effort=$2" "$3"

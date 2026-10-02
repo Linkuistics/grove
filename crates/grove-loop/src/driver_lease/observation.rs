@@ -903,12 +903,7 @@ mod tests {
             )
             .unwrap();
         assert!(matches!(sample(work.path()), ActivityObservation::Busy(_)));
-        let config = work.path().join("launch.kdl");
-        fs::write(&config, "config { command \"run\" \"/bin/sh -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
-        let templates =
-            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
-                .unwrap();
-        let argv = templates.expand("test", &[]).unwrap();
+        let argv = keyed_launch::Argv::new("/bin/sh".into(), vec!["-c".into(), "true".into()]);
         let mut events = Vec::new();
         lease
             .supervise_launch(|notify| {
@@ -1576,12 +1571,7 @@ mod tests {
             return;
         }
         let (work, mut lease) = fixture();
-        let config = work.path().join("launch.kdl");
-        fs::write(&config, "config { command \"run\" \"/bin/sh -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
-        let templates =
-            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
-                .unwrap();
-        let argv = templates.expand("test", &[]).unwrap();
+        let argv = keyed_launch::Argv::new("/bin/sh".into(), vec!["-c".into(), "true".into()]);
         with_continuous_viewers(&vec![work.path().to_path_buf(); 3], |sample_all| {
             assert_eq!(sample_all(), vec![ActivityObservation::Idle; 3]);
             for _ in 0..4 {
@@ -1941,34 +1931,15 @@ mod tests {
                 channel.path(),
             )
             .unwrap();
-        // The executable is a template slot, so spaces in host paths remain one argv.
-        let config = work.join("launch.kdl");
-        fs::write(
-            &config,
-            "config { command \"run\" \"/usr/bin/env ${exe} --exact driver_lease::observation::tests::witness_native_exec_child --nocapture\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n",
-        )
-        .unwrap();
-        let templates = keyed_launch::Templates::load(
-            &config,
-            None,
-            keyed_launch::Vocabulary {
-                slots: &[keyed_launch::SlotRule {
-                    name: "exe",
-                    requirement: keyed_launch::Requirement::ExactlyOnce,
-                }],
-            },
-        )
-        .unwrap();
-        let exe = std::env::current_exe().unwrap();
-        let argv = templates
-            .expand(
-                "test",
-                &[keyed_launch::Slot {
-                    name: "exe",
-                    value: exe.as_os_str(),
-                }],
-            )
-            .unwrap();
+        let argv = keyed_launch::Argv::new(
+            "/usr/bin/env".into(),
+            vec![
+                std::env::current_exe().unwrap().into_os_string(),
+                "--exact".into(),
+                "driver_lease::observation::tests::witness_native_exec_child".into(),
+                "--nocapture".into(),
+            ],
+        );
         lease
             .supervise_launch(|notify| {
                 keyed_launch::run_observed(

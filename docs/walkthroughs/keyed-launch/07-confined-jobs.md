@@ -1,6 +1,6 @@
 # Confined noninteractive jobs
-<!-- book-page id="confined-jobs" slice="confined-jobs" order="11" -->
-[Previous: What passes through](10-what-passes-through.md) | [Contents](README.md)
+<!-- book-page id="confined-jobs" slice="confined-jobs" order="7" -->
+[Previous: What passes through](06-what-passes-through.md) | [Contents](README.md)
 
 <a id="confined-job"></a>
 ## A separate process mode and filesystem policy
@@ -143,9 +143,9 @@ pub fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File> 
 
 `Confinement` names one writable invocation directory and explicit runtime files.
 `command` canonicalizes that root, rejects a filesystem root as the invocation,
-resolves the configured executable and validates each runtime grant as a file.
+resolves the executable the argv names and validates each runtime grant as a file.
 It gives the native backend those resolved paths, redirects temporary-directory
-variables into scratch state, and appends the executable with its exact expanded
+variables into scratch state, and appends the executable with its exact
 arguments. Policy preparation or spawn failure returns `LaunchError`. If the
 backend starts and then refuses its setup, supervision instead returns an
 `Ended` carrying its unsuccessful status and usually no token. The caller must
@@ -400,4 +400,4 @@ fn platform_command(_: &Path, _: &[PathBuf]) -> Result<Command, LaunchError> {
 ````
 <!-- /fragment -->
 
-[Previous: What passes through](10-what-passes-through.md) | [Contents](README.md)
+[Previous: What passes through](06-what-passes-through.md) | [Contents](README.md)

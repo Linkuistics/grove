@@ -1,25 +1,23 @@
 # Appearance is the event
-<!-- book-page id="the-channel" slice="appearance-is-the-event" order="6" -->
-[Previous: From a template to an argv](05-to-an-argv.md) | [Contents](README.md) | [Next: The child is a job](07-the-job.md)
+<!-- book-page id="the-channel" slice="appearance-is-the-event" order="2" -->
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: The child is a job](03-the-job.md)
 
 <a id="appearance-is-the-event"></a>
 ## Appearance is the event
 
-Chapter 5 ended with an `Argv` and nowhere to send it. The configuration half of
-the crate is closed: a key resolved through explicit targets, a template was split into
-words once at load, four values filled the vocabulary the consumer declared, and
-four words came out — none of which the crate has an opinion about. This chapter
-opens the launch half, and it owns one file. `src/channel.rs` is 453 lines; lines
+Chapter 1 ended with an `Argv` and nowhere to send it: a program and its
+arguments the caller built, none of which the crate has an opinion about. This
+chapter begins the launch, and it owns one file. `src/channel.rs` is 453 lines; lines
 1 to 288 are all of it except the inline `#[cfg(test)] mod tests` at the end,
-which is corpus like everything else and is chapter 9's.
+which is corpus like everything else and is chapter 5's.
 
 What this stage must not add and must not interpret is **the ending**. The crate
 does not decide that a child is finished. It allocates a path, hands that path to
 the child, and waits for the path to exist; whether the work was done, whether it
 succeeded, and what should happen next are all encoded in a string this crate
-reads only to return to its caller and never interprets. That is the third arm of
-the book's outcome — a layer learning what a value means **on the way out**, by
-inferring what came back — and this is where the crate declines to infer it.
+reads only to return to its caller and never interprets. A layer can learn what
+a value means **on the way out**, by inferring what came back, and this is where
+the crate declines to infer it.
 
 The reason a launch needs a channel at all is that the obvious signal is wrong
 for the child this crate exists to launch. A batch program ends by exiting, and
@@ -51,17 +49,17 @@ writing endpoint. So the file's later existence is unambiguous evidence that the
 child spoke — not a stale file from a previous launch, not a placeholder the
 launcher created and forgot, not a race between two launches sharing a directory.
 That is why `run` is allowed to treat mere *appearance* as an event, and why
-chapter 8's supervisor can be a poll on `exists()` rather than a protocol. Take
+chapter 4's supervisor can be a poll on `exists()` rather than a protocol. Take
 the writing-nothing property away and appearance means nothing; every other
 decision on this page rests on it.
 
 <a id="a-path-and-nothing-else"></a>
 ## A path, and nothing else
 
-This section takes step 3 of the five-call trace chapter 1 wrote and runs it to
+This section takes step 2 of the four-step trace chapter 1 wrote and runs it to
 full resolution, then runs the far end of it — the token coming back — which
-chapter 1 wrote as step 5. Nothing between the two is this chapter's; the spawn
-is chapter 7's and the watch is chapter 8's.
+chapter 1 wrote as step 4. Nothing between the two is this chapter's; the spawn
+is chapter 3's and the watch is chapter 4's.
 
 grove's control directory for the worked example is the one chapter 1 fixed, and
 it already exists — the driver made it long before any launch.
@@ -88,7 +86,7 @@ characters, joined that to the prefix `signal-`, asked the filesystem whether
 anything already stood at the result, and — told nothing did — returned the name.
 The one observable effect of a successful allocation is that a `Channel` value
 exists in the launcher's memory holding a `PathBuf`. `channel.path()` is that
-`PathBuf`, and chapter 7 is where it becomes the value of `GROVE_SIGNAL_FILE` in
+`PathBuf`, and chapter 3 is where it becomes the value of `GROVE_SIGNAL_FILE` in
 the child's environment.
 
 The child now runs, and grove's harness ends its turn by writing one word and
@@ -129,7 +127,7 @@ The 288 lines are a module thesis, three constants, one type with five methods, 
 second type with two accessors, one free function and four private helpers. The
 table collects what each answers and how each refuses, so the sections that
 follow can be read one at a time; every refusal text is exact. The tests named
-without a path are the inline module at the end of this same file — chapter 9
+without a path are the inline module at the end of this same file — chapter 5
 reproduces and explains them, against the fragments below — and the rest are in
 `crates/keyed-launch/tests/launch.rs`.
 
@@ -150,7 +148,7 @@ reproduces and explains them, against the fragments below — and the rest are i
 The composite below is the block as a whole. It is the file up to the
 `#[cfg(test)]` attribute on line 289, and that boundary is the only one in this
 book cut at a compilation condition rather than at a concept — the reason belongs
-on chapter 9's page, where the module it separates is explained.
+on chapter 5's page, where the module it separates is explained.
 
 <!-- fragment «channel-production» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="1-288" parent="source-channel" -->
 <!-- insert «channel-thesis» -->
@@ -204,10 +202,9 @@ launch's channel holding only its own token.
 The imports are worth one sentence because of what is missing from them. `fs`,
 `File`, `Read`, `Path`, `PathBuf`, a `Write` trait for formatting, and this
 crate's own `LaunchError` — nothing else. Chapter 1 read the manifest's rule for
-this crate's dependencies: *two document formats this crate reads, and the
-syscalls it cannot reach from `std`*. Neither clause reaches a channel. `kdl` and
-`shell-words` belong to the configuration half the previous chapter closed, and
-`libc` arrives in chapters 7 and 8 for the signals `std` cannot send. Everything
+this crate's one dependency: *the syscalls this crate cannot reach from `std`*.
+That clause does not reach a channel. `libc` arrives in chapters 3 and 4 for the
+signals `std` cannot send. Everything
 on this page is a file read, a file write, a directory listing and a remove, and
 `std` has all four — which is why the file that owns the crate's one
 cryptographic-sounding requirement adds no dependency to satisfy it. The one
@@ -322,7 +319,7 @@ pub struct Channel {
 <!-- /fragment -->
 
 *A channel that is never signalled is a path that never existed.* That sentence
-is the chapter's through-line to chapters 7 and 8, and it is worth spelling out
+is the chapter's through-line to chapters 3 and 4, and it is worth spelling out
 what it buys, because the comment states the property without stating the
 consequence. The launcher's supervisor decides that a child has spoken by testing
 whether the path exists. That test is sound **only** because nothing else in the
@@ -474,7 +471,7 @@ to are the ones it drew itself.
 The comment states what the three-line body returns: *this is the value a launch
 publishes to the child under the caller's chosen variable name*. Two facts are
 deferred by that sentence rather than
-asserted. The publishing is chapter 7's — `run` sets the variable immediately
+asserted. The publishing is chapter 3's — `run` sets the variable immediately
 before the spawn — and **the variable's name is the caller's**, so this crate
 does not know that grove calls it `GROVE_SIGNAL_FILE`. The book's worked example
 uses that name because grove chose it; `crates/keyed-launch/tests/launch.rs`
@@ -503,8 +500,8 @@ token in that test is a filesystem path, and the crate treats it exactly as it
 treats `relaunch`.
 
 The borrow is a `&Path` rather than a clone because the caller wants to read it,
-not own it, and `#[must_use]` is here for the same reason it is on `source` and
-`keys` in chapter 5: the returned value is the only reason to call.
+not own it, and `#[must_use]` is here for the same reason it is on `Argv`'s
+accessors in chapter 1: the returned value is the only reason to call.
 
 <a id="three-ways-to-have-no-token"></a>
 ## Three ways to have no token, and one answer for all of them
@@ -559,7 +556,7 @@ read is where the second of the three is collapsed into the first.
 
 The second paragraph states the rule that the inline module tests most directly.
 An empty file is **not** an empty token. The reason is a
-consequence of this chapter's own thesis reaching into chapter 8: because the
+consequence of this chapter's own thesis reaching into chapter 4: because the
 escalation fires on *appearance*, a child killed in the window between creating
 the file and writing to it leaves a real, empty file behind. Handing that back as
 `Some("")` would be a token according to the type, and a caller whose rule
@@ -607,7 +604,7 @@ on, and what it promises about the path.
 
 `discard` takes `self` by value, and the comment says why in its first clause:
 consuming the channel is what stops anything reading a path whose file is gone.
-That is the same reasoning as chapter 5's `Argv` having private fields, one type
+That is the same reasoning as chapter 1's `Argv` having private fields, one type
 earlier — a property enforced by the compiler costs nothing to maintain and
 cannot be forgotten by a caller.
 
@@ -731,7 +728,7 @@ refusal.
 ## Opaque here, readable there
 
 `Token` is a newtype over `String` with two accessors, and its comment states the
-one property that makes the launch half of this crate possible.
+one property that makes this crate's launch possible.
 
 <!-- fragment «channel-token» owner="appearance-is-the-event" source="crates/keyed-launch/src/channel.rs" lines="202-219" parent="channel-production" -->
 ````rust
@@ -762,7 +759,7 @@ a consequence of the first: the content is readable *because* the appearance,
 not the content, is what ends the launch. Had the crate needed to know what the
 token said, the type would have been an enum and the crate would have owned a
 vocabulary of endings — which is the crate learning what a value means on the way
-out, precisely what the book's third arm names. Had the crate instead refused to
+out. Had the crate instead refused to
 expose the content at all, the launch would have ended with no information
 crossing back, and every consumer would have needed a second channel of its own.
 The newtype preserves both requirements: the crate carries the string and does
@@ -922,8 +919,8 @@ fn remove_if_present(path: &Path) -> Result<(), LaunchError> {
 `NotFound` is mapped to `Ok(())` here and nowhere else, which is what makes *this
 path holds nothing* the post-condition of both callers rather than a claim each
 has to make separately. Every other error is a refusal naming the path and ending
-in *remove it by hand* — the same imperative shape chapter 4 established for the
-template diagnostics, and the reason `discard_abandoned`'s aggregate message can
+in *remove it by hand* — the imperative shape chapter 1 read off `LaunchError`,
+and the reason `discard_abandoned`'s aggregate message can
 simply interpolate `{error}` for each failure and still read as a list of
 actionable sentences.
 
@@ -1000,8 +997,8 @@ That is the whole channel. A directory the caller owns, a name drawn once and
 written by nobody, a file that appears only if a child put it there, and a string
 that crosses two processes without either end of this crate reading it. The
 launch has a path to end on and an `Argv` to run, and neither has yet met the
-other. Chapter 7 is where they do: `run` takes both, publishes the path under
+other. Chapter 3 is where they do: `run` takes both, publishes the path under
 the caller's chosen variable, and spawns the child with nothing added that the
 operator did not write.
 
-[Previous: From a template to an argv](05-to-an-argv.md) | [Contents](README.md) | [Next: The child is a job](07-the-job.md)
+[Previous: Orientation](01-orientation.md) | [Contents](README.md) | [Next: The child is a job](03-the-job.md)

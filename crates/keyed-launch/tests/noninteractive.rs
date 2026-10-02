@@ -1,4 +1,5 @@
 //! A standalone invocation must not share its caller's terminal or stdin.
+use std::ffi::OsString;
 use std::fs;
 use std::io::{Read, Seek, Write};
 use std::os::fd::AsRawFd;
@@ -7,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
-use keyed_launch::{Channel, End, Escalation, Launch, Templates, Vocabulary};
+use keyed_launch::{Argv, Channel, End, Escalation, Launch};
 
 #[test]
 #[ignore = "subprocess fixture"]
@@ -93,20 +94,19 @@ fn supervisor() {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
-    let config = dir.path().join("config.kdl");
     let executable = std::env::current_exe().unwrap();
     let scenario = std::env::var("RUNNER_SCENARIO").unwrap_or_else(|_| "child".into());
-    let template = format!(
-        "env RUNNER_ROLE=child '{}' --exact {scenario} --ignored --nocapture",
-        executable.display()
+    let argv = Argv::new(
+        "env".into(),
+        vec![
+            "RUNNER_ROLE=child".into(),
+            executable.into_os_string(),
+            "--exact".into(),
+            OsString::from(&scenario),
+            "--ignored".into(),
+            "--nocapture".into(),
+        ],
     );
-    fs::write(
-        &config,
-        format!("config {{\ncommand \"test\" {template:?}\nbind \"test\" \"test\"\nroute \"test\" \"test\"\n}}\n"),
-    )
-    .unwrap();
-    let templates = Templates::load(&config, None, Vocabulary { slots: &[] }).unwrap();
-    let argv = templates.expand("test", &[]).unwrap();
     let channel = Channel::allocate(dir.path()).unwrap();
     let result = keyed_launch::run_noninteractive(
         Launch {

@@ -238,7 +238,7 @@ lines = 96
 [[root]]
 id    = "source-driver-lease"
 path  = "crates/grove-loop/src/driver_lease.rs"
-lines = 2079
+lines = 2069
 
 [[root]]
 id    = "source-prompt"
@@ -469,7 +469,7 @@ lines = "1-974"
 id    = "lease-tests"
 root  = "source-driver-lease"
 owner = "which-calls-are-admitted"
-lines = "975-2079"
+lines = "975-2069"
 
 [[block]]
 id    = "the-prompt-core"
@@ -533,18 +533,18 @@ anchors = [
 [[root]]
 id = "source-runtime-observation"
 path = "crates/grove-loop/src/driver_lease/observation.rs"
-lines = 2172
+lines = 2143
 
 [[block]]
 id = "runtime-observer"
 root = "source-runtime-observation"
 owner = "which-calls-are-admitted"
-lines = "1-2172"
+lines = "1-2143"
 
 [[root]]
 id = "source-witnesses"
 path = "crates/grove-loop/src/driver_lease/witnesses.rs"
-lines = 722
+lines = 715
 
 [[block]]
 id = "launch-witnesses-production"
@@ -556,4 +556,4 @@ lines = "1-175"
 id = "witness-tests"
 root = "source-witnesses"
 owner = "which-calls-are-admitted"
-lines = "176-722"
+lines = "176-715"

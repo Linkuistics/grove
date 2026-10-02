@@ -20,11 +20,10 @@ mod support;
 /// and the books are discovered. That is an addition to this list's membership
 /// rule, not the abandonment of it: `docs/walkthroughs/` is a reader's surface
 /// in exactly the way `docs/adr/` is not.
-const NAMED_GUIDES: [&str; 5] = [
+const NAMED_GUIDES: [&str; 4] = [
     "README.md",
     "CHANGELOG.md",
     "docs/USAGE.md",
-    "docs/CONFIGURATION.md",
     "docs/RELEASING.md",
 ];
 
@@ -355,7 +354,7 @@ fn user_documentation_reference_check_rejects_dangling_targets() {
     let root = repository_root();
 
     assert!(
-        unresolved_reason(&root, "docs/USAGE.md", "CONFIGURATION.md").is_none(),
+        unresolved_reason(&root, "docs/USAGE.md", "RELEASING.md").is_none(),
         "a real sibling document must resolve"
     );
     assert!(

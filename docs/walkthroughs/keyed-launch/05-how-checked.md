@@ -1,60 +1,21 @@
 # How this is checked
-<!-- book-page id="how-checked" slice="checked-without-meaning" order="9" -->
-[Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md) | [Next: What passes through](10-what-passes-through.md)
-
-The public `tests/inspection.rs` fixture deliberately writes declarations in a
-non-alphabetical order and places UTF-8 text before them. It checks original byte
-spans, assignment order, response IDs, overwritten values and overlay-only
-refusal after changing/removing sources and dropping Catalog. Independently
-filling inspected words equals expansion, including an empty literal and native
-runtime bytes. A separate empty-file case checks that capture invents no activity.
+<!-- book-page id="how-checked" slice="checked-without-meaning" order="5" -->
+[Previous: The watch and the escalation](04-the-escalation.md) | [Contents](README.md) | [Next: What passes through](06-what-passes-through.md)
 
 <a id="checked-without-meaning"></a>
-## Check the captured result
+## Checked without meaning
 
-The conformance kit takes `&Catalog` and `&Selection`. It resolves exactly that
-selection, refuses a result with no admitted keys, and expands each command
-using placeholders for the captured runtime vocabulary. It neither rereads paths
-nor launches children. The consumer still owns source discovery and vocabulary;
-the kit tests the generic command contract without learning what a key means.
+This chapter owns the last 165 lines of `src/channel.rs`: an inline test module
+that holds a filename to a grammar and never asks what the name refers to. It
+is the only source this chapter owns.
 
-This chapter also owns the inline channel tests below. Integration tests under
-`crates/keyed-launch/tests/` are evidence rather than source corpus; the inline
-module in `src/channel.rs` is part of the recursively included production root.
-
-<a id="checking-the-same-file"></a>
-## Checking the same captured configuration
-
-With the personal `impl` and `review-impl` commands from chapter 1, the consumer
-first calls `Catalog::load(config, None, vocabulary)`, then
-`conformance::check(&catalog, &Selection::default())`. The kit expands them to
-`["claude", "--model", "opus", "<prompt>"]` and
-`["codex", "exec", "--model", "gpt-5", "<prompt>"]`. The resulting empty failure
-list reports success. An explicit overlay participates only when Catalog was
-loaded with it; conformance does not search for one.
-
-A missing required runtime slot in an active command fails resolution and
-becomes an Outcome failure, as does an unknown selected profile. Structural
-errors fail Catalog loading before there is anything to pass to the kit. An empty primary (even alongside
-valid overlay-only commands) admits no keys and fails the non-vacuity check.
-`catalog.rs` removes source files before checking conformance, so a hidden reload
-would fail its success assertion.
-
-<a id="what-the-blocks-answer"></a>
-## The public kit and the private channel grammar
-
-The conformance root below groups the public operation in execution order.
-The channel root reconstructs the separate private tests explained later.
-
-<!-- fragment «conformance» owner="checked-without-meaning" source="crates/keyed-launch/src/conformance.rs" lines="1-98" parent="source-conformance" -->
-<!-- insert «conformance-thesis» -->
-<!-- insert «conformance-outcome» -->
-<!-- insert «conformance-check-and-placeholders» -->
-<!-- insert «conformance-load» -->
-<!-- insert «conformance-no-keys» -->
-<!-- insert «conformance-values» -->
-<!-- insert «conformance-expands» -->
-<!-- /fragment -->
+The rest of the crate's evidence is outside the corpus. The integration tests
+under `crates/keyed-launch/tests/` link the crate as an external library and
+launch real children: `launch.rs` for the job, the channel, the environment and
+the escalation, `interrupt.rs` and `reraise.rs` for the launcher's own signals,
+`noninteractive.rs` for a child with no terminal, and `confinement.rs` for the
+filesystem policy. Every one of them builds its command with `Argv::new`. The
+book cites them where they adjudicate a claim and reproduces none of them.
 
 <!-- fragment «channel-inline-tests» owner="checked-without-meaning" source="crates/keyed-launch/src/channel.rs" lines="289-453" parent="source-channel" -->
 <!-- insert «channel-tests-module» -->
@@ -62,189 +23,6 @@ The channel root reconstructs the separate private tests explained later.
 <!-- insert «channel-tests-read» -->
 <!-- insert «channel-tests-discard» -->
 <!-- insert «channel-tests-cleanup» -->
-<!-- /fragment -->
-
-<a id="from-outside-the-consumer"></a>
-## The consumer supplies the catalog
-
-The module comment gives a compilable `no_run` example: source loading is an
-explicit fallible step before the kit call. Grove's integration test loads its
-own vocabulary into Catalog and checks the result. Its refusal test compares
-Catalog's error with Grove's loader for the same malformed template. The opaque
-consumer in `catalog.rs` separately proves that Grove paths and kinds are not
-part of this API.
-
-<!-- fragment «conformance-thesis» owner="checked-without-meaning" source="crates/keyed-launch/src/conformance.rs" lines="1-31" parent="conformance" -->
-````rust
-//! The conformance kit: resolve a captured Catalog with an explicit Selection
-//! and exercise every admitted command without rereading its source files.
-//!
-//! This is the **cross-crate seam**. A consumer's own suite can only assert that
-//! *its* configuration works with *its* build; the kit is what holds a
-//! configuration to the contract this crate states, from outside the consumer,
-//! which is what keeps *reusable outside grove* true without a second
-//! repository.
-//!
-//! ```no_run
-//! use keyed_launch::{conformance, Catalog, Selection, Requirement, SlotRule, Vocabulary};
-//! let catalog = Catalog::load(
-//!     std::path::Path::new("config.kdl"),
-//!     None,
-//!     Vocabulary { slots: &[SlotRule { name: "prompt", requirement: Requirement::ExactlyOnce }] },
-//! ).unwrap();
-//! let outcome = conformance::check(&catalog, &Selection::default());
-//! assert!(outcome.passed(), "{}", outcome.failures.join("\n"));
-//! ```
-//!
-//! # Why an empty document fails
-//!
-//! A kit that only reports violations reads exactly the same when it is handed
-//! nothing to check: no keys, no violations, conforming. A configuration
-//! declaring no keys is therefore a failure in its own right — not because an
-//! empty file is malformed, but because a suite of must-hold claims cannot
-//! otherwise detect that it did not run.
-
-use std::ffi::OsString;
-
-use crate::templates::{Catalog, Selection};
-````
-<!-- /fragment -->
-
-<a id="a-list-of-sentences"></a>
-## Outcome carries failures
-
-An empty failure list means the kit passed. Load errors do not become Outcomes:
-the consumer receives them from Catalog. Resolution and expansion failures do,
-so the public kit can exercise a selection without panicking or reopening files.
-
-<!-- fragment «conformance-outcome» owner="checked-without-meaning" source="crates/keyed-launch/src/conformance.rs" lines="32-43" parent="conformance" -->
-````rust
-
-/// What the kit found. Empty [`failures`](Self::failures) is conformance.
-pub struct Outcome {
-    pub failures: Vec<String>,
-}
-
-impl Outcome {
-    #[must_use]
-    pub fn passed(&self) -> bool {
-        self.failures.is_empty()
-    }
-}
-````
-<!-- /fragment -->
-
-<a id="three-obligations"></a>
-## Resolve, admit something, expand
-
-The checker builds one placeholder per captured slot name. It does not accept a
-second vocabulary that could disagree with the one used to compile commands.
-Every runtime value remains a whole argument during the later expansion.
-
-<!-- fragment «conformance-check-and-placeholders» owner="checked-without-meaning" source="crates/keyed-launch/src/conformance.rs" lines="44-57" parent="conformance" -->
-````rust
-
-/// Hold a consumer's configuration to this crate's contract.
-///
-/// Three obligations, in order: the captured catalog resolves `selection`;
-/// it admits at least one key; and every admitted key expands to an argv
-/// with a program, given one placeholder value per declared slot. The third is
-/// what stops the kit from being a second spelling of `load` — expansion is the
-/// only place the compiled words are walked.
-#[must_use]
-pub fn check(catalog: &Catalog, selection: &Selection) -> Outcome {
-    let placeholders: Vec<(String, OsString)> = catalog
-        .slot_names()
-        .map(|name| (name.to_owned(), OsString::from(format!("<{name}>"))))
-        .collect();
-````
-<!-- /fragment -->
-
-<a id="the-whole-document-first"></a>
-## Resolve before testing commands
-
-`Catalog::resolve` is the same operation a launching consumer uses. A failed
-selection returns its error text immediately; no command from a different
-selection is tried as a fallback.
-
-<!-- fragment «conformance-load» owner="checked-without-meaning" source="crates/keyed-launch/src/conformance.rs" lines="58-66" parent="conformance" -->
-````rust
-
-    let templates = match catalog.resolve(selection) {
-        Ok(templates) => templates,
-        Err(error) => {
-            return Outcome {
-                failures: vec![error.to_string()],
-            }
-        }
-    };
-````
-<!-- /fragment -->
-
-<a id="declares-no-keys"></a>
-## Refuse a vacuous pass
-
-The resolved map's keys are deterministic and contain only primary-admitted
-commands. An empty list would otherwise skip every expansion and report success,
-so it earns an explicit failure. Overlay-only declarations cannot satisfy it.
-
-<!-- fragment «conformance-no-keys» owner="checked-without-meaning" source="crates/keyed-launch/src/conformance.rs" lines="67-76" parent="conformance" -->
-````rust
-
-    let mut failures = Vec::new();
-    let keys: Vec<String> = templates.keys().into_iter().map(str::to_owned).collect();
-    if keys.is_empty() {
-        failures.push(
-            "the resolved configuration declares no keys, so nothing in this kit was exercised. \
-             A configuration that checks nothing passes every check."
-                .to_owned(),
-        );
-    }
-````
-<!-- /fragment -->
-
-<a id="walking-the-compiled-words"></a>
-## Exercise expansion
-
-Borrowed Slot values point into the owned placeholders. The same complete slot
-set is offered for every command, including slots optional in that command.
-This checks expansion's vocabulary obligation as well as its compiled words.
-
-<!-- fragment «conformance-values» owner="checked-without-meaning" source="crates/keyed-launch/src/conformance.rs" lines="77-84" parent="conformance" -->
-````rust
-
-    let values: Vec<crate::Slot<'_>> = placeholders
-        .iter()
-        .map(|(name, value)| crate::Slot {
-            name,
-            value: value.as_os_str(),
-        })
-        .collect();
-````
-<!-- /fragment -->
-
-Each admitted command must expand successfully to a nonempty program. Failures
-accumulate by deterministic key order, and the kit returns them without spawning
-anything. The final check is deliberately defensive: successful loading already
-establishes literal, nonempty word zero.
-
-<!-- fragment «conformance-expands» owner="checked-without-meaning" source="crates/keyed-launch/src/conformance.rs" lines="85-98" parent="conformance" -->
-````rust
-
-    for key in &keys {
-        match templates.expand(key, &values) {
-            Ok(argv) => {
-                if argv.program().is_empty() {
-                    failures.push(format!("key `{key}` expands to an empty program"));
-                }
-            }
-            Err(error) => failures.push(format!("key `{key}` does not expand: {error}")),
-        }
-    }
-
-    Outcome { failures }
-}
-````
 <!-- /fragment -->
 
 <a id="inside-the-root"></a>
@@ -270,7 +48,7 @@ inside the file sees everything the file declares, and for `src/channel.rs` the
 difference is seven items: the constants `CHANNEL_PREFIX`, `NONCE_BYTES` and
 `DRAW_RETRY_LIMIT`, and the private functions `is_channel_name`,
 `remove_if_present`, `draw_nonce` and `hex`. One of the seven is the reason the
-module exists. Chapter 6 argued `is_channel_name`'s **exactness** at length — prefix, length and
+module exists. Chapter 2 argued `is_channel_name`'s **exactness** at length — prefix, length and
 lowercase alphabet as three conditions, each ruling out one way a name can be
 nearly right, against a looser rule that would let this crate's cleanup delete a
 neighbouring file — and the only test that can call it directly is in this
@@ -279,32 +57,32 @@ module.
 That is why the book cuts `src/channel.rs` at line 289 and gives the two pieces
 to different chapters, and it is the only ownership boundary in the book taken at
 a compilation condition rather than at a concept. The module's *subject matter*
-is chapter 6's, since every function it exercises is above line 289; its
+is chapter 2's, since every function it exercises is above line 289; its
 *subject* is assurance, which is this chapter's. Explaining the tests here, with
-chapter 6's fragments behind the reader, costs that chapter one forward reference
+chapter 2's fragments behind the reader, costs that chapter one forward reference
 and puts the evidence for one claim beside the evidence for every other claim
 about the same crate.
 
 The eleven tests divide by the method each exercises, which is how the four
 sections below take them. The table is the map: what each test holds, and where
-in chapter 6 the rule it holds was argued.
+in chapter 2 the rule it holds was argued.
 
 | Test | What it holds | Argued at |
 |---|---|---|
-| `an_allocated_channel_names_a_path_that_does_not_yet_exist` | allocation picks a name and creates nothing, and the name it picks satisfies the grammar | [Drawing a name](06-the-channel.md#drawing-a-name), [Exactly this name](06-the-channel.md#exactly-this-name) |
-| `successive_allocations_in_one_directory_never_collide` | a nonce is drawn per call, not per directory or per process | [Drawing a name](06-the-channel.md#drawing-a-name) |
-| `allocation_names_a_missing_directory_and_says_what_to_do` | the directory is checked before anything is spawned, and the refusal names the fix | [Drawing a name](06-the-channel.md#drawing-a-name) |
-| `a_signalled_channel_reads_back_the_token_without_its_framing` | `signal` frames the token with a newline and `read` trims the framing back off | [The other end of the channel](06-the-channel.md#the-other-end), [Three ways to have no token](06-the-channel.md#three-ways-to-have-no-token) |
-| `an_empty_channel_file_is_not_an_empty_token` | an empty or whitespace-only file reads as `None`, never as `Some("")` | [Three ways to have no token](06-the-channel.md#three-ways-to-have-no-token) |
-| `an_unsignalled_channel_reads_back_nothing` | a path nothing ever wrote to reads as `None` | [Three ways to have no token](06-the-channel.md#three-ways-to-have-no-token) |
-| `completion_rejects_links_and_oversized_tokens` | symlinks, FIFO and content beyond 4,096 bytes yield no token | [Bounded channel read](06-the-channel.md#three-ways-to-have-no-token) |
-| `completion_stays_in_its_original_directory` | replacing the parent pathname cannot redirect the token read | [Held channel directory](06-the-channel.md#writes-nothing) |
-| `discarding_removes_the_file_and_succeeds_when_there_was_none` | the post-condition is *this path holds nothing*, both when there was a file and when there was not | [Removing this launch's file](06-the-channel.md#discarding), [Three helpers](06-the-channel.md#the-three-helpers) |
-| `abandoned_cleanup_removes_channels_and_leaves_every_other_entry_alone` | cleanup removes exactly the names the grammar accepts and nothing else in the directory | [The cleanup that must not overreach](06-the-channel.md#the-cleanup-that-must-not-overreach), [Exactly this name](06-the-channel.md#exactly-this-name) |
-| `abandoned_cleanup_names_the_directory_when_it_cannot_be_listed` | a cleanup that cannot list its directory refuses and names it | [The cleanup that must not overreach](06-the-channel.md#the-cleanup-that-must-not-overreach) |
+| `an_allocated_channel_names_a_path_that_does_not_yet_exist` | allocation picks a name and creates nothing, and the name it picks satisfies the grammar | [Drawing a name](02-the-channel.md#drawing-a-name), [Exactly this name](02-the-channel.md#exactly-this-name) |
+| `successive_allocations_in_one_directory_never_collide` | a nonce is drawn per call, not per directory or per process | [Drawing a name](02-the-channel.md#drawing-a-name) |
+| `allocation_names_a_missing_directory_and_says_what_to_do` | the directory is checked before anything is spawned, and the refusal names the fix | [Drawing a name](02-the-channel.md#drawing-a-name) |
+| `a_signalled_channel_reads_back_the_token_without_its_framing` | `signal` frames the token with a newline and `read` trims the framing back off | [The other end of the channel](02-the-channel.md#the-other-end), [Three ways to have no token](02-the-channel.md#three-ways-to-have-no-token) |
+| `an_empty_channel_file_is_not_an_empty_token` | an empty or whitespace-only file reads as `None`, never as `Some("")` | [Three ways to have no token](02-the-channel.md#three-ways-to-have-no-token) |
+| `an_unsignalled_channel_reads_back_nothing` | a path nothing ever wrote to reads as `None` | [Three ways to have no token](02-the-channel.md#three-ways-to-have-no-token) |
+| `completion_rejects_links_and_oversized_tokens` | symlinks, FIFO and content beyond 4,096 bytes yield no token | [Bounded channel read](02-the-channel.md#three-ways-to-have-no-token) |
+| `completion_stays_in_its_original_directory` | replacing the parent pathname cannot redirect the token read | [Held channel directory](02-the-channel.md#writes-nothing) |
+| `discarding_removes_the_file_and_succeeds_when_there_was_none` | the post-condition is *this path holds nothing*, both when there was a file and when there was not | [Removing this launch's file](02-the-channel.md#discarding), [Three helpers](02-the-channel.md#the-three-helpers) |
+| `abandoned_cleanup_removes_channels_and_leaves_every_other_entry_alone` | cleanup removes exactly the names the grammar accepts and nothing else in the directory | [The cleanup that must not overreach](02-the-channel.md#the-cleanup-that-must-not-overreach), [Exactly this name](02-the-channel.md#exactly-this-name) |
+| `abandoned_cleanup_names_the_directory_when_it_cannot_be_listed` | a cleanup that cannot list its directory refuses and names it | [The cleanup that must not overreach](02-the-channel.md#the-cleanup-that-must-not-overreach) |
 
 Nothing in the module spawns a process, and that is the other half of the
-boundary. All nine build a `tempfile::tempdir()` and work on the filesystem, so
+boundary. All eleven build a `tempfile::tempdir()` and work on the filesystem, so
 the module's whole reach is the channel's file-facing side. The process-facing
 side — that the path is published to a child under the caller's chosen variable
 name, and that a child writing to it ends the launch — needs a real child and
@@ -362,7 +140,7 @@ and the refusal when the directory is not there.
 ````
 <!-- /fragment -->
 
-The first test states three parts of chapter 6's central claim in order: the path
+The first test states three parts of chapter 2's central claim in order: the path
 does not exist, its parent is the directory it was
 given, and its file name satisfies the grammar. The first carries the only
 assertion message in the crate that states the spine as a sentence —
@@ -374,7 +152,7 @@ this module sits inside the root rather than under `tests/`. It carries the only
 assertion anywhere on `hex`'s output — every test that allocates runs `hex`, and
 this is the one that checks what it produced: the name satisfies the grammar only
 if sixteen drawn bytes came back as thirty-two lowercase hex characters, which is
-the half of the grammar `hex` owns and the reason chapter 6's table credits that
+the half of the grammar `hex` owns and the reason chapter 2's table credits that
 function to this test.
 
 The second test is narrower than its name. Nothing occupies a name while it runs,
@@ -399,7 +177,7 @@ two need a filesystem state a test would have to manufacture, and the third need
 <a id="not-a-token"></a>
 ## Three tests on what is not a token
 
-The next three are `Channel::read`, and between them they are chapter 6's
+The next three are `Channel::read`, and between them they are chapter 2's
 distinction between a file and a token: one write that produces a token, and two
 files that do not.
 
@@ -459,13 +237,13 @@ is an argument rather than a description: the channel's appearance is what start
 an escalation, so a child killed between creating the file and writing to it
 leaves an empty one behind, and reporting that as `Some("")` would let a caller's
 *anything unrecognised means keep going* rule fire on a launch that said nothing
-at all. That is chapter 6's `read` comment restated where the case is exercised.
+at all. That is chapter 2's `read` comment restated where the case is exercised.
 The loop over `["", "\n", "  \n"]` is what makes it three cases rather than one,
 and the third is the one that matters: it exercises `trim_end` past whitespace
 that is not a newline, and a `read` that stripped only a trailing `\n` would
 return `Some("  ")` and fail there.
 
-The third test completes a set. Chapter 6 named
+The third test completes a set. Chapter 2 named
 three ways to have no token — nothing was written, the file cannot be read, and
 the file is there but empty — and this module reaches the first and the third.
 The unsignalled test exercises the `.ok()?` arm through `NotFound`, collapsing
@@ -648,7 +426,7 @@ has to sort correctly; the second takes away the directory.
 The first is the module's largest test and the one that runs the grammar through
 its caller. Five files go into one directory: one name the grammar accepts and
 four it must reject. The table is the fixture read against
-[chapter 6's three conditions](06-the-channel.md#exactly-this-name); take from it
+[chapter 2's three conditions](02-the-channel.md#exactly-this-name); take from it
 that each decoy is a file a consumer could legitimately keep, and that the three
 conditions refuse one at a time — the prefix doing it twice, once for a name
 whose suffix would otherwise pass and once for a file that is not a channel name
@@ -660,7 +438,7 @@ in any respect.
 | `signal-FEDCBA9876543210FEDCBA9876543210` | the alphabet: `hex` emits lowercase and the predicate accepts nothing else | kept |
 | `signal-0123456789abcdef` | the length: sixteen characters where `NONCE_BYTES * 2` requires thirty-two | kept |
 | `0123456789abcdef0123456789abcdef` | the prefix, with a suffix that would otherwise pass | kept |
-| `driver.lease` | the prefix, and it is the file chapter 6 named as the cost of a loose rule | kept |
+| `driver.lease` | the prefix, and it is the file chapter 2 named as the cost of a loose rule | kept |
 
 One assertion covers the removal, and a loop asserts each of the four survivors
 in turn, every failure message naming the path that should have been left alone.
@@ -673,7 +451,7 @@ what it was told could produce both results.
 The comment inside it is about the fixture rather than about the code, which is
 why it sits in the test and not on `is_channel_name`: the uppercase decoy uses a
 *different* nonce, because on a case-insensitive filesystem the same nonce in two
-cases would be one file and the test would be asserting nothing. Chapter 6 read
+cases would be one file and the test would be asserting nothing. Chapter 2 read
 that argument at the function it protects; what this page adds is that the
 decision it records is a decision about how to write a test, and that it belongs
 to the test's author rather than to the grammar's.
@@ -685,50 +463,11 @@ abandoned completion channel(s) … remove them by hand* — needs a directory t
 lists and an entry that will not delete, and is named by no test. Line 453 is the
 module's closing brace and the last byte of `src/channel.rs`.
 
-The preceding chapters cover the interactive launch path. The complete book
-also includes native confinement: 12 roots, 4,162 lines, ten
-chapters that own source, and nothing deferred.
+The module holds a filename to a grammar of prefix, length and alphabet, and to
+nothing about what the name refers to. There is no point in it at which the
+crate could have learned what a value means.
 
-The two halves of this chapter check in opposite directions and neither
-interprets a value. The kit holds a consumer's document to obligations about
-form and count — it resolves, admits keys and expands them — and to
-nothing about what any key names. The module holds a filename to a grammar of
-prefix, length and alphabet, and to nothing about what the name refers to. In
-neither is there a point at which the crate could have learned what a value means
-and declined to; there was nothing there to decline, which is what the eight
-chapters before this one have been showing from the other side.
+Chapter 6 owns no source. Chapter 7 reads the last root: a child with no
+terminal, and the same child under a filesystem policy.
 
-What remains is to say that once, as a test a reader can carry into their own
-code. Chapter 10 owns no source and is where it is stated: where a layer learns
-what its values mean, what it costs when the answer is anywhere at all, and which
-of these nine chapters proved that here the answer is nowhere.
-
-Named parameter acceptance is exercised through the public Catalog/Templates
-seam in `crates/keyed-launch/tests/named_commands.rs`. The tests distinguish
-structural validation of dormant declarations from active template validation
-and admitted-route completeness. They check defaults, shared primary/local
-assignments, removal fallback, final-schema validation and unused required values,
-repeated embedded references, empty and adversarial values, native runtime
-strings, exact source spans, multi-origin words and replacement histories.
-Grove's lifecycle and leaf-mutation tests then observe real fake-executable argv
-and refusal before any task-tree write; they do not need an agent harness.
-
-The route acceptance cases in `tests/named_commands.rs` exercise scope specificity,
-binding switches, removal fallback, final-schema checks and personal authorization.
-They compare captured inspection with loader convenience after source removal.
-Grove’s `lifecycle_cutover` acceptance records exact child argv for local route
-patches and refuses missing personal targets before launch or tree creation.
-
-
-
-
-The public profile tests in `crates/keyed-launch/tests/profiles.rs` use arbitrary
-keys and a `payload` slot. They distinguish diamond reapplication from global
-deduplication, check occurrence-specific winning origins, and compare inspection
-words with expanded argv after removing sources and dropping Catalog. Separate
-fixtures exercise personal authority before local targets, scope specificity,
-closed cycle chains and repeated profile applications. Grove adapter tests
-exercise local selection precedence, an explicit empty local list, personal
-default selection and base-only launches without a selection.
-
-[Previous: The watch and the escalation](08-the-escalation.md) | [Contents](README.md) | [Next: What passes through](10-what-passes-through.md)
+[Previous: The watch and the escalation](04-the-escalation.md) | [Contents](README.md) | [Next: What passes through](06-what-passes-through.md)

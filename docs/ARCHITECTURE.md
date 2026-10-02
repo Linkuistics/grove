@@ -27,9 +27,8 @@ them.
 |---|---|
 | Project description and installation | [`README.md`](../README.md) |
 | Human workflow and commands | [`USAGE.md`](USAGE.md) |
-| Session configuration and launch policy | [`CONFIGURATION.md`](CONFIGURATION.md) |
 | Cutting and publishing a release | [`RELEASING.md`](RELEASING.md) |
-| Routing a Grove session through `harness-dispatch`, and a review's creator line | [`CONFIGURATION.md`](CONFIGURATION.md#harness-dispatch) — the Grove-side account; [`USAGE.md`](USAGE.md#if-a-dispatched-launch-refuses) has the refused launch |
+| A refused launch, and a review's creator line as a Grove owner meets them | [`USAGE.md`](USAGE.md#if-a-dispatched-launch-refuses) |
 | `harness-dispatch` itself: policies, inspection, running, records and refusals | [`crates/harness-dispatch/README.md`](../crates/harness-dispatch/README.md) — beside the package and not under `docs/`, so that it travels with it |
 | The `harness-dispatch` contract | [`specs/harness-selection-and-execution.md`](specs/harness-selection-and-execution.md), with its [visual views and runtime evidence](design/harness-selection-and-execution/README.md) |
 | Runtime and repository design — the decisions, the constraints, and the measurement records | this document |
@@ -316,42 +315,14 @@ Grove reads no configuration file. Every launch's command is selected by the
 owner's `harness-dispatch` policy ([below](#harness-dispatch)), and a
 `config.kdl` or `.grove.kdl` left on disk is never read.
 
-**`crates/keyed-launch` still carries a template reader, which has never heard
-of a session and which no Grove launch uses.** It loads a file — and at most one
-overlay — into a key-to-template
-map, validated whole against a *slot vocabulary* the consumer supplies at load,
-and expands one selected template into an argv. It hides KDL handling, aggregate
-schema diagnostics, POSIX shell-word splitting, substitution validation, and argv
-construction; callers cannot ask it for a default, family, harness, or model, and
-it holds no set of keys. `Catalog::load` captures source bytes, parsed
-declarations and vocabulary once; `Catalog::resolve` produces an owned
-`Templates` snapshot without file I/O. `Templates::load` uses that same path
-with an empty selection, and conformance checks the captured Catalog. The
-reader accepts modular wrappers and empty documents; flat and mixed documents
-fail structurally with a source-attributed remedy. `ConfigError::diagnostics` provides
-stable categories, available source byte ranges and remedies; structural reports
-from both explicit documents precede template-semantic validation reports.
-`Templates::inspect` explains captured reference chains and resolution, including overwritten
-target assignments, winning word origins and non-admitted overlay keys. Its
-literal/slot words share expansion's compiled representation. Parameter defaults
-and shared/route values fill pre-split words and retain contributing origins and
-assignment/removal histories. Explicit generic selections expand includes
-before each profile patch, repeating every occurrence and checking personal target
-authority before local patches. Inactive profiles receive structural checks only.
-Catalog captures optional selection
-declarations; the convenience loader ignores them.
-Named definitions
-are primary-only; effective bindings validate their templates after local targets
-replace personal targets. Dormant definitions are not compiled.
-
-**And it runs what it expanded.** The same crate allocates the launch's
-completion channel, spawns the argv directly with no shell, supervises the child
-and applies the kill escalation — so `Argv` is both the only thing expansion
-produces and the only thing a spawn accepts. A caller that already holds a
-command builds one with `Argv::new`, which is how `grove run` hands the runner
-the command `harness-dispatch inspect` reported. Whatever was put into an `Argv`
-is what is spawned, each string one argument. Grove supplies no template to it:
-the loop and `grove run` each hand it a command through `Argv::new`.
+**`crates/keyed-launch` runs the command it is handed, and has never heard of a
+session.** It reads no configuration and resolves no name to a command. The
+crate allocates the launch's completion channel, spawns an argv directly with no
+shell, supervises the child and applies the kill escalation. `Argv` is the only
+thing a spawn accepts, and a caller builds one with `Argv::new`: the loop hands
+it the `harness-dispatch run` invocation, and `grove run` hands it the command
+`harness-dispatch inspect` reported. Whatever was put into an `Argv` is what is
+spawned, each string one argument.
 
 The driver retains the selected task-root directory in a separate `TreeLifetime`
 pin, checked under the selection's tree guard. Finish materialization is followed
@@ -462,8 +433,7 @@ they carry the selected leaf's kind, path and handle as whole arguments, from
 the selection that composes the mandate. Grove's pre-authoring check therefore
 stops at the configured command, and a delegated policy is evaluated only at
 launch. That can stop an unattended run on a leaf already written, and is the
-accepted cost of delegating
-([configuration reference](CONFIGURATION.md#harness-dispatch)).
+accepted cost of delegating.
 
 The boundary has three sides:
 

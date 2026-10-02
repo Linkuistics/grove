@@ -368,12 +368,10 @@ mod tests {
         );
         lock(&File::open(temp.path()).unwrap()).unwrap();
 
-        let config = temp.path().join("launch.kdl");
-        fs::write(&config, "config { command \"run\" \"/bin/sh -c 'echo launched > proof'\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
-        let templates =
-            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
-                .unwrap();
-        let argv = templates.expand("test", &[]).unwrap();
+        let argv = keyed_launch::Argv::new(
+            "/bin/sh".into(),
+            vec!["-c".into(), "echo launched > proof".into()],
+        );
         let mut events = Vec::new();
         lease
             .supervise_launch(|observer| {
@@ -485,12 +483,7 @@ mod tests {
         let private = File::open(&path).unwrap();
         let directory = File::open(temp.path().join(".grove")).unwrap();
         let epoch_path = lease.control_dir().join(EPOCH_FILE_NAME);
-        let config = temp.path().join("launch.kdl");
-        fs::write(&config, "config { command \"run\" \"/bin/sh -c true\"; bind \"run\" \"run\"; route \"test\" \"run\"; }\n").unwrap();
-        let templates =
-            keyed_launch::Templates::load(&config, None, keyed_launch::Vocabulary { slots: &[] })
-                .unwrap();
-        let argv = templates.expand("test", &[]).unwrap();
+        let argv = keyed_launch::Argv::new("/bin/sh".into(), vec!["-c".into(), "true".into()]);
         let mut events = Vec::new();
         let result = lease.supervise_launch(|observer| {
             keyed_launch::run_observed(

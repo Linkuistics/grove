@@ -7,7 +7,7 @@
 
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «ownership-blocks» -->
-This chapter owns none of the crate's 14,153 lines. The fragment graph spans
+This chapter owns none of the crate's 14,107 lines. The fragment graph spans
 [chapter 1](01-orientation.md) through [chapter 19](19-the-loop.md),
 including the captured observer in chapter 5. Its 42 ownership blocks are
 `resolved`; the [source index](source-index.md) records that graph in full and
@@ -429,7 +429,7 @@ this book established in its own chapter 2 and applied in every chapter after it
 
 <!-- rollup «owned-lines-sequence» -->
 <!-- rollup «source-owning-chapters» -->
-**Owned source.** 486 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 516 + 1,149 + 3,824 + 245 + 787 = 14,153 lines across
+**Owned source.** 486 + 373 + 529 + 773 + 521 + 320 + 336 + 438 + 604 + 518 + 641 + 764 + 808 + 521 + 516 + 1,149 + 3,778 + 245 + 787 = 14,107 lines across
 19 source-owning chapters. This closing chapter owns zero lines. The source
 index records the root sizes, block ranges and chapter totals.
 
@@ -566,7 +566,7 @@ tests, not this crate's.
 <!-- rollup «source-roots» -->
 <!-- rollup «owned-lines-total» -->
 <!-- rollup «chapters» -->
-The book is complete: 15 roots, 14,153 lines, 20 chapters, two
+The book is complete: 15 roots, 14,107 lines, 20 chapters, two
 lookup surfaces, zero deferred ranges. What it argued is that a layer which
 extracts a domain-free library from underneath itself keeps exactly what carries
 meaning, and that meaning is expensive in three measurable places. What it leaves

@@ -10,21 +10,15 @@
 //! installs the handler. Before that the signal takes its default disposition
 //! and would kill the test runner — so phase 1 exists to be run, not to assert.
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
 use keyed_launch::{
     run, run_observed, take_interrupt, Argv, Channel, End, Escalation, Launch, LaunchEvent,
-    Requirement, Slot, SlotRule, Templates, Vocabulary,
 };
 use tempfile::TempDir;
-
-const SLOTS: [SlotRule<'static>; 1] = [SlotRule {
-    name: "script",
-    requirement: Requirement::ExactlyOnce,
-}];
 
 const FAST: Escalation = Escalation {
     grace: Duration::from_millis(600),
@@ -36,20 +30,9 @@ const FAST: Escalation = Escalation {
 const SIGTERM: i32 = 15;
 
 fn argv_for(dir: &Path, body: &str) -> Argv {
-    let config = dir.join("config.kdl");
-    fs::write(&config, "config {\n    command \"child\" \"sh ${script}\"\n    bind \"child\" \"child\"\n    route \"child\" \"child\"\n}\n").unwrap();
     let script = dir.join("child.sh");
     fs::write(&script, body).unwrap();
-    Templates::load(&config, None, Vocabulary { slots: &SLOTS })
-        .unwrap()
-        .expand(
-            "child",
-            &[Slot {
-                name: "script",
-                value: script.as_os_str(),
-            }],
-        )
-        .unwrap()
+    Argv::new(OsString::from("sh"), vec![script.into_os_string()])
 }
 
 fn launch<'a>(argv: &'a Argv, channel: &'a Channel) -> Launch<'a> {

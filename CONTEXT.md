@@ -406,7 +406,7 @@ harness that exits on its own. An interactive one returns to its prompt when its
 turn ends, so the child is never reaped, the driver's no-signal branch is never
 reached, and the loop **stalls** instead — indefinitely, the watcher having no
 timeout. Which of the two a forgotten `grove-llm complete` produces is a
-property of the configured command, not of grove.
+property of the launched harness, not of grove.
 _Avoid_: calling the path a credential or security token — any descendant can read or deliberately discard its environment. The session epoch prevents ordinary stale-loop behavior; it does not defend against a hostile local process.
 _Avoid_: treating a redirected `cargo test` as evidence the guard works — a redirected run is safe by construction and passes with the guard removed. The acceptance test is a full run from a live pane with the real path in ambient env, verified absent afterwards.
 
@@ -416,7 +416,7 @@ _Avoid_: treating a redirected `cargo test` as evidence the guard works — a re
 The mechanical first step of bare `grove` when the provided working tree has no
 `.grove/`: before launching any agent the driver creates `.grove/`, the root
 `_BRIEF.md` stub and `01-requirements--plan-k1.md`, then runs the ordinary authoritative [[Pick]] and launches that requirements
-leaf through [[Grove configuration]]. There is no special rootless session —
+leaf through [[Kind routing]]. There is no special rootless session —
 every session owns a real selected leaf, and a grove begins with requirements
 gathering by construction.
 _Avoid_: "the bootstrap leaf is planning" — that was the pre-taxonomy answer, and it survives only by marking `planning` HITL again. The bootstrap session may still *cut* leaves (the requirements/design/planning fusion a small workstream is allowed); the label names the discipline that always applies.
@@ -522,15 +522,16 @@ is twenty-three, five producers (`requirements`, `design`, `planning`,
 (`draft`, `copy-edit`, `art`, `proof`), and the driver-reserved `finish`. Grove spells
 two of those tokens and no others, at the two places it writes a leaf itself:
 `requirements` for root scaffolding and `finish` for the teardown sentinel.
-Before it writes or launches a kind, that kind must resolve one complete target
-through [[Grove configuration]]; a kind that is **ill-formed** is a malformed
+No tree verb asks whether a kind can launch: a kind the owner's dispatch policy
+refuses is caught when its leaf launches, and the leaf stays live. A kind that
+is **ill-formed** is a malformed
 tree that stops tree operations, never a degradation to `impl`, while a kind
 that is merely unrecognised parses and launches and fails in the session that
 could not load its skill. A [[Node directory]] is kind-free by construction and
 is never passed through this parser.
 _Avoid_: **task kind** — the label shapes and launches a session, and no longer
 lives in a `**Kind:**` task-file field.
-_Avoid_: plain `research` — a vendor pair uses the independently configurable
+_Avoid_: plain `research` — a vendor pair uses the independently selectable
 `research-a` and `research-b` kinds.
 _Avoid_: a list of kinds in the machinery, in any form — an enum, a manifest
 grove reads, a default on a grow verb's `--kind`, or a constant naming a shape's
@@ -557,7 +558,7 @@ is the [[Editorial chain]]. The **review chain**
 is `X` → `review-X` → `integrate-review-X`: sequential, **adversarial** (the
 reviewer's job is to find fault), and each step a *different kind*, so per-kind
 routing alone expresses it. The **vendor pair** is `research-a` → `research-b` →
-`combine-research`: **breadth-and-confirmation**, two separately configured
+`combine-research`: **breadth-and-confirmation**, two separately selected
 survey sessions unioned by a binary combine step. Both are **flat siblings** in
 their parent, **named off a shared stem** — every step carries that stem as its
 whole slug, because the [[Session kind]] field is the canonical statement of a
@@ -645,7 +646,7 @@ findings cite". Nothing can supply that proof at the moment the leaf is cut: the
 intervening leaf has not run, and grove makes no leaf's eventual file set part of
 its contract, so a goal or a pointer list is a guess wearing a check's clothes.
 _Avoid_: giving either research leaf a `**Harness:**` declaration. Their
-`research-a` and `research-b` session kinds are the configuration keys.
+`research-a` and `research-b` session kinds are what a policy selects by.
 _Avoid_: running the *researchers* adversarially — that discards the breadth the
 pair was run for. The adversarial move belongs to `combine-research`, whose
 discipline is that **agreement without independent primary sourcing is a red
@@ -777,85 +778,45 @@ wizard anti-pattern *in-session-finish-cycle* already rejects, and it terminated
 into that cycle's own confirmation, giving up to four questions about one fact.
 
 <a id="grove-configuration"></a>
-### Grove configuration (`~/.config/grove/config.kdl`)
+### Grove configuration *(retired)*
 
-Personal launch policy: explicit [[Session kind]] routes, reusable command
-definitions, [[Command binding]]s, and named [[Configuration profile]]s. The modular design is specified in
-[modular configuration](docs/specs/modular-configuration.md); the currently
-implemented modular form, with explicit generic profile
-composition and structurally checked inactive profiles, are documented in
-[the reference](docs/CONFIGURATION.md).
-The generic runner's **Catalog** is the captured source documents and slot
-vocabulary; **Templates** is an owned resolved command snapshot; its **Inspection** is the
-read-only explanation of captured sources, compiled words and assignment histories.
-Catalog captures an optional **Selection** declaration from each source, retaining
-the difference between absence and an empty list; callers supply the selection
-to resolve.
-_Avoid_: "primary harness" — harness selection is a property of each session kind,
-not of the grove as a whole.
-_Avoid_: "thinking effort" — use **reasoning effort**, the launch-policy term.
-_Avoid_: a fallback on configuration error — a failed selection launches nothing.
-_Avoid_: executing the template with `sh -c` or an interactive login shell — the
-configured process remains Grove's direct foreground child.
-
-<a id="configuration-profile"></a>
-### Configuration profile
-
-A named, reusable patch of [[Grove configuration]], optionally including other
-profiles, whose selected occurrences compose in order. It is distinct from a
-profile understood by a configured harness.
-
-<a id="command-definition"></a>
-### Command definition
-
-A named reusable template and its [[Command parameter]] declarations in
-[[Grove configuration]], referenced by any number of [[Command binding]]s.
-
-<a id="command-parameter"></a>
-### Command parameter
-
-An author-declared string value in a [[Command definition]], optionally with a
-default, whose contents fill an argument or argument fragment without changing
-word boundaries. Its value comes from a declaration default, shared `values`, or
-a more specific [[Kind route]] override; `unset` removes the addressed override
-to expose inheritance. It is distinct from a runtime slot.
-
-<a id="kind-route"></a>
-### Kind route
-
-An explicit [[Session kind]] mapping to a [[Command binding]], with optional
-[[Command parameter]] overrides. It is a
-configuration object, distinct from the driver's [[Kind routing]] procedure.
-
-<a id="command-binding"></a>
-### Command binding
-
-An author-named reference to one reusable command definition in [[Grove
-configuration]], shared by any number of explicit [[Session kind]] routes.
-Names such as `lead` and `review` are personal policy, not Grove-defined roles.
+The personal `~/.config/grove/config.kdl` and the per-checkout `.grove.kdl`,
+which gave each [[Session kind]] a command template through command
+definitions, bindings, routes, parameters and profiles. **Nothing reads
+either**: Grove has no launch configuration, a copy left on disk changes
+nothing about a launch, and the terms that named its parts (*configuration
+profile*, *command definition*, *command parameter*, *kind route*, *command
+binding*, and the runner's *catalog*, *templates*, *slot* and *overlay*) went
+with it. What runs for a kind is decided by the owner's harness-dispatch policy
+([[Kind routing]]).
+_Avoid_: "primary harness" — harness selection is decided per launch, not for
+the grove as a whole.
+_Avoid_: a fallback when selection fails — a refused selection launches nothing.
 
 <a id="kind-routing"></a>
 ### Kind routing
 
 How the self-driving loop launches the [[Leaf]] selected by one authoritative
 driver-side [[Pick]]. The driver reads the session kind from that leaf's
-filename, obtains its complete session target from [[Grove configuration]],
-composes the [[Guaranteed core]] into `${prompt}` — which names that kind's
-[[Kind skill]] and no file by path — and embeds the selected stable handle there
-as the launched session's mandate, alongside the [[Stated VCS]]. The session first validates its [[Session epoch]], then resolves that
-handle to its current path, rejects an unavailable or non-live result,
-Bootstraps the resolved leaf, and does not pick again. A session started outside bare
-`grove` has no mandate and is not a Grove loop session; Grove executes the
-configured command directly and is not a model router or proxy.
+filename, composes the [[Guaranteed core]] as the prompt — which names that
+kind's [[Kind skill]] and no file by path — and embeds the selected stable
+handle there as the launched session's mandate, alongside the [[Stated VCS]].
+It then runs `harness-dispatch run` with the kind, the task file, the handle,
+the prompt and three [[Selection parameter]]s, and the owner's policy returns
+the [[Selected command]]. Grove holds no table from a kind to a command and is
+not a model router or proxy. The session first validates its [[Session epoch]],
+then resolves that handle to its current path, rejects an unavailable or
+non-live result, Bootstraps the resolved leaf, and does not pick again. A
+session started outside bare `grove` has no mandate and is not a Grove loop
+session.
 _Avoid_: describing environment variables, a harness stamp, `--harness`, or a
-leaf-level `**Harness:**` declaration as configuration fallbacks.
-_Avoid_: recovering the kind from `${prompt}`. The kind is the routing *key* and
+leaf-level `**Harness:**` declaration as ways to choose what launches.
+_Avoid_: recovering the kind from the prompt. The kind is the routing *key* and
 the core is the *payload*, so every substring test is indirect and unsound: the
 core names a reference file a whole family shares, and the driver's sentence
 naming the selected leaf identifies only a handle whose slug is `finish`
 — which `validate_slug` permits, since it reserves `BRIEF` and `DONE` and no kind
-label. Anything needing to know which kind ran asks the per-kind configured
-template, which is where the routing decision was actually made.
+label. A policy that needs the kind reads the `kind` it was passed.
 
 <a id="stated-vcs"></a>
 ### Stated VCS
@@ -863,7 +824,7 @@ template, which is where the routing decision was actually made.
 The version-control fact the driver resolves *before* a session exists and
 states in that session's mandate: that the working tree is jj-enabled, and the
 workspace root it resolved. It rides beside the handle in [[Kind routing]]'s
-`${prompt}` — not a template word, not a verb, and not anything a task file
+prompt — not a launch parameter, not a verb, and not anything a task file
 carries — and stops at identity and root: the commit-boundary commands stay out,
 because they already live in the methodology's Commit step and a copy would be a
 second source of truth drifting away from it.
@@ -879,12 +840,12 @@ with no `.jj/` never reaches a mandate at all — it is refused at the gate, wit
 ### Review target diversity
 
 Whether a scheduled review uses a different harness or model from its producer
-is explicit policy in [[Grove configuration]]. Grove does not interpret command
-templates to recover target identity, persist producer launch receipts, export
-session-target metadata, compare targets, or warn; a `review-*` leaf supplies a
-fresh session, and choosing a materially different command is the configuration
-owner's responsibility. harness-dispatch's supplied review policy compares
-providers itself, from a review's [[Creator reference]].
+is the owner's harness-dispatch policy to decide. Grove does not read a
+[[Selected command]] to recover target identity, persist producer launch
+receipts, compare targets, or warn; a `review-*` leaf supplies a fresh session,
+and returning a materially different command for it is the policy owner's
+responsibility. harness-dispatch's supplied review policy compares providers
+itself, from a review's [[Creator reference]].
 
 <a id="selection-provider"></a>
 ### Selection provider

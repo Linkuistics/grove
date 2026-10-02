@@ -1,4 +1,4 @@
-# runner-templates-k14
+# runner-templates-k14 — brief
 
 ## Goal
 
@@ -35,6 +35,13 @@ is deleted, and so is the last record of Grove configuration.
 - The `keyed-launch` book and its structure specification describe what
   remains.
 - `bash scripts/check.sh` passes.
+
+## Decomposition
+
+`argv-runner-k23` deletes the machinery and the records and leaves every book
+valid. `book-thesis-k24` restates what the `keyed-launch` book is for, in the
+book and in its structure brief. The split is at the book's thesis, which the
+note below anticipated.
 
 ## Notes
 

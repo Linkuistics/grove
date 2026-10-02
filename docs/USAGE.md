@@ -9,13 +9,14 @@ while keeping its history and leaving every Git tool working.
 `grove run` is a separate standalone invocation which needs no project or jj.
 
 Before starting, install Grove as described in the [README](../README.md) and
-write the complete personal configuration described in
-[CONFIGURATION.md](CONFIGURATION.md). Grove will not start without it.
+install a harness-dispatch policy as
+[its README](../crates/harness-dispatch/README.md#which-policy-runs) describes. Grove launches no session
+without one.
 
 This guide covers the whole installed command surface — the `grove` binary you
 run, and the `grove-llm` verbs a session runs over the tree — plus every journey
 from scaffolding a grove to tearing one down. It does **not** carry the
-configuration schema ([CONFIGURATION.md](CONFIGURATION.md)), installation
+launch policy ([harness-dispatch](../crates/harness-dispatch/README.md)), installation
 ([README](../README.md)), grove's vocabulary ([CONTEXT.md](../CONTEXT.md)), or
 the methodology a session executes (the `grove` plugin's own skills). Each is
 linked where it is reached. The set this guide is obliged to cover is written
@@ -26,14 +27,6 @@ row of it.
 
 Every transcript below is real output with the working tree rewritten to
 `/home/you/app`.
-
-Personal policy uses a `config { ... }` wrapper with named commands and explicit
-bindings and routes. Parameters and profiles are optional; flat commands are rejected. Local deltas can replace those
-targets, shared command values or route parameters. Inactive personal profiles are structurally validated and leave base commands unchanged.
-A local `config { select "daily" "experiment"; }` replaces the personal default
-profile list; `config { select; }` disables profiles. Without a local selection,
-Grove inherits the personal default. Direct local values apply last, and edits
-affect subsequent sessions. See [configuration profiles](CONFIGURATION.md#named-commands-and-routes).
 
 <a id="usage-standalone"></a>
 ## Running a standalone task
@@ -352,7 +345,7 @@ Grove asks jj for facts it will not guess, and says so if it cannot run it.
 
 A kind routed through `harness-dispatch run` has its harness chosen at launch,
 by your dispatch policy
-([routing sessions through harness-dispatch](CONFIGURATION.md#harness-dispatch)).
+([called from Grove](../crates/harness-dispatch/README.md#called-from-grove)).
 Grove checked only the command when the leaf was written, so a policy that
 cannot choose for the kind refuses now. It launches nothing. Grove reports
 harness-dispatch's exit status, stops the loop and leaves the leaf live. That
@@ -377,8 +370,8 @@ what the remedy says, here adding `design` to the policy's routes, and run the
 line again until it reports a candidate. A review under the Grove review
 example refuses the same way when its task file names no creator, which is
 what a producer finished without dispatch leaves. That remedy is your
-declaration, `**Creator:** declared <provider>`, and the configuration
-reference gives [its steps](CONFIGURATION.md#when-a-dispatched-launch-refuses).
+declaration, `**Creator:** declared <provider>`, and the harness-dispatch
+README gives [its steps](../crates/harness-dispatch/README.md#the-grove-review-policy).
 Then rerun `grove`, and the same leaf launches:
 
 ```console
@@ -970,7 +963,7 @@ Write the relationship into the new leaf's body by hand — `**Reviews:**
 <producer-handle>`, or `**Integrates:** <review-handle>`. Grove's own code
 neither writes nor reads those lines; they are a convention for you and for the
 session that picks the step up. If you route reviews through
-[harness-dispatch](CONFIGURATION.md#harness-dispatch)'s review policy, the
+[harness-dispatch](../crates/harness-dispatch/README.md#the-grove-review-policy)'s review policy, the
 adapter that policy imports reads `**Reviews:**` too, with the `**Creator:**`
 line under it.
 
@@ -987,7 +980,7 @@ chooses a reviewer from another provider. It has two forms, with two writers:
   that finished a producer with no run: one finished before you adopted
   dispatch, or by a harness Grove launched directly. Such a review refuses at
   launch until you write it
-  ([the remedy](CONFIGURATION.md#when-a-dispatched-launch-refuses)).
+  ([the remedy](../crates/harness-dispatch/README.md#the-grove-review-policy)).
 
 A run line is its writer's word. harness-dispatch records which provider a run
 launched, not which run made the artifact, so a line naming some other run that
@@ -996,7 +989,7 @@ reviewed handle, since a decomposed producer is finished by a child task with
 its own handle. `harness-dispatch inspect` shows the two side by side. The same
 line lets a review attach its findings to the producer's run as an observation,
 which outlasts `.grove/`.
-[A review's creator line](CONFIGURATION.md#a-reviews-creator-line) has the
+[The Grove review policy](../crates/harness-dispatch/README.md#the-grove-review-policy) has the
 whole account.
 
 Grove then launches the review kind's configured command. Whether that command

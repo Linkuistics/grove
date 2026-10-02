@@ -127,8 +127,8 @@ rather than imposed on it, and it is recovered from eight places, not one.
 
 `src/lib.rs` lines 4–10 state it for the crate: *the one library crate in the
 workspace that is allowed to be domain-bound … The other three say nothing about
-grove — `ordinal-fs-tree` has an ordered tree, `keyed-launch` has a key and a
-template, `jj-workspace` has a workspace and a commit — and none of them has a
+grove — `ordinal-fs-tree` has an ordered tree, `keyed-launch` has an argv and a
+job, `jj-workspace` has a workspace and a commit — and none of them has a
 word for a* kind, *a* brief chain, *an* outcome, *a* handle *or* finishing. *Those
 are here.* `Cargo.toml` lines 12–16 state it again for the manifest, in bold,
 citing decision 1 of [`module-decomposition.md`](module-decomposition.md). And
@@ -697,9 +697,8 @@ review can check it against the mapping above.
    (chapter 9).
 2. **Supply the argument — `driver_lease.rs` 1–819** (chapter 16). Per mechanism:
    the line that enforces it, the failure it prevents, and the record clause it
-   keeps. This is the same instruction `keyed-launch`'s chapters 3–5 carry for
-   `templates.rs` at 13%, and for the same reason: it is where the rules bind and
-   the source is silent.
+   keeps. The source is silent where the rules bind, so the prose carries the
+   argument.
 3. **Do not restate — the production blocks at 41–73%** (chapters 1, 5, 10, 15,
    18, and the production halves of 2, 3, 4, 6–14 and 19). The comments
    already argue and the fragment graph quotes them verbatim on the page. Prose

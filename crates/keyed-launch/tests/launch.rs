@@ -3,8 +3,8 @@
 //!
 //! Every child here is `/bin/sh` running a script the test wrote, which is what
 //! makes the seam real: nothing below knows what a session is, and the argv
-//! arrives the way a launcher's would — authored by a template read out of a
-//! configuration file, or, in the one case that says so, built by the caller.
+//! arrives the way a launcher's would — a program and arguments the caller
+//! built.
 
 use std::ffi::{OsStr, OsString};
 use std::fs;
@@ -13,18 +13,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
-use keyed_launch::{
-    run, run_observed, Channel, End, Escalation, Launch, LaunchEvent, Requirement, Slot, SlotRule,
-    Templates, Vocabulary,
-};
+use keyed_launch::{run, run_observed, Argv, Channel, End, Escalation, Launch, LaunchEvent};
 use tempfile::TempDir;
-
-/// One required slot, so every template below has to name the script it runs
-/// and nothing is smuggled in past expansion.
-const SLOTS: [SlotRule<'static>; 1] = [SlotRule {
-    name: "script",
-    requirement: Requirement::ExactlyOnce,
-}];
 
 /// The escalation on test timescales. Long enough that a poll tick lands inside
 /// each phase, short enough that the whole suite stays in single-digit seconds.
@@ -40,19 +30,14 @@ const SIGKILL: i32 = 9;
 
 struct Harness {
     dir: TempDir,
-    templates: Templates,
 }
 
 impl Harness {
-    /// A configuration whose one key runs `sh <script>`, and a control directory
-    /// for the channel.
+    /// A scratch directory with a control directory for the channel.
     fn new() -> Self {
         let dir = TempDir::new().unwrap();
-        let config = dir.path().join("config.kdl");
-        fs::write(&config, "config {\n    command \"child\" \"sh ${script}\"\n    bind \"child\" \"child\"\n    route \"child\" \"child\"\n}\n").unwrap();
-        let templates = Templates::load(&config, None, Vocabulary { slots: &SLOTS }).unwrap();
         fs::create_dir(dir.path().join("control")).unwrap();
-        Self { dir, templates }
+        Self { dir }
     }
 
     fn control(&self) -> PathBuf {
@@ -65,22 +50,14 @@ impl Harness {
         path
     }
 
-    /// Expand the one key against a script — the only route to an `Argv`.
-    fn argv(&self, script: &Path) -> keyed_launch::Argv {
-        self.templates
-            .expand(
-                "child",
-                &[Slot {
-                    name: "script",
-                    value: script.as_os_str(),
-                }],
-            )
-            .unwrap()
+    /// `sh <script>`.
+    fn argv(&self, script: &Path) -> Argv {
+        Argv::new(OsString::from("sh"), vec![script.into()])
     }
 }
 
 fn launch<'a>(
-    argv: &'a keyed_launch::Argv,
+    argv: &'a Argv,
     channel: &'a Channel,
     scrub: &'a [&'a OsStr],
     cwd: Option<&'a Path>,
@@ -370,18 +347,10 @@ fn the_child_starts_in_the_given_directory() {
 #[test]
 fn a_program_that_does_not_exist_names_itself_and_says_what_to_check() {
     let dir = TempDir::new().unwrap();
-    let config = dir.path().join("config.kdl");
-    fs::write(&config, "config {\n    command \"child\" \"no-such-program-anywhere ${script}\"\n    bind \"child\" \"child\"\n    route \"child\" \"child\"\n}\n").unwrap();
-    let templates = Templates::load(&config, None, Vocabulary { slots: &SLOTS }).unwrap();
-    let argv = templates
-        .expand(
-            "child",
-            &[Slot {
-                name: "script",
-                value: OsStr::new("x"),
-            }],
-        )
-        .unwrap();
+    let argv = Argv::new(
+        OsString::from("no-such-program-anywhere"),
+        vec![OsString::from("x")],
+    );
     fs::create_dir(dir.path().join("control")).unwrap();
     let channel = Channel::allocate(&dir.path().join("control")).unwrap();
 
@@ -425,39 +394,8 @@ fn successive_launches_get_independent_channels() {
     );
 }
 
-/// The launcher's `OsString` argv reaches the child unaltered — nothing is
-/// re-split, quoted or handed to a shell on the way.
-#[test]
-fn arguments_reach_the_child_as_written() {
-    let harness = Harness::new();
-    let script = harness.script("printf '%s\\n' \"$1\" > \"$TEST_CHANNEL\"\n");
-    let dir = harness.dir.path().to_path_buf();
-    let config = dir.join("literal.kdl");
-    fs::write(&config, "config {\n    command \"child\" \"sh ${script} 'one two  three'\"\n    bind \"child\" \"child\"\n    route \"child\" \"child\"\n}\n").unwrap();
-    let templates = Templates::load(&config, None, Vocabulary { slots: &SLOTS }).unwrap();
-    let argv = templates
-        .expand(
-            "child",
-            &[Slot {
-                name: "script",
-                value: script.as_os_str(),
-            }],
-        )
-        .unwrap();
-    assert_eq!(argv.args().len(), 2, "{:?}", argv.args());
-    assert_eq!(argv.args()[1], OsString::from("one two  three"));
-    let channel = Channel::allocate(&harness.control()).unwrap();
-
-    let ended = run(launch(&argv, &channel, &[], None)).unwrap();
-
-    assert_eq!(
-        ended.token.as_ref().map(|t| t.as_str()),
-        Some("one two  three")
-    );
-}
-
 /// A program and argument list its caller built is spawned whole and directly.
-/// Text a template would read as a slot, a quote or a word break is one
+/// Text a shell would read as a variable, a quote or a word break is one
 /// argument here, because nothing reads it a second time.
 #[test]
 fn a_caller_built_argv_is_spawned_whole_and_directly() {
@@ -477,7 +415,7 @@ fn a_caller_built_argv_is_spawned_whole_and_directly() {
     ];
     let mut args = vec![script.into_os_string()];
     args.extend(words.map(OsString::from));
-    let argv = keyed_launch::Argv::new(OsString::from("/bin/sh"), args);
+    let argv = Argv::new(OsString::from("/bin/sh"), args);
     let channel = Channel::allocate(&harness.control()).unwrap();
 
     let ended = run(launch(&argv, &channel, &[], None)).unwrap();

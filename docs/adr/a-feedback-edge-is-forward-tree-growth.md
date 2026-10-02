@@ -101,7 +101,7 @@ looping.
   the one that knows what the next stage must be told, and it cannot write that
   into a body created before it ran. And an eager chain makes every re-run a
   `leaf-insert` against queued siblings rather than an append. Reopen if a stage is
-  ever found needing to be launched under a template chosen before the previous
+  ever found needing to be launched under a command chosen before the previous
   stage ran.
 - **Let the finding stage fix it, out of charter.** The cheapest option and the
   one a session under time pressure will reach for. Rejected because it silently

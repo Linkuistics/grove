@@ -18,8 +18,9 @@ vendor chosen before it exists, and be told to load the methodology.
 
 This document describes how the module boundaries work. The decisions below are
 numbered, and the numbering is load-bearing: source comments, `Cargo.toml`
-headers and tests across the shipped packages cite them as *decision N*. What each
-one *cost* is in [`docs/adr/`](../adr/), which describes the design's current
+headers and tests across the shipped packages cite them as *decision N*. There
+is no decision 6: it was Grove's launch configuration, which is deleted, and the
+number is not reused. What each one *cost* is in [`docs/adr/`](../adr/), which describes the design's current
 state and is cited here rather than restated.
 
 ## Decisions
@@ -108,10 +109,10 @@ callers are another package's tests.
 jj workspace, refuse a tree that is not one, take a path-scoped commit*, and the
 remedy its refusal carries is jj's — `jj git init --colocate` — not grove's.
 
-`keyed-launch` is named for its interface rather than its behaviour: the key is
-what a consumer names, supervision is what sits behind it. Its vocabulary is
-*key*, *template*, *launch*, *child*, *signal* and *escalation*, and it
-deliberately avoids **session**, which would add a fourth row to the collision
+`keyed-launch` keeps the name it took when it also resolved a key to a command
+template. What is left is the supervision that sat behind the key. Its
+vocabulary is *argv*, *launch*, *child*, *channel*, *signal* and *escalation*,
+and it deliberately avoids **session**, which would add a fourth row to the collision
 table in [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md).
 
 ### 2 — The tree store's surface
@@ -293,8 +294,8 @@ exists to delegate to: root scaffolding before the first session, and the finish
 sentinel between the last ordinary session and the finish session. Those two
 writes mint the only two leaves grove itself authors, and they are the only two
 kinds it may name — `requirements` for the first, `finish` for the second. Every
-other kind is an opaque string that grove substitutes into a skill name and a
-configuration key and interprets in neither.
+other kind is an opaque string that grove substitutes into a skill name and
+passes to `harness-dispatch` as `--kind`, and interprets in neither.
 
 That rule also covers the places a kind is asked about: `finish` sorting last in
 selection, `finish` being refused to the grow verbs, and teardown. All of them go
@@ -311,201 +312,18 @@ add. Twelve verbs, not thirteen. `--kind` is **required** on the add and insert
 verbs: a default is a literal under a friendlier name, and `impl` was the one kind
 literal that would silently produce a *wrong* leaf rather than an error.
 
-### 6 — Configuration completeness is per-kind and just-in-time
-
-Before every tree mutation and again before every launch, the sources are read
-and the active configuration is validated. Syntax, duplicates and node shapes
-are document-wide; unsupported top-level declarations are rejected; semantic
-validation applies to the selected combination after composition. The
-[modular configuration contract](modular-configuration.md) owns those scopes.
-Presence is asked at use: before writing or launching kind K, K must resolve to
-one complete compiled command. Unfinished inactive profiles do not block it.
-
-The driver transition accepts the pre-transition `SessionConfig`. Its lifecycle
-helper invokes kind admission only after opening a locked vacancy and before
-creating the initial requirements leaf. Existing trees do not require that kind
-merely to transition; the second configuration load still validates the selected
-kind before launch.
-
-The quantifier is per-kind because the grammar admits independently authored
-kinds. The binary's Codex delivery inventory identifies bundled files to install;
-it is not a registry of the kinds a task tree may use.
-
-**The overlay overrides and never supplies**: only an explicit route target in
-the personal base plus selected personal profiles admits a key for local
-override. An inactive profile does not count, and a local-only key fails on use,
-naming the key and personal file. Local parameters may complete a personally
-targeted route. The generic library enforces this without knowing what a kind is.
-
 ### 7 — The runner
 
-The modular interface is specified in
-[modular configuration — module interfaces](modular-configuration.md#module-interfaces).
-It adds a parsed `Catalog` before the resolved `Templates` snapshot: explicit
-source paths and slot vocabulary enter Catalog loading; the consumer chooses a
-selection declaration; Catalog resolution returns validated Templates and
-provenance. Grove retains source discovery, local admissibility, profile-list
-selection policy and runtime context. The runner understands none of Grove's
-paths, kinds or VCS. Catalog/Selection capture and resolution, the empty-selection
-Templates convenience, and Catalog-based conformance are implemented for
-parameterized wrapper commands/bindings/routes, including diagnostics from loading, resolution, require
-and expansion. Both loaders reserve the `param.` vocabulary prefix.
-Inspection/provenance is implemented through `Templates::inspect`, retaining
-reference chains, parameter defaults/shared values/route overrides/removals, multi-origin words, overwritten targets and
-non-admitted overlay keys. Both optional selection declarations are captured with
-their origins; the convenience loader ignores them. Grove captures Catalog after
-source admission and chooses the local declaration, else the personal default,
-else an empty list, retaining declaration origins. Explicit generic selections apply every
-profile/include occurrence before the overlay, with active personal authority and
-occurrence-specific provenance. Inactive profiles receive structural checks only.
-SessionConfig exposes the shared `Inspection`; `grove_loop::Error::diagnostics`
-returns generic configuration records and Grove discovery/admission records,
-including paths when no span exists (empty for other errors). Human
-`grove config show [--kind KIND]` loads through SessionConfig before acquiring
-a lease, validates globally before filtering, and formats the shared records
-in the human binary. Its `--json` projection preserves tagged words, assignment variants, native paths and diagnostics without changing resolution.
-`grove config examples` is likewise owned by the human binary, independently of
-SessionConfig: it embeds the repository fixtures and instructions, checks every
-fixed destination, then creates missing files exclusively. No workspace, lease,
-epoch or active-policy load participates. Partial failures report created paths;
-matching files and active policy are preserved.
-
+The runner takes a program and its arguments from its caller and launches them.
+It reads no configuration and resolves no name to a command, and it understands
+none of Grove's paths, kinds or VCS. Its two callers build the argv themselves:
+the loop builds the `harness-dispatch run` invocation, and `grove run` passes
+the `executable` and `args` that `harness-dispatch inspect` reported
+([harness selection and execution](harness-selection-and-execution.md#grove-integration)).
 
 ```rust
-/// The slot vocabulary a consumer's templates are written against. Supplied at
-/// catalog load; template validation uses it before a resolved snapshot exists.
-pub struct Vocabulary<'a> { pub slots: &'a [SlotRule<'a>] }
-pub struct SlotRule<'a> { pub name: &'a str, pub requirement: Requirement }
-pub enum Requirement { ExactlyOnce, AtMostOnce }
-
-pub struct Catalog;
-pub struct Selection {
-    pub profiles: Vec<String>,
-    pub origin: Option<SourceSpan>, // None for a caller-supplied list
-}
-impl Catalog {
-    pub fn load(primary: &Path, overlay: Option<&Path>, vocabulary: Vocabulary<'_>)
-        -> Result<Self, ConfigError>;
-    pub fn primary_selection(&self) -> Option<&Selection>;
-    pub fn overlay_selection(&self) -> Option<&Selection>;
-    pub fn resolve(&self, selection: &Selection) -> Result<Templates, ConfigError>;
-}
-
-pub struct Templates;
-
-impl Templates {
-    /// Exactly Catalog::load followed by resolve with an empty Selection.
-    /// Accepts wrapper base patches; ignores both selection declarations.
-    pub fn load(
-        primary: &Path,
-        overlay: Option<&Path>,
-        vocabulary: Vocabulary<'_>,
-    ) -> Result<Self, ConfigError>;
-    /// The file supplying this key's template text. Parameter origins can differ;
-    /// the structured inspection view reports them. None for a non-admitted key.
-    pub fn source(&self, key: &str) -> Option<&Path>;
-    /// Does this key resolve to exactly one complete template? The obligation a
-    /// consumer discharges *before* it commits to a key — before it writes down
-    /// work of that kind, or launches it — stated once, here, so the refusal's
-    /// wording has one owner. `expand` asks the same question on its own way in.
-    pub fn require(&self, key: &str) -> Result<(), ConfigError>;
-    pub fn expand(&self, key: &str, values: &[Slot<'_>]) -> Result<Argv, ConfigError>;
-    /// The admitted keys in the active result, in name order. Conformance uses
-    /// this to reject a selection that checked no commands.
-    pub fn keys(&self) -> Vec<&str>;
-    pub fn inspect(&self) -> &Inspection;
-}
-
-/// Read-only output records, never accepted as input to expansion or launch.
-pub enum SourceRole { Primary, Overlay }
-pub struct Source { pub role: SourceRole, pub path: PathBuf }
-/// Zero-based UTF-8 byte range in the captured source; end is exclusive.
-pub struct SourceSpan { pub source: Source, pub start: usize, pub end: usize }
-pub struct Occurrence {
-    pub id: usize, // unique within this resolution, including repeated profiles
-    pub profile: String,
-    pub parent: Option<usize>, // containing include occurrence, None at selection
-    pub selection_index: usize,
-    pub via: Option<SourceSpan>, // select/include edge; None for external selection
-}
-pub struct Origin {
-    pub id: usize,
-    pub span: SourceSpan,
-    pub occurrence: Option<usize>, // None for base, definitions or overlay
-}
-pub enum Setting {
-    BindingTarget { binding: String },
-    RouteTarget { key: String },
-    ParameterDefault { command: String, parameter: String },
-    CommandParameter { command: String, parameter: String },
-    RouteParameter { key: String, parameter: String },
-}
-pub enum AssignmentValue {
-    Set(String), // binding/command name or parameter value, per Setting
-    Unset,
-}
-pub struct Assignment {
-    pub order: usize, // total application order; repeated occurrences reappear
-    pub value: AssignmentValue,
-    pub origin: usize,
-}
-pub struct AssignmentHistory {
-    pub id: usize,
-    pub setting: Setting,
-    pub assignments: Vec<Assignment>,
-}
-pub enum CompiledWord { Literal(String), Slot(String) }
-pub struct WordView {
-    pub word: CompiledWord,
-    pub origins: Vec<usize>, // template plus every contributing parameter origin
-}
-pub struct ParameterView {
-    pub name: String,
-    pub value: String,
-    pub origins: Vec<usize>, // declaration and winning assignment
-    pub histories: Vec<usize>, // default, shared and route scopes, where present
-}
-pub struct CommandView {
-    pub key: String,
-    pub binding: String,
-    pub command: String,
-    pub parameters: Vec<ParameterView>,
-    pub words: Vec<WordView>, // executable first
-    pub origins: Vec<usize>, // route, binding, definition/template origins
-    pub histories: Vec<usize>,
-}
-pub struct NonAdmittedKey { pub key: String, pub origins: Vec<usize>, pub reason: String }
-pub struct Inspection {
-    pub sources: Vec<Source>,
-    pub selection: Selection,
-    pub profile_occurrences: Vec<Occurrence>,
-    pub commands: Vec<CommandView>,
-    pub non_admitted_keys: Vec<NonAdmittedKey>,
-    pub origins: Vec<Origin>,
-    pub histories: Vec<AssignmentHistory>,
-}
-pub struct Diagnostic {
-    pub category: String, // stable snake_case codes specified by modular config
-    pub message: String,
-    pub source: Option<Source>, // available even when a file could not be read
-    pub primary: Option<SourceSpan>, // absent when no source location exists
-    pub related: Vec<SourceSpan>,
-    pub occurrence_chain: Vec<Occurrence>, // self-contained on failed resolution
-    pub key: Option<String>,
-    pub binding: Option<String>,
-    pub command: Option<String>,
-    pub parameter: Option<String>,
-    pub remedy: String,
-}
-
-/// A value for one declared slot, at expansion. Substitution is whole-word: the
-/// runner never learns what a runtime name means. Configured parameters are
-/// separate and may already have filled fragments inside a literal word.
-pub struct Slot<'a> { pub name: &'a str, pub value: &'a OsStr }
-
 /// A program and its arguments, in order, ready to spawn: each string one
-/// whole word, with no shell and no second reading. Expansion authors one from
-/// a template, and a caller that already holds a command builds one.
+/// whole word, with no shell and no second reading.
 pub struct Argv { /* program, args */ }
 impl Argv {
     pub fn new(program: OsString, args: Vec<OsString>) -> Self;
@@ -554,6 +372,20 @@ pub struct Launch<'a> {
 }
 
 pub fn run(launch: Launch<'_>) -> Result<Ended, LaunchError>;
+/// As `run`, reporting successful spawn and confirmed reap to the caller.
+pub enum LaunchEvent { Started, Reaped }
+pub fn run_observed(launch: Launch<'_>, observer: &mut dyn FnMut(LaunchEvent))
+    -> Result<Ended, LaunchError>;
+/// A child in a new session, with no terminal or inherited input, whose output
+/// goes to a caller-owned regular file.
+pub fn run_noninteractive(launch: Launch<'_>, output: File) -> Result<Ended, LaunchError>;
+/// As `run_noninteractive`, under mandatory filesystem confinement. The
+/// program is an absolute path, and any other is refused.
+pub struct Confinement<'a> { pub writable: &'a Path, pub runtime_read: &'a [PathBuf] }
+pub fn run_confined(launch: Launch<'_>, output: File, policy: &Confinement<'_>)
+    -> Result<Ended, LaunchError>;
+/// Open one regular file in a directory held before untrusted work ran.
+pub fn regular_file_at(directory: &File, name: &OsStr) -> std::io::Result<File>;
 
 pub struct Ended { pub end: End, pub status: ExitStatus, pub elapsed: Duration, pub token: Option<Token> }
 /// `Interrupted` is the *launcher's* own process signalled during this launch.
@@ -576,46 +408,12 @@ pub fn take_interrupt() -> Option<i32>;
 /// handler**; what stays the consumer's is *whether* to re-raise.
 pub fn reraise(signal: i32) -> !;
 
-/// Both errors are opaque types implementing `Error + Display`. Their obligation
-/// is the design's, not a variant list: every one names what is wrong, where —
-/// file and location for a configuration error — and what fixes it.
-pub struct ConfigError;
-impl ConfigError { pub fn diagnostics(&self) -> &[Diagnostic]; }
+/// Opaque, implementing `Error + Display`. Its obligation is the design's, not
+/// a variant list: it names what is wrong, where, and what fixes it.
 pub struct LaunchError;
-
-pub mod conformance {
-    /// Exercise the captured sources with the consumer's exact selection.
-    pub fn check(catalog: &Catalog, selection: &Selection) -> Outcome;
-    pub struct Outcome { pub failures: Vec<String> }
-    impl Outcome { pub fn passed(&self) -> bool; }
-}
 ```
 
-`Catalog` owns the captured source contents and vocabulary; `resolve` and
-`conformance::check` do no further source I/O. An absent declaration is `None`;
-`Some(Selection { profiles: vec![], .. })` explicitly selects no profiles.
-Grove chooses overlay, then primary, then an empty list; the runner never makes
-that policy choice. A caller-created selection has no document origin, so an
-unknown selected profile reports its name and selection index without fabricating
-a source span. Include edges still have real spans.
-
-The output records above describe the public test seam, not resolver storage.
-Origin/history IDs are response-local, unique and referentially complete.
-Histories include overwritten settings and removals, including bindings/values
-unused by routes. Removing an override retains earlier provenance. Command
-histories include target histories and all parameter scopes contributing to or
-overridden for that route. Word origins identify all contributing source spans,
-including multiple parameters in one word. Their literal/slot representation is
-the same compiled representation used by `expand`; public records cannot create
-an `Argv`. Source roles and paths remain native paths, never lossy strings.
-
-The modular configuration spec owns validation scopes, diagnostics, deterministic
-ordering and the JSON encoding of these records. `ConfigError` remains opaque
-and implements `Error + Display`, while `diagnostics()` supplies structured
-records. Load, resolution, `require` and `expand` failures all use that surface.
-Grove maps its source-discovery/admission failures to the same diagnostic shape.
-
-The runner spawns the expanded argv directly, with no shell. The child's
+The runner spawns the argv directly, with no shell. The child's
 environment is the caller's, minus the scrubbed control values, plus the fresh
 channel path under the caller's chosen variable name. Escalation runs grace →
 SIGTERM → kill-grace → SIGKILL, because a child that returns to an interactive
@@ -623,17 +421,8 @@ prompt is never reaped on its own; it is addressed to the child's **process
 group**, so a command the session itself launched is reaped with it, and the
 runner hands the terminal to the child and takes it back
 ([`the-launched-child-is-a-job`](../adr/the-launched-child-is-a-job.md)).
-
-**The vocabulary enters at Catalog loading, not runtime expansion.** Active
-templates are checked during resolution, before Templates exists. Runtime slots retain their
-whole-word and cardinality rules; author-declared parameters have a distinct
-namespace and can fill argument fragments without re-splitting. Templates also
-exposes one structured inspection view of its compiled words and provenance,
-used by diagnostics and Grove's inspector. Runtime expansion fills declared
-slots and checks their values without reparsing configuration or selecting
-profiles again. NUL in any offered runtime value is rejected at expansion, including an unused optional
-slot. Native values otherwise retain their exact contents. Launch/channel
-supervision is unchanged.
+A confined launch is specified in
+[standalone invocations](standalone-invocations.md).
 
 ### 8 — The VCS seam
 
@@ -975,36 +764,15 @@ a kind label literally only for the two leaves it authors itself.
 - **THEN** the tree parses, the launch proceeds, and the failure is reported by
   the session that could not load the skill
 
-#### Scenario: a kind missing from the configuration
-- **WHEN** a leaf of kind K is added and K resolves to no template
-- **THEN** the add is refused before the tree is mutated, naming K and the file
-  that should declare it
+#### Scenario: a kind no launch policy routes
+- **WHEN** a leaf of kind K is added and the owner's dispatch policy refuses K
+- **THEN** the add succeeds, because no tree verb consults a policy; the
+  refusal arrives when the leaf launches, and the leaf stays live
 
 #### Scenario: a verb is asked to author several leaves at once
 - **WHEN** an add names an ordered list of kinds
 - **THEN** they land as one unit at consecutive ordinals with consecutive keys,
   or none of them lands, and no list of kinds appears in the machinery
-
-### Requirement: a second configuration source overrides and never supplies
-Launch policy SHALL resolve a key only when the active personal composition
-gives it an explicit route target. An overlay SHALL be able to override it but
-never independently introduce one.
-
-#### Scenario: a key only the overlay declares
-- **WHEN** an overlay declares kind K and the active personal composition does
-  not target K
-- **THEN** K does not resolve, and the refusal names K and the personal file that
-  must declare it
-
-#### Scenario: a malformed template for a kind this run will not reach
-- **WHEN** an active modular template after composition violates a rule of the
-  slot vocabulary
-- **THEN** it is refused at load, before any tree mutation and before any launch
-
-#### Scenario: an inactive unfinished profile
-- **WHEN** an unselected profile has valid structure but unresolved references
-- **THEN** it does not block a working selection; selecting it validates the
-  effective references of the resulting combination
 
 ### Requirement: no module implements a version-control guarantee
 The VCS seam SHALL take commits and SHALL implement no transaction, witness,
@@ -1025,9 +793,8 @@ Four.
    the workspace on their dependency list.
 2. **One composed-loop seam** — the loop driving a fake harness binary end to end.
    The driver, completion and lease suites.
-3. **Conformance kits as the cross-crate seam.** The store ships one that holds a
-   consumer to the round-trip law; the runner ships the equivalent for a template
-   configuration. This is what keeps *reusable outside grove* true without a
+3. **A conformance kit as the cross-crate seam.** The store ships one that holds a
+   consumer to the round-trip law. This is what keeps *reusable outside grove* true without a
    second repository, and it is why extraction can stay deferred without weakening
    the claim.
 4. **The methodology's delivery assertion, in the plugin.** A dependency-free
@@ -1070,6 +837,6 @@ updated in the same accepted change. No additional test service is introduced.
 - **A harness registry row for a further harness.** Answered by deletion — there
   is no registry to hold a row. A row was only ever *a place to write files*, so a
   further harness is answered by that harness's own skill-install route.
-- **Invoking a harness plugin.** A command template expresses this; if more is
-  meant it is a new runner capability, belonging to decision 7's contract and not
-  to any registry.
+- **Invoking a harness plugin.** The command a dispatch policy returns expresses
+  this; if more is meant it is a new runner capability, belonging to decision
+  7's contract and not to any registry.

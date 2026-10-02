@@ -5,8 +5,8 @@
 Doubt-driven development and Grove both materialise fresh-context adversarial
 review. Used independently they are bounded, but used together without an owner
 they can duplicate a scheduled review, spawn another reviewer after every fix,
-or let an in-session child bypass the session-kind target configured for Grove's
-review work.
+or let an in-session child bypass the command the owner's policy selects for
+Grove's review work.
 
 The composition must preserve the cheap move for a small, unexpected doubt
 while turning substantial review into ordinary task-tree work. It must also
@@ -22,7 +22,7 @@ decision assigns the orchestration boundary.
 `content/references/execute.md` is the canonical source for the review budget —
 the ownership predicate, the leaf-wide one-reviewer allowance and what spends it,
 the per-kind allowances, the four-step doubt pass, and the rule that an escalated
-review's route belongs to configuration. A spec describes how an area works and
+review's route belongs to the owner's dispatch policy. A spec describes how an area works and
 **cites** the rules in its area rather than restating them
 (`plugins/grove/conformance/rules.tsv`, transcribed from the ownership spec that
 went with `content/`), and this one predates that map: it
@@ -244,7 +244,7 @@ retirement being a filename transition and nothing else,
 adds is the consequence for *this* shape — the review leaf beside the producer is
 byte-identical after the producer retires, so escalation needs no receipt, no
 producer-target record and no recovery protocol. The next driver iteration picks
-the review leaf and selects its complete command from personal configuration.
+the review leaf, and the owner's dispatch policy selects its command.
 
 ## Test seams
 

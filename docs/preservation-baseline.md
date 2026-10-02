@@ -417,14 +417,14 @@ note alone.
 
 ## 7. Configuration, defaults and environment
 
-> **Configuration grammar exception: modular-only removal.** The flat grammar
-> and whole-template replacement measured below are historical. The current
-> [modular specification](specs/modular-configuration.md) requires `config`
-> wrappers, personal command definitions, bindings and routes, with optional
-> parameters and profiles. Flat and mixed documents are rejected. The earlier
-> exception's “everything else … still binds” applied to that earlier increment,
-> not to today's configuration contract. Source selection, untracked local
-> authority and direct argv execution remain current.
+> **Configuration exception: Grove's configuration is deleted.** Everything
+> this section measures about `config.kdl` and `.grove.kdl` is historical. Grove
+> reads no launch configuration, and a copy of either file left on disk changes
+> nothing ([harness selection and execution](specs/harness-selection-and-execution.md)).
+> Before that, the modular specification (`docs/specs/modular-configuration.md`,
+> since deleted) had already replaced the flat grammar measured below with
+> `config` wrappers, command definitions, bindings and routes. Direct argv
+> execution remains current.
 
 **Personal file**: `~/.config/grove/config.kdl`. A flat set of **nineteen**
 top-level KDL nodes, one per session kind, each with a single positional string
@@ -451,7 +451,7 @@ names a program to execute. It sits *beside* `.grove/`, never inside it, because
 `finish` deletes that directory wholesale.
 
 **Template substitutions**: `${prompt}`, `${session_name}`, `${worktree}`,
-`${repo}`. Details and the `#` rule: `docs/CONFIGURATION.md`.
+`${repo}`. Details and the `#` rule: `docs/CONFIGURATION.md` (since deleted).
 
 **Environment.** Grove reads no configuration from the environment. What it does
 own is a set of variables it **removes** from spawned children, listed in
@@ -1366,7 +1366,7 @@ cannot be caught by re-running anything in §8; it has to be caught by re-readin
 the same file.
 
 - **§7's configuration grammar and precedence** — read from
-  `docs/CONFIGURATION.md` and `src/session_config.rs`, held by
+  `docs/CONFIGURATION.md` and `src/session_config.rs` (both since deleted), held by
   `tests/session_config.rs`. §8 L now captures the *diagnostics*, which is a
   different claim from the grammar.
 - **§7's spawned-child scrub sets, and the measured gap beside them** —

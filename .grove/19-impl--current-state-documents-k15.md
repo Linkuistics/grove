@@ -47,3 +47,12 @@ repository still describes Grove configuration as live.
 - Earlier leaves changed documents only as far as the checks required, so
   expect prose that is green and stale.
 - The root brief's *On the horizon* note is the finish cycle's to promote.
+- `runner-templates-k14` deleted `docs/CONFIGURATION.md` and unlinked it. The
+  guides now point at the dispatch README where they pointed at it, and the
+  prose around those links is unchanged. The configure-grove skill's two
+  `Source:` lines still name the deleted file by URL.
+- `${prompt}` was a template slot. The glossary's **Guaranteed core** and
+  **Skill delivery** entries and the methodology still use it as the name of
+  the session's prompt.
+- `scripts/release-publish.sh` still describes writing a `config.kdl` in its
+  comments.

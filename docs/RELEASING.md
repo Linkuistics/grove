@@ -144,8 +144,8 @@ Use grants for the command selected by your personal `release-notes` route.
 A Claude Code route needs its own headless authentication and runtime setup;
 it does not need Codex's `auth.json` or Codex runtime files. The release task
 does not require or inspect another harness's credentials. See
-[standalone configuration](CONFIGURATION.md#standalone-commands) for the
-wrapper's responsibilities.
+[standalone invocations](specs/standalone-invocations.md) for the wrapper's
+responsibilities.
 
 For the staged Codex helper with Homebrew Codex 0.155.1 on macOS, the five grants
 are the credential file and the installed executable, code-mode host, shell and
@@ -351,8 +351,8 @@ is what *published on its own* would actually cost.
 
 Record the shipped behavior under `## Unreleased` in
 [`CHANGELOG.md`](../CHANGELOG.md). If the release adds, removes, or renames a
-session kind, say so explicitly there. Presence is checked
-[per kind, when the kind is used](CONFIGURATION.md#when-a-missing-kind-is-reported),
+session kind, say so explicitly there. A kind is selected for
+[when its leaf launches](specs/harness-selection-and-execution.md#diagnostics),
 so an added kind does not break every configuration on upgrade — it stops the
 first task of that kind, in the middle of a workstream, and the release note is
 what lets an owner get ahead of it.

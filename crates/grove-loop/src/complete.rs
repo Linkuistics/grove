@@ -63,8 +63,8 @@ impl Disposition {
 /// crash → the loop stops.
 ///
 /// An agent that finishes its work and forgets the verb is **not** that case,
-/// and reading it as one is what made this failure mode hard to see. The
-/// configured templates launch *interactive* harnesses (no `-p`, no `exec`), so
+/// and reading it as one is what made this failure mode hard to see. A
+/// lifecycle session is an *interactive* harness (no `-p`, no `exec`), so
 /// finishing a turn returns the session to its prompt and it never exits: the
 /// runner's supervision sits on a channel that will never appear and a child
 /// that will never exit, and the loop **stalls** rather than stopping. Nothing

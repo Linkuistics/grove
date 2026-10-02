@@ -50,16 +50,13 @@ remain Grove's responsibilities; discovery grants no ownership or admission.
 
 **`crates/keyed-launch` is another crate and, for the same reason, not another
 context — but only because it was named to avoid being one.** Its vocabulary is
-*key*, *template*, *slot*, *argv*, *launch*, *overlay*: a key is an opaque string
-a consumer names, and a slot is a name that consumer declares. None of those
+*argv*, *launch*, *channel*, *token*, *escalation*. None of those
 words appears in grove's glossary meaning something else. The word it would have
 reached for is **session**, and using it would have put a third meaning beside
 grove's **Session** and the methodology's, adding a row to the collision table
-below for nothing — the crate never learns what a launch is *for*. Grove's
-mapping is one line: a **Session kind** is a key. Its decisions live in the grove
-context that owns them:
+below for nothing — the crate never learns what a launch is *for*. Its decisions
+live in the grove context that owns them:
 [decision 7](./docs/specs/module-decomposition.md) for the interface and
-[modular configuration](./docs/specs/modular-configuration.md) for composition, and
 [*the launched child is a job*](./docs/adr/the-launched-child-is-a-job.md) for
 what the child inherits, what the escalation reaps, and who owns the terminal
 while it runs.
@@ -116,7 +113,7 @@ them. `harness-dispatch` has the last row:
 | module | owns | glossary |
 |---|---|---|
 | `ordinal-fs-tree` | *entry*, *leaf*, *node*, *ordinal*, *key*, *distinguished child*, *snapshot*, *guard*, *refusal*, *sought*, *promote* | [`docs/ordinal-fs-tree/CONTEXT.md`](./docs/ordinal-fs-tree/CONTEXT.md) |
-| `keyed-launch` | *key*, *template*, *slot*, *argv*, *launch*, *channel*, *token*, *escalation*, *overlay* | none — its words are its own interface's, and none of them collides |
+| `keyed-launch` | *argv*, *launch*, *channel*, *token*, *escalation* | none — its words are its own interface's, and none of them collides |
 | `jj-workspace` | *workspace*, *main repo*, *control directory*, *namespace*, *tracked*, *commit*, *change id* | none — the words are Jujutsu's, with Jujutsu's meanings |
 | `grove-loop`, with `grove`, `grove-llm` and the `grove-tui` reader over it | **Session kind**, **Work-item handle**, **Position**, **Permanent key**, **Leaf**, **Node directory**, **Node file**, **Brief chain**, **Selection**, **Driver lease**, **Session epoch**, **Guaranteed core**, **Stated VCS** | [`CONTEXT.md`](./CONTEXT.md) |
 | the `grove` plugin | **Spine skill**, **Kind skill**, **Composed loaded path**, **Condition** / **procedure**, **Loop-step reference file** | [`CONTEXT.md`](./CONTEXT.md) for the terms, [`plugins/CONTEXT.md`](./plugins/CONTEXT.md) for packaging and delivery |
@@ -124,10 +121,7 @@ them. `harness-dispatch` has the last row:
 
 The `keyed-launch` and `jj-workspace` rows are the ones that had to be *bought*:
 the first avoids **session** and the second refuses to name its consumer, and
-each is a naming decision argued above rather than an accident of scope. The store's *key* and the
-runner's *key* are the one word two domain-free crates share, and they never
-meet — the store's is an integer the tree allocates, the runner's is the string a
-consumer names, and no call site passes one where the other is expected.
+each is a naming decision argued above rather than an accident of scope.
 
 ## Relationships
 
@@ -206,28 +200,23 @@ consumer names, and no call site passes one where the other is expected.
   which is exactly the drift a map prevents and a re-wording does not.
 
 - <a id="grove-and-harness-dispatch"></a>**grove → harness-dispatch, a command
-  boundary whose shared words are held by hand.** Grove launches the command
-  from a personal template and depends on it nowhere in code, and the package
+  boundary whose shared words are held by hand.** Grove runs the command
+  itself and depends on it nowhere in code, and the package
   depends on no Grove crate
   ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#harness-dispatch) states the
   boundary). So no compiler keeps the two vocabularies apart, and an owner
-  reads both in one sitting: Grove's configuration reference, then the
+  reads both in one sitting: Grove's report of a stopped loop, then the
   command's own refusal.
 
   | harness-dispatch says | grove says | class |
   |---|---|---|
   | *kind* — any nonempty token a caller passes | **Session kind** — a well-formed token of the filename grammar | the meanings nest; Grove passes its token unchanged |
   | *task identity* — the caller's `--task-id` | **Work-item handle** | the words differ; Grove supplies its handle as the value |
-  | *routes* — a policy's table from a kind to a candidate | **Kind route** — a configuration object from a kind to a command binding | the words collide |
-  | *selection* — a policy choosing a candidate | the driver's selection of one leaf, and a configuration's profile **Selection** | the words collide |
-  | *policy* — the owner's TypeScript entry | *launch policy*, *personal policy* — what `config.kdl` declares | the words collide |
+  | *selection* — a policy choosing a command | the driver's selection of one leaf | the words collide |
   | *run* — one recorded handoff with its run ID, and the subcommand that makes one | `grove run` — a standalone invocation | the words collide |
   | *context* — the data a policy selects from | a session's fresh context; a bounded context, in this file | the words collide |
 
-  A dispatched kind therefore has two routes, and a sentence about one says
-  which: its Grove route admits the kind and names the command, and the
-  policy's `routes` entry names the candidate. The same holds for *policy* and
-  *selection*. A document that speaks of both sides says which it means.
+  A document that speaks of both sides says which *selection* it means.
 
 - **A durable record has one owner.** Every record under `docs/adr/` and
   `docs/specs/` has a repo-wide unique slug and a maintaining context recorded
@@ -260,8 +249,7 @@ consumer names, and no call site passes one where the other is expected.
   and the specs
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
   [`module-decomposition`](docs/specs/module-decomposition.md),
-  [`harness-selection-and-execution`](docs/specs/harness-selection-and-execution.md),
-  [`modular-configuration`](docs/specs/modular-configuration.md) and
+  [`harness-selection-and-execution`](docs/specs/harness-selection-and-execution.md) and
   [`walkthrough-books`](docs/specs/walkthrough-books.md). The walkthrough records
   describe the book system and are **grove's while its validator is**:
   `crates/book-validation/` is a member of this workspace and

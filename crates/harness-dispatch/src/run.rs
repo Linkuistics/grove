@@ -1,5 +1,5 @@
 //! `run`: make the same choice `inspect` reports, commit the required handoff
-//! record, then replace this process with the selected harness
+//! record, then replace this process with the selected command
 //! (`docs/specs/harness-selection-and-execution.md`, *Execution and authority*,
 //! *Records and later observations*;
 //! `docs/adr/policy-evaluation-precedes-process-replacement.md`).
@@ -11,7 +11,7 @@
 //! record directory in `HARNESS_DISPATCH_STATE_DIR`, which replace any values
 //! it would otherwise inherit. Its own exit code or signal is the command's and
 //! there is no supervisor left to report on it. Stdout and stdin stay the
-//! harness's; the choice is announced in one line on stderr.
+//! harness's; the handoff is announced in one line on stderr.
 //!
 //! Every failure `run` reports once its command line has parsed also names the
 //! equivalent `inspect` invocation, so that an unattended refusal can be
@@ -35,12 +35,10 @@ use std::process::Command;
 
 use serde_json::json;
 
-use crate::argv::RunSlot;
 use crate::cancellation::{self, Signal};
 use crate::choice::{self, Choice, Selected};
 use crate::cli::RunArgs;
 use crate::inputs::PromptRequirement;
-use crate::policy::SelectedBy;
 use crate::record;
 use crate::refusal::{Failure, Refusal, RunNote, Stage, EXIT_NOT_FOUND, EXIT_UNEXECUTABLE};
 use crate::run_id::RunId;
@@ -66,12 +64,11 @@ fn attempt(args: &RunArgs) -> Failure {
         Ok(run_id) => run_id,
         Err(refusal) => return refusal.into(),
     };
-    let slot = RunSlot::Allocated(run_id.clone());
     let Selected {
         choice,
         handlers,
         source,
-    } = match choice::choose(&args.selection, PromptRequirement::Required, slot) {
+    } = match choice::choose(&args.selection, PromptRequirement::Required) {
         Ok(selected) => selected,
         Err(failure) => return failure,
     };
@@ -95,18 +92,15 @@ fn attempt(args: &RunArgs) -> Failure {
     // The handled signals take their entry dispositions again while they are
     // blocked. Whatever arrives from now on waits for the caller's mask.
     drop(handlers);
-    let words = choice.argv[1..].iter().map(|word| {
-        word.text()
-            .expect("run fills every slot, so no marked word remains")
-    });
     // `Command::exec` is `execvp` of the resolved path, which is absolute, so
-    // nothing is searched for twice. argv[0] is the program as configured. It
-    // sets SIGPIPE to default before running the hook, which then reinstates
-    // the caller's dispositions and, last, the caller's mask.
+    // nothing is searched for twice. argv[0] is the program as `select`
+    // returned it, and each argument is one whole word, exactly as returned.
+    // It sets SIGPIPE to default before running the hook, which then
+    // reinstates the caller's dispositions and, last, the caller's mask.
     let mut command = Command::new(&choice.executable.path);
     command
         .arg0(&choice.executable.program)
-        .args(words)
+        .args(&choice.command.args)
         .env(RUN_ID_VARIABLE, run_id.as_str())
         .env(STATE_DIR_VARIABLE, &choice.state_dir.path);
     // SAFETY: the hook makes only sigaction and pthread_sigmask calls, and
@@ -163,11 +157,11 @@ fn not_executed(choice: &Choice, run_id: &RunId, signal: Signal, source: &str) -
         .into()
 }
 
-/// The choice, on stderr: whatever the policy printed, then one line naming
-/// the candidate and the file about to replace this process. With `--json`,
-/// one JSON object instead.
+/// The handoff, on stderr: whatever the policy printed, then one line naming
+/// the command's labels and the file about to replace this process. With
+/// `--json`, one JSON object instead.
 fn announce(choice: &Choice, run_id: &RunId, committed: &Committed, json: bool) {
-    let candidate = &choice.candidate;
+    let command = &choice.command;
     let executable = choice.executable.path.to_string_lossy();
     if json {
         let notice = json!({
@@ -177,13 +171,10 @@ fn announce(choice: &Choice, run_id: &RunId, committed: &Committed, json: bool) 
                 "recordedAt": committed.recorded_at,
                 "stateDir": choice.state_dir.path.to_string_lossy(),
                 "kind": choice.inputs.kind,
-                "selectedBy": choice.selected_by.as_str(),
-                "explicitChoice": choice.inputs.choice,
-                "candidateId": candidate.id,
-                "provider": candidate.provider,
-                "model": candidate.model,
-                "effort": candidate.effort,
-                "reason": choice.reason,
+                "provider": command.provider,
+                "model": command.model,
+                "effort": command.effort,
+                "reason": command.reason,
                 "executable": executable,
             },
             "diagnostics": choice.diagnostics.to_json(),
@@ -191,15 +182,10 @@ fn announce(choice: &Choice, run_id: &RunId, committed: &Committed, json: bool) 
         eprintln!("{notice}");
     } else {
         eprint!("{}", choice.diagnostics.to_text());
-        // A choice `select` accepted was still the caller's explicit choice.
-        let chosen = match (choice.selected_by, &choice.inputs.choice) {
-            (SelectedBy::ExplicitChoice, _) | (SelectedBy::Select, Some(_)) => "explicitly chosen ",
-            _ => "",
-        };
         eprintln!(
-            "harness-dispatch: running {chosen}candidate {:?} (provider {}, model {}, effort {}) \
-             for kind {:?} as run {run_id}: {executable}",
-            candidate.id, candidate.provider, candidate.model, candidate.effort, choice.inputs.kind,
+            "harness-dispatch: running provider {}, model {}, effort {} for kind {:?} as run \
+             {run_id}: {executable}",
+            command.provider, command.model, command.effort, choice.inputs.kind,
         );
     }
 }
@@ -212,12 +198,13 @@ fn exec_failed(choice: &Choice, error: &io::Error) -> Refusal {
         Some(libc::ENOENT) => (
             EXIT_NOT_FOUND,
             "the program, or the interpreter its #! line names, does not exist; install it, or \
-             correct the candidate's program",
+             correct the program select returns",
         ),
         Some(libc::E2BIG) => (
             EXIT_UNEXECUTABLE,
             "the arguments and environment exceed this platform's exec limit, usually because of \
-             the prompt's size; shorten the prompt, or have the harness read it from a file",
+             the prompt's size; shorten the prompt, or have the harness read it from a file an \
+             argument names",
         ),
         Some(libc::ENOEXEC) => (
             EXIT_UNEXECUTABLE,
@@ -234,7 +221,7 @@ fn exec_failed(choice: &Choice, error: &io::Error) -> Refusal {
         ),
         _ => (
             EXIT_UNEXECUTABLE,
-            "correct the candidate's program, or whatever in the environment prevents its exec",
+            "correct the program select returns, or whatever in the environment prevents its exec",
         ),
     };
     let source = choice.entry.display();
@@ -243,12 +230,12 @@ fn exec_failed(choice: &Choice, error: &io::Error) -> Refusal {
         Stage::Exec,
         exit,
         format!(
-            "exec of {} for candidate {:?} failed: {error}",
+            "exec of {} for the program {:?} failed: {error}",
             choice.executable.path.display(),
-            choice.candidate.id
+            choice.command.program
         ),
-        format!("{remedy}; harness-dispatch never runs another candidate instead"),
+        format!("{remedy}; harness-dispatch never runs another command instead"),
     )
     .source(source)
-    .location(format!("policy.catalog[{}].program", choice.index))
+    .location("result.program")
 }

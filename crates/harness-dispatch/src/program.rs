@@ -1,5 +1,6 @@
-//! Resolve the selected candidate's program to the file `run` will exec
-//! (`docs/specs/harness-selection-and-execution.md`, *Policy and joint choice*).
+//! Resolve the selected command's program to the file `run` will exec
+//! (`docs/specs/harness-selection-and-execution.md`, *Policy and the selected
+//! command*).
 //!
 //! A program is an absolute path, a relative path containing a separator, which
 //! resolves against the caller's cwd, or a name looked up in the caller's PATH.
@@ -8,8 +9,8 @@
 //! executable regular file wins. Resolution happens once, and `run` execs the
 //! resolved path, so what inspection reports is what runs.
 //!
-//! Only the selected program is checked. A missing one exits 127 and an
-//! unexecutable one 126, and neither ever falls back to another candidate.
+//! A missing program exits 127 and an unexecutable one 126, and nothing is
+//! ever run in its place.
 
 use std::ffi::{CString, OsStr};
 use std::fs;
@@ -17,14 +18,11 @@ use std::io::ErrorKind;
 use std::os::unix::ffi::OsStrExt as _;
 use std::path::{Path, PathBuf};
 
-use serde_json::{Map, Value};
-
-use crate::policy::Candidate;
 use crate::refusal::{Refusal, Stage, EXIT_NOT_FOUND, EXIT_UNEXECUTABLE};
 
 #[derive(Debug)]
 pub struct Executable {
-    /// The program exactly as configured; also argv[0].
+    /// The program exactly as `select` returned it; also argv[0].
     pub program: String,
     /// The file `run` execs.
     pub path: PathBuf,
@@ -43,22 +41,6 @@ pub enum ResolvedBy {
 }
 
 impl Executable {
-    pub fn to_json(&self) -> Value {
-        let mut executable = Map::new();
-        executable.insert("program".into(), self.program.clone().into());
-        let resolved_by = match &self.resolved_by {
-            ResolvedBy::Absolute => "absolute",
-            ResolvedBy::Cwd => "cwd",
-            ResolvedBy::Path { entry } => {
-                executable.insert("pathEntry".into(), entry.to_string_lossy().into());
-                "PATH"
-            }
-        };
-        executable.insert("resolvedBy".into(), resolved_by.into());
-        executable.insert("path".into(), self.path.to_string_lossy().into());
-        Value::Object(executable)
-    }
-
     pub fn to_text(&self) -> String {
         let path = self.path.display();
         match &self.resolved_by {
@@ -78,33 +60,27 @@ enum Probe {
     Unexecutable(String),
 }
 
-/// Resolve `candidate`'s program, the catalog entry at `index` of the policy at
-/// `source`, against the caller's `cwd` and `path` (the PATH value).
+/// Resolve `program`, which the `select` of the policy at `source` returned,
+/// against the caller's `cwd` and `path` (the PATH value).
 pub fn resolve(
-    candidate: &Candidate,
-    index: usize,
+    program: &str,
     source: &str,
     cwd: &Path,
     path: Option<&OsStr>,
 ) -> Result<Executable, Refusal> {
-    let program = &candidate.program;
     let refuse = |code, exit, message: String, remedy: String| {
         Refusal::new(code, Stage::Resolution, exit, message, remedy)
             .source(source)
-            .location(format!("policy.catalog[{index}].program"))
+            .location("result.program")
     };
     let not_found = |searched: String| {
         refuse(
             "program_not_found",
             EXIT_NOT_FOUND,
+            format!("select in {source} returned the program {program:?}, which {searched}"),
             format!(
-                "candidate {:?} runs {program:?}, which {searched}",
-                candidate.id
-            ),
-            format!(
-                "install {program}, or correct candidate {:?}'s program in {source}; \
-                 harness-dispatch never runs another candidate instead",
-                candidate.id
+                "install {program}, or correct the program select returns in {source}; \
+                 harness-dispatch never runs another command instead"
             ),
         )
     };
@@ -113,20 +89,19 @@ pub fn resolve(
             "program_unexecutable",
             EXIT_UNEXECUTABLE,
             format!(
-                "candidate {:?} runs {program:?}, and {} cannot be executed: {why}",
-                candidate.id,
+                "select in {source} returned the program {program:?}, and {} cannot be \
+                 executed: {why}",
                 file.display()
             ),
             format!(
-                "make {} an executable file, or correct candidate {:?}'s program in {source}; \
-                 harness-dispatch never runs another candidate instead",
-                file.display(),
-                candidate.id
+                "make {} an executable file, or correct the program select returns in {source}; \
+                 harness-dispatch never runs another command instead",
+                file.display()
             ),
         )
     };
     let found = |file: PathBuf, resolved_by: ResolvedBy| Executable {
-        program: program.clone(),
+        program: program.to_owned(),
         path: file,
         resolved_by,
     };

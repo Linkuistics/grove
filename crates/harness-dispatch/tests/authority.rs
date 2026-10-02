@@ -115,7 +115,7 @@ fn personal_policy_may_import_a_repository_entry_explicitly() {
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
 
     assert_eq!(report["policy"]["authority"], "personal");
-    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(report["selection"]["reason"], "impl runs the deep harness");
 }
 
 /// `ROUTED`, with its version made of `parts`, a TypeScript expression list:
@@ -463,7 +463,7 @@ writeFileSync({report:?}, JSON.stringify({{
     }
     let output = child.wait_with_output().unwrap();
     let report = support::Run::from(output).report();
-    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(report["selection"]["reason"], "impl runs the deep harness");
 
     let view: Value = serde_json::from_str(&fs::read_to_string(&report_path).unwrap()).unwrap();
     // The worker has left the private directory it started in
@@ -529,7 +529,7 @@ writeFileSync({report:?}, JSON.stringify({{ channelOpen: open(3), callerDescript
         });
     }
     let report = run(&mut command).report();
-    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(report["selection"]["reason"], "impl runs the deep harness");
 
     let view: Value = serde_json::from_str(&fs::read_to_string(&report_path).unwrap()).unwrap();
     // The probe sees an open descriptor (the channel), and not the caller's.
@@ -572,7 +572,7 @@ fn an_entry_path_the_worker_cannot_import_exactly_refuses_before_any_code_runs()
         let report = sandbox
             .inspect(&["--kind", "impl", "--config", substitute, "--json"])
             .report();
-        assert_eq!(report["selection"]["candidateId"], "deep");
+        assert_eq!(report["selection"]["reason"], "impl runs the deep harness");
         assert!(sentinel.exists(), "{substitute} never fired");
     }
 

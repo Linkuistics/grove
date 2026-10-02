@@ -1,13 +1,12 @@
 //! The selection both commands share: read the caller's inputs, evaluate the
-//! selected policy, assemble and measure its context, select by the caller's
-//! explicit choice or the kind's route, or by the policy's own `select`, then
-//! expand the candidate's argv and resolve its program
+//! selected policy, assemble and measure its context, call its `select`, then
+//! validate the command it returned and resolve that command's program
 //! (`docs/specs/harness-selection-and-execution.md`, *Command interface*,
-//! *Policy and joint choice*, *Bounded context*).
+//! *Policy and the selected command*, *Bounded context*).
 //!
 //! `inspect` reports the resulting choice and `run` execs it, so the two cannot
 //! disagree about what a selection means. Every step refuses rather than
-//! substitutes: nothing here ever picks a candidate the policy did not.
+//! substitutes: nothing here ever runs a command the policy did not return.
 //!
 //! The record's state directory is placed here too, before the worker starts,
 //! so a HOME that cannot place it refuses in `inspect` as it would in `run`,
@@ -26,14 +25,13 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value};
 
-use crate::argv::{self, RunSlot, Word};
 use crate::authority::{self, PolicyEntry};
 use crate::cancellation::{self, Handlers};
 use crate::cli::SelectionArgs;
 use crate::context::{self, Delivered, SourceBreach};
-use crate::inputs::{Inputs, PromptRequirement};
+use crate::inputs::{Inputs, PromptRequirement, PROMPT_NOT_SUPPLIED};
 use crate::limits::{Limits, Origin};
-use crate::policy::{self, Candidate, Form, Policy, SelectedBy, Selection, Validator};
+use crate::policy::{self, Command, Policy, Validator, SCHEMA_VERSION};
 use crate::program::{self, Executable};
 use crate::record;
 use crate::refusal::{Diagnostics, Failure, Refusal, Stage, EXIT_REFUSED, EXIT_WORKER};
@@ -46,16 +44,10 @@ pub struct Choice {
     pub inputs: Inputs,
     pub entry: PolicyEntry,
     pub state_dir: StateDir,
-    /// The identity a `runId` slot expanded to.
-    pub run: RunSlot,
     pub version: String,
-    pub candidate: Candidate,
-    /// The candidate's place in the catalog, for refusal locations.
-    pub index: usize,
-    pub reason: String,
-    /// The routes table, the explicit choice, or the policy's `select`.
-    pub selected_by: SelectedBy,
-    pub argv: Vec<Word>,
+    /// The command `select` returned, exactly.
+    pub command: Command,
+    /// The file its program resolved to.
     pub executable: Executable,
     /// The context selection saw, when there was one: a loader's result, or
     /// the caller's document, measured.
@@ -67,11 +59,7 @@ pub struct Choice {
     pub diagnostics: Diagnostics,
 }
 
-pub fn choose(
-    args: &SelectionArgs,
-    requirement: PromptRequirement,
-    run: RunSlot,
-) -> Result<Selected, Failure> {
+pub fn choose(args: &SelectionArgs, requirement: PromptRequirement) -> Result<Selected, Failure> {
     let inputs = Inputs::read(args, requirement)?;
     let home = std::env::var_os("HOME");
     let entry = authority::resolve(args.config.as_deref(), &inputs.cwd, home.as_deref())?;
@@ -89,7 +77,7 @@ pub fn choose(
         )
         .source(&source)
     })?;
-    match evaluate_and_resolve(inputs, entry, state_dir, run, &worker_path) {
+    match evaluate_and_resolve(inputs, entry, state_dir, &worker_path) {
         // The program is resolved, and the handlers stay: the caller decides
         // when a signal stops cancelling.
         Ok(choice) => match cancellation::received() {
@@ -158,7 +146,6 @@ fn evaluate_and_resolve(
     inputs: Inputs,
     entry: PolicyEntry,
     state_dir: StateDir,
-    run: RunSlot,
     worker_path: &Path,
 ) -> Result<Choice, Failure> {
     let source = entry.display();
@@ -175,30 +162,23 @@ fn evaluate_and_resolve(
     let refuse = |refusal: Refusal| Failure::with_diagnostics(refusal, diagnostics.clone());
 
     let Judged {
-        mut policy,
-        selection: Selection { index, reason, by },
+        policy,
+        command,
         context,
         adapter,
     } = evaluation.decided;
-    let candidate = policy.catalog.swap_remove(index);
-    let argv = argv::expand(&candidate, index, &inputs, &run, &source).map_err(refuse)?;
-    // The choice is validated and its argv expanded.
+    // The command is validated.
     cancellation::check(&source).map_err(refuse)?;
     let path = std::env::var_os("PATH");
-    let executable = program::resolve(&candidate, index, &source, &inputs.cwd, path.as_deref())
+    let executable = program::resolve(&command.program, &source, &inputs.cwd, path.as_deref())
         .map_err(refuse)?;
 
     Ok(Choice {
         inputs,
         entry,
         state_dir,
-        run,
         version: policy.version,
-        candidate,
-        index,
-        reason,
-        selected_by: by,
-        argv,
+        command,
         executable,
         context,
         elapsed: evaluation.elapsed,
@@ -208,22 +188,22 @@ fn evaluate_and_resolve(
     })
 }
 
-/// What the judge decided: the valid policy, its selection, the context it was
-/// made with, and the adapter the policy had imported by the end.
+/// What the judge decided: the valid policy, the command it selected, the
+/// context that was made with, and the adapter the policy had imported by the
+/// end.
 struct Judged {
     policy: Policy,
-    selection: Selection,
+    command: Command,
     context: Option<Delivered>,
     adapter: Option<Adapter>,
 }
 
-/// Decide on what the worker reported. Validate the policy, then run the
-/// checks that need no more of its code: an explicit choice the catalog lacks,
-/// and for a routes policy its whole selection. Only then ask the worker for
-/// the context, when the policy has a loader or the caller gave one, answering
-/// its run lookups from the store in `state_dir`, and validate and measure it.
-/// A `select` policy is then asked to select, with that context, and what it
-/// produced is judged. Nothing is asked of the worker once a refusal is known.
+/// Decide on what the worker reported. Validate the policy, and only then ask
+/// the worker for the context, when the policy has a loader or the caller gave
+/// one, answering its run lookups from the store in `state_dir`, and validate
+/// and measure it. The policy is then asked to select, with that context, and
+/// what it produced is judged. Nothing is asked of the worker once a refusal
+/// is known.
 fn judge(
     outcome: Outcome,
     mut loaded: Loaded<'_>,
@@ -277,22 +257,6 @@ fn judge(
         }
     };
     let policy = Validator::new(source).validate(&snapshot)?;
-    let choice = inputs.choice.as_deref();
-    let routed = match &policy.form {
-        Form::Routes(routes) => Some(policy::by_routes(
-            &policy,
-            routes,
-            &inputs.kind,
-            choice,
-            source,
-        )?),
-        Form::Select => {
-            if let Some(choice) = choice {
-                policy::configured(&policy, choice, source)?;
-            }
-            None
-        }
-    };
     let context = if policy.loader || inputs.context.is_some() {
         // A lookup waits for a writer's lock at most the fixed lock wait, and
         // never past the selection's deadline: its wait is part of the
@@ -306,23 +270,10 @@ fn judge(
     } else {
         None
     };
-    let selection = match routed {
-        Some(selection) => selection,
-        None => {
-            let produced = loaded.select()?;
-            policy::computed(
-                &policy,
-                produced,
-                &inputs.kind,
-                choice,
-                source,
-                &inputs.limits,
-            )?
-        }
-    };
+    let command = policy::selected(loaded.select()?, &inputs.kind, source, &inputs.limits)?;
     Ok(Judged {
         policy,
-        selection,
+        command,
         context,
         adapter: loaded.adapter().cloned(),
     })
@@ -356,12 +307,7 @@ fn deliver(
                 .as_object()
                 .filter(|fields| policy.loader && fields.contains_key("status"))
             {
-                return Err(policy::loader_refused(
-                    fields,
-                    &inputs.kind,
-                    inputs.choice.as_deref(),
-                    source,
-                ));
+                return Err(policy::loader_refused(fields, &inputs.kind, source));
             }
             let about = match (&inputs.context, policy.loader) {
                 (Some(caller), false) => caller.measured.name.as_str(),
@@ -452,16 +398,26 @@ fn context_breach(breach: &Breach, policy: &Policy, inputs: &Inputs, source: &st
     }
 }
 
-/// The request the worker receives: the caller's data, the explicit choice
-/// and the caller's context included, the effective bounds, and never the
-/// prompt, which only ever fills the candidate's `prompt` argument. The
-/// policy's `loadContext` and `select` receive it; a `routes` table never
-/// sees it.
+/// The request the policy's `loadContext` and `select` receive: the caller's
+/// data, the prompt byte for byte, every parameter by name and the caller's
+/// context included, and the effective bounds. An inspection given no prompt
+/// sends the marker in its place. It carries no run identity.
 fn request(inputs: &Inputs) -> Value {
     let mut request = Map::new();
-    request.insert("schemaVersion".into(), 1.into());
+    request.insert("schemaVersion".into(), SCHEMA_VERSION.into());
     request.insert("kind".into(), inputs.kind.clone().into());
+    let prompt = inputs
+        .prompt
+        .as_ref()
+        .map_or(PROMPT_NOT_SUPPLIED, |prompt| prompt.text.as_str());
+    request.insert("prompt".into(), prompt.into());
     request.insert("cwd".into(), inputs.cwd.to_string_lossy().into());
+    let params: Map<String, Value> = inputs
+        .params
+        .iter()
+        .map(|(name, value)| (name.clone(), value.clone().into()))
+        .collect();
+    request.insert("params".into(), params.into());
     if let Some(task_file) = &inputs.task_file {
         request.insert("taskFile".into(), task_file.clone().into());
     }
@@ -470,9 +426,6 @@ fn request(inputs: &Inputs) -> Value {
     }
     if let Some(context) = &inputs.context {
         request.insert("context".into(), context.value.clone());
-    }
-    if let Some(choice) = &inputs.choice {
-        request.insert("explicitChoice".into(), choice.clone().into());
     }
     request.insert("limits".into(), inputs.limits.to_request());
     Value::Object(request)
@@ -487,15 +440,17 @@ mod tests {
     use crate::inputs::{Prompt, PromptSource};
 
     #[test]
-    fn the_request_carries_caller_data_and_never_the_prompt() {
+    fn the_request_carries_the_prompt_and_every_parameter_beside_the_caller_data() {
         let inputs = Inputs {
             kind: "impl".to_owned(),
             cwd: PathBuf::from("/work"),
             task_file: Some("/work/task.md".to_owned()),
             task_id: Some("T-1".to_owned()),
-            choice: Some("deep".to_owned()),
+            params: [("repo", "/work"), ("session_name", "a b\n")]
+                .map(|(name, value)| (name.to_owned(), value.to_owned()))
+                .into(),
             prompt: Some(Prompt {
-                text: "the prompt text".to_owned(),
+                text: "the prompt text\n".to_owned(),
                 source: PromptSource::File(PathBuf::from("/work/prompt.md")),
             }),
             context: Some(CallerContext {
@@ -514,8 +469,9 @@ mod tests {
         assert_eq!(
             request,
             serde_json::json!({
-                "schemaVersion": 1, "kind": "impl", "cwd": "/work",
-                "taskFile": "/work/task.md", "taskId": "T-1", "explicitChoice": "deep",
+                "schemaVersion": 2, "kind": "impl", "prompt": "the prompt text\n", "cwd": "/work",
+                "params": { "repo": "/work", "session_name": "a b\n" },
+                "taskFile": "/work/task.md", "taskId": "T-1",
                 "context": { "schemaVersion": 1, "facts": {} },
                 "limits": {
                     "selectionMs": 30_000, "contextBytes": 262_144, "sourceBytes": 65_536,
@@ -523,17 +479,22 @@ mod tests {
                 },
             })
         );
+        // Absent inputs stay absent, the parameters are an empty object, and
+        // an inspection given no prompt sends the marker.
         let absent = Inputs {
             task_file: None,
             task_id: None,
-            choice: None,
+            params: Default::default(),
+            prompt: None,
             context: None,
             ..inputs
         };
         let request = super::request(&absent);
         assert_eq!(
             request.as_object().unwrap().keys().collect::<Vec<_>>(),
-            ["cwd", "kind", "limits", "schemaVersion"]
+            ["cwd", "kind", "limits", "params", "prompt", "schemaVersion"]
         );
+        assert_eq!(request["params"], serde_json::json!({}));
+        assert_eq!(request["prompt"], PROMPT_NOT_SUPPLIED);
     }
 }

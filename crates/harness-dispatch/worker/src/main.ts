@@ -18,10 +18,10 @@
 //      source it measured and every run it looked up, or a failure. While the
 //      loader runs, each `host.run` is a request the front answers from its
 //      record store (see `host.ts`).
-//   5. For a `routes` policy, or one it refuses, the front closes the channel
-//      and the worker exits. For a valid `select` policy it asks the worker to
-//      select, and the worker calls `select` with the request and the measured
-//      context, and returns what it produced.
+//   5. For a policy it refuses, the front closes the channel and the worker
+//      exits. For a valid one it asks the worker to select, and the worker
+//      calls `select` with the request and the measured context, and returns
+//      what it produced.
 //
 // The snapshot, the context and the selection each also report whether the
 // policy has imported the Grove adapter yet, and its version if so, so an
@@ -30,20 +30,18 @@
 // tell apart and judge.
 //
 // The worker judges nothing it can hand over as data. The front validates the
-// snapshot's shape, resolves routes, checks any explicit choice, validates and
-// measures the context, validates a selection against the snapshot and reports
-// every refusal with its location, so there is one validator and it is the one
-// inspection reports. `select` runs only once that validator has accepted the
-// policy it belongs to and the context it is given, and the snapshot it is
-// checked against was taken before it ran. What the worker does enforce is the
-// bounds, because only it sees a read or an encoding before it is sent: each
-// is checked here and again by the front.
+// snapshot's shape, validates and measures the context, validates the shape of
+// what `select` returned and reports every refusal with its location, so there
+// is one validator and it is the one inspection reports. `select` runs only
+// once that validator has accepted the policy it belongs to and the context it
+// is given. What the worker does enforce is the bounds, because only it sees a
+// read or an encoding before it is sent: each is checked here and again by the
+// front.
 
 import { encode, PROTOCOL, receive, send, sendEncoded } from "./channel.ts";
 import { type Bounds, deepFreeze, type Measured, Session, SourceUnreadable } from "./host.ts";
 import * as sdk from "../sdk/index.ts";
 import * as groveAdapter from "../grove/index.ts";
-import * as dynamicExample from "../examples/dynamic.ts";
 import * as groveReviewExample from "../examples/grove-review.ts";
 import * as groveStaticExample from "../examples/grove-static.ts";
 import * as reviewExample from "../examples/review.ts";
@@ -118,7 +116,6 @@ const embedded: Readonly<Record<string, object>> = {
   "harness-dispatch/examples/static": staticExample,
   "harness-dispatch/examples/grove-static": groveStaticExample,
   "harness-dispatch/examples/grove-review": groveReviewExample,
-  "harness-dispatch/examples/dynamic": dynamicExample,
   "harness-dispatch/examples/review": reviewExample,
 };
 

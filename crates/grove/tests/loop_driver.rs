@@ -1720,8 +1720,8 @@ struct Dispatch {
     root: PathBuf,
     home: PathBuf,
     worktree: PathBuf,
-    /// The fake harness: a dispatch catalog's program, and a direct route's
-    /// command.
+    /// The fake harness: the program a dispatch policy's `select` returns, and
+    /// a direct route's command.
     harness: PathBuf,
     /// One numbered directory per harness start, in launch order.
     launches: PathBuf,
@@ -1906,17 +1906,19 @@ fn direct_template(harness: &Path) -> String {
     format!("{} ${{prompt}}", shell_quote(harness))
 }
 
-/// A static dispatch policy routing each of `kinds` to the fake harness, whose
-/// arguments are the kind, the task file, the task identity and the prompt.
+/// A dispatch policy whose `select` returns the fake harness for each of
+/// `kinds`, with the kind, the task file, the task identity and the prompt as
+/// its arguments, and refuses any other kind as `incomplete_mapping`, its own
+/// code.
 ///
 /// At import it writes `view` with the names in the worker's environment and
 /// in the environment of a child it spawns, and the worker's value of
 /// `GROVE_SIGNAL_FILE`, so that what selection code can reach is observed
 /// where it runs.
 fn probing_policy(view: &Path, harness: &Path, kinds: &[&str]) -> String {
-    let routes = kinds
+    let kinds = kinds
         .iter()
-        .map(|kind| format!("{kind:?}: \"fake\""))
+        .map(|kind| format!("{kind:?}"))
         .collect::<Vec<_>>()
         .join(", ");
     format!(
@@ -1929,13 +1931,27 @@ writeFileSync({view:?}, JSON.stringify({{
   channel: process.env.GROVE_SIGNAL_FILE ?? null,
 }}));
 export const policy = {{
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "grove-seam-1",
-  catalog: [
-    {{ id: "fake", provider: "origin-a", model: "model-a", effort: "high", program: {harness:?},
-      args: [{{ slot: "kind" }}, {{ slot: "taskFile" }}, {{ slot: "taskId" }}, {{ slot: "prompt" }}] }},
-  ],
-  routes: {{ {routes} }},
+  select(request) {{
+    if (![{kinds}].includes(request.kind)) {{
+      return {{
+        status: "refused",
+        code: "incomplete_mapping",
+        message: `this policy names no command for kind ${{JSON.stringify(request.kind)}}`,
+        remedy: "add the kind to the policy",
+      }};
+    }}
+    return {{
+      status: "selected",
+      program: {harness:?},
+      args: [request.kind, request.taskFile, request.taskId, request.prompt],
+      provider: "origin-a",
+      model: "model-a",
+      effort: "high",
+      reason: `kind ${{request.kind}} runs the fake harness`,
+    }};
+  }},
 }};
 "#,
         view = view.to_str().unwrap(),
@@ -2026,7 +2042,13 @@ fn a_dispatched_session_receives_its_task_as_native_data_and_only_its_harness_th
         task_file.to_str().unwrap(),
         "{recorded}"
     );
-    assert_eq!(fields["candidate"]["id"], "fake", "{recorded}");
+    assert_eq!(
+        fields["candidate"]["program"],
+        dispatch.harness.to_str().unwrap(),
+        "{recorded}"
+    );
+    assert_eq!(fields["candidate"]["provider"], "origin-a", "{recorded}");
+    assert_eq!(fields["params"], serde_json::json!({}), "{recorded}");
 
     assert!(
         epoch_names(&launch.epoch, &launch.channel),
@@ -2066,11 +2088,12 @@ fn a_dispatched_session_receives_its_task_as_native_data_and_only_its_harness_th
 
 // Grove's pre-authoring guarantee covers the configured command and stops
 // there. The wrapper resolves for `design`, so a session may author a `design`
-// leaf although the policy behind the wrapper routes no such kind: that policy
-// is evaluated only when the leaf is launched. The launch then refuses with
-// dispatch's incomplete-mapping diagnostic and the `inspect` invocation that
-// reproduces it, no harness starts, and the leaf stays live. Once the owner
-// routes the kind, the next run launches that same leaf.
+// leaf although the policy behind the wrapper names no command for that kind:
+// that policy is evaluated only when the leaf is launched. The launch then
+// refuses with the policy's own refusal, its code and remedy beside dispatch's
+// stable one, and the `inspect` invocation that reproduces it, no harness
+// starts, and the leaf stays live. Once the owner adds the kind, the next run
+// launches that same leaf.
 #[test]
 fn a_leaf_authored_under_a_valid_wrapper_is_refused_at_launch_and_stays_live() {
     let dispatch = Dispatch::new("worktree");
@@ -2114,8 +2137,9 @@ fn a_leaf_authored_under_a_valid_wrapper_is_refused_at_launch_and_stays_live() {
         "the refused launch must reach no harness: {stderr}"
     );
     for said in [
-        "refused (incomplete_mapping, stage selection)",
-        "  remedy: ",
+        "refused (policy_refused, stage selection)",
+        "  policy code: incomplete_mapping",
+        "  remedy: add the kind to the policy",
         "session ended without a completion signal",
         "configured session kind `design` failed",
     ] {
@@ -2141,13 +2165,15 @@ fn a_leaf_authored_under_a_valid_wrapper_is_refused_at_launch_and_stays_live() {
         .unwrap();
     let said = String::from_utf8_lossy(&reproduced.stderr);
     assert_eq!(reproduced.status.code(), Some(3), "{line}\n{said}");
-    assert!(
-        said.contains("refused (incomplete_mapping, stage selection)"),
-        "{said}"
-    );
+    for expected in [
+        "refused (policy_refused, stage selection)",
+        "  policy code: incomplete_mapping",
+    ] {
+        assert!(said.contains(expected), "no {expected:?} in: {said}");
+    }
     assert_eq!(dispatch.launch_count(), 1);
 
-    // Still live: route the kind, and the next run launches that leaf.
+    // Still live: add the kind, and the next run launches that leaf.
     dispatch.policy(&probing_policy(
         &dispatch.view,
         &dispatch.harness,
@@ -2238,41 +2264,43 @@ fn a_dispatched_and_a_direct_kind_coexist_in_one_configuration() {
     assert_eq!(dispatch.launch_count(), 2);
 }
 
-// A literal `--choice` in the personal command definition reaches the policy as
-// the request's explicit choice, beside the kind and task the slots supplied,
-// and the run records it. The control is the same command without the word:
-// the same policy then sees no choice and selects otherwise.
+// A literal `--param` in the personal command definition reaches the policy as
+// a selection parameter, beside the kind and task the slots supplied, and the
+// run records it. The policy reads it and returns another command for it,
+// which is how an owner steers some kinds from the command definition. The
+// control is the same command without the word: the same policy then receives
+// no parameter and selects otherwise.
 #[test]
-fn a_literal_choice_in_the_command_definition_reaches_policy_as_the_explicit_choice() {
+fn a_literal_param_in_the_command_definition_reaches_policy_as_a_selection_parameter() {
     let dispatch = Dispatch::new("worktree");
     plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
-    let candidate = |id: &str, model: &str| {
-        format!(
-            r#"{{ id: {id:?}, provider: "origin-a", model: {model:?}, effort: "high", program: {:?}, args: ["--model", {{ slot: "model" }}, {{ slot: "prompt" }}] }}"#,
-            dispatch.harness.to_str().unwrap()
-        )
-    };
     dispatch.policy(&format!(
         r#"import {{ writeFileSync }} from "node:fs";
 export const policy = {{
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "grove-seam-1",
-  catalog: [{quick}, {deep}],
   select(request) {{
-    const {{ kind, taskFile, taskId }} = request;
-    const explicitChoice = request.explicitChoice ?? null;
-    writeFileSync({view:?}, JSON.stringify({{ kind, taskFile, taskId, explicitChoice }}));
-    return {{ status: "selected", candidateId: explicitChoice ?? "quick", reason: "the owner's choice, else quick" }};
+    const {{ kind, taskFile, taskId, params }} = request;
+    writeFileSync({view:?}, JSON.stringify({{ kind, taskFile, taskId, params }}));
+    const model = params.depth === "deep" ? "large" : "small";
+    return {{
+      status: "selected",
+      program: {harness:?},
+      args: ["--model", model, request.prompt],
+      provider: "origin-a",
+      model,
+      effort: "high",
+      reason: "the owner's depth, else small",
+    }};
   }},
 }};
 "#,
-        quick = candidate("quick", "small"),
-        deep = candidate("deep", "large"),
         view = dispatch.view.to_str().unwrap(),
+        harness = dispatch.harness.to_str().unwrap(),
     ));
 
-    let chosen = dispatch_template("--choice deep");
-    dispatch.config(&[("routed", &chosen)], &[("impl", "routed")]);
+    let steered = dispatch_template("--param depth=deep");
+    dispatch.config(&[("routed", &steered)], &[("impl", "routed")]);
     dispatch.drive_to_completion();
     let launch = dispatch.launch(0);
     let task_file = dispatch.task_file("01-impl--subject-k1.md");
@@ -2282,20 +2310,24 @@ export const policy = {{
             "kind": "impl",
             "taskFile": task_file.to_str().unwrap(),
             "taskId": "subject-k1",
-            "explicitChoice": "deep",
+            "params": { "depth": "deep" },
         })
     );
     assert_eq!(launch.args[..2], ["--model", "large"]);
     let recorded = dispatch.recorded(&launch.run_id);
     let fields = &recorded["launch"];
-    assert_eq!(fields["selection"]["explicitChoice"], "deep", "{recorded}");
-    assert_eq!(fields["candidate"]["id"], "deep", "{recorded}");
+    assert_eq!(
+        fields["params"],
+        serde_json::json!({ "depth": "deep" }),
+        "{recorded}"
+    );
+    assert_eq!(fields["candidate"]["model"], "large", "{recorded}");
 
-    // The control: without the word, no choice reaches the policy.
-    let unchosen = dispatch_template("");
-    dispatch.config(&[("routed", &unchosen)], &[("impl", "routed")]);
+    // The control: without the word, no parameter reaches the policy.
+    let unsteered = dispatch_template("");
+    dispatch.config(&[("routed", &unsteered)], &[("impl", "routed")]);
     dispatch.drive_to_completion();
-    assert_eq!(dispatch.view()["explicitChoice"], serde_json::Value::Null);
+    assert_eq!(dispatch.view()["params"], serde_json::json!({}));
     assert_eq!(dispatch.launch(1).args[..2], ["--model", "small"]);
 }
 
@@ -2316,8 +2348,8 @@ fn quoted_dispatch_commands(text: &str) -> Vec<&str> {
 // Every Grove command definition for dispatch that the help, Grove's
 // configuration reference and usage guide, the configure-grove skill and
 // dispatch's own README quote is `dispatch_template`'s, word for word, or that
-// with a literal `--choice` before the prompt, the form the choice case
-// launches. Each surface but the usage guide, which links the reference rather
+// with literal `--param NAME=VALUE` words before the prompt, the form the
+// parameter case launches. Each surface but the usage guide, which links the reference rather
 // than restating it, must quote it at least once, on one line. So a surface
 // that drops the example, wraps it, or quotes another form fails here instead
 // of drifting from what was tested.
@@ -2332,11 +2364,18 @@ fn the_documented_command_definition_for_dispatch_is_the_one_launched_here() {
     let at = tested.len() - 2;
     assert_eq!(tested[at..], ["--prompt", "${prompt}"]);
     let conforms = |words: &[&str]| {
-        words == tested
-            || (words.len() == tested.len() + 2
-                && words[..at] == tested[..at]
-                && words[at] == "--choice"
-                && words[at + 2..] == tested[at..])
+        words.len() >= tested.len() && {
+            let params = &words[at..words.len() - 2];
+            words[..at] == tested[..at]
+                && words[words.len() - 2..] == tested[at..]
+                && params.len() % 2 == 0
+                && params.chunks(2).all(|pair| {
+                    pair[0] == "--param"
+                        && pair[1]
+                            .split_once('=')
+                            .is_some_and(|(name, _)| !name.is_empty())
+                })
+        }
     };
 
     let help = |args: &[&str]| {
@@ -2473,21 +2512,21 @@ signal() {
 /// The shipped example, whole, as an owner's personal policy activates it.
 const REVIEW_EXAMPLE: &str = "export { policy } from \"harness-dispatch/examples/grove-review\";\n";
 
-/// The owner's later mapping: `lead-high`, which the example routes `impl`
-/// to, is now the other provider's harness. Read from this catalog, a
-/// `lead-high` creator is `anthropic`, whose reviewer is `lead-high` itself,
-/// of that same origin, so the review would refuse.
-const REMAPPED: &str = r#"import { catalog, reviews, routes, groveReviewSelector } from "harness-dispatch/examples/grove-review";
-const today = catalog.map((candidate) =>
-  candidate.id === "lead-high"
-    ? { ...candidate, provider: "anthropic", model: "your-claude-model", program: "my-claude-wrapper" }
-    : candidate,
-);
+/// The owner's later mapping: the lead at `high`, which the example runs for
+/// `impl` and gives an `anthropic` creator's `review-impl`, is now the other
+/// provider's harness. Read from this policy, an `impl` creator is
+/// `anthropic`, whose reviewer is that same command, of that same origin, so
+/// the review would refuse.
+const REMAPPED: &str = r#"import { reviews, routes, groveReviewSelector } from "harness-dispatch/examples/grove-review";
+import { review } from "harness-dispatch/examples/grove-static";
+const today = review("high");
 export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "remapped-1",
-  catalog: today,
-  ...groveReviewSelector({ catalog: today, routes, reviews }),
+  ...groveReviewSelector({
+    routes: { ...routes, impl: today },
+    reviews: { ...reviews, "review-impl": { ...reviews["review-impl"], anthropic: today } },
+  }),
 };
 "#;
 
@@ -2522,8 +2561,8 @@ fn selected(model: &str) -> [OsString; 4] {
 /// `review-impl` kinds both launch through dispatch.
 struct Lifecycle {
     dispatch: Dispatch,
-    /// The driver's `PATH`: the two wrapper programs the example's catalog
-    /// names, each of which execs the fake harness, then the ambient one.
+    /// The driver's `PATH`: the two wrapper programs the example's commands
+    /// run, each of which execs the fake harness, then the ambient one.
     path: OsString,
 }
 
@@ -2662,12 +2701,12 @@ impl Lifecycle {
 // the review's creator is neither: it is the run the review's own line names.
 // The dispatched producer finishes, so it writes its run on the review cut
 // before it ran, retires, and inserts new work ahead of that review, which
-// moves the review to another position. The owner then points `lead-high` at
-// the other provider's harness. The inserted leaf launches under that mapping
-// and records it, which is the control that it was live. The review, at its
-// new path, still selects from the provider recorded for the producer's run:
-// the reviewer is the one the example gives an `openai` creator, where
-// today's catalog would have refused the review as same-origin.
+// moves the review to another position. The owner then points the lead at
+// `high` at the other provider's harness. The inserted leaf launches under
+// that mapping and records it, which is the control that it was live. The
+// review, at its new path, still selects from the provider recorded for the
+// producer's run: the reviewer is the one the example gives an `openai`
+// creator, where today's policy would have refused the review as same-origin.
 #[test]
 fn retiring_and_reordering_a_producer_leaves_its_review_s_creator_unchanged() {
     let lifecycle = Lifecycle::new(
@@ -2698,7 +2737,10 @@ fn retiring_and_reordering_a_producer_leaves_its_review_s_creator_unchanged() {
     let inserted = dispatch.launch(1);
     assert_eq!(inserted.args[..4], selected("your-claude-model"));
     let today = dispatch.recorded(&inserted.run_id);
-    assert_eq!(today["launch"]["candidate"]["id"], "lead-high", "{today}");
+    assert_eq!(
+        today["launch"]["candidate"]["program"], "my-claude-wrapper",
+        "{today}"
+    );
     assert_eq!(
         today["launch"]["candidate"]["provider"], "anthropic",
         "{today}"
@@ -2724,7 +2766,7 @@ fn retiring_and_reordering_a_producer_leaves_its_review_s_creator_unchanged() {
             .unwrap(),
         "{recorded}"
     );
-    assert_eq!(launch["candidate"]["id"], "review-high", "{recorded}");
+    assert_eq!(launch["candidate"]["provider"], "anthropic", "{recorded}");
     assert_eq!(
         launch["reviewedArtifact"],
         serde_json::json!({ "id": "parser-k1", "creator": { "run": producer.run_id } }),
@@ -2733,17 +2775,32 @@ fn retiring_and_reordering_a_producer_leaves_its_review_s_creator_unchanged() {
     let creator = &launch["creator"];
     assert_eq!(creator["evidence"], "execution_recorded", "{recorded}");
     assert_eq!(creator["provider"], "openai", "{recorded}");
-    assert_eq!(creator["lookup"]["taskId"], "parser-k1", "{recorded}");
+    let lookup = &creator["lookup"];
+    assert_eq!(lookup["taskId"], "parser-k1", "{recorded}");
     assert_eq!(
-        creator["lookup"]["candidate"],
-        serde_json::json!({
-            "id": "lead-high",
-            "provider": "openai",
-            "model": "your-codex-model",
-            "effort": "high",
-        }),
+        (&lookup["provider"], &lookup["model"], &lookup["effort"]),
+        (
+            &serde_json::json!("openai"),
+            &serde_json::json!("your-codex-model"),
+            &serde_json::json!("high"),
+        ),
         "{recorded}"
     );
+
+    // The control: a creator read from today's policy is `anthropic`, and
+    // the review of one refuses as same-origin.
+    let declared = review_body(Some("**Creator:** declared anthropic"));
+    let leaf = dispatch.root.join("declared-review.md");
+    fs::write(&leaf, declared).unwrap();
+    let refused = lifecycle
+        .harness_dispatch()
+        .args(["inspect", "--kind", "review-impl", "--task-file"])
+        .arg(&leaf)
+        .output()
+        .unwrap();
+    let said = String::from_utf8_lossy(&refused.stderr);
+    assert_eq!(refused.status.code(), Some(3), "{said}");
+    assert!(said.contains("  policy code: same_origin"), "{said}");
 }
 
 // A producer that proves too big decomposes, and the review cut before it did
@@ -3061,7 +3118,10 @@ fn a_direct_harness_finish_removes_an_attempt_s_run_and_the_review_refuses_until
     assert_eq!(reviewer.args[..4], selected("your-codex-model"));
     let recorded = dispatch.recorded(&reviewer.run_id);
     let launch = &recorded["launch"];
-    assert_eq!(launch["candidate"]["id"], "lead-high", "{recorded}");
+    assert_eq!(
+        launch["candidate"]["program"], "my-codex-wrapper",
+        "{recorded}"
+    );
     assert_eq!(launch["candidate"]["provider"], "openai", "{recorded}");
     assert_eq!(
         launch["creator"],
@@ -3491,8 +3551,8 @@ impl Dispatch {
         )
     }
 
-    /// A static policy routing `impl` to the probe, altering what it was
-    /// handed if `alter` says so. At import it writes the view: its stdin and
+    /// A policy whose `select` returns the probe for every kind, altering
+    /// what it was handed if `alter` says so. At import it writes the view: its stdin and
     /// a descriptor on the controlling terminal as one measurement reads them,
     /// `/dev/null`'s device, the names in its environment, and the channel's
     /// value if it has one. `prelude` runs next.
@@ -3521,13 +3581,17 @@ writeFileSync({view:?}, JSON.stringify({{
 closeSync(controlling);
 {prelude}
 export const policy = {{
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "grove-terminal-1",
-  catalog: [
-    {{ id: "probe", provider: "origin-a", model: "model-a", effort: "high", program: {probe:?},
-      args: [{args}{{ slot: "prompt" }}] }},
-  ],
-  routes: {{ impl: "probe" }},
+  select: (request) => ({{
+    status: "selected",
+    program: {probe:?},
+    args: [{args}request.prompt],
+    provider: "origin-a",
+    model: "model-a",
+    effort: "high",
+    reason: "every kind runs the probe",
+  }}),
 }};
 "#,
             view = self.view.to_str().unwrap(),

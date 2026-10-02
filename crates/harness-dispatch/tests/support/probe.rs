@@ -48,18 +48,18 @@ pub fn built() -> &'static Path {
     })
 }
 
-/// A policy routing `impl` to the probe, installed on the sandbox's PATH as
-/// `signal-probe`, with `args` before the prompt.
+/// A policy that runs the probe for every kind, installed on the sandbox's
+/// PATH as `signal-probe`, with `args` before the prompt.
 pub fn install(sandbox: &Sandbox, args: &str) {
     fs::copy(built(), sandbox.bin.join("signal-probe")).expect("copy the probe");
     sandbox.personal_policy(&format!(
         r#"export const policy = {{
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "probe-1",
-  catalog: [
-    {{ id: "probe", provider: "origin-a", model: "model-a", effort: "low", program: "signal-probe", args: [{args}{{ slot: "prompt" }}] }},
-  ],
-  routes: {{ impl: "probe" }},
+  select: (request) => ({{
+    status: "selected", program: "signal-probe", args: [{args}request.prompt],
+    provider: "origin-a", model: "model-a", effort: "low", reason: "the probe",
+  }}),
 }};
 "#
     ));

@@ -22,27 +22,20 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 use sha2::{Digest as _, Sha256};
 use support::hold::{interrupted, Interrupt};
-use support::{executable, run, text, Sandbox, ROUTED};
+use support::{executable, run, text, Sandbox, DEEP, ROUTED};
 
 /// A run ID no store in these tests holds.
 const UNKNOWN: &str = "0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d9e";
 
-/// The producer's candidate as `ROUTED` configures it.
-const DEEP: &str = r#"{ id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] }"#;
-
 /// A policy whose `loadContext` looks up the run its caller's reviewed
 /// artifact names, with `call` (`host.run(run)`, or a variant of it), and whose
-/// `select` picks `deep`, the catalog's first candidate, giving the delivered
-/// `runs` as its reason, so a test sees exactly what selection saw.
-fn lookup_policy(deep: &str, call: &str) -> String {
+/// `select` returns `command`, a selected result, giving the delivered `runs`
+/// as its reason, so a test sees exactly what selection saw.
+fn lookup_policy(command: &str, call: &str) -> String {
     format!(
         r#"export const policy = {{
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "lookup-1",
-  catalog: [
-    {deep},
-    {{ id: "quick", provider: "origin-b", model: "model-small", effort: "low", program: "fake-harness", args: [{{ slot: "prompt" }}] }},
-  ],
   loadContext(request, host) {{
     const context = request.context;
     const run = context?.reviewedArtifact?.creator?.run;
@@ -50,7 +43,7 @@ fn lookup_policy(deep: &str, call: &str) -> String {
     return context;
   }},
   select(request, context) {{
-    return {{ status: "selected", candidateId: "deep", reason: JSON.stringify(context.runs ?? null) }};
+    return {{ ...{command}, reason: JSON.stringify(context.runs ?? null) }};
   }},
 }};
 "#
@@ -71,7 +64,7 @@ fn launched(sandbox: &Sandbox, args: &[&str]) -> String {
     run_id
 }
 
-/// Run the producer: `ROUTED`'s `deep` candidate for kind `impl`, as task
+/// Run the producer: `ROUTED`'s command for kind `impl`, as task
 /// `producer-k1`.
 fn producer(sandbox: &Sandbox) -> String {
     sandbox.personal_policy(ROUTED);
@@ -131,19 +124,16 @@ fn run_review(sandbox: &Sandbox) -> support::Run {
 fn found(sandbox: &Sandbox, run_id: &str) -> Value {
     let export = show(sandbox, run_id).report();
     let launch = &export["launch"];
-    let candidate = &launch["candidate"];
+    let labels = &launch["candidate"];
     json!({
         "runId": run_id,
         "status": "found",
         "recordedAt": export["recordedAt"],
         "kind": launch["kind"],
         "taskId": launch["taskId"],
-        "candidate": {
-            "id": candidate["id"],
-            "provider": candidate["provider"],
-            "model": candidate["model"],
-            "effort": candidate["effort"],
-        },
+        "provider": labels["provider"],
+        "model": labels["model"],
+        "effort": labels["effort"],
         "launchFailure": export["launchFailure"],
     })
 }
@@ -182,8 +172,8 @@ fn host_run_returns_a_recorded_runs_immutable_launch_fields() {
     let creator = producer(&sandbox);
     let answer = found(&sandbox, &creator);
     assert_eq!(
-        answer["candidate"],
-        json!({ "id": "deep", "provider": "origin-a", "model": "model-large", "effort": "high" })
+        (&answer["provider"], &answer["model"], &answer["effort"]),
+        (&json!("origin-a"), &json!("model-large"), &json!("high"))
     );
     assert_eq!(answer["kind"], "impl");
     assert_eq!(answer["taskId"], "producer-k1");
@@ -191,14 +181,21 @@ fn host_run_returns_a_recorded_runs_immutable_launch_fields() {
     assert_eq!(answer["launchFailure"], Value::Null);
 
     review_context(&sandbox, &json!({ "run": creator }));
-    sandbox.personal_policy(&looks_up());
+    // The loader prints what `host.run` returned to it.
+    sandbox.personal_policy(&lookup_policy(
+        DEEP,
+        "host.diagnostic(JSON.stringify(host.run(run)))",
+    ));
     let store = sandbox.default_store();
     let before = fs::read(&store).unwrap();
 
-    // Inspection: selection saw the answer, the delivered context carries it
-    // after the caller's document as a measured source, and the creator
-    // provenance names it.
+    // Inspection: the loader was returned the answer, selection saw it, the
+    // delivered context carries it after the caller's document as a measured
+    // source, and the creator provenance names it.
     let report = inspect_review(&sandbox).report();
+    let returned: Value =
+        serde_json::from_str(report["diagnostics"]["stderr"].as_str().unwrap()).unwrap();
+    assert_eq!(returned, answer);
     assert_eq!(seen(&report), json!([answer]));
     let context = &report["context"];
     assert_eq!(context["value"]["runs"], json!([answer]));
@@ -260,28 +257,33 @@ fn host_run_returns_a_recorded_runs_immutable_launch_fields() {
 }
 
 #[test]
-fn a_changed_current_catalog_does_not_alter_the_returned_snapshot() {
+fn a_changed_policy_does_not_alter_the_labels_a_run_recorded() {
     let sandbox = Sandbox::new();
     let creator = producer(&sandbox);
     review_context(&sandbox, &json!({ "run": creator }));
 
     sandbox.personal_policy(&looks_up());
     let before = inspect_review(&sandbox).report();
-    // The same ID, now another provider, model and effort: today's catalog
-    // is not the record.
+    // The same command, now under another provider, model and effort: what
+    // the policy returns today is not the record.
     sandbox.personal_policy(&lookup_policy(
-        r#"{ id: "deep", provider: "origin-z", model: "model-new", effort: "max", program: "fake-harness", args: [{ slot: "prompt" }] }"#,
+        r#"{ status: "selected", program: "fake-harness", args: [request.prompt], provider: "origin-z", model: "model-new", effort: "max" }"#,
         "host.run(run)",
     ));
     let after = inspect_review(&sandbox).report();
     assert_eq!(seen(&after), seen(&before));
+    let recorded = &seen(&after)[0];
     assert_eq!(
-        seen(&after)[0]["candidate"],
-        json!({ "id": "deep", "provider": "origin-a", "model": "model-large", "effort": "high" })
+        (
+            &recorded["provider"],
+            &recorded["model"],
+            &recorded["effort"]
+        ),
+        (&json!("origin-a"), &json!("model-large"), &json!("high"))
     );
     assert_eq!(after["creator"]["provider"], "origin-a");
-    // The control: the same report selected `deep` from today's catalog, so
-    // the change did reach the policy.
+    // The control: the same report selected under today's labels, so the
+    // change did reach the policy.
     assert_eq!(before["selection"]["provider"], "origin-a");
     assert_eq!(after["selection"]["provider"], "origin-z");
     assert_eq!(after["selection"]["model"], "model-new");
@@ -431,12 +433,12 @@ fn a_run_that_carries_a_launch_failure_returns_its_detail() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(
         r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "broken-1",
-  catalog: [
-    { id: "broken", provider: "origin-b", model: "model-b", effort: "low", program: "./broken-harness", args: [{ slot: "prompt" }] },
-  ],
-  routes: { impl: "broken" },
+  select: (request) => ({
+    status: "selected", program: "./broken-harness", args: [request.prompt],
+    provider: "origin-b", model: "model-b", effort: "low", reason: "the broken harness",
+  }),
 };
 "#,
     );
@@ -467,7 +469,7 @@ fn a_run_that_carries_a_launch_failure_returns_its_detail() {
     assert_eq!(failure["code"], "exec_failed");
     assert_eq!(failure["errno"], libc::ENOENT);
     assert!(failure["recordedAt"].as_str().unwrap().ends_with('Z'));
-    assert_eq!(answer["candidate"]["provider"], "origin-b");
+    assert_eq!(answer["provider"], "origin-b");
     assert_eq!(report["creator"]["lookup"], answer);
 }
 
@@ -793,18 +795,15 @@ fn each_lookup_is_a_measured_source_within_the_source_bound() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&format!(
         r#"export const policy = {{
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "lookups-1",
-  catalog: [
-    {DEEP},
-  ],
-  routes: {{ review: "deep" }},
   loadContext(request, host) {{
     for (let i = 0; i < request.context.facts.lookups; i++) {{
       try {{ host.run({UNKNOWN:?}); }} catch {{}}
     }}
     return request.context;
   }},
+  select: (request) => ({DEEP}),
 }};
 "#
     ));
@@ -841,11 +840,8 @@ fn run_lookup_is_the_loaders_alone_and_takes_only_a_run_id() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&format!(
         r#"export const policy = {{
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "lookup-closed-1",
-  catalog: [
-    {DEEP},
-  ],
   loadContext(request, host) {{
     const errors = [];
     for (const bad of [42, "", {upper:?}, "producer-k1", {UNKNOWN:?} + " "]) {{
@@ -858,7 +854,7 @@ fn run_lookup_is_the_loaders_alone_and_takes_only_a_run_id() {
     const errors = [...context.facts.errors];
     try {{ host.run({UNKNOWN:?}); }} catch (error) {{ errors.push(error.message); }}
     try {{ globalThis.laterLookup(); }} catch (error) {{ errors.push(error.message); }}
-    return {{ status: "selected", candidateId: "deep", reason: JSON.stringify(errors) }};
+    return {{ ...{DEEP}, reason: JSON.stringify(errors) }};
   }},
 }};
 "#,
@@ -891,13 +887,10 @@ fn run_lookup_is_the_loaders_alone_and_takes_only_a_run_id() {
     // Uncaught, a malformed ID fails the loader, naming the TypeError.
     sandbox.personal_policy(&format!(
         r#"export const policy = {{
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "lookup-malformed-1",
-  catalog: [
-    {DEEP},
-  ],
-  routes: {{ review: "deep" }},
   loadContext(request, host) {{ host.run("producer-k1"); return {{ schemaVersion: 1 }}; }},
+  select: (request) => ({DEEP}),
 }};
 "#
     ));
@@ -992,9 +985,10 @@ fn the_typed_lookup_fixture_selects_through_the_worker() {
     review_context(&sandbox, &json!({ "run": creator }));
     let report = inspect_review(&sandbox).report();
     assert_eq!(report["policy"]["version"], "typecheck-lookup-1");
-    assert_eq!(report["selection"]["candidateId"], "quick");
+    // The creator recorded `origin-a`, so the fixture selects the other.
+    assert_eq!(report["selection"]["provider"], "origin-b");
     let reason = report["selection"]["reason"].as_str().unwrap();
-    for part in [creator.as_str(), "producer-k1", "origin-a"] {
+    for part in [creator.as_str(), "producer-k1", "origin-a", "model-large"] {
         assert!(reason.contains(part), "{part:?} is not in {reason:?}");
     }
     let stderr = report["diagnostics"]["stderr"].as_str().unwrap();
@@ -1009,5 +1003,50 @@ fn the_typed_lookup_fixture_selects_through_the_worker() {
     assert_eq!(
         refusal["error"]["policyCode"], "creator_missing",
         "{refusal}"
+    );
+}
+
+/// A run in `fixtures/catalog-contract/records.sqlite3`, the store release
+/// 21.13.0 wrote, as that fixture's README lists it.
+const CATALOG_CONTRACT_RUN: &str = "45308255-7446-42b2-bbd7-e5f7861e46ef";
+
+#[test]
+fn a_run_recorded_under_the_catalog_contract_is_looked_up_by_its_labels() {
+    // The run's launch document carries a candidate ID, a selection form and
+    // slot objects among its arguments. The lookup answers the labels it
+    // recorded, in the same flat form as any other run's, and nothing more.
+    let sandbox = Sandbox::new();
+    let store = sandbox.default_store();
+    fs::create_dir_all(store.parent().unwrap()).unwrap();
+    fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/catalog-contract/records.sqlite3"),
+        &store,
+    )
+    .unwrap();
+    let before = fs::read(&store).unwrap();
+    review_context(&sandbox, &json!({ "run": CATALOG_CONTRACT_RUN }));
+    sandbox.personal_policy(&looks_up());
+
+    let report = inspect_review(&sandbox).report();
+    let answer = json!({
+        "runId": CATALOG_CONTRACT_RUN,
+        "status": "found",
+        "recordedAt": "2026-10-02T04:11:46.561Z",
+        "kind": "build",
+        "taskId": "parser-k12",
+        "provider": "your-provider",
+        "model": "model-a",
+        "effort": "high",
+        "launchFailure": null,
+    });
+    assert_eq!(seen(&report), json!([answer]));
+    assert_eq!(report["context"]["sources"][1], run_source(&answer));
+    assert_eq!(report["creator"]["provider"], "your-provider");
+    assert_eq!(report["creator"]["lookup"], answer);
+    assert_eq!(
+        fs::read(&store).unwrap(),
+        before,
+        "the lookup changed the store"
     );
 }

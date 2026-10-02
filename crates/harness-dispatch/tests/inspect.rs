@@ -1,36 +1,35 @@
-//! `inspect` of a static routes policy through the command seam: selection,
-//! argv expansion, both report forms, policy validation and load failures, and
-//! the explicit refusal of forms later increments own.
+//! `inspect` through the command seam: the selected command and its labels,
+//! both report forms, the prompt marker, policy validation and load failures.
 
 mod support;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 use support::{text, Sandbox, ROUTED};
 
+/// What `select` receives as the prompt when `inspect` was given none.
+const MARKER: &str = "<harness-dispatch inspect: no prompt was supplied>";
+
 #[test]
-fn inspection_reports_the_routed_candidate_and_its_evidence_in_json() {
+fn inspection_reports_the_selected_command_and_its_evidence_in_json() {
     let sandbox = Sandbox::new();
     let entry = sandbox.personal_policy(ROUTED);
 
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
 
-    assert_eq!(report["schemaVersion"], 1);
+    assert_eq!(report["schemaVersion"], 2);
     assert_eq!(report["evidence"], "proposal");
     assert_eq!(report["kind"], "impl");
     assert_eq!(report["policy"]["path"], text(&entry));
     assert_eq!(report["policy"]["authority"], "personal");
     assert_eq!(report["policy"]["version"], "seam-1");
-    let selection = &report["selection"];
-    assert_eq!(selection["form"], "routes");
-    assert_eq!(selection["selectedBy"], "route");
-    assert_eq!(selection["explicitChoice"], Value::Null);
-    assert_eq!(selection["candidateId"], "deep");
-    assert_eq!(selection["provider"], "origin-a");
-    assert_eq!(selection["model"], "model-large");
-    assert_eq!(selection["effort"], "high");
     assert_eq!(
-        selection["reason"],
-        r#"routes["impl"] names candidate "deep""#
+        report["selection"],
+        json!({
+            "provider": "origin-a",
+            "model": "model-large",
+            "effort": "high",
+            "reason": "impl runs the deep harness",
+        })
     );
     assert!(report["timing"]["selectionMs"].is_u64(), "{report}");
     assert_eq!(
@@ -40,28 +39,66 @@ fn inspection_reports_the_routed_candidate_and_its_evidence_in_json() {
     assert_eq!(report["worker"]["bunVersion"], "1.4.2");
     assert_eq!(report["taskFile"], Value::Null);
     assert_eq!(report["taskId"], Value::Null);
-    assert_eq!(report["prompt"], serde_json::json!({ "supplied": false }));
-    let executable = &report["executable"];
-    assert_eq!(executable["program"], "fake-harness");
-    assert_eq!(executable["resolvedBy"], "PATH");
-    assert_eq!(executable["pathEntry"], text(&sandbox.bin));
-    assert_eq!(executable["path"], text(&sandbox.bin.join("fake-harness")));
-    // Without a prompt the prompt's argument is a marked placeholder, never a
-    // string that could pass for one.
+    assert_eq!(report["params"], json!({}));
+    // Without a prompt `select` receives the marker, so the marker is where
+    // the policy placed the prompt, and the report says none was supplied.
     assert_eq!(
-        report["argv"],
-        serde_json::json!(["fake-harness", { "placeholder": "prompt" }])
+        report["prompt"],
+        json!({ "supplied": false, "marker": MARKER })
+    );
+    // The command is the program and arguments `select` returned and the file
+    // the program resolved to: what a caller that launches it itself executes.
+    assert_eq!(
+        report["command"],
+        json!({
+            "program": "fake-harness",
+            "args": [MARKER],
+            "executable": text(&sandbox.bin.join("fake-harness")),
+        })
+    );
+    // Inspection creates no run, so it reports no run ID.
+    let fields: Vec<&str> = report
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        fields,
+        [
+            "adapter",
+            "bounds",
+            "command",
+            "context",
+            "creator",
+            "diagnostics",
+            "evidence",
+            "kind",
+            "params",
+            "policy",
+            "policyEnv",
+            "prompt",
+            "reviewedArtifact",
+            "schemaVersion",
+            "selection",
+            "stateDir",
+            "taskFile",
+            "taskId",
+            "timing",
+            "worker",
+        ]
     );
 }
 
 #[test]
-fn inspection_shows_the_unchanged_prompt_and_every_expanded_slot() {
+fn inspection_shows_the_prompt_and_every_caller_value_where_select_placed_it() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(
-        r#"export const policy = { schemaVersion: 1, version: "v", catalog: [
-  { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness",
-    args: ["--kind", { slot: "kind" }, { slot: "taskFile" }, { slot: "taskId" }, { slot: "model" }, { slot: "effort" }, "{prompt}", { slot: "prompt" }] },
-], routes: { impl: "deep" } };
+        r#"export const policy = { schemaVersion: 2, version: "v", select: (request) => ({
+  status: "selected", program: "fake-harness",
+  args: ["--kind", request.kind, request.taskFile, request.taskId, `--session=${request.params.session_name}`, "-C", request.params.repo, "{prompt}", request.prompt],
+  provider: "origin-a", model: "model-large", effort: "high", reason: "every caller value has an argument",
+}) };
 "#,
     );
     let prompt = "Say \"hi\";\nthen stop.\n\n";
@@ -76,6 +113,10 @@ fn inspection_shows_the_unchanged_prompt_and_every_expanded_slot() {
             "leaf.md",
             "--task-id",
             "T 1",
+            "--param",
+            "repo=/work/my repo",
+            "--param",
+            "session_name=parser: a=b",
             "--json",
         ])
         .report();
@@ -84,23 +125,124 @@ fn inspection_shows_the_unchanged_prompt_and_every_expanded_slot() {
     assert_eq!(report["taskFile"], task_file.as_str());
     assert_eq!(report["taskId"], "T 1");
     assert_eq!(
-        report["prompt"],
-        serde_json::json!({ "supplied": true, "from": "--prompt", "bytes": prompt.len() })
+        report["params"],
+        json!({ "repo": "/work/my repo", "session_name": "parser: a=b" })
     );
     assert_eq!(
-        report["argv"],
-        serde_json::json!([
-            "fake-harness",
+        report["prompt"],
+        json!({ "supplied": true, "from": "--prompt", "bytes": prompt.len() })
+    );
+    assert_eq!(report["command"]["program"], "fake-harness");
+    assert_eq!(
+        report["command"]["args"],
+        json!([
             "--kind",
             "impl",
             task_file,
             "T 1",
-            "model-large",
-            "high",
+            "--session=parser: a=b",
+            "-C",
+            "/work/my repo",
             "{prompt}",
             prompt,
         ])
     );
+}
+
+#[test]
+fn a_complete_inspection_names_its_authority_its_measured_sources_and_where_each_bound_came_from() {
+    let sandbox = Sandbox::new();
+    let entry = sandbox.file("policies/mine.ts", ROUTED);
+    let document = r#"{ "schemaVersion": 1, "summary": "a small change" }"#;
+    let context = sandbox.file("context.json", document);
+    let records = sandbox.root.join("records");
+
+    let report = sandbox
+        .inspect(&[
+            "--kind",
+            "impl",
+            "--config",
+            "policies/mine.ts",
+            "--context",
+            "context.json",
+            "--timeout-ms",
+            "20000",
+            "--context-bytes",
+            "4096",
+            "--state-dir",
+            &text(&records),
+            "--json",
+        ])
+        .report();
+
+    let policy = &report["policy"];
+    assert_eq!(policy["path"], text(&entry));
+    assert_eq!(policy["authority"], "explicit");
+    assert_eq!(policy["argument"], "policies/mine.ts");
+    assert_eq!(policy["version"], "seam-1");
+    let digest = |value: &Value| {
+        value.as_str().is_some_and(|digest| {
+            digest.len() == 64
+                && digest
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+    };
+    assert!(digest(&policy["sha256"]), "{report}");
+
+    // The caller's document is the one measured source, with the bytes read
+    // and their digest, and the delivered value is shown whole.
+    let delivered = &report["context"];
+    assert_eq!(delivered["loader"], false);
+    let sources = delivered["sources"].as_array().unwrap();
+    assert_eq!(sources.len(), 1, "{report}");
+    assert_eq!(sources[0]["name"], text(&context));
+    assert_eq!(sources[0]["via"], "--context");
+    assert_eq!(sources[0]["bytes"], document.len());
+    assert!(digest(&sources[0]["sha256"]), "{report}");
+    assert_eq!(delivered["sourceBytes"], document.len());
+    assert!(delivered["encodedBytes"].is_u64(), "{report}");
+    assert!(digest(&delivered["sha256"]), "{report}");
+    assert_eq!(delivered["value"]["summary"], "a small change");
+    assert_eq!(delivered["value"]["measured"], delivered["sources"]);
+
+    assert_eq!(
+        report["bounds"],
+        json!({
+            "selection": { "ms": 20_000, "from": "--timeout-ms" },
+            "context": { "bytes": 4096, "from": "--context-bytes" },
+            "source": { "bytes": 4096, "from": "--context-bytes" },
+            "sources": { "sources": 256, "from": "fixed" },
+            "message": { "bytes": 1_048_576, "from": "fixed" },
+            "diagnostics": { "bytes": 262_144, "from": "fixed" },
+        })
+    );
+    assert_eq!(
+        report["stateDir"],
+        json!({ "path": text(&records), "from": "--state-dir" })
+    );
+    assert_eq!(report["policyEnv"], json!([]));
+    assert_eq!(report["adapter"], Value::Null);
+    assert_eq!(report["creator"], Value::Null);
+    assert_eq!(report["reviewedArtifact"], Value::Null);
+    assert!(!records.exists(), "inspection created the record directory");
+
+    // With nothing set, every adjustable bound is its default, and says so.
+    sandbox.personal_policy(ROUTED);
+    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    for (bound, unit, value) in [
+        ("selection", "ms", 30_000),
+        ("context", "bytes", 262_144),
+        ("source", "bytes", 65_536),
+    ] {
+        assert_eq!(
+            report["bounds"][bound],
+            json!({ unit: value, "from": "default" }),
+            "{bound}"
+        );
+    }
+    assert_eq!(report["stateDir"]["from"], "default");
+    assert_eq!(report["context"], Value::Null);
 }
 
 #[test]
@@ -117,11 +259,11 @@ fn inspection_reports_the_same_facts_as_human_text() {
         "authority  personal (the default ~/.config/harness-dispatch/policy.ts)".to_owned(),
         "version    seam-1".to_owned(),
         "kind       impl".to_owned(),
-        "candidate  deep".to_owned(),
+        "params     none".to_owned(),
         "provider   origin-a".to_owned(),
         "model      model-large".to_owned(),
         "effort     high".to_owned(),
-        r#"reason     routes["impl"] names candidate "deep""#.to_owned(),
+        "reason     impl runs the deep harness".to_owned(),
         "timing     selection took ".to_owned(),
     ] {
         assert!(
@@ -140,21 +282,34 @@ fn inspection_reports_the_same_facts_as_human_text() {
         run.stdout
     );
     assert!(
-        run.stdout.contains("prompt     not supplied"),
+        run.stdout.contains(&format!(
+            "prompt     not supplied; select received the marker {MARKER}\n"
+        )),
         "{}",
         run.stdout
     );
     assert!(
         run.stdout.contains("  argv       [0] \"fake-harness\"\n")
-            && run.stdout.contains(
-                "             [1] <prompt placeholder: no --prompt or --prompt-file given>\n"
-            ),
+            && run
+                .stdout
+                .contains(&format!("             [1] \"{MARKER}\"\n")),
         "{}",
         run.stdout
     );
+    assert!(!run.stdout.contains("run id"), "{}", run.stdout);
 
-    // A supplied prompt appears quoted and escaped, whole.
-    let run = sandbox.inspect(&["--kind", "impl", "--prompt", "two\nlines \"quoted\""]);
+    // A supplied prompt appears quoted and escaped, whole, and each parameter
+    // as `name=value`, quoted where a space would run two together.
+    let run = sandbox.inspect(&[
+        "--kind",
+        "impl",
+        "--prompt",
+        "two\nlines \"quoted\"",
+        "--param",
+        "repo=/r",
+        "--param",
+        "session_name=a b",
+    ]);
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     assert!(
         run.stdout.contains(r#"[1] "two\nlines \"quoted\"""#),
@@ -163,6 +318,12 @@ fn inspection_reports_the_same_facts_as_human_text() {
     );
     assert!(
         run.stdout.contains("prompt     18 bytes from --prompt"),
+        "{}",
+        run.stdout
+    );
+    assert!(
+        run.stdout
+            .contains("params     repo=/r \"session_name=a b\"\n"),
         "{}",
         run.stdout
     );
@@ -176,255 +337,182 @@ fn the_type_checked_fixture_selects_through_the_embedded_sdk() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(include_str!("../worker/typecheck/routes-policy.ts"));
 
-    let report = sandbox.inspect(&["--kind", "design", "--json"]).report();
-
-    assert_eq!(report["selection"]["candidateId"], "deep");
+    let report = sandbox
+        .inspect(&["--kind", "design", "--prompt", "the prompt", "--json"])
+        .report();
     assert_eq!(report["policy"]["version"], "typecheck-fixture-1");
+    assert_eq!(
+        report["selection"],
+        json!({
+            "provider": "origin-a",
+            "model": "model-large",
+            "effort": "high",
+            "reason": r#"table["design"]"#,
+        })
+    );
+    assert_eq!(
+        report["command"]["args"],
+        json!(["--model", "model-large", "--effort", "high", "the prompt"])
+    );
+
+    let report = sandbox
+        .inspect(&["--kind", "impl", "--prompt", "the prompt", "--json"])
+        .report();
+    assert_eq!(report["selection"]["provider"], "origin-b");
+    assert_eq!(report["selection"]["reason"], r#"table["impl"]"#);
+    assert_eq!(report["command"]["args"], json!(["the prompt"]));
+
+    // A kind its table lacks is the policy's own refusal.
+    let refusal = sandbox.inspect(&["--kind", "review", "--json"]).refusal(3);
+    assert_eq!(refusal["error"]["code"], "policy_refused");
+    assert_eq!(refusal["error"]["policyCode"], "incomplete_mapping");
 }
 
 #[test]
-fn an_unrouted_kind_refuses_as_an_incomplete_mapping_without_a_default() {
+fn a_kind_the_policy_refuses_is_reported_as_the_policys_own_refusal_and_nothing_is_run_instead() {
     let sandbox = Sandbox::new();
     let entry = sandbox.personal_policy(ROUTED);
 
     let refusal = sandbox.inspect(&["--kind", "design", "--json"]).refusal(3);
 
     let error = &refusal["error"];
-    assert_eq!(error["code"], "incomplete_mapping");
+    assert_eq!(error["code"], "policy_refused");
+    assert_eq!(error["policyCode"], "incomplete_mapping");
     assert_eq!(error["stage"], "selection");
     assert_eq!(error["input"], "--kind design");
     assert_eq!(error["source"], text(&entry));
-    assert!(error["remedy"]
-        .as_str()
-        .unwrap()
-        .contains("never substitutes a default"));
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .ends_with(r#"refused the selection: no command for kind "design""#),
+        "{refusal}"
+    );
+    assert_eq!(error["remedy"], "add one to the policy");
 
     let run = sandbox.inspect(&["--kind", "design"]);
     assert_eq!(run.code, Some(3));
     assert_eq!(run.stdout, "");
     assert!(
         run.stderr
-            .contains("refused (incomplete_mapping, stage selection)"),
+            .contains("refused (policy_refused, stage selection)"),
         "{}",
         run.stderr
     );
-    assert!(run.stderr.contains("  remedy: "), "{}", run.stderr);
+    assert!(
+        run.stderr.contains("  policy code: incomplete_mapping\n"),
+        "{}",
+        run.stderr
+    );
+    assert!(
+        run.stderr.contains("  remedy: add one to the policy\n"),
+        "{}",
+        run.stderr
+    );
 }
 
-const CANDIDATE: &str = r#"{ id: "deep", provider: "origin-a", model: "m", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] }"#;
+/// A selected result every valid twin below returns.
+const SELECTED: &str = r#"{ status: "selected", program: "fake-harness", args: [request.prompt], provider: "origin-a", model: "m", effort: "high", reason: "the one command" }"#;
 
 fn policy(fields: &str) -> String {
     format!(
         "export const policy = {{ {} }};\n",
-        fields.replace("$C", CANDIDATE)
+        fields.replace("$S", &format!("select: (request) => ({SELECTED})"))
     )
 }
 
 #[test]
 fn every_invalid_policy_shape_refuses_with_its_location() {
-    let with = |candidate: &str| {
-        format!(
-            r#"export const policy = {{ schemaVersion: 1, version: "v", catalog: [{candidate}], routes: {{ impl: "deep" }} }};"#
-        )
-    };
     let cases: Vec<(&str, String, &str, &str)> = vec![
         (
-            "unknown schema version",
-            policy(r#"schemaVersion: 2, version: "v", catalog: [$C], routes: {}"#),
+            "a schema version this release does not read",
+            policy(r#"schemaVersion: 3, version: "v", $S"#),
             "unsupported_version",
             "policy.schemaVersion",
         ),
         (
             "missing schema version",
-            policy(r#"version: "v", catalog: [$C], routes: { impl: "deep" }"#),
+            policy(r#"version: "v", $S"#),
+            "policy_invalid",
+            "policy.schemaVersion",
+        ),
+        (
+            "schema version as a string",
+            policy(r#"schemaVersion: "2", version: "v", $S"#),
             "policy_invalid",
             "policy.schemaVersion",
         ),
         (
             "missing version",
-            policy(r#"schemaVersion: 1, catalog: [$C], routes: { impl: "deep" }"#),
+            policy(r#"schemaVersion: 2, $S"#),
             "policy_invalid",
             "policy.version",
         ),
         (
             "blank version",
-            policy(r#"schemaVersion: 1, version: "  ", catalog: [$C], routes: { impl: "deep" }"#),
+            policy(r#"schemaVersion: 2, version: "  ", $S"#),
+            "policy_invalid",
+            "policy.version",
+        ),
+        (
+            "numeric version",
+            policy(r#"schemaVersion: 2, version: 7, $S"#),
             "policy_invalid",
             "policy.version",
         ),
         (
             "unknown field",
-            policy(
-                r#"schemaVersion: 1, version: "v", catalog: [$C], routes: { impl: "deep" }, fallback: "deep""#,
-            ),
+            policy(r#"schemaVersion: 2, version: "v", $S, fallback: "deep""#),
             "policy_invalid",
             "policy.fallback",
         ),
         (
-            "catalog not an array",
-            policy(
-                r#"schemaVersion: 1, version: "v", catalog: { deep: $C }, routes: { impl: "deep" }"#,
-            ),
+            "a catalog beside select",
+            policy(r#"schemaVersion: 2, version: "v", catalog: [], $S"#),
             "policy_invalid",
             "policy.catalog",
         ),
         (
-            "duplicate candidate ID",
-            policy(
-                r#"schemaVersion: 1, version: "v", catalog: [$C, $C], routes: { impl: "deep" }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[1].id",
-        ),
-        (
-            "empty provider",
-            with(
-                r#"{ id: "deep", provider: "", model: "m", effort: "e", program: "p", args: [] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].provider",
-        ),
-        (
-            "model is a function",
-            with(
-                r#"{ id: "deep", provider: "o", model: () => "m", effort: "e", program: "p", args: [] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].model",
-        ),
-        (
-            "missing effort",
-            with(r#"{ id: "deep", provider: "o", model: "m", program: "p", args: [] }"#),
-            "policy_invalid",
-            "policy.catalog[0].effort",
-        ),
-        (
-            "unknown candidate field",
-            with(
-                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: [], weight: 1 }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].weight",
-        ),
-        (
-            "unknown slot",
-            with(
-                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: [{ slot: "cwd" }] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].args[0].slot",
-        ),
-        (
-            "no prompt slot",
-            with(
-                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: ["x"] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].args",
-        ),
-        (
-            "two prompt slots",
-            with(
-                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: [{ slot: "prompt" }, { slot: "prompt" }] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].args",
-        ),
-        (
-            "a misspelt runId slot",
-            with(
-                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: [{ slot: "prompt" }, { slot: "runID" }] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].args[1].slot",
-        ),
-        (
-            "numeric argument",
-            with(
-                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: [7] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].args[0]",
-        ),
-        (
-            "a NUL in a literal argument",
-            with(
-                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "p", args: ["before\0after", { slot: "prompt" }] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].args[0]",
-        ),
-        (
-            "a NUL in a model a slot would pass",
-            with(
-                r#"{ id: "deep", provider: "o", model: "m\0", effort: "e", program: "p", args: [{ slot: "prompt" }] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].model",
-        ),
-        (
-            "a NUL in an effort a slot would pass",
-            with(
-                r#"{ id: "deep", provider: "o", model: "m", effort: "\0e", program: "p", args: [{ slot: "prompt" }] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].effort",
-        ),
-        (
-            "a NUL in the program",
-            with(
-                r#"{ id: "deep", provider: "o", model: "m", effort: "e", program: "fake\0harness", args: [{ slot: "prompt" }] }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[0].program",
-        ),
-        (
-            "a NUL in a candidate no route selects",
-            policy(
-                r#"schemaVersion: 1, version: "v", catalog: [$C, { id: "idle", provider: "o", model: "m", effort: "e", program: "p", args: ["a\0b", { slot: "prompt" }] }], routes: { impl: "deep" }"#,
-            ),
-            "policy_invalid",
-            "policy.catalog[1].args[0]",
-        ),
-        (
-            "route to an unknown candidate",
-            policy(r#"schemaVersion: 1, version: "v", catalog: [$C], routes: { impl: "missing" }"#),
-            "policy_invalid",
-            r#"policy.routes["impl"]"#,
-        ),
-        (
-            "routes as a Map",
-            policy(
-                r#"schemaVersion: 1, version: "v", catalog: [$C], routes: new Map([["impl", "deep"]])"#,
-            ),
+            "a routes table beside select",
+            policy(r#"schemaVersion: 2, version: "v", routes: { impl: "deep" }, $S"#),
             "policy_invalid",
             "policy.routes",
         ),
         (
-            "both forms",
+            "no select",
+            policy(r#"schemaVersion: 2, version: "v""#),
+            "policy_invalid",
+            "policy.select",
+        ),
+        (
+            "a routes table in place of select",
+            policy(r#"schemaVersion: 2, version: "v", routes: { impl: "deep" }"#),
+            "policy_invalid",
+            "policy.routes",
+        ),
+        (
+            "select that is a string",
+            policy(r#"schemaVersion: 2, version: "v", select: "deep""#),
+            "policy_invalid",
+            "policy.select",
+        ),
+        (
+            "select that is a selected result",
             policy(
-                r#"schemaVersion: 1, version: "v", catalog: [$C], routes: { impl: "deep" }, select: () => ({})"#,
+                r#"schemaVersion: 2, version: "v", select: { status: "selected", program: "fake-harness", args: [] }"#,
             ),
             "policy_invalid",
-            "policy",
+            "policy.select",
         ),
         (
-            "neither form",
-            policy(r#"schemaVersion: 1, version: "v", catalog: [$C]"#),
-            "policy_invalid",
-            "policy",
-        ),
-        (
-            "select that is not a function",
-            policy(r#"schemaVersion: 1, version: "v", catalog: [$C], select: "deep""#),
+            "select that is null",
+            policy(r#"schemaVersion: 2, version: "v", select: null"#),
             "policy_invalid",
             "policy.select",
         ),
         (
             "loadContext that is not a function",
-            policy(
-                r#"schemaVersion: 1, version: "v", catalog: [$C], routes: { impl: "deep" }, loadContext: {}"#,
-            ),
+            policy(r#"schemaVersion: 2, version: "v", $S, loadContext: {}"#),
             "policy_invalid",
             "policy.loadContext",
         ),
@@ -441,8 +529,14 @@ fn every_invalid_policy_shape_refuses_with_its_location() {
             "policy",
         ),
         (
+            "policy is an array",
+            "export const policy = [];\n".to_owned(),
+            "policy_invalid",
+            "policy",
+        ),
+        (
             "class instance",
-            "class P { schemaVersion = 1; select() {} }\nexport const policy = new P();\n"
+            "class P { schemaVersion = 2; version = \"v\"; select() {} }\nexport const policy = new P();\n"
                 .to_owned(),
             "policy_invalid",
             "policy",
@@ -454,6 +548,7 @@ fn every_invalid_policy_shape_refuses_with_its_location() {
         let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
         let error = &refusal["error"];
         assert_eq!(error["code"], code, "{name}: {refusal}");
+        assert_eq!(error["stage"], "validation", "{name}: {refusal}");
         assert_eq!(error["location"], location, "{name}: {refusal}");
         assert_eq!(error["source"], text(&entry), "{name}: {refusal}");
     }
@@ -461,23 +556,73 @@ fn every_invalid_policy_shape_refuses_with_its_location() {
 
 #[test]
 fn the_valid_twin_of_the_invalid_shapes_selects() {
-    // The positive control for the table above: the same template and
-    // candidate, correct, reaches a selection.
+    // The positive control for the table above: the same template, correct,
+    // reaches a selection.
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(
-        r#"schemaVersion: 1, version: "v", catalog: [$C], routes: { impl: "deep" }"#,
-    ));
+    sandbox.personal_policy(&policy(r#"schemaVersion: 2, version: "v", $S"#));
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(report["selection"]["reason"], "the one command");
+    assert_eq!(report["policy"]["version"], "v");
+}
+
+#[test]
+fn a_version_1_policy_refuses_with_the_rewrite_remedy_and_launches_nothing() {
+    // The policy harness-dispatch 21.13.0 evaluated to record the
+    // catalog-contract fixture, as that release read it.
+    let sandbox = Sandbox::new();
+    let entry = sandbox.personal_policy(include_str!("fixtures/catalog-contract/policy.ts"));
+
+    for command in ["inspect", "run"] {
+        let mut invocation = sandbox.command();
+        invocation.args([command, "--kind", "build", "--prompt", "p", "--json"]);
+        let refusal = support::run(&mut invocation).refusal(3);
+        let error = &refusal["error"];
+        assert_eq!(error["code"], "unsupported_version", "{command}: {refusal}");
+        assert_eq!(error["stage"], "validation", "{command}: {refusal}");
+        assert_eq!(error["location"], "policy.schemaVersion");
+        assert_eq!(error["source"], text(&entry));
+        assert!(
+            error["message"]
+                .as_str()
+                .unwrap()
+                .contains("schemaVersion 1 is the catalog contract"),
+            "{refusal}"
+        );
+        let remedy = error["remedy"].as_str().unwrap();
+        for part in [
+            format!("rewrite {} to schemaVersion 2", text(&entry)),
+            "drop `catalog` and `routes`".to_owned(),
+            r#"{ status: "selected", program, args, provider, model, effort, reason }"#.to_owned(),
+            "nothing converts a version-1 policy".to_owned(),
+        ] {
+            assert!(remedy.contains(&part), "missing {part:?} in {remedy}");
+        }
+    }
+    assert!(
+        !sandbox.harness_ran(),
+        "a version-1 policy launched a harness"
+    );
+    assert!(
+        !sandbox.home.join(".local").exists(),
+        "a version-1 policy created the record directory"
+    );
+
+    // Declaring version 2 converts nothing: its catalog is an unknown field.
+    sandbox.personal_policy(
+        &include_str!("fixtures/catalog-contract/policy.ts")
+            .replace("schemaVersion: 1", "schemaVersion: 2"),
+    );
+    let refusal = sandbox.inspect(&["--kind", "build", "--json"]).refusal(3);
+    assert_eq!(refusal["error"]["code"], "policy_invalid", "{refusal}");
+    assert_eq!(refusal["error"]["location"], "policy.catalog");
 }
 
 #[test]
 fn a_function_where_a_string_belongs_is_named_as_a_function() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(
-        r#"export const policy = { schemaVersion: 1, version: "v", catalog: [{ id: "deep", provider: "o", model: () => "m", effort: "e", program: "p", args: [] }], routes: { impl: "deep" } };"#,
-    );
+    sandbox.personal_policy(&policy(r#"schemaVersion: 2, version: () => "v", $S"#));
     let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
+    assert_eq!(refusal["error"]["location"], "policy.version");
     let message = refusal["error"]["message"].as_str().unwrap();
     assert!(message.contains("found a function"), "{message}");
 }
@@ -486,7 +631,7 @@ fn a_function_where_a_string_belongs_is_named_as_a_function() {
 fn a_missing_relative_import_refuses_and_names_the_entry() {
     let sandbox = Sandbox::new();
     let entry = sandbox.personal_policy(
-        "import { routes } from \"./missing-routes.ts\";\nexport const policy = routes;\n",
+        "import { policy as shared } from \"./missing-shared.ts\";\nexport const policy = shared;\n",
     );
 
     let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
@@ -499,7 +644,7 @@ fn a_missing_relative_import_refuses_and_names_the_entry() {
         error["message"]
             .as_str()
             .unwrap()
-            .contains("missing-routes"),
+            .contains("missing-shared"),
         "{refusal}"
     );
 }
@@ -564,7 +709,7 @@ fn policy_output_is_captured_and_never_interleaved_with_the_report() {
 
     let json = sandbox.inspect(&["--kind", "impl", "--json"]);
     let report = json.report();
-    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(report["selection"]["reason"], "impl runs the deep harness");
     assert!(report["diagnostics"]["stdout"]
         .as_str()
         .unwrap()
@@ -605,7 +750,7 @@ fn a_refusal_carries_the_policy_output_separately() {
 
     let refusal = sandbox.inspect(&["--kind", "design", "--json"]).refusal(3);
 
-    assert_eq!(refusal["error"]["code"], "incomplete_mapping");
+    assert_eq!(refusal["error"]["code"], "policy_refused");
     assert!(refusal["diagnostics"]["stdout"]
         .as_str()
         .unwrap()
@@ -631,6 +776,13 @@ fn malformed_command_lines_exit_2_and_honour_json() {
     let run = sandbox.inspect(&["--kind", "impl", "--no-such-flag"]);
     assert_eq!(run.code, Some(2));
     assert!(run.stderr.contains("--no-such-flag"), "{}", run.stderr);
+
+    // No input names a command for the caller: only the policy returns one.
+    let refusal = sandbox
+        .inspect(&["--kind", "impl", "--choice", "deep", "--json"])
+        .refusal(2);
+    assert_eq!(refusal["error"]["code"], "malformed_input");
+    assert_eq!(refusal["error"]["input"], "--choice");
 }
 
 #[test]
@@ -645,9 +797,9 @@ fn help_lists_every_selection_input() {
         "--prompt-file",
         "--task-file",
         "--task-id",
+        "--param <NAME=VALUE>",
         "--timeout-ms",
         "--state-dir",
-        "--choice",
         "--context",
         "--context-bytes",
         "--policy-env",
@@ -658,6 +810,16 @@ fn help_lists_every_selection_input() {
             run.stdout
         );
     }
+    assert!(
+        !run.stdout.contains("--choice"),
+        "help offers an input that names a command:\n{}",
+        run.stdout
+    );
+    assert!(
+        run.stdout.contains("PROMPT_NOT_SUPPLIED"),
+        "help does not name the prompt marker:\n{}",
+        run.stdout
+    );
     assert!(
         run.stdout.contains("Do not grant GROVE_SIGNAL_FILE"),
         "help does not warn against granting GROVE_SIGNAL_FILE:\n{}",

@@ -8,56 +8,21 @@
 // policy that satisfies them can still be refused at run time, and every
 // refusal names the location it found.
 //
-// This release reads the static `routes` form and the computed `select` form,
-// either with a `loadContext`, and hosts the measured reads, run lookup,
-// diagnostics and abort signal. Grove's task conventions are not here: the
+// A policy is one `select` function. It receives what the caller passed, the
+// prompt included, and returns the command to run or a refusal. There is no
+// catalog and no table of kinds here: a table from kind to command is something
+// your `select` consults. Grove's task conventions are not here either: the
 // explicit `harness-dispatch/grove` adapter reads them.
 
 /**
- * The caller inputs one argument of a candidate's argument array can name.
- * A slot fills one whole argument; nothing is interpolated into a literal.
- *
- * Every candidate uses `prompt` exactly once. A slot whose optional input the
- * caller did not supply (`taskFile`, `taskId`) refuses the invocation rather
- * than filling the argument with nothing. `runId` is the run's own identity,
- * the one `run` records before it execs and exports as
- * `HARNESS_DISPATCH_RUN_ID`; inspection shows a proposed ID in its place.
+ * What `select` receives as `request.prompt` when `harness-dispatch inspect`
+ * was given no prompt. A policy that only places the prompt in its arguments
+ * needs no check: inspection then shows this marker where the prompt goes. A
+ * policy that reads the prompt can compare it with this, and selects from the
+ * marker otherwise, so inspection reproduces such a selection only when it is
+ * given the same prompt. `run` always has a prompt.
  */
-export type Slot = "prompt" | "kind" | "taskFile" | "taskId" | "model" | "effort" | "runId";
-
-/** An argument filled from a caller input rather than written literally. */
-export interface SlotArgument {
-  readonly slot: Slot;
-}
-
-/** One word of a candidate's command: a literal string or a slot. */
-export type Argument = string | SlotArgument;
-
-/**
- * One configured joint choice of harness, model and reasoning effort.
- *
- * `provider` names the model's origin as the owner declares it. It is a
- * catalog value, never inferred from `program` or `args`, and a gateway change
- * does not make a different provider.
- */
-export interface Candidate {
-  /** Stable, unique catalog ID; routes and explicit choices name it. */
-  readonly id: string;
-  /** Nonempty provider-origin label. */
-  readonly provider: string;
-  /** Nonempty model string, as the owner's harness understands it. */
-  readonly model: string;
-  /** Nonempty reasoning-effort string, as the owner's harness understands it. */
-  readonly effort: string;
-  /**
-   * An absolute path, a name looked up in the caller's PATH, or a relative
-   * path containing a separator, resolved against the caller's cwd. It is also
-   * the harness's argv[0].
-   */
-  readonly program: string;
-  /** The command's arguments after `program`, with `prompt` exactly once. */
-  readonly args: readonly Argument[];
-}
+export const PROMPT_NOT_SUPPLIED = "<harness-dispatch inspect: no prompt was supplied>";
 
 /** Any JSON value. A context carries data, never code. */
 export type Json = null | boolean | number | string | readonly Json[] | { readonly [key: string]: Json };
@@ -133,19 +98,6 @@ export interface MeasuredSource {
 }
 
 /**
- * A catalog candidate as a run recorded it: the configured launched choice,
- * which a later change to the catalog does not alter. Its program and
- * arguments are not part of a lookup.
- */
-export interface RecordedCandidate {
-  readonly id: string;
-  /** The provider-origin label the run was launched under. */
-  readonly provider: string;
-  readonly model: string;
-  readonly effort: string;
-}
-
-/**
  * harness-dispatch's own record that a run's harness never started, as
  * `record show` exports it: when it was appended, its `cause`, and the rest
  * of its detail.
@@ -162,7 +114,9 @@ export interface LaunchFailure {
 }
 
 /**
- * A run the record store holds: its immutable launch fields. `taskId` is
+ * A run the record store holds: its immutable launch fields. The labels are
+ * the ones the run was launched under, which a later change to a policy does
+ * not alter; its program and arguments are not part of a lookup. `taskId` is
  * `null` when the run was given none. A run whose `launchFailure` is `null`
  * was handed off, but whether its harness ran is not known from this.
  */
@@ -173,7 +127,10 @@ export interface FoundRun {
   readonly recordedAt: string;
   readonly kind: string;
   readonly taskId: string | null;
-  readonly candidate: RecordedCandidate;
+  /** The provider-origin label the run was launched under. */
+  readonly provider: string;
+  readonly model: string;
+  readonly effort: string;
   readonly launchFailure: LaunchFailure | null;
 }
 
@@ -271,58 +228,29 @@ export type LoadContext = (
 ) => Context | Refused | PromiseLike<Context | Refused>;
 
 /**
- * The static form: an exact table from session kind to candidate ID.
+ * A policy: the one named export, `policy`, of the selected entry.
  *
- * There is no catch-all route and no fallback. A kind the table does not name
- * refuses as an incomplete mapping. A caller's explicit `--choice` selects the
- * catalog candidate it names without consulting the table, for any kind; an ID
- * the catalog lacks refuses.
+ * `select` may be synchronous or return a promise, and may compute anything,
+ * within the whole-selection bound in `request.limits`. It receives the
+ * request, the measured context and a host without reads. harness-dispatch
+ * validates the shape of what it returns and nothing about its content: it
+ * does not check that the prompt is among the arguments, that the program is
+ * one you listed anywhere, or that a kind has a route. Those are your
+ * function's to hold, with the type checker and whatever tables it keeps. A
+ * result that adds a field, abstains with `undefined` or `null`, throws,
+ * rejects or is left unsettled refuses, and nothing is run in its place.
+ *
+ * A policy that turns outside text into a command, such as an agent's answer
+ * or a file's content, should choose among commands its own code wrote and
+ * never place that text in `program` or `args`.
  *
  * `harness-dispatch/examples/static` and `harness-dispatch/examples/grove-static`
- * are editable starting points in this form.
+ * are editable starting points whose `select` consults an exact table by kind.
  */
-export interface RoutesPolicy {
-  readonly schemaVersion: 1;
-  /** Nonempty, owner-maintained version, reported by inspection. */
+export interface Policy {
+  readonly schemaVersion: 2;
+  /** Nonblank, owner-maintained version, reported by inspection. */
   readonly version: string;
-  readonly catalog: readonly Candidate[];
-  /** Kind to candidate ID. Kinds are open tokens the caller supplies. */
-  readonly routes: Readonly<Record<string, string>>;
-  /**
-   * Optional. A routes table does not read the context, but the context is
-   * still assembled, measured and inspected, and a loader that fails refuses.
-   */
-  readonly loadContext?: LoadContext;
-  /** A policy has exactly one of `routes` or `select`. */
-  readonly select?: never;
-}
-
-/**
- * The computed form: a callback that chooses one catalog candidate, or
- * refuses, for each invocation.
- *
- * It may be synchronous or return a promise, and may compute anything, within
- * the whole-selection bound in `request.limits`. It receives the request, the
- * measured context and a host without reads. It is called only once the
- * front has accepted the policy, catalog included, and it can name only a
- * candidate that catalog already holds. A result that names another, adds a
- * field, abstains with `undefined` or `null`, throws, rejects or is left
- * unsettled refuses; nothing is ever substituted.
- *
- * With a caller's explicit `--choice`, the request carries it as
- * `explicitChoice`, and the policy must accept it, by selecting that same ID,
- * or refuse. Any other ID refuses as `explicit_choice_mismatch`, whatever the
- * reason says. An ID the catalog lacks refuses before `select` is called.
- *
- * A policy that wants exact routes for most kinds and computation for a few
- * exports `select` and consults its own table, naming the entry it applied in
- * its reason. `harness-dispatch/examples/dynamic` does so.
- */
-export interface SelectPolicy {
-  readonly schemaVersion: 1;
-  /** Nonempty, owner-maintained version, reported by inspection. */
-  readonly version: string;
-  readonly catalog: readonly Candidate[];
   /** Optional: assembles the context `select` receives. */
   readonly loadContext?: LoadContext;
   /**
@@ -335,29 +263,46 @@ export interface SelectPolicy {
     context: DeliveredContext | undefined,
     host: SelectHost,
   ): SelectionResult | PromiseLike<SelectionResult>;
-  /** A policy has exactly one of `routes` or `select`. */
-  readonly routes?: never;
 }
 
 /**
- * What `loadContext` and `select` are asked: the caller's data, never the
- * prompt. Optional fields are absent, not empty, when the caller did not
- * supply them. It is frozen.
+ * What `loadContext` and `select` are asked: everything the caller passed.
+ * Optional fields are absent, not empty, when the caller did not supply them.
+ * It carries no run identity: a harness reads its own from
+ * `HARNESS_DISPATCH_RUN_ID`. It is frozen.
  */
 export interface SelectionRequest {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   /** The caller's kind, an open token. */
   readonly kind: string;
+  /**
+   * The caller's prompt, byte for byte, or {@link PROMPT_NOT_SUPPLIED} under
+   * an `inspect` that was given none.
+   *
+   * The prompt is a mandate: under Grove it tells its reader to load a skill
+   * and carry out a task. A policy that hands it to a deciding agent starts
+   * that agent itself, in `cwd`, and nothing in harness-dispatch or Grove keeps
+   * the agent from doing what the prompt says instead of evaluating it.
+   * Keeping the agent from executing the task, and from changing the caller's
+   * tree, is your job as the policy's owner: what the agent is told, which
+   * tools it has and whether it can write are all set by the policy that
+   * starts it.
+   */
+  readonly prompt: string;
   /** The caller's working directory, as data; the worker does not run in it. */
   readonly cwd: string;
+  /**
+   * Every `--param NAME=VALUE` the caller passed, by name; empty when it
+   * passed none. harness-dispatch gives a parameter no meaning: only your
+   * policy reads it, and a name the caller did not pass is absent.
+   */
+  readonly params: { readonly [name: string]: string };
   /** The caller's `--task-file`, absolute; not read on the policy's behalf. */
   readonly taskFile?: string;
   /** The caller's `--task-id`. */
   readonly taskId?: string;
   /** The caller's `--context` document, validated, as data. */
   readonly context?: Context;
-  /** The candidate ID the caller's `--choice` names, known to the catalog. */
-  readonly explicitChoice?: string;
   readonly limits: Limits;
 }
 
@@ -374,18 +319,44 @@ export interface Limits {
   readonly sourceBytes: number;
   /** Measured sources, the `--context` document included. */
   readonly sources: number;
-  /** A catalog snapshot or selection result, as a protocol message, in bytes. */
+  /** A policy snapshot or selection result, as a protocol message, in bytes. */
   readonly messageBytes: number;
   /** Everything the policy prints on stdout and stderr together, in bytes. */
   readonly diagnosticsBytes: number;
 }
 
-/** A candidate chosen, and why. */
-export interface Selected<Id extends string = string> {
+/**
+ * The command to run, and the owner's labels for what it runs.
+ *
+ * harness-dispatch executes `program` with `args`, each string one whole
+ * argument, with no shell, no splitting and no second reading of any text. A
+ * caller value inside an argument is ordinary string building. `provider`,
+ * `model` and `effort` are your labels: they are never inferred from the
+ * program or its arguments, they need not appear in `args`, and they reach
+ * inspection and the run record as you wrote them. Every field is a nonblank
+ * string except `args`, whose strings may be empty, and neither `program`
+ * nor an argument may hold a NUL.
+ */
+export interface Selected {
   readonly status: "selected";
-  /** A catalog candidate's ID. */
-  readonly candidateId: Id;
-  /** Nonblank; inspection and the run record report it verbatim. */
+  /**
+   * An absolute path, a name looked up in the caller's PATH, or a relative
+   * path containing a separator, resolved against the caller's cwd. It is also
+   * the harness's argv[0].
+   */
+  readonly program: string;
+  /** The command's arguments after `program`. */
+  readonly args: readonly string[];
+  /**
+   * The model's origin as you declare it. A gateway change does not make a
+   * different provider.
+   */
+  readonly provider: string;
+  /** The model, as your harness understands it. */
+  readonly model: string;
+  /** The reasoning effort, as your harness understands it. */
+  readonly effort: string;
+  /** Inspection and the run record report it verbatim. */
   readonly reason: string;
 }
 
@@ -405,16 +376,14 @@ export interface Refused {
 }
 
 /** What `select` returns, or resolves to. */
-export type SelectionResult<Id extends string = string> = Selected<Id> | Refused;
-
-/** Every policy form this release evaluates. */
-export type Policy = RoutesPolicy | SelectPolicy;
+export type SelectionResult = Selected | Refused;
 
 /**
  * Returns its argument unchanged. It exists so that
  * `export const policy = definePolicy({ ... })` type-checks the literal against
- * {@link Policy} while keeping its exact inferred type.
+ * {@link Policy}, a field the contract does not have included, and types
+ * `select`'s parameters without an annotation.
  */
-export function definePolicy<const P extends Policy>(policy: P): P {
+export function definePolicy(policy: Policy): Policy {
   return policy;
 }

@@ -31,7 +31,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-CASES=(static_typescript computed_typescript declared_package signal_state)
+CASES=(table_typescript parameters_typescript declared_package signal_state)
 
 fail() {
   echo "installed-smoke: FAIL: $*" >&2
@@ -50,19 +50,17 @@ expect_json() {
   grep -Fq -- "$fragment" "$file" || fail "$file lacks $fragment; it holds: $(cat "$file")"
 }
 
-# The ID KEY names in FILE's JSON, at its last occurrence: inspection repeats
-# its proposed run ID in the argv, as the same value.
+# The ID KEY names in FILE's JSON.
 json_id() {
   local file="$1" key="$2"
   sed -n "s/.*\"$key\":\"\([0-9a-f-]*\)\".*/\1/p" "$file" | head -n 1
 }
 
-# The static case's argv as the reports spell it, around RUN_ID, the run ID's
-# own JSON.
-argv_json() {
-  local harness="$1" task_file="$2" prompt_json="$3" run_id="$4"
-  printf '"argv":["%s","--kind","smoke","--task-file","%s","--task-id","smoke-task","--model","smoke-model","--effort","high","--run-id",%s,"%s"]' \
-    "$harness" "$task_file" "$run_id" "$prompt_json"
+# The table case's arguments as the reports spell them.
+args_json() {
+  local task_file="$1" prompt_json="$2"
+  printf '"--kind","smoke","--task-file","%s","--task-id","smoke-task","--model","smoke-model","--effort","high","%s"' \
+    "$task_file" "$prompt_json"
 }
 
 # The relative path from the canonical directory DIR up to /.
@@ -119,11 +117,12 @@ expect_received() {
   done
 }
 
-# A static routes policy in TypeScript: an interface, annotated bindings and a
-# type-only import, which only a TypeScript loader accepts, across a relative
-# import, with its SDK from the embedded `harness-dispatch/sdk`. Its candidate
-# fills every slot the command has, so each one is checked end to end.
-case_static_typescript() {
+# A policy in TypeScript whose `select` consults a table by kind: an interface,
+# annotated bindings and a type-only import, which only a TypeScript loader
+# accepts, across a relative import, with its SDK from the embedded
+# `harness-dispatch/sdk`. Its command places every caller input the request
+# carries, so each one is checked end to end.
+case_table_typescript() {
   local front="$1" dir="$2"
   local harness="$dir/harness/fake-harness" state="$dir/state"
   local prompt=$'installed smoke; $HOME stays literal\n'
@@ -131,55 +130,64 @@ case_static_typescript() {
   local prompt_json='installed smoke; $HOME stays literal\n'
   mkdir -p "$dir/policy" "$dir/cwd"
   write_fake_harness "$harness"
-  write_lines "$dir/policy/catalog.ts" \
-    'import type { Candidate } from "harness-dispatch/sdk";' \
+  write_lines "$dir/policy/table.ts" \
+    'import type { Selected, SelectionRequest } from "harness-dispatch/sdk";' \
     '' \
-    'export interface SmokeCandidate extends Candidate {' \
-    '  readonly id: "smoke-static";' \
+    'export interface Entry {' \
+    '  readonly model: string;' \
+    '  readonly effort: string;' \
     '}' \
     '' \
-    'export const candidate: SmokeCandidate = {' \
-    '  id: "smoke-static",' \
-    '  provider: "smoke-provider",' \
-    '  model: "smoke-model",' \
-    '  effort: "high",' \
-    "  program: \"$harness\"," \
-    '  args: [' \
-    '    "--kind", { slot: "kind" },' \
-    '    "--task-file", { slot: "taskFile" },' \
-    '    "--task-id", { slot: "taskId" },' \
-    '    "--model", { slot: "model" },' \
-    '    "--effort", { slot: "effort" },' \
-    '    "--run-id", { slot: "runId" },' \
-    '    { slot: "prompt" },' \
-    '  ],' \
-    '};'
+    'export const table: Readonly<Record<string, Entry>> = {' \
+    '  smoke: { model: "smoke-model", effort: "high" },' \
+    '};' \
+    '' \
+    'export function command(entry: Entry, request: SelectionRequest): Omit<Selected, "status" | "reason"> {' \
+    '  return {' \
+    "    program: \"$harness\"," \
+    '    args: [' \
+    '      "--kind", request.kind,' \
+    '      "--task-file", request.taskFile ?? "none",' \
+    '      "--task-id", request.taskId ?? "none",' \
+    '      "--model", entry.model,' \
+    '      "--effort", entry.effort,' \
+    '      request.prompt,' \
+    '    ],' \
+    '    provider: "smoke-provider",' \
+    '    model: entry.model,' \
+    '    effort: entry.effort,' \
+    '  };' \
+    '}'
+  # shellcheck disable=SC2016 # TypeScript template literals, not shell expansions
   write_lines "$dir/policy/policy.ts" \
     'import { definePolicy } from "harness-dispatch/sdk";' \
-    'import { candidate, type SmokeCandidate } from "./catalog.ts";' \
-    '' \
-    'const catalog: SmokeCandidate[] = [candidate];' \
+    'import { command, table, type Entry } from "./table.ts";' \
     '' \
     'export const policy = definePolicy({' \
-    '  schemaVersion: 1,' \
+    '  schemaVersion: 2,' \
     '  version: "installed-smoke",' \
-    '  catalog,' \
-    '  routes: { smoke: candidate.id },' \
+    '  select(request) {' \
+    '    const entry: Entry | undefined = table[request.kind];' \
+    '    if (entry === undefined) {' \
+    '      return { status: "refused", code: "smoke_unrouted", message: `no entry for ${request.kind}`, remedy: "add one" };' \
+    '    }' \
+    '    return { status: "selected", ...command(entry, request), reason: `table[${request.kind}]` };' \
+    '  },' \
     '});'
   local selection=(--kind smoke --config "$dir/policy/policy.ts" --task-file task.md
     --task-id smoke-task --state-dir "$state")
+  local args
+  args="$(args_json "$dir/cwd/task.md" "$prompt_json")"
 
   (cd "$dir/cwd" && "$front" inspect "${selection[@]}" --prompt "$prompt" --json) \
     >"$dir/inspect.json" || fail "inspect exited $?"
-  local proposed
-  proposed="$(json_id "$dir/inspect.json" proposedRunId)"
-  [[ -n "$proposed" ]] || fail "inspect reported no proposed run ID: $(cat "$dir/inspect.json")"
   expect_json "$dir/inspect.json" '"evidence":"proposal"'
   expect_json "$dir/inspect.json" '"authority":"explicit"'
   expect_json "$dir/inspect.json" '"version":"installed-smoke"'
-  expect_json "$dir/inspect.json" '"selection":{"candidateId":"smoke-static"'
-  expect_json "$dir/inspect.json" '"selectedBy":"route"'
-  expect_json "$dir/inspect.json" "$(argv_json "$harness" "$dir/cwd/task.md" "$prompt_json" "{\"proposedRunId\":\"$proposed\"}")"
+  expect_json "$dir/inspect.json" \
+    '"selection":{"effort":"high","model":"smoke-model","provider":"smoke-provider","reason":"table[smoke]"}'
+  expect_json "$dir/inspect.json" \
+    "\"command\":{\"args\":[$args],\"executable\":\"$harness\",\"program\":\"$harness\"}"
   expect_json "$dir/inspect.json" \
     "\"packageVersion\":\"$VERSION\",\"path\":\"$PREFIX/libexec/harness-dispatch/harness-dispatch-policy\"}"
 
@@ -191,9 +199,9 @@ case_static_typescript() {
   local run_id received="$dir/harness/received"
   run_id="$(json_id "$dir/run.stderr" runId)"
   [[ -n "$run_id" ]] || fail "run reported no run ID: $(cat "$dir/run.stderr")"
-  expect_json "$dir/run.stderr" '"handoff":{"candidateId":"smoke-static"'
+  expect_json "$dir/run.stderr" "\"handoff\":{\"effort\":\"high\",\"executable\":\"$harness\",\"kind\":\"smoke\",\"model\":\"smoke-model\",\"provider\":\"smoke-provider\""
   expect_received "$received" "$harness" --kind smoke --task-file "$dir/cwd/task.md" \
-    --task-id smoke-task --model smoke-model --effort high --run-id "$run_id" "$prompt"
+    --task-id smoke-task --model smoke-model --effort high "$prompt"
   [[ "$(cat "$received/run-id")" == "$run_id" ]] ||
     fail "the harness's HARNESS_DISPATCH_RUN_ID is $(cat "$received/run-id"), not the run's $run_id"
   [[ "$(cat "$received/state-dir")" == "$state" ]] ||
@@ -208,89 +216,89 @@ case_static_typescript() {
   expect_json "$dir/record.json" "\"runId\":\"$run_id\""
   expect_json "$dir/record.json" '"evidence":"handoff_attempt"'
   expect_json "$dir/record.json" '"execution":"unknown"'
-  expect_json "$dir/record.json" '"id":"smoke-static"'
+  expect_json "$dir/record.json" '"provider":"smoke-provider"'
   expect_json "$dir/record.json" '"taskId":"smoke-task"'
-  expect_json "$dir/record.json" "$(argv_json "$harness" "$dir/cwd/task.md" "$prompt_json" "\"$run_id\"")"
+  expect_json "$dir/record.json" "\"argv\":[\"$harness\",$args]"
 }
 
-# A computed policy in TypeScript: an asynchronous `select`, annotated with the
-# SDK's types, that waits on a timer, reads the versioned request and imports
-# the embedded dynamic example by its specifier. Its reason carries what it
-# read, so the reports show the request reached it, and it refuses an explicit
-# choice, so a refused run is seen to start nothing.
-case_computed_typescript() {
+# A policy in TypeScript that builds its command from the caller's parameters:
+# an asynchronous `select`, annotated with the SDK's types, that waits on a
+# timer, reads the versioned request and imports the embedded static example by
+# its specifier. A parameter value sits inside one argument, and its reason
+# carries what it read, so the reports show the request reached it. Without the
+# parameter it refuses, so a refused run is seen to start nothing, and without
+# a prompt it sees the marker the SDK names.
+case_parameters_typescript() {
   local front="$1" dir="$2"
   local harness="$dir/harness/fake-harness" state="$dir/state"
-  local prompt=$'computed smoke; $HOME stays literal\n'
+  local prompt=$'parameters smoke; $HOME stays literal\n'
   mkdir -p "$dir/policy" "$dir/cwd"
   write_fake_harness "$harness"
   # shellcheck disable=SC2016 # TypeScript template literals, not shell expansions
   write_lines "$dir/policy/policy.ts" \
-    'import { definePolicy, type SelectionRequest, type SelectionResult } from "harness-dispatch/sdk";' \
-    'import { policy as dynamic } from "harness-dispatch/examples/dynamic";' \
+    'import { definePolicy, PROMPT_NOT_SUPPLIED, type SelectionRequest, type SelectionResult } from "harness-dispatch/sdk";' \
+    'import { policy as example } from "harness-dispatch/examples/static";' \
     '' \
     'async function select(request: SelectionRequest): Promise<SelectionResult> {' \
     '  await new Promise((resolve) => setTimeout(resolve, 10));' \
-    '  if (request.explicitChoice !== undefined) {' \
-    '    return { status: "refused", code: "smoke_no_choice", message: "the smoke policy takes no choice", remedy: "omit --choice" };' \
+    '  const session = request.params["session"];' \
+    '  if (session === undefined) {' \
+    '    return { status: "refused", code: "smoke_no_session", message: "the smoke policy needs a session", remedy: "pass --param session=NAME" };' \
     '  }' \
+    '  const prompted = request.prompt === PROMPT_NOT_SUPPLIED ? "unprompted" : "prompted";' \
     '  return {' \
     '    status: "selected",' \
-    '    candidateId: "smoke-computed",' \
-    '    reason: `computed for ${request.kind}/${request.taskId} beside ${dynamic.version}`,' \
+    "    program: \"$harness\"," \
+    '    args: [`--session=${session}`, request.prompt],' \
+    '    provider: "smoke-provider",' \
+    '    model: "smoke-model",' \
+    '    effort: "high",' \
+    '    reason: `${prompted} for ${request.kind}/${request.taskId} beside ${example.version}`,' \
     '  };' \
     '}' \
     '' \
     'export const policy = definePolicy({' \
-    '  schemaVersion: 1,' \
-    '  version: "installed-smoke-computed",' \
-    '  catalog: [{' \
-    '    id: "smoke-computed",' \
-    '    provider: "smoke-provider",' \
-    '    model: "smoke-model",' \
-    '    effort: "high",' \
-    "    program: \"$harness\"," \
-    '    args: ["--run-id", { slot: "runId" }, { slot: "prompt" }],' \
-    '  }],' \
+    '  schemaVersion: 2,' \
+    '  version: "installed-smoke-parameters",' \
     '  select,' \
     '});'
   local selection=(--kind smoke --config "$dir/policy/policy.ts" --task-id smoke-task
     --state-dir "$state")
-  local reason='"reason":"computed for smoke/smoke-task beside harness-dispatch/examples/dynamic 1"'
+  local reason='for smoke/smoke-task beside harness-dispatch/examples/static 2"'
 
-  (cd "$dir/cwd" && "$front" inspect "${selection[@]}" --json) >"$dir/inspect.json" ||
-    fail "inspect exited $?"
-  expect_json "$dir/inspect.json" '"version":"installed-smoke-computed"'
-  expect_json "$dir/inspect.json" '"selection":{"candidateId":"smoke-computed"'
-  expect_json "$dir/inspect.json" '"form":"select"'
-  expect_json "$dir/inspect.json" '"selectedBy":"select"'
-  expect_json "$dir/inspect.json" "$reason"
+  (cd "$dir/cwd" && "$front" inspect "${selection[@]}" --param 'session=smoke one' --json) \
+    >"$dir/inspect.json" || fail "inspect exited $?"
+  expect_json "$dir/inspect.json" '"version":"installed-smoke-parameters"'
+  expect_json "$dir/inspect.json" '"params":{"session":"smoke one"}'
+  expect_json "$dir/inspect.json" '"prompt":{"marker":"<harness-dispatch inspect: no prompt was supplied>","supplied":false}'
+  expect_json "$dir/inspect.json" \
+    "\"command\":{\"args\":[\"--session=smoke one\",\"<harness-dispatch inspect: no prompt was supplied>\"],\"executable\":\"$harness\",\"program\":\"$harness\"}"
+  expect_json "$dir/inspect.json" "\"reason\":\"unprompted $reason"
 
   local status=0 received="$dir/harness/received"
-  (cd "$dir/cwd" && "$front" run "${selection[@]}" --choice smoke-computed --prompt "$prompt" --json) \
+  (cd "$dir/cwd" && "$front" run "${selection[@]}" --prompt "$prompt" --json) \
     >"$dir/refused.stdout" 2>"$dir/refused.stderr" || status=$?
   [[ "$status" == 3 ]] ||
-    fail "a run whose choice the policy refuses exited $status, not 3; its stderr: $(cat "$dir/refused.stderr")"
+    fail "a run the policy refuses exited $status, not 3; its stderr: $(cat "$dir/refused.stderr")"
   expect_json "$dir/refused.stderr" '"code":"policy_refused"'
-  expect_json "$dir/refused.stderr" '"policyCode":"smoke_no_choice"'
+  expect_json "$dir/refused.stderr" '"policyCode":"smoke_no_session"'
   [[ ! -e "$received/argc" ]] || fail "a refused run started the fake harness"
 
   status=0
-  (cd "$dir/cwd" && "$front" run "${selection[@]}" --prompt "$prompt" --json) \
+  (cd "$dir/cwd" && "$front" run "${selection[@]}" --param 'session=smoke one' --prompt "$prompt" --json) \
     >"$dir/run.stdout" 2>"$dir/run.stderr" || status=$?
   [[ "$status" == 42 ]] ||
     fail "run exited $status, not the fake harness's 42; its stderr: $(cat "$dir/run.stderr")"
   local run_id
   run_id="$(json_id "$dir/run.stderr" runId)"
   [[ -n "$run_id" ]] || fail "run reported no run ID: $(cat "$dir/run.stderr")"
-  expect_json "$dir/run.stderr" '"handoff":{"candidateId":"smoke-computed"'
-  expect_json "$dir/run.stderr" '"selectedBy":"select"'
-  expect_received "$received" "$harness" --run-id "$run_id" "$prompt"
+  expect_json "$dir/run.stderr" "\"reason\":\"prompted $reason"
+  expect_received "$received" "$harness" '--session=smoke one' "$prompt"
 
   "$front" record show --run "$run_id" --state-dir "$state" --json >"$dir/record.json" ||
     fail "record show of run $run_id exited $?"
-  expect_json "$dir/record.json" '"form":"select"'
-  expect_json "$dir/record.json" "$reason"
+  expect_json "$dir/record.json" '"params":{"session":"smoke one"}'
+  expect_json "$dir/record.json" "\"reason\":\"prompted $reason"
 }
 
 # Two packages in a node_modules beside the policy, each found only through
@@ -316,17 +324,16 @@ case_declared_package() {
     'import { which as exported } from "smoke-exports";' \
     '' \
     'export const policy = {' \
-    '  schemaVersion: 1,' \
+    '  schemaVersion: 2,' \
     '  version: `installed-smoke-${main}-${exported}`,' \
-    '  catalog: [{ id: "smoke-package", provider: "smoke-provider", model: "smoke-model", effort: "low", program: "true", args: [{ slot: "prompt" }] }],' \
-    '  routes: { smoke: "smoke-package" },' \
+    '  select: (request) => ({ status: "selected", program: "true", args: [request.prompt], provider: "smoke-provider", model: "smoke-model", effort: "low", reason: "smoke" }),' \
     '};'
 
   (cd "$dir/cwd" && "$front" inspect --kind smoke --config "$dir/policy/policy.ts" \
     --state-dir "$dir/state" --json) >"$dir/inspect.json" ||
     fail "inspect of a policy importing packages declared by main and exports exited $?"
   expect_json "$dir/inspect.json" '"version":"installed-smoke-main-exports"'
-  expect_json "$dir/inspect.json" '"selection":{"candidateId":"smoke-package"'
+  expect_json "$dir/inspect.json" '"command":{"args":["<harness-dispatch inspect: no prompt was supplied>"],"executable":"'
 }
 
 # The caller's SIGPIPE and HUP reach the harness as they were: the front's
@@ -348,10 +355,9 @@ case_signal_state() {
   chmod +x "$harness"
   write_lines "$dir/policy/policy.ts" \
     'export const policy = {' \
-    '  schemaVersion: 1,' \
+    '  schemaVersion: 2,' \
     '  version: "installed-smoke-signals",' \
-    "  catalog: [{ id: \"smoke-signals\", provider: \"smoke-provider\", model: \"smoke-model\", effort: \"low\", program: \"$harness\", args: [{ slot: \"prompt\" }] }]," \
-    '  routes: { smoke: "smoke-signals" },' \
+    "  select: (request) => ({ status: \"selected\", program: \"$harness\", args: [request.prompt], provider: \"smoke-provider\", model: \"smoke-model\", effort: \"low\", reason: \"smoke\" })," \
     '};'
   local selection=(run --kind smoke --config "$dir/policy/policy.ts" --state-dir "$state"
     --prompt p --json)

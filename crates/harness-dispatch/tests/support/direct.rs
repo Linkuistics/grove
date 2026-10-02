@@ -104,6 +104,9 @@ pub struct Driven {
     /// Its report on the entry: a `policy` frame or a `failure`, if it got
     /// that far.
     pub report: Option<Value>,
+    /// What it sent when asked to select, if it was asked
+    /// (`drive_to_selection`) and answered.
+    pub selection: Option<Value>,
     /// Whether it was still running, and had sent no frame, when the wait
     /// for one ran out. It was killed then.
     pub stalled: bool,
@@ -139,6 +142,17 @@ pub fn drive(worker: &Path, cwd: &Path, env: &[(&str, OsString)], entry: &Path) 
     drive_within(worker, cwd, env, entry, PATIENCE)
 }
 
+/// As `drive`, and once the worker has reported a policy, ask it to select, as
+/// the front does for a policy it accepted, and keep what it sends.
+pub fn drive_to_selection(
+    worker: &Path,
+    cwd: &Path,
+    env: &[(&str, OsString)],
+    entry: &Path,
+) -> Driven {
+    conversation(worker, cwd, env, entry, PATIENCE, true)
+}
+
 /// As `drive`, waiting no longer than `patience` for each frame. A firing
 /// configuration that stalls the worker names a short one, so the test sees
 /// the stall and the worker is killed rather than waited for.
@@ -148,6 +162,19 @@ pub fn drive_within(
     env: &[(&str, OsString)],
     entry: &Path,
     patience: Duration,
+) -> Driven {
+    conversation(worker, cwd, env, entry, patience, false)
+}
+
+/// The front's side of the conversation: the entry handed over, and, with
+/// `select`, the selection asked of a worker that reported a policy.
+fn conversation(
+    worker: &Path,
+    cwd: &Path,
+    env: &[(&str, OsString)],
+    entry: &Path,
+    patience: Duration,
+    select: bool,
 ) -> Driven {
     let (front, worker_end) = UnixStream::pair().expect("a socket pair");
     let channel = worker_end.as_raw_fd();
@@ -194,15 +221,18 @@ pub fn drive_within(
     };
     let hello = next(&mut front);
     let mut report = None;
+    let mut selection = None;
     if hello.is_some() {
         let evaluate = json!({
             "type": "evaluate",
             "protocol": 1,
             "entry": entry.to_str().expect("a UTF-8 entry"),
             "request": {
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "kind": "impl",
+                "prompt": "the prompt",
                 "cwd": cwd.to_str().expect("a UTF-8 cwd"),
+                "params": {},
                 "limits": {
                     "selectionMs": 30_000, "contextBytes": 262_144, "sourceBytes": 65_536,
                     "sources": 256, "messageBytes": 1_048_576, "diagnosticsBytes": 262_144,
@@ -216,6 +246,14 @@ pub fn drive_within(
         });
         write_frame(&mut front, &evaluate);
         report = next(&mut front);
+        if select
+            && report
+                .as_ref()
+                .is_some_and(|frame| frame["type"] == "policy")
+        {
+            write_frame(&mut front, &json!({ "type": "select", "protocol": 1 }));
+            selection = next(&mut front);
+        }
     }
     // The closed channel is the worker's sign that nothing more is asked. A
     // stalled worker is not reading it, and would never exit.
@@ -227,6 +265,7 @@ pub fn drive_within(
     Driven {
         hello,
         report,
+        selection,
         stalled,
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),

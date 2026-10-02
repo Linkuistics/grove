@@ -4,7 +4,7 @@
 //! UTF-8 JSON, the same encoding `worker/src/channel.ts` writes. The channel is
 //! a socket pair the front creates; the worker's end is its descriptor 3.
 //!
-//! Each read names the largest frame it accepts. A catalog snapshot and a
+//! Each read names the largest frame it accepts. A policy snapshot and a
 //! selection result are bounded by the fixed protocol message bound, and a
 //! context by the caller's context budget. The worker checks each of its
 //! frames against the same bound before it sends it, and reports an overflow
@@ -17,8 +17,9 @@ use serde_json::Value;
 use crate::limits::{CONTEXT_MAX_BYTES, MESSAGE_BYTES};
 
 /// The largest frame the front sends: its evaluate message carries the
-/// caller's context, which the front re-encodes, beside the request. The
-/// worker accepts the same (`worker/src/channel.ts`).
+/// caller's context, which the front re-encodes, beside the request, whose
+/// prompt and parameters the factor of two leaves room for. The worker
+/// accepts the same (`worker/src/channel.ts`).
 pub const FRONT_FRAME_BYTES: usize = (2 * CONTEXT_MAX_BYTES + MESSAGE_BYTES) as usize;
 
 #[derive(Debug)]

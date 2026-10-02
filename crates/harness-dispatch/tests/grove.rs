@@ -7,7 +7,8 @@
 //! review policy*, *Identity and original creator*, and the shipped-examples row
 //! of *Agreed test seams and acceptance*).
 //!
-//! Every creator run is a real `run` of the front. The fake producer finishes as
+//! Every creator run is a real `run` of the front, but for the catalog-contract
+//! fixture's, which release 21.13.0 committed. The fake producer finishes as
 //! the methodology says a dispatched session does: it writes its own
 //! `HARNESS_DISPATCH_RUN_ID` into the review's `**Creator:**` line. Each refusal
 //! has a control beside it that selects, with the task file put right.
@@ -80,8 +81,8 @@ fn review_body(creator: Option<&str>) -> String {
 }
 
 /// Launch the producer, `impl` as task `parser-k12`, which the example routes
-/// to `lead-high`, of origin `openai`. With `review`, it names its run there.
-/// Its run ID.
+/// to its lead harness at effort `high`, of origin `openai`. With `review`, it
+/// names its run there. Its run ID.
 fn produce(sandbox: &Sandbox, review: Option<&Path>) -> String {
     let mut command = sandbox.command();
     command.args([
@@ -114,6 +115,8 @@ fn inspect(sandbox: &Sandbox, kind: &str, task_file: &str, extra: &[&str]) -> su
         task_file,
         "--task-id",
         "parser-k13",
+        "--prompt",
+        "review it",
         "--json",
     ];
     args.extend(extra);
@@ -258,6 +261,40 @@ fn wrapper_args(model: &str, effort: &str, prompt: &str) -> Vec<String> {
         .to_vec()
 }
 
+/// One of the example's two harnesses at an effort: `lead`, of origin
+/// `openai`, or `review`, of origin `anthropic`.
+type Harness = (&'static str, &'static str);
+
+const LEAD_HIGH: Harness = ("lead", "high");
+const REVIEW_HIGH: Harness = ("review", "high");
+
+/// Assert that [`inspect`] reports `harness` as the selected command: its
+/// provider label, its model and effort, and the wrapper those reach as
+/// arguments ahead of the prompt.
+#[track_caller]
+fn assert_selected(report: &Value, (harness, effort): Harness) {
+    let (provider, program, model) = match harness {
+        "lead" => ("openai", "my-codex-wrapper", "your-codex-model"),
+        _ => ("anthropic", "my-claude-wrapper", "your-claude-model"),
+    };
+    let selection = &report["selection"];
+    assert_eq!(
+        json!([
+            selection["provider"],
+            selection["model"],
+            selection["effort"]
+        ]),
+        json!([provider, model, effort]),
+        "{report}"
+    );
+    assert_eq!(report["command"]["program"], program, "{report}");
+    assert_eq!(
+        report["command"]["args"],
+        json!(["--model", model, "--effort", effort, "review it"]),
+        "{report}"
+    );
+}
+
 #[test]
 fn a_dispatched_producer_names_its_run_and_its_review_uses_the_runs_recorded_provider() {
     let sandbox = sandbox();
@@ -276,9 +313,7 @@ fn a_dispatched_producer_names_its_run_and_its_review_uses_the_runs_recorded_pro
     assert_eq!(produced["launch"]["candidate"]["provider"], "openai");
 
     let before = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
-    let selection = &before["selection"];
-    assert_eq!(selection["candidateId"], "review-high", "{before}");
-    assert_eq!(selection["provider"], "anthropic");
+    assert_selected(&before, REVIEW_HIGH);
     assert_eq!(
         before["reviewedArtifact"],
         json!({ "id": "parser-k12", "creator": { "run": creator } })
@@ -326,40 +361,32 @@ fn a_dispatched_producer_names_its_run_and_its_review_uses_the_runs_recorded_pro
         );
     }
 
-    // Since then the owner has pointed `lead-high` at the other harness, and
-    // routes `impl` elsewhere. Read from today's catalog, the creator would be
-    // `anthropic`, whose reviewer `lead-high` is now `anthropic` too, and the
-    // review would refuse.
+    // Since then the owner has routed `impl` to the other harness. Read from
+    // what the policy returns today, the creator would be `anthropic`, and its
+    // review would go to the creator's own origin.
     sandbox.personal_policy(
-        r#"import { catalog, reviews, routes, groveReviewSelector } from "harness-dispatch/examples/grove-review";
-const today = catalog.map((candidate) =>
-  candidate.id === "lead-high"
-    ? { ...candidate, provider: "anthropic", model: "your-claude-model", program: "my-claude-wrapper" }
-    : candidate,
-);
+        r#"import { reviews, routes, groveReviewSelector } from "harness-dispatch/examples/grove-review";
+import { review } from "harness-dispatch/examples/grove-static";
 export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "remapped-1",
-  catalog: today,
-  ...groveReviewSelector({ catalog: today, routes: { ...routes, impl: "review-high" }, reviews }),
+  ...groveReviewSelector({ routes: { ...routes, impl: review("high") }, reviews }),
 };
 "#,
     );
     let after = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
     assert_eq!(after["policy"]["version"], "remapped-1");
     assert_eq!(after["creator"], *expected_creator);
+    let lookup = &after["creator"]["lookup"];
     assert_eq!(
-        after["creator"]["lookup"]["candidate"],
-        json!({ "id": "lead-high", "provider": "openai", "model": "your-codex-model", "effort": "high" })
+        json!([lookup["provider"], lookup["model"], lookup["effort"]]),
+        json!(["openai", "your-codex-model", "high"])
     );
-    assert_eq!(after["selection"]["candidateId"], "review-high");
-    assert_eq!(after["selection"]["provider"], "anthropic");
+    assert_selected(&after, REVIEW_HIGH);
 
-    // The control: today's mapping did reach the policy.
+    // The control: today's routes did reach the policy.
     let routed = inspect(&sandbox, "impl", PRODUCER_TASK, &[]).report();
-    assert_eq!(routed["selection"]["candidateId"], "review-high");
-    let chosen = inspect(&sandbox, "impl", PRODUCER_TASK, &["--choice", "lead-high"]).report();
-    assert_eq!(chosen["selection"]["provider"], "anthropic");
+    assert_selected(&routed, REVIEW_HIGH);
 }
 
 #[test]
@@ -373,12 +400,7 @@ fn an_earlier_run_of_the_same_task_does_not_stand_in_for_a_missing_creator_line(
     for result in [
         inspect(&sandbox, "review-impl", REVIEW_TASK, &[]),
         review(&sandbox, "review-impl", REVIEW_TASK, &[]),
-        review(
-            &sandbox,
-            "review-impl",
-            REVIEW_TASK,
-            &["--choice", "review-high"],
-        ),
+        review(&sandbox, "review-impl", REVIEW_TASK, &[]),
     ] {
         let refusal = adapter_refused(&sandbox, &result, "creator_line_missing");
         let message = said(&refusal, "message");
@@ -413,34 +435,30 @@ fn an_earlier_run_of_the_same_task_does_not_stand_in_for_a_missing_creator_line(
         &review_body(Some(&format!("**Creator:** run {creator}"))),
     );
     let report = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "review-high");
+    assert_selected(&report, REVIEW_HIGH);
     assert_eq!(report["creator"]["lookup"]["taskId"], "parser-k12");
 }
 
 /// What a fixture comes to under a kind.
 enum Expect {
-    Selects(&'static str),
+    Selects(Harness),
     Refuses(&'static str),
 }
 
 /// Each fixture under the kinds that exercise it. A creator run in them is the
 /// producer's, of origin `openai`; a declaration names `anthropic`.
 const FIXTURE_CASES: [(&str, &str, Expect); 21] = [
-    ("review-run", "review-impl", Expect::Selects("review-high")),
+    ("review-run", "review-impl", Expect::Selects(REVIEW_HIGH)),
     (
         "review-run",
         "review-design",
-        Expect::Selects("review-xhigh"),
+        Expect::Selects(("review", "xhigh")),
     ),
-    (
-        "review-declared",
-        "review-impl",
-        Expect::Selects("lead-high"),
-    ),
+    ("review-declared", "review-impl", Expect::Selects(LEAD_HIGH)),
     (
         "review-declared",
         "review-prototype",
-        Expect::Selects("lead-medium"),
+        Expect::Selects(("lead", "medium")),
     ),
     // A review of a kind the example does not list cannot take its route.
     (
@@ -499,11 +517,11 @@ const FIXTURE_CASES: [(&str, &str, Expect); 21] = [
         "review-impl",
         Expect::Refuses("reviews_line_missing"),
     ),
-    ("mentions-only", "impl", Expect::Selects("lead-high")),
+    ("mentions-only", "impl", Expect::Selects(LEAD_HIGH)),
     // Outside a review, a `**Creator:**` line alone means nothing.
-    ("reviews-missing", "impl", Expect::Selects("lead-high")),
-    ("plain-task", "impl", Expect::Selects("lead-high")),
-    ("plain-task", "design", Expect::Selects("lead-xhigh")),
+    ("reviews-missing", "impl", Expect::Selects(LEAD_HIGH)),
+    ("plain-task", "impl", Expect::Selects(LEAD_HIGH)),
+    ("plain-task", "design", Expect::Selects(("lead", "xhigh"))),
     (
         "plain-task",
         "review-planning",
@@ -551,12 +569,9 @@ fn each_grove_convention_the_adapter_interprets_has_a_fixture() {
         let result = inspect(&sandbox, kind, &relative, &[]);
         let case = format!("{name} under {kind}");
         match expect {
-            Expect::Selects(candidate) => {
+            Expect::Selects(harness) => {
                 let report = result.report();
-                assert_eq!(
-                    report["selection"]["candidateId"], *candidate,
-                    "{case}: {report}"
-                );
+                assert_selected(&report, *harness);
                 assert_eq!(report["adapter"], adapter_report(), "{case}");
                 let reviewed = &report["reviewedArtifact"];
                 if kind.starts_with("review-") {
@@ -598,10 +613,7 @@ fn malformed_marker_lines_refuse_naming_their_line() {
             &body(good_reviews, &good_creator).replace('\n', ending),
         );
         let report = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
-        assert_eq!(
-            report["selection"]["candidateId"], "review-high",
-            "{ending:?}"
-        );
+        assert_selected(&report, REVIEW_HIGH);
     }
 
     let path = support::text(&sandbox.cwd.join(REVIEW_TASK));
@@ -670,7 +682,7 @@ fn malformed_marker_lines_refuse_naming_their_line() {
     }
 
     // A declared origin is the rest of the line, verbatim: nothing trims or
-    // folds it, so a near miss is not an origin of the catalog.
+    // folds it, so a near miss is not an origin the review entry lists.
     for (declared, control) in [
         ("declared anthropic", true),
         ("declared  anthropic", false),
@@ -683,9 +695,9 @@ fn malformed_marker_lines_refuse_naming_their_line() {
         );
         let result = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]);
         if control {
-            assert_eq!(result.report()["selection"]["candidateId"], "lead-high");
+            assert_selected(&result.report(), LEAD_HIGH);
         } else {
-            let refusal = refused(&sandbox, &result, "creator_origin_unknown");
+            let refusal = refused(&sandbox, &result, "creator_origin_unlisted");
             let origin = declared.strip_prefix("declared ").unwrap();
             assert!(
                 said(&refusal, "message").contains(&serde_json::to_string(origin).unwrap()),
@@ -731,14 +743,19 @@ fn the_adapter_reads_only_the_task_file_it_is_given() {
     }
 
     for task_id in [&["--task-id", "parser-k13"][..], &[][..]] {
-        let mut args = vec!["--kind", "review-impl", "--task-file", misleading, "--json"];
+        let mut args = vec![
+            "--kind",
+            "review-impl",
+            "--task-file",
+            misleading,
+            "--prompt",
+            "review it",
+            "--json",
+        ];
         args.extend(task_id);
         let report = sandbox.inspect(&args).report();
         // The kind is the caller's: a review, and review-impl's entry.
-        assert_eq!(
-            report["selection"]["candidateId"], "review-high",
-            "{report}"
-        );
+        assert_selected(&report, REVIEW_HIGH);
         // The reviewed artifact is the line's, not the file name's or the task's.
         assert_eq!(report["reviewedArtifact"]["id"], "parser-k12");
         let sources: Vec<(&Value, &Value)> = report["context"]["sources"]
@@ -761,8 +778,10 @@ fn the_adapter_reads_only_the_task_file_it_is_given() {
 
     // Without a task file, an ordinary kind reads nothing and takes its route,
     // and a review cannot know its artifact.
-    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    assert_eq!(report["selection"]["candidateId"], "lead-high");
+    let report = sandbox
+        .inspect(&["--kind", "impl", "--prompt", "review it", "--json"])
+        .report();
+    assert_selected(&report, LEAD_HIGH);
     assert_eq!(report["context"]["sources"], json!([]));
     assert_eq!(report["adapter"], adapter_report());
     let refusal = adapter_refused(
@@ -825,7 +844,7 @@ fn a_task_file_that_cannot_be_read_refuses_naming_it() {
     assert!(large.len() > 100_000);
     sandbox.file(REVIEW_TASK, &large);
     let report = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "review-high");
+    assert_selected(&report, REVIEW_HIGH);
     assert_eq!(report["context"]["sources"][0]["bytes"], large.len());
     assert!(report["context"]["encodedBytes"].as_u64().unwrap() < 4_096);
     let refusal = inspect(
@@ -906,7 +925,7 @@ fn a_caller_context_is_kept_but_cannot_name_a_second_reviewed_artifact() {
 }
 
 #[test]
-fn the_rule_holds_on_every_invocation_retry_and_explicit_choice() {
+fn the_rule_holds_on_every_invocation_and_retry() {
     let sandbox = sandbox();
     let creator = produce(&sandbox, None);
     sandbox.file(
@@ -924,48 +943,14 @@ fn the_rule_holds_on_every_invocation_retry_and_explicit_choice() {
         wrapper_args("your-claude-model", "high", "review it")
     );
 
-    // An explicit choice is held to the rule.
-    let refusal = refused(
-        &sandbox,
-        &review(
-            &sandbox,
-            "review-impl",
-            REVIEW_TASK,
-            &["--choice", "lead-high"],
-        ),
-        "same_origin",
-    );
-    assert!(
-        said(&refusal, "remedy").contains("review-high"),
-        "{refusal}"
-    );
-    let report = inspect(
-        &sandbox,
-        "review-impl",
-        REVIEW_TASK,
-        &["--choice", "review-xhigh"],
-    )
-    .report();
-    assert_eq!(report["selection"]["candidateId"], "review-xhigh");
-
     // A declared creator of the other origin reverses the answer.
     sandbox.file(
         REVIEW_TASK,
         &review_body(Some("**Creator:** declared anthropic")),
     );
     let report = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "lead-high");
+    assert_selected(&report, LEAD_HIGH);
     assert_eq!(report["creator"]["evidence"], "declared");
-    refused(
-        &sandbox,
-        &inspect(
-            &sandbox,
-            "review-impl",
-            REVIEW_TASK,
-            &["--choice", "review-high"],
-        ),
-        "same_origin",
-    );
 
     // A run the store does not hold names no origin, and the remedy is the
     // declaration.
@@ -982,6 +967,42 @@ fn the_rule_holds_on_every_invocation_retry_and_explicit_choice() {
         said(&refusal, "remedy").contains("\"declared\""),
         "{refusal}"
     );
+
+    // An owner's entry that sends the creator's origin to that origin's own
+    // harness refuses on every invocation, and nothing is run in its place.
+    sandbox.file(
+        REVIEW_TASK,
+        &review_body(Some(&format!("**Creator:** run {creator}"))),
+    );
+    sandbox.personal_policy(
+        r#"import { reviews, routes, groveReviewSelector } from "harness-dispatch/examples/grove-review";
+import { lead } from "harness-dispatch/examples/grove-static";
+export const policy = {
+  schemaVersion: 2,
+  version: "misfiled-1",
+  ...groveReviewSelector({
+    routes,
+    reviews: { ...reviews, "review-impl": { openai: lead("high"), anthropic: lead("high") } },
+  }),
+};
+"#,
+    );
+    let before = runs_in(&sandbox);
+    for result in [
+        inspect(&sandbox, "review-impl", REVIEW_TASK, &[]),
+        review(&sandbox, "review-impl", REVIEW_TASK, &[]),
+        review(&sandbox, "review-impl", REVIEW_TASK, &[]),
+    ] {
+        let refusal = refused(&sandbox, &result, "same_origin");
+        let message = said(&refusal, "message");
+        for part in [
+            r#"reviews["review-impl"]["openai"] gives my-codex-wrapper, of origin "openai""#,
+            creator.as_str(),
+        ] {
+            assert!(message.contains(part), "{part:?}: {refusal}");
+        }
+    }
+    assert_eq!(runs_in(&sandbox), before, "a refused review was recorded");
 }
 
 #[test]
@@ -1018,21 +1039,20 @@ fn other_grove_kinds_take_the_grove_static_routes() {
                 kind,
                 "--config",
                 &support::text(&grove_static),
+                "--prompt",
+                "review it",
                 "--json",
             ])
             .report();
         let report = inspect(&sandbox, kind, PRODUCER_TASK, &[]).report();
-        assert_eq!(
-            report["selection"]["candidateId"], expected["selection"]["candidateId"],
-            "{kind}"
-        );
-        assert_eq!(
-            report["selection"]["reason"],
-            format!(
-                "routes[\"{kind}\"] names candidate {}",
-                expected["selection"]["candidateId"]
-            ),
-            "{kind}"
+        assert_eq!(report["selection"], expected["selection"], "{kind}");
+        assert_eq!(report["command"], expected["command"], "{kind}");
+        assert!(
+            report["selection"]["reason"]
+                .as_str()
+                .unwrap()
+                .starts_with(&format!("routes[\"{kind}\"] gives my-")),
+            "{kind}: {report}"
         );
     }
     // Grove's review kinds are the rule's, not routes: without their lines
@@ -1057,8 +1077,8 @@ fn without_the_adapter_a_review_kind_and_its_marker_lines_mean_nothing_to_the_fr
     // The front itself keeps no list of review kinds and reads no marker
     // line: recognising a Grove review is the adapter's alone. So one review
     // task, under the kind Grove gives it, is a review to a policy that
-    // imports the adapter, and an ordinary routed kind to one that does not,
-    // which may send it to the creator's own origin.
+    // imports the adapter, and an ordinary kind to one that does not, which
+    // may send it to the creator's own origin.
     let sandbox = sandbox();
     let task_file = sandbox.file(
         REVIEW_TASK,
@@ -1078,26 +1098,29 @@ fn without_the_adapter_a_review_kind_and_its_marker_lines_mean_nothing_to_the_fr
         read["context"]["sources"][0]["name"],
         support::text(&task_file)
     );
-    assert_eq!(read["selection"]["provider"], "anthropic");
+    assert_selected(&read, REVIEW_HIGH);
 
-    // The same kind and task file, routed by a policy with no adapter to a
-    // candidate of the origin the file declares.
+    // The same kind and task file, sent by a policy with no adapter to a
+    // command of the origin the file declares.
     sandbox.personal_policy(
         r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "no-adapter-1",
-  catalog: [
-    { id: "same-origin", provider: "openai", model: "your-codex-model", effort: "high", program: "my-codex-wrapper", args: ["--model", { slot: "model" }, "--effort", { slot: "effort" }, { slot: "prompt" }] },
-  ],
-  routes: { "review-impl": "same-origin" },
+  select: (request) => ({
+    status: "selected",
+    program: "my-codex-wrapper",
+    args: ["--model", "your-codex-model", "--effort", "high", request.prompt],
+    provider: "openai",
+    model: "your-codex-model",
+    effort: "high",
+    reason: `kind ${request.kind} takes the lead harness`,
+  }),
 };
 "#,
     );
     let plain = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
     assert_eq!(plain["policy"]["version"], "no-adapter-1");
-    assert_eq!(plain["selection"]["selectedBy"], "route");
-    assert_eq!(plain["selection"]["candidateId"], "same-origin");
-    assert_eq!(plain["selection"]["provider"], "openai");
+    assert_selected(&plain, LEAD_HIGH);
     assert_eq!(plain["taskFile"], support::text(&task_file));
     for unread in ["reviewedArtifact", "creator", "adapter", "context"] {
         assert_eq!(plain.get(unread), Some(&Value::Null), "{unread}: {plain}");
@@ -1115,13 +1138,15 @@ fn without_the_adapter_a_review_kind_and_its_marker_lines_mean_nothing_to_the_fr
 #[test]
 fn the_adapter_version_is_reported_exactly_when_the_policy_imports_it() {
     let sandbox = Sandbox::new();
-    let routed = |imports: &str, members: &str| {
+    // A policy whose `select` runs `before` and then selects the fake harness,
+    // with `imports` above it and `members` beside it.
+    let selecting = |imports: &str, members: &str, before: &str| {
         format!(
-            "{imports}\nexport const policy = {{\n  schemaVersion: 1,\n  version: \"adapter-probe-1\",\n  \
-             catalog: [{{ id: \"only\", provider: \"p\", model: \"m\", effort: \"e\", program: \"fake-harness\", args: [{{ slot: \"prompt\" }}] }}],\n{members}\n}};\n"
+            "{imports}\nexport const policy = {{\n  schemaVersion: 2,\n  version: \"adapter-probe-1\",\n{members}\n  \
+             async select(request) {{\n    {before}\n    return {};\n  }},\n}};\n",
+            support::DEEP
         )
     };
-    let routes = "  routes: { impl: \"only\" },";
 
     // Each shipped example, imported for its effect alone: the adapter is
     // reported when, and only when, the example brings it, directly or
@@ -1153,9 +1178,10 @@ fn the_adapter_version_is_reported_exactly_when_the_policy_imports_it() {
                  by specifier, as a policy does, which is what this test reads"
             );
         }
-        sandbox.personal_policy(&routed(
+        sandbox.personal_policy(&selecting(
             &format!("import \"harness-dispatch/examples/{stem}\";"),
-            routes,
+            "",
+            "",
         ));
         let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
         let expected = if bringers.contains(stem) {
@@ -1171,39 +1197,56 @@ fn the_adapter_version_is_reported_exactly_when_the_policy_imports_it() {
 
     // The SDK alone brings no adapter; the adapter's own specifier does, at
     // load, in loadContext, or in select, and the run records it.
-    for (imports, members, expected) in [
-        ("import \"harness-dispatch/sdk\";", routes.to_owned(), Value::Null),
-        ("import \"harness-dispatch/grove\";", routes.to_owned(), adapter_report()),
+    let import = "await import(\"harness-dispatch/grove\");";
+    for (imports, members, before, expected) in [
+        ("import \"harness-dispatch/sdk\";", "", "", Value::Null),
         (
+            "import \"harness-dispatch/grove\";",
             "",
-            format!(
-                "{routes}\n  async loadContext() {{ await import(\"harness-dispatch/grove\"); return {{ schemaVersion: 1 }}; }},"
-            ),
+            "",
             adapter_report(),
         ),
         (
             "",
-            "  async select() { await import(\"harness-dispatch/grove\"); return { status: \"selected\", candidateId: \"only\", reason: \"r\" }; },"
-                .to_owned(),
+            &*format!("  async loadContext() {{ {import} return {{ schemaVersion: 1 }}; }},"),
+            "",
             adapter_report(),
         ),
-        (
-            "",
-            "  select() { return { status: \"selected\", candidateId: \"only\", reason: \"r\" }; },"
-                .to_owned(),
-            Value::Null,
-        ),
+        ("", "", import, adapter_report()),
+        ("", "", "", Value::Null),
     ] {
-        sandbox.personal_policy(&routed(imports, &members));
+        sandbox.personal_policy(&selecting(imports, members, before));
+        let case = format!("{imports} {members} {before}");
         let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-        assert_eq!(report["adapter"], expected, "{imports} {members}");
+        assert_eq!(report["adapter"], expected, "{case}");
         let result = sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"]);
         assert_eq!(result.code, Some(0), "{}", result.stderr);
         let run_id = sandbox.harness_run_id();
         fs::remove_dir_all(&sandbox.record).unwrap();
         let launch = show(&sandbox, &run_id, true).report()["launch"].clone();
-        assert_eq!(launch["adapter"], expected, "{imports} {members}");
+        assert_eq!(launch["adapter"], expected, "{case}");
     }
+}
+
+/// The owner's policy `task dispatch:typecheck` checks against the shipped
+/// declarations: a `build` route and an `audit` review entry over two
+/// harnesses, of origins `your-provider` (`model-a`) and
+/// `your-other-provider` (`model-b`), under the Grove review rule.
+const TYPED_POLICY: &str = include_str!("../worker/typecheck/grove-policy.ts");
+
+/// The task file of a review of the owner's own kind, `audit`.
+const AUDIT_TASK: &str = ".grove/02-audit--thing-k2.md";
+
+/// Inspect the `audit` review in [`AUDIT_TASK`], written to review `reviews`
+/// with `creator` as its creator reference, plus `extra`.
+fn audit(sandbox: &Sandbox, reviews: &str, creator: &str, extra: &[&str]) -> support::Run {
+    sandbox.file(
+        AUDIT_TASK,
+        &format!("# thing-k2\n\n**Reviews:** {reviews}\n**Creator:** {creator}\n"),
+    );
+    let mut args = vec!["--kind", "audit", "--task-file", AUDIT_TASK, "--json"];
+    args.extend(extra);
+    sandbox.inspect(&args)
 }
 
 #[test]
@@ -1212,29 +1255,102 @@ fn the_typed_grove_fixture_selects_through_the_worker() {
     // declarations by `task dispatch:typecheck`; here the same file runs, so
     // the declared adapter and example and the runtime's agree.
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(include_str!("../worker/typecheck/grove-policy.ts"));
-    sandbox.file(
-        ".grove/02-audit--thing-k2.md",
-        "# thing-k2\n\n**Reviews:** thing-k1\n**Creator:** declared your-provider\n",
-    );
-    let audit = |extra: &[&str]| {
-        let mut args = vec![
-            "--kind",
-            "audit",
-            "--task-file",
-            ".grove/02-audit--thing-k2.md",
-            "--json",
-        ];
-        args.extend(extra);
-        sandbox.inspect(&args)
-    };
-    let report = audit(&[]).report();
+    sandbox.personal_policy(TYPED_POLICY);
+
+    let report = audit(&sandbox, "thing-k1", "declared your-provider", &[]).report();
     assert_eq!(
         report["policy"]["version"],
         format!("typecheck-grove-{}", adapter_version())
     );
-    assert_eq!(report["selection"]["candidateId"], "auditor");
-    refused(&sandbox, &audit(&["--choice", "builder"]), "same_origin");
+    assert_eq!(report["selection"]["provider"], "your-other-provider");
+    assert_eq!(report["selection"]["model"], "model-b");
+    assert_eq!(report["command"]["program"], "fake-harness");
+    // The entry's other origin is reviewed by the builder, and the route the
+    // owner gave takes it for the kind that is no review.
+    let report = audit(&sandbox, "thing-k1", "declared your-other-provider", &[]).report();
+    assert_eq!(report["selection"]["provider"], "your-provider");
+    assert_eq!(report["selection"]["model"], "model-a");
+    let report = sandbox.inspect(&["--kind", "build", "--json"]).report();
+    assert_eq!(report["selection"]["model"], "model-a");
+}
+
+/// The record store release 21.13.0 wrote under the catalog contract, and the
+/// run in it that built task `parser-k12` under the label `your-provider`
+/// (`tests/fixtures/catalog-contract/README.md`).
+const CATALOG_CONTRACT_STORE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/fixtures/catalog-contract/records.sqlite3"
+);
+const CATALOG_CONTRACT_BUILDER: &str = "45308255-7446-42b2-bbd7-e5f7861e46ef";
+
+#[test]
+fn a_creator_line_naming_a_run_recorded_under_the_catalog_contract_gives_its_provider() {
+    let sandbox = sandbox();
+    let state = sandbox.root.join("catalog-contract");
+    fs::create_dir(&state).unwrap();
+    fs::copy(CATALOG_CONTRACT_STORE, state.join("records.sqlite3")).unwrap();
+    let state = support::text(&state);
+    let state_dir = ["--state-dir", state.as_str()];
+    let creator = format!("run {CATALOG_CONTRACT_BUILDER}");
+
+    // An owner whose review entry lists the origin that run recorded gets the
+    // entry's reviewer of the other origin, on the run's own labels.
+    sandbox.personal_policy(TYPED_POLICY);
+    let report = audit(&sandbox, "parser-k12", &creator, &state_dir).report();
+    assert_eq!(
+        report["reviewedArtifact"],
+        json!({ "id": "parser-k12", "creator": { "run": CATALOG_CONTRACT_BUILDER } })
+    );
+    assert_eq!(
+        report["creator"],
+        json!({
+            "reference": { "run": CATALOG_CONTRACT_BUILDER },
+            "evidence": "execution_recorded",
+            "provider": "your-provider",
+            "lookup": {
+                "runId": CATALOG_CONTRACT_BUILDER,
+                "status": "found",
+                "recordedAt": "2026-10-02T04:11:46.561Z",
+                "kind": "build",
+                "taskId": "parser-k12",
+                "provider": "your-provider",
+                "model": "model-a",
+                "effort": "high",
+                "launchFailure": null,
+            },
+        }),
+        "{report}"
+    );
+    assert_eq!(report["adapter"], adapter_report());
+    assert_eq!(report["selection"]["provider"], "your-other-provider");
+    assert_eq!(report["selection"]["model"], "model-b");
+    let reason = report["selection"]["reason"].as_str().unwrap();
+    for part in [
+        CATALOG_CONTRACT_BUILDER,
+        r#"task "parser-k12", kind "build""#,
+        r#"recorded origin "your-provider""#,
+    ] {
+        assert!(reason.contains(part), "{part:?} is not in {reason:?}");
+    }
+
+    // The label is the run's, read as recorded: the shipped example's entries
+    // list `openai` and `anthropic`, so the same task file refuses there,
+    // naming the origin the run recorded.
+    sandbox.personal_policy(EXAMPLE);
+    let refusal = refused(
+        &sandbox,
+        &inspect(&sandbox, "review-impl", AUDIT_TASK, &state_dir),
+        "creator_origin_unlisted",
+    );
+    let message = said(&refusal, "message");
+    for part in [
+        CATALOG_CONTRACT_BUILDER,
+        r#"task "parser-k12""#,
+        r#"recorded origin "your-provider""#,
+        r#""anthropic", "openai""#,
+    ] {
+        assert!(message.contains(part), "{part:?}: {refusal}");
+    }
 }
 
 #[test]
@@ -1271,12 +1387,11 @@ fn the_adapter_and_the_grove_example_ship_their_declarations_and_readable_source
     assert_eq!(example, include_str!("../worker/examples/grove-review.ts"));
     let declarations = fs::read_to_string(libexec.join("examples/grove-review.d.ts")).unwrap();
     for export in [
-        "export declare function groveReviewSelector",
+        "export interface GroveReviewSelector",
+        "export declare function groveReviewSelector(rules: ReviewRules): GroveReviewSelector;",
         "export declare const reviews:",
-        "export declare const catalog:",
         "export declare const routes:",
         "export declare const policy:",
-        "export type CandidateId =",
     ] {
         assert!(
             declarations.contains(export),
@@ -1298,11 +1413,12 @@ fn the_adapter_and_the_grove_example_ship_their_declarations_and_readable_source
 }
 
 /// The one import by which the Grove review example takes the Grove starter's
-/// catalog and routes. The README's *The Grove review policy* tells an owner
-/// to change it, so that a copy of the example reads their own starter.
-const STARTER_IMPORT: &str = "import { catalog as groveCatalog, routes as groveRoutes } from \"harness-dispatch/examples/grove-static\";";
+/// two harnesses and its routes. An owner changes it so that a copy of the
+/// example reads their own starter.
+const STARTER_IMPORT: &str =
+    "import { lead, review, routes as groveRoutes } from \"harness-dispatch/examples/grove-static\";";
 
-/// An owner who edited a copy of the Grove starter keeps that catalog under
+/// An owner who edited a copy of the Grove starter keeps those harnesses under
 /// the rule by leaving the copy beside the policy as `grove-static.ts`, and
 /// making the policy a copy of this example whose import of the starter names
 /// that file. The same copy with its import as shipped is the control: it
@@ -1359,25 +1475,16 @@ fn a_copy_of_the_grove_example_takes_an_owners_edited_starter_only_when_its_impo
     );
     sandbox.personal_policy(&example.replace(STARTER_IMPORT, &import));
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    assert_eq!(report["selection"]["candidateId"], "lead-high");
-    assert_eq!(report["executable"]["program"], "owner-codex-wrapper");
+    assert_eq!(report["selection"]["provider"], "openai");
+    assert_eq!(report["selection"]["model"], "owner-codex-model");
+    assert_eq!(report["command"]["program"], "owner-codex-wrapper");
 
-    // The rule holds over that catalog: the other origin's reviewer selects
-    // and launches, and a reviewer of the creator's origin refuses.
+    // The rule holds over those harnesses: the other origin's reviewer
+    // selects and launches, for a creator of either origin.
     let report = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "review-high");
     assert_eq!(report["selection"]["provider"], "anthropic");
-    assert_eq!(report["executable"]["program"], "owner-claude-wrapper");
-    refused(
-        &sandbox,
-        &inspect(
-            &sandbox,
-            "review-impl",
-            REVIEW_TASK,
-            &["--choice", "lead-high"],
-        ),
-        "same_origin",
-    );
+    assert_eq!(report["selection"]["effort"], "high");
+    assert_eq!(report["command"]["program"], "owner-claude-wrapper");
     let (_, args) = reviewed(&sandbox, "review-impl", REVIEW_TASK);
     assert_eq!(
         args,
@@ -1389,4 +1496,11 @@ fn a_copy_of_the_grove_example_takes_an_owners_edited_starter_only_when_its_impo
             "review it"
         ]
     );
+    sandbox.file(
+        REVIEW_TASK,
+        &review_body(Some("**Creator:** declared anthropic")),
+    );
+    let report = inspect(&sandbox, "review-impl", REVIEW_TASK, &[]).report();
+    assert_eq!(report["selection"]["provider"], "openai");
+    assert_eq!(report["command"]["program"], "owner-codex-wrapper");
 }

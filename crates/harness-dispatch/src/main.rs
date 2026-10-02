@@ -1,11 +1,10 @@
-//! `harness-dispatch` — evaluate an owner's harness-selection policy, then report
-//! or run the joint harness/model/effort choice it makes.
+//! `harness-dispatch` — pass a caller's inputs to the `select` function of an
+//! owner's policy, then report or run the command it returns.
 //!
 //! The contract is `docs/specs/harness-selection-and-execution.md`. This entry
 //! point parses the command line, runs the command, and renders its result or
 //! refusal; the modules own everything else.
 
-mod argv;
 mod authority;
 mod cancellation;
 mod choice;

@@ -350,9 +350,9 @@ fn a_signal_after_the_result_while_the_worker_is_reaped_launches_nothing() {
     // The result arrives, and then the worker's exit handler marks that it
     // is exiting and spins, so the front is waiting out the cleanup grace
     // with the selection made. A signal then is seen once the worker is
-    // reaped, and nothing is launched. A routes policy's worker exits once the
-    // front has closed the channel, and a computed one's once it has sent its
-    // selection. The control is the same fixture unsignalled, which launches.
+    // reaped, and nothing is launched. The worker exits once it has sent its
+    // selection, whether the policy held at import or in `select`. The control
+    // is the same fixture unsignalled, which launches.
     for (place, signalled) in [
         (Place::Import, true),
         (Place::Select, true),

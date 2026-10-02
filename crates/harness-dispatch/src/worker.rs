@@ -19,11 +19,10 @@
 //! validates and measures what comes back (*Bounded context*). While the loader
 //! runs, each `host.run` is a request the front answers through the judge's
 //! lookup, from the record store the worker never opens; the front keeps its
-//! own answers, and the context must carry exactly those. Then the judge may
-//! ask the worker, once, to call the policy's `select`, and it judges what that
-//! produced against the snapshot it already holds. A judge that needs nothing
-//! more simply ends the conversation, and the worker exits (*Policy and joint
-//! choice*).
+//! own answers, and the context must carry exactly those. Then the judge asks
+//! the worker, once, to call the policy's `select`, and it judges the shape of
+//! what that returned. A judge that refuses simply ends the conversation, and
+//! the worker exits (*Policy and the selected command*).
 //!
 //! Every frame the worker sends has a bound, which the worker checks before it
 //! sends and the front checks again as it reads: the fixed protocol message

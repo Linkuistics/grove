@@ -78,7 +78,7 @@ fn the_harness_inherits_the_callers_mask_and_ignored_signals() {
 
 #[test]
 fn a_state_altered_between_the_front_and_the_harness_is_seen() {
-    // The positive control for the probe: the candidate is the probe behind
+    // The positive control for the probe: the command is the probe behind
     // an intermediary that flips SIGPIPE and blocks SIGUSR2 before it execs
     // the probe proper. The harness then reports what it was handed, not the
     // caller's state, so a front that altered the state would be seen to.
@@ -361,7 +361,7 @@ fn a_cancelled_handoff_in_text_mode_names_its_run_and_the_signal() {
     );
     let stderr = &stalled.stderr;
     for expected in [
-        "harness-dispatch: running candidate \"deep\"",
+        "harness-dispatch: running provider origin-a, model model-large, effort high for kind \"impl\" as run ",
         "refused (handoff_cancelled, stage exec)",
         "the launch failure is recorded against it",
         "signal: SIGINT, re-raised once this is reported",

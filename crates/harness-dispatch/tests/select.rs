@@ -1,9 +1,9 @@
-//! Computed selection through the command seam
-//! (`docs/specs/harness-selection-and-execution.md`, *Policy and joint choice*):
-//! a policy's `select` chooses a configured candidate, or refuses, from the
-//! versioned request, synchronously or through a promise. Every other value it
-//! produces refuses with a code of its own and launches nothing, and an
-//! explicit choice is the policy's to accept or refuse, never to replace.
+//! Selection through the command seam
+//! (`docs/specs/harness-selection-and-execution.md`, *Policy and the selected
+//! command*): a policy's `select` receives the whole request, the prompt and
+//! every parameter included, and returns the command to run, or refuses,
+//! synchronously or through a promise. Every other value it produces refuses
+//! with a code of its own and launches nothing.
 
 mod support;
 
@@ -14,17 +14,22 @@ use std::time::{Duration, Instant};
 use serde_json::{json, Value};
 use support::{text, Sandbox};
 
-/// Two candidates, and `$SELECT`: the `select` member, written as a method or
-/// property of the policy object, which may call `writeFileSync`.
+/// What `select` receives as the prompt when `inspect` was given none.
+const MARKER: &str = "<harness-dispatch inspect: no prompt was supplied>";
+
+/// `quick`, which builds a selected result from the request, and `$SELECT`:
+/// the `select` member, written as a method or property of the policy object,
+/// which may call `writeFileSync`.
 const TEMPLATE: &str = r#"import { writeFileSync } from "node:fs";
 
+const quick = (request, reason) => ({
+  status: "selected", program: "fake-harness", args: [request.prompt],
+  provider: "origin-b", model: "model-small", effort: "low", reason,
+});
+
 export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "select-1",
-  catalog: [
-    { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: ["--effort", { slot: "effort" }, { slot: "prompt" }] },
-    { id: "quick", provider: "origin-b", model: "model-small", effort: "low", program: "fake-harness", args: [{ slot: "prompt" }] },
-  ],
   $SELECT
 };
 "#;
@@ -33,19 +38,20 @@ fn selecting(select: &str) -> String {
     TEMPLATE.replace("$SELECT", select)
 }
 
-/// A `select` that writes `marker` when it runs, then selects `quick`.
+/// A `select` that writes `marker` when it runs, then selects.
 fn marking(marker: &std::path::Path) -> String {
     format!(
-        "select() {{ writeFileSync({:?}, \"ran\"); return {{ status: \"selected\", candidateId: \"quick\", reason: \"marked\" }}; }},",
+        "select(request) {{ writeFileSync({:?}, \"ran\"); return quick(request, \"marked\"); }},",
         text(marker)
     )
 }
 
-const QUICK: &str =
-    r#"{ status: "selected", candidateId: "quick", reason: "a small change needs little effort" }"#;
+/// A JavaScript expression for the result most policies here return. It reads
+/// `request`.
+const QUICK: &str = r#"quick(request, "a small change needs little effort")"#;
 
 #[test]
-fn a_synchronous_or_asynchronous_select_chooses_a_configured_candidate() {
+fn a_synchronous_or_asynchronous_select_returns_the_command_to_run() {
     for select in [
         format!("select(request) {{ return {QUICK}; }},"),
         format!("select: (request) => Promise.resolve({QUICK}),"),
@@ -59,24 +65,32 @@ fn a_synchronous_or_asynchronous_select_chooses_a_configured_candidate() {
         let report = sandbox
             .inspect(&["--kind", "impl", "--prompt", "the prompt", "--json"])
             .report();
-        let selection = &report["selection"];
-        assert_eq!(selection["form"], "select", "{select}: {report}");
-        assert_eq!(selection["selectedBy"], "select");
-        assert_eq!(selection["explicitChoice"], Value::Null);
-        assert_eq!(selection["candidateId"], "quick");
-        assert_eq!(selection["provider"], "origin-b");
-        assert_eq!(selection["model"], "model-small");
-        assert_eq!(selection["effort"], "low");
-        assert_eq!(selection["reason"], "a small change needs little effort");
-        assert_eq!(report["argv"], json!(["fake-harness", "the prompt"]));
+        assert_eq!(
+            report["selection"],
+            json!({
+                "provider": "origin-b",
+                "model": "model-small",
+                "effort": "low",
+                "reason": "a small change needs little effort",
+            }),
+            "{select}: {report}"
+        );
+        assert_eq!(
+            report["command"],
+            json!({
+                "program": "fake-harness",
+                "args": ["the prompt"],
+                "executable": text(&sandbox.bin.join("fake-harness")),
+            })
+        );
         assert_eq!(report["policy"]["version"], "select-1");
 
         let human = sandbox.inspect(&["--kind", "impl"]);
         assert_eq!(human.code, Some(0), "{}", human.stderr);
         for row in [
-            "choice     none; the policy's select chooses",
-            "candidate  quick",
-            "selected   by the policy's select (computed)",
+            "provider   origin-b",
+            "model      model-small",
+            "effort     low",
             "reason     a small change needs little effort",
         ] {
             assert!(human.stdout.contains(row), "missing {row:?}:\n{}", human.stdout);
@@ -85,57 +99,59 @@ fn a_synchronous_or_asynchronous_select_chooses_a_configured_candidate() {
 }
 
 #[test]
-fn run_launches_the_computed_choice_and_records_how_it_was_made() {
+fn run_launches_the_returned_command_and_records_its_labels_and_reason() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&selecting(&format!(
-        "async select() {{ return {QUICK}; }},"
+        "async select(request) {{ return {QUICK}; }},"
     )));
 
     let run = sandbox.run(&["--kind", "impl", "--prompt", "the prompt", "--json"]);
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     assert_eq!(sandbox.harness_args(), ["the prompt"]);
     let notice: Value = serde_json::from_str(&run.stderr).unwrap();
-    assert_eq!(notice["handoff"]["selectedBy"], "select");
-    assert_eq!(notice["handoff"]["candidateId"], "quick");
+    let handoff = &notice["handoff"];
+    assert_eq!(handoff["provider"], "origin-b");
+    assert_eq!(handoff["model"], "model-small");
+    assert_eq!(handoff["effort"], "low");
+    assert_eq!(handoff["reason"], "a small change needs little effort");
     assert_eq!(
-        notice["handoff"]["reason"],
-        "a small change needs little effort"
+        handoff["executable"],
+        text(&sandbox.bin.join("fake-harness"))
     );
 
     let run_id = sandbox.harness_run_id();
+    assert_eq!(handoff["runId"], run_id.as_str());
     let mut show = sandbox.command();
     show.args(["record", "show", "--run", &run_id, "--json"]);
     let export = support::run(&mut show).report();
-    let selection = &export["launch"]["selection"];
-    assert_eq!(selection["form"], "select");
-    assert_eq!(selection["selectedBy"], "select");
-    assert_eq!(selection["explicitChoice"], Value::Null);
-    assert_eq!(selection["reason"], "a small change needs little effort");
-    assert_eq!(export["launch"]["candidate"]["id"], "quick");
-
-    let mut show = sandbox.command();
-    show.args(["record", "show", "--run", &run_id]);
-    let human = support::run(&mut show);
-    assert!(
-        human.stdout.contains("  selected   select\n"),
-        "{}",
-        human.stdout
+    let launch = &export["launch"];
+    assert_eq!(
+        launch["selection"]["reason"],
+        "a small change needs little effort"
     );
+    assert_eq!(launch["candidate"]["provider"], "origin-b");
+    assert_eq!(launch["candidate"]["model"], "model-small");
+    assert_eq!(launch["candidate"]["effort"], "low");
+    assert_eq!(launch["candidate"]["program"], "fake-harness");
+    assert_eq!(launch["candidate"]["args"], json!(["the prompt"]));
+    assert_eq!(launch["argv"], json!(["fake-harness", "the prompt"]));
 
-    // Text mode names no explicit choice for a computed selection.
+    // Text mode names the labels, the kind and the run on one line.
     fs::remove_dir_all(&sandbox.record).unwrap();
     let run = sandbox.run(&["--kind", "impl", "--prompt", "p"]);
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     assert!(
-        run.stderr
-            .starts_with("harness-dispatch: running candidate \"quick\""),
+        run.stderr.starts_with(
+            "harness-dispatch: running provider origin-b, model model-small, effort low for \
+             kind \"impl\" as run "
+        ),
         "{}",
         run.stderr
     );
 }
 
 #[test]
-fn select_is_called_as_a_method_with_the_versioned_request_no_context_and_a_host() {
+fn select_is_called_as_a_method_with_the_whole_request_no_context_and_a_host() {
     // The policy records exactly what it was called with: the request, how
     // many arguments there were, whether `this` was the policy, and, with no
     // --context and no loader, an undefined context and a host without reads.
@@ -145,13 +161,17 @@ fn select_is_called_as_a_method_with_the_versioned_request_no_context_and_a_host
         "select(request, context, host) {{
     writeFileSync({:?}, JSON.stringify({{
       request, arity: arguments.length, version: this.version, context: typeof context,
-      host: Object.keys(host).sort(), frozen: Object.isFrozen(request) && Object.isFrozen(request.limits),
+      host: Object.keys(host).sort(),
+      frozen: Object.isFrozen(request) && Object.isFrozen(request.limits) && Object.isFrozen(request.params),
     }}));
     return {QUICK};
   }},",
         text(&seen)
     )));
-    sandbox.file("mandate.md", "file-prompt-token\n");
+    // The prompt reaches `select` byte for byte: quotes, shell punctuation,
+    // and its trailing newlines.
+    let prompt = "Say \"hi\"; $HOME `x` 'q'\n\tthen stop — ünïcödé.\n\n";
+    sandbox.file("mandate.md", prompt);
 
     let report = sandbox
         .inspect(&[
@@ -165,18 +185,33 @@ fn select_is_called_as_a_method_with_the_versioned_request_no_context_and_a_host
             "20000",
             "--prompt-file",
             "mandate.md",
+            "--param",
+            "repo=/work/my repo",
+            "--param",
+            "session_name=parser: a=b\nsecond line",
+            "--param",
+            "empty=",
+            "--param",
+            "--flag=-x",
             "--json",
         ])
         .report();
-    assert_eq!(report["selection"]["candidateId"], "quick");
+    assert_eq!(report["command"]["args"], json!([prompt]));
     let raw = fs::read_to_string(&seen).unwrap();
     assert_eq!(
         serde_json::from_str::<Value>(&raw).unwrap(),
         json!({
             "request": {
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "kind": "impl",
+                "prompt": prompt,
                 "cwd": text(&sandbox.cwd),
+                "params": {
+                    "repo": "/work/my repo",
+                    "session_name": "parser: a=b\nsecond line",
+                    "empty": "",
+                    "--flag": "-x",
+                },
                 "taskFile": text(&sandbox.cwd.join("tasks/t.md")),
                 "taskId": "T-7",
                 "limits": {
@@ -191,21 +226,36 @@ fn select_is_called_as_a_method_with_the_versioned_request_no_context_and_a_host
             "frozen": true,
         })
     );
-    assert!(
-        !raw.contains("prompt-token"),
-        "the prompt reached select: {raw}"
-    );
 
-    // Inputs the caller did not supply are absent, not empty; the bound is the
+    // `run` hands `select` the same request, from the caller's own directory.
+    let run = sandbox.run(&[
+        "--kind",
+        "impl",
+        "--prompt",
+        prompt,
+        "--param",
+        "repo=/work/my repo",
+    ]);
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let ran: Value = serde_json::from_str(&fs::read_to_string(&seen).unwrap()).unwrap();
+    assert_eq!(ran["request"]["prompt"], prompt);
+    assert_eq!(ran["request"]["cwd"], text(&sandbox.cwd));
+    assert_eq!(ran["request"]["params"], json!({ "repo": "/work/my repo" }));
+    assert_eq!(sandbox.harness_args(), [prompt]);
+
+    // Inputs the caller did not supply are absent, not empty; the parameters
+    // are an empty object, the prompt is the marker, and the bound is the
     // default one.
     sandbox.inspect(&["--kind", "review", "--json"]).report();
     let seen: Value = serde_json::from_str(&fs::read_to_string(&seen).unwrap()).unwrap();
     assert_eq!(
         seen["request"],
         json!({
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "kind": "review",
+            "prompt": MARKER,
             "cwd": text(&sandbox.cwd),
+            "params": {},
             "limits": {
                 "selectionMs": 30_000, "contextBytes": 262_144, "sourceBytes": 65_536,
                 "sources": 256, "messageBytes": 1_048_576, "diagnosticsBytes": 262_144,
@@ -219,7 +269,7 @@ fn a_refusal_from_select_is_reported_with_its_code_message_and_remedy() {
     let sandbox = Sandbox::new();
     let entry = sandbox.personal_policy(&selecting(
         r#"async select(request) {
-    return { status: "refused", code: "no_reviewer", message: `no candidate reviews kind ${request.kind}`, remedy: "declare the creator's provider" };
+    return { status: "refused", code: "no_reviewer", message: `nothing reviews kind ${request.kind}`, remedy: "declare the creator's provider" };
   },"#,
     ));
 
@@ -237,7 +287,7 @@ fn a_refusal_from_select_is_reported_with_its_code_message_and_remedy() {
             error["message"]
                 .as_str()
                 .unwrap()
-                .ends_with("refused the selection: no candidate reviews kind review"),
+                .ends_with("refused the selection: nothing reviews kind review"),
             "{refusal}"
         );
         assert_eq!(error["remedy"], "declare the creator's provider");
@@ -269,94 +319,193 @@ fn a_refusal_from_select_is_reported_with_its_code_message_and_remedy() {
 
 #[test]
 fn each_way_select_can_fail_refuses_with_its_own_code_and_launches_nothing() {
-    let cases: [(&str, &str, &str, &str); 17] = [
+    /// A selected result with `$EXTRA` spread over it, so that one field can
+    /// be replaced, or removed by setting it to `undefined`.
+    const WITH: &str = r#"select: (request) => ({ ...quick(request, "r"), $EXTRA }),"#;
+    let with = |extra: &str| WITH.replace("$EXTRA", extra);
+    let cases: Vec<(String, &str, &str, &str)> = vec![
         (
-            r#"select() { throw new TypeError("no table"); },"#,
+            r#"select() { throw new TypeError("no table"); },"#.to_owned(),
             "selection_threw",
             "policy.select",
             "TypeError: no table",
         ),
         (
-            r#"async select() { await null; throw new RangeError("late"); },"#,
+            r#"async select() { await null; throw new RangeError("late"); },"#.to_owned(),
             "selection_threw",
             "policy.select",
             "RangeError: late",
         ),
         (
-            r#"select: () => Promise.reject("a plain reason"),"#,
+            r#"select: () => Promise.reject("a plain reason"),"#.to_owned(),
             "selection_threw",
             "policy.select",
             "a plain reason",
         ),
         (
-            "select: () => new Promise(() => {}),",
+            "select: () => new Promise(() => {}),".to_owned(),
             "selection_unsettled",
             "policy.select",
             "never settled",
         ),
         (
-            "async select() { await new Promise(() => {}); return { status: \"selected\", candidateId: \"quick\", reason: \"r\" }; },",
+            "async select(request) { await new Promise(() => {}); return quick(request, \"r\"); },"
+                .to_owned(),
             "selection_unsettled",
             "policy.select",
             "never settled",
         ),
-        ("select() {},", "selection_abstained", "result", "no result"),
-        ("select: () => null,", "selection_abstained", "result", "no result"),
-        ("async select() {},", "selection_abstained", "result", "no result"),
-        (r#"select: () => "quick","#, "selection_malformed", "result", "found a string"),
         (
-            r#"select: () => ({ status: "selected", candidateId: "quick", reason: "r", args: ["--yolo"] }),"#,
-            "selection_malformed",
-            "result.args",
-            "cannot supply a program or arguments",
+            "select() {},".to_owned(),
+            "selection_abstained",
+            "result",
+            "no result",
         ),
         (
-            r#"select: () => ({ status: "selected", candidateId: "quick", reason: "r", program: "/bin/sh" }),"#,
-            "selection_malformed",
-            "result.program",
-            "cannot supply a program or arguments",
+            "select: () => null,".to_owned(),
+            "selection_abstained",
+            "result",
+            "no result",
         ),
         (
-            r#"select: () => ({ status: "ok", candidateId: "quick", reason: "r" }),"#,
+            "async select() {},".to_owned(),
+            "selection_abstained",
+            "result",
+            "no result",
+        ),
+        (
+            r#"select: () => "fake-harness","#.to_owned(),
+            "selection_malformed",
+            "result",
+            "found a string",
+        ),
+        (
+            r#"select: (request) => [quick(request, "r")],"#.to_owned(),
+            "selection_malformed",
+            "result",
+            "found an array",
+        ),
+        (
+            with(r#"status: undefined"#),
+            "selection_malformed",
+            "result.status",
+            "`status` is missing",
+        ),
+        (
+            with(r#"status: "ok""#),
             "selection_malformed",
             "result.status",
             "found \"ok\"",
         ),
         (
-            r#"select: () => ({ status: "selected", candidateId: "quick", reason: "  " }),"#,
+            with(r#"reason: "  ""#),
             "selection_malformed",
             "result.reason",
-            "blank",
+            "`reason` must not be blank",
         ),
         (
-            r#"select: () => ({ status: "refused", code: "c", message: "m" }),"#,
+            with(r#"provider: undefined"#),
+            "selection_malformed",
+            "result.provider",
+            "`provider` is missing",
+        ),
+        (
+            with(r#"model: "\n""#),
+            "selection_malformed",
+            "result.model",
+            "`model` must not be blank",
+        ),
+        (
+            with(r#"effort: 3"#),
+            "selection_malformed",
+            "result.effort",
+            "`effort` must be a string, found a number",
+        ),
+        (
+            with(r#"program: undefined"#),
+            "selection_malformed",
+            "result.program",
+            "`program` is missing",
+        ),
+        (
+            with(r#"program: () => "fake-harness""#),
+            "selection_malformed",
+            "result.program",
+            "found a function",
+        ),
+        (
+            with(r#"program: "fake\0harness""#),
+            "selection_malformed",
+            "result.program",
+            "a NUL character at byte 4",
+        ),
+        (
+            with(r#"args: undefined"#),
+            "selection_malformed",
+            "result.args",
+            "`args` is missing",
+        ),
+        (
+            with(r#"args: "--yolo""#),
+            "selection_malformed",
+            "result.args",
+            "`args` must be an array of strings, found a string",
+        ),
+        (
+            with(r#"args: ["--effort", 7]"#),
+            "selection_malformed",
+            "result.args[1]",
+            "one whole word, found a number",
+        ),
+        (
+            with(r#"args: [{ slot: "prompt" }]"#),
+            "selection_malformed",
+            "result.args[0]",
+            "one whole word, found an object",
+        ),
+        (
+            with(r#"args: ["ok", "before\0after"]"#),
+            "selection_malformed",
+            "result.args[1]",
+            "a NUL character at byte 6",
+        ),
+        (
+            with(r#"candidateId: "quick""#),
+            "selection_malformed",
+            "result.candidateId",
+            "unknown field `candidateId`",
+        ),
+        (
+            with(r#"env: { TOKEN: "t" }"#),
+            "selection_malformed",
+            "result.env",
+            "unknown field `env`",
+        ),
+        (
+            r#"select: () => ({ status: "refused", code: "c", message: "m" }),"#.to_owned(),
             "selection_malformed",
             "result.remedy",
-            "missing",
+            "`remedy` is missing",
         ),
         (
-            r#"select() { const result = { status: "selected", candidateId: "quick", reason: "r" }; result.self = result; return result; },"#,
+            r#"select: () => ({ status: "refused", code: "c", message: "m", remedy: "r", program: "/bin/sh" }),"#
+                .to_owned(),
+            "selection_malformed",
+            "result.program",
+            "unknown field `program`",
+        ),
+        (
+            r#"select(request) { const result = quick(request, "r"); result.self = result; return result; },"#
+                .to_owned(),
             "selection_malformed",
             "result",
             "cannot be serialized",
-        ),
-        (
-            r#"select: () => ({ status: "selected", candidateId: "careful", reason: "r" }),"#,
-            "unknown_candidate",
-            "result.candidateId",
-            "\"careful\", which is not in its catalog",
-        ),
-        (
-            r#"select: () => ({ status: "selected", candidateId: "Quick", reason: "r" }),"#,
-            "unknown_candidate",
-            "result.candidateId",
-            "\"Quick\", which is not in its catalog",
         ),
     ];
     let mut codes = BTreeSet::new();
     for (select, code, location, found) in cases {
         let sandbox = Sandbox::new();
-        let entry = sandbox.personal_policy(&selecting(select));
+        let entry = sandbox.personal_policy(&selecting(&select));
         for command in ["inspect", "run"] {
             let started = Instant::now();
             let mut invocation = sandbox.command();
@@ -389,301 +538,181 @@ fn each_way_select_can_fail_refuses_with_its_own_code_and_launches_nothing() {
     }
     assert_eq!(
         codes.len(),
-        5,
-        "exceptions, unsettled promises, abstention, malformed results and unknown IDs \
-         each have their own code: {codes:?}"
+        4,
+        "exceptions, unsettled promises, abstention and malformed results each have their own \
+         code: {codes:?}"
     );
-}
 
-/// `--choice` under `select`: the task identity tells this policy what to do
-/// with the choice it is given, and it records that it ran.
-fn policing(marker: &std::path::Path) -> String {
-    selecting(&format!(
-        r#"select(request) {{
-    writeFileSync({:?}, JSON.stringify(request.explicitChoice ?? null));
-    const choice = request.explicitChoice;
-    if (choice === undefined) return {{ status: "selected", candidateId: "quick", reason: "no choice was made" }};
-    if (request.taskId === "accept") return {{ status: "selected", candidateId: choice, reason: `accepted ${{choice}}` }};
-    if (request.taskId === "refuse") return {{ status: "refused", code: "choice_forbidden", message: `${{choice}} is not allowed here`, remedy: "omit --choice" }};
-    return {{ status: "selected", candidateId: choice === "deep" ? "quick" : "deep", reason: "a safer fallback" }};
-  }},"#,
-        text(marker)
-    ))
+    // The control: the same spread with nothing replaced selects.
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(&selecting(&with(r#"reason: "the control""#)));
+    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
+    assert_eq!(report["selection"]["reason"], "the control");
 }
 
 #[test]
-fn select_sees_an_explicit_choice_and_accepting_it_selects_it() {
+fn only_the_shape_of_a_selected_result_is_judged() {
+    // No argument is required, an argument may be empty, and nothing checks
+    // that the prompt is among them or that the labels appear in them.
     let sandbox = Sandbox::new();
-    let marker = sandbox.root.join("select-saw");
-    sandbox.personal_policy(&policing(&marker));
-
+    sandbox.personal_policy(&selecting(
+        r#"select: () => ({
+    status: "selected", program: "fake-harness", args: ["", " ", "--model=elsewhere"],
+    provider: "origin-a", model: "model-large", effort: "high", reason: "the prompt is not passed",
+  }),"#,
+    ));
     let report = sandbox
-        .inspect(&[
-            "--kind",
-            "impl",
-            "--task-id",
-            "accept",
-            "--choice",
-            "deep",
-            "--json",
-        ])
+        .inspect(&["--kind", "impl", "--prompt", "unused", "--json"])
         .report();
-    let selection = &report["selection"];
-    assert_eq!(selection["form"], "select");
-    assert_eq!(selection["selectedBy"], "select");
-    assert_eq!(selection["explicitChoice"], "deep");
-    assert_eq!(selection["candidateId"], "deep");
-    assert_eq!(selection["reason"], "accepted deep");
-    assert_eq!(fs::read_to_string(&marker).unwrap(), "\"deep\"");
-
-    let human = sandbox.inspect(&["--kind", "impl", "--task-id", "accept", "--choice", "deep"]);
-    assert!(
-        human
-            .stdout
-            .contains("choice     --choice deep, which the policy's select accepted"),
-        "{}",
-        human.stdout
+    assert_eq!(
+        report["command"]["args"],
+        json!(["", " ", "--model=elsewhere"])
     );
-
-    let run = sandbox.run(&[
-        "--kind",
-        "impl",
-        "--task-id",
-        "accept",
-        "--choice",
-        "deep",
-        "--prompt",
-        "p",
-    ]);
+    let run = sandbox.run(&["--kind", "impl", "--prompt", "unused"]);
     assert_eq!(run.code, Some(0), "{}", run.stderr);
-    assert_eq!(sandbox.harness_args(), ["--effort", "high", "p"]);
-    assert!(
-        run.stderr
-            .starts_with("harness-dispatch: running explicitly chosen candidate \"deep\""),
-        "{}",
-        run.stderr
-    );
-    let mut show = sandbox.command();
-    show.args([
-        "record",
-        "show",
-        "--run",
-        &sandbox.harness_run_id(),
-        "--json",
-    ]);
-    let export = support::run(&mut show).report();
-    assert_eq!(export["launch"]["selection"]["selectedBy"], "select");
-    assert_eq!(export["launch"]["selection"]["explicitChoice"], "deep");
-    assert_eq!(export["launch"]["selection"]["reason"], "accepted deep");
+    assert_eq!(sandbox.harness_args(), ["", " ", "--model=elsewhere"]);
+
+    let sandbox = Sandbox::new();
+    sandbox.personal_policy(&selecting(
+        r#"select: () => ({
+    status: "selected", program: "fake-harness", args: [],
+    provider: "origin-a", model: "model-large", effort: "high", reason: "no arguments at all",
+  }),"#,
+    ));
+    let run = sandbox.run(&["--kind", "any-kind-at-all", "--prompt", "unused"]);
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert!(sandbox.harness_args().is_empty());
 }
 
 #[test]
-fn select_may_refuse_an_explicit_choice() {
+fn nothing_reported_distinguishes_a_policy_that_consults_a_table_from_one_that_reads_the_prompt() {
+    // Both return the same command for this request: one looks the kind up in
+    // a table, the other decides from the prompt's text.
+    const COMMAND: &str = r#"{ program: "fake-harness", args: ["--effort", "low", request.prompt], provider: "origin-b", model: "model-small", effort: "low" }"#;
     let sandbox = Sandbox::new();
-    let marker = sandbox.root.join("select-saw");
-    sandbox.personal_policy(&policing(&marker));
+    let table = sandbox.file(
+        "table.ts",
+        &format!(
+            r#"const table = {{ impl: (request) => ({COMMAND}) }};
+export const policy = {{
+  schemaVersion: 2,
+  version: "same-1",
+  select: (request) => ({{ status: "selected", ...table[request.kind](request), reason: "a small change" }}),
+}};
+"#
+        ),
+    );
+    let reading = sandbox.file(
+        "reading.ts",
+        &format!(
+            r#"export const policy = {{
+  schemaVersion: 2,
+  version: "same-1",
+  async select(request) {{
+    const small = request.prompt.length < 100;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    return {{ status: "selected", ...({COMMAND}), reason: small ? "a small change" : "a large change" }};
+  }},
+}};
+"#
+        ),
+    );
 
-    for command in ["inspect", "run"] {
-        let mut invocation = sandbox.command();
-        invocation.args([
-            command,
+    // What names the entry itself, and how long evaluation took.
+    let without = |mut document: Value, own: &[&str]| {
+        let fields = document.as_object_mut().unwrap();
+        for field in own {
+            assert!(fields.remove(*field).is_some(), "no {field}");
+        }
+        document
+    };
+    let inspected = |entry: &std::path::Path| {
+        let entry = text(entry);
+        let report = sandbox
+            .inspect(&[
+                "--kind", "impl", "--config", &entry, "--prompt", "fix it", "--json",
+            ])
+            .report();
+        let human = sandbox.inspect(&["--kind", "impl", "--config", &entry, "--prompt", "fix it"]);
+        assert_eq!(human.code, Some(0), "{}", human.stderr);
+        let rows: Vec<String> = human
+            .stdout
+            .lines()
+            .filter(|line| {
+                !["  policy ", "  authority ", "  sha256 ", "  timing "]
+                    .iter()
+                    .any(|own| line.starts_with(own))
+            })
+            .map(str::to_owned)
+            .collect();
+        (without(report, &["policy", "timing"]), rows)
+    };
+    assert_eq!(inspected(&table), inspected(&reading));
+
+    let launched = |entry: &std::path::Path| {
+        let sandbox = Sandbox::new();
+        let copy = sandbox.file("policy.ts", &fs::read_to_string(entry).unwrap());
+        let run = sandbox.run(&[
             "--kind",
             "impl",
-            "--task-id",
-            "refuse",
-            "--choice",
-            "quick",
+            "--config",
+            &text(&copy),
             "--prompt",
-            "p",
+            "fix it",
             "--json",
         ]);
-        let refusal = support::run(&mut invocation).refusal(3);
-        let error = &refusal["error"];
-        assert_eq!(error["code"], "policy_refused", "{command}: {refusal}");
-        assert_eq!(error["policyCode"], "choice_forbidden");
-        assert_eq!(error["input"], "--choice quick");
-        assert_eq!(error["remedy"], "omit --choice");
-    }
-    assert_eq!(fs::read_to_string(&marker).unwrap(), "\"quick\"");
-    assert!(!sandbox.harness_ran());
-}
-
-#[test]
-fn any_other_id_for_an_explicit_choice_is_a_mismatch_whatever_the_reason() {
-    let sandbox = Sandbox::new();
-    let marker = sandbox.root.join("select-saw");
-    let entry = sandbox.personal_policy(&policing(&marker));
-
-    // The policy answers each choice with the other configured candidate, and
-    // calls it a fallback.
-    for (choice, returned) in [("quick", "deep"), ("deep", "quick")] {
-        for command in ["inspect", "run"] {
-            let mut invocation = sandbox.command();
-            invocation.args([
-                command,
-                "--kind",
-                "impl",
-                "--task-id",
-                "fallback",
-                "--choice",
-                choice,
-                "--prompt",
-                "p",
-                "--json",
-            ]);
-            let refusal = support::run(&mut invocation).refusal(3);
-            let error = &refusal["error"];
-            assert_eq!(
-                error["code"], "explicit_choice_mismatch",
-                "{command}: {refusal}"
-            );
-            assert_eq!(error["stage"], "selection");
-            assert_eq!(error["input"], format!("--choice {choice}"));
-            assert_eq!(error["source"], text(&entry));
-            assert_eq!(error["location"], "result.candidateId");
-            let message = error["message"].as_str().unwrap();
-            assert!(
-                message.contains(&format!("selected {returned:?} instead"))
-                    && message.contains("a safer fallback"),
-                "{message}"
-            );
-        }
-    }
-    assert!(!sandbox.harness_ran(), "a mismatch launched a harness");
-    assert!(!sandbox.home.join(".local").exists());
-}
-
-#[test]
-fn a_choice_the_catalog_lacks_refuses_before_select_runs() {
-    let sandbox = Sandbox::new();
-    let marker = sandbox.root.join("select-saw");
-    let entry = sandbox.personal_policy(&policing(&marker));
-
-    for command in ["inspect", "run"] {
-        let mut invocation = sandbox.command();
-        invocation.args([
-            command,
-            "--kind",
-            "impl",
-            "--task-id",
-            "accept",
-            "--choice",
-            "careful",
-            "--prompt",
-            "p",
+        assert_eq!(run.code, Some(0), "{}", run.stderr);
+        let notice: Value = serde_json::from_str(&run.stderr).unwrap();
+        let handoff = without(
+            notice["handoff"].clone(),
+            &["runId", "recordedAt", "stateDir", "executable"],
+        );
+        let mut show = sandbox.command();
+        show.args([
+            "record",
+            "show",
+            "--run",
+            &sandbox.harness_run_id(),
             "--json",
         ]);
-        let refusal = support::run(&mut invocation).refusal(3);
-        let error = &refusal["error"];
-        assert_eq!(error["code"], "unknown_choice", "{command}: {refusal}");
-        assert_eq!(error["input"], "--choice careful");
-        assert_eq!(error["source"], text(&entry));
-        let remedy = error["remedy"].as_str().unwrap();
-        assert!(remedy.contains(r#"("deep", "quick")"#), "{remedy}");
-    }
-    assert!(
-        !marker.exists(),
-        "select ran for a choice the catalog lacks"
-    );
-
-    // The control: a configured choice does reach select.
-    sandbox
-        .inspect(&[
-            "--kind",
-            "impl",
-            "--task-id",
-            "accept",
-            "--choice",
-            "quick",
-            "--json",
-        ])
-        .report();
-    assert_eq!(fs::read_to_string(&marker).unwrap(), "\"quick\"");
-}
-
-#[test]
-fn inspection_distinguishes_a_route_an_explicit_choice_and_a_computed_selection() {
-    let sandbox = Sandbox::new();
-    let routes = sandbox.file(
-        "routes.ts",
-        &TEMPLATE.replace("$SELECT", r#"routes: { impl: "deep" },"#),
-    );
-    let computed = sandbox.file(
-        "computed.ts",
-        &selecting(&format!("select: () => ({QUICK}),")),
-    );
-    let (routes, computed) = (text(&routes), text(&computed));
-
-    for (config, choice, form, selected_by, row) in [
-        (
-            &routes,
-            None,
-            "routes",
-            "route",
-            "by the routes table (static)",
-        ),
-        (
-            &routes,
-            Some("quick"),
-            "routes",
-            "explicit_choice",
-            "by the explicit choice (static; the routes were not consulted)",
-        ),
-        (
-            &computed,
-            None,
-            "select",
-            "select",
-            "by the policy's select (computed)",
-        ),
-        (
-            &computed,
-            Some("quick"),
-            "select",
-            "select",
-            "by the policy's select (computed)",
-        ),
-    ] {
-        let mut args = vec!["--kind", "impl", "--config", config.as_str()];
-        if let Some(choice) = choice {
-            args.extend(["--choice", choice]);
-        }
-        let human = sandbox.inspect(&args);
-        args.push("--json");
-        let report = sandbox.inspect(&args).report();
-        let context = format!("{config} {choice:?}: {report}");
-        assert_eq!(report["selection"]["form"], form, "{context}");
-        assert_eq!(report["selection"]["selectedBy"], selected_by, "{context}");
-        assert_eq!(
-            report["selection"]["explicitChoice"],
-            choice.map_or(Value::Null, Value::from),
-            "{context}"
+        let export = support::run(&mut show).report();
+        let launch = without(
+            export["launch"].clone(),
+            &["policy", "timing", "cwd", "executable"],
         );
-        assert!(
-            human.stdout.contains(&format!("  selected   {row}\n")),
-            "{context}\n{}",
-            human.stdout
-        );
-    }
+        (handoff, launch, sandbox.harness_args())
+    };
+    assert_eq!(launched(&table), launched(&reading));
 }
 
 #[test]
 fn select_runs_only_for_a_policy_the_front_accepted() {
-    // An invalid catalog, or both forms at once, refuses from the snapshot the
-    // worker took at import: `select` is never called for it.
+    // An invalid policy refuses from the snapshot the worker took at import:
+    // `select` is never called for it.
     let sandbox = Sandbox::new();
     let marker = sandbox.root.join("select-ran");
     let valid = selecting(&marking(&marker));
     for (name, source, location) in [
         (
-            "a candidate without a provider",
-            valid.replace(r#"provider: "origin-b", "#, ""),
-            "policy.catalog[1].provider",
+            "a blank version",
+            valid.replace(r#"version: "select-1","#, r#"version: " ","#),
+            "policy.version",
         ),
         (
-            "both forms",
-            valid.replace("select() {", "routes: { impl: \"deep\" },\n  select() {"),
-            "policy",
+            "a table beside select",
+            valid.replace(
+                "select(request) {",
+                "routes: { impl: \"quick\" },\n  select(request) {",
+            ),
+            "policy.routes",
+        ),
+        (
+            "a loader that is not a function",
+            valid.replace(
+                "select(request) {",
+                "loadContext: \"notes.md\",\n  select(request) {",
+            ),
+            "policy.loadContext",
         ),
     ] {
         sandbox.personal_policy(&source);
@@ -707,19 +736,22 @@ fn select_runs_only_for_a_policy_the_front_accepted() {
 fn what_select_prints_is_kept_apart_from_the_report() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&selecting(&format!(
-        "async select() {{ console.log(\"weighing the candidates\"); console.error(\"no table entry\"); return {QUICK}; }},"
+        "async select(request) {{ console.log(\"weighing the kind\"); console.error(\"no table entry\"); return {QUICK}; }},"
     )));
 
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    assert_eq!(report["selection"]["candidateId"], "quick");
-    assert_eq!(report["diagnostics"]["stdout"], "weighing the candidates\n");
+    assert_eq!(
+        report["selection"]["reason"],
+        "a small change needs little effort"
+    );
+    assert_eq!(report["diagnostics"]["stdout"], "weighing the kind\n");
     assert_eq!(report["diagnostics"]["stderr"], "no table entry\n");
 
     let run = sandbox.run(&["--kind", "impl", "--prompt", "p"]);
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     assert!(
         run.stderr
-            .starts_with("policy stdout: weighing the candidates\npolicy stderr: no table entry\n"),
+            .starts_with("policy stdout: weighing the kind\npolicy stderr: no table entry\n"),
         "{}",
         run.stderr
     );
@@ -732,7 +764,7 @@ fn an_import_left_unsettled_refuses_as_a_load_failure_at_once() {
     let sandbox = Sandbox::new();
     let entry = sandbox.personal_policy(&format!(
         "await new Promise(() => {{}});\n{}",
-        selecting(&format!("select: () => ({QUICK}),"))
+        selecting(&format!("select: (request) => ({QUICK}),"))
     ));
     let started = Instant::now();
     let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
@@ -758,34 +790,85 @@ fn an_import_left_unsettled_refuses_as_a_load_failure_at_once() {
     // The control: a top-level await that settles loads and selects.
     sandbox.personal_policy(&format!(
         "await new Promise((resolve) => setTimeout(resolve, 20));\n{}",
-        selecting(&format!("select: () => ({QUICK}),"))
+        selecting(&format!("select: (request) => ({QUICK}),"))
     ));
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    assert_eq!(report["selection"]["candidateId"], "quick");
+    assert_eq!(
+        report["selection"]["reason"],
+        "a small change needs little effort"
+    );
 }
 
 #[test]
 fn the_type_checked_select_fixture_evaluates_as_its_types_describe() {
     // The fixture `task dispatch:typecheck` checks against the shipped
-    // declarations, with `request` typed by the policy's form alone.
+    // declarations, with `request` typed by `definePolicy` alone. It reads a
+    // parameter, and compares the prompt with the SDK's `PROMPT_NOT_SUPPLIED`.
     let sandbox = Sandbox::new();
     sandbox.personal_policy(include_str!("../worker/typecheck/select-policy.ts"));
 
-    for (kind, candidate) in [("design", "deep"), ("impl", "quick")] {
+    for (kind, provider, model, effort) in [
+        ("design", "origin-a", "model-large", "high"),
+        ("impl", "origin-b", "model-small", "low"),
+    ] {
+        // Without a prompt, the marker the front sends is the one the SDK
+        // names, and it stands where the policy placed the prompt.
         let report = sandbox
-            .inspect(&["--kind", kind, "--timeout-ms", "25000", "--json"])
+            .inspect(&[
+                "--kind",
+                kind,
+                "--param",
+                "repo=/work/parser",
+                "--timeout-ms",
+                "25000",
+                "--json",
+            ])
             .report();
         assert_eq!(report["policy"]["version"], "typecheck-select-1");
-        assert_eq!(report["selection"]["form"], "select");
-        assert_eq!(report["selection"]["candidateId"], candidate, "{kind}");
         assert_eq!(
-            report["selection"]["reason"],
-            format!("kind {kind} within 25000 ms")
+            report["selection"],
+            json!({
+                "provider": provider,
+                "model": model,
+                "effort": effort,
+                "reason": format!("kind {kind} with no prompt within 25000 ms"),
+            }),
+            "{kind}"
+        );
+        assert_eq!(
+            report["prompt"],
+            json!({ "supplied": false, "marker": MARKER })
+        );
+        assert_eq!(
+            report["command"]["args"],
+            json!(["-C", "/work/parser", format!("--kind={kind}"), MARKER])
         );
     }
-    let refusal = sandbox
-        .inspect(&["--kind", "impl", "--choice", "deep", "--json"])
-        .refusal(3);
+
+    // Given a prompt, it selects from that prompt.
+    let report = sandbox
+        .inspect(&[
+            "--kind",
+            "impl",
+            "--param",
+            "repo=/work/parser",
+            "--prompt",
+            "héllo",
+            "--json",
+        ])
+        .report();
+    assert_eq!(
+        report["selection"]["reason"],
+        "kind impl with a 5-character prompt within 30000 ms"
+    );
+    assert_eq!(
+        report["command"]["args"],
+        json!(["-C", "/work/parser", "--kind=impl", "héllo"])
+    );
+
+    // A parameter the caller did not pass is absent, and the policy says so.
+    let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
     assert_eq!(refusal["error"]["code"], "policy_refused");
-    assert_eq!(refusal["error"]["policyCode"], "no_explicit_choices");
+    assert_eq!(refusal["error"]["policyCode"], "repo_missing");
+    assert_eq!(refusal["error"]["remedy"], "pass --param repo=PATH");
 }

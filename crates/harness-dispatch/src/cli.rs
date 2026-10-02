@@ -2,10 +2,9 @@
 //! interface*).
 //!
 //! `inspect` and `run` accept the same selection inputs: the kind, the policy
-//! entry, the prompt, the optional task file and identity, the caller's context
-//! document, the explicit choice, the selection and context bounds, the record
-//! directory and the worker's environment grants, for a static `routes` policy
-//! or a computed `select`, either with a `loadContext`.
+//! entry, the prompt, the optional task file and identity, the caller's
+//! parameters and context document, the selection and context bounds, the
+//! record directory and the worker's environment grants.
 //! `record show` exports a recorded run, and `record observe` appends a later
 //! observation to one.
 
@@ -20,30 +19,33 @@ use crate::refusal::{Invocation, Refusal, Stage, EXIT_MALFORMED};
 #[command(
     name = "harness-dispatch",
     version,
-    about = "Evaluate an owner's harness-selection policy, then report or run the joint choice it makes",
-    long_about = "Evaluate an owner's TypeScript harness-selection policy for a session kind, then \
-        report the joint harness, model and effort choice it makes (inspect) or replace this \
-        process with that harness (run).\n\n\
+    about = "Pass a caller's inputs to an owner's select function, then report or run the command it returns",
+    long_about = "Pass a caller's kind, prompt and parameters to the select function of an owner's \
+        TypeScript policy, then report the command it returns (inspect) or replace this process \
+        with that command (run). A select returns a program, its arguments and the owner's \
+        provider, model and effort labels for what they run, or a refusal.\n\n\
         The policy is the personal default ~/.config/harness-dispatch/policy.ts, or the entry \
         named by --config. No policy in the current directory runs unless --config names it. \
         Nothing else is needed: no task tree, Grove installation or other caller.",
     after_help = "Examples:\n  \
         harness-dispatch inspect --kind impl\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
+        harness-dispatch run --kind impl --param repo=/work/parser --prompt 'Implement the parser'\n  \
         harness-dispatch record show --run \"$HARNESS_DISPATCH_RUN_ID\" --json\n  \
         harness-dispatch record observe --run \"$HARNESS_DISPATCH_RUN_ID\" --file observation.json\n\n\
         From Grove: a personal command definition in ~/.config/grove/config.kdl runs \
         harness-dispatch with slots Grove fills from the leaf it launches. Grove's configuration \
-        admits the kind and runs this command; your policy selects the harness, and is evaluated \
-        only at launch:\n  \
+        admits the kind and runs this command; your policy returns the harness command, and is \
+        evaluated only at launch:\n  \
         command \"dispatch\" \"harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --prompt ${prompt}\"\n\n\
         Exit results before the harness runs: 2 malformed command line; 3 refused by the \
         policy, the selection or its inputs; 4 run record failure; 5 worker or protocol failure; \
         124 selection timeout; 126 program not executable; 127 program not found. Once the \
         harness runs, its own exit status or signal is the command's.\n\n\
-        A refusal launches nothing and never substitutes another candidate. Nothing is retried, \
+        A refusal launches nothing and nothing is run in its place. Nothing is retried, \
         paged or confirmed interactively. A refused run prints the equivalent inspect \
-        invocation, without the prompt: run it to see the same selection without launching."
+        invocation, without the prompt: run it to see the same selection without launching. A \
+        policy that reads the prompt selects as it did only when the same prompt is added."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -52,38 +54,41 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Report the candidate a policy selects, its expanded argv and why, without launching anything
+    /// Report the command a policy's select returns, its labels and why, without launching anything
     #[command(
         after_help = "Inspection is a proposal, not a launch reservation: a later run \
         evaluates the policy afresh. The policy is trusted TypeScript, and evaluating it is not \
-        promised to be free of side effects.\n\n\
+        promised to be free of side effects. Without --prompt or --prompt-file, select receives \
+        a fixed marker as its prompt, which harness-dispatch/sdk names PROMPT_NOT_SUPPLIED: a \
+        policy that only places the prompt in its arguments shows the marker there, and one \
+        that reads the prompt selects from the marker.\n\n\
         Examples:\n  \
         harness-dispatch inspect --kind impl\n  \
         harness-dispatch inspect --kind impl --task-id T-12 --prompt 'Implement the parser'\n  \
-        harness-dispatch inspect --kind impl --choice deep\n  \
+        harness-dispatch inspect --kind impl --param repo=/work/parser --param session_name=parser\n  \
         harness-dispatch inspect --kind review --context ./review-context.json --json\n  \
         harness-dispatch inspect --kind review-impl --config ./policies/review.ts --json\n  \
         harness-dispatch inspect --kind impl --policy-env ROUTER_TOKEN\n\n\
         Recovering from a refusal:\n  \
         A refused run prints this command's equivalent invocation, without the prompt. Run it \
         to reproduce the selection and its refusal without launching anything, correct the \
-        input or policy entry its remedy names, and inspect again until it reports a choice. \
-        For an incomplete mapping, add the kind's route, or name one configured candidate:\n  \
-        harness-dispatch inspect --kind design --choice deep"
+        input or policy entry its remedy names, and inspect again until it reports a command. \
+        A policy that reads the prompt needs the same prompt added to select as it did:\n  \
+        harness-dispatch inspect --kind design --prompt-file ./mandate.md"
     )]
     Inspect(InspectArgs),
-    /// Select a candidate, record the handoff, and replace this process with its harness
+    /// Select a command, record the handoff, and replace this process with it
     #[command(
         after_help = "Before it execs, run commits one handoff record with a fresh run ID to \
         the record store (exit 4, and nothing launched, if it cannot). The harness inherits \
         this process's cwd, descriptors, environment and PID, plus HARNESS_DISPATCH_RUN_ID \
         and HARNESS_DISPATCH_STATE_DIR, and its own exit code or signal is the command's. \
-        Stdout and stdin are the harness's; the choice and run ID are reported in one line on \
+        Stdout and stdin are the harness's; the labels and run ID are reported in one line on \
         stderr.\n\n\
         Examples:\n  \
         harness-dispatch run --kind impl --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind impl --task-file ./tasks/parser.md --task-id T-12 --prompt-file ./mandate.md\n  \
-        harness-dispatch run --kind impl --choice deep --prompt 'Implement the parser'\n  \
+        harness-dispatch run --kind impl --param repo=/work/parser --prompt 'Implement the parser'\n  \
         harness-dispatch run --kind review --context ./review-context.json --context-bytes 1048576 --prompt-file ./mandate.md\n  \
         harness-dispatch run --kind impl --state-dir ./records --prompt 'Implement the parser'\n\n\
         From Grove: a personal command definition in ~/.config/grove/config.kdl, with slots \
@@ -208,10 +213,10 @@ pub struct RunArgs {
 /// The selection inputs `inspect` and `run` share.
 #[derive(Debug, Args)]
 pub struct SelectionArgs {
-    /// The caller's session kind: any nonempty token, matched exactly against the policy's routes or given to its select
+    /// The caller's session kind: any nonempty token, given to the policy's select as it is
     #[arg(long, value_name = "TEXT")]
     pub kind: String,
-    /// The harness prompt, passed unchanged as one argument; run needs this or --prompt-file
+    /// The harness prompt, given to the policy's select byte for byte; run needs this or --prompt-file
     #[arg(
         long,
         value_name = "TEXT",
@@ -231,9 +236,9 @@ pub struct SelectionArgs {
     /// Evaluate this policy entry instead of the personal default; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub config: Option<PathBuf>,
-    /// Select this configured candidate by its catalog ID: routes take it instead of the kind's route, and select must accept or refuse it; an ID the catalog lacks refuses
-    #[arg(long, value_name = "ID")]
-    pub choice: Option<OsString>,
+    /// Caller data for the policy's select, by name; repeatable. The name is nonempty and holds no =, the value is any UTF-8 text, a repeated name refuses, and all names and values together are at most 65536 bytes
+    #[arg(long, value_name = "NAME=VALUE", allow_hyphen_values = true)]
+    pub param: Vec<OsString>,
     /// A version-1 JSON context document for the policy, read as data; relative to the current directory
     #[arg(long, value_name = "PATH")]
     pub context: Option<PathBuf>,
@@ -285,8 +290,8 @@ impl SelectionArgs {
     }
 
     /// The `inspect` invocation equivalent to `run` with these inputs: the same
-    /// selection inputs, `--policy-env` names (which carry no values), and no
-    /// prompt, run from the same directory. The program is this process's own
+    /// selection inputs, parameters included, `--policy-env` names (which carry
+    /// no values), and no prompt, run from the same directory. The program is this process's own
     /// argv[0], as the caller spelled it, so the reproduction reaches the same
     /// installation. It follows `--json` when the refusal did. When a word or
     /// the directory is not UTF-8 it is unavailable, never approximated.
@@ -302,8 +307,10 @@ impl SelectionArgs {
         };
         let mut argv = vec![program, "inspect".to_owned()];
         option(&mut argv, "--kind", OsStr::new(&self.kind))?;
+        for param in &self.param {
+            option(&mut argv, "--param", param)?;
+        }
         let given = [
-            ("--choice", self.choice.as_deref()),
             (
                 "--config",
                 self.config.as_deref().map(|path| path.as_os_str()),

@@ -1,19 +1,20 @@
 //! The caller's data inputs, read and checked once, before any policy runs
 //! (`docs/specs/harness-selection-and-execution.md`, *Command interface*).
 //!
-//! The kind, the task file, the task identity and the explicit choice are
-//! caller data: the task file supplies neither kind nor identity, and nothing
-//! is recovered from a file name. The prompt is read once, kept byte for byte, and never sent to the
-//! policy worker; it only ever fills the candidate's `prompt` argument.
-//! Terminal stdin is never read. The caller's bounds, `--context` document and
-//! `--policy-env` grants are read here too, so a malformed or excluded one
-//! refuses before any policy runs.
+//! The kind, the task file, the task identity and the parameters are caller
+//! data: the task file supplies neither kind nor identity, nothing is recovered
+//! from a file name, and a parameter's name and value mean nothing here. The
+//! prompt is read once and kept byte for byte, and the policy's `select`
+//! receives it as it is. Terminal stdin is never read. The caller's bounds,
+//! `--context` document and `--policy-env` grants are read here too, so a
+//! malformed or excluded one refuses before any policy runs.
 
 use crate::cli::SelectionArgs;
 use crate::context::{self, CallerContext};
 use crate::environment::Grants;
 use crate::limits::Limits;
 use crate::refusal::{Refusal, Stage, EXIT_MALFORMED, EXIT_REFUSED};
+use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
 use std::io::Read as _;
@@ -27,6 +28,14 @@ pub const PROMPT_LIMIT: usize = 1024 * 1024;
 /// The task identity's bound, in bytes of UTF-8.
 pub const TASK_ID_LIMIT: usize = 1024;
 
+/// The parameters' fixed bound: every name and value together, in bytes.
+pub const PARAMS_LIMIT: usize = 64 * 1024;
+
+/// What `select` receives as the prompt when `inspect` was given none. The
+/// SDK names the same text `PROMPT_NOT_SUPPLIED`, so that a policy can
+/// recognise it (`worker/sdk/index.ts`).
+pub const PROMPT_NOT_SUPPLIED: &str = "<harness-dispatch inspect: no prompt was supplied>";
+
 #[derive(Debug)]
 pub struct Inputs {
     pub kind: String,
@@ -37,9 +46,8 @@ pub struct Inputs {
     /// exist.
     pub task_file: Option<String>,
     pub task_id: Option<String>,
-    /// The candidate ID `--choice` names; whether the catalog has it is the
-    /// selection's question, not the command line's.
-    pub choice: Option<String>,
+    /// Every `--param`, by name.
+    pub params: BTreeMap<String, String>,
     pub prompt: Option<Prompt>,
     /// The caller's `--context` document, read, measured and validated.
     pub context: Option<CallerContext>,
@@ -64,7 +72,7 @@ pub enum PromptSource {
 }
 
 /// Whether the command needs a prompt: `run` launches with one, and `inspect`
-/// shows a placeholder where it would go.
+/// selects with a marker in its place.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PromptRequirement {
     Required,
@@ -90,7 +98,7 @@ impl Inputs {
             .map(|path| task_file(path, &cwd))
             .transpose()?;
         let task_id = args.task_id.clone().map(task_id).transpose()?;
-        let choice = args.choice.clone().map(choice).transpose()?;
+        let params = params(&args.param)?;
         let prompt = match (&args.prompt, &args.prompt_file) {
             (Some(text), _) => Some(Prompt {
                 text: prompt_text(text.clone(), "--prompt", None)?,
@@ -122,7 +130,7 @@ impl Inputs {
             cwd,
             task_file,
             task_id,
-            choice,
+            params,
             prompt,
             context,
             limits,
@@ -187,17 +195,56 @@ fn task_id(id: OsString) -> Result<String, Refusal> {
     Ok(id)
 }
 
-/// `--choice`: a nonempty UTF-8 candidate ID, taken exactly as given.
-fn choice(id: OsString) -> Result<String, Refusal> {
-    let remedy = "name one configured candidate by its catalog ID, such as --choice deep, or omit \
-                  --choice to select by the routes";
-    let id = id
-        .into_string()
-        .map_err(|_| malformed("--choice", "--choice is not valid UTF-8", remedy))?;
-    if id.is_empty() {
-        return Err(malformed("--choice", "--choice must not be empty", remedy));
+/// Every `--param NAME=VALUE`, by name. The name ends at the first `=`, so it
+/// holds none, and the value is the rest, exactly as given. Nothing here reads
+/// either: a parameter means what the policy makes of it.
+fn params(given: &[OsString]) -> Result<BTreeMap<String, String>, Refusal> {
+    let remedy = "pass each parameter once as --param NAME=VALUE, with a nonempty name that \
+                  holds no = and a UTF-8 value";
+    let mut params = BTreeMap::new();
+    let mut bytes = 0;
+    for param in given {
+        let param = param
+            .to_str()
+            .ok_or_else(|| malformed("--param", "--param is not valid UTF-8", remedy))?;
+        let (name, value) = match param.split_once('=') {
+            Some((name, value)) if !name.is_empty() => (name, value),
+            Some(_) => {
+                return Err(malformed(
+                    "--param",
+                    format!("--param {param:?} has no name before its ="),
+                    remedy,
+                ))
+            }
+            None => {
+                return Err(malformed(
+                    "--param",
+                    format!("--param {param:?} has no =, so it names no value"),
+                    remedy,
+                ))
+            }
+        };
+        bytes += name.len() + value.len();
+        if params.insert(name.to_owned(), value.to_owned()).is_some() {
+            return Err(malformed(
+                "--param",
+                format!("--param {name:?} is given more than once"),
+                remedy,
+            ));
+        }
     }
-    Ok(id)
+    if bytes > PARAMS_LIMIT {
+        return Err(malformed(
+            "--param",
+            format!(
+                "the parameters' names and values are {bytes} bytes together, over the \
+                 {PARAMS_LIMIT}-byte limit"
+            ),
+            "pass less in parameters; a policy can read a larger input from a file that a \
+             parameter names",
+        ));
+    }
+    Ok(params)
 }
 
 /// Read a prompt file once, bounded, refusing a terminal rather than waiting
@@ -251,7 +298,7 @@ fn prompt_bytes(bytes: Vec<u8>, input: &str, source: Option<&str>) -> Result<Str
             message,
             format!(
                 "supply the prompt as UTF-8 text of at most {PROMPT_LIMIT} bytes with no NUL; it \
-                 is passed to the harness unchanged and never truncated"
+                 is given to the policy unchanged and never truncated"
             ),
         )
         .input(input);

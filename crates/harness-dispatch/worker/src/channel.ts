@@ -26,7 +26,8 @@ export const PROTOCOL = 1;
 /**
  * The largest frame the front sends: its evaluate message carries the caller's
  * context, up to the 8 MiB ceiling as the front re-encodes it, beside the
- * request. The front's `FRONT_FRAME_BYTES` is the same.
+ * request, whose prompt and parameters the factor of two leaves room for. The
+ * front's `FRONT_FRAME_BYTES` is the same.
  */
 export const FRONT_FRAME_BYTES = 2 * 8 * 1024 * 1024 + 1024 * 1024;
 

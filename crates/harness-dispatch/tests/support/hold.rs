@@ -31,44 +31,38 @@ pub enum Hold {
 pub enum Place {
     /// While its module loads, before the routed policy is exported.
     Import,
-    /// Inside the `select` of a computed policy, which the front calls only
-    /// once it has accepted the policy the worker loaded.
+    /// Inside `select`, which the front calls only once it has accepted the
+    /// policy the worker loaded.
     Select,
-    /// Inside the `loadContext` of a computed policy, which the front calls
-    /// only once it has accepted the policy, and before `select`.
+    /// Inside `loadContext`, which the front calls only once it has accepted
+    /// the policy, and before `select`.
     LoadContext,
 }
 
 pub const PLACES: [Place; 3] = [Place::Import, Place::LoadContext, Place::Select];
 
-/// A computed policy whose `select` runs `$HOLD`, then selects `deep`.
+/// A policy whose `select` runs `$HOLD`, then selects the fake harness.
 const SELECTING: &str = r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "seam-1",
-  catalog: [
-    { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
-  ],
-  async select() {
+  async select(request) {
     $HOLD
-    return { status: "selected", candidateId: "deep", reason: "the hold ended" };
+    return { status: "selected", program: "fake-harness", args: [request.prompt], provider: "origin-a", model: "model-large", effort: "high", reason: "the hold ended" };
   },
 };
 "#;
 
-/// A computed policy whose `loadContext` runs `$HOLD`, then returns a context
-/// that its `select` selects with.
+/// A policy whose `loadContext` runs `$HOLD`, then returns a context that its
+/// `select` selects with.
 const LOADING: &str = r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "seam-1",
-  catalog: [
-    { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
-  ],
   async loadContext() {
     $HOLD
     return { schemaVersion: 1, summary: "the hold ended" };
   },
   select(request, context) {
-    return { status: "selected", candidateId: "deep", reason: context.summary };
+    return { status: "selected", program: "fake-harness", args: [request.prompt], provider: "origin-a", model: "model-large", effort: "high", reason: context.summary };
   },
 };
 "#;

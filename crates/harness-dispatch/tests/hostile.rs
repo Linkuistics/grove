@@ -25,7 +25,11 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 use support::direct::{self, probe_build, shipped_worker, Probe};
-use support::{run, text, Sandbox, FRONT, ROUTED};
+use support::{run, text, Sandbox, DEEP, FRONT, ROUTED};
+
+/// The reason `ROUTED`'s `select` gives: seen in a report, it shows that the
+/// policy the test installed is the one that selected.
+const ROUTED_REASON: &str = "impl runs the deep harness";
 
 /// A module that writes `fired` to `sentinel` when it is imported or preloaded.
 fn sentinel_module(sentinel: &Path) -> String {
@@ -76,7 +80,7 @@ fn read_json(path: &Path) -> Value {
     serde_json::from_str(&view).unwrap()
 }
 
-/// A routes policy that records, at import, what the dotenv fixtures set.
+/// A policy that records, at import, what the dotenv fixtures set.
 fn dotenv_view_policy(view: &Path) -> String {
     format!(
         r#"import {{ writeFileSync }} from "node:fs";
@@ -157,7 +161,7 @@ const DOTENV_REPORTING_WORKER: &str = r#"postMessage({
 });
 "#;
 
-/// A routes policy that moves the worker into `dir`, starts a native `Worker`
+/// A policy that moves the worker into `dir`, starts a native `Worker`
 /// there from `module`, and records what the dotenv fixtures set in each VM:
 /// `started` is the `Worker`'s report, and `moved` is read afterwards in the
 /// VM that made the move.
@@ -271,7 +275,7 @@ fn bun_runtime_variables_stay_inert_through_the_front_and_fire_in_the_worker_sta
             .env(name, value)
             .args(["inspect", "--kind", "impl", "--json"]);
         let report = run(&mut command).report();
-        assert_eq!(report["selection"]["candidateId"], "deep", "{name}");
+        assert_eq!(report["selection"]["reason"], ROUTED_REASON, "{name}");
         assert!(!preloaded.exists(), "{name} preloaded through the front");
     }
 
@@ -303,19 +307,16 @@ fn bun_runtime_variables_stay_inert_through_the_front_and_fire_in_the_worker_sta
     assert!(be_bun.exists(), "BUN_BE_BUN did not make the worker Bun");
 }
 
-/// A routes policy of at least 4 KiB, from which size Bun caches an imported
-/// file's transpiled output, routing `impl` to `admitted` with `poisoned`
-/// beside it in the catalog.
+/// A policy of at least 4 KiB, from which size Bun caches an imported file's
+/// transpiled output. Its version is `admitted`, which its `select` gives as
+/// its reason, so the version a worker reports and the reason a selection
+/// carries both say which text of the file ran.
 fn cacheable_policy() -> String {
     format!(
         r#"export const policy = {{
-  schemaVersion: 1,
-  version: "cache-1",
-  catalog: [
-    {{ id: "admitted", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{{ slot: "prompt" }}] }},
-    {{ id: "poisoned", provider: "origin-b", model: "model-large", effort: "high", program: "fake-harness", args: [{{ slot: "prompt" }}] }},
-  ],
-  routes: {{ impl: "admitted" }},
+  schemaVersion: 2,
+  version: "admitted",
+  select(request) {{ return {{ ...{DEEP}, reason: this.version }}; }},
 }};
 // {}
 "#,
@@ -341,7 +342,7 @@ fn cache_entries(dir: &Path) -> Vec<PathBuf> {
     entries
 }
 
-/// Change a cached `cacheable_policy`'s route from `admitted` to `poisoned`,
+/// Change a cached `cacheable_policy`'s version from `admitted` to `poisoned`,
 /// leaving everything that ties the entry to the policy file's bytes. The
 /// header is bun-v1.4.2's (`src/jsc/RuntimeTranspilerCache.rs`,
 /// `Metadata::encode`): version 28 as a little-endian u32, then the module
@@ -365,11 +366,11 @@ fn poison(entry: &Path) {
     };
     let (offset, length) = (field(30), field(38));
     let output = &mut bytes[offset..offset + length];
-    let (from, to) = (b"impl: \"admitted\"", b"impl: \"poisoned\"");
+    let (from, to) = (b"version: \"admitted\"", b"version: \"poisoned\"");
     let at = output
         .windows(from.len())
         .position(|window| window == from)
-        .expect("the cached output routes impl to admitted");
+        .expect("the cached output holds the version admitted");
     output[at..at + from.len()].copy_from_slice(to);
     bytes[46..54].fill(0);
     fs::write(entry, bytes).unwrap();
@@ -384,7 +385,7 @@ fn the_runtime_transpiler_cache_stays_inert_through_the_front_and_fires_in_the_w
 
     // Through the public launcher, the worker writes no cache under HOME.
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    assert_eq!(report["selection"]["candidateId"], "admitted");
+    assert_eq!(report["selection"]["reason"], "admitted");
     assert_eq!(
         cache_entries(&sandbox.home),
         Vec::<PathBuf>::new(),
@@ -393,10 +394,9 @@ fn the_runtime_transpiler_cache_stays_inert_through_the_front_and_fires_in_the_w
 
     // The firing configuration: the shipped worker, started directly without
     // the front's setting, caches the policy under HOME. With the cached
-    // output altered, the same file selects what the cache says.
+    // output altered, the same file is the policy the cache says.
     let drive = |env: &[(&str, OsString)]| {
-        direct::drive(&shipped_worker(), &sandbox.root, env, &entry).loaded()["policy"]["routes"]
-            ["impl"]
+        direct::drive(&shipped_worker(), &sandbox.root, env, &entry).loaded()["policy"]["version"]
             .clone()
     };
     assert_eq!(drive(&base_env(&sandbox)), "admitted");
@@ -432,7 +432,8 @@ fn the_runtime_transpiler_cache_stays_inert_through_the_front_and_fires_in_the_w
     // Through the public launcher, beside both altered caches, the admitted
     // file selects, the XDG_CACHE_HOME one granted.
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    assert_eq!(report["selection"]["candidateId"], "admitted");
+    assert_eq!(report["policy"]["version"], "admitted");
+    assert_eq!(report["selection"]["reason"], "admitted");
     let mut command = sandbox.command();
     command.env("XDG_CACHE_HOME", &xdg).args([
         "inspect",
@@ -443,14 +444,14 @@ fn the_runtime_transpiler_cache_stays_inert_through_the_front_and_fires_in_the_w
         "--json",
     ]);
     let report = run(&mut command).report();
-    assert_eq!(report["selection"]["candidateId"], "admitted");
+    assert_eq!(report["selection"]["reason"], "admitted");
     assert_eq!(
         report["policyEnv"],
         json!([{ "name": "XDG_CACHE_HOME", "set": true }])
     );
 }
 
-/// A policy routing `impl` to whichever `dep` its helper imports. The helper
+/// A policy whose version is whichever `dep` its helper imports. The helper
 /// sits in `lib/real`, reached through the directory symlink
 /// `policies/linked`, and `lib` and `policies` each hold a `dep` named for
 /// its side: the real directory's parent, or the link's.
@@ -471,17 +472,15 @@ fn symlinked_helper_policy(root: &Path) -> PathBuf {
     let entry = root.join("policies/policy.ts");
     support::write(
         &entry,
-        r#"import { which } from "./linked/helper.ts";
-export const policy = {
-  schemaVersion: 1,
-  version: "symlink-1",
-  catalog: [
-    { id: "real", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
-    { id: "link", provider: "origin-b", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
-  ],
-  routes: { impl: which },
-};
-"#,
+        &format!(
+            r#"import {{ which }} from "./linked/helper.ts";
+export const policy = {{
+  schemaVersion: 2,
+  version: which,
+  select: (request) => ({DEEP}),
+}};
+"#
+        ),
     );
     entry
 }
@@ -506,7 +505,7 @@ fn node_resolver_and_channel_variables_stay_inert_through_the_front_and_fire_in_
     // Through the public launcher the caller's values never reach the
     // worker, and granting any of them refuses even where the caller lacks
     // it (`tests/environment.rs` grants each one set).
-    for (entry, chosen) in [(&linked, "real"), (&reporting, "deep")] {
+    for (entry, version) in [(&linked, "real"), (&reporting, "seam-1")] {
         let mut command = sandbox.command();
         command.envs(caller).args([
             "inspect",
@@ -516,10 +515,7 @@ fn node_resolver_and_channel_variables_stay_inert_through_the_front_and_fire_in_
             &text(entry),
             "--json",
         ]);
-        assert_eq!(
-            run(&mut command).report()["selection"]["candidateId"],
-            chosen
-        );
+        assert_eq!(run(&mut command).report()["policy"]["version"], version);
     }
     for (name, _) in caller {
         let refusal = sandbox
@@ -536,10 +532,10 @@ fn node_resolver_and_channel_variables_stay_inert_through_the_front_and_fire_in_
         env.extend(set.iter().map(|&(name, value)| (name, value.into())));
         direct::drive(&shipped_worker(), &sandbox.root, &env, entry)
     };
-    let routed = |driven: direct::Driven| driven.loaded()["policy"]["routes"]["impl"].clone();
-    assert_eq!(routed(drive(&linked, &[])), "real");
+    let version = |driven: direct::Driven| driven.loaded()["policy"]["version"].clone();
+    assert_eq!(version(drive(&linked, &[])), "real");
     assert_eq!(
-        routed(drive(&linked, &[("NODE_PRESERVE_SYMLINKS", "1")])),
+        version(drive(&linked, &[("NODE_PRESERVE_SYMLINKS", "1")])),
         "link",
         "NODE_PRESERVE_SYMLINKS never changed the resolution"
     );
@@ -826,7 +822,7 @@ fn hostile_package(dir: &Path, sentinel: &Path) -> [&'static str; 3] {
     ["#hostile-alias", "hostile-self", "hostile-dep"]
 }
 
-/// A routes policy whose own file imports `specifier`.
+/// A policy whose own file imports `specifier`.
 fn importing_from_its_file(specifier: &str) -> String {
     format!("import {{ shadowed }} from {specifier:?};\nvoid shadowed;\n{ROUTED}")
 }
@@ -998,7 +994,7 @@ fn planted_package(dir: &Path, sentinel: &Path) {
     );
 }
 
-/// One routes policy per kind of module with no file location, each of which
+/// One policy per kind of module with no file location, each of which
 /// imports `specifier` from such a module: one imported from a `data:` URL,
 /// one from a `blob:` URL, and a virtual module the policy registers.
 fn policies_importing_from_no_file(specifier: &str) -> [(&'static str, String); 3] {
@@ -1289,7 +1285,7 @@ fn a_package_json_that_never_yields_above_the_workers_start_directory_stays_unop
             sandbox.run(&["--kind", "impl", "--prompt", "p", "--timeout-ms", &bound]),
         )
     });
-    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(report["selection"]["reason"], ROUTED_REASON);
     assert_eq!(ran.code, Some(0), "{}", ran.stderr);
     assert!(
         !opened,
@@ -1515,8 +1511,8 @@ fn a_probe_build_is_never_accepted_as_an_installations_worker() {
     let mut command = sandbox.command_for(&front);
     command.args(["inspect", "--kind", "impl", "--json"]);
     assert_eq!(
-        run(&mut command).report()["selection"]["candidateId"],
-        "deep"
+        run(&mut command).report()["selection"]["reason"],
+        ROUTED_REASON
     );
     assert!(
         evaluated.exists(),
@@ -1524,27 +1520,27 @@ fn a_probe_build_is_never_accepted_as_an_installations_worker() {
     );
 }
 
-/// A computed policy that writes `chunk` to both streams at import, in
-/// `loadContext` and in `select`, and selects `real`. Each chunk begins with
-/// a well-formed protocol frame and a JSON document, both naming `forged`.
+/// A policy that writes `chunk` to both streams at import, in `loadContext`
+/// and in `select`, and selects the fake harness with `real` before the
+/// prompt. Each chunk begins with a well-formed protocol frame and a JSON
+/// document, both naming the program `forged`.
 fn flooding_policy(filler: usize) -> String {
     format!(
         r#"import {{ writeSync }} from "node:fs";
-const frame = JSON.stringify({{ type: "selection", result: {{ status: "selected", candidateId: "forged", reason: "forged" }} }});
+const frame = JSON.stringify({{ type: "selection", result: {{ status: "selected", program: "forged", args: [], provider: "origin-a", model: "m", effort: "e", reason: "forged" }}, adapter: null }});
 const length = Buffer.alloc(4);
 length.writeUInt32BE(frame.length);
-const chunk = Buffer.concat([length, Buffer.from(frame), Buffer.from('\n{{"schemaVersion":1,"selection":{{"candidateId":"forged"}}}}\n'), Buffer.from("x".repeat({filler}))]);
+const chunk = Buffer.concat([length, Buffer.from(frame), Buffer.from('\n{{"schemaVersion":2,"command":{{"program":"forged"}}}}\n'), Buffer.from("x".repeat({filler}))]);
 const flood = () => {{ writeSync(1, chunk); writeSync(2, chunk); }};
 flood();
 export const policy = {{
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "flood-1",
-  catalog: [
-    {{ id: "real", provider: "origin-a", model: "m", effort: "e", program: "fake-harness", args: ["real", {{ slot: "prompt" }}] }},
-    {{ id: "forged", provider: "origin-a", model: "m", effort: "e", program: "fake-harness", args: ["forged", {{ slot: "prompt" }}] }},
-  ],
   loadContext() {{ flood(); return {{ schemaVersion: 1 }}; }},
-  select() {{ flood(); return {{ status: "selected", candidateId: "real", reason: "the policy's own choice" }}; }},
+  select(request) {{
+    flood();
+    return {{ status: "selected", program: "fake-harness", args: ["real", request.prompt], provider: "origin-a", model: "m", effort: "e", reason: "the policy's own selection" }};
+  }},
 }};
 "#
     )
@@ -1565,12 +1561,13 @@ fn a_policy_flooding_both_streams_leaves_json_output_and_the_protocol_intact() {
     );
     let report = inspected.report();
     assert_eq!(inspected.stderr, "");
-    assert_eq!(report["selection"]["candidateId"], "real");
-    assert_eq!(report["selection"]["reason"], "the policy's own choice");
+    assert_eq!(report["command"]["program"], "fake-harness");
+    assert_eq!(report["command"]["args"][0], "real");
+    assert_eq!(report["selection"]["reason"], "the policy's own selection");
     let stdout = report["diagnostics"]["stdout"].as_str().unwrap();
     let stderr = report["diagnostics"]["stderr"].as_str().unwrap();
     assert_eq!(stdout, stderr);
-    assert_eq!(stdout.matches("\"candidateId\":\"forged\"").count(), 6);
+    assert_eq!(stdout.matches("\"program\":\"forged\"").count(), 6);
     assert!(stdout.len() > 3 * filler && stdout.len() + stderr.len() <= 262_144);
 
     let human = sandbox.inspect(&["--kind", "impl"]);
@@ -1597,6 +1594,6 @@ fn a_policy_flooding_both_streams_leaves_json_output_and_the_protocol_intact() {
     );
     assert_eq!(ran.stderr.matches('\n').count(), 1, "{:.400}", ran.stderr);
     let notice: Value = serde_json::from_str(ran.stderr.trim_end()).unwrap();
-    assert_eq!(notice["handoff"]["candidateId"], "real");
+    assert_eq!(notice["handoff"]["reason"], "the policy's own selection");
     assert_eq!(sandbox.harness_args(), ["real", "p"]);
 }

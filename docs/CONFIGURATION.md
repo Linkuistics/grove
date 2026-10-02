@@ -676,22 +676,22 @@ the catalog refuses as `reviewer_unknown`. For a catalog and review kinds that
 share nothing with the starter's, build the policy on `groveReviewSelector`,
 as the Grove review policy's section shows.
 
-Optionally, name one candidate for some kinds with a literal `--choice` in a
-command definition of its own:
+Optionally, pass a literal parameter for your policy to read, in a command
+definition of its own:
 
 ```kdl
 config {
-    command "dispatch-deep" "harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --choice lead-max --prompt ${prompt}"
+    command "dispatch-deep" "harness-dispatch run --kind ${kind} --task-file ${task_file} --task-id ${task_id} --param depth=deep --prompt ${prompt}"
     bind "deep" "dispatch-deep"
     route "design" "deep"
 }
 ```
 
-The choice applies to every kind routed to that command. A routes policy takes
-the named candidate instead of the kind's route; a `select` policy sees it and
-accepts or refuses it. An ID the catalog lacks refuses
-([explicit choice](../crates/harness-dispatch/README.md#explicit-choice)).
-Nothing overrides a candidate's model or effort alone.
+The parameter reaches your policy's `select` as `request.params.depth` for
+every kind routed to that command, and means whatever your policy makes of it
+([parameters](../crates/harness-dispatch/README.md#parameters)). The word is
+literal: a substitution cannot sit inside it. Nothing overrides a part of the
+command your policy returns.
 
 Direct-harness routes keep working beside dispatched ones: a kind routed to
 `my-agent ${prompt}` launches as before, in the same file and the same loop.

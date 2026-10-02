@@ -6,7 +6,9 @@
 //! Runs are made the ordinary way, by `run` with a fake harness, and the store
 //! is read back through `record show` and, to see what a refusal did or did not
 //! change, directly with SQLite. Every refusal has a positive control, the same
-//! import with its fault removed, that is seen to be recorded.
+//! import with its fault removed, that is seen to be recorded. One test
+//! observes a run that harness-dispatch 21.13.0 recorded under the catalog
+//! contract (`tests/fixtures/catalog-contract`).
 
 mod support;
 
@@ -17,17 +19,28 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 use support::{executable, run, Sandbox, ROUTED};
 
-/// Routes `impl` to `./broken-harness`, whose `#!` interpreter does not exist,
-/// so exec fails after the commit and a launch failure is appended.
+/// Runs `./broken-harness`, whose `#!` interpreter does not exist, so exec
+/// fails after the commit and a launch failure is appended.
 const BROKEN: &str = r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "observations-broken",
-  catalog: [
-    { id: "broken", provider: "origin-b", model: "model-b", effort: "low", program: "./broken-harness", args: [{ slot: "prompt" }] },
-  ],
-  routes: { impl: "broken" },
+  select: (request) => ({
+    status: "selected",
+    program: "./broken-harness",
+    args: [request.prompt],
+    provider: "origin-b",
+    model: "model-b",
+    effort: "low",
+    reason: "the broken harness",
+  }),
 };
 "#;
+
+/// The store harness-dispatch 21.13.0 wrote under the catalog contract, and
+/// its two runs (`tests/fixtures/catalog-contract/README.md`).
+const CATALOG_STORE: &[u8] = include_bytes!("fixtures/catalog-contract/records.sqlite3");
+const ROUTED_RUN: &str = "45308255-7446-42b2-bbd7-e5f7861e46ef";
+const CHOSEN_RUN: &str = "b2aec552-b5eb-4de0-b5e9-5db0d70a6d55";
 
 /// A successful run's ID, taken from the harness it reached.
 fn launched(sandbox: &Sandbox, args: &[&str]) -> String {
@@ -812,6 +825,80 @@ fn a_stored_observation_this_release_cannot_read_refuses_the_export() {
         )
         .unwrap();
     assert_eq!(show(&sandbox, &run_id)["evidence"], "execution_confirmed");
+}
+
+#[test]
+fn a_run_recorded_under_the_catalog_contract_is_observed_and_its_neighbour_left_alone() {
+    let sandbox = Sandbox::new();
+    let store = sandbox.default_store();
+    fs::create_dir_all(store.parent().unwrap()).unwrap();
+    fs::write(&store, CATALOG_STORE).unwrap();
+    let version = user_version(&store);
+    let before = show(&sandbox, ROUTED_RUN);
+    let neighbour = show(&sandbox, CHOSEN_RUN);
+    assert_eq!(before["evidence"], "handoff_attempt");
+    assert_eq!(before["launch"]["candidate"]["id"], "builder");
+    assert_eq!(observation_count(&store), 0);
+
+    let confirmed = observation(
+        ROUTED_RUN,
+        "o-ran",
+        json!({
+            "executionConfirmation": { "state": "observed", "value": true },
+            "acceptance": { "state": "observed", "value": "accepted" },
+        }),
+    );
+    let receipt = recorded(&observe(&sandbox, ROUTED_RUN, "ran.json", &confirmed));
+    assert_eq!(receipt["observationId"], "o-ran");
+    assert_eq!(observation_count(&store), 1);
+    assert_eq!(
+        user_version(&store),
+        version,
+        "the store needed no migration"
+    );
+
+    // The observation is exported with the run, whose execution it confirms,
+    // and the launch document is the one that release committed.
+    let after = show(&sandbox, ROUTED_RUN);
+    assert_eq!(after["evidence"], "execution_confirmed");
+    assert_eq!(after["execution"], "confirmed");
+    assert_eq!(after["observations"].as_array().unwrap().len(), 1);
+    assert_eq!(after["observations"][0]["observationId"], "o-ran");
+    assert_eq!(after["observations"][0]["runId"], ROUTED_RUN);
+    assert_eq!(
+        after["measurements"]["acceptance"],
+        json!({
+            "state": "observed",
+            "current": [{ "observationId": "o-ran", "state": "observed", "value": "accepted" }],
+        })
+    );
+    for field in ["runId", "recordedAt", "launch", "launchFailure"] {
+        assert_eq!(after[field], before[field], "{field}");
+    }
+    let text = show_text(&sandbox, ROUTED_RUN);
+    assert!(text.contains("execution confirmed"), "{text}");
+    assert!(text.contains("o-ran from a test observer"), "{text}");
+
+    // A correction of it is kept beside it, as for any run.
+    let mut correction = observation(
+        ROUTED_RUN,
+        "o-fix",
+        json!({ "executionConfirmation": { "state": "unknown" } }),
+    );
+    correction["supersedes"] = json!("o-ran");
+    recorded(&observe(&sandbox, ROUTED_RUN, "fix.json", &correction));
+    let corrected = show(&sandbox, ROUTED_RUN);
+    assert_eq!(corrected["evidence"], "handoff_attempt");
+    assert_eq!(corrected["observations"].as_array().unwrap().len(), 2);
+    assert_eq!(corrected["observations"][0]["supersededBy"], "o-fix");
+
+    // An observation naming the other run is not this run's, and that run is
+    // exactly as it was.
+    let misdirected = observation(CHOSEN_RUN, "o-other", json!({}));
+    let refusal = observe(&sandbox, ROUTED_RUN, "other.json", &misdirected).refusal(3);
+    assert_eq!(refusal["error"]["location"], "observation.runId");
+    assert_eq!(show(&sandbox, CHOSEN_RUN), neighbour);
+    assert_eq!(observation_count(&store), 2);
 }
 
 /// Schema 1's tables, as `handoff-records-k24` created them, with one run.

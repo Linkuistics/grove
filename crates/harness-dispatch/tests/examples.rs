@@ -1,7 +1,8 @@
 //! The starter examples, through the command seam: each is imported from a
 //! temporary personal policy by its embedded `harness-dispatch/examples/…`
-//! specifier and selects through the compiled worker (`docs/specs/harness-selection-and-execution.md`, *Policy and joint
-//! choice*, *Policy authority and runtime discovery*). No node_modules exists
+//! specifier and selects through the compiled worker
+//! (`docs/specs/harness-selection-and-execution.md`, *Policy and the selected
+//! command*, *Policy authority and runtime discovery*). No node_modules exists
 //! near any sandbox, so only the worker's registered modules can satisfy these
 //! imports.
 
@@ -10,6 +11,7 @@ mod support;
 use std::fs;
 use std::path::PathBuf;
 
+use serde_json::{json, Value};
 use support::{executable, text, Sandbox};
 
 /// Put a stand-in for each of an example's illustrative wrappers on PATH.
@@ -19,32 +21,44 @@ fn wrappers(sandbox: &Sandbox, names: &[&str]) {
     }
 }
 
-/// Every kind Grove launches a session for, and the candidate the Grove
-/// example routes it to.
-const SESSION_KIND_ROUTES: [(&str, &str); 23] = [
-    ("requirements", "lead-max"),
-    ("review-requirements", "review-xhigh"),
-    ("integrate-review-requirements", "lead-xhigh"),
-    ("design", "lead-xhigh"),
-    ("review-design", "review-xhigh"),
-    ("integrate-review-design", "lead-xhigh"),
-    ("planning", "lead-xhigh"),
-    ("review-planning", "review-xhigh"),
-    ("integrate-review-planning", "lead-xhigh"),
-    ("prototype", "lead-medium"),
-    ("review-prototype", "review-medium"),
-    ("integrate-review-prototype", "lead-medium"),
-    ("impl", "lead-high"),
-    ("review-impl", "review-high"),
-    ("integrate-review-impl", "lead-medium"),
-    ("research-a", "lead-high"),
-    ("research-b", "review-high"),
-    ("combine-research", "lead-xhigh"),
-    ("draft", "lead-high"),
-    ("copy-edit", "review-medium"),
-    ("art", "lead-medium"),
-    ("proof", "review-high"),
-    ("finish", "lead-medium"),
+/// The policy's own refusal of a kind its table does not list.
+fn unrouted(sandbox: &Sandbox, kind: &str) -> Value {
+    let refusal = sandbox.inspect(&["--kind", kind, "--json"]).refusal(3);
+    assert_eq!(refusal["error"]["code"], "policy_refused", "{kind:?}");
+    assert_eq!(
+        refusal["error"]["policyCode"], "incomplete_mapping",
+        "{kind:?}: {refusal}"
+    );
+    assert_eq!(refusal["error"]["stage"], "selection", "{kind:?}");
+    refusal
+}
+
+/// Every kind Grove launches a session for, and the harness and effort the
+/// Grove example's table gives it.
+const SESSION_KIND_ROUTES: [(&str, &str, &str); 23] = [
+    ("requirements", "lead", "max"),
+    ("review-requirements", "review", "xhigh"),
+    ("integrate-review-requirements", "lead", "xhigh"),
+    ("design", "lead", "xhigh"),
+    ("review-design", "review", "xhigh"),
+    ("integrate-review-design", "lead", "xhigh"),
+    ("planning", "lead", "xhigh"),
+    ("review-planning", "review", "xhigh"),
+    ("integrate-review-planning", "lead", "xhigh"),
+    ("prototype", "lead", "medium"),
+    ("review-prototype", "review", "medium"),
+    ("integrate-review-prototype", "lead", "medium"),
+    ("impl", "lead", "high"),
+    ("review-impl", "review", "high"),
+    ("integrate-review-impl", "lead", "medium"),
+    ("research-a", "lead", "high"),
+    ("research-b", "review", "high"),
+    ("combine-research", "lead", "xhigh"),
+    ("draft", "lead", "high"),
+    ("copy-edit", "review", "medium"),
+    ("art", "lead", "medium"),
+    ("proof", "review", "high"),
+    ("finish", "lead", "medium"),
 ];
 
 #[test]
@@ -53,34 +67,50 @@ fn the_grove_example_routes_every_grove_session_kind_exactly() {
     sandbox.personal_policy("export { policy } from \"harness-dispatch/examples/grove-static\";\n");
     wrappers(&sandbox, &["my-codex-wrapper", "my-claude-wrapper"]);
 
-    for (kind, candidate) in SESSION_KIND_ROUTES {
+    for (kind, harness, effort) in SESSION_KIND_ROUTES {
         let report = sandbox
             .inspect(&["--kind", kind, "--prompt", "the mandate", "--json"])
             .report();
-        let selection = &report["selection"];
-        assert_eq!(selection["candidateId"], candidate, "{kind}: {report}");
-        let (role, effort) = candidate.split_once('-').unwrap();
-        let (provider, program, model) = match role {
+        let (provider, program, model) = match harness {
             "lead" => ("openai", "my-codex-wrapper", "your-codex-model"),
             _ => ("anthropic", "my-claude-wrapper", "your-claude-model"),
         };
-        assert_eq!(selection["provider"], provider, "{kind}");
-        assert_eq!(selection["effort"], effort, "{kind}");
+        // The reason names the entry applied.
         assert_eq!(
-            report["argv"],
-            serde_json::json!([program, "--model", model, "--effort", effort, "the mandate"]),
+            report["selection"],
+            json!({
+                "provider": provider,
+                "model": model,
+                "effort": effort,
+                "reason": format!(
+                    "routes[\"{kind}\"] gives {program} with model {model} at effort {effort}"
+                ),
+            }),
+            "{kind}: {report}"
+        );
+        // The prompt is the last argument, because the entry puts it there.
+        assert_eq!(report["command"]["program"], program, "{kind}");
+        assert_eq!(
+            report["command"]["args"],
+            json!(["--model", model, "--effort", effort, "the mandate"]),
             "{kind}"
         );
         assert_eq!(
             report["policy"]["version"],
-            "harness-dispatch/examples/grove-static 1"
+            "harness-dispatch/examples/grove-static 2"
         );
     }
 
     // Exact means exact: no catch-all, and no near miss, takes a route.
     for kind in ["release-notes", "review", "Impl", "impl "] {
-        let refusal = sandbox.inspect(&["--kind", kind, "--json"]).refusal(3);
-        assert_eq!(refusal["error"]["code"], "incomplete_mapping", "{kind:?}");
+        let refusal = unrouted(&sandbox, kind);
+        assert!(
+            refusal["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains(&serde_json::to_string(kind).unwrap()),
+            "{refusal}"
+        );
     }
 }
 
@@ -90,20 +120,36 @@ fn the_generic_example_routes_its_own_kinds_without_grove() {
     sandbox.personal_policy("export { policy } from \"harness-dispatch/examples/static\";\n");
     wrappers(&sandbox, &["my-agent-wrapper"]);
 
-    for (kind, candidate, effort) in [
-        ("question", "quick", "low"),
-        ("bugfix", "standard", "medium"),
-        ("feature", "careful", "high"),
-        ("migration", "deliberate", "xhigh"),
-        ("architecture", "deliberate", "xhigh"),
+    for (kind, effort) in [
+        ("question", "low"),
+        ("bugfix", "medium"),
+        ("feature", "high"),
+        ("migration", "xhigh"),
+        ("architecture", "xhigh"),
     ] {
         let report = sandbox.inspect(&["--kind", kind, "--json"]).report();
-        assert_eq!(report["selection"]["candidateId"], candidate, "{kind}");
-        assert_eq!(report["selection"]["effort"], effort, "{kind}");
-        assert_eq!(report["selection"]["provider"], "your-provider");
+        assert_eq!(
+            report["policy"]["version"],
+            "harness-dispatch/examples/static 2"
+        );
+        assert_eq!(
+            report["selection"],
+            json!({
+                "provider": "your-provider",
+                "model": "your-model",
+                "effort": effort,
+                "reason": format!(
+                    "routes[\"{kind}\"] gives my-agent-wrapper with model your-model at effort {effort}"
+                ),
+            }),
+            "{kind}"
+        );
+        assert_eq!(report["command"]["program"], "my-agent-wrapper", "{kind}");
     }
-    let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
-    assert_eq!(refusal["error"]["code"], "incomplete_mapping");
+    // Exact means exact: no catch-all, and nothing inherited from an object.
+    for kind in ["impl", "Feature", "constructor", "toString", "__proto__"] {
+        unrouted(&sandbox, kind);
+    }
 
     // And it runs: the wrapper receives the model, effort and prompt.
     executable(&sandbox.bin.join("my-agent-wrapper"), support::FAKE_HARNESS);
@@ -122,126 +168,58 @@ fn the_generic_example_routes_its_own_kinds_without_grove() {
 }
 
 #[test]
-fn the_dynamic_example_consults_the_static_routes_and_polices_explicit_choices() {
-    let sandbox = Sandbox::new();
-    sandbox.personal_policy("export { policy } from \"harness-dispatch/examples/dynamic\";\n");
-    wrappers(&sandbox, &["my-agent-wrapper"]);
-    let inspect = |kind: &str, choice: Option<&str>| {
-        let mut args = vec!["--kind", kind, "--json"];
-        if let Some(choice) = choice {
-            args.extend(["--choice", choice]);
-        }
-        sandbox.inspect(&args)
-    };
-
-    // Without a choice, the route applies, and the reason names its entry.
-    let report = inspect("bugfix", None).report();
-    assert_eq!(
-        report["policy"]["version"],
-        "harness-dispatch/examples/dynamic 1"
-    );
-    let selection = &report["selection"];
-    assert_eq!(selection["form"], "select");
-    assert_eq!(selection["selectedBy"], "select");
-    assert_eq!(selection["candidateId"], "standard");
-    assert_eq!(selection["effort"], "medium");
-    assert_eq!(
-        selection["reason"],
-        r#"routes["bugfix"] names candidate "standard""#
-    );
-
-    // A choice at or above the route's effort is accepted, and one below it
-    // is refused in the policy's own words.
-    for accepted in ["standard", "careful", "deliberate"] {
-        let report = inspect("bugfix", Some(accepted)).report();
-        assert_eq!(report["selection"]["candidateId"], accepted);
-        assert_eq!(report["selection"]["explicitChoice"], accepted);
-        let reason = report["selection"]["reason"].as_str().unwrap();
-        assert!(reason.contains("is accepted"), "{accepted}: {reason}");
-    }
-    let refusal = inspect("bugfix", Some("quick")).refusal(3);
-    assert_eq!(refusal["error"]["code"], "policy_refused");
-    assert_eq!(refusal["error"]["policyCode"], "effort_below_route");
-    assert_eq!(refusal["error"]["input"], "--choice quick");
-    assert!(
-        refusal["error"]["remedy"]
-            .as_str()
-            .unwrap()
-            .contains("\"standard\""),
-        "{refusal}"
-    );
-
-    // A kind with no route refuses without a choice, and sets no floor with one.
-    let refusal = inspect("release-notes", None).refusal(3);
-    assert_eq!(refusal["error"]["code"], "policy_refused");
-    assert_eq!(refusal["error"]["policyCode"], "incomplete_mapping");
-    let report = inspect("release-notes", Some("quick")).report();
-    assert_eq!(report["selection"]["candidateId"], "quick");
-
-    // It is deterministic: the same request, the same result.
-    assert_eq!(
-        inspect("migration", None).report()["selection"],
-        inspect("migration", None).report()["selection"]
-    );
-
-    // And it runs: the wrapper receives the chosen candidate's model and effort.
-    executable(&sandbox.bin.join("my-agent-wrapper"), support::FAKE_HARNESS);
-    let run = sandbox.run(&[
-        "--kind",
-        "feature",
-        "--choice",
-        "deliberate",
-        "--prompt",
-        "p",
-    ]);
-    assert_eq!(run.code, Some(0), "{}", run.stderr);
-    assert_eq!(
-        sandbox.harness_args(),
-        ["--model", "your-model", "--effort", "xhigh", "p"]
-    );
-}
-
-#[test]
-fn the_dynamic_example_ships_its_declarations_and_readable_source() {
-    let sandbox = Sandbox::new();
-    sandbox.personal_policy(support::ROUTED);
-    let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
-    let worker = PathBuf::from(report["worker"]["path"].as_str().unwrap());
-    let examples = worker.parent().unwrap().join("examples");
-
-    let shipped = fs::read_to_string(examples.join("dynamic.ts")).unwrap();
-    assert_eq!(shipped, include_str!("../worker/examples/dynamic.ts"));
-    let declarations = fs::read_to_string(examples.join("dynamic.d.ts")).unwrap();
-    for export in [
-        "export declare function select(request: SelectionRequest): SelectionResult;",
-        "export declare const policy:",
-    ] {
-        assert!(
-            declarations.contains(export),
-            "dynamic.d.ts lacks {export:?}"
-        );
-    }
-    // It builds on the static example's routes by that example's specifier,
-    // as an owner's copy of it would.
-    assert!(shipped.contains(r#"from "harness-dispatch/examples/static""#));
-}
-
-#[test]
-fn an_owner_catalog_can_take_an_examples_routes() {
+fn an_owners_route_can_join_an_examples_table() {
     // The fixture `task dispatch:typecheck` checks against the shipped
-    // declarations: the Grove example's routes over the owner's own catalog.
+    // declarations: the Grove example's table through the generic example's
+    // `selectRoute`, with one kind rerouted to a command of the owner's own
+    // and one kind added from the example's own harness.
     let sandbox = Sandbox::new();
     sandbox.personal_policy(include_str!("../worker/typecheck/examples-policy.ts"));
+    wrappers(&sandbox, &["my-codex-wrapper", "my-claude-wrapper"]);
 
+    // A kind the owner left alone takes the example's entry.
     let report = sandbox
         .inspect(&["--kind", "review-design", "--json"])
         .report();
-
     assert_eq!(report["policy"]["version"], "examples-fixture-1");
-    assert_eq!(report["selection"]["candidateId"], "review-xhigh");
-    assert_eq!(report["selection"]["provider"], "origin-b");
-    assert_eq!(report["selection"]["model"], "model-for-review-xhigh");
-    assert_eq!(report["executable"]["program"], "fake-harness");
+    assert_eq!(report["selection"]["provider"], "anthropic");
+    assert_eq!(report["selection"]["effort"], "xhigh");
+    assert_eq!(report["command"]["program"], "my-claude-wrapper");
+
+    // The rerouted kind takes the owner's, which reads a parameter the caller
+    // passed and says so when it passed none.
+    for (params, session) in [
+        (
+            &["--param", "session_name=parser grove"][..],
+            "parser grove",
+        ),
+        (&[][..], "unnamed"),
+    ] {
+        let mut args = vec!["--kind", "impl", "--prompt", "the mandate", "--json"];
+        args.extend(params);
+        let report = sandbox.inspect(&args).report();
+        assert_eq!(
+            report["selection"],
+            json!({
+                "provider": "origin-a",
+                "model": "model-for-impl",
+                "effort": "high",
+                "reason": "routes[\"impl\"] gives fake-harness with model model-for-impl at effort high",
+            }),
+            "{report}"
+        );
+        assert_eq!(
+            report["command"]["args"],
+            json!(["--session", session, "the mandate"])
+        );
+    }
+
+    // The added kind takes the example's lead harness at the owner's effort.
+    let report = sandbox.inspect(&["--kind", "spike", "--json"]).report();
+    assert_eq!(report["selection"]["provider"], "openai");
+    assert_eq!(report["selection"]["effort"], "low");
+    assert_eq!(report["command"]["program"], "my-codex-wrapper");
+    unrouted(&sandbox, "release-notes");
 }
 
 #[test]
@@ -281,11 +259,28 @@ fn each_example_ships_declarations_and_a_readable_source_beside_the_worker() {
     let worker = PathBuf::from(report["worker"]["path"].as_str().unwrap());
     let examples = worker.parent().unwrap().join("examples");
 
-    for (name, source) in [
-        ("static", include_str!("../worker/examples/static.ts")),
+    for (name, source, exports) in [
+        (
+            "static",
+            include_str!("../worker/examples/static.ts"),
+            &[
+                "export type Command =",
+                "export type Route =",
+                "export declare function agent(effort: string): Route;",
+                "export declare const routes:",
+                "export declare function selectRoute(",
+                "export declare const policy:",
+            ][..],
+        ),
         (
             "grove-static",
             include_str!("../worker/examples/grove-static.ts"),
+            &[
+                "export declare const lead: (effort: string) => Route;",
+                "export declare const review: (effort: string) => Route;",
+                "export declare const routes:",
+                "export declare const policy:",
+            ][..],
         ),
     ] {
         let shipped = fs::read_to_string(examples.join(format!("{name}.ts")))
@@ -296,12 +291,7 @@ fn each_example_ships_declarations_and_a_readable_source_beside_the_worker() {
         );
         let declarations = fs::read_to_string(examples.join(format!("{name}.d.ts")))
             .unwrap_or_else(|error| panic!("{name}.d.ts beside the worker: {error}"));
-        for export in [
-            "export declare const catalog:",
-            "export declare const routes:",
-            "export declare const policy:",
-            "export type CandidateId =",
-        ] {
+        for export in exports {
             assert!(
                 declarations.contains(export),
                 "{name}.d.ts lacks {export:?}"
@@ -326,5 +316,9 @@ fn each_example_ships_declarations_and_a_readable_source_beside_the_worker() {
             "{name} does not disclaim ranking models"
         );
     }
+    // The Grove example selects through the generic example's `selectRoute`,
+    // by that example's specifier, as an owner's copy of it would.
+    assert!(include_str!("../worker/examples/grove-static.ts")
+        .contains(r#"from "harness-dispatch/examples/static""#));
     assert!(text(&examples).ends_with("libexec/harness-dispatch/examples"));
 }

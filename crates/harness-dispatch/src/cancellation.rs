@@ -6,7 +6,7 @@
 //! ignore at entry is caught, and the handler does nothing but note the first
 //! one received. The selection looks at that note wherever it waits or ends a
 //! step: every channel read and write between polls, once the worker has
-//! answered, once it is reaped, once the chosen candidate's argv is expanded,
+//! answered, once it is reaped, once the selected command is validated,
 //! and once its program is resolved. A noted signal stops and reaps the worker
 //! as the deadline does, launches nothing, and is reported as a refusal; then
 //! the process ends by re-raising it under its restored entry disposition, so

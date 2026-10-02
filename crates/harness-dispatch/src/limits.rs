@@ -37,7 +37,7 @@ pub const SOURCE_DEFAULT_BYTES: u64 = 64 * 1024;
 /// records a context's `sources` array may hold.
 pub const SOURCES_LIMIT: u64 = 256;
 
-/// A policy result or catalog protocol message, in bytes.
+/// A policy snapshot or selection result as a protocol message, in bytes.
 pub const MESSAGE_BYTES: u64 = 1024 * 1024;
 
 /// The worker's stdout and stderr together, in bytes.

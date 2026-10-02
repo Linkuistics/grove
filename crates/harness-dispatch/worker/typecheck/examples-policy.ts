@@ -1,32 +1,27 @@
 // The starter examples as an owner's policy uses them, type-checked against
 // their shipped declarations by `task dispatch:typecheck`, and evaluated
-// through the compiled worker by the command-seam tests: an owner's own
-// catalog under the Grove example's routes.
-import { definePolicy, type Candidate } from "harness-dispatch/sdk";
-import { routes, type CandidateId } from "harness-dispatch/examples/grove-static";
-import { policy as generic } from "harness-dispatch/examples/static";
+// through the compiled worker by the command-seam tests: the Grove example's
+// table, with one kind rerouted to a command of the owner's own.
+import { definePolicy, type Policy } from "harness-dispatch/sdk";
+import { routes, lead } from "harness-dispatch/examples/grove-static";
+import { policy as generic, selectRoute, type Route } from "harness-dispatch/examples/static";
 
 // The whole generic example is a policy as it stands.
-export const whole: typeof generic & { readonly schemaVersion: 1 } = generic;
+export const whole: Policy = generic;
 
-function mine(id: CandidateId, provider: string, effort: string): Candidate {
-  return { id, provider, model: `model-for-${id}`, effort, program: "fake-harness", args: [{ slot: "prompt" }] };
-}
-
-export const policy = definePolicy({
-  schemaVersion: 1,
-  version: "examples-fixture-1",
-  catalog: [
-    mine("lead-max", "origin-a", "max"),
-    mine("lead-xhigh", "origin-a", "xhigh"),
-    mine("lead-high", "origin-a", "high"),
-    mine("lead-medium", "origin-a", "medium"),
-    mine("review-xhigh", "origin-b", "xhigh"),
-    mine("review-high", "origin-b", "high"),
-    mine("review-medium", "origin-b", "medium"),
-  ],
-  routes,
+const mine: Route = (request) => ({
+  program: "fake-harness",
+  args: ["--session", request.params["session_name"] ?? "unnamed", request.prompt],
+  provider: "origin-a",
+  model: "model-for-impl",
+  effort: "high",
 });
 
-// @ts-expect-error a route's target is one of the example's candidate IDs
-export const typo: CandidateId = "lead-maximum";
+export const policy = definePolicy({
+  schemaVersion: 2,
+  version: "examples-fixture-1",
+  select: (request) => selectRoute({ ...routes, impl: mine, spike: lead("low") }, request),
+});
+
+// @ts-expect-error a route returns a whole command: its labels are not optional
+export const unlabelled: Route = (request) => ({ program: "fake-harness", args: [request.prompt] });

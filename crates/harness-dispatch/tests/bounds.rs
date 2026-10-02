@@ -14,26 +14,27 @@ use std::fs;
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
-use support::{text, Run, Sandbox};
+use support::{text, Run, Sandbox, DEEP};
 
-const CATALOG: &str = r#"[
-    { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
-  ]"#;
+/// A `select` that runs the fake harness with the prompt.
+fn select() -> String {
+    format!("  select(request) {{ return {DEEP}; }},")
+}
 
-const SELECT: &str =
-    r#"  select() { return { status: "selected", candidateId: "deep", reason: "selected" }; },"#;
-
+/// A policy with `members`: a `select`, and a `loadContext` where the test
+/// has one.
 fn policy(members: &str) -> String {
     format!(
         "import {{ writeFileSync }} from \"node:fs\";\n\
-         export const policy = {{\n  schemaVersion: 1,\n  version: \"bounds-1\",\n  catalog: {CATALOG},\n{members}\n}};\n"
+         export const policy = {{\n  schemaVersion: 2,\n  version: \"bounds-1\",\n{members}\n}};\n"
     )
 }
 
 /// A policy whose loader returns a context with a summary of `n` `x`s.
 fn summary_of(n: usize) -> String {
     policy(&format!(
-        "  loadContext() {{ return {{ schemaVersion: 1, summary: \"x\".repeat({n}) }}; }},\n{SELECT}"
+        "  loadContext() {{ return {{ schemaVersion: 1, summary: \"x\".repeat({n}) }}; }},\n{}",
+        select()
     ))
 }
 
@@ -114,7 +115,7 @@ fn the_context_budget_counts_the_measured_sources_and_a_caller_document() {
     // its measured record. Its encoding, reported by an inspection with room
     // to spare, is exactly the budget it needs.
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(SELECT));
+    sandbox.personal_policy(&policy(&select()));
     sandbox.file(
         "context.json",
         r#"{"schemaVersion":1,"summary":"a context document"}"#,
@@ -167,8 +168,8 @@ fn the_context_budget_counts_the_measured_sources_and_a_caller_document() {
 #[test]
 fn an_oversize_prompt_does_not_count_against_the_context_budget() {
     // A prompt larger than the whole context budget, beside a context at
-    // exactly that budget: the prompt has its own bound and never reaches the
-    // worker, so the selection stands and the harness gets it whole.
+    // exactly that budget: the prompt has its own bound, outside the context
+    // budget, so the selection stands and the harness gets it whole.
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&summary_of(summary_for(262_144)));
     let prompt = "p".repeat(400 * 1024);
@@ -190,7 +191,7 @@ fn context_bytes_is_one_byte_to_eight_mebibytes() {
     sandbox.personal_policy(&format!(
         "import {{ writeFileSync as mark }} from \"node:fs\";\nmark({:?}, \"ran\");\n{}",
         text(&sentinel),
-        policy(SELECT)
+        policy(&select())
     ));
     for malformed in ["0", "8388609", "1e3", "+1", "", "256KiB"] {
         let refusal = sandbox
@@ -225,7 +226,8 @@ fn one_read_holds_to_its_limit_whatever_the_policy_does_with_the_error() {
             format!("{call}; return {{ schemaVersion: 1 }};")
         };
         sandbox.personal_policy(&policy(&format!(
-            "  loadContext(request, host) {{ {body} }},\n{SELECT}"
+            "  loadContext(request, host) {{ {body} }},\n{}",
+            select()
         )));
     };
     sandbox.file("at.txt", &"a".repeat(65_536));
@@ -314,7 +316,8 @@ fn a_read_that_already_takes_the_whole_budget_is_remedied_by_the_budget() {
     let sandbox = Sandbox::new();
     let read = |path: &str, max: &str| {
         sandbox.personal_policy(&policy(&format!(
-            "  loadContext(request, host) {{ host.readText({path:?}{max}); return {{ schemaVersion: 1 }}; }},\n{SELECT}"
+            "  loadContext(request, host) {{ host.readText({path:?}{max}); return {{ schemaVersion: 1 }}; }},\n{}",
+            select()
         )));
     };
     let said = |refusal: &Value, field: &str| refusal["error"][field].as_str().unwrap().to_owned();
@@ -402,7 +405,8 @@ fn a_context_holds_at_most_256_sources_the_document_included() {
             r#"host.readText("s.txt");"#
         };
         sandbox.personal_policy(&policy(&format!(
-            "  loadContext(request, host) {{ for (let i = 0; i < {count}; i++) {{ {read} }} return {{ schemaVersion: 1 }}; }},\n{SELECT}"
+            "  loadContext(request, host) {{ for (let i = 0; i < {count}; i++) {{ {read} }} return {{ schemaVersion: 1 }}; }},\n{}",
+            select()
         )));
     };
 
@@ -431,13 +435,15 @@ fn a_context_holds_at_most_256_sources_the_document_included() {
     );
 }
 
-/// A routes policy whose catalog snapshot, as the worker frames it
-/// (`{"type":"policy","policy":…,"adapter":null}`), is exactly `bytes` long.
-/// It pads its version to fit, measuring the frame as the worker encodes it.
+/// A policy whose snapshot, as the worker frames it
+/// (`{"type":"policy","policy":…,"adapter":null}`, each function a marker), is
+/// exactly `bytes` long. It pads its version to fit, measuring the frame as
+/// the worker encodes it.
 fn snapshot_of(bytes: usize) -> String {
     format!(
-        "const policy = {{ schemaVersion: 1, version: \"v\", catalog: {CATALOG}, routes: {{ impl: \"deep\" }} }};\n\
-         const framed = () => Buffer.byteLength(JSON.stringify({{ type: \"policy\", policy, adapter: null }}));\n\
+        "const policy = {{ schemaVersion: 2, version: \"v\", select(request) {{ return {DEEP}; }} }};\n\
+         const marked = (key, value) => typeof value === \"function\" ? {{ $harnessDispatch: \"function\" }} : value;\n\
+         const framed = () => Buffer.byteLength(JSON.stringify({{ type: \"policy\", policy, adapter: null }}, marked));\n\
          policy.version = \"v\" + \"x\".repeat({bytes} - framed());\n\
          export {{ policy }};\n"
     )
@@ -445,16 +451,18 @@ fn snapshot_of(bytes: usize) -> String {
 
 /// A select whose result, as the worker frames it
 /// (`{"type":"selection","result":…,"adapter":null}`), is exactly `bytes` long.
+/// It pads its reason to fit, so the command it returns stays one the
+/// platform can exec.
 fn result_of(bytes: usize) -> String {
     policy(&format!(
-        "  select() {{\n    const result = {{ status: \"selected\", candidateId: \"deep\", reason: \"r\" }};\n    \
+        "  select(request) {{\n    const result = {{ ...{DEEP}, reason: \"r\" }};\n    \
          const framed = () => Buffer.byteLength(JSON.stringify({{ type: \"selection\", result, adapter: null }}));\n    \
          result.reason = \"r\" + \"x\".repeat({bytes} - framed());\n    return result;\n  }},"
     ))
 }
 
 #[test]
-fn a_catalog_snapshot_or_result_holds_to_the_message_bound() {
+fn a_policy_snapshot_or_result_holds_to_the_message_bound() {
     const MIB: usize = 1_048_576;
     let sandbox = Sandbox::new();
     for (make, stage) in [
@@ -481,6 +489,45 @@ fn a_catalog_snapshot_or_result_holds_to_the_message_bound() {
     }
 }
 
+#[test]
+fn a_result_whose_arguments_pass_the_message_bound_refuses_and_launches_nothing() {
+    // The result carries the command's arguments, so one argument can take it
+    // past the bound: a string the policy built, or the prompt itself, which
+    // has its own bound of the same size and so cannot fit beside the rest of
+    // a result. Nothing is cut to fit, and nothing is recorded.
+    const MIB: usize = 1_048_576;
+    let sandbox = Sandbox::new();
+    let refused = |run: &Run| {
+        let refusal = refused_by(
+            run,
+            &sandbox,
+            "message_too_large",
+            json!({ "bytes": MIB, "from": "fixed" }),
+        );
+        assert_eq!(refusal["error"]["stage"], "selection", "{refusal}");
+        assert!(
+            refusal["error"]["remedy"]
+                .as_str()
+                .unwrap()
+                .contains("under 1 MiB of JSON with its arguments and the prompt among them"),
+            "{refusal}"
+        );
+        assert!(!sandbox.default_store().exists(), "{refusal}");
+    };
+
+    sandbox.personal_policy(&policy(&format!(
+        "  select(request) {{ return {{ ...{DEEP}, args: [\"--notes\", \"n\".repeat({MIB}), request.prompt] }}; }},"
+    )));
+    refused(&run(&sandbox, &[]));
+
+    sandbox.personal_policy(&policy(&select()));
+    sandbox.file("mandate.md", &"p".repeat(MIB));
+    refused(&sandbox.run(&["--kind", "impl", "--prompt-file", "mandate.md", "--json"]));
+
+    // The control: the same policy with a prompt that fits is launched.
+    selected(&run(&sandbox, &[]), &sandbox);
+}
+
 /// A policy that writes `stdout` and `stderr` bytes to its two streams at
 /// import, synchronously, so nothing is left in a buffer at exit. Each stream
 /// is `numbered`, so what is kept of it can be told from any other part.
@@ -493,7 +540,7 @@ fn printing(stdout: usize, stderr: usize) -> String {
            return text.slice(0, bytes);\n\
          }};\n\
          writeSync(1, numbered(\"o\", {stdout}));\nwriteSync(2, numbered(\"e\", {stderr}));\n{}",
-        policy(SELECT)
+        policy(&select())
     )
 }
 
@@ -552,7 +599,7 @@ fn a_policy_that_prints_without_end_is_stopped_for_its_output_not_its_time() {
     sandbox.personal_policy(&format!(
         "import {{ writeSync }} from \"node:fs\";\n\
          const line = \"spam \".repeat(1000) + \"\\n\";\nfor (;;) writeSync(1, line);\n{}",
-        policy(SELECT)
+        policy(&select())
     ));
     let started = Instant::now();
     let run = run(&sandbox, &["--timeout-ms", "60000"]);

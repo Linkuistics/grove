@@ -1,27 +1,26 @@
 // harness-dispatch/examples/review — a starter review policy that applies the
-// provider rule: every review it selects runs on a candidate whose provider
-// origin differs from the original creator's.
+// provider rule: every review it selects runs a command whose provider origin
+// differs from the original creator's.
 //
 // Use it whole from your personal policy, ~/.config/harness-dispatch/policy.ts:
 //
 //   export { policy } from "harness-dispatch/examples/review";
 //
-// or apply its rule to a catalog, routes and review kinds of your own:
+// or apply its rule to routes and review kinds of your own:
 //
 //   import { definePolicy } from "harness-dispatch/sdk";
 //   import { reviewSelector } from "harness-dispatch/examples/review";
 //   export const policy = definePolicy({
-//     schemaVersion: 1, version: "mine-1", catalog,
-//     ...reviewSelector({ catalog, routes, reviews }),
+//     schemaVersion: 2, version: "mine-1",
+//     ...reviewSelector({ routes, reviews }),
 //   });
 //
 // Better still, copy this file beside your policy and edit it. It is starting
 // policy, not a recommendation. It builds on harness-dispatch/examples/static:
-// that example's candidates and routes, whose comments justify each route's
-// effort, and a second harness, from another origin, for reviews.
-// `my-other-agent-wrapper` and `my-gateway-wrapper` are illustrative wrappers
-// you supply, as `my-agent-wrapper` is, and the models and providers are
-// placeholders for your own.
+// that example's routes, whose comments justify each route's effort, and a
+// second harness, from another origin, for reviews. `my-other-agent-wrapper`
+// is an illustrative wrapper you supply, as `my-agent-wrapper` is, and the
+// models and providers are placeholders for your own.
 //
 // WHAT A REVIEW NEEDS. A review is of an artifact, and its caller says which,
 // with a `reviewedArtifact` in its `--context` document: the artifact's ID and
@@ -31,21 +30,22 @@
 // such a run. Nothing else supplies the creator, and a review without one
 // refuses. No task file and no Grove convention is involved.
 //
-// THE RULE. For a kind listed in `reviews`, on every invocation, retry and
-// explicit choice:
+// THE RULE. A review kind's entry in `reviews` maps each provider origin a
+// creator can have to the command that reviews its work. For a kind listed
+// there, on every invocation and retry:
 //
 //   - a run reference is looked up, and a run the store does not hold, or one
 //     whose harness never executed, refuses: it names no creator's origin;
-//   - the creator's origin, recorded or declared, must be one of the current
-//     catalog's origins, exactly, with no normalisation, so a relabelled
-//     origin or a misspelt declaration refuses rather than passing as a
-//     different provider;
-//   - the reviewer is the explicit choice, or else the review kind's entry for
-//     the creator's origin, and it must be of another origin. A gateway to a
-//     model does not change the model's origin, so a candidate behind one
-//     keeps its origin's label and cannot pass as another provider.
+//   - the creator's origin, recorded or declared, must be one of the origins
+//     the entry lists, exactly, with no normalisation, so a relabelled origin
+//     or a misspelt declaration refuses rather than passing as a different
+//     provider;
+//   - the reviewer is the entry's command for that origin, and its provider
+//     label must be another origin. A gateway to a model does not change the
+//     model's origin, so a command that reaches the creator's model through
+//     one keeps that origin's label and cannot pass as another provider.
 //
-// Every failure refuses, naming its remedy. Nothing is ever chosen in place of
+// Every failure refuses, naming its remedy. Nothing is ever run in place of
 // the reviewer the rule refused. A kind `reviews` does not list takes the
 // static routes, where the rule does not apply; so a context that names a
 // reviewed artifact under such a kind refuses rather than taking a route.
@@ -59,7 +59,6 @@
 
 import {
   definePolicy,
-  type Candidate,
   type Context,
   type ContextHost,
   type DeliveredContext,
@@ -67,25 +66,21 @@ import {
   type SelectionRequest,
   type SelectionResult,
 } from "harness-dispatch/sdk";
-import { catalog as staticCatalog, routes as staticRoutes } from "harness-dispatch/examples/static";
+import { agent, routes as staticRoutes, selectRoute, type Route } from "harness-dispatch/examples/static";
 
 /**
  * A review kind's entry: for each provider origin a creator can have, the
- * candidate that reviews its work, which must be of another origin. An origin
- * the entry leaves out refuses as an incomplete mapping.
+ * command that reviews its work, which must carry another origin's label. An
+ * origin the entry leaves out refuses, naming the origins it lists.
  */
-export type ReviewEntry<Origin extends string = string, Id extends string = string> = {
-  readonly [O in Origin]?: Id;
-};
+export type ReviewEntry = Readonly<Record<string, Route>>;
 
-/** What the provider rule applies to: a catalog, its routes and its review kinds. */
-export interface ReviewRules<C extends readonly Candidate[] = readonly Candidate[]> {
-  /** The catalog whose origins a creator's must be among: the policy's own. */
-  readonly catalog: C;
-  /** Every kind that is not a review, to a candidate ID, exactly. */
-  readonly routes: Readonly<Record<string, C[number]["id"]>>;
+/** What the provider rule applies to: the routes and the review kinds. */
+export interface ReviewRules {
+  /** Every kind that is not a review, to its command, exactly. */
+  readonly routes: Readonly<Record<string, Route>>;
   /** Each review kind, exactly, to its entry. */
-  readonly reviews: Readonly<Record<string, ReviewEntry<C[number]["provider"], C[number]["id"]>>>;
+  readonly reviews: Readonly<Record<string, ReviewEntry>>;
 }
 
 /** The two halves of a policy that applies the provider rule. */
@@ -113,29 +108,15 @@ export function lookUpCreator(context: Context, host: ContextHost): Context {
 }
 
 /** The provider rule over `rules`, as a `loadContext` and a `select`. */
-export function reviewSelector<const C extends readonly Candidate[]>(rules: ReviewRules<C>): ReviewSelector {
-  const catalog: readonly Candidate[] = rules.catalog;
-  const routes: Readonly<Record<string, string>> = rules.routes;
-  const reviews: Readonly<Record<string, Readonly<Record<string, string | undefined>>>> = rules.reviews;
-  const byId = new Map(catalog.map((candidate) => [candidate.id, candidate] as const));
-  const origins = [...new Set(catalog.map((candidate) => candidate.provider))].sort();
-  const originList = origins.map(quote).join(", ");
-
-  /** The candidates of any origin but `origin`, as a list to choose from. */
-  function otherThan(origin: string): string {
-    const others = catalog.filter((candidate) => candidate.provider !== origin).map((candidate) => quote(candidate.id));
-    return others.length > 0 ? others.join(", ") : "none in the catalog; add one";
-  }
-
-  const declare = `declare the origin that made it instead: a creator { "declared": <origin> }, one of ${originList}`;
-  const exactly = `the current catalog: ${originList}. Origins match exactly, with no normalisation`;
+export function reviewSelector(rules: ReviewRules): ReviewSelector {
+  const { routes, reviews } = rules;
 
   function select(request: SelectionRequest, context: DeliveredContext | undefined): SelectionResult {
     const kind = request.kind;
     const artifact = context?.reviewedArtifact;
-    const choice = request.explicitChoice;
+    const entry = Object.hasOwn(reviews, kind) ? reviews[kind] : undefined;
 
-    if (!Object.hasOwn(reviews, kind)) {
+    if (entry === undefined) {
       if (artifact !== undefined) {
         return refuse(
           "review_kind_unlisted",
@@ -145,21 +126,12 @@ export function reviewSelector<const C extends readonly Candidate[]>(rules: Revi
             "or leave reviewedArtifact out if this is not a review",
         );
       }
-      if (choice !== undefined) {
-        return selected(choice, `the explicit choice ${quote(choice)} is taken for kind ${quote(kind)}, not a review`);
-      }
-      const routed = Object.hasOwn(routes, kind) ? routes[kind] : undefined;
-      if (routed === undefined) {
-        return refuse(
-          "incomplete_mapping",
-          `the routes name no candidate for kind ${quote(kind)}`,
-          "add a route for this kind in your copy of the policy, or name one configured candidate with --choice",
-        );
-      }
-      return selected(routed, `routes[${quote(kind)}] names candidate ${quote(routed)}`);
+      return selectRoute(routes, request);
     }
 
-    const entry = reviews[kind] ?? {};
+    const origins = Object.keys(entry).sort();
+    const originList = origins.map(quote).join(", ");
+    const declare = `declare the origin that made it instead: a creator { "declared": <origin> }, one of ${originList}`;
     if (artifact === undefined) {
       return refuse(
         "reviewed_artifact_missing",
@@ -182,6 +154,7 @@ export function reviewSelector<const C extends readonly Candidate[]>(rules: Revi
     // The creator's origin, and how it is known.
     let origin: string;
     let creator: string;
+    let correct: string;
     if (reference.run !== undefined) {
       const run = reference.run;
       const lookup = context?.runs?.find((answer) => answer.runId === run);
@@ -209,73 +182,45 @@ export function reviewSelector<const C extends readonly Candidate[]>(rules: Revi
           `name the run that did create the artifact, or ${declare}`,
         );
       }
-      origin = lookup.candidate.provider;
+      origin = lookup.provider;
       const task = lookup.taskId === null ? "no task" : `task ${quote(lookup.taskId)}`;
       creator = `creator run ${run} (${task}, kind ${quote(lookup.kind)}) recorded origin ${quote(origin)}`;
-      if (!origins.includes(origin)) {
-        return refuse(
-          "creator_origin_unknown",
-          `${creator}, which is not an origin in ${exactly}`,
-          `if ${quote(origin)} was relabelled, restore that label in your catalog, ` +
-            `since a new label is not a new provider; otherwise ${declare}`,
-        );
-      }
+      correct =
+        `if ${quote(origin)} was relabelled, list that label in reviews[${quote(kind)}] in your copy of the policy, ` +
+        `since a new label is not a new provider; otherwise ${declare}`;
     } else {
       origin = reference.declared;
       creator = `creator origin ${quote(origin)} declared by the owner`;
-      if (!origins.includes(origin)) {
-        return refuse(
-          "creator_origin_unknown",
-          `declared creator origin ${quote(origin)} of ${of} is not an origin in ${exactly}`,
-          `correct the declaration to one of ${originList}`,
-        );
-      }
+      correct = `correct the declaration to one of ${originList}`;
     }
 
-    // The reviewer: the explicit choice, or the entry's for this origin.
-    const slot = `reviews[${quote(kind)}][${quote(origin)}]`;
-    let id: string;
-    let named: string;
-    if (choice !== undefined) {
-      id = choice;
-      named = `the explicit choice ${quote(choice)}`;
-    } else {
-      const mapped = Object.hasOwn(entry, origin) ? entry[origin] : undefined;
-      if (mapped === undefined) {
-        return refuse(
-          "incomplete_mapping",
-          `reviews[${quote(kind)}] names no reviewer for creator origin ${quote(origin)}: ${creator}`,
-          `add ${slot}, naming a candidate of another origin, in your copy of the policy, ` +
-            `or name one with --choice: ${otherThan(origin)}`,
-        );
-      }
-      id = mapped;
-      named = `${slot} names ${quote(mapped)}`;
-    }
-    const reviewer = byId.get(id);
-    if (reviewer === undefined) {
+    // The reviewer: the entry's command for this origin, of another origin.
+    const at = `reviews[${quote(kind)}][${quote(origin)}]`;
+    const route = Object.hasOwn(entry, origin) ? entry[origin] : undefined;
+    if (route === undefined) {
       return refuse(
-        "reviewer_unknown",
-        `${named}, which is not in the catalog`,
-        `name a catalog candidate of another origin there: ${otherThan(origin)}`,
+        "creator_origin_unlisted",
+        `${creator}, which is not an origin reviews[${quote(kind)}] lists for ${of}: ${originList}. ` +
+          "Origins match exactly, with no normalisation",
+        correct,
       );
     }
+    const reviewer = route(request);
     if (reviewer.provider === origin) {
       return refuse(
         "same_origin",
-        `${named}, of origin ${quote(reviewer.provider)}, the same as the creator's: ${creator}. ` +
-          "A review must run on another origin, and a gateway to a model keeps the model's origin",
-        choice !== undefined
-          ? `choose a candidate of another origin: ${otherThan(origin)}`
-          : `map ${slot} to a candidate of another origin in your copy of the policy, ` +
-              `or name one with --choice: ${otherThan(origin)}`,
+        `${at} gives ${reviewer.program}, of origin ${quote(reviewer.provider)}, the same as the creator's: ` +
+          `${creator}. A review must run on another origin, and a gateway to a model keeps the model's origin`,
+        `map ${at} to a command of another origin in your copy of the policy`,
       );
     }
-    return selected(
-      id,
-      `review kind ${quote(kind)} of ${quote(artifact.id)}: ${creator}; ` +
-        `${named}, of origin ${quote(reviewer.provider)}`,
-    );
+    return {
+      status: "selected",
+      ...reviewer,
+      reason:
+        `review kind ${quote(kind)} of ${quote(artifact.id)}: ${creator}; ` +
+        `${at} gives ${reviewer.program}, of origin ${quote(reviewer.provider)}, at effort ${reviewer.effort}`,
+    };
   }
 
   return {
@@ -288,49 +233,21 @@ function quote(text: string): string {
   return JSON.stringify(text);
 }
 
-function selected(candidateId: string, reason: string): SelectionResult {
-  return { status: "selected", candidateId, reason };
-}
-
 function refuse(code: string, message: string, remedy: string): Refused {
   return { status: "refused", code, message, remedy };
 }
 
-const args = ["--model", { slot: "model" }, "--effort", { slot: "effort" }, { slot: "prompt" }] as const;
-/** A second harness, from another origin, for reviews. */
-const other = {
-  provider: "your-other-provider",
-  model: "your-other-model",
-  program: "my-other-agent-wrapper",
-  args,
-} as const;
-/**
- * The static example's model, reached through a gateway. The gateway changes
- * the program and the model's name, but not its origin, so its provider is the
- * static example's.
- */
-const gateway = {
-  provider: "your-provider",
-  model: "your-gateway/your-model",
-  program: "my-gateway-wrapper",
-  args,
-} as const;
-
-/** The static example's candidates, and the others the reviews use. */
-export const catalog = [
-  ...staticCatalog,
-  { id: "other-careful", effort: "high", ...other },
-  { id: "other-deliberate", effort: "xhigh", ...other },
-  // Listed so that a review can name it with --choice, and be refused: it is
-  // the static example's origin, however it is reached.
-  { id: "gateway-careful", effort: "high", ...gateway },
-] as const satisfies readonly Candidate[];
-
-/** A candidate ID from {@link catalog}. */
-export type CandidateId = (typeof catalog)[number]["id"];
-
-/** A provider origin in {@link catalog}. */
-export type Origin = (typeof catalog)[number]["provider"];
+/** A second harness, from another origin, for reviews, at `effort`. */
+export function otherAgent(effort: string): Route {
+  const model = "your-other-model";
+  return (request) => ({
+    program: "my-other-agent-wrapper",
+    args: ["--model", model, "--effort", effort, request.prompt],
+    provider: "your-other-provider",
+    model,
+    effort,
+  });
+}
 
 /** Every kind that is not a review: the static example's routes, exactly. */
 export const routes = staticRoutes;
@@ -341,18 +258,17 @@ export const reviews = {
   // It cannot run more than they do, and what it misses surfaces later, in
   // downstream repair that costs more than the review, so it gets the effort
   // of the feature work it reads.
-  "code-review": { "your-provider": "other-careful", "your-other-provider": "careful" },
+  "code-review": { "your-provider": otherAgent("high"), "your-other-provider": agent("high") },
   // An architecture review is the only check abstract, uncertain work gets
   // before every later task builds on it. Nothing runs yet to catch a defect,
   // and one it misses is repaired by redoing that work, so it gets the most
   // effort.
-  "architecture-review": { "your-provider": "other-deliberate", "your-other-provider": "deliberate" },
-} as const satisfies Readonly<Record<string, ReviewEntry<Origin, CandidateId>>>;
+  "architecture-review": { "your-provider": otherAgent("xhigh"), "your-other-provider": agent("xhigh") },
+} as const satisfies Readonly<Record<string, ReviewEntry>>;
 
-/** The whole starter policy: {@link catalog}, {@link routes} and {@link reviews}, under the rule. */
+/** The whole starter policy: {@link routes} and {@link reviews}, under the rule. */
 export const policy = definePolicy({
-  schemaVersion: 1,
-  version: "harness-dispatch/examples/review 1",
-  catalog,
-  ...reviewSelector({ catalog, routes, reviews }),
+  schemaVersion: 2,
+  version: "harness-dispatch/examples/review 2",
+  ...reviewSelector({ routes, reviews }),
 });

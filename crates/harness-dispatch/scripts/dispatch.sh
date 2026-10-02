@@ -408,10 +408,9 @@ install_pair() {
   trap "rm -rf '$scratch'" EXIT
   cat >"$scratch/policy.ts" <<'EOF'
 export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "install-check",
-  catalog: [{ id: "check", provider: "check", model: "check", effort: "check", program: "true", args: [{ slot: "prompt" }] }],
-  routes: { check: "check" },
+  select: (request) => ({ status: "selected", program: "true", args: [request.prompt], provider: "check", model: "check", effort: "check", reason: "check" }),
 };
 EOF
   "$prefix/bin/harness-dispatch" inspect --kind check --config "$scratch/policy.ts" >/dev/null

@@ -10,9 +10,10 @@
 //! own wrappers, each a copy of the fake harness, so each lookup reads a record
 //! that `run` committed. That includes the runs that never executed: one is
 //! cancelled at the linearization point by the stall in `support::stall`, and
-//! the other's wrapper names an interpreter that does not exist. Each refusal
-//! has a control beside it, the same review with the input corrected, that is
-//! seen to select.
+//! the other's wrapper names an interpreter that does not exist. The one
+//! exception is the catalog-contract fixture, a store that release 21.13.0
+//! committed. Each refusal has a control beside it, the same review with the
+//! input corrected, that is seen to select.
 
 mod support;
 
@@ -29,11 +30,11 @@ const EXAMPLE: &str = "export { policy } from \"harness-dispatch/examples/review
 const UNKNOWN: &str = "0192f0c4-7a1e-4b2c-9d3e-4f5a6b7c8d9e";
 
 /// The example's illustrative wrappers, each installed as the fake harness.
-const WRAPPERS: [&str; 3] = [
-    "my-agent-wrapper",
-    "my-other-agent-wrapper",
-    "my-gateway-wrapper",
-];
+const WRAPPERS: [&str; 2] = ["my-agent-wrapper", "my-other-agent-wrapper"];
+
+/// The origin the example's own harness carries, and the other one's.
+const OWN: &str = "your-provider";
+const OTHER: &str = "your-other-provider";
 
 /// A sandbox whose personal policy is the shipped example.
 fn sandbox() -> Sandbox {
@@ -54,22 +55,38 @@ fn launched(sandbox: &Sandbox, args: &[&str]) -> String {
     run_id
 }
 
-/// A producer of kind `feature`, which the example routes to `careful`, of
-/// origin `your-provider`, or with `choice` the candidate it names, run as
-/// task `task_id`. Its run ID.
-fn produce(sandbox: &Sandbox, task_id: &str, choice: Option<&str>) -> String {
-    let mut args = vec![
-        "--kind",
-        "feature",
-        "--task-id",
-        task_id,
-        "--prompt",
-        "build it",
-    ];
-    if let Some(choice) = choice {
-        args.extend(["--choice", choice]);
-    }
-    launched(sandbox, &args)
+/// A producer of kind `feature`, which the example routes to its own harness,
+/// of origin `your-provider`, run as task `task_id`. Its run ID.
+fn produce(sandbox: &Sandbox, task_id: &str) -> String {
+    launched(
+        sandbox,
+        &[
+            "--kind",
+            "feature",
+            "--task-id",
+            task_id,
+            "--prompt",
+            "build it",
+        ],
+    )
+}
+
+/// The same producer under an owner's policy that routes `feature` to the
+/// other harness, of origin `your-other-provider`; the shipped example is the
+/// personal policy again afterwards. Its run ID.
+fn produce_on_the_other_origin(sandbox: &Sandbox, task_id: &str) -> String {
+    owner_policy(
+        sandbox,
+        r#"export const policy = {
+  schemaVersion: 2,
+  version: "other-producer-1",
+  ...reviewSelector({ routes: { ...routes, feature: otherAgent("high") }, reviews }),
+};
+"#,
+    );
+    let run_id = produce(sandbox, task_id);
+    sandbox.personal_policy(EXAMPLE);
+    run_id
 }
 
 /// Write `review.json`: a caller context whose reviewed artifact is `id`,
@@ -84,7 +101,15 @@ fn reviewing(sandbox: &Sandbox, id: &str, creator: &Value) {
 
 /// Inspect `kind` with `review.json` as its context, plus `extra`.
 fn inspect(sandbox: &Sandbox, kind: &str, extra: &[&str]) -> support::Run {
-    let mut args = vec!["--kind", kind, "--context", "review.json", "--json"];
+    let mut args = vec![
+        "--kind",
+        kind,
+        "--context",
+        "review.json",
+        "--prompt",
+        "review it",
+        "--json",
+    ];
     args.extend(extra);
     sandbox.inspect(&args)
 }
@@ -156,40 +181,84 @@ fn wrapper_args(model: &str, effort: &str, prompt: &str) -> Vec<String> {
         .to_vec()
 }
 
-/// Write an owner's policy that builds on the example's exports: `body` is
-/// TypeScript that may use `catalog`, `routes`, `reviews` and
-/// `reviewSelector`, and must export `policy`.
+/// What [`inspect`] reports of the command a review selected: its provider
+/// label, its program, and the model and effort, which its arguments carry
+/// before the prompt.
+fn reviewer(report: &Value) -> (String, String, String, String) {
+    let text = |value: &Value| value.as_str().unwrap_or_default().to_owned();
+    assert_eq!(
+        report["command"]["args"],
+        json!([
+            "--model",
+            report["selection"]["model"],
+            "--effort",
+            report["selection"]["effort"],
+            "review it"
+        ]),
+        "{report}"
+    );
+    (
+        text(&report["selection"]["provider"]),
+        text(&report["command"]["program"]),
+        text(&report["selection"]["model"]),
+        text(&report["selection"]["effort"]),
+    )
+}
+
+/// The example's other harness at `effort`, as [`reviewer`] reports it.
+fn other_agent(effort: &str) -> (String, String, String, String) {
+    (
+        OTHER.to_owned(),
+        "my-other-agent-wrapper".to_owned(),
+        "your-other-model".to_owned(),
+        effort.to_owned(),
+    )
+}
+
+/// The example's own harness at `effort`, as [`reviewer`] reports it.
+fn own_agent(effort: &str) -> (String, String, String, String) {
+    (
+        OWN.to_owned(),
+        "my-agent-wrapper".to_owned(),
+        "your-model".to_owned(),
+        effort.to_owned(),
+    )
+}
+
+/// Write an owner's policy that builds on the examples' exports: `body` is
+/// TypeScript that may use the review example's `routes`, `reviews`,
+/// `reviewSelector`, `lookUpCreator` and `otherAgent`, and the generic
+/// example's `agent`, and must export `policy`.
 fn owner_policy(sandbox: &Sandbox, body: &str) {
     sandbox.personal_policy(&format!(
-        "import {{ catalog, routes, reviews, reviewSelector, lookUpCreator }} from \"harness-dispatch/examples/review\";\n{body}"
+        "import {{ routes, reviews, reviewSelector, lookUpCreator, otherAgent }} from \"harness-dispatch/examples/review\";\n\
+         import {{ agent }} from \"harness-dispatch/examples/static\";\n{body}"
     ));
 }
 
 #[test]
 fn a_review_selects_a_reviewer_of_another_origin_on_every_invocation() {
     let sandbox = sandbox();
-    let creator = produce(&sandbox, "feature-k7", None);
+    let creator = produce(&sandbox, "feature-k7");
     reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
 
     let report = inspect(&sandbox, "code-review", &[]).report();
     assert_eq!(
         report["policy"]["version"],
-        "harness-dispatch/examples/review 1"
+        "harness-dispatch/examples/review 2"
     );
+    assert_eq!(reviewer(&report), other_agent("high"), "{report}");
     let selection = &report["selection"];
-    assert_eq!(selection["form"], "select", "{report}");
-    assert_eq!(selection["candidateId"], "other-careful", "{report}");
-    assert_eq!(selection["provider"], "your-other-provider");
     let reason = selection["reason"].as_str().unwrap();
     for part in [
         creator.as_str(),
-        r#"origin "your-provider""#,
-        r#"reviews["code-review"]["your-provider"] names "other-careful""#,
+        r#"recorded origin "your-provider""#,
+        r#"reviews["code-review"]["your-provider"] gives my-other-agent-wrapper, of origin "your-other-provider""#,
     ] {
         assert!(reason.contains(part), "{part:?} is not in {reason:?}");
     }
     assert_eq!(report["creator"]["evidence"], "execution_recorded");
-    assert_eq!(report["creator"]["provider"], "your-provider");
+    assert_eq!(report["creator"]["provider"], OWN);
     assert_eq!(report["creator"]["reference"], json!({ "run": creator }));
 
     // Inspection is deterministic, and each run is a retry: a new run, the
@@ -203,8 +272,9 @@ fn a_review_selects_a_reviewer_of_another_origin_on_every_invocation() {
         let (run_id, args) = reviewed(&sandbox, "code-review", &[]);
         assert_eq!(args, wrapper_args("your-other-model", "high", "review it"));
         let launch = show(&sandbox, &run_id)["launch"].clone();
-        assert_eq!(launch["candidate"]["id"], "other-careful");
-        assert_eq!(launch["creator"]["provider"], "your-provider");
+        assert_eq!(launch["candidate"]["provider"], OTHER);
+        assert_eq!(launch["executable"]["program"], "my-other-agent-wrapper");
+        assert_eq!(launch["creator"]["provider"], OWN);
         assert_eq!(launch["creator"]["evidence"], "execution_recorded");
         assert_eq!(launch["creator"]["reference"], json!({ "run": creator }));
         retries.push(run_id);
@@ -213,168 +283,174 @@ fn a_review_selects_a_reviewer_of_another_origin_on_every_invocation() {
 
     // The architecture review applies the same rule at its own effort.
     let report = inspect(&sandbox, "architecture-review", &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "other-deliberate");
+    assert_eq!(reviewer(&report), other_agent("xhigh"));
 
     // A creator of the other origin is reviewed on the first.
-    let other = produce(&sandbox, "feature-k8", Some("other-careful"));
+    let other = produce_on_the_other_origin(&sandbox, "feature-k8");
     reviewing(&sandbox, "feature-k8", &json!({ "run": other }));
-    for (kind, reviewer) in [
-        ("code-review", "careful"),
-        ("architecture-review", "deliberate"),
-    ] {
+    for (kind, effort) in [("code-review", "high"), ("architecture-review", "xhigh")] {
         let report = inspect(&sandbox, kind, &[]).report();
-        assert_eq!(report["selection"]["candidateId"], reviewer, "{kind}");
-        assert_eq!(report["selection"]["provider"], "your-provider", "{kind}");
-        assert_eq!(report["creator"]["provider"], "your-other-provider");
+        assert_eq!(reviewer(&report), own_agent(effort), "{kind}");
+        assert_eq!(report["creator"]["provider"], OTHER);
     }
     let (_, args) = reviewed(&sandbox, "code-review", &[]);
     assert_eq!(args, wrapper_args("your-model", "high", "review it"));
 }
 
-#[test]
-fn an_explicit_choice_is_held_to_the_same_rule() {
-    let sandbox = sandbox();
-    let creator = produce(&sandbox, "feature-k7", None);
-    reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
-
-    // A choice of another origin is accepted, on every invocation.
-    let report = inspect(&sandbox, "code-review", &["--choice", "other-deliberate"]).report();
-    let selection = &report["selection"];
-    assert_eq!(selection["candidateId"], "other-deliberate");
-    assert_eq!(selection["explicitChoice"], "other-deliberate");
-    let reason = selection["reason"].as_str().unwrap();
-    assert!(
-        reason.contains(r#"the explicit choice "other-deliberate""#),
-        "{reason}"
+/// An owner's policy whose `code-review` entry sends a creator of origin
+/// `your-provider` to `reviewer`, a route expression, and which routes the
+/// kind `probe` to that same route, so that the command it builds can be
+/// inspected with no review.
+fn reviewed_by(sandbox: &Sandbox, version: &str, reviewer: &str) {
+    owner_policy(
+        sandbox,
+        &format!(
+            r#"const reviewer = {reviewer};
+export const policy = {{
+  schemaVersion: 2,
+  version: "{version}",
+  ...reviewSelector({{
+    routes: {{ ...routes, probe: reviewer }},
+    reviews: {{ "code-review": {{ "your-provider": reviewer, "your-other-provider": agent("high") }} }},
+  }}),
+}};
+"#
+        ),
     );
-    for _ in 0..2 {
-        let (_, args) = reviewed(&sandbox, "code-review", &["--choice", "other-deliberate"]);
-        assert_eq!(args, wrapper_args("your-other-model", "xhigh", "review it"));
-    }
-
-    // A choice of the creator's own origin refuses, and so does the same
-    // origin behind a gateway: another program and another model string, but
-    // the model's origin is the creator's. Nothing is launched or recorded,
-    // and nothing is chosen in its place.
-    //
-    // The disguise is the shipped example's, read here as each candidate is
-    // proposed for ordinary work. Were the gateway candidate to lose it, its
-    // refusal below would show nothing that `careful`'s does not.
-    let (own, gateway) = (
-        offered(&sandbox, "careful"),
-        offered(&sandbox, "gateway-careful"),
-    );
-    assert_eq!(own["selection"]["provider"], "your-provider");
-    assert_eq!(gateway["selection"]["provider"], "your-provider");
-    assert_ne!(
-        gateway["executable"]["program"],
-        own["executable"]["program"]
-    );
-    assert_ne!(gateway["selection"]["model"], own["selection"]["model"]);
-    assert_ne!(gateway["argv"], own["argv"]);
-    let before = runs_in(&sandbox);
-    for choice in ["careful", "gateway-careful"] {
-        for result in [
-            inspect(&sandbox, "code-review", &["--choice", choice]),
-            review(&sandbox, "code-review", &["--choice", choice]),
-        ] {
-            let refusal = refused(&sandbox, &result, "same_origin");
-            assert_eq!(refusal["error"]["input"], format!("--choice {choice}"));
-            let message = said(&refusal, "message");
-            for part in [
-                format!(r#""{choice}""#),
-                r#"origin "your-provider""#.to_owned(),
-                creator.clone(),
-            ] {
-                assert!(message.contains(&part), "{part:?}: {refusal}");
-            }
-            // The remedy offers the other origin's candidates, never the
-            // gateway to the same one.
-            let remedy = said(&refusal, "remedy");
-            for offered in [r#""other-careful""#, r#""other-deliberate""#] {
-                assert!(remedy.contains(offered), "{offered}: {refusal}");
-            }
-            assert!(!remedy.contains("gateway-careful"), "{refusal}");
-        }
-    }
-    assert_eq!(runs_in(&sandbox), before, "a refused review was recorded");
 }
 
-/// The proposal for `feature` work under the explicit choice of `candidate`:
-/// its provider, model, program and expanded arguments, with no review.
-fn offered(sandbox: &Sandbox, candidate: &str) -> Value {
+/// The command a policy builds for `kind`, with no review: what inspection
+/// reports as its selection and its command.
+fn offered(sandbox: &Sandbox, kind: &str) -> Value {
     sandbox
-        .inspect(&["--kind", "feature", "--choice", candidate, "--json"])
+        .inspect(&["--kind", kind, "--prompt", "review it", "--json"])
         .report()
 }
 
 #[test]
-fn a_candidates_origin_is_its_declared_label_whatever_its_argv() {
+fn a_gateway_to_the_creators_model_keeps_its_origin_and_refuses() {
+    let sandbox = sandbox();
+    executable(&sandbox.bin.join("my-gateway-wrapper"), FAKE_HARNESS);
+    let creator = produce(&sandbox, "feature-k7");
+    reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
+
+    // An owner's entry reviews the creator's work through a gateway to the
+    // creator's own model: another program and another model string, under
+    // the label of the origin the model has.
+    reviewed_by(
+        &sandbox,
+        "gateway-1",
+        r#"(request) => ({
+  program: "my-gateway-wrapper",
+  args: ["--model", "your-gateway/your-model", "--effort", "high", request.prompt],
+  provider: "your-provider",
+  model: "your-gateway/your-model",
+  effort: "high",
+})"#,
+    );
+
+    // The disguise, read as each command is built for ordinary work. Were
+    // the gateway to lose it, its refusal below would show nothing that the
+    // creator's own harness as the reviewer does not.
+    let (own, gateway) = (offered(&sandbox, "feature"), offered(&sandbox, "probe"));
+    assert_eq!(own["selection"]["provider"], OWN);
+    assert_eq!(gateway["selection"]["provider"], OWN);
+    assert_ne!(gateway["command"]["program"], own["command"]["program"]);
+    assert_ne!(gateway["selection"]["model"], own["selection"]["model"]);
+    assert_ne!(gateway["command"]["args"], own["command"]["args"]);
+
+    // It refuses on every invocation. Nothing is launched or recorded, and
+    // nothing is run in its place.
+    let before = runs_in(&sandbox);
+    for result in [
+        inspect(&sandbox, "code-review", &[]),
+        review(&sandbox, "code-review", &[]),
+        review(&sandbox, "code-review", &[]),
+    ] {
+        let refusal = refused(&sandbox, &result, "same_origin");
+        assert_eq!(refusal["error"]["input"], "--kind code-review");
+        let message = said(&refusal, "message");
+        for part in [
+            r#"reviews["code-review"]["your-provider"] gives my-gateway-wrapper"#,
+            r#"of origin "your-provider""#,
+            "a gateway to a model keeps the model's origin",
+            creator.as_str(),
+        ] {
+            assert!(message.contains(part), "{part:?}: {refusal}");
+        }
+        assert!(
+            said(&refusal, "remedy").contains("a command of another origin"),
+            "{refusal}"
+        );
+    }
+    assert_eq!(runs_in(&sandbox), before, "a refused review was recorded");
+
+    // The control: the shipped entry sends the same creator to the other
+    // origin.
+    sandbox.personal_policy(EXAMPLE);
+    let report = inspect(&sandbox, "code-review", &[]).report();
+    assert_eq!(reviewer(&report), other_agent("high"));
+}
+
+#[test]
+fn a_commands_origin_is_its_provider_label_whatever_its_argv() {
     // The gateway case above sets a different argv under the creator's label,
     // and refuses. This is the other half: the creator's own program, model
     // and arguments under the other origin's label. The rule reads the label
-    // and nothing else, so that candidate reviews the creator's work, and the
-    // candidate it copies is refused beside it.
+    // and nothing else, so that command reviews the creator's work, and the
+    // command it copies is refused in its place.
     let sandbox = sandbox();
-    let creator = produce(&sandbox, "feature-k7", None);
+    let creator = produce(&sandbox, "feature-k7");
     reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
-    owner_policy(
+    reviewed_by(
         &sandbox,
-        r#"const careful = catalog.find((candidate) => candidate.id === "careful");
-const relabelled = [...catalog, { ...careful, id: "relabelled-careful", provider: "your-other-provider" }];
-export const policy = {
-  schemaVersion: 1,
-  version: "relabelled-twin-1",
-  catalog: relabelled,
-  ...reviewSelector({ catalog: relabelled, routes, reviews }),
-};
-"#,
+        "relabelled-twin-1",
+        r#"(request) => ({ ...agent("high")(request), provider: "your-other-provider" })"#,
     );
 
-    let (own, twin) = (
-        offered(&sandbox, "careful"),
-        offered(&sandbox, "relabelled-careful"),
-    );
+    let (own, twin) = (offered(&sandbox, "feature"), offered(&sandbox, "probe"));
     assert_eq!(own["policy"]["version"], "relabelled-twin-1");
-    assert_eq!(twin["executable"], own["executable"]);
+    assert_eq!(twin["command"], own["command"]);
     assert_eq!(twin["selection"]["model"], own["selection"]["model"]);
-    assert_eq!(twin["argv"], own["argv"]);
-    assert_eq!(own["selection"]["provider"], "your-provider");
-    assert_eq!(twin["selection"]["provider"], "your-other-provider");
+    assert_eq!(own["selection"]["provider"], OWN);
+    assert_eq!(twin["selection"]["provider"], OTHER);
 
-    let report = inspect(&sandbox, "code-review", &["--choice", "relabelled-careful"]).report();
-    assert_eq!(report["selection"]["candidateId"], "relabelled-careful");
-    assert_eq!(report["creator"]["provider"], "your-provider");
-    let (_, args) = reviewed(&sandbox, "code-review", &["--choice", "relabelled-careful"]);
+    let report = inspect(&sandbox, "code-review", &[]).report();
+    assert_eq!(report["selection"]["provider"], OTHER);
+    assert_eq!(report["command"], own["command"]);
+    assert_eq!(report["creator"]["provider"], OWN);
+    let (_, args) = reviewed(&sandbox, "code-review", &[]);
     assert_eq!(args, wrapper_args("your-model", "high", "review it"));
 
-    let refusal = refused(
+    reviewed_by(&sandbox, "twin-unlabelled-1", r#"agent("high")"#);
+    refused(
         &sandbox,
-        &inspect(&sandbox, "code-review", &["--choice", "careful"]),
+        &inspect(&sandbox, "code-review", &[]),
         "same_origin",
     );
-    assert_eq!(refusal["error"]["input"], "--choice careful");
 }
 
 #[test]
 fn a_mapped_reviewer_of_the_creators_origin_refuses_and_is_never_replaced() {
     let sandbox = sandbox();
-    let creator = produce(&sandbox, "feature-k7", None);
+    let creator = produce(&sandbox, "feature-k7");
     reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
 
     // The control: the shipped entry maps this creator to the other origin.
     let report = inspect(&sandbox, "code-review", &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "other-careful");
+    assert_eq!(reviewer(&report), other_agent("high"));
 
     // An owner's entry that maps the creator's origin to that origin refuses,
-    // although `other-careful` is still in the catalog.
+    // although the entry holds a command of the other origin too.
     owner_policy(
         &sandbox,
         r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "misfiled-1",
-  catalog,
-  ...reviewSelector({ catalog, routes, reviews: { "code-review": { "your-provider": "careful" } } }),
+  ...reviewSelector({
+    routes,
+    reviews: { "code-review": { "your-provider": agent("high"), "your-other-provider": otherAgent("high") } },
+  }),
 };
 "#,
     );
@@ -385,17 +461,17 @@ fn a_mapped_reviewer_of_the_creators_origin_refuses_and_is_never_replaced() {
         let refusal = refused(&sandbox, &result, "same_origin");
         let message = said(&refusal, "message");
         assert!(
-            message.contains(r#"reviews["code-review"]["your-provider"] names "careful""#),
+            message.contains(r#"reviews["code-review"]["your-provider"] gives my-agent-wrapper"#),
             "{refusal}"
         );
-        assert!(!message.contains("other-careful"), "{refusal}");
+        assert!(!message.contains("my-other-agent-wrapper"), "{refusal}");
     }
 }
 
 #[test]
 fn an_unknown_run_or_a_run_that_never_executed_refuses_with_the_declaration_remedy() {
     let sandbox = sandbox();
-    let executed = produce(&sandbox, "feature-k7", None);
+    let executed = produce(&sandbox, "feature-k7");
 
     // A run whose exec failed: its wrapper names an interpreter that does
     // not exist, so the attempt carries dispatch's exec-error detail.
@@ -458,15 +534,13 @@ fn an_unknown_run_or_a_run_that_never_executed_refuses_with_the_declaration_reme
         for result in [
             inspect(&sandbox, "code-review", &[]),
             review(&sandbox, "code-review", &[]),
-            // A choice of another origin is no way round it.
-            inspect(&sandbox, "code-review", &["--choice", "other-careful"]),
         ] {
             let refusal = refused(&sandbox, &result, code);
             let message = said(&refusal, "message");
             for part in [creator, detail] {
                 assert!(message.contains(part), "{part:?}: {refusal}");
             }
-            // The declaration remedy, with the origins it may name.
+            // The declaration remedy, with the origins the entry lists.
             let remedy = said(&refusal, "remedy");
             for part in [
                 r#""declared""#,
@@ -481,19 +555,16 @@ fn an_unknown_run_or_a_run_that_never_executed_refuses_with_the_declaration_reme
     // The control: the run that did execute selects.
     reviewing(&sandbox, "feature-k7", &json!({ "run": executed }));
     let report = inspect(&sandbox, "code-review", &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "other-careful");
+    assert_eq!(reviewer(&report), other_agent("high"));
 }
 
 #[test]
 fn a_declared_creator_is_adopted_and_labelled_declared() {
     let sandbox = sandbox();
-    for (declared, reviewer, program) in [
-        ("your-other-provider", "careful", "my-agent-wrapper"),
-        ("your-provider", "other-careful", "my-other-agent-wrapper"),
-    ] {
+    for (declared, expected) in [(OTHER, own_agent("high")), (OWN, other_agent("high"))] {
         reviewing(&sandbox, "legacy-k3", &json!({ "declared": declared }));
         let report = inspect(&sandbox, "code-review", &[]).report();
-        assert_eq!(report["selection"]["candidateId"], reviewer, "{declared}");
+        assert_eq!(reviewer(&report), expected, "{declared}");
         let reason = report["selection"]["reason"].as_str().unwrap();
         assert!(
             reason.contains(&format!(
@@ -520,7 +591,7 @@ fn a_declared_creator_is_adopted_and_labelled_declared() {
         fs::remove_dir_all(&sandbox.record).unwrap();
         let launch = show(&sandbox, &run_id)["launch"].clone();
         assert_eq!(launch["creator"], provenance);
-        assert_eq!(launch["executable"]["program"], program);
+        assert_eq!(launch["executable"]["program"], expected.1.as_str());
 
         // Text inspection says it was declared.
         let mut command = sandbox.command();
@@ -543,46 +614,58 @@ fn a_declared_creator_is_adopted_and_labelled_declared() {
 }
 
 #[test]
-fn a_relabelled_origin_and_a_misspelt_declaration_refuse_as_non_members() {
+fn a_relabelled_origin_and_a_misspelt_declaration_refuse_as_unlisted() {
     let sandbox = sandbox();
 
-    // The producer ran under an earlier catalog, which labelled the origin
-    // `Your-Provider`. The run records that label, and today's catalog has
-    // relabelled it.
+    // The producer ran under an earlier policy, which labelled the origin
+    // `Your-Provider`. The run records that label, and today's review entry
+    // lists the origin under another.
     sandbox.personal_policy(
         r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "earlier-1",
-  catalog: [
-    { id: "careful", provider: "Your-Provider", model: "your-model", effort: "high", program: "my-agent-wrapper", args: ["--model", { slot: "model" }, "--effort", { slot: "effort" }, { slot: "prompt" }] },
-  ],
-  routes: { feature: "careful" },
+  select: (request) => ({
+    status: "selected",
+    program: "my-agent-wrapper",
+    args: ["--model", "your-model", "--effort", "high", request.prompt],
+    provider: "Your-Provider",
+    model: "your-model",
+    effort: "high",
+    reason: "the earlier label",
+  }),
 };
 "#,
     );
-    let relabelled = produce(&sandbox, "feature-k7", None);
+    let relabelled = produce(&sandbox, "feature-k7");
     sandbox.personal_policy(EXAMPLE);
 
-    // Compared rather than checked, `Your-Provider` would differ from
-    // `your-provider`, and the explicit choice of `careful` would pass as
-    // another origin's review.
+    // Compared rather than checked against the entry, `Your-Provider` would
+    // differ from `your-provider`, and an entry that sent it to the creator's
+    // own harness would pass as another origin's review.
     reviewing(&sandbox, "feature-k7", &json!({ "run": relabelled }));
-    for extra in [&[][..], &["--choice", "careful"][..]] {
-        let refusal = refused(
-            &sandbox,
-            &inspect(&sandbox, "code-review", extra),
-            "creator_origin_unknown",
-        );
+    for result in [
+        inspect(&sandbox, "code-review", &[]),
+        review(&sandbox, "code-review", &[]),
+    ] {
+        let refusal = refused(&sandbox, &result, "creator_origin_unlisted");
         let message = said(&refusal, "message");
         for part in [
             relabelled.as_str(),
             r#""Your-Provider""#,
-            r#""your-provider""#,
-            r#""your-other-provider""#,
+            r#"reviews["code-review"] lists"#,
+            r#""your-other-provider", "your-provider""#,
+            "Origins match exactly, with no normalisation",
         ] {
             assert!(message.contains(part), "{part:?}: {refusal}");
         }
-        assert!(said(&refusal, "remedy").contains("restore"), "{refusal}");
+        let remedy = said(&refusal, "remedy");
+        for part in [
+            r#"if "Your-Provider" was relabelled"#,
+            "a new label is not a new provider",
+            r#""declared""#,
+        ] {
+            assert!(remedy.contains(part), "{part:?}: {refusal}");
+        }
     }
 
     // A declaration is matched exactly: case, spelling and space all count.
@@ -594,78 +677,94 @@ fn a_relabelled_origin_and_a_misspelt_declaration_refuse_as_non_members() {
         " your-provider",
     ] {
         reviewing(&sandbox, "legacy-k3", &json!({ "declared": misspelt }));
-        for extra in [&[][..], &["--choice", "careful"][..]] {
-            let refusal = refused(
-                &sandbox,
-                &inspect(&sandbox, "code-review", extra),
-                "creator_origin_unknown",
-            );
-            let message = said(&refusal, "message");
-            assert!(
-                message.contains(&format!("{misspelt:?}")),
-                "{misspelt:?}: {refusal}"
-            );
-            let remedy = said(&refusal, "remedy");
-            assert!(remedy.contains("correct"), "{refusal}");
-            assert!(remedy.contains(r#""your-provider""#), "{refusal}");
-        }
+        let refusal = refused(
+            &sandbox,
+            &inspect(&sandbox, "code-review", &[]),
+            "creator_origin_unlisted",
+        );
+        let message = said(&refusal, "message");
+        assert!(
+            message.contains(&format!("{misspelt:?}")),
+            "{misspelt:?}: {refusal}"
+        );
+        let remedy = said(&refusal, "remedy");
+        assert!(
+            remedy.starts_with("correct the declaration to one of"),
+            "{refusal}"
+        );
+        assert!(remedy.contains(r#""your-provider""#), "{refusal}");
     }
 
-    // The control: spelt exactly, the same declaration is a member, and
-    // `careful` is a choice of another origin.
-    reviewing(
+    // An entry lists the origins a creator can have, so one that maps only
+    // the other origin refuses this creator the same way, naming what it
+    // lists.
+    let creator = produce(&sandbox, "feature-k9");
+    reviewing(&sandbox, "feature-k9", &json!({ "run": creator }));
+    owner_policy(
         &sandbox,
-        "legacy-k3",
-        &json!({ "declared": "your-other-provider" }),
+        r#"export const policy = {
+  schemaVersion: 2,
+  version: "partial-1",
+  ...reviewSelector({ routes, reviews: { "code-review": { "your-other-provider": agent("high") } } }),
+};
+"#,
     );
-    let report = inspect(&sandbox, "code-review", &["--choice", "careful"]).report();
-    assert_eq!(report["selection"]["candidateId"], "careful");
+    let refusal = refused(
+        &sandbox,
+        &inspect(&sandbox, "code-review", &[]),
+        "creator_origin_unlisted",
+    );
+    let message = said(&refusal, "message");
+    for part in [
+        r#"recorded origin "your-provider""#,
+        r#"reviews["code-review"] lists"#,
+        r#": "your-other-provider"."#,
+    ] {
+        assert!(message.contains(part), "{part:?}: {refusal}");
+    }
+    sandbox.personal_policy(EXAMPLE);
+
+    // The control: spelt exactly, the same declaration is listed, and the
+    // creator's work goes to the other origin.
+    reviewing(&sandbox, "legacy-k3", &json!({ "declared": OTHER }));
+    let report = inspect(&sandbox, "code-review", &[]).report();
+    assert_eq!(reviewer(&report), own_agent("high"));
 }
 
 #[test]
-fn a_changed_current_mapping_does_not_change_the_creators_recorded_origin() {
+fn a_changed_policy_does_not_change_the_creators_recorded_origin() {
     let sandbox = sandbox();
-    let creator = produce(&sandbox, "feature-k7", None);
+    let creator = produce(&sandbox, "feature-k7");
     reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
     let before = inspect(&sandbox, "code-review", &[]).report();
 
-    // Since then the owner has pointed `careful` at the other harness, and
-    // routes `feature` elsewhere. Read from today's catalog, the creator
-    // would be `your-other-provider`, whose reviewer `careful` is now that
-    // origin too, and the review would refuse.
+    // Since then the owner has routed `feature` to the other harness. Read
+    // from what the policy returns today, the creator would be
+    // `your-other-provider`, and its review would go to the creator's own
+    // origin.
     owner_policy(
         &sandbox,
-        r#"const today = catalog.map((candidate) =>
-  candidate.id === "careful"
-    ? { ...candidate, provider: "your-other-provider", model: "your-other-model", program: "my-other-agent-wrapper" }
-    : candidate,
-);
-export const policy = {
-  schemaVersion: 1,
+        r#"export const policy = {
+  schemaVersion: 2,
   version: "remapped-1",
-  catalog: today,
-  ...reviewSelector({ catalog: today, routes: { ...routes, feature: "other-careful" }, reviews }),
+  ...reviewSelector({ routes: { ...routes, feature: otherAgent("high") }, reviews }),
 };
 "#,
     );
     let after = inspect(&sandbox, "code-review", &[]).report();
     assert_eq!(after["policy"]["version"], "remapped-1");
     assert_eq!(after["creator"], before["creator"]);
-    assert_eq!(after["creator"]["provider"], "your-provider");
+    assert_eq!(after["creator"]["provider"], OWN);
+    let lookup = &after["creator"]["lookup"];
     assert_eq!(
-        after["creator"]["lookup"]["candidate"],
-        json!({ "id": "careful", "provider": "your-provider", "model": "your-model", "effort": "high" })
+        json!([lookup["provider"], lookup["model"], lookup["effort"]]),
+        json!([OWN, "your-model", "high"])
     );
-    assert_eq!(after["selection"]["candidateId"], "other-careful");
-    assert_eq!(after["selection"]["provider"], "your-other-provider");
+    assert_eq!(reviewer(&after), other_agent("high"));
 
-    // The control: today's mapping did reach the policy.
-    let routed = sandbox.inspect(&["--kind", "feature", "--json"]).report();
-    assert_eq!(routed["selection"]["candidateId"], "other-careful");
-    let chosen = sandbox
-        .inspect(&["--kind", "feature", "--choice", "careful", "--json"])
-        .report();
-    assert_eq!(chosen["selection"]["provider"], "your-other-provider");
+    // The control: today's routes did reach the policy.
+    let routed = offered(&sandbox, "feature");
+    assert_eq!(routed["selection"]["provider"], OTHER);
 }
 
 #[test]
@@ -673,13 +772,13 @@ fn a_run_of_another_task_identity_is_admitted_and_shown() {
     let sandbox = sandbox();
     // A decomposed producer is finished by a child task with its own
     // identity, and a run need not have one at all.
-    let child = produce(&sandbox, "child-k9", None);
+    let child = produce(&sandbox, "child-k9");
     let anonymous = launched(&sandbox, &["--kind", "feature", "--prompt", "p"]);
 
     for (creator, task) in [(&child, "\"child-k9\""), (&anonymous, "no task")] {
         reviewing(&sandbox, "parent-k8", &json!({ "run": creator }));
         let report = inspect(&sandbox, "code-review", &[]).report();
-        assert_eq!(report["selection"]["candidateId"], "other-careful");
+        assert_eq!(reviewer(&report), other_agent("high"));
         assert_eq!(report["reviewedArtifact"]["id"], "parent-k8");
         let reason = report["selection"]["reason"].as_str().unwrap();
         for part in ["\"parent-k8\"", task] {
@@ -715,7 +814,7 @@ fn a_run_of_another_task_identity_is_admitted_and_shown() {
 #[test]
 fn a_custom_review_label_applies_the_rule_only_when_the_owner_lists_it() {
     let sandbox = sandbox();
-    let creator = produce(&sandbox, "feature-k7", None);
+    let creator = produce(&sandbox, "feature-k7");
     reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
 
     // Unlisted, a kind that names a reviewed artifact refuses: it would
@@ -742,22 +841,19 @@ fn a_custom_review_label_applies_the_rule_only_when_the_owner_lists_it() {
     );
     assert!(said(&refusal, "message").contains("security-review"));
 
-    // An owner who routes it statically, without listing it, gets the route
-    // only when no reviewed artifact is named.
+    // An owner who routes it, without listing it, gets the route only when
+    // no reviewed artifact is named.
     owner_policy(
         &sandbox,
         r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "routed-1",
-  catalog,
-  ...reviewSelector({ catalog, routes: { ...routes, "security-review": "careful" }, reviews }),
+  ...reviewSelector({ routes: { ...routes, "security-review": agent("high") }, reviews }),
 };
 "#,
     );
-    let report = sandbox
-        .inspect(&["--kind", "security-review", "--json"])
-        .report();
-    assert_eq!(report["selection"]["candidateId"], "careful");
+    let report = offered(&sandbox, "security-review");
+    assert_eq!(reviewer(&report), own_agent("high"));
     refused(
         &sandbox,
         &inspect(&sandbox, "security-review", &[]),
@@ -768,30 +864,29 @@ fn a_custom_review_label_applies_the_rule_only_when_the_owner_lists_it() {
     owner_policy(
         &sandbox,
         r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "listed-1",
-  catalog,
   ...reviewSelector({
-    catalog,
     routes,
-    reviews: { ...reviews, "security-review": { "your-provider": "other-deliberate", "your-other-provider": "deliberate" } },
+    reviews: {
+      ...reviews,
+      "security-review": { "your-provider": otherAgent("xhigh"), "your-other-provider": agent("xhigh") },
+    },
   }),
 };
 "#,
     );
     let report = inspect(&sandbox, "security-review", &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "other-deliberate");
-    refused(
-        &sandbox,
-        &inspect(&sandbox, "security-review", &["--choice", "careful"]),
-        "same_origin",
-    );
+    assert_eq!(reviewer(&report), other_agent("xhigh"));
+    reviewing(&sandbox, "legacy-k3", &json!({ "declared": OTHER }));
+    let report = inspect(&sandbox, "security-review", &[]).report();
+    assert_eq!(reviewer(&report), own_agent("xhigh"));
 }
 
 #[test]
 fn a_review_without_its_creator_refuses_and_names_the_remedy() {
     let sandbox = sandbox();
-    let creator = produce(&sandbox, "feature-k7", None);
+    let creator = produce(&sandbox, "feature-k7");
 
     // No context at all, and a context naming no reviewed artifact.
     let refusal = refused(
@@ -818,16 +913,14 @@ fn a_review_without_its_creator_refuses_and_names_the_remedy() {
         "review.json",
         &json!({ "schemaVersion": 1, "reviewedArtifact": { "id": "feature-k7" } }).to_string(),
     );
-    for extra in [&[][..], &["--choice", "other-careful"][..]] {
-        let refusal = refused(
-            &sandbox,
-            &inspect(&sandbox, "code-review", extra),
-            "creator_missing",
-        );
-        let remedy = said(&refusal, "remedy");
-        for part in [r#""run""#, r#""declared""#, r#""your-other-provider""#] {
-            assert!(remedy.contains(part), "{part}: {refusal}");
-        }
+    let refusal = refused(
+        &sandbox,
+        &inspect(&sandbox, "code-review", &[]),
+        "creator_missing",
+    );
+    let remedy = said(&refusal, "remedy");
+    for part in [r#""run""#, r#""declared""#, r#""your-other-provider""#] {
+        assert!(remedy.contains(part), "{part}: {refusal}");
     }
 
     // A policy that selects with the example's `select` but never looks the
@@ -836,8 +929,8 @@ fn a_review_without_its_creator_refuses_and_names_the_remedy() {
     reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
     owner_policy(
         &sandbox,
-        r#"const { select } = reviewSelector({ catalog, routes, reviews });
-export const policy = { schemaVersion: 1, version: "no-lookup-1", catalog, select };
+        r#"const { select } = reviewSelector({ routes, reviews });
+export const policy = { schemaVersion: 2, version: "no-lookup-1", select };
 "#,
     );
     let refusal = refused(
@@ -853,42 +946,38 @@ export const policy = { schemaVersion: 1, version: "no-lookup-1", catalog, selec
     // The control: a loader that looks it up, composed from the same parts.
     owner_policy(
         &sandbox,
-        r#"const { select } = reviewSelector({ catalog, routes, reviews });
+        r#"const { select } = reviewSelector({ routes, reviews });
 export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "composed-1",
-  catalog,
   loadContext: (request, host) => lookUpCreator(request.context, host),
   select,
 };
 "#,
     );
     let report = inspect(&sandbox, "code-review", &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "other-careful");
+    assert_eq!(reviewer(&report), other_agent("high"));
 }
 
 #[test]
 fn other_kinds_take_the_owners_static_routes() {
     let sandbox = sandbox();
-    for (kind, candidate) in [
-        ("question", "quick"),
-        ("bugfix", "standard"),
-        ("feature", "careful"),
-        ("migration", "deliberate"),
-        ("architecture", "deliberate"),
+    for (kind, effort) in [
+        ("question", "low"),
+        ("bugfix", "medium"),
+        ("feature", "high"),
+        ("migration", "xhigh"),
+        ("architecture", "xhigh"),
     ] {
-        let report = sandbox.inspect(&["--kind", kind, "--json"]).report();
-        assert_eq!(report["selection"]["candidateId"], candidate, "{kind}");
+        let report = offered(&sandbox, kind);
+        assert_eq!(reviewer(&report), own_agent(effort), "{kind}");
         assert_eq!(
             report["selection"]["reason"],
-            format!(r#"routes["{kind}"] names candidate "{candidate}""#)
+            format!(
+                r#"routes["{kind}"] gives my-agent-wrapper with model your-model at effort {effort}"#
+            )
         );
     }
-    // An explicit choice is taken, as a routes table takes it.
-    let report = sandbox
-        .inspect(&["--kind", "feature", "--choice", "other-careful", "--json"])
-        .report();
-    assert_eq!(report["selection"]["candidateId"], "other-careful");
 
     // Exact means exact: no catch-all, and nothing inherited from an object.
     for kind in [
@@ -903,38 +992,11 @@ fn other_kinds_take_the_owners_static_routes() {
             &sandbox.inspect(&["--kind", kind, "--json"]),
             "incomplete_mapping",
         );
-        assert!(said(&refusal, "remedy").contains("--choice"), "{refusal}");
+        assert!(
+            said(&refusal, "remedy").contains("add a route for this kind"),
+            "{refusal}"
+        );
     }
-    // And a review kind's entry lacks an origin the catalog has: an owner's
-    // table that maps only one of them refuses the other.
-    owner_policy(
-        &sandbox,
-        r#"export const policy = {
-  schemaVersion: 1,
-  version: "partial-1",
-  catalog,
-  ...reviewSelector({ catalog, routes, reviews: { "code-review": { "your-other-provider": "careful" } } }),
-};
-"#,
-    );
-    let creator = produce(&sandbox, "feature-k7", None);
-    reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
-    let refusal = refused(
-        &sandbox,
-        &inspect(&sandbox, "code-review", &[]),
-        "incomplete_mapping",
-    );
-    assert!(
-        said(&refusal, "message").contains(r#"reviews["code-review"]"#),
-        "{refusal}"
-    );
-    assert!(
-        said(&refusal, "message").contains(r#""your-provider""#),
-        "{refusal}"
-    );
-    // A choice of another origin supplies the reviewer the entry lacks.
-    let report = inspect(&sandbox, "code-review", &["--choice", "other-careful"]).report();
-    assert_eq!(report["selection"]["candidateId"], "other-careful");
 }
 
 #[test]
@@ -944,12 +1006,12 @@ fn an_unreadable_store_refuses_before_the_selector_sees_it() {
     // refusal, and the selector never answers `creator_run_missing` or
     // selects. The control is the same review against the readable store.
     let sandbox = sandbox();
-    let creator = produce(&sandbox, "feature-k7", None);
+    let creator = produce(&sandbox, "feature-k7");
     reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
     let store = sandbox.default_store();
     let good = fs::read(&store).unwrap();
     let report = inspect(&sandbox, "code-review", &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "other-careful");
+    assert_eq!(reviewer(&report), other_agent("high"));
 
     support::write(&store, &"this is not a database\n".repeat(200));
     for result in [
@@ -968,13 +1030,13 @@ fn an_unreadable_store_refuses_before_the_selector_sees_it() {
 
     fs::write(&store, &good).unwrap();
     let report = inspect(&sandbox, "code-review", &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "other-careful");
+    assert_eq!(reviewer(&report), other_agent("high"));
 }
 
 #[test]
 fn the_generic_form_selects_with_no_task_file_or_grove() {
     let sandbox = sandbox();
-    let creator = produce(&sandbox, "feature-k7", None);
+    let creator = produce(&sandbox, "feature-k7");
     reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
     assert!(
         !sandbox.cwd.join(".grove").exists() && !sandbox.bin.join("grove").exists(),
@@ -982,7 +1044,7 @@ fn the_generic_form_selects_with_no_task_file_or_grove() {
     );
 
     let report = inspect(&sandbox, "code-review", &[]).report();
-    assert_eq!(report["selection"]["candidateId"], "other-careful");
+    assert_eq!(reviewer(&report), other_agent("high"));
     assert_eq!(report["taskFile"], Value::Null);
     assert_eq!(report["taskId"], Value::Null);
     // The policy read nothing: its sources are the caller's document and the
@@ -999,7 +1061,103 @@ fn the_generic_form_selects_with_no_task_file_or_grove() {
     let launch = show(&sandbox, &run_id)["launch"].clone();
     assert_eq!(launch["taskFile"], Value::Null);
     assert_eq!(launch["reviewedArtifact"]["id"], "feature-k7");
-    assert_eq!(launch["creator"]["provider"], "your-provider");
+    assert_eq!(launch["creator"]["provider"], OWN);
+}
+
+/// The record store release 21.13.0 wrote under the catalog contract, and the
+/// two runs it holds (`tests/fixtures/catalog-contract/README.md`).
+const CATALOG_CONTRACT_STORE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/fixtures/catalog-contract/records.sqlite3"
+);
+const CATALOG_CONTRACT_BUILDER: &str = "45308255-7446-42b2-bbd7-e5f7861e46ef";
+const CATALOG_CONTRACT_AUDITOR: &str = "b2aec552-b5eb-4de0-b5e9-5db0d70a6d55";
+
+#[test]
+fn a_creator_recorded_under_the_catalog_contract_still_gives_its_provider() {
+    let sandbox = sandbox();
+    let state = sandbox.root.join("catalog-contract");
+    fs::create_dir(&state).unwrap();
+    fs::copy(CATALOG_CONTRACT_STORE, state.join("records.sqlite3")).unwrap();
+    let state = support::text(&state);
+    let state_dir = ["--state-dir", state.as_str()];
+
+    // The run recorded `your-provider` beside a candidate ID, and the lookup
+    // answers its labels, kind and task identity as it answers any run's.
+    reviewing(
+        &sandbox,
+        "parser-k12",
+        &json!({ "run": CATALOG_CONTRACT_BUILDER }),
+    );
+    let report = inspect(&sandbox, "code-review", &state_dir).report();
+    assert_eq!(
+        report["creator"],
+        json!({
+            "reference": { "run": CATALOG_CONTRACT_BUILDER },
+            "evidence": "execution_recorded",
+            "provider": OWN,
+            "lookup": {
+                "runId": CATALOG_CONTRACT_BUILDER,
+                "status": "found",
+                "recordedAt": "2026-10-02T04:11:46.561Z",
+                "kind": "build",
+                "taskId": "parser-k12",
+                "provider": OWN,
+                "model": "model-a",
+                "effort": "high",
+                "launchFailure": null,
+            },
+        }),
+        "{report}"
+    );
+    assert_eq!(reviewer(&report), other_agent("high"));
+    let reason = report["selection"]["reason"].as_str().unwrap();
+    for part in [
+        CATALOG_CONTRACT_BUILDER,
+        r#"task "parser-k12", kind "build""#,
+        r#"recorded origin "your-provider""#,
+    ] {
+        assert!(reason.contains(part), "{part:?} is not in {reason:?}");
+    }
+
+    // Text inspection shows the run's task identity beside its labels.
+    let mut command = sandbox.command();
+    command.args([
+        "inspect",
+        "--kind",
+        "code-review",
+        "--context",
+        "review.json",
+    ]);
+    command.args(state_dir);
+    let text = run(&mut command);
+    assert_eq!(text.code, Some(0), "{}", text.stderr);
+    let creator = format!(
+        "run {CATALOG_CONTRACT_BUILDER} (execution-recorded): provider your-provider, model \
+         model-a, effort high; task parser-k12, kind build, recorded 2026-10-02T04:11:46.561Z"
+    );
+    assert!(text.stdout.contains(&creator), "{}", text.stdout);
+
+    // The review launches beside that run, and records the provenance it
+    // used.
+    let (run_id, args) = reviewed(&sandbox, "code-review", &state_dir);
+    assert_eq!(args, wrapper_args("your-other-model", "high", "review it"));
+    let mut command = sandbox.command();
+    command.args(["record", "show", "--run", &run_id, "--json"]);
+    command.args(state_dir);
+    let launch = run(&mut command).report()["launch"].clone();
+    assert_eq!(launch["creator"], report["creator"]);
+
+    // The fixture's other run, of the other origin, is reviewed on the first.
+    reviewing(
+        &sandbox,
+        "parser-k13",
+        &json!({ "run": CATALOG_CONTRACT_AUDITOR }),
+    );
+    let report = inspect(&sandbox, "code-review", &state_dir).report();
+    assert_eq!(report["creator"]["provider"], OTHER);
+    assert_eq!(report["creator"]["lookup"]["taskId"], "parser-k13");
+    assert_eq!(reviewer(&report), own_agent("high"));
 }
 
 #[test]
@@ -1008,18 +1166,20 @@ fn the_typed_review_fixture_selects_through_the_worker() {
     // declarations by `task dispatch:typecheck`; here the same file runs, so
     // the declared selector and the runtime's agree.
     let sandbox = sandbox();
-    let creator = produce(&sandbox, "feature-k7", None);
+    let creator = produce(&sandbox, "feature-k7");
     sandbox.personal_policy(include_str!("../worker/typecheck/review-policy.ts"));
     reviewing(&sandbox, "feature-k7", &json!({ "run": creator }));
 
     let report = inspect(&sandbox, "audit", &[]).report();
     assert_eq!(report["policy"]["version"], "typecheck-review-1");
-    assert_eq!(report["selection"]["candidateId"], "auditor");
-    refused(
-        &sandbox,
-        &inspect(&sandbox, "audit", &["--choice", "builder"]),
-        "same_origin",
-    );
+    assert_eq!(report["selection"]["provider"], OTHER);
+    assert_eq!(report["selection"]["model"], "model-b");
+    assert_eq!(report["command"]["program"], "fake-harness");
+    // The entry's other origin is reviewed by the builder.
+    reviewing(&sandbox, "legacy-k3", &json!({ "declared": OTHER }));
+    let report = inspect(&sandbox, "audit", &[]).report();
+    assert_eq!(report["selection"]["provider"], OWN);
+    assert_eq!(report["selection"]["model"], "model-a");
 }
 
 #[test]
@@ -1033,13 +1193,15 @@ fn the_review_example_ships_its_declarations_and_readable_source() {
     assert_eq!(shipped, include_str!("../worker/examples/review.ts"));
     let declarations = fs::read_to_string(examples.join("review.d.ts")).unwrap();
     for export in [
-        "export declare function reviewSelector",
+        "export type ReviewEntry =",
+        "export interface ReviewRules",
+        "export interface ReviewSelector",
+        "export declare function reviewSelector(rules: ReviewRules): ReviewSelector;",
         "export declare function lookUpCreator",
+        "export declare function otherAgent(effort: string): Route;",
         "export declare const reviews:",
-        "export declare const catalog:",
         "export declare const routes:",
         "export declare const policy:",
-        "export type CandidateId =",
     ] {
         assert!(
             declarations.contains(export),

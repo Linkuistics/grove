@@ -1,5 +1,5 @@
 //! The context a selection sees (`docs/specs/harness-selection-and-execution.md`,
-//! *Bounded context*, *Policy and joint choice*).
+//! *Bounded context*, *Policy and the selected command*).
 //!
 //! A caller may supply a version-1 context document with `--context`. It is read
 //! once, as data, within the context budget, then measured, hashed and
@@ -13,8 +13,8 @@
 //! record names it by digest and size, and records the creator provenance it
 //! carries ([`Delivered::creator`]).
 //!
-//! A context is data. Nothing in it can become a program or an argument: a
-//! selection names a catalog candidate and nothing more. So `facts` and
+//! A context is data. The command takes no part of a command from one, and
+//! what a policy's `select` builds from it is the policy's. So `facts` and
 //! assessment values may hold any JSON, and only the shape around them is
 //! checked. A field named like an executable one is still refused, with a
 //! message saying why. Absent fields stay absent and empty ones stay empty.
@@ -46,15 +46,11 @@ const FIELDS: [&str; 7] = [
 
 /// Names that would make a field executable if a context could have one. Each
 /// is refused as unknown, with a message saying that a context is data.
-const EXECUTABLE: [&str; 15] = [
+const EXECUTABLE: [&str; 11] = [
     "program",
     "args",
     "argv",
     "command",
-    "catalog",
-    "candidate",
-    "candidates",
-    "routes",
     "select",
     "loadContext",
     "env",
@@ -239,9 +235,7 @@ impl Delivered {
                 let lookup = self.runs.iter().find(|answer| answer["runId"] == *run);
                 let provider = lookup
                     .filter(|answer| answer["status"] == "found")
-                    .map_or(Value::Null, |answer| {
-                        answer["candidate"]["provider"].clone()
-                    });
+                    .map_or(Value::Null, |answer| answer["provider"].clone());
                 json!({
                     "reference": { "run": run },
                     "evidence": "execution_recorded",
@@ -597,7 +591,7 @@ impl<'a> Shape<'a> {
             let message = if EXECUTABLE.contains(&unknown.as_str()) {
                 format!(
                     "`{unknown}` would be an executable field, and a context is data: it supplies \
-                     no program, argument, environment, catalog or policy"
+                     no program, argument, environment or policy"
                 )
             } else if unknown == "measured" && matches!(self.author, Author::Loader) {
                 "`measured` is what harness-dispatch measured, and it attaches that itself; \
@@ -1187,7 +1181,7 @@ mod tests {
         json!({
             "runId": RUN, "status": "found", "recordedAt": "2026-10-01T00:00:00.000Z",
             "kind": "impl", "taskId": null, "launchFailure": null,
-            "candidate": { "id": "c", "provider": provider, "model": "m", "effort": "e" },
+            "provider": provider, "model": "m", "effort": "e",
         })
     }
 

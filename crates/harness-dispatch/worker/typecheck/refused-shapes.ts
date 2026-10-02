@@ -4,115 +4,117 @@
 // fail here rather than pass there.
 import {
   definePolicy,
-  type Candidate,
   type Context,
   type Creator,
   type Policy,
-  type SelectPolicy,
+  type Selected,
+  type SelectionRequest,
   type SourceRecord,
 } from "harness-dispatch/sdk";
 
-const candidate: Candidate = {
-  id: "c",
+const selected: Selected = {
+  status: "selected",
+  program: "p",
+  args: ["a"],
   provider: "origin-a",
   model: "m",
   effort: "e",
-  program: "p",
-  args: [{ slot: "prompt" }],
+  reason: "r",
 };
 
-// @ts-expect-error schemaVersion is exactly 1
-export const wrongVersion: Policy = { schemaVersion: 2, version: "v", catalog: [candidate], routes: {} };
+// @ts-expect-error schemaVersion is exactly 2
+export const wrongVersion: Policy = { schemaVersion: 1, version: "v", select: () => selected };
 
-// @ts-expect-error the routes form needs its table
-export const noRoutes: Policy = { schemaVersion: 1, version: "v", catalog: [candidate] };
+// @ts-expect-error a policy has a select
+export const noSelect: Policy = { schemaVersion: 2, version: "v" };
 
-export const badSlot = definePolicy({
-  schemaVersion: 1,
+export const catalogued = definePolicy({
+  schemaVersion: 2,
   version: "v",
-  // @ts-expect-error a slot names one of the documented caller inputs
-  catalog: [{ ...candidate, args: [{ slot: "cwd" }] }],
-  routes: {},
+  // @ts-expect-error a policy has no catalog: select returns the command
+  catalog: [],
+  select: () => selected,
 });
 
-// @ts-expect-error a candidate declares its provider origin
-export const noProvider: Candidate = { id: "c", model: "m", effort: "e", program: "p", args: [] };
-
-// @ts-expect-error a policy has exactly one of `routes` or `select`
-export const bothForms: Policy = {
-  schemaVersion: 1,
+export const routed = definePolicy({
+  schemaVersion: 2,
   version: "v",
-  catalog: [candidate],
+  // @ts-expect-error a policy has no routes form: a table is something select consults
   routes: {},
+  select: () => selected,
+});
+
+// @ts-expect-error a selected result declares its provider origin
+export const noProvider: Selected = { status: "selected", program: "p", args: [], model: "m", effort: "e", reason: "r" };
+
+// @ts-expect-error an argument is a string, one whole word
+export const slotted: Selected = { ...selected, args: [{ slot: "prompt" }] };
+
+export const unknownStatus: Policy = {
+  schemaVersion: 2,
+  version: "v",
+  // @ts-expect-error a result's status is "selected" or "refused"
+  select: () => ({ ...selected, status: "chosen" }),
+};
+
+export const namedCandidate: Policy = {
+  schemaVersion: 2,
+  version: "v",
+  // @ts-expect-error a selected result is the command, not the name of one
   select: () => ({ status: "selected", candidateId: "c", reason: "r" }),
 };
 
-export const unknownStatus: SelectPolicy = {
-  schemaVersion: 1,
+export const noRemedy: Policy = {
+  schemaVersion: 2,
   version: "v",
-  catalog: [candidate],
-  // @ts-expect-error a result's status is "selected" or "refused"
-  select: () => ({ status: "chosen", candidateId: "c", reason: "r" }),
-};
-
-export const noReason: SelectPolicy = {
-  schemaVersion: 1,
-  version: "v",
-  catalog: [candidate],
-  // @ts-expect-error a selected result gives its reason
-  select: () => ({ status: "selected", candidateId: "c" }),
-};
-
-export const noRemedy: SelectPolicy = {
-  schemaVersion: 1,
-  version: "v",
-  catalog: [candidate],
   // @ts-expect-error a refusal says what to do about it
   select: async () => ({ status: "refused", code: "c", message: "m" }),
 };
 
-export const selectReadsNothing: SelectPolicy = {
-  schemaVersion: 1,
+// @ts-expect-error a request carries no explicit choice: a caller steers with a parameter the policy reads
+export const noChoice = (request: SelectionRequest) => request.explicitChoice;
+
+// @ts-expect-error a parameter the caller did not pass is undefined, never a string
+export const absentParam = (request: SelectionRequest): string => request.params["repo"];
+
+export const selectReadsNothing: Policy = {
+  schemaVersion: 2,
   version: "v",
-  catalog: [candidate],
   select: (_request, _context, host) => {
     // @ts-expect-error select's host has no reads: its context is the measured one
     host.readText("notes.md");
-    return { status: "selected", candidateId: "c", reason: "r" };
+    return selected;
   },
 };
 
-export const selectLooksUpNothing: SelectPolicy = {
-  schemaVersion: 1,
+export const selectLooksUpNothing: Policy = {
+  schemaVersion: 2,
   version: "v",
-  catalog: [candidate],
   select: (_request, _context, host) => {
     // @ts-expect-error select's host has no run lookup: its context carries the runs looked up
     host.run("5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34");
-    return { status: "selected", candidateId: "c", reason: "r" };
+    return selected;
   },
 };
 
-export const lookupNeedsItsStatus: SelectPolicy = {
-  schemaVersion: 1,
+export const lookupNeedsItsStatus: Policy = {
+  schemaVersion: 2,
   version: "v",
-  catalog: [candidate],
   loadContext: (_request, host) => {
     const lookup = host.run("5f0e2c41-9b7d-4a3e-8c15-2d6f7a9b0e34");
-    // @ts-expect-error a missing run has no candidate: check its status first
-    host.diagnostic(lookup.candidate.provider);
+    // @ts-expect-error a missing run has no provider: check its status first
+    host.diagnostic(lookup.provider);
     return { schemaVersion: 1 };
   },
-  select: () => ({ status: "selected", candidateId: "c", reason: "r" }),
+  select: () => selected,
 };
 
-export const loaderWithoutVersion: SelectPolicy = {
-  schemaVersion: 1,
+export const loaderWithoutVersion: Policy = {
+  schemaVersion: 2,
   version: "v",
-  catalog: [candidate],
   // @ts-expect-error a loaded context is a version-1 context
   loadContext: () => ({ summary: "s" }),
-  select: () => ({ status: "selected", candidateId: "c", reason: "r" }),
+  select: () => selected,
 };
 
 // @ts-expect-error a creator has exactly one form

@@ -15,7 +15,7 @@ use std::time::Duration;
 
 use serde_json::Value;
 use support::hold::{exists, guarded, holding, recorded_pid, Hold, Place};
-use support::{text, Sandbox, ROUTED};
+use support::{text, Sandbox, DEEP, ROUTED};
 
 /// The watchdog for a timeout case: the bound, the cleanup grace, the
 /// drains' grace and generous slack for a loaded machine.
@@ -154,11 +154,8 @@ fn the_host_signal_aborts_when_the_deadline_stops_a_waiting_loader() {
         format!(
             r#"import {{ writeFileSync }} from "node:fs";
 export const policy = {{
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "seam-1",
-  catalog: [
-    {{ id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{{ slot: "prompt" }}] }},
-  ],
   async loadContext(request, host) {{
     writeFileSync({pid:?}, String(process.pid));
     host.signal.addEventListener("abort", () => writeFileSync({marker:?}, host.signal.reason.message));
@@ -166,7 +163,7 @@ export const policy = {{
     if ({wait}) await new Promise(() => setInterval(() => {{}}, 20));
     return {{ schemaVersion: 1 }};
   }},
-  select() {{ return {{ status: "selected", candidateId: "deep", reason: "r" }}; }},
+  select: (request) => ({DEEP}),
 }};
 "#,
             pid = text(&sandbox.root.join("worker-pid")),
@@ -269,11 +266,12 @@ fn assert_reaches_the_harness(place: Place, hold: Hold, prelude: &str) {
         timed.run.stderr
     );
     let notice: Value = serde_json::from_str(&timed.run.stderr).unwrap();
-    let selected_by = match place {
-        Place::Import => "route",
-        Place::Select | Place::LoadContext => "select",
+    // The reason is the held policy's own, so it is the one that selected.
+    let reason = match place {
+        Place::Import => "impl runs the deep harness",
+        Place::Select | Place::LoadContext => "the hold ended",
     };
-    assert_eq!(notice["handoff"]["selectedBy"], selected_by, "{hold_name}");
+    assert_eq!(notice["handoff"]["reason"], reason, "{hold_name}");
     assert!(sandbox.harness_ran(), "{hold_name}: the harness never ran");
     assert_eq!(sandbox.harness_args(), ["the prompt"]);
     assert!(
@@ -343,8 +341,8 @@ fn a_worker_that_will_not_exit_after_its_result_is_killed_after_the_grace() {
     // The result arrives, and then an exit handler spins. The selection
     // stands, since it arrived within the bound, and the front does not wait
     // for the worker longer than the cleanup grace. The bound is generous:
-    // here it must not run out. A routes policy's worker exits once the front
-    // closes the channel, and a computed one's once it has sent its selection.
+    // here it must not run out. The worker exits once it has sent its
+    // selection, whether the policy held at import or in `select`.
     for (command, place) in [
         ("inspect", Place::Import),
         ("run", Place::Import),

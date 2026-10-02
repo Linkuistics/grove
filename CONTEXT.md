@@ -912,8 +912,11 @@ providers itself, from a review's [[Creator reference]].
 <a id="selection-provider"></a>
 ### Selection provider
 
-An owner-declared candidate attribute identifying model origin for the supplied
-review policy; changing a gateway or harness does not change that origin.
+The owner's `provider` label on a [[Selected command]], identifying model origin
+for the supplied review policy. It reaches inspection and the run record as the
+owner wrote it, and changing a gateway or harness does not change that origin.
+_Avoid_: reading it as verified backend identity, or as something inferred from
+the program or its arguments. It is the owner's assertion.
 
 <a id="original-creator"></a>
 ### Original creator
@@ -955,11 +958,19 @@ _Avoid_: calling it part of dispatch or of Grove; it is a policy import that
 sits between them.
 
 <a id="joint-candidate"></a>
-### Joint candidate
+### Joint candidate *(retired)*
 
-One owner-configured harness, model and reasoning-effort choice, with an explicit
-provider-origin label and a stable catalog ID. An explicit dispatch choice names
-the whole candidate rather than overriding its individual attributes.
+One entry of the catalog a harness-dispatch policy used to export: a harness,
+model and reasoning-effort choice with a provider-origin label and a stable
+catalog ID, which a function or a caller's `--choice` named. **Nothing holds
+one**: a policy's `select` returns a [[Selected command]], and a caller steers
+with a [[Selection parameter]]. The term is kept because run records are: a run
+recorded under the catalog contract still carries its candidate ID, and every
+command still reads it.
+_Avoid_: *candidate* for what `select` returns, and reading the `candidate`
+field of a run's launch document as a catalog entry. The field holds the
+labels, program and arguments of any run, with a `null` ID for one recorded
+since.
 
 <a id="handoff-attempt"></a>
 ### Handoff attempt

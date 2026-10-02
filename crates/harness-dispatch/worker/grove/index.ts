@@ -51,7 +51,7 @@
 //   - `**Creator:** run <run ID>`, the ID in the canonical form harness-dispatch
 //     writes, or `**Creator:** declared <origin>`, whose origin is the rest of
 //     the line, verbatim. Nothing normalises it: the review rule matches it
-//     exactly against the catalog's origins.
+//     exactly against the origins its review entry lists.
 //
 // THE RULE. For a kind the policy lists as a review, the task file must hold
 // exactly one `**Reviews:**` line and exactly one `**Creator:**` line, each well
@@ -181,7 +181,7 @@ export function groveContext(request: SelectionRequest, host: ContextHost, revie
       `the Grove session that finishes ${id} writes this line from its own HARNESS_DISPATCH_RUN_ID, and removes ` +
         `it when it ran without harness-dispatch. If ${id} was finished without harness-dispatch, declare its ` +
         `origin: directly under the ${REVIEWS} line, write "${CREATOR} declared <origin>", naming the provider ` +
-        `origin that finished it as your catalog labels it. If a dispatched session finished it, write ` +
+        `origin that finished it as your policy labels it. If a dispatched session finished it, write ` +
         `"${CREATOR} run <run ID>" there with that session's own run ID, not an earlier attempt's`,
     );
   }

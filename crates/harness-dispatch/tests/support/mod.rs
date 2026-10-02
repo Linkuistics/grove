@@ -32,16 +32,33 @@ use tempfile::TempDir;
 
 pub const FRONT: &str = env!("CARGO_BIN_EXE_harness-dispatch");
 
-/// A one-candidate policy that routes `impl`, the shape most tests start from.
+/// A policy whose `select` runs the fake harness with the prompt for `impl`
+/// and refuses every other kind, the shape most tests start from.
 pub const ROUTED: &str = r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "seam-1",
-  catalog: [
-    { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
-  ],
-  routes: { impl: "deep" },
+  select(request) {
+    if (request.kind !== "impl") {
+      return { status: "refused", code: "incomplete_mapping", message: `no command for kind ${JSON.stringify(request.kind)}`, remedy: "add one to the policy" };
+    }
+    return { status: "selected", program: "fake-harness", args: [request.prompt], provider: "origin-a", model: "model-large", effort: "high", reason: "impl runs the deep harness" };
+  },
 };
 "#;
+
+/// A JavaScript expression for the selected result [`ROUTED`] returns, for a
+/// policy of a test's own: the fake harness with the prompt as its one
+/// argument, under the same labels. It reads `request`.
+pub const DEEP: &str = r#"{ status: "selected", program: "fake-harness", args: [request.prompt], provider: "origin-a", model: "model-large", effort: "high", reason: "the deep harness" }"#;
+
+/// The source of a policy whose `select(request, context, host)` has `body`
+/// as its body, with `fields` (each ending in a comma) beside it.
+pub fn selecting(fields: &str, body: &str) -> String {
+    format!(
+        "export const policy = {{\n  schemaVersion: 2,\n  version: \"seam-1\",\n  {fields}\n  \
+         select(request, context, host) {{\n{body}\n  }},\n}};\n"
+    )
+}
 
 /// The fake harness every sandbox puts on PATH. It records how it was started
 /// under `$FAKE_HARNESS_RECORD` (its arguments NUL-separated, its physical cwd

@@ -1,17 +1,18 @@
-//! Validate a policy snapshot, then select through its static routes or the
-//! caller's explicit choice, or judge what its computed `select` produced
-//! (`docs/specs/harness-selection-and-execution.md`, *Policy and joint choice*).
+//! Validate a policy snapshot, then judge what its `select` returned
+//! (`docs/specs/harness-selection-and-execution.md`, *Policy and the selected
+//! command*).
 //!
 //! The worker hands over the entry's `policy` export as JSON, with any value
 //! JSON cannot carry replaced by a `{"$harnessDispatch": "<type>"}` marker, and
-//! later, for a `select` policy, the value `select` produced, marked the same
-//! way. This module is the one validator for both: every refusal names the
-//! location it found, in the form `policy.catalog[1].provider` or
-//! `result.candidateId`, and nothing invalid is ever repaired into something
-//! that passes. A result names a candidate of the snapshot already validated;
-//! it cannot supply one of its own, or any word of argv.
-
-use std::collections::BTreeMap;
+//! later the value `select` produced, marked the same way. This module is the
+//! one validator for both: every refusal names the location it found, in the
+//! form `policy.select` or `result.args[2]`, and nothing invalid is ever
+//! repaired into something that passes.
+//!
+//! Only the shape is judged. A selected result is the command to run, and
+//! what it holds is the owner's function's: nothing here checks that the
+//! prompt is among the arguments, that the program is one the owner listed
+//! anywhere, or that a kind has a route.
 
 use serde_json::{Map, Value};
 
@@ -19,152 +20,29 @@ use crate::limits::Limits;
 use crate::refusal::{Refusal, Stage, EXIT_REFUSED};
 use crate::worker::{Breach, Produced};
 
-const TOP_LEVEL: [&str; 6] = [
-    "schemaVersion",
-    "version",
-    "catalog",
-    "routes",
-    "select",
-    "loadContext",
-];
-const CANDIDATE_FIELDS: [&str; 6] = ["id", "provider", "model", "effort", "program", "args"];
-const SLOTS: [&str; 7] = [
-    "prompt", "kind", "taskFile", "taskId", "model", "effort", "runId",
-];
+/// The policy contract this release evaluates.
+pub const SCHEMA_VERSION: u64 = 2;
+
+const TOP_LEVEL: [&str; 4] = ["schemaVersion", "version", "select", "loadContext"];
 
 #[derive(Debug)]
 pub struct Policy {
     pub version: String,
-    pub catalog: Vec<Candidate>,
-    pub form: Form,
     /// Whether it has a `loadContext`, which only the worker can call.
     pub loader: bool,
 }
 
-/// How a valid policy selects: exactly one of the two.
+/// The selected command: what `select` returned when it did not refuse. The
+/// program and arguments are run as they are, each argument one whole word,
+/// and the labels are the owner's for what they run.
 #[derive(Debug)]
-pub enum Form {
-    /// The static table from kind to candidate ID, every target checked.
-    Routes(BTreeMap<String, String>),
-    /// A `select` callback, which only the worker can call.
-    Select,
-}
-
-#[derive(Debug)]
-pub struct Candidate {
-    pub id: String,
+pub struct Command {
+    pub program: String,
+    pub args: Vec<String>,
     pub provider: String,
     pub model: String,
     pub effort: String,
-    pub program: String,
-    /// Every entry checked, with `prompt` exactly once.
-    pub args: Vec<Argument>,
-}
-
-#[derive(Debug)]
-pub enum Argument {
-    Literal(String),
-    Slot(Slot),
-}
-
-/// A caller input, catalog value or run identity that fills one whole
-/// argument.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Slot {
-    Prompt,
-    Kind,
-    TaskFile,
-    TaskId,
-    Model,
-    Effort,
-    RunId,
-}
-
-impl Slot {
-    fn named(name: &str) -> Option<Slot> {
-        Some(match name {
-            "prompt" => Slot::Prompt,
-            "kind" => Slot::Kind,
-            "taskFile" => Slot::TaskFile,
-            "taskId" => Slot::TaskId,
-            "model" => Slot::Model,
-            "effort" => Slot::Effort,
-            "runId" => Slot::RunId,
-            _ => return None,
-        })
-    }
-
-    pub fn name(self) -> &'static str {
-        match self {
-            Slot::Prompt => "prompt",
-            Slot::Kind => "kind",
-            Slot::TaskFile => "taskFile",
-            Slot::TaskId => "taskId",
-            Slot::Model => "model",
-            Slot::Effort => "effort",
-            Slot::RunId => "runId",
-        }
-    }
-}
-
-impl Candidate {
-    /// The catalog entry as the policy configured it, slots as slot objects:
-    /// the selected catalog values a run records.
-    pub fn to_json(&self) -> Value {
-        let args: Vec<Value> = self
-            .args
-            .iter()
-            .map(|argument| match argument {
-                Argument::Literal(literal) => Value::String(literal.clone()),
-                Argument::Slot(slot) => serde_json::json!({ "slot": slot.name() }),
-            })
-            .collect();
-        serde_json::json!({
-            "id": self.id,
-            "provider": self.provider,
-            "model": self.model,
-            "effort": self.effort,
-            "program": self.program,
-            "args": args,
-        })
-    }
-}
-
-/// The catalog index of the candidate a valid policy chose, why, and by what.
-#[derive(Debug)]
-pub struct Selection {
-    pub index: usize,
     pub reason: String,
-    pub by: SelectedBy,
-}
-
-/// What made the selection: the routes table, the caller's explicit choice,
-/// which a routes policy accepts without consulting its table, or the policy's
-/// `select`, which also decides on any explicit choice.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SelectedBy {
-    Route,
-    ExplicitChoice,
-    Select,
-}
-
-impl SelectedBy {
-    /// The stable name inspection and the run record report.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            SelectedBy::Route => "route",
-            SelectedBy::ExplicitChoice => "explicit_choice",
-            SelectedBy::Select => "select",
-        }
-    }
-
-    /// The policy form that made it: `routes` or `select`.
-    pub fn form(self) -> &'static str {
-        match self {
-            SelectedBy::Route | SelectedBy::ExplicitChoice => "routes",
-            SelectedBy::Select => "select",
-        }
-    }
 }
 
 /// Validates against one source file, so each refusal can name it.
@@ -185,7 +63,7 @@ impl<'a> Validator<'a> {
             message,
             format!(
                 "correct {location} in {}; the types in harness-dispatch/sdk describe a \
-                 version-1 policy",
+                 version-{SCHEMA_VERSION} policy",
                 self.source
             ),
         )
@@ -194,30 +72,67 @@ impl<'a> Validator<'a> {
     }
 
     pub fn validate(&self, snapshot: &Value) -> Result<Policy, Refusal> {
-        let policy = self.object(snapshot, "policy")?;
+        let policy = match snapshot.as_object() {
+            Some(object) if !is_marker(snapshot) => object,
+            _ => {
+                return Err(self.invalid(
+                    "policy",
+                    format!("expected an object, found {}", describe(snapshot)),
+                ))
+            }
+        };
 
-        // The version comes first: a later schema's fields are not unknown to it.
+        // The version comes first: another schema's fields are not unknown to it.
         let schema = policy
             .get("schemaVersion")
             .ok_or_else(|| self.invalid("policy.schemaVersion", "`schemaVersion` is missing"))?;
         match schema.as_u64() {
-            Some(1) => {}
+            Some(SCHEMA_VERSION) => {}
             Some(other) => {
-                return Err(Refusal::new(
-                    "unsupported_version",
-                    Stage::Validation,
-                    EXIT_REFUSED,
-                    format!("schemaVersion {other} is not supported; this release reads schemaVersion 1"),
-                    format!("write schemaVersion 1 in {}, or upgrade harness-dispatch", self.source),
-                )
-                .source(self.source)
-                .location("policy.schemaVersion"));
+                let unsupported = |message: String, remedy: String| {
+                    Refusal::new(
+                        "unsupported_version",
+                        Stage::Validation,
+                        EXIT_REFUSED,
+                        message,
+                        remedy,
+                    )
+                    .source(self.source)
+                    .location("policy.schemaVersion")
+                };
+                return Err(if other == 1 {
+                    unsupported(
+                        "schemaVersion 1 is the catalog contract, which this release no longer \
+                         reads: a policy is now one `select` that returns the command to run"
+                            .to_owned(),
+                        format!(
+                            "rewrite {} to schemaVersion {SCHEMA_VERSION}: drop `catalog` and \
+                             `routes`, and have `select` return {{ status: \"selected\", program, \
+                             args, provider, model, effort, reason }}, building `args` from \
+                             `request.prompt` and its other fields; nothing converts a version-1 \
+                             policy, and the types in harness-dispatch/sdk describe the contract",
+                            self.source
+                        ),
+                    )
+                } else {
+                    unsupported(
+                        format!(
+                            "schemaVersion {other} is not supported; this release reads \
+                             schemaVersion {SCHEMA_VERSION}"
+                        ),
+                        format!(
+                            "write schemaVersion {SCHEMA_VERSION} in {}, or upgrade \
+                             harness-dispatch",
+                            self.source
+                        ),
+                    )
+                });
             }
             None => {
                 return Err(self.invalid(
                     "policy.schemaVersion",
                     format!(
-                        "`schemaVersion` must be the number 1, found {}",
+                        "`schemaVersion` must be the number {SCHEMA_VERSION}, found {}",
                         describe(schema)
                     ),
                 ))
@@ -226,388 +141,65 @@ impl<'a> Validator<'a> {
         if let Some(unknown) = policy.keys().find(|key| !TOP_LEVEL.contains(&key.as_str())) {
             return Err(self.invalid(
                 &format!("policy.{unknown}"),
-                format!("unknown field `{unknown}`"),
-            ));
-        }
-
-        let present = |field: &str| policy.get(field).is_some_and(|value| !value.is_null());
-        let computed =
-            match (present("routes"), present("select")) {
-                (true, false) => false,
-                (false, true) => true,
-                (both, _) => return Err(self.invalid(
-                    "policy",
-                    if both {
-                        "a policy has exactly one of `routes` or `select`, and this one has both"
-                    } else {
-                        "a policy has exactly one of `routes` or `select`, and this one has neither"
-                    },
-                )),
-            };
-        let loader = present("loadContext");
-        if loader && !is_function(&policy["loadContext"]) {
-            return Err(self.invalid(
-                "policy.loadContext",
                 format!(
-                    "`loadContext` must be a function, found {}",
-                    describe(&policy["loadContext"])
+                    "unknown field `{unknown}`: a policy has only {}",
+                    TOP_LEVEL.join(", ")
                 ),
             ));
         }
 
-        let version = self.string(policy, "version", "policy.version")?;
-        if version.trim().is_empty() {
-            return Err(self.invalid("policy.version", "`version` must not be blank"));
-        }
-        let catalog = self.catalog(policy.get("catalog"))?;
-        let form = if computed {
-            let select = &policy["select"];
-            if !is_function(select) {
-                return Err(self.invalid(
-                    "policy.select",
-                    format!("`select` must be a function, found {}", describe(select)),
-                ));
-            }
-            Form::Select
-        } else {
-            Form::Routes(self.routes(&policy["routes"], &catalog)?)
-        };
-        Ok(Policy {
-            version,
-            catalog,
-            form,
-            loader,
-        })
-    }
-
-    fn catalog(&self, catalog: Option<&Value>) -> Result<Vec<Candidate>, Refusal> {
-        let catalog =
-            catalog.ok_or_else(|| self.invalid("policy.catalog", "`catalog` is missing"))?;
-        let catalog = catalog.as_array().ok_or_else(|| {
-            self.invalid(
-                "policy.catalog",
-                format!(
-                    "`catalog` must be an array of candidates, found {}",
-                    describe(catalog)
-                ),
-            )
-        })?;
-        let mut candidates: Vec<Candidate> = Vec::with_capacity(catalog.len());
-        for (index, entry) in catalog.iter().enumerate() {
-            let at = format!("policy.catalog[{index}]");
-            let candidate = self.candidate(entry, &at)?;
-            if let Some(first) = candidates.iter().position(|seen| seen.id == candidate.id) {
-                return Err(self.invalid(
-                    &format!("{at}.id"),
-                    format!(
-                        "candidate ID {:?} is already used by policy.catalog[{first}]",
-                        candidate.id
-                    ),
-                ));
-            }
-            candidates.push(candidate);
-        }
-        Ok(candidates)
-    }
-
-    fn candidate(&self, entry: &Value, at: &str) -> Result<Candidate, Refusal> {
-        let fields = self.object(entry, at)?;
-        if let Some(unknown) = fields
-            .keys()
-            .find(|key| !CANDIDATE_FIELDS.contains(&key.as_str()))
-        {
-            return Err(self.invalid(
-                &format!("{at}.{unknown}"),
-                format!("unknown candidate field `{unknown}`"),
-            ));
-        }
-        let nonempty = |field: &str| {
-            let location = format!("{at}.{field}");
-            let value = self.string(fields, field, &location)?;
-            if value.is_empty() {
-                return Err(self.invalid(&location, format!("`{field}` must not be empty")));
-            }
-            Ok(value)
-        };
-        // The program is argv[0], and the `model` and `effort` slots copy
-        // their values into argv, which no NUL can cross.
-        let argv_word = |field: &str| {
-            let value = nonempty(field)?;
-            self.no_nul(&value, &format!("{at}.{field}"), &format!("`{field}`"))?;
-            Ok::<_, Refusal>(value)
-        };
-        let candidate = Candidate {
-            id: nonempty("id")?,
-            provider: nonempty("provider")?,
-            model: argv_word("model")?,
-            effort: argv_word("effort")?,
-            program: argv_word("program")?,
-            args: Vec::new(),
-        };
-        let args_at = format!("{at}.args");
-        let args = fields
-            .get("args")
-            .ok_or_else(|| self.invalid(&args_at, "`args` is missing"))?;
-        let args = args.as_array().ok_or_else(|| {
-            self.invalid(
-                &args_at,
-                format!("`args` must be an array, found {}", describe(args)),
-            )
-        })?;
-        let args: Vec<Argument> = args
-            .iter()
-            .enumerate()
-            .map(|(index, arg)| self.argument(arg, &format!("{args_at}[{index}]")))
-            .collect::<Result<_, _>>()?;
-        let prompts = args
-            .iter()
-            .filter(|arg| matches!(arg, Argument::Slot(Slot::Prompt)))
-            .count();
-        if prompts != 1 {
-            return Err(self.invalid(
-                &args_at,
-                format!(
-                    "the `prompt` slot must fill exactly one argument, and `args` has it {prompts} \
-                     times"
-                ),
-            ));
-        }
-        Ok(Candidate { args, ..candidate })
-    }
-
-    fn argument(&self, arg: &Value, at: &str) -> Result<Argument, Refusal> {
-        if let Some(literal) = arg.as_str() {
-            self.no_nul(literal, at, "a literal argument")?;
-            return Ok(Argument::Literal(literal.to_owned()));
-        }
-        let expected =
-            "an argument is a literal string or a slot object such as { slot: \"prompt\" }";
-        let slot = match arg.as_object() {
-            Some(object) if object.len() == 1 && object.contains_key("slot") => &object["slot"],
-            Some(object) if !is_marker(arg) => {
-                let extra = object.keys().find(|key| *key != "slot");
-                return Err(match extra {
-                    Some(extra) => self.invalid(
-                        &format!("{at}.{extra}"),
-                        format!("unknown argument field `{extra}`; {expected}"),
-                    ),
-                    None => self.invalid(
-                        &format!("{at}.slot"),
-                        format!("`slot` is missing; {expected}"),
-                    ),
-                });
-            }
-            _ => {
-                return Err(self.invalid(at, format!("{expected}, found {}", describe(arg))));
-            }
-        };
-        match slot.as_str().and_then(Slot::named) {
-            Some(slot) => Ok(Argument::Slot(slot)),
-            None => Err(self.invalid(
-                &format!("{at}.slot"),
-                format!(
-                    "`slot` must be one of {}, found {}",
-                    SLOTS.join(", "),
-                    describe_value(slot)
-                ),
+        let function = |field: &str| match policy.get(field) {
+            Some(value) if is_function(value) => Ok(()),
+            Some(value) => Err(self.invalid(
+                &format!("policy.{field}"),
+                format!("`{field}` must be a function, found {}", describe(value)),
             )),
+            None => Err(self.invalid(&format!("policy.{field}"), format!("`{field}` is missing"))),
+        };
+        let loader = policy
+            .get("loadContext")
+            .is_some_and(|value| !value.is_null());
+        if loader {
+            function("loadContext")?;
         }
-    }
-
-    fn routes(
-        &self,
-        routes: &Value,
-        catalog: &[Candidate],
-    ) -> Result<BTreeMap<String, String>, Refusal> {
-        let routes = self.object(routes, "policy.routes")?;
-        let mut table = BTreeMap::new();
-        for (kind, target) in routes {
-            let at = format!("policy.routes[{}]", Value::String(kind.clone()));
-            let id = target.as_str().ok_or_else(|| {
-                self.invalid(
-                    &at,
-                    format!("a route names a candidate ID, found {}", describe(target)),
-                )
-            })?;
-            if !catalog.iter().any(|candidate| candidate.id == id) {
-                return Err(self.invalid(
-                    &at,
-                    format!(
-                        "the route for kind {kind:?} names {id:?}, which is not in the catalog"
-                    ),
-                ));
+        let version = match policy.get("version") {
+            Some(Value::String(version)) if !version.trim().is_empty() => version.clone(),
+            Some(Value::String(_)) => {
+                return Err(self.invalid("policy.version", "`version` must not be blank"))
             }
-            table.insert(kind.clone(), id.to_owned());
-        }
-        Ok(table)
-    }
-
-    /// Refuse a NUL in a string that can become a word of argv. Exec cannot
-    /// carry it, so it is invalid policy in every candidate, selected or not,
-    /// and is refused here rather than after a handoff has been recorded.
-    fn no_nul(&self, value: &str, at: &str, what: &str) -> Result<(), Refusal> {
-        match value.find('\0') {
-            Some(offset) => Err(self.invalid(
-                at,
-                format!(
-                    "{what} contains a NUL character at byte {offset}, which no argument can carry"
-                ),
-            )),
-            None => Ok(()),
-        }
-    }
-
-    fn object<'v>(&self, value: &'v Value, at: &str) -> Result<&'v Map<String, Value>, Refusal> {
-        match value.as_object() {
-            Some(object) if !is_marker(value) => Ok(object),
-            _ => Err(self.invalid(at, format!("expected an object, found {}", describe(value)))),
-        }
-    }
-
-    fn string(
-        &self,
-        object: &Map<String, Value>,
-        field: &str,
-        at: &str,
-    ) -> Result<String, Refusal> {
-        let value = object
-            .get(field)
-            .ok_or_else(|| self.invalid(at, format!("`{field}` is missing")))?;
-        value.as_str().map(str::to_owned).ok_or_else(|| {
-            self.invalid(
-                at,
-                format!("`{field}` must be a string, found {}", describe(value)),
-            )
-        })
+            Some(other) => {
+                return Err(self.invalid(
+                    "policy.version",
+                    format!("`version` must be a string, found {}", describe(other)),
+                ))
+            }
+            None => return Err(self.invalid("policy.version", "`version` is missing")),
+        };
+        function("select")?;
+        Ok(Policy { version, loader })
     }
 }
 
-/// Select from a valid routes policy: the caller's explicit choice when there
-/// is one, and otherwise the route for `kind`. Either way, nothing the caller
-/// or the table did not name is ever substituted.
-pub fn by_routes(
-    policy: &Policy,
-    routes: &BTreeMap<String, String>,
-    kind: &str,
-    choice: Option<&str>,
-    source: &str,
-) -> Result<Selection, Refusal> {
-    match choice {
-        Some(choice) => chosen(policy, choice, source),
-        None => route(policy, routes, kind, source),
-    }
-}
-
-/// The catalog index of the candidate an explicit choice names. Under either
-/// form, an ID the catalog lacks refuses, before any `select` runs; it is never
-/// read as a request for some other candidate.
-pub fn configured(policy: &Policy, choice: &str, source: &str) -> Result<usize, Refusal> {
-    policy
-        .catalog
-        .iter()
-        .position(|candidate| candidate.id == choice)
-        .ok_or_else(|| {
-            Refusal::new(
-                "unknown_choice",
-                Stage::Selection,
-                EXIT_REFUSED,
-                format!("--choice {choice:?} names no candidate in the catalog of {source}"),
-                format!(
-                    "pass --choice with one of the configured candidate IDs ({}), or omit it to \
-                     select without one; harness-dispatch never substitutes another candidate",
-                    ids(policy)
-                ),
-            )
-            .input(format!("--choice {choice}"))
-            .source(source)
-            .location("policy.catalog")
-        })
-}
-
-/// The configured candidate IDs, quoted, for a remedy to list.
-fn ids(policy: &Policy) -> String {
-    let ids: Vec<String> = policy
-        .catalog
-        .iter()
-        .map(|candidate| format!("{:?}", candidate.id))
-        .collect();
-    ids.join(", ")
-}
-
-/// An explicit choice under routes names any configured candidate, including
-/// one for a kind the table does not route, and the table cannot refuse it
-/// (spec, *Policy and joint choice*).
-fn chosen(policy: &Policy, choice: &str, source: &str) -> Result<Selection, Refusal> {
-    let index = configured(policy, choice, source)?;
-    Ok(Selection {
-        index,
-        reason: format!(
-            "the explicit choice --choice {choice:?} names a configured candidate; routes are not \
-             consulted"
-        ),
-        by: SelectedBy::ExplicitChoice,
-    })
-}
-
-/// Resolve `kind` through a valid policy's routes. A kind the table does not
-/// name refuses; no default candidate is ever substituted.
-fn route(
-    policy: &Policy,
-    routes: &BTreeMap<String, String>,
-    kind: &str,
-    source: &str,
-) -> Result<Selection, Refusal> {
-    let id = routes.get(kind).ok_or_else(|| {
-        Refusal::new(
-            "incomplete_mapping",
-            Stage::Selection,
-            EXIT_REFUSED,
-            format!("the routes in {source} name no candidate for kind {kind:?}"),
-            format!(
-                "add a route {} to a candidate ID in {source}, or name one configured candidate \
-                 with --choice ID; harness-dispatch never substitutes a default candidate",
-                Value::String(kind.to_owned())
-            ),
-        )
-        .input(format!("--kind {kind}"))
-        .source(source)
-        .location("policy.routes")
-    })?;
-    let index = policy
-        .catalog
-        .iter()
-        .position(|candidate| &candidate.id == id)
-        .expect("validation checked every route names a catalog candidate");
-    Ok(Selection {
-        index,
-        reason: format!(
-            "routes[{}] names candidate {id:?}",
-            Value::String(kind.to_owned())
-        ),
-        by: SelectedBy::Route,
-    })
-}
-
-const SELECTED_FIELDS: [&str; 3] = ["status", "candidateId", "reason"];
+const SELECTED_FIELDS: [&str; 7] = [
+    "status", "program", "args", "provider", "model", "effort", "reason",
+];
 const REFUSED_FIELDS: [&str; 4] = ["status", "code", "message", "remedy"];
 
-/// Judge what a valid `select` policy's callback produced, against the catalog
-/// validated before it ran. A candidate it selects must be in that catalog and
-/// come with a nonblank reason; with an explicit choice it must be that choice.
-/// A refusal it returns must say what and why. Every other value refuses, each
-/// kind with its own code, and nothing is ever substituted for it.
-pub fn computed(
-    policy: &Policy,
+/// Judge what a valid policy's `select` produced. A selected result is the
+/// command to run: a program, an array of string arguments, and nonblank
+/// labels and reason. A refusal it returns must say what and why. Every other
+/// value refuses, each kind with its own code, and nothing is ever run in its
+/// place.
+pub fn selected(
     produced: Produced,
     kind: &str,
-    choice: Option<&str>,
     source: &str,
     limits: &Limits,
-) -> Result<Selection, Refusal> {
+) -> Result<Command, Refusal> {
     let shape = format!(
-        "return {{ status: \"selected\", candidateId, reason }} or {{ status: \"refused\", code, \
-         message, remedy }} from select in {source}; the types in harness-dispatch/sdk describe \
-         both"
+        "return {{ status: \"selected\", program, args, provider, model, effort, reason }} or \
+         {{ status: \"refused\", code, message, remedy }} from select in {source}; the types in \
+         harness-dispatch/sdk describe both"
     );
     let refuse = |code: &'static str, message: String, remedy: String, location: &str| {
         Refusal::new(code, Stage::Selection, EXIT_REFUSED, message, remedy)
@@ -663,7 +255,7 @@ pub fn computed(
                 "select in {source} returned no result (undefined or null), so it selected \
                  nothing"
             ),
-            format!("{shape}; harness-dispatch never picks a candidate for a policy that abstains"),
+            format!("{shape}; harness-dispatch never picks a command for a policy that abstains"),
             "result",
         ));
     }
@@ -699,14 +291,13 @@ pub fn computed(
         return Err(malformed(
             &format!("result.{unknown}"),
             format!(
-                "unknown field `{unknown}`: a {} result has only {}, and a result cannot supply a \
-                 program or arguments",
+                "unknown field `{unknown}`: a {} result has only {}",
                 status.as_str().unwrap_or_default(),
                 allowed.join(", ")
             ),
         ));
     }
-    let text = |field: &str| {
+    let nonblank = |field: &str| {
         let location = format!("result.{field}");
         let value = fields
             .get(field)
@@ -717,23 +308,15 @@ pub fn computed(
                 format!("`{field}` must be a string, found {}", describe(value)),
             )
         })?;
-        Ok::<_, Refusal>((text.to_owned(), location))
-    };
-    let nonblank = |field: &str| {
-        let (text, location) = text(field)?;
         if text.trim().is_empty() {
             return Err(malformed(&location, format!("`{field}` must not be blank")));
         }
-        Ok(text)
+        Ok(text.to_owned())
     };
 
     if status == "refused" {
         let (code, message, remedy) =
             (nonblank("code")?, nonblank("message")?, nonblank("remedy")?);
-        let input = match choice {
-            Some(choice) => format!("--choice {choice}"),
-            None => format!("--kind {kind}"),
-        };
         return Err(Refusal::new(
             "policy_refused",
             Stage::Selection,
@@ -742,48 +325,58 @@ pub fn computed(
             remedy,
         )
         .policy_code(code)
-        .input(input)
+        .input(format!("--kind {kind}"))
         .source(source));
     }
 
-    let (id, _) = text("candidateId")?;
-    let reason = nonblank("reason")?;
-    if let Some(choice) = choice.filter(|choice| *choice != id) {
-        return Err(refuse(
-            "explicit_choice_mismatch",
+    // Exec carries no NUL, so one is refused here, before a handoff is
+    // recorded, rather than after.
+    let no_nul = |text: &str, location: &str| match text.find('\0') {
+        Some(offset) => Err(malformed(
+            location,
+            format!("a NUL character at byte {offset}, which no argument can carry"),
+        )),
+        None => Ok(()),
+    };
+    let program = nonblank("program")?;
+    no_nul(&program, "result.program")?;
+    let args = fields
+        .get("args")
+        .ok_or_else(|| malformed("result.args", "`args` is missing".to_owned()))?;
+    let args = args.as_array().ok_or_else(|| {
+        malformed(
+            "result.args",
             format!(
-                "--choice {choice:?} was given, and select in {source} selected {id:?} instead \
-                 (its reason: {reason})"
+                "`args` must be an array of strings, found {}",
+                describe(args)
             ),
-            format!(
-                "a policy accepts an explicit choice by selecting that same ID, or refuses it with \
-                 {{ status: \"refused\", code, message, remedy }}; harness-dispatch never runs \
-                 another candidate in its place. Omit --choice to let {source} choose"
-            ),
-            "result.candidateId",
         )
-        .input(format!("--choice {choice}")));
-    }
-    let index = policy
-        .catalog
+    })?;
+    let args = args
         .iter()
-        .position(|candidate| candidate.id == id)
-        .ok_or_else(|| {
-            refuse(
-                "unknown_candidate",
-                format!("select in {source} selected {id:?}, which is not in its catalog"),
-                format!(
-                    "select a configured candidate ID ({}), or add {id:?} to the catalog; a \
-                     result names a candidate and cannot supply one",
-                    ids(policy)
-                ),
-                "result.candidateId",
-            )
-        })?;
-    Ok(Selection {
-        index,
-        reason,
-        by: SelectedBy::Select,
+        .enumerate()
+        .map(|(index, arg)| {
+            let location = format!("result.args[{index}]");
+            let text = arg.as_str().ok_or_else(|| {
+                malformed(
+                    &location,
+                    format!(
+                        "an argument must be a string, one whole word, found {}",
+                        describe(arg)
+                    ),
+                )
+            })?;
+            no_nul(text, &location)?;
+            Ok(text.to_owned())
+        })
+        .collect::<Result<Vec<_>, Refusal>>()?;
+    Ok(Command {
+        program,
+        args,
+        provider: nonblank("provider")?,
+        model: nonblank("model")?,
+        effort: nonblank("effort")?,
+        reason: nonblank("reason")?,
     })
 }
 
@@ -793,12 +386,7 @@ pub fn computed(
 /// refusal, reported as `select`'s is but at the context stage, and `select`
 /// is never asked. Anything else with a `status` is neither a context nor a
 /// refusal, and is refused where it sits.
-pub fn loader_refused(
-    fields: &Map<String, Value>,
-    kind: &str,
-    choice: Option<&str>,
-    source: &str,
-) -> Refusal {
+pub fn loader_refused(fields: &Map<String, Value>, kind: &str, source: &str) -> Refusal {
     let malformed = |location: &str, message: String| {
         Refusal::new(
             "context_invalid",
@@ -855,10 +443,6 @@ pub fn loader_refused(
         }
     }
     let [code, message, remedy]: [String; 3] = said.try_into().expect("three fields were said");
-    let input = match choice {
-        Some(choice) => format!("--choice {choice}"),
-        None => format!("--kind {kind}"),
-    };
     Refusal::new(
         "policy_refused",
         Stage::Context,
@@ -867,7 +451,7 @@ pub fn loader_refused(
         remedy,
     )
     .policy_code(code)
-    .input(input)
+    .input(format!("--kind {kind}"))
     .source(source)
     .location("policy.loadContext")
 }
@@ -882,8 +466,8 @@ pub fn message_too_large(stage: Stage, breach: &Breach, source: &str, limits: &L
         .unwrap_or_else(|| "more".to_owned());
     let (what, remedy) = if stage == Stage::Load {
         (
-            format!("the policy {source}, catalog included,"),
-            "keep the exported policy object, catalog included, under 1 MiB of JSON",
+            format!("the policy {source}"),
+            "keep the exported policy object under 1 MiB of JSON",
         )
     } else if stage == Stage::Context {
         (
@@ -893,8 +477,8 @@ pub fn message_too_large(stage: Stage, breach: &Breach, source: &str, limits: &L
     } else {
         (
             format!("the result of select in {source}"),
-            "return a smaller result: a candidate ID and a reason, or a refusal, under 1 MiB of \
-             JSON",
+            "return a smaller result, under 1 MiB of JSON with its arguments and the prompt \
+             among them; a harness can read a long prompt from a file an argument names",
         )
     };
     Refusal::new(
@@ -937,7 +521,7 @@ fn describe(value: &Value) -> String {
     }
 }
 
-/// `describe`, but quoting a string so a wrong slot name is visible.
+/// `describe`, but quoting a string so a wrong status is visible.
 fn describe_value(value: &Value) -> String {
     match value {
         Value::String(text) => format!("{text:?}"),
@@ -952,131 +536,183 @@ mod tests {
 
     fn valid() -> Value {
         json!({
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "version": "v1",
-            "catalog": [
-                {"id": "a", "provider": "p", "model": "m", "effort": "e", "program": "x", "args": [{"slot": "prompt"}]},
-            ],
-            "routes": {"impl": "a"},
+            "select": {"$harnessDispatch": "function"},
         })
-    }
-
-    /// Select through a valid routes policy's own table.
-    fn select(
-        policy: &Policy,
-        kind: &str,
-        choice: Option<&str>,
-        source: &str,
-    ) -> Result<Selection, Refusal> {
-        let Form::Routes(routes) = &policy.form else {
-            panic!("a routes policy");
-        };
-        by_routes(policy, routes, kind, choice, source)
     }
 
     fn limits() -> Limits {
         Limits::read(None, None).unwrap()
     }
 
+    fn command() -> Value {
+        json!({
+            "status": "selected", "program": "harness", "args": ["--model", "m", "the prompt"],
+            "provider": "p", "model": "m", "effort": "e", "reason": "r",
+        })
+    }
+
+    fn judged(result: Value) -> Result<Command, Refusal> {
+        selected(Produced::Result(result), "impl", "/p.ts", &limits())
+    }
+
     #[test]
-    fn a_load_context_is_valid_only_as_a_function_beside_either_form() {
-        let mut policy = valid();
-        policy["loadContext"] = json!({"$harnessDispatch": "function"});
-        assert!(Validator::new("/p.ts").validate(&policy).unwrap().loader);
-        policy["loadContext"] = Value::Null;
-        assert!(!Validator::new("/p.ts").validate(&policy).unwrap().loader);
-        policy["loadContext"] = json!("load");
-        let refusal = Validator::new("/p.ts").validate(&policy).unwrap_err();
+    fn a_policy_is_a_version_a_select_and_an_optional_loader() {
+        let policy = Validator::new("/p.ts").validate(&valid()).unwrap();
+        assert_eq!(policy.version, "v1");
+        assert!(!policy.loader);
+
+        let mut loading = valid();
+        loading["loadContext"] = json!({"$harnessDispatch": "function"});
+        assert!(Validator::new("/p.ts").validate(&loading).unwrap().loader);
+        loading["loadContext"] = Value::Null;
+        assert!(!Validator::new("/p.ts").validate(&loading).unwrap().loader);
+        loading["loadContext"] = json!("load");
+        let refusal = Validator::new("/p.ts").validate(&loading).unwrap_err();
         assert_eq!(refusal.code, "policy_invalid");
         assert_eq!(refusal.location.as_deref(), Some("policy.loadContext"));
     }
 
     #[test]
-    fn a_result_over_the_message_bound_refuses_by_name() {
-        let policy = computing();
-        let breach = Breach {
-            bound: "message".into(),
-            actual: Some(2_000_000),
-            source: None,
-            max_bytes: None,
+    fn every_invalid_policy_names_where_it_is_wrong() {
+        let with = |field: &str, value: Value| {
+            let mut policy = valid();
+            if value.is_null() {
+                policy.as_object_mut().unwrap().remove(field);
+            } else {
+                policy[field] = value;
+            }
+            policy
         };
-        let refusal = computed(
-            &policy,
-            Produced::Breach(breach),
-            "impl",
-            None,
-            "/p.ts",
-            &limits(),
-        )
-        .unwrap_err();
-        assert_eq!(refusal.code, "message_too_large");
-        assert_eq!(refusal.bound.map(|bound| bound.value), Some(1_048_576));
-    }
-
-    /// `valid()` with `select` in place of its routes, and a second candidate.
-    fn computing() -> Policy {
-        let mut policy = valid();
-        policy.as_object_mut().unwrap().remove("routes");
-        policy["select"] = json!({"$harnessDispatch": "function"});
-        policy["catalog"]
-            .as_array_mut()
-            .unwrap()
-            .push(json!({"id": "b", "provider": "q", "model": "m", "effort": "e", "program": "x", "args": [{"slot": "prompt"}]}));
-        Validator::new("/p.ts").validate(&policy).unwrap()
-    }
-
-    fn judged(result: Value, choice: Option<&str>) -> Result<Selection, Refusal> {
-        computed(
-            &computing(),
-            Produced::Result(result),
-            "impl",
-            choice,
-            "/p.ts",
-            &limits(),
-        )
-    }
-
-    #[test]
-    fn a_select_policy_is_valid_only_with_a_function() {
-        assert!(matches!(computing().form, Form::Select));
-        let mut policy = valid();
-        policy.as_object_mut().unwrap().remove("routes");
-        for (select, found) in [
-            (json!("choose"), "found a string"),
-            (json!({"$harnessDispatch": "symbol"}), "found a symbol"),
-            (json!({}), "found an object"),
-        ] {
-            policy["select"] = select;
+        let cases = [
+            (json!("policy"), "policy", "found a string"),
+            (
+                json!({"$harnessDispatch": "function"}),
+                "policy",
+                "found a function",
+            ),
+            (
+                with("schemaVersion", Value::Null),
+                "policy.schemaVersion",
+                "missing",
+            ),
+            (
+                with("schemaVersion", json!("2")),
+                "policy.schemaVersion",
+                "found a string",
+            ),
+            (with("version", Value::Null), "policy.version", "missing"),
+            (with("version", json!(" ")), "policy.version", "blank"),
+            (
+                with("version", json!(3)),
+                "policy.version",
+                "found a number",
+            ),
+            (with("select", Value::Null), "policy.select", "missing"),
+            (
+                with("select", json!("choose")),
+                "policy.select",
+                "found a string",
+            ),
+            (
+                with("select", json!({"$harnessDispatch": "symbol"})),
+                "policy.select",
+                "found a symbol",
+            ),
+            (
+                with("select", json!({})),
+                "policy.select",
+                "found an object",
+            ),
+            (
+                with("catalog", json!([])),
+                "policy.catalog",
+                "unknown field `catalog`",
+            ),
+            (
+                with("routes", json!({})),
+                "policy.routes",
+                "unknown field `routes`",
+            ),
+        ];
+        for (policy, location, found) in cases {
             let refusal = Validator::new("/p.ts").validate(&policy).unwrap_err();
-            assert_eq!(refusal.code, "policy_invalid");
-            assert_eq!(refusal.location.as_deref(), Some("policy.select"));
-            assert!(refusal.message.contains(found), "{}", refusal.message);
+            assert_eq!(refusal.code, "policy_invalid", "{policy}");
+            assert_eq!(refusal.location.as_deref(), Some(location), "{policy}");
+            assert!(
+                refusal.message.contains(found),
+                "{policy}: {}",
+                refusal.message
+            );
         }
     }
 
     #[test]
-    fn a_selected_result_names_a_catalog_candidate_with_a_reason() {
-        let selection = judged(
-            json!({"status": "selected", "candidateId": "b", "reason": "b fits"}),
-            None,
-        )
-        .unwrap();
-        assert_eq!(selection.index, 1);
-        assert_eq!(selection.reason, "b fits");
-        assert_eq!(selection.by, SelectedBy::Select);
-        // The same ID accepts an explicit choice.
-        let accepted = judged(
-            json!({"status": "selected", "candidateId": "b", "reason": "b fits"}),
-            Some("b"),
-        )
-        .unwrap();
-        assert_eq!(accepted.index, 1);
+    fn a_version_1_policy_refuses_with_the_rewrite_remedy_and_another_as_unsupported() {
+        let mut old = json!({
+            "schemaVersion": 1,
+            "version": "v1",
+            "catalog": [],
+            "routes": {},
+        });
+        let refusal = Validator::new("/p.ts").validate(&old).unwrap_err();
+        assert_eq!(refusal.code, "unsupported_version");
+        assert_eq!(refusal.location.as_deref(), Some("policy.schemaVersion"));
+        assert!(
+            refusal.message.contains("catalog contract"),
+            "{}",
+            refusal.message
+        );
+        assert!(
+            refusal.remedy.contains("rewrite /p.ts to schemaVersion 2")
+                && refusal.remedy.contains("nothing converts"),
+            "{}",
+            refusal.remedy
+        );
+
+        old["schemaVersion"] = 3.into();
+        let refusal = Validator::new("/p.ts").validate(&old).unwrap_err();
+        assert_eq!(refusal.code, "unsupported_version");
+        assert!(
+            refusal.remedy.contains("upgrade harness-dispatch"),
+            "{}",
+            refusal.remedy
+        );
+    }
+
+    #[test]
+    fn a_selected_result_is_the_command_as_returned() {
+        let command = judged(command()).unwrap();
+        assert_eq!(command.program, "harness");
+        assert_eq!(command.args, ["--model", "m", "the prompt"]);
+        assert_eq!(
+            (
+                command.provider.as_str(),
+                command.model.as_str(),
+                command.effort.as_str()
+            ),
+            ("p", "m", "e")
+        );
+        assert_eq!(command.reason, "r");
+
+        // No argument is required, and an argument may be empty or hold
+        // anything but a NUL: nothing checks that the prompt is among them.
+        let mut bare = self::command();
+        bare["args"] = json!([]);
+        assert!(judged(bare).unwrap().args.is_empty());
+        let mut odd = self::command();
+        odd["args"] = json!(["", " ", "two words\n$HOME; `x`"]);
+        assert_eq!(
+            judged(odd).unwrap().args,
+            ["", " ", "two words\n$HOME; `x`"]
+        );
     }
 
     #[test]
     fn every_malformed_result_names_where_it_is_wrong() {
         let selected = |extra: Value| {
-            let mut result = json!({"status": "selected", "candidateId": "a", "reason": "r"});
+            let mut result = command();
             for (key, value) in extra.as_object().unwrap() {
                 if value.is_null() {
                     result.as_object_mut().unwrap().remove(key);
@@ -1086,85 +722,109 @@ mod tests {
             }
             result
         };
-        let cases = [
-            (json!("a"), "result", "found a string"),
-            (json!(["a"]), "result", "found an array"),
+        let mut cases = vec![
+            (json!("a"), "result".to_owned(), "found a string"),
+            (json!(["a"]), "result".to_owned(), "found an array"),
             (
                 json!({"$harnessDispatch": "function"}),
-                "result",
+                "result".to_owned(),
                 "found a function",
             ),
             (
-                json!({"candidateId": "a", "reason": "r"}),
-                "result.status",
+                selected(json!({"status": null})),
+                "result.status".to_owned(),
                 "missing",
             ),
             (
                 selected(json!({"status": "chosen"})),
-                "result.status",
+                "result.status".to_owned(),
                 "found \"chosen\"",
             ),
             (
                 selected(json!({"status": 1})),
-                "result.status",
+                "result.status".to_owned(),
                 "found a number",
             ),
             (
-                selected(json!({"reason": null})),
-                "result.reason",
+                selected(json!({"args": null})),
+                "result.args".to_owned(),
                 "missing",
             ),
-            (selected(json!({"reason": " \n"})), "result.reason", "blank"),
             (
-                selected(json!({"reason": 7})),
-                "result.reason",
+                selected(json!({"args": "--yolo"})),
+                "result.args".to_owned(),
+                "found a string",
+            ),
+            (
+                selected(json!({"args": ["a", 7]})),
+                "result.args[1]".to_owned(),
                 "found a number",
             ),
             (
-                selected(json!({"candidateId": null})),
-                "result.candidateId",
-                "missing",
+                selected(json!({"args": ["a", {"slot": "prompt"}]})),
+                "result.args[1]".to_owned(),
+                "found an object",
             ),
             (
-                selected(json!({"candidateId": {"$harnessDispatch": "function"}})),
-                "result.candidateId",
-                "found a function",
+                selected(json!({"args": ["a", "b\u{0}c"]})),
+                "result.args[1]".to_owned(),
+                "NUL character at byte 1",
             ),
             (
-                selected(json!({"args": ["--yolo"]})),
-                "result.args",
-                "cannot supply a program or arguments",
+                selected(json!({"program": "sh\u{0}"})),
+                "result.program".to_owned(),
+                "NUL character at byte 2",
             ),
             (
-                selected(json!({"program": "/bin/sh"})),
-                "result.program",
-                "cannot supply",
+                selected(json!({"candidateId": "a"})),
+                "result.candidateId".to_owned(),
+                "unknown field",
             ),
             (
                 selected(json!({"code": "c"})),
-                "result.code",
+                "result.code".to_owned(),
                 "unknown field",
             ),
             (
                 json!({"status": "refused", "code": "c", "message": "m"}),
-                "result.remedy",
+                "result.remedy".to_owned(),
                 "missing",
             ),
             (
                 json!({"status": "refused", "code": "", "message": "m", "remedy": "r"}),
-                "result.code",
+                "result.code".to_owned(),
                 "blank",
             ),
             (
-                json!({"status": "refused", "code": "c", "message": "m", "remedy": "r", "candidateId": "a"}),
-                "result.candidateId",
+                json!({"status": "refused", "code": "c", "message": "m", "remedy": "r", "program": "sh"}),
+                "result.program".to_owned(),
                 "unknown field",
             ),
         ];
+        for field in ["program", "provider", "model", "effort", "reason"] {
+            let location = format!("result.{field}");
+            let with = |value: Value| {
+                let mut extra = Map::new();
+                extra.insert(field.to_owned(), value);
+                selected(Value::Object(extra))
+            };
+            cases.push((with(Value::Null), location.clone(), "missing"));
+            cases.push((with(json!(" \n")), location.clone(), "blank"));
+            cases.push((with(json!(7)), location.clone(), "found a number"));
+            cases.push((
+                with(json!({"$harnessDispatch": "function"})),
+                location,
+                "found a function",
+            ));
+        }
         for (result, location, found) in cases {
-            let refusal = judged(result.clone(), None).unwrap_err();
+            let refusal = judged(result.clone()).unwrap_err();
             assert_eq!(refusal.code, "selection_malformed", "{result}");
-            assert_eq!(refusal.location.as_deref(), Some(location), "{result}");
+            assert_eq!(
+                refusal.location.as_deref(),
+                Some(location.as_str()),
+                "{result}"
+            );
             assert!(
                 refusal.message.contains(found),
                 "{result}: {}",
@@ -1176,9 +836,7 @@ mod tests {
 
     #[test]
     fn each_other_failure_of_select_has_its_own_code() {
-        let policy = computing();
-        let refused =
-            |produced| computed(&policy, produced, "impl", None, "/p.ts", &limits()).unwrap_err();
+        let refused = |produced| selected(produced, "impl", "/p.ts", &limits()).unwrap_err();
         let threw = refused(Produced::Threw {
             name: "TypeError".into(),
             message: "x is undefined".into(),
@@ -1195,44 +853,25 @@ mod tests {
             refused(Produced::Result(Value::Null)).code,
             "selection_abstained"
         );
-
-        let unknown = judged(
-            json!({"status": "selected", "candidateId": "z", "reason": "r"}),
-            None,
-        )
-        .unwrap_err();
-        assert_eq!(unknown.code, "unknown_candidate");
-        assert_eq!(unknown.location.as_deref(), Some("result.candidateId"));
-        assert!(
-            unknown.remedy.contains(r#"("a", "b")"#),
-            "{}",
-            unknown.remedy
-        );
     }
 
     #[test]
-    fn with_a_choice_any_other_id_is_a_mismatch_known_or_not() {
-        for other in ["a", "z"] {
-            let refusal = judged(
-                json!({"status": "selected", "candidateId": other, "reason": "a safe fallback"}),
-                Some("b"),
-            )
-            .unwrap_err();
-            assert_eq!(refusal.code, "explicit_choice_mismatch", "{other}");
-            assert_eq!(refusal.input.as_deref(), Some("--choice b"));
-            assert!(
-                refusal.message.contains("a safe fallback"),
-                "{}",
-                refusal.message
-            );
-        }
+    fn a_result_over_the_message_bound_refuses_by_name() {
+        let breach = Breach {
+            bound: "message".into(),
+            actual: Some(2_000_000),
+            source: None,
+            max_bytes: None,
+        };
+        let refusal = selected(Produced::Breach(breach), "impl", "/p.ts", &limits()).unwrap_err();
+        assert_eq!(refusal.code, "message_too_large");
+        assert_eq!(refusal.bound.map(|bound| bound.value), Some(1_048_576));
     }
 
     #[test]
     fn a_policys_refusal_keeps_its_code_beside_the_stable_one() {
         let refusal = judged(
             json!({"status": "refused", "code": "no_reviewer", "message": "nobody fits", "remedy": "declare one"}),
-            Some("b"),
         )
         .unwrap_err();
         assert_eq!(refusal.code, "policy_refused");
@@ -1244,72 +883,6 @@ mod tests {
             refusal.message
         );
         assert_eq!(refusal.remedy, "declare one");
-        assert_eq!(refusal.input.as_deref(), Some("--choice b"));
-        let unchosen = judged(
-            json!({"status": "refused", "code": "c", "message": "m", "remedy": "r"}),
-            None,
-        )
-        .unwrap_err();
-        assert_eq!(unchosen.input.as_deref(), Some("--kind impl"));
-    }
-
-    #[test]
-    fn a_valid_policy_routes_its_kind_and_refuses_another() {
-        let policy = Validator::new("/p.ts").validate(&valid()).unwrap();
-        let selection = select(&policy, "impl", None, "/p.ts").unwrap();
-        assert_eq!(policy.catalog[selection.index].id, "a");
-        assert_eq!(selection.reason, r#"routes["impl"] names candidate "a""#);
-        assert_eq!(selection.by, SelectedBy::Route);
-        let refusal = select(&policy, "design", None, "/p.ts").unwrap_err();
-        assert_eq!(refusal.code, "incomplete_mapping");
-    }
-
-    #[test]
-    fn an_explicit_choice_bypasses_the_routes_and_an_unknown_one_refuses() {
-        let mut policy = valid();
-        policy["catalog"]
-            .as_array_mut()
-            .unwrap()
-            .push(json!({"id": "b", "provider": "q", "model": "m", "effort": "e", "program": "x", "args": [{"slot": "prompt"}]}));
-        let policy = Validator::new("/p.ts").validate(&policy).unwrap();
-        // "impl" routes to "a", and "design" is not routed at all.
-        for kind in ["impl", "design"] {
-            let selection = select(&policy, kind, Some("b"), "/p.ts").unwrap();
-            assert_eq!(policy.catalog[selection.index].id, "b");
-            assert_eq!(selection.by, SelectedBy::ExplicitChoice);
-        }
-        let refusal = select(&policy, "impl", Some("c"), "/p.ts").unwrap_err();
-        assert_eq!(refusal.code, "unknown_choice");
-        assert_eq!(refusal.input.as_deref(), Some("--choice c"));
-        assert!(
-            refusal.remedy.contains(r#"("a", "b")"#),
-            "{}",
-            refusal.remedy
-        );
-    }
-
-    #[test]
-    fn a_marker_is_described_as_the_value_it_replaced() {
-        let mut policy = valid();
-        policy["catalog"][0]["model"] = json!({"$harnessDispatch": "function"});
-        let refusal = Validator::new("/p.ts").validate(&policy).unwrap_err();
-        assert_eq!(refusal.location.as_deref(), Some("policy.catalog[0].model"));
-        assert!(
-            refusal.message.contains("found a function"),
-            "{}",
-            refusal.message
-        );
-    }
-
-    #[test]
-    fn a_non_array_catalog_names_what_it_found() {
-        let mut policy = valid();
-        policy["catalog"] = json!({"a": 1});
-        let refusal = Validator::new("/p.ts").validate(&policy).unwrap_err();
-        assert!(
-            refusal.message.contains("found an object"),
-            "{}",
-            refusal.message
-        );
+        assert_eq!(refusal.input.as_deref(), Some("--kind impl"));
     }
 }

@@ -4,6 +4,10 @@
 //! front executable. These tests run copies of the front in private prefixes,
 //! so the layout under test is the one each test builds, and decoy workers on
 //! PATH, in the cwd and in the environment would announce themselves if used.
+//!
+//! What crosses the private channel is seen from both ends: a fake worker
+//! records what the front sends it, and the shipped worker, driven directly,
+//! shows what it reports of a policy.
 
 mod support;
 
@@ -15,6 +19,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use serde_json::json;
+use support::direct::{drive_to_selection, shipped_worker};
 use support::{executable, run, text, Run, Sandbox, FRONT, ROUTED};
 
 const LAYOUT: &str = "libexec/harness-dispatch/harness-dispatch-policy";
@@ -142,7 +147,7 @@ fn a_symlink_to_the_front_still_finds_its_worker() {
     let real_bin = fs::canonicalize(FRONT).unwrap();
     let expected = real_bin.parent().unwrap().parent().unwrap().join(LAYOUT);
     assert_eq!(report["worker"]["path"], text(&expected));
-    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(report["selection"]["reason"], "impl runs the deep harness");
 }
 
 #[test]
@@ -407,11 +412,11 @@ fn a_worker_that_breaks_the_protocol_refuses_with_exit_5() {
 }
 
 #[test]
-fn the_request_carries_the_task_inputs_explicit_choice_and_limits_and_never_the_prompt() {
+fn the_request_carries_the_callers_inputs_the_prompt_the_parameters_and_the_limits() {
     // A fake worker with the real identity records the evaluate frame it is
     // sent, byte for byte, and exits; the front then refuses for want of a
     // result. The frame is everything the worker ever learns of the caller:
-    // the select frame that may follow it names no input at all.
+    // the context and select frames that may follow it name no input at all.
     let sandbox = Sandbox::new();
     sandbox.personal_policy(ROUTED);
     let (front, prefix) = copied_front(&sandbox);
@@ -422,24 +427,30 @@ fn the_request_carries_the_task_inputs_explicit_choice_and_limits_and_never_the_
     });
     let request_file = sandbox.root.join("request.json");
     recording_worker(&sandbox, &prefix.join(LAYOUT), &hello, &request_file);
-    let prompt_file = sandbox.file("mandate.md", "file-prompt-token\n");
+    let prompt_file = sandbox.file("mandate.md", "the mandate's text,\nwith its newline\n");
 
-    for prompt in [
-        ["--prompt", "argument-prompt-token"],
-        ["--prompt-file", "mandate.md"],
+    // The prompt reaches the worker byte for byte, whichever input gave it,
+    // and an inspection given none sends the marker the SDK names.
+    for (prompt, sent) in [
+        (
+            &["--prompt", "a prompt with \"quotes\" and $HOME"][..],
+            "a prompt with \"quotes\" and $HOME",
+        ),
+        (
+            &["--prompt-file", "mandate.md"][..],
+            "the mandate's text,\nwith its newline\n",
+        ),
+        (
+            &[][..],
+            "<harness-dispatch inspect: no prompt was supplied>",
+        ),
     ] {
         let _ = fs::remove_file(&request_file);
         let mut command = sandbox.command_for(&front);
         command
             .args(["inspect", "--kind", "impl", "--json"])
-            .args([
-                "--task-file",
-                "tasks/t.md",
-                "--task-id",
-                "T-7",
-                "--choice",
-                "deep",
-            ])
+            .args(["--task-file", "tasks/t.md", "--task-id", "T-7"])
+            .args(["--param", "session_name=a b", "--param", "repo=/work/repo"])
             .args(prompt);
         let refusal = run(&mut command).refusal(5);
         assert_eq!(refusal["error"]["code"], "worker_failed", "{refusal}");
@@ -450,12 +461,13 @@ fn the_request_carries_the_task_inputs_explicit_choice_and_limits_and_never_the_
         assert_eq!(
             message["request"],
             json!({
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "kind": "impl",
+                "prompt": sent,
                 "cwd": text(&sandbox.cwd),
+                "params": { "repo": "/work/repo", "session_name": "a b" },
                 "taskFile": text(&sandbox.cwd.join("tasks/t.md")),
                 "taskId": "T-7",
-                "explicitChoice": "deep",
                 "limits": {
                     "selectionMs": 30_000, "contextBytes": 262_144, "sourceBytes": 65_536,
                     "sources": 256, "messageBytes": 1_048_576, "diagnosticsBytes": 262_144,
@@ -472,8 +484,70 @@ fn the_request_carries_the_task_inputs_explicit_choice_and_limits_and_never_the_
             })
         );
         assert_eq!(message["measured"], json!([]));
-        for leak in ["prompt-token", "mandate.md", text(&prompt_file).as_str()] {
-            assert!(!raw.contains(leak), "{leak} reached the worker: {raw}");
+        // The prompt is its text alone: where it was read from is not sent.
+        for path in ["mandate.md", text(&prompt_file).as_str()] {
+            assert!(!raw.contains(path), "{path} reached the worker: {raw}");
         }
     }
+
+    // A caller that passes no parameter sends an empty set of them.
+    let _ = fs::remove_file(&request_file);
+    let mut command = sandbox.command_for(&front);
+    command.args(["inspect", "--kind", "impl", "--json"]);
+    run(&mut command).refusal(5);
+    let message: serde_json::Value = serde_json::from_str(&recorded(&request_file)).unwrap();
+    assert_eq!(message["request"]["params"], json!({}));
+}
+
+#[test]
+fn the_worker_reports_a_policy_and_what_its_select_returned_as_data_and_judges_neither() {
+    // The shipped worker, driven directly. Its report on the entry is the
+    // policy's own fields, each function a marker, and nothing else. Asked to
+    // select, it sends what `select` returned, built from the request it was
+    // handed, with a value JSON cannot carry marked where it sits: whether
+    // that is a command is the front's to say.
+    let sandbox = Sandbox::new();
+    let entry = sandbox.personal_policy(
+        r#"export const policy = {
+  schemaVersion: 2,
+  version: "seam-1",
+  loadContext() { return { schemaVersion: 1 }; },
+  select(request) {
+    return { status: "selected", program: "any-program", args: [request.kind, request.prompt, request.params], provider: () => "origin-a" };
+  },
+};
+"#,
+    );
+    let env = [
+        ("HOME", sandbox.home.clone().into()),
+        ("PATH", "/usr/bin:/bin".into()),
+        ("TMPDIR", sandbox.tmp.clone().into()),
+    ];
+    let driven = drive_to_selection(&shipped_worker(), &sandbox.root, &env, &entry);
+
+    let function = json!({ "$harnessDispatch": "function" });
+    assert_eq!(
+        driven.loaded(),
+        &json!({
+            "type": "policy",
+            "policy": {
+                "schemaVersion": 2, "version": "seam-1",
+                "loadContext": function, "select": function,
+            },
+            "adapter": null,
+        })
+    );
+    assert_eq!(
+        driven.selection,
+        Some(json!({
+            "type": "selection",
+            "result": {
+                "status": "selected", "program": "any-program",
+                "args": ["impl", "the prompt", {}], "provider": function,
+            },
+            "adapter": null,
+        })),
+        "stderr: {}",
+        driven.stderr
+    );
 }

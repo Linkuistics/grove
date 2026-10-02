@@ -2,7 +2,7 @@
 //! stage it happened in, the input or source involved, and a remedy
 //! (`docs/specs/harness-selection-and-execution.md`, *Diagnostics and exits*).
 //!
-//! A refusal never launches anything and never substitutes another candidate.
+//! A refusal never launches anything, and nothing is run in its place.
 //! Text mode renders it for a person on stderr; `--json` renders it as one JSON
 //! object on stderr and prints nothing on stdout, so a parser never sees a
 //! partial result. A refused `run` also names the equivalent `inspect`
@@ -47,11 +47,9 @@ pub enum Stage {
     Context,
     /// The policy's exported shape.
     Validation,
-    /// Choosing a candidate from a valid policy.
+    /// Calling a valid policy's `select` and judging what it returned.
     Selection,
-    /// Filling the selected candidate's argument slots.
-    Expansion,
-    /// Finding the selected candidate's program.
+    /// Finding the selected command's program.
     Resolution,
     /// Placing, opening, committing to or reading the run record store, and
     /// what it decides about an observation: its run, a repeat, a correction.
@@ -73,7 +71,6 @@ impl Stage {
             Stage::Context => "context",
             Stage::Validation => "validation",
             Stage::Selection => "selection",
-            Stage::Expansion => "expansion",
             Stage::Resolution => "resolution",
             Stage::Record => "record",
             Stage::Observation => "observation",
@@ -98,7 +95,7 @@ pub struct Details {
     pub input: Option<String>,
     /// The file the refusal is about, usually the resolved policy entry.
     pub source: Option<String>,
-    /// Where inside `source` the problem is (`policy.catalog[1].provider`).
+    /// Where inside `source` the problem is (`policy.select`, `result.args[2]`).
     pub location: Option<String>,
     /// A policy's own code for a refusal it returned, reported beside the
     /// stable `policy_refused` rather than in its place.
@@ -270,6 +267,12 @@ pub enum Invocation {
     },
 }
 
+/// What an equivalent invocation says of the prompt it leaves out: `select`
+/// receives the prompt, so a policy that reads it selects from the marker
+/// `inspect` sends in its place.
+const PROMPT_OMITTED: &str = "omitted: a policy that reads the prompt selects as it did only when \
+                              the same --prompt or --prompt-file is added";
+
 impl Invocation {
     fn unavailable(what: &str) -> String {
         format!("{what} is not valid UTF-8, so no command line reproduces it exactly")
@@ -277,13 +280,16 @@ impl Invocation {
 
     fn to_json(&self) -> Value {
         match self {
-            Invocation::Exact { cwd, argv } => json!({ "cwd": cwd, "argv": argv }),
+            Invocation::Exact { cwd, argv } => {
+                json!({ "cwd": cwd, "argv": argv, "prompt": PROMPT_OMITTED })
+            }
             Invocation::Unavailable { what } => json!({ "unavailable": Self::unavailable(what) }),
         }
     }
 
     /// One line a POSIX shell runs as the same invocation, in a subshell so
-    /// that pasting it leaves the reader's own directory alone.
+    /// that pasting it leaves the reader's own directory alone, and a second
+    /// saying that the prompt is left out.
     fn to_text(&self) -> String {
         let (cwd, argv) = match self {
             Invocation::Exact { cwd, argv } => (cwd, argv),
@@ -292,11 +298,11 @@ impl Invocation {
             }
         };
         let command: Vec<String> = argv.iter().map(|word| shell_word(word)).collect();
-        let command = command.join(" ");
-        match cwd {
-            Some(cwd) => format!("(cd {} && {command})", shell_word(cwd)),
-            None => command,
-        }
+        let command = match cwd {
+            Some(cwd) => format!("(cd {} && {})", shell_word(cwd), command.join(" ")),
+            None => command.join(" "),
+        };
+        format!("{command}\n  prompt: {PROMPT_OMITTED}")
     }
 }
 
@@ -466,11 +472,18 @@ mod tests {
         };
         assert_eq!(
             invocation.to_text(),
-            "(cd '/work/my repo' && harness-dispatch inspect --kind impl)"
+            format!(
+                "(cd '/work/my repo' && harness-dispatch inspect --kind impl)\n  prompt: \
+                 {PROMPT_OMITTED}"
+            )
         );
         assert_eq!(
             invocation.to_json(),
-            json!({ "cwd": "/work/my repo", "argv": ["harness-dispatch", "inspect", "--kind", "impl"] })
+            json!({
+                "cwd": "/work/my repo",
+                "argv": ["harness-dispatch", "inspect", "--kind", "impl"],
+                "prompt": PROMPT_OMITTED,
+            })
         );
     }
 }

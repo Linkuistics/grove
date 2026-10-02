@@ -22,7 +22,7 @@ use support::{run, text, Sandbox};
 /// the loop driver still scrubs (`crates/grove-loop/src/loop_driver.rs`).
 const COMPLETION: [&str; 3] = ["GROVE_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"];
 
-/// A routes policy that records, at import, the environment it was given and
+/// A policy that records, at import, the environment it was given and
 /// the one a child it spawns inherits: every name, and the value of each
 /// name in `values`.
 fn viewing_policy(view: &Path, values: &[&str]) -> String {
@@ -308,7 +308,7 @@ fn inspection_and_records_name_each_grant_and_never_show_its_value() {
     );
     // A refused run reproduces its selection with the names alone.
     let refused = run(&mut command(&[
-        "run", "--kind", "impl", "--choice", "absent", "--prompt", "p", "--json",
+        "run", "--kind", "design", "--prompt", "p", "--json",
     ]));
     let argv = refused.refusal(3)["error"]["inspect"]["argv"].clone();
     let argv: Vec<&str> = argv

@@ -1,6 +1,6 @@
-//! `run` through the command seam: prompt and task inputs, argument slots,
-//! program resolution, and the plain exec that hands the caller's process to
-//! the fake harness.
+//! `run` through the command seam: prompt and task inputs, the argv `select`
+//! builds from them, program resolution, and the plain exec that hands the
+//! caller's process to the fake harness.
 //!
 //! The fake harness records its arguments, physical cwd and PID, so a test can
 //! show that it received the exact words, ran where the caller ran, and is the
@@ -20,30 +20,44 @@ use std::time::{Duration, Instant};
 use serde_json::Value;
 use support::{executable, run, text, Sandbox, FAKE_HARNESS, FRONT};
 
-/// A policy with one candidate per routed kind, each `{ id, program, args }`
-/// given as a TypeScript object literal fragment.
-fn policy(candidates: &[(&str, &str, &str)]) -> String {
-    let catalog: Vec<String> = candidates
+/// A policy whose `select` consults a table by kind, each entry `(kind,
+/// program, args)` with its program and its argument array given as JavaScript
+/// expressions that read `request`. A kind the table does not name refuses.
+fn policy(commands: &[(&str, &str, &str)]) -> String {
+    let table: Vec<String> = commands
         .iter()
-        .map(|(id, program, args)| {
+        .map(|(kind, program, args)| {
             format!(
-                r#"{{ id: "{id}", provider: "origin-{id}", model: "model-{id}", effort: "effort-{id}", program: {program}, args: {args} }}"#
+                r#"  "{kind}": (request) => ({{ program: {program}, args: {args}, provider: "origin-{kind}", model: "model-{kind}", effort: "effort-{kind}" }}),"#
             )
         })
         .collect();
-    let routes: Vec<String> = candidates
-        .iter()
-        .map(|(id, _, _)| format!(r#""{id}": "{id}""#))
-        .collect();
     format!(
-        "export const policy = {{ schemaVersion: 1, version: \"run-1\", catalog: [{}], routes: {{ {} }} }};\n",
-        catalog.join(", "),
-        routes.join(", ")
+        r#"const table = {{
+{}
+}};
+export const policy = {{
+  schemaVersion: 2,
+  version: "run-1",
+  select(request) {{
+    const route = Object.hasOwn(table, request.kind) ? table[request.kind] : undefined;
+    if (route === undefined) {{
+      return {{ status: "refused", code: "incomplete_mapping", message: `no command for kind ${{JSON.stringify(request.kind)}}`, remedy: "add one to the table" }};
+    }}
+    return {{ status: "selected", ...route(request), reason: `the table's entry for ${{request.kind}}` }};
+  }},
+}};
+"#,
+        table.join("\n")
     )
 }
 
-/// Every slot, among literals a shell would have mangled.
-const EVERY_SLOT: &str = r#"["--model", { slot: "model" }, "--effort", { slot: "effort" }, "--kind", { slot: "kind" }, "--task", { slot: "taskFile" }, "--id", { slot: "taskId" }, "literal $HOME {prompt} 'single' \"double\" ; & | `tick` *", { slot: "prompt" }]"#;
+/// The prompt as the command's one argument.
+const PROMPT: &str = "[request.prompt]";
+
+/// Every caller input, among literals a shell would have mangled, with one
+/// parameter a whole argument and another built into the middle of one.
+const EVERY_INPUT: &str = r#"["--kind", request.kind, "--task", request.taskFile, "--id", request.taskId, "--cwd", request.cwd, request.params.session_name, `--repo=${request.params.repo};tail`, "literal $HOME {prompt} 'single' \"double\" ; & | `tick` *", request.prompt]"#;
 
 const AWKWARD_PROMPT: &str =
     "Fix the \"parser\"; don't `rm -rf` $HOME && echo 'done' | tee *\n\nsecond line\t$(date)\n\n";
@@ -51,12 +65,14 @@ const AWKWARD_PROMPT: &str =
 #[test]
 fn run_hands_the_exact_argv_to_the_harness_in_the_callers_own_process_and_cwd() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(&[("impl", r#""fake-harness""#, EVERY_SLOT)]));
+    sandbox.personal_policy(&policy(&[("impl", r#""fake-harness""#, EVERY_INPUT)]));
     let cwd = sandbox
         .cwd
         .join("dir with spaces 'single' \"double\" ; & | $x\nand a newline");
     fs::create_dir_all(cwd.join("tasks")).unwrap();
     let task_id = "harness-exec-k14 with spaces \"and quotes\" ; $x";
+    let session_name = "repo: a 'grove' \"session\" ; $(x) `y`\n\tsecond line\n";
+    let repo = "/work/my repo's \"tree\" $x";
 
     let mut command = sandbox.command();
     command.current_dir(&cwd).args([
@@ -69,6 +85,10 @@ fn run_hands_the_exact_argv_to_the_harness_in_the_callers_own_process_and_cwd() 
         "tasks/leaf one's \"task\"; $(x).md",
         "--task-id",
         task_id,
+        "--param",
+        &format!("session_name={session_name}"),
+        "--param",
+        &format!("repo={repo}"),
     ]);
     let child = command
         .stdout(Stdio::piped())
@@ -87,16 +107,16 @@ fn run_hands_the_exact_argv_to_the_harness_in_the_callers_own_process_and_cwd() 
     assert_eq!(
         sandbox.harness_args(),
         [
-            "--model",
-            "model-impl",
-            "--effort",
-            "effort-impl",
             "--kind",
             "impl",
             "--task",
             &text(&cwd.join("tasks/leaf one's \"task\"; $(x).md")),
             "--id",
             task_id,
+            "--cwd",
+            &text(&cwd),
+            session_name,
+            &format!("--repo={repo};tail"),
             "literal $HOME {prompt} 'single' \"double\" ; & | `tick` *",
             AWKWARD_PROMPT,
         ]
@@ -113,20 +133,18 @@ fn run_hands_the_exact_argv_to_the_harness_in_the_callers_own_process_and_cwd() 
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.starts_with("harness-dispatch: running candidate \"impl\"")
-            && stderr.matches('\n').count() == 1,
-        "one short choice line on stderr: {stderr}"
+        stderr.starts_with(
+            "harness-dispatch: running provider origin-impl, model model-impl, effort \
+             effort-impl for kind \"impl\" as run "
+        ) && stderr.matches('\n').count() == 1,
+        "one short handoff line on stderr: {stderr}"
     );
 }
 
 #[test]
 fn a_prompt_file_is_read_once_with_its_exact_bytes_from_the_callers_cwd() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(&[(
-        "impl",
-        r#""fake-harness""#,
-        r#"[{ slot: "prompt" }]"#,
-    )]));
+    sandbox.personal_policy(&policy(&[("impl", r#""fake-harness""#, PROMPT)]));
     sandbox.file("prompts/mandate.md", AWKWARD_PROMPT);
 
     let run = sandbox.run(&["--kind", "impl", "--prompt-file", "prompts/mandate.md"]);
@@ -178,11 +196,7 @@ fn handed_through(sandbox: &Sandbox, front: &Path) -> Handed {
 #[test]
 fn the_harness_keeps_the_callers_stdin_stdout_and_other_descriptors() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(&[(
-        "impl",
-        r#""fake-harness""#,
-        r#"[{ slot: "prompt" }]"#,
-    )]));
+    sandbox.personal_policy(&policy(&[("impl", r#""fake-harness""#, PROMPT)]));
 
     let handed = handed_through(&sandbox, Path::new(FRONT));
 
@@ -238,11 +252,7 @@ fn a_stand_in_front_that_closes_replaces_or_adds_a_descriptor_or_reads_stdin_is_
 #[test]
 fn the_harness_exits_with_its_own_code_and_signal() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(&[(
-        "impl",
-        r#""fake-harness""#,
-        r#"[{ slot: "prompt" }]"#,
-    )]));
+    sandbox.personal_policy(&policy(&[("impl", r#""fake-harness""#, PROMPT)]));
 
     // 3 is also a preflight exit; after exec it is simply the harness's own.
     for code in [42, 3, 0] {
@@ -268,11 +278,7 @@ fn the_harness_exits_with_its_own_code_and_signal() {
 #[test]
 fn run_requires_exactly_one_prompt_input() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(&[(
-        "impl",
-        r#""fake-harness""#,
-        r#"[{ slot: "prompt" }]"#,
-    )]));
+    sandbox.personal_policy(&policy(&[("impl", r#""fake-harness""#, PROMPT)]));
     let file = sandbox.file("prompt.md", "p");
 
     let refusal = sandbox.run(&["--kind", "impl", "--json"]).refusal(2);
@@ -306,11 +312,7 @@ fn run_requires_exactly_one_prompt_input() {
 #[test]
 fn a_prompt_that_starts_with_hyphens_is_still_the_prompt() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(&[(
-        "impl",
-        r#""fake-harness""#,
-        r#"[{ slot: "prompt" }]"#,
-    )]));
+    sandbox.personal_policy(&policy(&[("impl", r#""fake-harness""#, PROMPT)]));
     let run = sandbox.run(&["--kind", "impl", "--prompt", "--json is not a flag here"]);
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     assert_eq!(sandbox.harness_args(), ["--json is not a flag here"]);
@@ -320,8 +322,8 @@ fn a_prompt_that_starts_with_hyphens_is_still_the_prompt() {
 fn a_json_prompt_or_task_id_is_data_and_never_chooses_the_output_format() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&policy(&[
-        ("impl", r#""fake-harness""#, r#"[{ slot: "prompt" }]"#),
-        ("broken", r#""./broken-harness""#, r#"[{ slot: "prompt" }]"#),
+        ("impl", r#""fake-harness""#, PROMPT),
+        ("broken", r#""./broken-harness""#, PROMPT),
     ]));
     // Its `#!` interpreter does not exist, so exec fails after the commit.
     executable(
@@ -344,15 +346,16 @@ fn a_json_prompt_or_task_id_is_data_and_never_chooses_the_output_format() {
             invocation.args([command, "--kind", "unrouted"]).args(data);
             run(&mut invocation)
         };
-        text_refusal(&unrouted(&["--prompt", "--json"]), 3, "incomplete_mapping");
+        text_refusal(&unrouted(&["--prompt", "--json"]), 3, "policy_refused");
         text_refusal(
             &unrouted(&["--prompt", "p", "--task-id", "--json"]),
             3,
-            "incomplete_mapping",
+            "policy_refused",
         );
         // The control: the same refusal, asked for as JSON, is JSON.
         let json = unrouted(&["--prompt", "p", "--json"]).refusal(3);
-        assert_eq!(json["error"]["code"], "incomplete_mapping");
+        assert_eq!(json["error"]["code"], "policy_refused");
+        assert_eq!(json["error"]["policyCode"], "incomplete_mapping");
     }
 
     // A routed run announces its handoff as text, and the harness receives
@@ -362,7 +365,7 @@ fn a_json_prompt_or_task_id_is_data_and_never_chooses_the_output_format() {
     assert!(
         routed
             .stderr
-            .starts_with("harness-dispatch: running candidate"),
+            .starts_with("harness-dispatch: running provider origin-impl"),
         "{}",
         routed.stderr
     );
@@ -371,7 +374,7 @@ fn a_json_prompt_or_task_id_is_data_and_never_chooses_the_output_format() {
     let inspected = sandbox.inspect(&["--kind", "impl", "--prompt", "--json"]);
     assert_eq!(inspected.code, Some(0), "{}", inspected.stderr);
     assert!(
-        inspected.stdout.contains("candidate  impl"),
+        inspected.stdout.contains("provider   origin-impl"),
         "{}",
         inspected.stdout
     );
@@ -381,7 +384,7 @@ fn a_json_prompt_or_task_id_is_data_and_never_chooses_the_output_format() {
     assert_eq!(broken.code, Some(127), "{}", broken.stderr);
     let (notice, refusal) = broken.stderr.split_once('\n').unwrap();
     assert!(
-        notice.starts_with("harness-dispatch: running candidate"),
+        notice.starts_with("harness-dispatch: running provider origin-broken"),
         "{}",
         broken.stderr
     );
@@ -399,7 +402,11 @@ fn an_invalid_or_unreadable_prompt_is_refused_before_policy_runs() {
     sandbox.personal_policy(&format!(
         "import {{ writeFileSync }} from \"node:fs\";\nwriteFileSync({:?}, \"fired\");\n{}",
         text(&sentinel),
-        policy(&[("impl", r#""fake-harness""#, r#"[{ slot: "prompt" }]"#)])
+        policy(&[(
+            "impl",
+            r#""fake-harness""#,
+            "[String(request.prompt.length)]"
+        )])
     ));
     let limit = 1024 * 1024;
     let write = |name: &str, bytes: &[u8]| {
@@ -445,25 +452,22 @@ fn an_invalid_or_unreadable_prompt_is_refused_before_policy_runs() {
     );
     assert!(!sandbox.harness_ran());
 
-    // The positive control: exactly 1 MiB of valid UTF-8 is accepted. It goes
-    // through `inspect`, since one argument that long exceeds exec's own
-    // limits on both supported platforms.
+    // The positive control: exactly 1 MiB of valid UTF-8 is accepted, and
+    // `select` receives all of it. The policy returns its length and not the
+    // prompt, which would not fit a result within the protocol message bound.
     let path = write("limit", &vec![b'a'; limit]);
     let report = sandbox
         .inspect(&["--kind", "impl", "--prompt-file", &path, "--json"])
         .report();
     assert_eq!(report["prompt"]["bytes"], limit);
+    assert_eq!(report["command"]["args"][0], limit.to_string());
     assert!(sentinel.exists(), "the control never evaluated the policy");
 }
 
 #[test]
 fn a_terminal_is_never_read_as_the_prompt() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(&[(
-        "impl",
-        r#""fake-harness""#,
-        r#"[{ slot: "prompt" }]"#,
-    )]));
+    sandbox.personal_policy(&policy(&[("impl", r#""fake-harness""#, PROMPT)]));
     // The controlling side stays open and writes nothing. A front that read
     // the terminal would block on it, which the deadline below turns into a
     // failure rather than a hung test.
@@ -534,79 +538,17 @@ fn pseudo_terminal() -> (std::os::fd::OwnedFd, String) {
 }
 
 #[test]
-fn an_absent_optional_input_satisfies_no_slot() {
-    let sandbox = Sandbox::new();
-    let entry = sandbox.personal_policy(&policy(&[
-        (
-            "file",
-            r#""fake-harness""#,
-            r#"[{ slot: "prompt" }, { slot: "taskFile" }]"#,
-        ),
-        (
-            "id",
-            r#""fake-harness""#,
-            r#"["--id", { slot: "taskId" }, { slot: "prompt" }]"#,
-        ),
-    ]));
-
-    for (kind, flag, location) in [
-        ("file", "--task-file", "policy.catalog[0].args[1]"),
-        ("id", "--task-id", "policy.catalog[1].args[1]"),
-    ] {
-        for command in ["run", "inspect"] {
-            let mut invocation = sandbox.command();
-            invocation.args([command, "--kind", kind, "--prompt", "p", "--json"]);
-            let refusal = run(&mut invocation).refusal(3);
-            let error = &refusal["error"];
-            assert_eq!(error["code"], "missing_input", "{kind} {command}");
-            assert_eq!(error["stage"], "expansion", "{kind} {command}");
-            assert_eq!(error["input"], flag, "{kind} {command}");
-            assert_eq!(error["location"], location, "{kind} {command}");
-            assert_eq!(error["source"], text(&entry), "{kind} {command}");
-        }
-    }
-    assert!(!sandbox.harness_ran());
-
-    // The positive control: the same candidates with their inputs launch.
-    let run = sandbox.run(&["--kind", "file", "--prompt", "p", "--task-file", "t.md"]);
-    assert_eq!(run.code, Some(0), "{}", run.stderr);
-    assert_eq!(
-        sandbox.harness_args(),
-        ["p", &text(&sandbox.cwd.join("t.md"))]
-    );
-    fs::remove_dir_all(&sandbox.record).unwrap();
-    let run = sandbox.run(&["--kind", "id", "--prompt", "p", "--task-id", "T-1"]);
-    assert_eq!(run.code, Some(0), "{}", run.stderr);
-    assert_eq!(sandbox.harness_args(), ["--id", "T-1", "p"]);
-}
-
-#[test]
 fn a_grove_shaped_task_file_supplies_neither_kind_nor_identity() {
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&policy(&[(
         "impl",
         r#""fake-harness""#,
-        r#"[{ slot: "taskId" }, { slot: "prompt" }]"#,
+        r#"[request.kind, String(request.taskId), request.prompt]"#,
     )]));
     let task = sandbox.file(
         ".grove/14-k12/02-impl--harness-exec-k14.md",
         "# harness-exec-k14\n\n**Reviews:** static-dispatch-k12\n",
     );
-
-    // No --task-id: the handle in the file name is not an identity.
-    let refusal = sandbox
-        .run(&[
-            "--kind",
-            "impl",
-            "--prompt",
-            "p",
-            "--task-file",
-            &text(&task),
-            "--json",
-        ])
-        .refusal(3);
-    assert_eq!(refusal["error"]["code"], "missing_input");
-    assert_eq!(refusal["error"]["input"], "--task-id");
 
     // The file name says `impl`, but only --kind names the kind.
     let refusal = sandbox
@@ -622,8 +564,23 @@ fn a_grove_shaped_task_file_supplies_neither_kind_nor_identity() {
             "--json",
         ])
         .refusal(3);
-    assert_eq!(refusal["error"]["code"], "incomplete_mapping");
+    assert_eq!(refusal["error"]["code"], "policy_refused");
+    assert_eq!(refusal["error"]["policyCode"], "incomplete_mapping");
+    assert_eq!(refusal["error"]["input"], "--kind design");
     assert!(!sandbox.harness_ran());
+
+    // No --task-id: the handle in the file name is not an identity, and the
+    // request has none.
+    let run = sandbox.run(&[
+        "--kind",
+        "impl",
+        "--prompt",
+        "p",
+        "--task-file",
+        &text(&task),
+    ]);
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert_eq!(sandbox.harness_args(), ["impl", "undefined", "p"]);
 }
 
 #[test]
@@ -632,7 +589,7 @@ fn task_identity_and_file_inputs_are_checked_as_caller_data() {
     sandbox.personal_policy(&policy(&[(
         "impl",
         r#""fake-harness""#,
-        r#"["--id", { slot: "taskId" }, { slot: "prompt" }]"#,
+        r#"["--id", request.taskId, request.prompt]"#,
     )]));
     let at_limit = "k".repeat(1024);
     let over = "k".repeat(1025);
@@ -678,43 +635,49 @@ fn the_program_resolves_as_a_path_name_an_absolute_path_or_a_cwd_relative_path()
     let absolute = sandbox.bin.join("fake-harness");
     executable(&sandbox.cwd.join("tools/local-harness"), FAKE_HARNESS);
     sandbox.personal_policy(&policy(&[
-        ("path", r#""fake-harness""#, r#"[{ slot: "prompt" }]"#),
-        (
-            "absolute",
-            &format!("{:?}", text(&absolute)),
-            r#"[{ slot: "prompt" }]"#,
-        ),
-        (
-            "relative",
-            r#""./tools/local-harness""#,
-            r#"[{ slot: "prompt" }]"#,
-        ),
+        ("path", r#""fake-harness""#, PROMPT),
+        ("absolute", &format!("{:?}", text(&absolute)), PROMPT),
+        ("relative", r#""./tools/local-harness""#, PROMPT),
     ]));
 
     let expectations = [
-        ("path", "fake-harness".to_owned(), "PATH", absolute.clone()),
-        ("absolute", text(&absolute), "absolute", absolute.clone()),
+        (
+            "path",
+            "fake-harness".to_owned(),
+            format!("(found on PATH in {})", text(&sandbox.bin)),
+            absolute.clone(),
+        ),
+        (
+            "absolute",
+            text(&absolute),
+            "(an absolute path)".to_owned(),
+            absolute.clone(),
+        ),
         (
             "relative",
             "./tools/local-harness".to_owned(),
-            "cwd",
+            "(relative to the current directory)".to_owned(),
             sandbox.cwd.join("./tools/local-harness"),
         ),
     ];
-    for (kind, program, resolved_by, path) in expectations {
+    for (kind, program, how, path) in expectations {
         let report = sandbox
             .inspect(&["--kind", kind, "--prompt", "p", "--json"])
             .report();
-        let executable = &report["executable"];
-        assert_eq!(executable["program"], program.as_str(), "{kind}: {report}");
-        assert_eq!(executable["resolvedBy"], resolved_by, "{kind}");
-        assert_eq!(executable["path"], text(&path), "{kind}");
-        assert_eq!(report["argv"][0], program.as_str(), "{kind}");
-        if kind == "path" {
-            assert_eq!(executable["pathEntry"], text(&sandbox.bin));
-        } else {
-            assert!(executable.get("pathEntry").is_none(), "{kind}");
-        }
+        // The program as `select` returned it, and the file it resolved to.
+        assert_eq!(
+            report["command"],
+            serde_json::json!({ "program": program, "args": ["p"], "executable": text(&path) }),
+            "{kind}: {report}"
+        );
+        let human = sandbox.inspect(&["--kind", kind, "--prompt", "p"]);
+        assert!(
+            human
+                .stdout
+                .contains(&format!("  executable {} {how}\n", text(&path))),
+            "{kind}: {}",
+            human.stdout
+        );
 
         fs::remove_dir_all(&sandbox.record).ok();
         let run = sandbox.run(&["--kind", kind, "--prompt", "p"]);
@@ -726,11 +689,7 @@ fn the_program_resolves_as_a_path_name_an_absolute_path_or_a_cwd_relative_path()
 #[test]
 fn a_path_search_passes_over_a_non_executable_match_as_execvp_does() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(&[(
-        "impl",
-        r#""shadowed""#,
-        r#"[{ slot: "prompt" }]"#,
-    )]));
+    sandbox.personal_policy(&policy(&[("impl", r#""shadowed""#, PROMPT)]));
     let first = sandbox.root.join("first");
     let later = sandbox.root.join("later");
     support::write(&first.join("shadowed"), FAKE_HARNESS); // not executable
@@ -743,7 +702,10 @@ fn a_path_search_passes_over_a_non_executable_match_as_execvp_does() {
         .env("PATH", &path)
         .args(["inspect", "--kind", "impl", "--json"]);
     let report = run(&mut command).report();
-    assert_eq!(report["executable"]["pathEntry"], text(&later));
+    assert_eq!(
+        report["command"]["executable"],
+        text(&later.join("shadowed"))
+    );
 
     // Only a non-executable match anywhere is unexecutable, not missing.
     let mut command = sandbox.command();
@@ -758,11 +720,7 @@ fn a_path_search_passes_over_a_non_executable_match_as_execvp_does() {
 #[test]
 fn an_empty_path_entry_is_the_cwd_even_when_it_is_the_whole_path() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(&[(
-        "impl",
-        r#""agent""#,
-        r#"[{ slot: "prompt" }]"#,
-    )]));
+    sandbox.personal_policy(&policy(&[("impl", r#""agent""#, PROMPT)]));
     // The harness in the cwd gives the fake harness a PATH of its own, since
     // it inherits the caller's.
     executable(
@@ -782,13 +740,18 @@ fn an_empty_path_entry_is_the_cwd_even_when_it_is_the_whole_path() {
     // A wholly empty PATH is one empty entry, as `:` is two.
     for path in ["", ":", "/nonexistent:"] {
         let report = with_path(path, "inspect").report();
-        let executable = &report["executable"];
-        assert_eq!(executable["resolvedBy"], "PATH", "{path:?}: {report}");
-        assert_eq!(executable["pathEntry"], "", "{path:?}");
         assert_eq!(
-            executable["path"],
+            report["command"]["executable"],
             text(&sandbox.cwd.join("agent")),
-            "{path:?}"
+            "{path:?}: {report}"
+        );
+        let mut human = sandbox.command();
+        human.env("PATH", path).args(["inspect", "--kind", "impl"]);
+        let human = run(&mut human);
+        assert!(
+            human.stdout.contains("agent (found on PATH in )\n"),
+            "{path:?}: {}",
+            human.stdout
         );
 
         fs::remove_dir_all(&sandbox.record).ok();
@@ -818,44 +781,52 @@ fn an_empty_path_entry_is_the_cwd_even_when_it_is_the_whole_path() {
 }
 
 #[test]
-fn a_nul_in_a_catalog_argument_refuses_before_anything_is_recorded() {
+fn a_nul_in_a_returned_argument_or_program_refuses_before_anything_is_recorded() {
     let sandbox = Sandbox::new();
-    let entry = sandbox.personal_policy(&policy(&[(
-        "impl",
-        r#""fake-harness""#,
-        r#"["before\0after", { slot: "prompt" }]"#,
-    )]));
-    let refusal = sandbox
-        .run(&["--kind", "impl", "--prompt", "p", "--json"])
-        .refusal(3);
-    let error = &refusal["error"];
-    assert_eq!(error["code"], "policy_invalid", "{refusal}");
-    assert_eq!(error["stage"], "validation");
-    assert_eq!(error["source"], text(&entry));
-    assert_eq!(error["location"], "policy.catalog[0].args[0]");
+    let entry = sandbox.personal_policy(&policy(&[
+        (
+            "argument",
+            r#""fake-harness""#,
+            r#"[request.prompt, "before\0after"]"#,
+        ),
+        ("program", r#""fake-harness\0""#, PROMPT),
+    ]));
+    for (kind, location) in [
+        ("argument", "result.args[1]"),
+        ("program", "result.program"),
+    ] {
+        let refusal = sandbox
+            .run(&["--kind", kind, "--prompt", "p", "--json"])
+            .refusal(3);
+        let error = &refusal["error"];
+        assert_eq!(error["code"], "selection_malformed", "{kind}: {refusal}");
+        assert_eq!(error["stage"], "selection", "{kind}");
+        assert_eq!(error["source"], text(&entry), "{kind}");
+        assert_eq!(error["location"], location, "{kind}");
+        assert!(
+            error["message"].as_str().unwrap().contains("NUL"),
+            "{kind}: {refusal}"
+        );
+    }
     assert!(!sandbox.default_store().exists(), "a run was recorded");
     assert!(!sandbox.harness_ran());
 }
 
 #[test]
-fn a_missing_program_exits_127_and_never_falls_back_to_another_candidate() {
+fn a_missing_program_exits_127_and_nothing_runs_in_its_place() {
     let sandbox = Sandbox::new();
     let entry = sandbox.personal_policy(&policy(&[
-        ("named", r#""no-such-harness""#, r#"[{ slot: "prompt" }]"#),
+        ("named", r#""no-such-harness""#, PROMPT),
         (
             "absolute",
             &format!("{:?}", text(&sandbox.root.join("absent/harness"))),
-            r#"[{ slot: "prompt" }]"#,
+            PROMPT,
         ),
-        (
-            "relative",
-            r#""./absent/harness""#,
-            r#"[{ slot: "prompt" }]"#,
-        ),
-        ("working", r#""fake-harness""#, r#"[{ slot: "prompt" }]"#),
+        ("relative", r#""./absent/harness""#, PROMPT),
+        ("working", r#""fake-harness""#, PROMPT),
     ]));
 
-    for (index, kind) in ["named", "absolute", "relative"].iter().enumerate() {
+    for kind in ["named", "absolute", "relative"] {
         for command in ["run", "inspect"] {
             let mut invocation = sandbox.command();
             invocation.args([command, "--kind", kind, "--prompt", "p", "--json"]);
@@ -864,24 +835,28 @@ fn a_missing_program_exits_127_and_never_falls_back_to_another_candidate() {
             assert_eq!(error["code"], "program_not_found", "{kind} {command}");
             assert_eq!(error["stage"], "resolution", "{kind} {command}");
             assert_eq!(error["source"], text(&entry), "{kind} {command}");
-            assert_eq!(
-                error["location"],
-                format!("policy.catalog[{index}].program"),
-                "{kind} {command}"
+            assert_eq!(error["location"], "result.program", "{kind} {command}");
+            assert!(
+                error["message"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with(&format!("select in {} returned the program ", text(&entry))),
+                "{refusal}"
             );
             assert!(
                 error["remedy"]
                     .as_str()
                     .unwrap()
-                    .contains("never runs another candidate"),
+                    .contains("never runs another command"),
                 "{refusal}"
             );
         }
     }
-    assert!(!sandbox.harness_ran(), "another candidate ran instead");
+    assert!(!sandbox.harness_ran(), "another command ran instead");
+    assert!(!sandbox.default_store().exists(), "a run was recorded");
 
-    // Only the selected program is checked: the missing ones in the same
-    // catalog do not stop the working candidate.
+    // Only the returned program is resolved: the missing ones the same table
+    // holds do not stop the working one.
     let run = sandbox.run(&["--kind", "working", "--prompt", "p"]);
     assert_eq!(run.code, Some(0), "{}", run.stderr);
 }
@@ -894,16 +869,8 @@ fn an_unexecutable_program_exits_126() {
     let directory = sandbox.root.join("a-directory");
     fs::create_dir(&directory).unwrap();
     sandbox.personal_policy(&policy(&[
-        (
-            "plain",
-            &format!("{:?}", text(&plain)),
-            r#"[{ slot: "prompt" }]"#,
-        ),
-        (
-            "directory",
-            &format!("{:?}", text(&directory)),
-            r#"[{ slot: "prompt" }]"#,
-        ),
+        ("plain", &format!("{:?}", text(&plain)), PROMPT),
+        ("directory", &format!("{:?}", text(&directory)), PROMPT),
     ]));
 
     for kind in ["plain", "directory"] {
@@ -912,8 +879,10 @@ fn an_unexecutable_program_exits_126() {
             .refusal(126);
         assert_eq!(refusal["error"]["code"], "program_unexecutable", "{kind}");
         assert_eq!(refusal["error"]["stage"], "resolution", "{kind}");
+        assert_eq!(refusal["error"]["location"], "result.program", "{kind}");
     }
     assert!(!sandbox.harness_ran());
+    assert!(!sandbox.default_store().exists(), "a run was recorded");
 }
 
 #[test]
@@ -922,23 +891,24 @@ fn an_exec_error_reports_errno_with_a_remedy() {
     let orphan = sandbox.root.join("orphan-script");
     executable(&orphan, "#!/nonexistent/interpreter\n");
     sandbox.personal_policy(&policy(&[
-        ("impl", r#""fake-harness""#, r#"[{ slot: "prompt" }]"#),
-        (
-            "orphan",
-            &format!("{:?}", text(&orphan)),
-            r#"[{ slot: "prompt" }]"#,
-        ),
+        ("impl", r#""fake-harness""#, PROMPT),
+        ("orphan", &format!("{:?}", text(&orphan)), PROMPT),
     ]));
 
-    // One argument of 1 MiB passes the prompt bound but not exec's own
-    // argument limits, on macOS and on Linux: E2BIG.
-    let large = sandbox.file("large", &"a".repeat(1024 * 1024));
-    let refusal = sandbox
-        .run(&["--kind", "impl", "--prompt-file", &text(&large), "--json"])
-        .stderr;
+    // One argument a page short of 1 MiB fits a selection result, but not
+    // exec's own limits: Linux bounds one argument far lower, and on macOS the
+    // arguments and the environment, padded here, come to more than it
+    // carries together. E2BIG.
+    let large = sandbox.file("large", &"a".repeat(1024 * 1024 - 4096));
+    let mut command = sandbox.command();
+    command
+        .env("PADDING", "p".repeat(16 * 1024))
+        .args(["run", "--kind", "impl", "--json", "--prompt-file"])
+        .arg(&large);
+    let refusal = run(&mut command).stderr;
     let mut lines = refusal.lines();
     let handoff: Value = serde_json::from_str(lines.next().unwrap()).unwrap();
-    assert_eq!(handoff["handoff"]["candidateId"], "impl");
+    assert_eq!(handoff["handoff"]["provider"], "origin-impl");
     let error: Value = serde_json::from_str(lines.next().unwrap()).unwrap();
     assert!(lines.next().is_none(), "{refusal}");
     assert_eq!(error["error"]["code"], "exec_failed");
@@ -968,7 +938,7 @@ fn run_json_writes_one_handoff_line_on_stderr_and_leaves_stdout_to_the_harness()
     let sandbox = Sandbox::new();
     sandbox.personal_policy(&format!(
         "console.log(\"policy chatter\");\n{}",
-        policy(&[("impl", r#""fake-harness""#, r#"[{ slot: "prompt" }]"#)])
+        policy(&[("impl", r#""fake-harness""#, PROMPT)])
     ));
 
     let run = sandbox.run(&["--kind", "impl", "--prompt", "p", "--json"]);
@@ -979,11 +949,26 @@ fn run_json_writes_one_handoff_line_on_stderr_and_leaves_stdout_to_the_harness()
     let notice: Value = serde_json::from_str(&run.stderr).unwrap();
     assert_eq!(notice["schemaVersion"], 1);
     let handoff = &notice["handoff"];
+    assert_eq!(
+        handoff.as_object().unwrap().keys().collect::<Vec<_>>(),
+        [
+            "effort",
+            "executable",
+            "kind",
+            "model",
+            "provider",
+            "reason",
+            "recordedAt",
+            "runId",
+            "stateDir"
+        ]
+    );
+    assert_eq!(handoff["runId"], sandbox.harness_run_id());
     assert_eq!(handoff["kind"], "impl");
-    assert_eq!(handoff["candidateId"], "impl");
     assert_eq!(handoff["provider"], "origin-impl");
     assert_eq!(handoff["model"], "model-impl");
     assert_eq!(handoff["effort"], "effort-impl");
+    assert_eq!(handoff["reason"], "the table's entry for impl");
     assert_eq!(
         handoff["executable"],
         text(&sandbox.bin.join("fake-harness"))
@@ -993,7 +978,7 @@ fn run_json_writes_one_handoff_line_on_stderr_and_leaves_stdout_to_the_harness()
         .unwrap()
         .contains("policy chatter"));
 
-    // Text mode prefixes the policy's output and ends with the choice line.
+    // Text mode prefixes the policy's output and ends with the handoff line.
     fs::remove_dir_all(&sandbox.record).unwrap();
     let run = sandbox.run(&["--kind", "impl", "--prompt", "p"]);
     assert_eq!(run.code, Some(0), "{}", run.stderr);
@@ -1014,11 +999,7 @@ fn inspection_reports_where_a_relative_prompt_file_was_read() {
     // A relative --prompt-file resolves against the caller's cwd, like
     // --task-file.
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(&policy(&[(
-        "impl",
-        r#""fake-harness""#,
-        r#"[{ slot: "prompt" }]"#,
-    )]));
+    sandbox.personal_policy(&policy(&[("impl", r#""fake-harness""#, PROMPT)]));
     sandbox.file("in/prompt.md", "from a file\n");
     let report = sandbox
         .inspect(&["--kind", "impl", "--prompt-file", "in/prompt.md", "--json"])
@@ -1030,6 +1011,6 @@ fn inspection_reports_where_a_relative_prompt_file_was_read() {
         text(&sandbox.cwd.join("in/prompt.md"))
     );
     assert_eq!(report["prompt"]["bytes"], 12);
-    assert_eq!(report["argv"][1], "from a file\n");
+    assert_eq!(report["command"]["args"][0], "from a file\n");
     assert!(!sandbox.harness_ran(), "inspection launched the harness");
 }

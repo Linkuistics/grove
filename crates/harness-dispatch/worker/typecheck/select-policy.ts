@@ -1,45 +1,34 @@
-// A computed `select` policy, type-checked against the SDK's shipped
-// declarations by `task dispatch:typecheck`, and evaluated through the
-// compiled worker by the command-seam tests, so the declarations and the
-// runtime agree on it. `request` is typed by the policy's own form, with no
-// annotation, and `select` may return a promise of either result.
-import { definePolicy } from "harness-dispatch/sdk";
+// A `select` that reads the caller's parameters and prompt, type-checked
+// against the SDK's shipped declarations by `task dispatch:typecheck`, and
+// evaluated through the compiled worker by the command-seam tests, so the
+// declarations and the runtime agree on it. `request` is typed with no
+// annotation, a parameter the caller did not pass is `undefined`, and `select`
+// may return a promise of either result.
+import { definePolicy, PROMPT_NOT_SUPPLIED } from "harness-dispatch/sdk";
 
 export const policy = definePolicy({
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "typecheck-select-1",
-  catalog: [
-    {
-      id: "deep",
-      provider: "origin-a",
-      model: "model-large",
-      effort: "high",
-      program: "fake-harness",
-      args: ["--model", { slot: "model" }, "--effort", { slot: "effort" }, { slot: "prompt" }],
-    },
-    {
-      id: "quick",
-      provider: "origin-b",
-      model: "model-small",
-      effort: "low",
-      program: "fake-harness",
-      args: [{ slot: "prompt" }],
-    },
-  ],
   async select(request) {
-    if (request.explicitChoice !== undefined) {
+    const repo = request.params["repo"];
+    if (repo === undefined) {
       return {
         status: "refused",
-        code: "no_explicit_choices",
-        message: `this policy chooses for itself, and was asked for ${request.explicitChoice}`,
-        remedy: "omit --choice",
+        code: "repo_missing",
+        message: "this policy runs its harness in the caller's repository, and was given none",
+        remedy: "pass --param repo=PATH",
       };
     }
-    const candidateId = request.kind === "design" ? "deep" : "quick";
+    const deep = request.kind === "design";
+    const prompted = request.prompt === PROMPT_NOT_SUPPLIED ? "no prompt" : `a ${request.prompt.length}-character prompt`;
     return {
       status: "selected",
-      candidateId,
-      reason: `kind ${request.kind} within ${request.limits.selectionMs} ms`,
+      program: "fake-harness",
+      args: ["-C", repo, `--kind=${request.kind}`, request.prompt],
+      provider: deep ? "origin-a" : "origin-b",
+      model: deep ? "model-large" : "model-small",
+      effort: deep ? "high" : "low",
+      reason: `kind ${request.kind} with ${prompted} within ${request.limits.selectionMs} ms`,
     };
   },
 });

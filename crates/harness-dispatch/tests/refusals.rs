@@ -16,17 +16,18 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 use support::{text, write, Run, Sandbox, FRONT, ROUTED};
 
-/// Routes `impl` to the fake harness and each failing kind to a candidate whose
-/// program fails to resolve in its own way.
-const STAGES: &str = r#"export const policy = {
-  schemaVersion: 1,
+/// Runs the fake harness for `impl`, and for each failing kind a program that
+/// fails to resolve in its own way. Any other kind refuses.
+const STAGES: &str = r#"const programs = { impl: "fake-harness", missing: "no-such-harness", inert: "./not-executable" };
+export const policy = {
+  schemaVersion: 2,
   version: "stages-1",
-  catalog: [
-    { id: "deep", provider: "origin-a", model: "m", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
-    { id: "absent", provider: "origin-a", model: "m", effort: "high", program: "no-such-harness", args: [{ slot: "prompt" }] },
-    { id: "inert", provider: "origin-a", model: "m", effort: "high", program: "./not-executable", args: [{ slot: "prompt" }] },
-  ],
-  routes: { impl: "deep", missing: "absent", inert: "inert" },
+  select(request) {
+    if (!Object.hasOwn(programs, request.kind)) {
+      return { status: "refused", code: "incomplete_mapping", message: `no command for kind ${request.kind}`, remedy: "add one to the policy" };
+    }
+    return { status: "selected", program: programs[request.kind], args: [request.prompt], provider: "origin-a", model: "m", effort: "high", reason: `programs.${request.kind}` };
+  },
 };
 "#;
 
@@ -58,12 +59,7 @@ fn every_exit_result_matches_the_spec_table() {
             "malformed_input",
             run(&["--kind", "impl", "--timeout-ms", "soon"]),
         ),
-        (
-            3,
-            "selection",
-            "incomplete_mapping",
-            run(&["--kind", "design"]),
-        ),
+        (3, "selection", "policy_refused", run(&["--kind", "design"])),
         (
             4,
             "record",
@@ -123,6 +119,9 @@ fn every_exit_result_matches_the_spec_table() {
 /// invocation did not keep it as data.
 const AWKWARD_ID: &str = "-T 'one' \"two\" $HOME; `x`";
 
+/// A parameter whose name and value would be misread the same way.
+const AWKWARD_PARAM: &str = "-n=-v 'one' \"two\" $HOME; `x` = y";
+
 #[test]
 fn a_refused_run_names_the_equivalent_inspect_invocation_which_reproduces_the_selection() {
     let sandbox = Sandbox::new();
@@ -134,6 +133,10 @@ fn a_refused_run_names_the_equivalent_inspect_invocation_which_reproduces_the_se
     let args = [
         "--kind",
         "impl",
+        "--param",
+        "repo=/work/my repo",
+        "--param",
+        AWKWARD_PARAM,
         "--config",
         "policies/p.ts",
         "--task-file",
@@ -153,18 +156,26 @@ fn a_refused_run_names_the_equivalent_inspect_invocation_which_reproduces_the_se
     assert!(!json.stderr.contains("SECRET-PROMPT"), "{}", json.stderr);
     let inspect = &refusal["error"]["inspect"];
     assert_eq!(inspect["cwd"], text(&sandbox.cwd));
+    // The prompt is left out, and the report says what that costs.
+    let omitted = inspect["prompt"].as_str().unwrap();
+    assert!(
+        omitted.starts_with("omitted: a policy that reads the prompt selects as it did only"),
+        "{omitted}"
+    );
     let expected: Vec<String> = [
-        FRONT,
-        "inspect",
-        "--kind",
-        "impl",
-        "--config",
-        "policies/p.ts",
-        "--task-file",
-        "task one.md",
+        FRONT.to_owned(),
+        "inspect".to_owned(),
+        "--kind".to_owned(),
+        "impl".to_owned(),
+        "--param".to_owned(),
+        "repo=/work/my repo".to_owned(),
+        format!("--param={AWKWARD_PARAM}"),
+        "--config".to_owned(),
+        "policies/p.ts".to_owned(),
+        "--task-file".to_owned(),
+        "task one.md".to_owned(),
     ]
-    .iter()
-    .map(|word| (*word).to_owned())
+    .into_iter()
     .chain([format!("--task-id={AWKWARD_ID}")])
     .chain(
         ["--timeout-ms", "5000", "--state-dir", "blocked", "--json"]
@@ -182,6 +193,10 @@ fn a_refused_run_names_the_equivalent_inspect_invocation_which_reproduces_the_se
         .current_dir(inspect["cwd"].as_str().unwrap());
     let report = support::run(&mut reproduce).report();
     assert_eq!(report["taskId"], AWKWARD_ID);
+    assert_eq!(
+        report["params"],
+        serde_json::json!({ "repo": "/work/my repo", "-n": "-v 'one' \"two\" $HOME; `x` = y" })
+    );
     assert_eq!(report["taskFile"], text(&sandbox.cwd.join("task one.md")));
     assert_eq!(report["policy"]["authority"], "explicit");
     assert_eq!(report["policy"]["argument"], "policies/p.ts");
@@ -203,6 +218,13 @@ fn a_refused_run_names_the_equivalent_inspect_invocation_which_reproduces_the_se
         .find_map(|line| line.strip_prefix("  inspect: "))
         .unwrap_or_else(|| panic!("no inspect line:\n{}", human.stderr));
     assert!(line.starts_with("(cd "), "{line}");
+    assert!(
+        human
+            .stderr
+            .contains(&format!("  inspect: {line}\n  prompt: {omitted}\n")),
+        "{}",
+        human.stderr
+    );
     let mut shell = sandbox.command_for(Path::new("/bin/sh"));
     shell.args(["-c", line]).current_dir(&sandbox.root);
     let reproduced = support::run(&mut shell);
@@ -214,31 +236,32 @@ fn a_refused_run_names_the_equivalent_inspect_invocation_which_reproduces_the_se
         "{line}\n{}",
         reproduced.stdout
     );
-    assert!(
-        reproduced.stdout.contains("candidate  deep"),
-        "{}",
-        reproduced.stdout
-    );
+    for fact in [
+        "provider   origin-a\n",
+        "params     \"-n=-v 'one' \\\"two\\\" $HOME; `x` = y\" \"repo=/work/my repo\"\n",
+    ] {
+        assert!(
+            reproduced.stdout.contains(fact),
+            "missing {fact:?}:\n{}",
+            reproduced.stdout
+        );
+    }
     assert!(!sandbox.harness_ran());
 }
 
 #[test]
 fn an_input_no_string_can_hold_makes_the_reproduction_unavailable_not_lossy() {
     let sandbox = Sandbox::new();
-    // A candidate whose ID is the lossy form of `deep\xff`.
-    sandbox.personal_policy(&ROUTED.replace(
-        "  ],",
-        "    { id: \"deep\\uFFFD\", provider: \"origin-b\", model: \"m\", effort: \"e\", program: \"fake-harness\", args: [{ slot: \"prompt\" }] },\n  ],",
-    ));
-    // The firing configuration: the lossy form of the refused choice is a
+    sandbox.personal_policy(ROUTED);
+    // The firing configuration: the lossy form of the refused parameter is a
     // different, valid input, whose inspection selects.
     let lossy = sandbox
-        .inspect(&["--kind", "impl", "--choice", "deep\u{FFFD}", "--json"])
+        .inspect(&["--kind", "impl", "--param", "who=deep\u{FFFD}", "--json"])
         .report();
-    assert_eq!(lossy["selection"]["candidateId"], "deep\u{FFFD}");
+    assert_eq!(lossy["params"]["who"], "deep\u{FFFD}");
 
     for (flag, value, kind, exit) in [
-        ("--choice", &b"deep\xff"[..], "impl", 2),
+        ("--param", &b"who=deep\xff"[..], "impl", 2),
         ("--task-id", &b"k\xff"[..], "impl", 2),
         // Not refused itself: the unrouted kind refuses, and a lossy state
         // directory would name another place.
@@ -313,7 +336,7 @@ fn text_mode_prefixes_the_policy_output_before_the_refusal() {
     assert!(
         run.stderr.starts_with(
             "policy stdout: chatter on stdout\npolicy stderr: chatter on stderr\n\
-             harness-dispatch: refused (incomplete_mapping, stage selection): "
+             harness-dispatch: refused (policy_refused, stage selection): "
         ),
         "{}",
         run.stderr
@@ -321,8 +344,10 @@ fn text_mode_prefixes_the_policy_output_before_the_refusal() {
     for line in [
         "  input: --kind design\n",
         "  source: ",
-        "  remedy: ",
+        "  policy code: incomplete_mapping\n",
+        "  remedy: add one to the policy\n",
         "  inspect: ",
+        "  prompt: omitted: ",
     ] {
         assert!(
             run.stderr.contains(line),
@@ -455,6 +480,8 @@ fn help_carries_independent_use_grove_and_refusal_recovery_examples() {
         "124 selection timeout; 126 program not executable; 127 program not found",
         "Nothing is retried, paged or confirmed interactively",
         "A refused run prints the equivalent inspect invocation",
+        "A policy that reads the prompt selects as it did only when the same prompt is added",
+        "harness-dispatch run --kind impl --param repo=/work/parser --prompt",
         EXAMPLE_FOR_GROVE,
         "evaluated only at launch",
     ] {
@@ -462,12 +489,13 @@ fn help_carries_independent_use_grove_and_refusal_recovery_examples() {
     }
     let inspect = help(&["inspect", "--help"]);
     for fact in [
-        "--choice <ID>",
+        "--param <NAME=VALUE>",
         "Inspection is a proposal, not a launch reservation",
         "not promised to be free of side effects",
-        "harness-dispatch inspect --kind impl --choice deep",
+        "harness-dispatch/sdk names PROMPT_NOT_SUPPLIED",
+        "harness-dispatch inspect --kind impl --param repo=/work/parser --param session_name=parser",
         "Recovering from a refusal:",
-        "harness-dispatch inspect --kind design --choice deep",
+        "harness-dispatch inspect --kind design --prompt-file ./mandate.md",
     ] {
         assert!(
             inspect.contains(fact),
@@ -476,8 +504,8 @@ fn help_carries_independent_use_grove_and_refusal_recovery_examples() {
     }
     let run = help(&["run", "--help"]);
     for fact in [
-        "--choice <ID>",
-        "harness-dispatch run --kind impl --choice deep --prompt",
+        "--param <NAME=VALUE>",
+        "harness-dispatch run --kind impl --param repo=/work/parser --prompt",
         "Recovering from a refusal:",
         "(cd /work && harness-dispatch inspect --kind design)",
         "Nothing is retried for you.",
@@ -512,5 +540,12 @@ fn a_prompt_file_is_never_part_of_the_equivalent_invocation() {
             word.contains("prompt") || word.contains("secret-mandate")
         }),
         "{argv:?}"
+    );
+    assert!(
+        refusal["error"]["inspect"]["prompt"]
+            .as_str()
+            .unwrap()
+            .starts_with("omitted: "),
+        "{refusal}"
     );
 }

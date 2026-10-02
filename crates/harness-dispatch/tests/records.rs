@@ -8,6 +8,11 @@
 //! and directly with SQLite, to see what a test's fault did or did not change.
 //! Every failure case has a positive control, the same invocation with the
 //! fault removed, that is seen to reach the harness.
+//!
+//! The launch document is version 1 under both policy contracts. The last
+//! tests read a store that harness-dispatch 21.13.0 wrote under the catalog
+//! contract (`tests/fixtures/catalog-contract`), beside runs this release
+//! records.
 
 mod support;
 
@@ -23,30 +28,49 @@ use std::time::{Duration, Instant};
 use rusqlite::Connection;
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
-use support::{executable, run, text, Sandbox, ROUTED};
+use support::{executable, run, selecting, text, Sandbox, ROUTED};
 
-/// Routes `impl` to the fake harness, passing the run ID in its arguments too.
-const WITH_RUN_ID: &str = r#"export const policy = {
-  schemaVersion: 1,
+/// Runs the fake harness in the repository the caller's `repo` parameter
+/// names, with the prompt last, and says so in its reason.
+const PARAMETERISED: &str = r#"export const policy = {
+  schemaVersion: 2,
   version: "records-1",
-  catalog: [
-    { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: ["--run", { slot: "runId" }, { slot: "prompt" }] },
-  ],
-  routes: { impl: "deep" },
+  select: (request) => ({
+    status: "selected",
+    program: "fake-harness",
+    args: ["-C", request.params.repo, request.prompt],
+    provider: "origin-a",
+    model: "model-large",
+    effort: "high",
+    reason: `kind ${request.kind} in ${request.params.repo}`,
+  }),
 };
 "#;
 
-/// Routes `impl` to `./broken-harness`, whose `#!` interpreter does not exist,
-/// so exec fails with `ENOENT` after the commit.
+/// Runs `./broken-harness`, whose `#!` interpreter does not exist, so exec
+/// fails with `ENOENT` after the commit.
 const BROKEN: &str = r#"export const policy = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: "records-broken",
-  catalog: [
-    { id: "broken", provider: "origin-b", model: "model-b", effort: "low", program: "./broken-harness", args: [{ slot: "prompt" }] },
-  ],
-  routes: { impl: "broken" },
+  select: (request) => ({
+    status: "selected",
+    program: "./broken-harness",
+    args: [request.prompt],
+    provider: "origin-b",
+    model: "model-b",
+    effort: "low",
+    reason: "the broken harness",
+  }),
 };
 "#;
+
+/// The store harness-dispatch 21.13.0 wrote under the catalog contract, and
+/// its two runs (`tests/fixtures/catalog-contract/README.md`).
+const CATALOG_STORE: &[u8] = include_bytes!("fixtures/catalog-contract/records.sqlite3");
+/// Kind `build`, task `parser-k12`: the routes table named candidate `builder`.
+const ROUTED_RUN: &str = "45308255-7446-42b2-bbd7-e5f7861e46ef";
+/// Kind `audit`, task `parser-k13`: `--choice auditor` named the candidate.
+const CHOSEN_RUN: &str = "b2aec552-b5eb-4de0-b5e9-5db0d70a6d55";
 
 fn is_run_id(id: &str) -> bool {
     id.len() == 36
@@ -61,6 +85,45 @@ fn runs(store: &Path) -> i64 {
     connection
         .query_row("SELECT count(*) FROM runs", [], |row| row.get(0))
         .unwrap()
+}
+
+/// A run's launch document as the store holds it, read with SQLite.
+fn stored_launch(store: &Path, run_id: &str) -> Value {
+    let launch: String = Connection::open(store)
+        .unwrap()
+        .query_row(
+            "SELECT launch FROM runs WHERE run_id = ?1",
+            [run_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    serde_json::from_str(&launch).unwrap()
+}
+
+/// A copy of the catalog-contract store as the sandbox's default store.
+fn catalog_store(sandbox: &Sandbox) {
+    let store = sandbox.default_store();
+    fs::create_dir_all(store.parent().unwrap()).unwrap();
+    fs::write(store, CATALOG_STORE).unwrap();
+}
+
+/// The rows of `record show`'s text export that begin with `label`.
+fn rows<'a>(export: &'a str, label: &str) -> Vec<&'a str> {
+    let label = format!("  {label:<10} ");
+    export
+        .lines()
+        .filter_map(|line| line.strip_prefix(label.as_str()))
+        .collect()
+}
+
+/// Whether any string in `value` is a run ID.
+fn names_a_run(value: &Value) -> bool {
+    match value {
+        Value::String(text) => is_run_id(text),
+        Value::Array(items) => items.iter().any(names_a_run),
+        Value::Object(fields) => fields.values().any(names_a_run),
+        _ => false,
+    }
 }
 
 fn show(sandbox: &Sandbox, run_id: &str, extra: &[&str]) -> support::Run {
@@ -126,7 +189,7 @@ fn a_run_commits_its_handoff_record_before_the_harness_starts() {
 #[test]
 fn the_harness_receives_its_run_identity_in_place_of_inherited_values() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(WITH_RUN_ID);
+    sandbox.personal_policy(ROUTED);
     let mut command = sandbox.command();
     command
         .args(["run", "--kind", "impl", "--prompt", "p"])
@@ -141,7 +204,14 @@ fn the_harness_receives_its_run_identity_in_place_of_inherited_values() {
         sandbox.harness_state_dir(),
         text(&sandbox.home.join(".local/state/harness-dispatch"))
     );
-    assert_eq!(sandbox.harness_args(), ["--run", run_id.as_str(), "p"]);
+    // The environment is the only place the harness learns its run from: the
+    // policy is given no run identity to put in an argument.
+    assert_eq!(sandbox.harness_args(), ["p"]);
+    assert_eq!(runs(&sandbox.default_store()), 1);
+    assert_eq!(
+        show(&sandbox, &run_id, &["--json"]).report()["runId"],
+        run_id.as_str()
+    );
     assert!(
         result.stderr.contains(&format!("as run {run_id}")),
         "{}",
@@ -185,18 +255,14 @@ fn a_state_dir_replaces_the_default_and_resolves_against_the_cwd() {
 }
 
 #[test]
-fn inspect_proposes_a_marked_run_id_and_writes_nothing() {
+fn inspect_reports_no_run_id_and_writes_nothing() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(WITH_RUN_ID);
+    sandbox.personal_policy(ROUTED);
     let report = sandbox
         .inspect(&["--kind", "impl", "--prompt", "p", "--json"])
         .report();
-    let proposed = report["proposedRunId"].as_str().unwrap();
-    assert!(is_run_id(proposed), "{report}");
-    assert_eq!(
-        report["argv"],
-        serde_json::json!(["fake-harness", "--run", { "proposedRunId": proposed }, "p"])
-    );
+    assert_eq!(report["evidence"], "proposal");
+    assert!(!names_a_run(&report), "{report}");
     assert_eq!(
         report["stateDir"],
         serde_json::json!({
@@ -206,8 +272,9 @@ fn inspect_proposes_a_marked_run_id_and_writes_nothing() {
     );
     let text_report = sandbox.inspect(&["--kind", "impl", "--prompt", "p"]);
     assert!(
-        text_report.stdout.contains("(proposed only")
-            && text_report.stdout.contains("<proposed run ID "),
+        text_report
+            .stdout
+            .starts_with("Proposal only: nothing was launched and no run was recorded.\n"),
         "{}",
         text_report.stdout
     );
@@ -222,21 +289,16 @@ fn inspect_proposes_a_marked_run_id_and_writes_nothing() {
     let report = sandbox
         .inspect(&["--kind", "impl", "--prompt", "p", "--json"])
         .report();
+    assert!(!names_a_run(&report), "{report}");
     assert_eq!(fs::read(sandbox.default_store()).unwrap(), before);
-    let refusal = show(
-        &sandbox,
-        report["proposedRunId"].as_str().unwrap(),
-        &["--json"],
-    )
-    .refusal(3);
-    assert_eq!(refusal["error"]["code"], "run_not_found");
+    assert_eq!(runs(&sandbox.default_store()), 1);
 }
 
 #[test]
 fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_measurement_unobserved()
 {
     let sandbox = Sandbox::new();
-    let entry = sandbox.personal_policy(ROUTED);
+    let entry = sandbox.personal_policy(PARAMETERISED);
     let mut command = sandbox.command();
     command
         .args([
@@ -247,6 +309,10 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_meas
             "T-7",
             "--task-file",
             "tasks/t7.md",
+            "--param",
+            "repo=/work/parser",
+            "--param",
+            "session_name=parser: a b",
             "--timeout-ms",
             "20000",
             "--prompt",
@@ -256,6 +322,10 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_meas
     let result = run(&mut command);
     assert_eq!(result.code, Some(0), "{}", result.stderr);
     let run_id = sandbox.harness_run_id();
+    assert_eq!(
+        sandbox.harness_args(),
+        ["-C", "/work/parser", "Implement the parser"]
+    );
 
     let export = show(&sandbox, &run_id, &["--json"]).report();
     assert_eq!(export["schemaVersion"], 1);
@@ -276,69 +346,71 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_meas
         );
     }
 
+    // The whole launch document: every field is present, `null` where the run
+    // has no value for it. Only the selection's duration and the worker's
+    // build are this invocation's own.
     let launch = &export["launch"];
+    assert_eq!(launch, &stored_launch(&sandbox.default_store(), &run_id));
     let digest: String = Sha256::digest(fs::read(&entry).unwrap())
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect();
-    assert_eq!(launch["schemaVersion"], 1);
-    assert_eq!(launch["kind"], "impl");
-    assert_eq!(launch["taskId"], "T-7");
-    assert_eq!(launch["taskFile"], text(&sandbox.cwd.join("tasks/t7.md")));
-    assert_eq!(launch["cwd"], text(&sandbox.cwd));
-    assert_eq!(
-        launch["policy"],
-        serde_json::json!({
-            "path": text(&entry), "authority": "personal", "sha256": digest, "version": "seam-1",
-        })
-    );
-    assert_eq!(
-        launch["candidate"],
-        serde_json::json!({
-            "id": "deep", "provider": "origin-a", "model": "model-large", "effort": "high",
-            "program": "fake-harness", "args": [{ "slot": "prompt" }],
-        })
-    );
-    assert_eq!(
-        launch["selection"],
-        serde_json::json!({
-            "form": "routes", "selectedBy": "route", "explicitChoice": null,
-            "reason": "routes[\"impl\"] names candidate \"deep\"",
-        })
-    );
-    assert_eq!(
-        launch["executable"],
-        serde_json::json!({
-            "program": "fake-harness", "resolvedBy": "PATH",
-            "path": text(&sandbox.bin.join("fake-harness")),
-        })
-    );
-    assert_eq!(
-        launch["argv"],
-        serde_json::json!(["fake-harness", "Implement the parser"])
-    );
-    assert_eq!(
-        launch["bounds"],
-        serde_json::json!({
-            "selection": { "ms": 20000, "from": "--timeout-ms" },
-            "context": { "bytes": 262_144, "from": "default" },
-            "source": { "bytes": 65_536, "from": "default" },
-            "sources": { "sources": 256, "from": "fixed" },
-            "message": { "bytes": 1_048_576, "from": "fixed" },
-            "diagnostics": { "bytes": 262_144, "from": "fixed" },
-        })
-    );
     assert!(launch["timing"]["selectionMs"].is_u64());
+    let worker = &launch["worker"];
+    assert_eq!(worker["packageVersion"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(worker["bunVersion"], "1.4.2");
+    assert!(worker["path"]
+        .as_str()
+        .is_some_and(|path| path.ends_with("/harness-dispatch-policy")));
+    assert!(worker["buildId"].as_str().is_some_and(|id| id.len() == 64));
     assert_eq!(
-        launch["worker"]["packageVersion"],
-        env!("CARGO_PKG_VERSION")
+        launch,
+        &serde_json::json!({
+            "schemaVersion": 1,
+            "kind": "impl",
+            "taskId": "T-7",
+            "taskFile": text(&sandbox.cwd.join("tasks/t7.md")),
+            "params": { "repo": "/work/parser", "session_name": "parser: a b" },
+            // A run given no context records none, no reviewed artifact and
+            // no creator, and a policy that imports no adapter records none.
+            "reviewedArtifact": null,
+            "context": null,
+            "creator": null,
+            "adapter": null,
+            "cwd": text(&sandbox.cwd),
+            "policy": {
+                "path": text(&entry), "authority": "personal", "sha256": digest,
+                "version": "records-1",
+            },
+            // What only a run recorded under the catalog contract has a value
+            // for: a selection form, an explicit choice and a candidate ID.
+            "selection": {
+                "form": null, "selectedBy": null, "explicitChoice": null,
+                "reason": "kind impl in /work/parser",
+            },
+            // The command as `select` returned it, under its labels.
+            "candidate": {
+                "id": null, "provider": "origin-a", "model": "model-large", "effort": "high",
+                "program": "fake-harness",
+                "args": ["-C", "/work/parser", "Implement the parser"],
+            },
+            "executable": {
+                "program": "fake-harness", "resolvedBy": "PATH",
+                "path": text(&sandbox.bin.join("fake-harness")),
+            },
+            "argv": ["fake-harness", "-C", "/work/parser", "Implement the parser"],
+            "bounds": {
+                "selection": { "ms": 20000, "from": "--timeout-ms" },
+                "context": { "bytes": 262_144, "from": "default" },
+                "source": { "bytes": 65_536, "from": "default" },
+                "sources": { "sources": 256, "from": "fixed" },
+                "message": { "bytes": 1_048_576, "from": "fixed" },
+                "diagnostics": { "bytes": 262_144, "from": "fixed" },
+            },
+            "timing": launch["timing"],
+            "worker": worker,
+        })
     );
-    assert_eq!(launch["worker"]["bunVersion"], "1.4.2");
-    // A run given no context records none, no reviewed artifact and no
-    // creator, and a policy that imports no adapter records none.
-    for absent in ["reviewedArtifact", "context", "creator", "adapter"] {
-        assert_eq!(launch[absent], Value::Null, "{absent}");
-    }
 
     // No raw environment value reaches the store.
     let store = fs::read(sandbox.default_store()).unwrap();
@@ -352,7 +424,6 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_meas
         run_id.as_str(),
         "handoff attempt",
         "unobserved every measurement",
-        "origin-a",
         "\"Implement the parser\"",
     ] {
         assert!(
@@ -361,6 +432,31 @@ fn record_show_exports_the_launch_fields_with_the_attempt_unknown_and_every_meas
             text_export.stdout
         );
     }
+    let row = |label: &str| rows(&text_export.stdout, label);
+    // A value holding a space is quoted, so two parameters cannot run together.
+    assert_eq!(
+        row("params"),
+        [r#"repo=/work/parser "session_name=parser: a b""#]
+    );
+    assert_eq!(row("provider"), ["origin-a"]);
+    assert_eq!(row("model"), ["model-large"]);
+    assert_eq!(row("effort"), ["high"]);
+    assert_eq!(row("reason"), ["kind impl in /work/parser"]);
+    // The rows for what a catalog-contract run recorded are left out.
+    for absent in ["choice", "selected", "candidate"] {
+        assert_eq!(row(absent), Vec::<&str>::new(), "{absent}");
+    }
+
+    // A run given no parameter records an empty set, not an absent one.
+    fs::remove_dir_all(&sandbox.record).unwrap();
+    sandbox.personal_policy(ROUTED);
+    let bare = launched(&sandbox, &["--kind", "impl", "--prompt", "p"]);
+    let export = show(&sandbox, &bare, &["--json"]).report();
+    assert_eq!(export["launch"]["params"], serde_json::json!({}));
+    assert_eq!(export["launch"]["taskId"], Value::Null);
+    assert_eq!(export["launch"]["taskFile"], Value::Null);
+    let text_export = show(&sandbox, &bare, &[]);
+    assert_eq!(rows(&text_export.stdout, "params"), ["none"]);
 }
 
 #[test]
@@ -397,20 +493,19 @@ fn record_show_refuses_a_malformed_id_an_unknown_run_and_a_missing_store() {
 #[test]
 fn a_refusal_before_the_commit_creates_no_run() {
     let sandbox = Sandbox::new();
-    sandbox.personal_policy(
-        r#"export const policy = {
-  schemaVersion: 1,
-  version: "v",
-  catalog: [
-    { id: "deep", provider: "o", model: "m", effort: "e", program: "fake-harness", args: [{ slot: "prompt" }] },
-    { id: "gone", provider: "o", model: "m", effort: "e", program: "no-such-harness", args: [{ slot: "prompt" }] },
-  ],
-  routes: { impl: "deep", missing: "gone" },
-};
-"#,
-    );
-    let unrouted = sandbox.run(&["--kind", "design", "--prompt", "p", "--json"]);
-    assert_eq!(unrouted.refusal(3)["error"]["code"], "incomplete_mapping");
+    sandbox.personal_policy(&selecting(
+        "",
+        r#"    const program = { impl: "fake-harness", missing: "no-such-harness" }[request.kind];
+    if (program === undefined) {
+      return { status: "refused", code: "unrouted", message: "no command for this kind", remedy: "add one" };
+    }
+    return { status: "selected", program, args: [request.prompt], provider: "o", model: "m", effort: "e", reason: "r" };"#,
+    ));
+    let unrouted = sandbox
+        .run(&["--kind", "design", "--prompt", "p", "--json"])
+        .refusal(3);
+    assert_eq!(unrouted["error"]["code"], "policy_refused");
+    assert_eq!(unrouted["error"]["policyCode"], "unrouted");
     let absent = sandbox.run(&["--kind", "missing", "--prompt", "p", "--json"]);
     assert_eq!(absent.refusal(127)["error"]["code"], "program_not_found");
     assert!(
@@ -814,7 +909,8 @@ fn an_exec_failure_is_appended_to_its_attempt() {
     assert_eq!(failure["exit"], 127);
     assert!(failure["recordedAt"].as_str().unwrap().ends_with('Z'));
     // The attempt's own launch fields are as committed.
-    assert_eq!(export["launch"]["candidate"]["id"], "broken");
+    assert_eq!(export["launch"]["candidate"]["program"], "./broken-harness");
+    assert_eq!(export["launch"]["candidate"]["provider"], "origin-b");
     assert_eq!(
         export["launch"]["argv"],
         serde_json::json!(["./broken-harness", "p"])
@@ -955,4 +1051,163 @@ fn without_a_home_the_default_state_directory_refuses_before_any_policy_runs() {
     let result = run(&mut invocation);
     assert_eq!(result.code, Some(0), "{}", result.stderr);
     assert!(sentinel.exists() && sandbox.harness_ran());
+}
+
+#[test]
+fn a_run_recorded_under_the_catalog_contract_is_exported_as_it_was_stored() {
+    let sandbox = Sandbox::new();
+    catalog_store(&sandbox);
+    let store = sandbox.default_store();
+    let before = fs::read(&store).unwrap();
+
+    let routed = show(&sandbox, ROUTED_RUN, &["--json"]).report();
+    assert_eq!(routed["schemaVersion"], 1);
+    assert_eq!(routed["runId"], ROUTED_RUN);
+    assert_eq!(routed["recordedAt"], "2026-10-02T04:11:46.561Z");
+    assert_eq!(routed["evidence"], "handoff_attempt");
+    assert_eq!(routed["execution"], "unknown");
+    assert_eq!(routed["launchFailure"], Value::Null);
+    assert_eq!(routed["observations"], serde_json::json!([]));
+    for (name, measurement) in routed["measurements"].as_object().unwrap() {
+        assert_eq!(
+            measurement,
+            &serde_json::json!({ "state": "unobserved", "current": [] }),
+            "{name}"
+        );
+    }
+    // The launch document is the stored one, with what only that contract
+    // recorded: the candidate's ID, the slots among its arguments, the
+    // selection form and the explicit choice.
+    let launch = &routed["launch"];
+    assert_eq!(launch, &stored_launch(&store, ROUTED_RUN));
+    assert_eq!(launch["schemaVersion"], 1);
+    assert_eq!(launch["kind"], "build");
+    assert_eq!(launch["taskId"], "parser-k12");
+    assert_eq!(
+        launch["candidate"],
+        serde_json::json!({
+            "id": "builder", "provider": "your-provider", "model": "model-a", "effort": "high",
+            "program": "fake-harness",
+            "args": ["--model", { "slot": "model" }, "--effort", { "slot": "effort" }, { "slot": "prompt" }],
+        })
+    );
+    assert_eq!(
+        launch["selection"],
+        serde_json::json!({
+            "form": "routes", "selectedBy": "route", "explicitChoice": null,
+            "reason": "routes[\"build\"] names candidate \"builder\"",
+        })
+    );
+    assert_eq!(
+        launch["argv"],
+        serde_json::json!([
+            "fake-harness",
+            "--model",
+            "model-a",
+            "--effort",
+            "high",
+            "Build the parser"
+        ])
+    );
+    // That release recorded no parameters, and none is supplied for it.
+    assert!(launch.get("params").is_none(), "{launch}");
+
+    let chosen = show(&sandbox, CHOSEN_RUN, &["--json"]).report();
+    assert_eq!(chosen["evidence"], "handoff_attempt");
+    let launch = &chosen["launch"];
+    assert_eq!(launch, &stored_launch(&store, CHOSEN_RUN));
+    assert_eq!(launch["kind"], "audit");
+    assert_eq!(launch["taskId"], "parser-k13");
+    assert_eq!(
+        launch["candidate"],
+        serde_json::json!({
+            "id": "auditor", "provider": "your-other-provider", "model": "model-b",
+            "effort": "medium", "program": "fake-harness",
+            "args": [{ "slot": "taskId" }, { "slot": "prompt" }],
+        })
+    );
+    assert_eq!(launch["selection"]["form"], "routes");
+    assert_eq!(launch["selection"]["selectedBy"], "explicit_choice");
+    assert_eq!(launch["selection"]["explicitChoice"], "auditor");
+    assert_eq!(
+        launch["argv"],
+        serde_json::json!(["fake-harness", "parser-k13", "Audit the parser"])
+    );
+
+    // The text export has a row for each value such a run recorded.
+    let text_export = show(&sandbox, ROUTED_RUN, &[]);
+    assert_eq!(text_export.code, Some(0), "{}", text_export.stderr);
+    let row = |label: &str| rows(&text_export.stdout, label);
+    assert!(
+        text_export.stdout.contains("handoff attempt"),
+        "{}",
+        text_export.stdout
+    );
+    assert_eq!(row("kind"), ["build"]);
+    assert_eq!(row("task id"), ["parser-k12"]);
+    assert_eq!(row("params"), ["none"]);
+    assert_eq!(row("selected"), ["route"]);
+    assert_eq!(row("candidate"), ["builder"]);
+    assert_eq!(row("choice"), Vec::<&str>::new(), "no choice was given");
+    assert_eq!(row("provider"), ["your-provider"]);
+    assert_eq!(row("model"), ["model-a"]);
+    assert_eq!(row("effort"), ["high"]);
+    assert_eq!(
+        row("reason"),
+        ["routes[\"build\"] names candidate \"builder\""]
+    );
+    assert!(
+        text_export.stdout.contains("[5] \"Build the parser\""),
+        "{}",
+        text_export.stdout
+    );
+    let text_export = show(&sandbox, CHOSEN_RUN, &[]);
+    assert_eq!(text_export.code, Some(0), "{}", text_export.stderr);
+    let row = |label: &str| rows(&text_export.stdout, label);
+    assert_eq!(row("choice"), ["auditor"]);
+    assert_eq!(row("selected"), ["explicit_choice"]);
+    assert_eq!(row("candidate"), ["auditor"]);
+    assert_eq!(row("provider"), ["your-other-provider"]);
+
+    // Reading changed nothing.
+    assert_eq!(fs::read(&store).unwrap(), before, "the store was changed");
+}
+
+#[test]
+fn a_run_commits_beside_the_runs_of_the_catalog_contract_and_both_export() {
+    let sandbox = Sandbox::new();
+    catalog_store(&sandbox);
+    let store = sandbox.default_store();
+    assert_eq!(runs(&store), 2);
+    let routed = show(&sandbox, ROUTED_RUN, &["--json"]).report();
+    let chosen = show(&sandbox, CHOSEN_RUN, &["--json"]).report();
+
+    sandbox.personal_policy(ROUTED);
+    let run_id = launched(
+        &sandbox,
+        &["--kind", "impl", "--task-id", "parser-k14", "--prompt", "p"],
+    );
+    assert_eq!(runs(&store), 3);
+
+    // The run this release recorded has no value for what the others carry.
+    let export = show(&sandbox, &run_id, &["--json"]).report();
+    assert_eq!(export["evidence"], "handoff_attempt");
+    let launch = &export["launch"];
+    assert_eq!(launch["schemaVersion"], routed["launch"]["schemaVersion"]);
+    assert_eq!(launch["taskId"], "parser-k14");
+    assert_eq!(launch["candidate"]["id"], Value::Null);
+    assert_eq!(launch["candidate"]["provider"], "origin-a");
+    assert_eq!(launch["candidate"]["args"], serde_json::json!(["p"]));
+    assert_eq!(
+        launch["selection"],
+        serde_json::json!({
+            "form": null, "selectedBy": null, "explicitChoice": null,
+            "reason": "impl runs the deep harness",
+        })
+    );
+    assert_eq!(launch["params"], serde_json::json!({}));
+
+    // The commit left the earlier runs exactly as they were.
+    assert_eq!(show(&sandbox, ROUTED_RUN, &["--json"]).report(), routed);
+    assert_eq!(show(&sandbox, CHOSEN_RUN, &["--json"]).report(), chosen);
 }

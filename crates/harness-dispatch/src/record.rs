@@ -6,8 +6,15 @@
 //! changed. Every field is present in it, `null` where the run has no value for
 //! it, so a release that records something new fills it for new runs without
 //! rewriting a committed one. Raw environment values are not stored. The document
-//! describes the configured launched choice; it is not evidence that the
-//! harness ran, or of which backend model it reached.
+//! describes the command launched and the labels its owner gave it; it is not
+//! evidence that the harness ran, or of which backend model it reached.
+//!
+//! The document is still version 1, and it has been written under two policy
+//! contracts. A run recorded under the catalog contract carries a candidate ID,
+//! a selection form and an explicit choice, and its arguments may be slot
+//! objects. A run recorded under this one has no value for those three, writes
+//! `null`, and adds its parameters. The labels sit where they always did, under
+//! `candidate`, so every reader here reads both.
 //!
 //! The evidence a run carries is derived, never stored as a state to advance:
 //! a handoff attempt whose execution is unknown; an observable launch failure,
@@ -16,8 +23,8 @@
 //! work went is what observations measure, and the export never infers it.
 //!
 //! A policy's `host.run` reads a recorded run too, as a projection of its
-//! launch fields ([`lookup`]): what the run was launched as, never its argv,
-//! which holds the prompt, and never its program or arguments, which no
+//! launch fields ([`lookup`]): the labels the run was launched under, never its
+//! argv, which holds the prompt, and never its program or arguments, which no
 //! context carries.
 
 use std::ffi::OsStr;
@@ -65,27 +72,41 @@ pub fn launch(choice: &Choice) -> Value {
     let worker = &choice.worker;
     let inputs = &choice.inputs;
     let context = choice.context.as_ref();
+    let command = &choice.command;
+    let argv: Vec<&String> = std::iter::once(&command.program)
+        .chain(&command.args)
+        .collect();
     json!({
         "schemaVersion": LAUNCH_VERSION,
         "kind": inputs.kind,
         "taskId": inputs.task_id,
         "taskFile": inputs.task_file,
+        "params": inputs.params,
         "reviewedArtifact": context.and_then(|context| context.reviewed_artifact()),
         "cwd": inputs.cwd.to_string_lossy(),
         "policy": policy,
+        // The catalog contract's selection form, explicit choice and
+        // candidate ID: a run recorded under this contract has none.
         "selection": {
-            "form": choice.selected_by.form(),
-            "selectedBy": choice.selected_by.as_str(),
-            "explicitChoice": inputs.choice,
-            "reason": choice.reason,
+            "form": null,
+            "selectedBy": null,
+            "explicitChoice": null,
+            "reason": command.reason,
         },
-        "candidate": choice.candidate.to_json(),
+        "candidate": {
+            "id": null,
+            "provider": command.provider,
+            "model": command.model,
+            "effort": command.effort,
+            "program": command.program,
+            "args": command.args,
+        },
         "executable": {
             "program": executable.program,
             "resolvedBy": resolved_by,
             "path": executable.path.to_string_lossy(),
         },
-        "argv": choice.argv.iter().map(crate::argv::Word::to_json).collect::<Vec<_>>(),
+        "argv": argv,
         // Digests and sizes only: the delivered value can hold whole sources.
         "context": context.map(|context| context.to_json(false)),
         "creator": context.and_then(crate::context::Delivered::creator),
@@ -157,7 +178,7 @@ pub fn show(args: &ShowArgs) -> Result<Export, Refusal> {
 /// run checks this ([`store::load`], and `record observe` before it appends),
 /// so `record show`, `record observe` and `host.run` never disagree about
 /// which runs they can read. A run lookup, which types the kind, task
-/// identity and candidate into its answer, also requires those fields.
+/// identity and labels into its answer, also requires those fields.
 pub fn readable(launch: &Value, failure: Option<&Value>) -> Result<(), String> {
     if !launch.is_object() {
         return Err("launch record is not a JSON object".to_owned());
@@ -177,7 +198,9 @@ pub fn readable(launch: &Value, failure: Option<&Value>) -> Result<(), String> {
 
 /// Answer a policy's `host.run(runId)` from the store in `dir`, waiting at
 /// most `wait` for a writer's lock: the run's immutable launch fields and any
-/// launch failure, or that the store does not hold it. A missing or empty
+/// launch failure, or that the store does not hold it. The labels are the
+/// ones the run recorded, under either contract; a candidate ID is not part
+/// of the answer, so a run that has none answers like one that has. A missing or empty
 /// store holds no run. A store that cannot be read refuses, and so does a
 /// launch document this release cannot read, rather than answer with less.
 /// The run's observations are never read, so the lookup's work does not grow
@@ -200,7 +223,7 @@ pub fn lookup(dir: &StateDir, run_id: &RunId, wait: Duration) -> Result<Value, R
             .map(|_| value.clone())
             .ok_or_else(|| unreadable(&format!("has no string {field}")))
     };
-    let candidate = &launch["candidate"];
+    let labels = &launch["candidate"];
     let task_id = match &launch["taskId"] {
         Value::Null => Value::Null,
         other => text(other, "taskId")?,
@@ -212,12 +235,9 @@ pub fn lookup(dir: &StateDir, run_id: &RunId, wait: Duration) -> Result<Value, R
         "recordedAt": stored.recorded_at,
         "kind": text(&launch["kind"], "kind")?,
         "taskId": task_id,
-        "candidate": {
-            "id": text(&candidate["id"], "candidate.id")?,
-            "provider": text(&candidate["provider"], "candidate.provider")?,
-            "model": text(&candidate["model"], "candidate.model")?,
-            "effort": text(&candidate["effort"], "candidate.effort")?,
-        },
+        "provider": text(&labels["provider"], "candidate.provider")?,
+        "model": text(&labels["model"], "candidate.model")?,
+        "effort": text(&labels["effort"], "candidate.effort")?,
         "launchFailure": failure,
     }))
 }
@@ -236,9 +256,30 @@ fn launch_failure(failure: Option<&(String, Value)>) -> Value {
     Value::Object(exported)
 }
 
+/// The parameters of a run or a proposal on one row, each `name=value`, quoted
+/// and escaped where a space or a control character would run two together;
+/// `none` without any.
+pub fn params_text<'a>(params: impl Iterator<Item = (&'a str, &'a str)>) -> String {
+    let plain = |text: &str| !text.chars().any(|c| c.is_control() || c.is_whitespace());
+    let shown: Vec<String> = params
+        .map(|(name, value)| {
+            if plain(name) && plain(value) {
+                format!("{name}={value}")
+            } else {
+                format!("{:?}", format!("{name}={value}"))
+            }
+        })
+        .collect();
+    if shown.is_empty() {
+        "none".to_owned()
+    } else {
+        shown.join(" ")
+    }
+}
+
 /// The creator provenance a run or a proposal records, for a person: the
 /// reference, its evidence class, and what a lookup found, with the run's
-/// task identity beside its recorded choice. `creator` is the JSON that
+/// task identity beside its recorded labels. `creator` is the JSON that
 /// [`crate::context::Delivered::creator`] makes, or `null`.
 pub fn creator_text(creator: &Value) -> String {
     if creator.is_null() {
@@ -254,13 +295,18 @@ pub fn creator_text(creator: &Value) -> String {
         None => "not looked up by loadContext".to_owned(),
         Some("missing") => "missing from the record store".to_owned(),
         Some(_) => {
-            let candidate = &lookup["candidate"];
+            // A creator a 21.13.0 review recorded holds its lookup as that
+            // release answered it, with the labels under `candidate`.
+            let labels = match &lookup["candidate"] {
+                Value::Null => lookup,
+                candidate => candidate,
+            };
             let field = |value: &Value| value.as_str().map_or_else(|| "none".to_owned(), shown);
             let mut found = format!(
                 "provider {}, model {}, effort {}; task {}, kind {}, recorded {}",
-                field(&candidate["provider"]),
-                field(&candidate["model"]),
-                field(&candidate["effort"]),
+                field(&labels["provider"]),
+                field(&labels["model"]),
+                field(&labels["effort"]),
                 field(&lookup["taskId"]),
                 field(&lookup["kind"]),
                 field(&lookup["recordedAt"]),
@@ -371,10 +417,18 @@ impl Export {
         text.push_str(&measurements_text(&observation::summary(self.current())));
         let candidate = &launch["candidate"];
         let policy = &launch["policy"];
+        let params = params_text(
+            launch["params"]
+                .as_object()
+                .into_iter()
+                .flatten()
+                .filter_map(|(name, value)| Some((name.as_str(), value.as_str()?))),
+        );
         let mut rows = vec![
             ("kind", field(&launch["kind"])),
             ("task id", field(&launch["taskId"])),
             ("task file", field(&launch["taskFile"])),
+            ("params", params),
             ("reviewed", field(&launch["reviewedArtifact"])),
             ("creator", creator_text(&launch["creator"])),
             (
@@ -401,9 +455,18 @@ impl Export {
                     field(&policy["sha256"])
                 ),
             ),
-            ("choice", field(&launch["selection"]["explicitChoice"])),
-            ("selected", field(&launch["selection"]["selectedBy"])),
-            ("candidate", field(&candidate["id"])),
+        ];
+        // What only a run recorded under the catalog contract has.
+        for (label, value) in [
+            ("choice", &launch["selection"]["explicitChoice"]),
+            ("selected", &launch["selection"]["selectedBy"]),
+            ("candidate", &candidate["id"]),
+        ] {
+            if !value.is_null() {
+                rows.push((label, field(value)));
+            }
+        }
+        rows.extend([
             ("provider", field(&candidate["provider"])),
             ("model", field(&candidate["model"])),
             ("effort", field(&candidate["effort"])),
@@ -436,7 +499,7 @@ impl Export {
                     field(&launch["timing"]["selectionMs"])
                 ),
             ),
-        ];
+        ]);
         // Each measured source under the context's own row, the task file a
         // review's creator came from included, with its digest.
         let sources = launch["context"]["sources"]
@@ -583,31 +646,53 @@ mod tests {
         (dir, state, run_id)
     }
 
+    /// A launch document as this release writes it, without a candidate ID.
     fn launch() -> Value {
         json!({
             "schemaVersion": 1, "kind": "impl", "taskId": null,
             "candidate": {
-                "id": "c", "provider": "origin-a", "model": "m", "effort": "e",
-                "program": "harness", "args": [{ "slot": "prompt" }],
+                "id": null, "provider": "origin-a", "model": "m", "effort": "e",
+                "program": "harness", "args": ["the prompt"],
             },
             "argv": ["harness", "the prompt"],
         })
     }
 
     #[test]
-    fn a_later_launch_version_or_a_missing_field_is_refused_never_answered_with_less() {
-        let (_dir, state, run) = committed(&launch());
-        let answer = lookup(&state, &run, store::LOCK_WAIT).unwrap();
-        assert_eq!(
-            answer["candidate"],
-            json!({ "id": "c", "provider": "origin-a", "model": "m", "effort": "e" })
-        );
-        assert_eq!(answer["taskId"], Value::Null);
-        assert!(
-            answer.get("argv").is_none(),
-            "the prompt is never looked up"
-        );
+    fn a_lookup_answers_the_labels_of_a_run_recorded_under_either_contract() {
+        // As 21.13.0 wrote it: a candidate ID, and slots among its arguments.
+        let mut catalog = launch();
+        catalog["candidate"]["id"] = "c".into();
+        catalog["candidate"]["args"] = json!([{ "slot": "prompt" }]);
+        for launch in [launch(), catalog] {
+            let (_dir, state, run) = committed(&launch);
+            let answer = lookup(&state, &run, store::LOCK_WAIT).unwrap();
+            let fields: Vec<&String> = answer.as_object().unwrap().keys().collect();
+            assert_eq!(
+                fields,
+                [
+                    "effort",
+                    "kind",
+                    "launchFailure",
+                    "model",
+                    "provider",
+                    "recordedAt",
+                    "runId",
+                    "status",
+                    "taskId"
+                ],
+                "the prompt, the program and the arguments are never looked up"
+            );
+            assert_eq!(
+                (&answer["provider"], &answer["model"], &answer["effort"]),
+                (&json!("origin-a"), &json!("m"), &json!("e"))
+            );
+            assert_eq!(answer["taskId"], Value::Null);
+        }
+    }
 
+    #[test]
+    fn a_later_launch_version_or_a_missing_field_is_refused_never_answered_with_less() {
         let mut later = launch();
         later["schemaVersion"] = 2.into();
         let mut no_provider = launch();

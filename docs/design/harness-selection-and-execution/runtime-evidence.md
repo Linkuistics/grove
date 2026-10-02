@@ -797,20 +797,24 @@ target environment's own `tar` into a fresh prefix. `bin/grove`,
 `bin/grove-llm` and `bin/harness-dispatch` must report the archive's version.
 Then `crates/harness-dispatch/scripts/installed-smoke.sh` runs its cases
 through the prefix's front and through a relative symlink to it. PATH is
-`/usr/bin:/bin`, with no Bun or Node on it. The static TypeScript case uses an
+`/usr/bin:/bin`, with no Bun or Node on it. The table case's policy uses an
 interface, annotated bindings and a type-only import across a relative import,
-and imports the embedded `harness-dispatch/sdk`. Its candidate fills every
-slot. The case asserts `inspect`'s choice, expanded argv and worker path. A
-`run` against a temporary state directory must exit with the fake harness's
-42, and the harness must have received that argv, run ID, state directory and
-cwd. `record show` must read that run back, so the bundled SQLite executes.
-The computed TypeScript case exports an asynchronous `select`, annotated with
-the SDK's types, that waits on a timer, reads the request and imports the
-embedded `harness-dispatch/examples/dynamic`. `inspect` must report the
-computed selection, with a reason carrying the request's kind and task
-identity. A `run` whose explicit choice the policy refuses must exit 3 with
-the policy's code and start nothing. The plain `run` must reach the fake
-harness with its run ID, and `record show` must report the `select` form.
+and imports the embedded `harness-dispatch/sdk`. Its `select` consults a table
+by kind and places the kind, task file, task identity and prompt in its
+arguments. The case asserts `inspect`'s `command` object, labels and worker
+path. A `run` against a temporary state directory must exit with the fake
+harness's 42, and the harness must have received those arguments, the run ID,
+state directory and cwd. `record show` must read that run back, so the bundled
+SQLite executes.
+The parameters case exports an asynchronous `select`, annotated with the SDK's
+types, that waits on a timer, reads the request and imports the embedded
+`harness-dispatch/examples/static`. It places a parameter's value inside one
+argument. `inspect` without a prompt must report the parameter, the marker the
+SDK names where the prompt goes, and a reason carrying the request's kind and
+task identity. A `run` without the parameter, which the policy refuses, must
+exit 3 with the policy's code and start nothing. The `run` with it must reach
+the fake harness with that argument and the prompt, and `record show` must
+report the parameter.
 The declared-package case, added with
 [package.json autoloading](#package-json-autoloading), imports two packages
 from a `node_modules` beside its policy. One names its entry with `main` and

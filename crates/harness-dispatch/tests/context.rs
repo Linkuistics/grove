@@ -16,17 +16,20 @@ use serde_json::{json, Value};
 use sha2::{Digest as _, Sha256};
 use support::{mkfifo, text, Sandbox};
 
-const CATALOG: &str = r#"[
-    { id: "deep", provider: "origin-a", model: "model-large", effort: "high", program: "fake-harness", args: [{ slot: "prompt" }] },
-    { id: "quick", provider: "origin-b", model: "model-small", effort: "low", program: "fake-harness", args: [{ slot: "prompt" }] },
-  ]"#;
+/// The two commands a policy here selects between, each the fake harness with
+/// the prompt as its one argument, under its own labels.
+const COMMANDS: &str = r#"const harness = (provider, model, effort) => (request, reason) =>
+  ({ status: "selected", program: "fake-harness", args: [request.prompt], provider, model, effort, reason });
+const deep = harness("origin-a", "model-large", "high");
+const quick = harness("origin-b", "model-small", "low");
+"#;
 
-/// A policy with its catalog, then `members`: a `loadContext`, a `select`
-/// or `routes`. `writeFileSync` is in scope for members that record.
+/// A policy with `members`: a `select`, and a `loadContext` where the test
+/// has one. `deep`, `quick` and `writeFileSync` are in scope for them.
 fn policy(members: &str) -> String {
     format!(
-        "import {{ writeFileSync }} from \"node:fs\";\n\
-         export const policy = {{\n  schemaVersion: 1,\n  version: \"context-1\",\n  catalog: {CATALOG},\n{members}\n}};\n"
+        "import {{ writeFileSync }} from \"node:fs\";\n{COMMANDS}\
+         export const policy = {{\n  schemaVersion: 2,\n  version: \"context-1\",\n{members}\n}};\n"
     )
 }
 
@@ -36,15 +39,14 @@ fn recording_select(path: &Path) -> String {
     format!(
         r#"  select(request, context) {{
     writeFileSync({:?}, JSON.stringify({{ request, context: context === undefined ? "undefined" : context }}));
-    return {{ status: "selected", candidateId: "quick", reason: "recorded" }};
+    return quick(request, "recorded");
   }},"#,
         text(path)
     )
 }
 
 /// A `select` that selects `quick` and records nothing.
-const SELECT: &str =
-    r#"  select() { return { status: "selected", candidateId: "quick", reason: "selected" }; },"#;
+const SELECT: &str = r#"  select(request) { return quick(request, "selected"); },"#;
 
 /// Every version-1 field, with an empty collection kept empty.
 const DOCUMENT: &str = r#"{
@@ -139,9 +141,9 @@ fn a_caller_context_reaches_the_policy_as_data_and_inspection_measures_it() {
     let keys: Vec<&String> = seen_value["context"].as_object().unwrap().keys().collect();
     assert_eq!(keys, ["measured", "schemaVersion"]);
 
-    // A routes policy is not given the context, but it is still measured and
-    // reported, and the route still selects.
-    sandbox.personal_policy(&policy(r#"  routes: { review: "deep" },"#));
+    // A `select` that reads no context is given the same one: what is
+    // measured and reported does not depend on what the policy consults.
+    sandbox.personal_policy(&policy(SELECT));
     let report = sandbox
         .inspect(&[
             "--kind",
@@ -151,7 +153,7 @@ fn a_caller_context_reaches_the_policy_as_data_and_inspection_measures_it() {
             "--json",
         ])
         .report();
-    assert_eq!(report["selection"]["selectedBy"], "route");
+    assert_eq!(report["selection"]["reason"], "selected");
     assert_eq!(report["context"]["sources"], measured);
 
     // Text inspection names each measured source and the context digest.
@@ -321,10 +323,13 @@ fn each_invalid_caller_context_refuses_at_its_location_before_any_policy_runs() 
         );
         assert!(!sandbox.harness_ran(), "{context}");
         assert!(!sentinel.exists(), "{context}: the policy ran");
-        if case == "an executable field" {
-            let message = refusal["error"]["message"].as_str().unwrap();
-            assert!(message.contains("a context is data"), "{context}");
-        }
+        // Only a field named like an executable one says why it is refused.
+        let message = refusal["error"]["message"].as_str().unwrap();
+        assert_eq!(
+            message.contains("a context is data"),
+            case == "an executable field",
+            "{context}"
+        );
     }
 
     // The positive control: the whole document, valid, reaches the harness.
@@ -378,7 +383,7 @@ fn a_loader_reads_measured_sources_against_the_callers_directory() {
                 r#"  loadContext(request, host) {{
     const risk = host.readJson("data/risk.json");
     const notes = host.readText("notes-link.md");
-    writeFileSync({:?}, JSON.stringify({{ explicitChoice: request.explicitChoice ?? null, risk, notes }}));
+    writeFileSync({:?}, JSON.stringify({{ prompt: request.prompt, params: request.params, risk, notes }}));
     return {{
       schemaVersion: 1,
       summary: notes.text,
@@ -388,8 +393,7 @@ fn a_loader_reads_measured_sources_against_the_callers_directory() {
   }},
   select(request, context) {{
     const risk = context.assessments.risk.value;
-    const id = request.explicitChoice ?? (risk === floor ? "deep" : "quick");
-    return {{ status: "selected", candidateId: id, reason: `risk ${{risk}} against floor ${{floor}}` }};
+    return (risk === floor ? deep : quick)(request, `risk ${{risk}} against floor ${{floor}}`);
   }},"#,
                 text(&loaded)
             ))
@@ -405,10 +409,14 @@ fn a_loader_reads_measured_sources_against_the_callers_directory() {
             "impl",
             "--config",
             "../policies/policy.ts",
+            "--prompt",
+            "Rename the flag,\ncarefully\n",
+            "--param",
+            "ticket=12",
             "--json",
         ])
         .report();
-    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(report["selection"]["provider"], "origin-a");
     assert_eq!(
         report["selection"]["reason"],
         "risk high against floor high"
@@ -444,21 +452,27 @@ fn a_loader_reads_measured_sources_against_the_callers_directory() {
         entry.as_object_mut().unwrap().remove("via");
     }
     assert_eq!(context["value"]["sources"], attributed);
-    assert_eq!(seen["explicitChoice"], Value::Null);
 
-    // An explicit choice is visible to context assembly as well as to select.
-    sandbox
+    // The loader receives the request `select` does: the prompt, byte for
+    // byte, and every parameter.
+    assert_eq!(seen["prompt"], "Rename the flag,\ncarefully\n");
+    assert_eq!(seen["params"], json!({ "ticket": "12" }));
+
+    // Under an inspection given no prompt, it receives the marker, and no
+    // parameter where the caller passed none.
+    let report = sandbox
         .inspect(&[
             "--kind",
             "impl",
             "--config",
             "../policies/policy.ts",
-            "--choice",
-            "quick",
             "--json",
         ])
         .report();
-    assert_eq!(read_json(&loaded)["explicitChoice"], "quick");
+    let seen = read_json(&loaded);
+    assert_eq!(report["prompt"]["supplied"], false);
+    assert_eq!(seen["prompt"], report["prompt"]["marker"]);
+    assert_eq!(seen["params"], json!({}));
 }
 
 #[test]
@@ -478,7 +492,7 @@ fn the_typed_context_fixture_selects_through_the_worker() {
     let report = sandbox
         .inspect(&["--kind", "impl", "--context", "context.json", "--json"])
         .report();
-    assert_eq!(report["selection"]["candidateId"], "deep");
+    assert_eq!(report["selection"]["provider"], "origin-a");
     assert_eq!(
         report["selection"]["reason"],
         "kind impl, risk \"high\", measured --context:41,readJson:16,readText:20"
@@ -653,20 +667,15 @@ fn a_failing_loader_refuses_and_launches_nothing() {
             "policy.loadContext",
         ),
     ] {
-        for members in [
-            format!("  {loader}\n{SELECT}"),
-            format!("  {loader}\n  routes: {{ impl: \"deep\" }},"),
-        ] {
-            sandbox.personal_policy(&policy(&members));
-            let refusal = sandbox
-                .run(&["--kind", "impl", "--prompt", "p", "--json"])
-                .refusal(3);
-            let context = format!("{case}: {refusal}");
-            assert_eq!(refusal["error"]["code"], code, "{context}");
-            assert_eq!(refusal["error"]["stage"], "context", "{context}");
-            assert_eq!(refusal["error"]["location"], location, "{context}");
-            assert!(!sandbox.harness_ran(), "{context}");
-        }
+        sandbox.personal_policy(&policy(&format!("  {loader}\n{SELECT}")));
+        let refusal = sandbox
+            .run(&["--kind", "impl", "--prompt", "p", "--json"])
+            .refusal(3);
+        let context = format!("{case}: {refusal}");
+        assert_eq!(refusal["error"]["code"], code, "{context}");
+        assert_eq!(refusal["error"]["stage"], "context", "{context}");
+        assert_eq!(refusal["error"]["location"], location, "{context}");
+        assert!(!sandbox.harness_ran(), "{context}");
     }
     let message = |loader: &str| {
         sandbox.personal_policy(&policy(&format!("  {loader}\n{SELECT}")));
@@ -701,7 +710,7 @@ fn a_failing_loader_refuses_and_launches_nothing() {
 fn a_loader_can_refuse_as_the_policy_and_nothing_is_selected() {
     // A loader that finds what it requires invalid returns select's refusal
     // shape. It is the policy's own refusal, at the context stage, and select
-    // is never asked; a routes table is never consulted either.
+    // is never asked.
     let sandbox = Sandbox::new();
     let asked = sandbox.root.join("select-asked");
     let refusing = r#"{ status: "refused", code: "ticket_closed", message: "ticket 12 is closed", remedy: "reopen ticket 12" }"#;
@@ -709,44 +718,34 @@ fn a_loader_can_refuse_as_the_policy_and_nothing_is_selected() {
         format!("  loadContext() {{ return {refusing}; }},"),
         format!("  async loadContext() {{ return {refusing}; }},"),
     ] {
-        for members in [
-            format!("{loader}\n{}", recording_select(&asked)),
-            format!("{loader}\n  routes: {{ impl: \"deep\" }},"),
-        ] {
-            sandbox.personal_policy(&policy(&members));
-            for (extra, input) in [
-                (&[][..], "--kind impl"),
-                (&["--choice", "quick"][..], "--choice quick"),
-            ] {
-                let mut args = vec!["--kind", "impl", "--prompt", "p", "--json"];
-                args.extend(extra);
-                let refusal = sandbox.run(&args).refusal(3);
-                let error = &refusal["error"];
-                assert_eq!(error["code"], "policy_refused", "{refusal}");
-                assert_eq!(error["policyCode"], "ticket_closed", "{refusal}");
-                assert_eq!(error["stage"], "context", "{refusal}");
-                assert_eq!(error["location"], "policy.loadContext", "{refusal}");
-                assert_eq!(error["input"], input, "{refusal}");
-                assert_eq!(error["remedy"], "reopen ticket 12", "{refusal}");
-                assert!(
-                    error["message"]
-                        .as_str()
-                        .unwrap()
-                        .ends_with("refused the selection in loadContext: ticket 12 is closed"),
-                    "{refusal}"
-                );
-                assert!(!sandbox.harness_ran(), "{refusal}");
-                assert!(!asked.exists(), "select was asked: {refusal}");
-                assert!(!sandbox.default_store().exists(), "{refusal}");
-            }
-        }
+        sandbox.personal_policy(&policy(&format!("{loader}\n{}", recording_select(&asked))));
+        let refusal = sandbox
+            .run(&["--kind", "impl", "--prompt", "p", "--json"])
+            .refusal(3);
+        let error = &refusal["error"];
+        assert_eq!(error["code"], "policy_refused", "{refusal}");
+        assert_eq!(error["policyCode"], "ticket_closed", "{refusal}");
+        assert_eq!(error["stage"], "context", "{refusal}");
+        assert_eq!(error["location"], "policy.loadContext", "{refusal}");
+        assert_eq!(error["input"], "--kind impl", "{refusal}");
+        assert_eq!(error["remedy"], "reopen ticket 12", "{refusal}");
+        assert!(
+            error["message"]
+                .as_str()
+                .unwrap()
+                .ends_with("refused the selection in loadContext: ticket 12 is closed"),
+            "{refusal}"
+        );
+        assert!(!sandbox.harness_ran(), "{refusal}");
+        assert!(!asked.exists(), "select was asked: {refusal}");
+        assert!(!sandbox.default_store().exists(), "{refusal}");
     }
 
     // A `status` makes a loader's result a refusal or nothing: each part of
     // the shape is required, and nothing else may sit beside it.
     for (result, location) in [
         (
-            r#"{ status: "selected", candidateId: "quick", reason: "r" }"#,
+            r#"{ status: "selected", program: "fake-harness", args: [], provider: "p", model: "m", effort: "e", reason: "r" }"#,
             "context.status",
         ),
         (
@@ -762,8 +761,8 @@ fn a_loader_can_refuse_as_the_policy_and_nothing_is_selected() {
             "context.remedy",
         ),
         (
-            r#"{ status: "refused", code: "c", message: "m", remedy: "r", candidateId: "deep" }"#,
-            "context.candidateId",
+            r#"{ status: "refused", code: "c", message: "m", remedy: "r", program: "fake-harness" }"#,
+            "context.program",
         ),
         (
             r#"{ schemaVersion: 1, status: "refused", code: "c", message: "m", remedy: "r" }"#,
@@ -838,7 +837,7 @@ fn select_reads_nothing_through_its_host_and_the_loaders_reads_close() {
     const errors = [];
     try { host.readText("notes.md"); } catch (error) { errors.push(error.message); }
     try { globalThis.laterRead(); } catch (error) { errors.push(error.message); }
-    return { status: "selected", candidateId: "quick", reason: errors.join(" | ") };
+    return quick(request, errors.join(" | "));
   },"#,
     ));
     let report = sandbox.inspect(&["--kind", "impl", "--json"]).report();
@@ -865,7 +864,7 @@ fn diagnostics_the_host_writes_stay_out_of_the_json_report() {
   },
   select(request, context, host) {
     host.diagnostic("selecting\n");
-    return { status: "selected", candidateId: "quick", reason: "r" };
+    return quick(request, "r");
   },"#,
     ));
     let report = sandbox.inspect(&["--kind", "impl", "--json"]);
@@ -890,21 +889,22 @@ fn diagnostics_the_host_writes_stay_out_of_the_json_report() {
 }
 
 #[test]
-fn an_unknown_choice_refuses_before_the_loader_runs() {
+fn the_loader_runs_only_for_a_policy_the_front_accepted() {
+    // The front validates the policy the worker loaded before it asks for a
+    // context, so an invalid one refuses with its loader never called.
     let sandbox = Sandbox::new();
     let sentinel = sandbox.root.join("loader-ran");
-    sandbox.personal_policy(&policy(&format!(
-        "  loadContext() {{ writeFileSync({:?}, \"ran\"); return {{ schemaVersion: 1 }}; }},\n{SELECT}",
+    let loader = format!(
+        "  loadContext() {{ writeFileSync({:?}, \"ran\"); return {{ schemaVersion: 1 }}; }},",
         text(&sentinel)
-    )));
-    let refusal = sandbox
-        .inspect(&["--kind", "impl", "--choice", "nope", "--json"])
-        .refusal(3);
-    assert_eq!(refusal["error"]["code"], "unknown_choice");
+    );
+    sandbox.personal_policy(&policy(&format!("{loader}\n  select: \"quick\",")));
+    let refusal = sandbox.inspect(&["--kind", "impl", "--json"]).refusal(3);
+    assert_eq!(refusal["error"]["code"], "policy_invalid", "{refusal}");
+    assert_eq!(refusal["error"]["location"], "policy.select", "{refusal}");
     assert!(!sentinel.exists(), "the loader ran");
-    // The control: a configured choice reaches the loader.
-    sandbox
-        .inspect(&["--kind", "impl", "--choice", "quick", "--json"])
-        .report();
+    // The control: the same loader, beside a `select`, runs.
+    sandbox.personal_policy(&policy(&format!("{loader}\n{SELECT}")));
+    sandbox.inspect(&["--kind", "impl", "--json"]).report();
     assert!(sentinel.exists());
 }
